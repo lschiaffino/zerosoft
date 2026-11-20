@@ -32,6 +32,7 @@ import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
 import LinkPreview from './wa/LinkPreview';
+import type { InviteJoin } from './wa/InviteCard';
 import { linkFromMeta } from './wa/link-preview-data';
 import Transcript from './wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from './wa/OlderHistory';
@@ -57,7 +58,7 @@ import AttachPreview from './wa/AttachPreview';
 import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
 import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
-import { colorIndex, dayLabel, extensionOf, firstUrl, linkify, localDayKey, onlyEmoji } from './wa/format';
+import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji, previewUrl } from './wa/format';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
 
 /** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
@@ -1548,6 +1549,24 @@ export default function ChatThread(props: ThreadProps) {
     router.push(`/app/lines/inbox/${res.data.id}${window.location.search}`);
   }
 
+  /**
+   * "Unirme al grupo" en una invitación: entra con la línea por la que llegó el mensaje (en un chat de varias
+   * líneas, la suya). El servidor revisa que quien mira vea esa línea, como para crear un chat.
+   */
+  function inviteJoinFor(m: MessageDto, url: string): InviteJoin | undefined {
+    if (!props.caps.groups || props.sample) return undefined;
+    const line = chat.lines?.find((l) => l.chatId === m.chatId);
+    const numberId = line?.lineId ?? chat.numberId;
+    return {
+      lineName: line?.name || props.numberName,
+      run: async () => {
+        const res = await api<{ id: string; name?: string }>('/api/groups/join', { body: { numberId, invite: url } });
+        return res.data ? { ok: true, id: res.data.id, name: res.data.name } : { ok: false, code: res.error };
+      },
+      onOpen: (id) => router.push(`/app/lines/inbox/${id}${window.location.search}`),
+    };
+  }
+
   /** "Mensaje a <persona>" o "Responder en privado": su chat 1:1 en la misma línea (se crea si no existe). */
   async function openPrivateChat(m: MessageDto, quote: boolean) {
     const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', messageId: m.id } });
@@ -2108,7 +2127,9 @@ export default function ChatThread(props: ThreadProps) {
               labels={{ working: tw('transcribing'), failed: tw('transcribeFailed'), more: tw('showMore'), less: tw('showLess'), summary: tw('audioSummary'), title: tw('transcript') }}
             />
           )}
-          {!media && !hidden && !m.poll && !m.meta?.noPreview && firstUrl(m.body) && <LinkPreview url={firstUrl(m.body)} given={linkFromMeta(m.meta)} />}
+          {!media && !hidden && !m.poll && !m.meta?.noPreview && previewUrl(m.body) && (
+            <LinkPreview url={previewUrl(m.body)} given={linkFromMeta(m.meta)} join={isTempId(m.id) ? undefined : inviteJoinFor(m, previewUrl(m.body))} />
+          )}
           {location && !hidden && <LocationCard lat={location.lat} lng={location.lng} name={location.name ?? ''} address={location.address} url={location.url} live={location.live} />}
           {!hidden && contacts.length > 0 && (
             <ContactCards

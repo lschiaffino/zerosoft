@@ -971,6 +971,8 @@
     "invalid_ephemeral": "Esa duración no está disponible.",
     "invalid_invite": "Eso no parece un link de invitación de WhatsApp.",
     "invite_invalid": "El link de invitación venció o lo regeneraron. Pedí uno nuevo.",
+    "invite_already_member": "Este número ya está en el grupo.",
+    "invite_approval_required": "Solicitud enviada. Un admin del grupo tiene que aprobarla.",
     "too_many_properties": "Hay demasiadas propiedades. Borrá alguna primero.",
     "too_many_templates": "Hay demasiadas plantillas. Borrá alguna primero.",
     "too_many_lists": "Hay demasiadas listas guardadas. Borrá alguna primero.",
@@ -2082,6 +2084,28 @@
     "refreshRetry": "Reintentar",
     "refreshDismiss": "Cerrar",
     "archivedTag": "Archivado",
+    "invite": {
+      "subtitle": "Invitación a grupo de WhatsApp",
+      "unnamed": "Grupo de WhatsApp",
+      "join": "Unirme al grupo",
+      "joining": "Uniéndote…",
+      "openGroup": "Abrir grupo",
+      "openInWhatsapp": "Abrir en WhatsApp",
+      "cancel": "Cancelar",
+      "confirmTitle": "¿Unirte a «{name}» desde {line}?",
+      "confirmTitleAccount": "¿Unirte a «{name}» con tu WhatsApp?",
+      "confirmBody": "Los miembros del grupo van a ver que este número se unió.",
+      "joined": "Te uniste a «{name}».",
+      "errors": {
+        "invite_invalid": "El link de invitación no es válido o lo reiniciaron.",
+        "invite_already_member": "Este número ya está en el grupo.",
+        "invite_approval_required": "Solicitud enviada. Un admin del grupo tiene que aprobarla.",
+        "not_connected": "Este número de WhatsApp no está conectado.",
+        "groups_unsupported": "Este número no puede unirse a grupos (API de WhatsApp Cloud).",
+        "rate_limited": "Demasiados intentos. Esperá un momento y probá de nuevo.",
+        "failed": "No se pudo entrar al grupo. Probá de nuevo o abrilo en WhatsApp."
+      }
+    },
     "reactions": {
       "title": "{count, plural, one {# reacción} other {# reacciones}}",
       "chip": "{count, plural, one {# reacción} other {# reacciones}}: {list}. Ver quién reaccionó",

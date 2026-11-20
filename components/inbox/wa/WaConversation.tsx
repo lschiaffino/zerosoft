@@ -38,6 +38,8 @@ import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import LinkPreview from '@/components/groups/wa/LinkPreview';
+import type { InviteJoin } from '@/components/groups/wa/InviteCard';
+import { inviteLinks } from '@/lib/wa-invite';
 import Transcript from '@/components/groups/wa/Transcript';
 import OlderHistoryChip, { useOlderHistory, type OlderReply } from '@/components/groups/wa/OlderHistory';
 import RefreshMissingBar, { useRefreshMissing, type RefreshProgress, type RefreshReply } from '@/components/groups/wa/RefreshMissing';
@@ -746,6 +748,23 @@ const WaConversation = forwardRef<
   }
 
   /** `album`: las fotos y videos que van juntos con `m` (la última); la burbuja es la de `m` con la grilla en vez de una foto. */
+  /**
+   * "Unirme al grupo" en una invitación: entra con la cuenta del chat donde llegó (en un chat de varias cuentas,
+   * la del mensaje) y abre el grupo. Solo la dueña de la cuenta (el servidor filtra por ella).
+   */
+  function inviteJoinFor(m: MessageDto, url: string): InviteJoin | undefined {
+    if (!url) return undefined;
+    const threadId = lineOf(m);
+    return {
+      lineName: lineNames.get(threadId) ?? '',
+      run: async () => {
+        const r = await api<{ thread?: { id: string; title?: string } }>('/api/inbox/groups/join', { method: 'POST', json: { invite: url, threadId } });
+        return r.ok && r.data.thread ? { ok: true, id: r.data.thread.id, name: r.data.thread.title } : { ok: false, code: r.data.error ?? 'failed' };
+      },
+      onOpen: props.onOpenThread,
+    };
+  }
+
   function renderMessage(m: MessageDto, cont: boolean, album?: MessageDto[]) {
     const dir = m.fromMe ? 'out' : 'in';
     const hidden = m.revoked && !revealed.has(m.id);
@@ -926,7 +945,8 @@ const WaConversation = forwardRef<
           ) : null}
           {!hidden && !kind && !poll && !meta.noPreview && (meta.link || firstUrl(m.body)) && (
             <LinkPreview
-              url={meta.link?.url ?? firstUrl(m.body)}
+              url={inviteLinks(m.body)[0]?.url ?? meta.link?.url ?? firstUrl(m.body)}
+              join={isTempId(m.id) ? undefined : inviteJoinFor(m, inviteLinks(m.body)[0]?.url ?? meta.link?.url ?? '')}
               given={
                 meta.link
                   ? {

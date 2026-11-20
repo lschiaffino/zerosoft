@@ -560,7 +560,23 @@ export class ProviderError extends Error {
     this.name = 'ProviderError';
   }
   /** Motivo que dio el gateway, reducido a una etiqueta (lib/wa-media-wire.ts); nunca el texto. */
-  reason?: 'message_not_found' | 'offline' | 'media_gone' | 'timeout';
+  reason?: 'message_not_found' | 'offline' | 'media_gone' | 'timeout' | InviteFailure;
+}
+
+/**
+ * Por qué no se pudo entrar a un grupo con el link: el link no existe o lo
+ * reiniciaron, la línea ya está en el grupo, o el grupo pide que un admin
+ * apruebe y quedó la solicitud.
+ */
+export type InviteFailure = 'invite_invalid' | 'already_member' | 'approval_required';
+
+/** El texto de error de WhatsApp (Baileys) al aceptar una invitación → la etiqueta, sin guardar el texto. */
+export function inviteFailureOf(text: string): InviteFailure | undefined {
+  const t = String(text ?? '').toLowerCase();
+  if (/conflict|already/.test(t)) return 'already_member';
+  if (/approval/.test(t)) return 'approval_required';
+  if (/not-authorized|not_authorized|item-not-found|gone|revoked|invalid|bad-request|not found/.test(t)) return 'invite_invalid';
+  return undefined;
 }
 
 /** Status HTTP del proveedor → código nuestro (sin leer ni repetir el cuerpo). */

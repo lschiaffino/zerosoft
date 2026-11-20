@@ -221,6 +221,7 @@
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-row-main { min-height: 58px; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-row-btn { min-height: 58px; }
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-linkcard,
+.ib-app.gr-inbox[data-chat-style='zerosoft'] .wa-invite,
 .ib-app.gr-inbox[data-chat-style='zerosoft'] .ib-wa-poll li { border-radius: var(--radius-1); }
 
 /* Miniatura de la foto o el video del último mensaje en la fila. */

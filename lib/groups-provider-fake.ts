@@ -14,7 +14,9 @@
  * - El webhook acepta eventos ya normalizados: { events: InboundEvent[] }.
  * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
  * - Entrar por invitación: cualquier código de 6+ letras entra a un grupo
- *   nuevo, salvo los que empiezan con "bad" (link vencido).
+ *   nuevo, salvo los que empiezan con "bad" (link vencido) y los que empiezan
+ *   con "approve" (el grupo pide aprobación: queda la solicitud). Un código de
+ *   un grupo en el que la línea ya está da "already_member".
  * - Historial guardado (como Evolution con base): solo en los números de Inbox
  *   y con INBOX_FAKE_HISTORY=1, tres chats fijos (uno con 230 mensajes, para
  *   paginar). Sin la variable el historial está vacío.
@@ -42,6 +44,7 @@ import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
+  type InviteFailure,
   phoneDigits,
   type ArchiveRef,
   type ConnectState,
@@ -687,8 +690,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     async joinGroup(code) {
       requireConnected();
-      if (code.toLowerCase().startsWith('bad')) throw new ProviderError('not_found', 404);
+      const fail = (reason: InviteFailure, c: 'not_found' | 'provider_error', status: number) => {
+        const e = new ProviderError(c, status);
+        e.reason = reason;
+        return e;
+      };
+      if (code.toLowerCase().startsWith('bad')) throw fail('invite_invalid', 'not_found', 404);
+      if (code.toLowerCase().startsWith('approve')) throw fail('approval_required', 'provider_error', 400);
       const existing = [...s.groups.values()].find((g) => g.inviteCode === code.replace(/^FAKE/, ''));
+      if (existing && !existing.left && existing.participants.some((p) => p.phone === '15550000001')) throw fail('already_member', 'provider_error', 409);
       if (existing) {
         existing.left = false;
         if (!existing.participants.some((p) => p.phone === '15550000001')) existing.participants.push({ phone: '15550000001', role: 'member' });
