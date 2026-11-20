@@ -3675,7 +3675,7 @@
     "sequencesUnenrollTitle": "Sacar un contacto de una secuencia",
     "sequencesUnenrollDesc": "Saca al contacto de la secuencia (estado exited, motivo manual).",
     "paramTemplateKind": "Filtrar por tipo: template o snippet.",
-    "paramSenderId": "Miembro del workspace cuyo Gmail envía los emails. Por defecto, el owner del contacto y si no quien creó la secuencia.",
+    "paramSenderId": "Miembro del workspace cuyo Gmail envía los emails. Solo el owner o un admin del workspace lo eligen (por defecto, el owner del contacto y si no quien creó la secuencia); con la key de un member siempre envía desde su propio buzón.",
     "crmProductsTitle": "CRM · Productos y line items",
     "crmProductsDesc": "Catálogo de productos y los line items de cada deal. Mientras un deal tenga line items, su monto es la suma de los netos (después del descuento, antes de impuestos), salvo que amountOverride esté activo.",
     "crmQuotesTitle": "CRM · Cotizaciones",
