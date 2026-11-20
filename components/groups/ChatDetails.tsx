@@ -79,6 +79,7 @@ export default function ChatDetails({
   compact?: boolean;
 }) {
   const t = useTranslations('groups');
+  const tsheet = useTranslations('groups.wa.contactSheet');
   const errText = useErrorText();
   const router = useRouter();
   const locale = useLocale();
