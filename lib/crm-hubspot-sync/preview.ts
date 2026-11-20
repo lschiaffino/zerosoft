@@ -21,8 +21,12 @@
  * 3. contactos, empresas y negocios de HubSpot por fecha de modificación
  *    (lib/crm-hubspot-sync/reader.ts). Cada registro se anota con su clave
  *    (email o dominio), el registro nuestro que le corresponde y qué difiere.
- * 4. compare: lo que solo se sabe con todo leído (dos de HubSpot para uno
- *    nuestro, lo que solo está de este lado), los conteos y las muestras.
+ * 4. compare, por objeto y en tres pasos: marcar lo ambiguo entre los
+ *    registros de HubSpot; recorrer nuestros registros por id, en tandas con
+ *    cursor (como la lectura de HubSpot), anotando en la tabla de trabajo los
+ *    que nadie reclamó con su grupo; y armar conteos y muestras con consultas
+ *    por índice sobre la tabla de trabajo. Ningún paso recorre una tabla
+ *    entera del CRM de una vez.
  *
  * Cómo se empareja:
  * - Primero lo ya vinculado: crm_hubspot_links (el sync) y crm_external_ids
@@ -46,7 +50,7 @@ import { fieldNameFrom } from '../crm-import-source';
 import { workspacePeople } from '../crm-import';
 import { HubspotApiError, hubspotStatusError, type HubspotClient } from '../hubspot/client';
 import { missingHubspotScopes } from '../hubspot/token';
-import { SYNC_READ_SCOPES, openSyncConnection, syncHubspotClient } from './connection';
+import { SYNC_READ_SCOPES, isBlockingConnectionError, markConnectionError, openSyncConnection, syncHubspotClient, type BlockingConnectionError } from './connection';
 import {
   HS_READ_PROPS,
   LINK_OBJECT,
@@ -96,6 +100,13 @@ interface Cursor {
   read: ModifiedCursor;
   /** Lectura de empresas del CRM en curso (último id). */
   localAfter: string;
+  /** Paso de la comparación del objeto en curso: 0 marcar ambiguos, 1 recorrer lo nuestro, 2 informe. */
+  cmp: number;
+  /** Recorrido de lo nuestro en la comparación: último id visto y cuántos van. */
+  cmpAfter: string;
+  cmpSeen: number;
+  /** Objetos cuya lectura de HubSpot se cortó antes del final (un registro sin fecha de modificación). */
+  incomplete: PreviewObject[];
 }
 
 interface PreviewRow {
@@ -118,13 +129,18 @@ interface PreviewRow {
   updated_at: string;
 }
 
-/** Fallas seguidas que se toleran antes de dar la vista previa por fallida. */
-const MAX_ATTEMPTS = 8;
+/**
+ * Tramos seguidos sin avanzar que se toleran antes de dar la vista previa por
+ * fallida. Se cuentan al reclamar: un tramo que muere a mitad (el proceso se
+ * corta, se pasa de tiempo) también gasta su intento.
+ */
+export const MAX_ATTEMPTS = 8;
 /** Cuánto se espera para volver a intentar después del límite diario de HubSpot. */
 export const DAILY_RETRY_MS = 30 * 60_000;
 /** Tramo de un POST .../run: corto, para que cancelar y el resto del servidor no esperen. */
 export const REQUEST_STEP_BUDGET_MS = 6_000;
-const LOCAL_PAGE = 500;
+/** Registros nuestros por tanda (empresas con su dominio, y el recorrido de la comparación). */
+export const LOCAL_PAGE = 500;
 const ROW_COLUMNS = ['preview_id', 'side', 'object', 'ref_id', 'match_key', 'local_id', 'via', 'bucket', 'diff', 'newer', 'label', 'detail', 'modified_at'];
 
 const iso = (d = new Date()) => d.toISOString();
@@ -140,7 +156,7 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
 }
 
 const emptyProgress = (): PreviewProgress => ({ stage: 'schema', objects: {} });
-const startCursor = (): Cursor => ({ phase: 0, read: { ...START_CURSOR }, localAfter: '' });
+const startCursor = (): Cursor => ({ phase: 0, read: { ...START_CURSOR }, localAfter: '', cmp: 0, cmpAfter: '', cmpSeen: 0, incomplete: [] });
 
 function stageOf(phase: Phase | undefined): PreviewStage {
   if (phase === 'schema' || phase === 'local_companies') return 'schema';
@@ -177,12 +193,19 @@ async function dropRows(previewId: string): Promise<void> {
   await getDb().prepare('DELETE FROM crm_hubspot_preview_rows WHERE preview_id = ?').run(previewId);
 }
 
-export type StartResult = { ok: true; preview: PreviewView } | { ok: false; code: 'not_connected' | 'missing_scope'; missing?: string[] };
+export type StartResult =
+  | { ok: true; preview: PreviewView }
+  | { ok: false; code: 'not_connected' | 'missing_scope' | 'portal_changed' | 'key_invalid'; missing?: string[] };
+
+/** Código para quien arranca: la clave guardada tiene un problema que pide volver a conectarla. */
+const START_BLOCKED: Record<BlockingConnectionError, 'portal_changed' | 'key_invalid'> = { portal_changed: 'portal_changed', invalid_token: 'key_invalid' };
 
 /** Arranca una vista previa nueva (reemplaza la anterior, corra o no). No lee nada todavía. */
 export async function startPreview(ws: string, actor: string): Promise<StartResult> {
   const conn = await openSyncConnection(ws);
   if (!conn) return { ok: false, code: 'not_connected' };
+  // La clave ya no vale o entra a otra cuenta (los vínculos guardados son de la anterior): primero hay que reconectar.
+  if (isBlockingConnectionError(conn.lastError)) return { ok: false, code: START_BLOCKED[conn.lastError] };
   const missing = missingHubspotScopes(conn.scopes, SYNC_READ_SCOPES);
   if (missing.length) return { ok: false, code: 'missing_scope', missing };
   const db = getDb();
@@ -415,15 +438,15 @@ async function schemaStep(ws: string, client: HubspotClient): Promise<{ plan: Co
 // ---------- Etapa 2: empresas del CRM con su dominio limpio ----------
 
 /** Devuelve el último id leído, o '' si no queda nada. */
-async function localCompaniesStep(ws: string, previewId: string, after: string): Promise<string> {
+async function localCompaniesStep(ws: string, previewId: string, after: string, size = LOCAL_PAGE): Promise<string> {
   const db = getDb();
-  const rows = (await db.prepare('SELECT id, domain FROM crm_companies WHERE user_id = ? AND id > ? ORDER BY id LIMIT ?').all(ws, after, LOCAL_PAGE)) as Array<{ id: string; domain: string }>;
+  const rows = (await db.prepare('SELECT id, domain FROM crm_companies WHERE user_id = ? AND id > ? ORDER BY id LIMIT ?').all(ws, after, size)) as Array<{ id: string; domain: string }>;
   await putRows(
     db,
     previewId,
     rows.map((r) => ({ side: 'local', object: 'company', refId: r.id, key: normalizeCompanyDomain(r.domain) })),
   );
-  return rows.length === LOCAL_PAGE ? rows[rows.length - 1].id : '';
+  return rows.length === size ? rows[rows.length - 1].id : '';
 }
 
 // ---------- Etapa 3: una página de HubSpot ----------
@@ -591,13 +614,13 @@ const LOCAL_LABEL: Record<PreviewObject, { label: string; detail: string }> = {
   deals: { label: 'c.name', detail: `CASE WHEN c.amount > 0 THEN trim(rtrim(rtrim(printf('%.2f', c.amount), '0'), '.') || ' ' || c.currency) ELSE '' END` },
 };
 
-/** Arma el informe de un objeto con SQL sobre la tabla de trabajo. No toca el CRM. */
-export async function compareObject(ctx: StepCtx, object: PreviewObject): Promise<ObjectReport> {
+const T = 'crm_hubspot_preview_rows';
+
+/** Paso 1 de la comparación: lo ambiguo entre los registros de HubSpot ya leídos (solo la tabla de trabajo). */
+export async function markAmbiguous(ctx: StepCtx, object: PreviewObject): Promise<void> {
   const db = getDb();
   const obj = LINK_OBJECT[object];
   const P = ctx.previewId;
-  const T = 'crm_hubspot_preview_rows';
-
   // Dos registros de HubSpot ya vinculados al mismo nuestro (un import los juntó).
   await db
     .prepare(
@@ -619,6 +642,62 @@ export async function compareObject(ctx: StepCtx, object: PreviewObject): Promis
        AND match_key IN (SELECT match_key FROM ${T} WHERE preview_id = ? AND side = 'hs' AND object = ? AND match_key != '' AND bucket IN ('matched', 'create_zerosoft', 'multi_zerosoft', 'multi_hubspot') GROUP BY match_key HAVING COUNT(*) > 1)`,
     )
     .run(P, obj, P, obj);
+}
+
+/**
+ * Paso 2: una tanda de nuestros registros, por id desde `after`. Los que
+ * ningún registro de HubSpot reclamó van a la tabla de trabajo (side 'zs')
+ * con su grupo: ya vinculado pero HubSpot no lo devolvió, sin clave, con la
+ * clave de otro de HubSpot, o a crear allá. Cada consulta toca solo la tanda
+ * (los EXISTS van por índice a una fila). Devuelve el último id y cuántos
+ * vio; `after` vacío: terminó.
+ */
+export async function classifyLocalChunk(ctx: StepCtx, object: PreviewObject, after: string, size = LOCAL_PAGE): Promise<{ after: string; seen: number }> {
+  const db = getDb();
+  const obj = LINK_OBJECT[object];
+  const P = ctx.previewId;
+  const table = LOCAL_TABLES[object];
+  const ids = (await db.prepare(`SELECT id FROM ${table} WHERE user_id = ? AND id > ? ORDER BY id LIMIT ?`).all(ctx.ws, after, size)) as Array<{ id: string }>;
+  if (!ids.length) return { after: '', seen: 0 };
+  const last = ids[ids.length - 1].id;
+
+  const linkedSql = `(EXISTS (SELECT 1 FROM crm_hubspot_links l WHERE l.user_id = c.user_id AND l.portal_id = ? AND l.object = ? AND l.record_id = c.id)
+      OR EXISTS (SELECT 1 FROM crm_external_ids e WHERE e.user_id = c.user_id AND e.provider = 'hubspot' AND e.object = ? AND e.record_id = c.id))`;
+  const linkedArgs = [ctx.portalId, obj, obj];
+  let keySql = `''`;
+  let join = '';
+  const joinArgs: string[] = [];
+  if (object === 'contacts') keySql = emailKeySql('c');
+  if (object === 'companies') {
+    join = `LEFT JOIN ${T} lk ON lk.preview_id = ? AND lk.side = 'local' AND lk.object = 'company' AND lk.ref_id = c.id`;
+    joinArgs.push(P);
+    keySql = `COALESCE(lk.match_key, '')`;
+  }
+  const bucketSql =
+    object === 'deals'
+      ? `CASE WHEN ${linkedSql} THEN 'gone_hubspot' ELSE 'create_hubspot' END`
+      : `CASE WHEN ${linkedSql} THEN 'gone_hubspot'
+           WHEN ${keySql} = '' THEN 'no_key_zerosoft'
+           WHEN EXISTS (SELECT 1 FROM ${T} k WHERE k.preview_id = ? AND k.object = ? AND k.side IN ('hs', 'alt') AND k.match_key = ${keySql}) THEN 'duplicate_zerosoft'
+           ELSE 'create_hubspot' END`;
+  const bucketArgs = object === 'deals' ? linkedArgs : [...linkedArgs, P, obj];
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO ${T} (preview_id, side, object, ref_id, bucket, label, detail)
+       SELECT ?, 'zs', ?, c.id, ${bucketSql}, COALESCE(${LOCAL_LABEL[object].label}, ''), COALESCE(${LOCAL_LABEL[object].detail}, '')
+       FROM ${table} c ${join}
+       WHERE c.user_id = ? AND c.id > ? AND c.id <= ?
+         AND NOT EXISTS (SELECT 1 FROM ${T} r WHERE r.preview_id = ? AND r.side = 'hs' AND r.object = ? AND r.local_id = c.id AND r.local_id != '')`,
+    )
+    .run(P, obj, ...bucketArgs, ...joinArgs, ctx.ws, after, last, P, obj);
+  return { after: ids.length === size ? last : '', seen: ids.length };
+}
+
+/** Paso 3: el informe del objeto, con consultas por índice sobre la tabla de trabajo. No toca el CRM. */
+export async function objectReport(ctx: StepCtx, object: PreviewObject, opts: { zerosoft: number; incomplete?: boolean }): Promise<ObjectReport> {
+  const db = getDb();
+  const obj = LINK_OBJECT[object];
+  const P = ctx.previewId;
 
   const counts = emptyCounts();
   const grouped = (await db
@@ -642,36 +721,11 @@ export async function compareObject(ctx: StepCtx, object: PreviewObject): Promis
       update.zerosoftNewer += Number(g.zs_newer);
     }
   }
-
-  // Lo nuestro que ningún registro de HubSpot reclamó.
-  const table = LOCAL_TABLES[object];
-  const linkedSql = `(EXISTS (SELECT 1 FROM crm_hubspot_links l WHERE l.user_id = c.user_id AND l.portal_id = ? AND l.object = ? AND l.record_id = c.id)
-      OR EXISTS (SELECT 1 FROM crm_external_ids e WHERE e.user_id = c.user_id AND e.provider = 'hubspot' AND e.object = ? AND e.record_id = c.id))`;
-  const linkedArgs = [ctx.portalId, obj, obj];
-  let keySql = `''`;
-  let join = '';
-  const joinArgs: string[] = [];
-  if (object === 'contacts') keySql = emailKeySql('c');
-  if (object === 'companies') {
-    join = `LEFT JOIN ${T} lk ON lk.preview_id = ? AND lk.side = 'local' AND lk.object = 'company' AND lk.ref_id = c.id`;
-    joinArgs.push(P);
-    keySql = `COALESCE(lk.match_key, '')`;
-  }
-  const bucketSql =
-    object === 'deals'
-      ? `CASE WHEN ${linkedSql} THEN 'gone_hubspot' ELSE 'create_hubspot' END`
-      : `CASE WHEN ${linkedSql} THEN 'gone_hubspot'
-           WHEN ${keySql} = '' THEN 'no_key_zerosoft'
-           WHEN EXISTS (SELECT 1 FROM ${T} k WHERE k.preview_id = ? AND k.object = ? AND k.side IN ('hs', 'alt') AND k.match_key = ${keySql}) THEN 'duplicate_zerosoft'
-           ELSE 'create_hubspot' END`;
-  const bucketArgs = object === 'deals' ? linkedArgs : [...linkedArgs, P, obj];
-  const localSql = `SELECT c.id AS id, ${LOCAL_LABEL[object].label} AS label, ${LOCAL_LABEL[object].detail} AS detail, ${bucketSql} AS b
-     FROM ${table} c ${join}
-     WHERE c.user_id = ? AND NOT EXISTS (SELECT 1 FROM ${T} r WHERE r.preview_id = ? AND r.side = 'hs' AND r.object = ? AND r.local_id = c.id AND r.local_id != '')`;
-  const localArgs = [...bucketArgs, ...joinArgs, ctx.ws, P, obj];
-  const localGroups = (await db.prepare(`SELECT b, COUNT(*) AS n FROM (${localSql}) GROUP BY b`).all(...localArgs)) as Array<{ b: string; n: number }>;
+  const localGroups = (await db.prepare(`SELECT bucket AS b, COUNT(*) AS n FROM ${T} WHERE preview_id = ? AND side = 'zs' AND object = ? GROUP BY bucket`).all(P, obj)) as Array<{
+    b: string;
+    n: number;
+  }>;
   for (const g of localGroups) if (g.b in counts) counts[g.b as PreviewBucket] += Number(g.n);
-  const zerosoft = Number(((await db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`).get(ctx.ws)) as { n: number }).n);
 
   // Muestras.
   const samples: ObjectReport['samples'] = {};
@@ -691,10 +745,25 @@ export async function compareObject(ctx: StepCtx, object: PreviewObject): Promis
   await hsSample('update', `bucket IN ('linked', 'matched') AND diff != ''`, []);
   for (const b of ['create_hubspot', 'no_key_zerosoft', 'duplicate_zerosoft', 'gone_hubspot'] as const) {
     if (!counts[b]) continue;
-    const rows = (await db.prepare(`SELECT id, label, detail FROM (${localSql}) WHERE b = ? ORDER BY id LIMIT ${PREVIEW_SAMPLE_SIZE}`).all(...localArgs, b)) as Array<{ id: string; label: string | null; detail: string | null }>;
+    const rows = (await db
+      .prepare(`SELECT ref_id AS id, label, detail FROM ${T} WHERE preview_id = ? AND side = 'zs' AND object = ? AND bucket = ? ORDER BY ref_id LIMIT ${PREVIEW_SAMPLE_SIZE}`)
+      .all(P, obj, b)) as Array<{ id: string; label: string; detail: string }>;
     samples[b] = rows.map((r) => ({ label: (r.label || r.detail || '').slice(0, 160), detail: r.label ? (r.detail ?? '').slice(0, 200) : '', zerosoftId: r.id }));
   }
-  return { hubspot, zerosoft, counts, update, samples };
+  return { hubspot, zerosoft: opts.zerosoft, counts, update, samples, ...(opts.incomplete ? { incomplete: true } : {}) };
+}
+
+/** Los tres pasos de una vez (tests y herramientas). La corrida los hace por tramos. */
+export async function compareObject(ctx: StepCtx, object: PreviewObject, size = LOCAL_PAGE): Promise<ObjectReport> {
+  await markAmbiguous(ctx, object);
+  let after = '';
+  let zerosoft = 0;
+  do {
+    const r = await classifyLocalChunk(ctx, object, after, size);
+    zerosoft += r.seen;
+    after = r.after;
+  } while (after);
+  return objectReport(ctx, object, { zerosoft });
 }
 
 // ---------- Corrida ----------
@@ -705,16 +774,28 @@ export interface RunStepOptions {
   maxPages?: number;
   /** Registros por página de HubSpot (1 a 200). */
   pageSize?: number;
+  /** Registros nuestros por tanda (tests: tandas chicas). */
+  localPage?: number;
 }
 
 export type RunStepResult = 'not_claimed' | 'progress' | 'waiting' | 'done' | 'failed' | 'cancelled';
+
+/** ¿La clave sigue entrando a esta cuenta? Solo un "no" claro corta: si HubSpot no contesta, decide la lectura que sigue. */
+async function samePortal(client: HubspotClient, portalId: string): Promise<boolean> {
+  const res = await client.send('/account-info/v3/details', { retries: 2, retry5xx: true, maxWaitMs: 4_000 });
+  if (res.status === 401) throw hubspotStatusError(res.status, res.path);
+  if (!res.ok) return true;
+  const seen = (res.json() as { portalId?: unknown }).portalId;
+  return seen === undefined || seen === null || String(seen) === portalId;
+}
 
 async function claim(ws: string, lockMs: number): Promise<PreviewRow | null> {
   const db = getDb();
   const now = iso();
   const res = await db
     .prepare(
-      `UPDATE crm_hubspot_previews SET locked_until = ?, status = 'running', resume_after = NULL, started_at = COALESCE(started_at, ?), updated_at = ?
+      // El intento se cuenta acá: si el tramo muere antes de guardar, ya quedó gastado. Guardar un avance lo vuelve a 0.
+      `UPDATE crm_hubspot_previews SET locked_until = ?, status = 'running', resume_after = NULL, started_at = COALESCE(started_at, ?), attempts = attempts + 1, updated_at = ?
        WHERE user_id = ? AND status IN ('queued', 'running', 'waiting') AND (locked_until IS NULL OR locked_until < ?) AND (resume_after IS NULL OR resume_after <= ?)`,
     )
     .run(iso(new Date(Date.now() + lockMs)), now, now, ws, now, now);
@@ -750,8 +831,11 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
   if (!job) return 'not_claimed';
   const db = getDb();
   const id = job.id;
+  // Tramos seguidos que murieron o no avanzaron (contados al reclamar): no se insiste más.
+  if (job.attempts > MAX_ATTEMPTS) return fail(id, job.failure || 'stalled');
   const conn = await openSyncConnection(ws);
   if (!conn) return fail(id, 'not_connected');
+  if (isBlockingConnectionError(conn.lastError)) return fail(id, conn.lastError);
   if (conn.portalId !== job.portal_id) return fail(id, 'portal_changed');
   if (!(await creatorStillAdmin(job))) return fail(id, 'forbidden');
 
@@ -783,13 +867,19 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
       if (!(await running())) return stopped();
       const phase = PHASES[cursor.phase];
       if (phase === 'schema') {
+        // La clave tiene que seguir entrando a la cuenta conectada: si no, los vínculos guardados (de esa cuenta)
+        // se cruzarían con registros de otra.
+        if (!(await samePortal(client, conn.portalId))) {
+          await markConnectionError(ws, 'portal_changed');
+          return fail(id, 'portal_changed');
+        }
         const out = await schemaStep(ws, client);
         plan = out.plan;
         ctx.plan = plan;
         Object.assign(report, out.report, { objects: report.objects });
         cursor.phase++;
       } else if (phase === 'local_companies') {
-        cursor.localAfter = await localCompaniesStep(ws, id, cursor.localAfter);
+        cursor.localAfter = await localCompaniesStep(ws, id, cursor.localAfter, opts.localPage);
         if (!cursor.localAfter) cursor.phase++;
       } else if (phase === 'contacts' || phase === 'companies' || phase === 'deals') {
         const page = await readModifiedPage(client, phase, cursor.read, HS_READ_PROPS[phase], { limit: opts.pageSize ?? 100 });
@@ -800,6 +890,8 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
         if (cursor.read.since === 0 && !cursor.read.tie && page.total !== null) seen.total = page.total;
         seen.read = seen.total === null ? seen.read + page.records.length : Math.min(seen.total, seen.read + page.records.length);
         progress.objects[phase] = seen;
+        // Un registro sin fecha cortó la lectura: el objeto se cierra con lo leído y el informe lo dice.
+        if (page.incomplete && !cursor.incomplete.includes(phase)) cursor.incomplete.push(phase);
         if (page.next) cursor.read = page.next;
         else {
           const n = (await db.prepare(`SELECT COUNT(*) AS n FROM crm_hubspot_preview_rows WHERE preview_id = ? AND side = 'hs' AND object = ?`).get(id, LINK_OBJECT[phase])) as { n: number };
@@ -809,8 +901,23 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
         }
       } else {
         const object = phase.replace('compare_', '') as PreviewObject;
-        report.objects[object] = await compareObject(ctx, object);
-        cursor.phase++;
+        if (cursor.cmp === 0) {
+          await markAmbiguous(ctx, object);
+          cursor.cmp = 1;
+          cursor.cmpAfter = '';
+          cursor.cmpSeen = 0;
+        } else if (cursor.cmp === 1) {
+          const r = await classifyLocalChunk(ctx, object, cursor.cmpAfter, opts.localPage);
+          cursor.cmpSeen += r.seen;
+          cursor.cmpAfter = r.after;
+          if (!r.after) cursor.cmp = 2;
+        } else {
+          report.objects[object] = await objectReport(ctx, object, { zerosoft: cursor.cmpSeen, incomplete: cursor.incomplete.includes(object) });
+          cursor.phase++;
+          cursor.cmp = 0;
+          cursor.cmpAfter = '';
+          cursor.cmpSeen = 0;
+        }
       }
       pages++;
       await save();
@@ -823,6 +930,7 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
       await dropRows(id);
       return res.changes ? 'done' : 'cancelled';
     }
+    // Con al menos un avance guardado, save() ya dejó los intentos en 0; sin avance, el intento queda gastado.
     await db.prepare('UPDATE crm_hubspot_previews SET locked_until = NULL WHERE id = ?').run(id);
     // Si la cancelaron justo después de la última página, esa página no queda guardada.
     if (!(await running())) return stopped();
@@ -833,17 +941,25 @@ export async function runPreviewStep(ws: string, opts: RunStepOptions = {}): Pro
     // Límite diario de la cuenta: no se insiste. Se retoma más tarde con lo ya leído.
     if (api?.code === 'rate_limited' && api.policy === 'daily') {
       await db
-        .prepare(`UPDATE crm_hubspot_previews SET status = 'waiting', failure = 'daily_limit', resume_after = ?, locked_until = NULL, updated_at = ? WHERE id = ? AND status = 'running'`)
+        .prepare(
+          `UPDATE crm_hubspot_previews SET status = 'waiting', failure = 'daily_limit', attempts = MAX(attempts - 1, 0), resume_after = ?, locked_until = NULL, updated_at = ? WHERE id = ? AND status = 'running'`,
+        )
         .run(iso(new Date(Date.now() + DAILY_RETRY_MS)), now, id);
       return 'waiting';
     }
-    if (api?.code === 'auth') return fail(id, 'invalid_token');
+    if (api?.code === 'auth') {
+      // La clave dejó de valer: queda anotado en la conexión, así nada vuelve a arrancar con ella.
+      await markConnectionError(ws, 'invalid_token');
+      return fail(id, 'invalid_token');
+    }
     if (api?.code === 'scope') return fail(id, 'missing_scope');
     const code = api ? (api.code === 'rate_limited' ? 'hubspot_busy' : api.code === 'network' ? 'network' : 'provider_error') : 'internal_error';
-    // La ráfaga de HubSpot afloja sola: no gasta intentos.
+    // La ráfaga de HubSpot afloja sola: no gasta intentos (se devuelve el que se contó al reclamar).
     const spend = api?.code === 'rate_limited' || api?.code === 'locked' ? 0 : 1;
-    if (job.attempts + spend >= MAX_ATTEMPTS) return fail(id, code);
-    await db.prepare('UPDATE crm_hubspot_previews SET attempts = attempts + ?, failure = ?, locked_until = NULL, updated_at = ? WHERE id = ?').run(spend, code, now, id);
+    if (spend && job.attempts >= MAX_ATTEMPTS) return fail(id, code);
+    await db
+      .prepare('UPDATE crm_hubspot_previews SET attempts = MAX(attempts - ?, 0), failure = ?, locked_until = NULL, updated_at = ? WHERE id = ?')
+      .run(1 - spend, code, now, id);
     return 'progress';
   }
 }
@@ -873,21 +989,30 @@ export async function processHubspotPreviews(opts: { budgetMs?: number; limit?: 
   return { previews };
 }
 
+/** Cuánto se esperan las filas de una vista previa que ya terminó (un tramo que corría al cancelar puede anotar una página más). */
+export const SWEEP_GRACE_MS = 10 * 60_000;
+
 /**
  * Borra filas de trabajo de vistas previas que ya no existen (un proceso que
- * murió a mitad de un tramo). No recorre la tabla: busca el siguiente
- * preview_id por el índice, así que cuesta una búsqueda por vista previa.
+ * murió a mitad de un tramo) y de las que ya terminaron, fallaron o se
+ * cancelaron hace más de SWEEP_GRACE_MS. No recorre la tabla: busca el
+ * siguiente preview_id por el índice, así que cuesta una búsqueda por vista
+ * previa.
  */
-export async function sweepOrphanRows(): Promise<number> {
+export async function sweepOrphanRows(now = Date.now()): Promise<number> {
   const db = getDb();
+  const cutoff = iso(new Date(now - SWEEP_GRACE_MS));
   let last = '';
   let removed = 0;
   for (let i = 0; i < 50; i++) {
     const row = (await db.prepare('SELECT MIN(preview_id) AS id FROM crm_hubspot_preview_rows WHERE preview_id > ?').get(last)) as { id: string | null } | undefined;
     if (!row?.id) break;
     last = row.id;
-    const alive = await db.prepare('SELECT 1 AS x FROM crm_hubspot_previews WHERE id = ?').get(last);
-    if (!alive) removed += (await db.prepare('DELETE FROM crm_hubspot_preview_rows WHERE preview_id = ?').run(last)).changes;
+    const owner = (await db.prepare('SELECT status, finished_at, updated_at FROM crm_hubspot_previews WHERE id = ?').get(last)) as
+      | { status: PreviewStatus; finished_at: string | null; updated_at: string }
+      | undefined;
+    const ended = owner && !PREVIEW_ACTIVE.includes(owner.status) && (owner.finished_at ?? owner.updated_at) < cutoff;
+    if (!owner || ended) removed += (await db.prepare('DELETE FROM crm_hubspot_preview_rows WHERE preview_id = ?').run(last)).changes;
   }
   return removed;
 }

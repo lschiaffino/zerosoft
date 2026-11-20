@@ -205,6 +205,11 @@ function ConnectCard({ status, locale, onChange }: { status: HubspotSyncStatus; 
               {t('connect.writeLater')}
             </p>
           )}
+          {status.unknownWrite.length > 0 && (
+            <p className="ui-help" data-testid="hubspot-sync-write-unknown">
+              {t('connect.writeUnknown')}
+            </p>
+          )}
           <p className="ui-help hsync-meta">
             {status.keySource === 'lines' && <span data-testid="hubspot-sync-from-lines">{t('connect.fromLines')}</span>}
             {status.checkedAt && (
@@ -446,6 +451,15 @@ function Report({ report, preview, status, locale }: { report: PreviewReport; pr
           {t('report.ranAt')} <LocalText>{formatDate(preview.finishedAt, locale)}</LocalText>
         </p>
       </div>
+      {PREVIEW_OBJECTS.some((o) => report.objects[o]?.incomplete) && (
+        <p className="form-error" role="status" data-testid="hubspot-sync-report-incomplete">
+          {t('report.incomplete', {
+            objects: PREVIEW_OBJECTS.filter((o) => report.objects[o]?.incomplete)
+              .map((o) => t(`objects.${o}`))
+              .join(', '),
+          })}
+        </p>
+      )}
       {PREVIEW_OBJECTS.map((o) => {
         const r = report.objects[o];
         return r ? <ObjectCard key={o} object={o} report={r} status={status} locale={locale} /> : null;

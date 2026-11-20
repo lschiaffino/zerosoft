@@ -3811,7 +3811,8 @@
       "disconnectTitle": "Disconnect HubSpot",
       "disconnectBody": "The saved key is deleted and the preview is discarded. Your records in zerosoft and in HubSpot stay as they are.",
       "keep": "Stay connected",
-      "disconnectConfirm": "Disconnect HubSpot"
+      "disconnectConfirm": "Disconnect HubSpot",
+      "writeUnknown": "We can't confirm write access yet: HubSpot did not give a clear answer when we checked. It is only needed later, when the sync writes to HubSpot. Check the key again then."
     },
     "errors": {
       "invalid_token": "HubSpot did not accept that key. Copy it again and check it belongs to the right account.",
@@ -3822,7 +3823,9 @@
       "not_connected": "Connect HubSpot first.",
       "rate_limited": "Too many attempts. Try again in an hour.",
       "forbidden": "Only workspace admins can do this.",
-      "invalid_input": "Check the key and try again."
+      "invalid_input": "Check the key and try again.",
+      "portal_changed": "The connected key now opens a different HubSpot account. Disconnect and connect again before running a preview.",
+      "key_invalid": "HubSpot no longer accepts the connected key. Replace it before running a preview."
     },
     "keyProblems": {
       "invalid_token": "HubSpot no longer accepts this key. Replace it.",
@@ -3849,7 +3852,8 @@
       "hubspot_busy": "HubSpot kept limiting requests and the preview stopped. Run it again later.",
       "network": "We lost the connection to HubSpot several times and the preview stopped. Run it again.",
       "provider_error": "HubSpot returned an error several times and the preview stopped. Run it again.",
-      "internal_error": "Something failed on our side and the preview stopped. Run it again."
+      "internal_error": "Something failed on our side and the preview stopped. Run it again.",
+      "stalled": "The preview stopped several times in a row without finishing a step. Run it again."
     },
     "progress": {
       "label": "Preview progress",
@@ -3896,7 +3900,8 @@
       "openHubspot": "Open in HubSpot",
       "unnamed": "(no name)",
       "sampleNote": "Showing the first {shown}.",
-      "more": "And {n} more."
+      "more": "And {n} more.",
+      "incomplete": "This report is incomplete for {objects}: HubSpot returned a record without a modification date, so reading could not continue past it. The numbers only count what was read until then."
     },
     "buckets": {
       "matched": {

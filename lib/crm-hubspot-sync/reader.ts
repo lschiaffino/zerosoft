@@ -55,8 +55,14 @@ export interface ModifiedPage {
   records: HsRecord[];
   /** Total que informa la búsqueda para esta consulta (solo dice el total del objeto cuando since es 0). */
   total: number | null;
-  /** null: no queda nada por leer. */
+  /** null: no queda nada por leer (o no se puede seguir: ver `incomplete`). */
   next: ModifiedCursor | null;
+  /**
+   * HubSpot dice que hay más, pero el último registro de la página no trae
+   * fecha de modificación: no hay desde dónde seguir. La lectura termina acá
+   * y quien llama tiene que avisar que quedó incompleta.
+   */
+  incomplete?: boolean;
 }
 
 interface SearchResponse {
@@ -121,8 +127,8 @@ export async function readModifiedPage(
     return { records, total, next: { since: cursor.since, tieAfter: last.id, tie: true } };
   }
   if (!more) return { records, total, next: null };
-  // Sin fecha no hay por dónde seguir: mejor cortar que quedar dando vueltas.
-  if (!last.modifiedMs) return { records, total, next: null };
+  // Sin fecha no hay por dónde seguir: se corta (mejor que quedar dando vueltas) y se avisa que quedó incompleta.
+  if (!last.modifiedMs) return { records, total, next: null, incomplete: true };
   if (last.modifiedMs > cursor.since) return { records, total, next: { since: last.modifiedMs, tieAfter: '', tie: false } };
   // Toda la página es del mismo milisegundo: se recorre por id.
   return { records, total, next: { since: cursor.since, tieAfter: '', tie: true } };

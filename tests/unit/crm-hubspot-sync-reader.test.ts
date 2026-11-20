@@ -38,6 +38,21 @@ async function readAll(p: FakeHubspotPortal, limit: number, onPage?: (n: number)
 }
 
 describe('lectura por fecha de modificación', () => {
+  it('si HubSpot dice que hay más pero el último registro no trae fecha, la página avisa que la lectura quedó incompleta', async () => {
+    const page = (results: unknown[], more: boolean) => async () =>
+      new Response(JSON.stringify({ total: 5, results, ...(more ? { paging: { next: { after: '2' } } } : {}) }), { status: 200, headers: { 'content-type': 'application/json' } });
+    const dated = { id: '1', properties: { lastmodifieddate: '2026-01-01T00:00:00.000Z' } };
+    const client = (f: () => Promise<Response>) => createHubspotClient({ token: TOKEN, fetch: f as never, sleep: async () => {}, budget: null });
+    const cut = await readModifiedPage(client(page([dated, { id: '2', properties: { lastmodifieddate: null } }], true)), 'contacts', { ...START_CURSOR }, ['email']);
+    expect(cut.next).toBeNull();
+    expect(cut.incomplete).toBe(true);
+    expect(cut.records.map((r) => r.id)).toEqual(['1', '2']);
+    // El final de verdad no es incompleto, tenga fecha o no el último.
+    const end = await readModifiedPage(client(page([dated, { id: '2', properties: {} }], false)), 'contacts', { ...START_CURSOR }, ['email']);
+    expect(end.next).toBeNull();
+    expect(end.incomplete).toBeUndefined();
+  });
+
   it('lee todo aunque la búsqueda corte mucho antes: nunca manda `after`', async () => {
     const p = portalWith(23);
     // Como si el tope de HubSpot fuera 7 resultados por consulta en vez de 10.000.

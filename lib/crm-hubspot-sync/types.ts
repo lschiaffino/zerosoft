@@ -66,6 +66,11 @@ export interface ObjectReport {
   /** De los pares que se actualizarían: en cuántos chocan valores, y qué lado cambió último. */
   update: { conflicting: number; hubspotNewer: number; zerosoftNewer: number };
   samples: Partial<Record<PreviewBucket, PreviewSample[]>>;
+  /**
+   * La lectura de HubSpot se cortó antes del final: un registro sin fecha de
+   * modificación no deja seguir. Los números son de lo leído hasta ahí.
+   */
+  incomplete?: boolean;
 }
 
 export interface PreviewPerson {

@@ -3811,7 +3811,8 @@
       "disconnectTitle": "Desconectar o HubSpot",
       "disconnectBody": "A chave salva é apagada e a prévia é descartada. Seus registros no zerosoft e no HubSpot ficam como estão.",
       "keep": "Continuar conectado",
-      "disconnectConfirm": "Desconectar o HubSpot"
+      "disconnectConfirm": "Desconectar o HubSpot",
+      "writeUnknown": "Ainda não conseguimos confirmar a permissão de escrita: o HubSpot não deu uma resposta clara na verificação. Ela só é necessária depois, quando o sync escrever no HubSpot. Verifique a chave de novo nesse momento."
     },
     "errors": {
       "invalid_token": "O HubSpot não aceitou essa chave. Copie de novo e confira se é da conta certa.",
@@ -3822,7 +3823,9 @@
       "not_connected": "Conecte o HubSpot primeiro.",
       "rate_limited": "Tentativas demais. Tente de novo em uma hora.",
       "forbidden": "Só admins do workspace podem fazer isso.",
-      "invalid_input": "Confira a chave e tente de novo."
+      "invalid_input": "Confira a chave e tente de novo.",
+      "portal_changed": "A chave conectada agora abre outra conta do HubSpot. Desconecte e conecte de novo antes de rodar uma prévia.",
+      "key_invalid": "O HubSpot não aceita mais a chave conectada. Substitua-a antes de rodar uma prévia."
     },
     "keyProblems": {
       "invalid_token": "O HubSpot não aceita mais esta chave. Troque a chave.",
@@ -3849,7 +3852,8 @@
       "hubspot_busy": "O HubSpot continuou limitando os pedidos e a prévia parou. Rode de novo mais tarde.",
       "network": "Perdemos a conexão com o HubSpot várias vezes e a prévia parou. Rode de novo.",
       "provider_error": "O HubSpot devolveu um erro várias vezes e a prévia parou. Rode de novo.",
-      "internal_error": "Algo falhou do nosso lado e a prévia parou. Rode de novo."
+      "internal_error": "Algo falhou do nosso lado e a prévia parou. Rode de novo.",
+      "stalled": "A prévia parou várias vezes seguidas sem terminar uma etapa. Rode de novo."
     },
     "progress": {
       "label": "Andamento da prévia",
@@ -3896,7 +3900,8 @@
       "openHubspot": "Abrir no HubSpot",
       "unnamed": "(sem nome)",
       "sampleNote": "Mostrando os primeiros {shown}.",
-      "more": "E mais {n}."
+      "more": "E mais {n}.",
+      "incomplete": "Este relatório está incompleto em {objects}: o HubSpot devolveu um registro sem data de modificação e a leitura não pôde continuar depois dele. Os números contam só o que foi lido até ali."
     },
     "buckets": {
       "matched": {

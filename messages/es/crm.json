@@ -3811,7 +3811,8 @@
       "disconnectTitle": "Desconectar HubSpot",
       "disconnectBody": "Se borra la clave guardada y se descarta la vista previa. Tus registros en zerosoft y en HubSpot quedan como están.",
       "keep": "Seguir conectado",
-      "disconnectConfirm": "Desconectar HubSpot"
+      "disconnectConfirm": "Desconectar HubSpot",
+      "writeUnknown": "Todavía no podemos confirmar el permiso de escritura: HubSpot no dio una respuesta clara al revisarlo. Recién hace falta cuando el sync escriba en HubSpot. Revisá la clave de nuevo en ese momento."
     },
     "errors": {
       "invalid_token": "HubSpot no aceptó esa clave. Copiala de nuevo y fijate que sea de la cuenta correcta.",
@@ -3822,7 +3823,9 @@
       "not_connected": "Primero conectá HubSpot.",
       "rate_limited": "Demasiados intentos. Probá de nuevo en una hora.",
       "forbidden": "Solo los admins del workspace pueden hacer esto.",
-      "invalid_input": "Revisá la clave y probá de nuevo."
+      "invalid_input": "Revisá la clave y probá de nuevo.",
+      "portal_changed": "La clave conectada ahora entra a otra cuenta de HubSpot. Desconectala y conectala de nuevo antes de correr una vista previa.",
+      "key_invalid": "HubSpot ya no acepta la clave conectada. Reemplazala antes de correr una vista previa."
     },
     "keyProblems": {
       "invalid_token": "HubSpot ya no acepta esta clave. Cambiala.",
@@ -3849,7 +3852,8 @@
       "hubspot_busy": "HubSpot siguió limitando los pedidos y la vista previa se detuvo. Correla de nuevo más tarde.",
       "network": "Perdimos la conexión con HubSpot varias veces y la vista previa se detuvo. Correla de nuevo.",
       "provider_error": "HubSpot devolvió un error varias veces y la vista previa se detuvo. Correla de nuevo.",
-      "internal_error": "Algo falló de nuestro lado y la vista previa se detuvo. Correla de nuevo."
+      "internal_error": "Algo falló de nuestro lado y la vista previa se detuvo. Correla de nuevo.",
+      "stalled": "La vista previa se cortó varias veces seguidas sin terminar un tramo. Correla de nuevo."
     },
     "progress": {
       "label": "Avance de la vista previa",
@@ -3896,7 +3900,8 @@
       "openHubspot": "Abrir en HubSpot",
       "unnamed": "(sin nombre)",
       "sampleNote": "Se muestran los primeros {shown}.",
-      "more": "Y {n} más."
+      "more": "Y {n} más.",
+      "incomplete": "Este informe está incompleto en {objects}: HubSpot devolvió un registro sin fecha de modificación y la lectura no pudo seguir después de él. Los números cuentan solo lo leído hasta ahí."
     },
     "buckets": {
       "matched": {

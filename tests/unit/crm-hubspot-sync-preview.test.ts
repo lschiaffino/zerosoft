@@ -6,8 +6,8 @@ import { getDb } from '@/lib/db';
 import { createCompany, createContact, createCustomField, createDeal, createPipeline } from '@/lib/crm';
 import { MIGRATIONS } from '@/lib/schema/migrations';
 import { resetFakeHubspotPortal, seedSyncPortal, type FakeHubspotPortal } from '@/lib/hubspot/fake-portal';
-import { connectSync, disconnectSync, getSyncSettings, getSyncStatus, syncGate } from '@/lib/crm-hubspot-sync/connection';
-import { cancelPreview, getPreview, processHubspotPreviews, runPreviewStep, startPreview, sweepOrphanRows } from '@/lib/crm-hubspot-sync/preview';
+import { connectSync, disconnectSync, getSyncSettings, getSyncStatus, recheckSync, syncGate } from '@/lib/crm-hubspot-sync/connection';
+import { MAX_ATTEMPTS, SWEEP_GRACE_MS, cancelPreview, getPreview, processHubspotPreviews, runPreviewStep, startPreview, sweepOrphanRows } from '@/lib/crm-hubspot-sync/preview';
 import type { ObjectReport, PreviewReport } from '@/lib/crm-hubspot-sync/types';
 import { makeUser } from './helpers';
 
@@ -416,6 +416,182 @@ describe('por tramos', () => {
     expect(await disconnectSync(owner.id)).toBe(false);
   });
 });
+
+const cursorOf = async (ws: string) =>
+  JSON.parse(((await getDb().prepare('SELECT cursor FROM crm_hubspot_previews WHERE user_id = ?').get(ws)) as { cursor: string }).cursor) as {
+    phase: number;
+    cmp: number;
+    cmpAfter: string;
+  };
+const attemptsOf = async (ws: string) => Number(((await getDb().prepare('SELECT attempts FROM crm_hubspot_previews WHERE user_id = ?').get(ws)) as { attempts: number }).attempts);
+/** Contactos nuestros de a muchos, sin pasar por createContact (que es lento). */
+async function bulkContacts(ws: string, n: number) {
+  for (let i = 0; i < n; i += 250) {
+    const chunk = Array.from({ length: Math.min(250, n - i) }, (_, k) => i + k);
+    await getDb()
+      .prepare(
+        `INSERT INTO crm_contacts (id, user_id, owner_id, first_name, last_name, email, lifecycle_stage, lead_status, custom) VALUES ${chunk.map(() => "(?, ?, ?, ?, 'Local', ?, 'lead', 'new', '{}')").join(', ')}`,
+      )
+      .run(...chunk.flatMap((k) => [`${ws}-l${String(k).padStart(5, '0')}`, ws, ws, `Local${k}`, `local${k}@zs-only.example`]));
+  }
+}
+const zsRows = (ws: string) => count('crm_hubspot_preview_rows', "side = 'zs' AND preview_id IN (SELECT id FROM crm_hubspot_previews WHERE user_id = ?)", ws);
+
+describe('revisión: tramos acotados, intentos, cuenta cambiada, lectura incompleta y limpieza', () => {
+  it('la comparación recorre lo nuestro en tandas con cursor: cada tramo hace una tanda y retoma donde quedó', async () => {
+    const owner = await workspace('hsprev-chunks');
+    await bulkContacts(owner.id, 1_250);
+    await startPreview(owner.id, owner.id);
+    // Hasta el paso que recorre los contactos nuestros (fase compare_contacts = 5, paso 1).
+    for (let i = 0; i < 60; i++) {
+      const c = await cursorOf(owner.id);
+      if (c.phase === 5 && c.cmp === 1) break;
+      expect(await runPreviewStep(owner.id, { maxPages: 1, localPage: 100 })).toBe('progress');
+    }
+    expect(await cursorOf(owner.id)).toMatchObject({ phase: 5, cmp: 1, cmpAfter: '' });
+    let steps = 0;
+    let before = await zsRows(owner.id);
+    while ((await cursorOf(owner.id)).cmp === 1 && steps < 40) {
+      expect(await runPreviewStep(owner.id, { maxPages: 1, localPage: 100 })).toBe('progress');
+      const now = await zsRows(owner.id);
+      // Una tanda por tramo: nunca más de 100 filas nuevas.
+      expect(now - before).toBeLessThanOrEqual(100);
+      before = now;
+      steps++;
+    }
+    expect(steps).toBeGreaterThanOrEqual(13);
+    const stepped = await runToEndFrom(owner.id, { maxPages: 1, localPage: 100 });
+    // Mismo informe que de corrido y en tandas grandes.
+    const other = await workspace('hsprev-chunks-whole');
+    await bulkContacts(other.id, 1_250);
+    const whole = (await runToEnd(other.id)).report;
+    expect(stepped.objects.contacts!.zerosoft).toBe(1_250);
+    expect(stepped.objects.contacts!.counts).toEqual(whole.objects.contacts!.counts);
+    expect(stepped.objects.contacts!.counts.create_hubspot).toBe(1_250);
+  });
+
+  it('un tramo respeta su tiempo: con mucho por recorrer corta y la próxima corrida sigue', async () => {
+    const owner = await workspace('hsprev-budget');
+    await bulkContacts(owner.id, 5_000);
+    await startPreview(owner.id, owner.id);
+    for (let i = 0; i < 60 && !((await cursorOf(owner.id)).phase === 5 && (await cursorOf(owner.id)).cmp === 1); i++) {
+      await runPreviewStep(owner.id, { maxPages: 1, localPage: 50 });
+    }
+    // Una tanda, para que el cursor ya esté a mitad.
+    expect(await runPreviewStep(owner.id, { maxPages: 1, localPage: 50 })).toBe('progress');
+    const mid = await cursorOf(owner.id);
+    expect(mid.cmpAfter).not.toBe('');
+    // Un tramo de 25 ms no llega a recorrer los 5.000: corta, guarda el cursor y queda para la próxima.
+    expect(await runPreviewStep(owner.id, { budgetMs: 25, localPage: 50 })).toBe('progress');
+    const after = await cursorOf(owner.id);
+    expect(after).toMatchObject({ phase: 5, cmp: 1 });
+    expect(after.cmpAfter >= mid.cmpAfter).toBe(true);
+    expect(await zsRows(owner.id)).toBeLessThan(5_000);
+    const report = await runToEndFrom(owner.id, { localPage: 50 });
+    expect(report.objects.contacts!.counts.create_hubspot).toBe(5_000);
+  }, 60_000);
+
+  it('los intentos se cuentan al reclamar: tramos que mueren sin avanzar terminan en fallida', async () => {
+    const owner = await workspace('hsprev-attempts');
+    await startPreview(owner.id, owner.id);
+    // maxPages 0: reclama y suelta sin avanzar, como un tramo que murió.
+    for (let i = 0; i < 3; i++) expect(await runPreviewStep(owner.id, { maxPages: 0 })).toBe('progress');
+    expect(await attemptsOf(owner.id)).toBe(3);
+    // Un avance vuelve a 0.
+    expect(await runPreviewStep(owner.id, { maxPages: 1 })).toBe('progress');
+    expect(await attemptsOf(owner.id)).toBe(0);
+    // Un tramo que muere con la traba puesta: al vencer, el próximo reclamo cuenta otro intento.
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      await sql('UPDATE crm_hubspot_previews SET attempts = attempts + 1, locked_until = ? WHERE user_id = ?', new Date(Date.now() - 1000).toISOString(), owner.id);
+    }
+    expect(await runPreviewStep(owner.id, { maxPages: 1 })).toBe('failed');
+    expect((await getPreview(owner.id))!).toMatchObject({ status: 'failed', failure: 'stalled' });
+    expect(await count('crm_hubspot_preview_rows', 'preview_id IN (SELECT id FROM crm_hubspot_previews WHERE user_id = ?)', owner.id)).toBe(0);
+  });
+
+  it('la clave entra a otra cuenta: la vista previa en curso falla, no arranca otra y el sync queda frenado hasta reconectar', async () => {
+    const owner = await workspace('hsprev-portal');
+    await sql(`INSERT INTO crm_hubspot_sync_settings (user_id, enabled) VALUES (?, 1)`, owner.id);
+    await startPreview(owner.id, owner.id);
+    portal.portalId = '424242';
+    expect(await runPreviewStep(owner.id)).toBe('failed');
+    expect((await getPreview(owner.id))!).toMatchObject({ status: 'failed', failure: 'portal_changed' });
+    expect((await getSyncStatus(owner.id)).lastError).toBe('portal_changed');
+    expect(await startPreview(owner.id, owner.id)).toEqual({ ok: false, code: 'portal_changed' });
+    expect(await syncGate(owner.id)).toEqual({ run: false, reason: 'portal_changed' });
+    // Revisar la clave no lo destraba (sigue en la otra cuenta, y portal_id queda el de los vínculos).
+    await recheckSync(owner.id);
+    expect(await getSyncStatus(owner.id)).toMatchObject({ lastError: 'portal_changed', portalId: '515151' });
+    expect((await startPreview(owner.id, owner.id)).ok).toBe(false);
+    // Conectar de nuevo (ahora con la otra cuenta) la destraba con el portal nuevo.
+    expect((await connectSync(owner.id, owner.id, KEY)).ok).toBe(true);
+    expect(await getSyncStatus(owner.id)).toMatchObject({ lastError: '', portalId: '424242' });
+    expect(await syncGate(owner.id)).toEqual({ run: true, reason: '' });
+    expect((await startPreview(owner.id, owner.id)).ok).toBe(true);
+    await cancelPreview(owner.id);
+  });
+
+  it('la clave dejó de valer: no arranca una vista previa nueva y el sync queda frenado', async () => {
+    const owner = await workspace('hsprev-revoked');
+    await sql(`INSERT INTO crm_hubspot_sync_settings (user_id, enabled) VALUES (?, 1)`, owner.id);
+    portal.grant = () => null;
+    await recheckSync(owner.id);
+    expect((await getSyncStatus(owner.id)).lastError).toBe('invalid_token');
+    expect(await startPreview(owner.id, owner.id)).toEqual({ ok: false, code: 'key_invalid' });
+    expect(await syncGate(owner.id)).toEqual({ run: false, reason: 'invalid_token' });
+  });
+
+  it('un registro sin fecha de modificación corta la lectura: el informe lo marca como incompleto', async () => {
+    const owner = await workspace('hsprev-nodate');
+    // Doce contactos sin fecha: la búsqueda ordenada los trae primero, y el último de la página no tiene fecha.
+    for (let i = 0; i < 12; i++) {
+      const id = portal.add('contacts', { firstname: `NoDate${i}`, email: `nodate${i}@hs.example` }, String(80_000 + i));
+      const o = portal.contacts.get(id)!;
+      o.properties.lastmodifieddate = '';
+      o.properties.hs_lastmodifieddate = '';
+    }
+    const { report } = await runToEndWith(owner.id, { pageSize: 10 });
+    expect(report.objects.contacts!.incomplete).toBe(true);
+    expect(report.objects.companies!.incomplete).toBeUndefined();
+  });
+
+  it('la limpieza también saca filas de vistas previas canceladas o terminadas, pasado un rato', async () => {
+    const owner = await workspace('hsprev-sweep');
+    await startPreview(owner.id, owner.id);
+    await cancelPreview(owner.id);
+    const id = (await getPreview(owner.id))!.id;
+    // Un tramo que corría al cancelar anotó una página más.
+    await sql(`INSERT INTO crm_hubspot_preview_rows (preview_id, side, object, ref_id) VALUES (?, 'hs', 'contact', '1')`, id);
+    await sweepOrphanRows();
+    expect(await count('crm_hubspot_preview_rows', 'preview_id = ?', id)).toBe(1);
+    await sweepOrphanRows(Date.now() + SWEEP_GRACE_MS + 60_000);
+    expect(await count('crm_hubspot_preview_rows', 'preview_id = ?', id)).toBe(0);
+    // Las de una vista previa activa no se tocan.
+    await startPreview(owner.id, owner.id);
+    const live = (await getPreview(owner.id))!.id;
+    await sql(`INSERT INTO crm_hubspot_preview_rows (preview_id, side, object, ref_id) VALUES (?, 'hs', 'contact', '1')`, live);
+    await sweepOrphanRows(Date.now() + SWEEP_GRACE_MS + 60_000);
+    expect(await count('crm_hubspot_preview_rows', 'preview_id = ?', live)).toBe(1);
+    await cancelPreview(owner.id);
+  });
+});
+
+/** Sigue una vista previa ya arrancada hasta el final. */
+async function runToEndFrom(ws: string, opts: { maxPages?: number; pageSize?: number; localPage?: number } = {}): Promise<PreviewReport> {
+  for (let i = 0; i < 2_000; i++) {
+    const r = await runPreviewStep(ws, { budgetMs: 30_000, ...opts });
+    if (r === 'done') break;
+    expect(r).toBe('progress');
+  }
+  const view = (await getPreview(ws))!;
+  expect(view.status).toBe('done');
+  return view.report!;
+}
+
+async function runToEndWith(ws: string, opts: { pageSize?: number } = {}) {
+  expect((await startPreview(ws, ws)).ok).toBe(true);
+  return { report: await runToEndFrom(ws, opts) };
+}
 
 describe('migración 20261119_1540_crm_hubspot_sync', () => {
   it('crea las tablas, tolera correr dos veces y no toca las del CRM', async () => {

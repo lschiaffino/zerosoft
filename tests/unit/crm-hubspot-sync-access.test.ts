@@ -172,14 +172,35 @@ describe('la clave', () => {
     expect((await post({ token: SERVICE_KEY })).status).toBe(200);
     expect(JSON.stringify([...portal.contacts.values(), ...portal.companies.values(), ...portal.deals.values()])).toBe(before);
     expect([portal.contacts.size, portal.companies.size, portal.deals.size]).toEqual(sizes);
-    // Lo único que no es lectura: el PATCH sin propiedades sobre el id 0 que prueba cada permiso de escritura.
+    // Lo único que no es lectura: el batch/update sin registros que prueba cada permiso de escritura (no puede tocar ninguno).
     const writes = portal.calls.filter((c) => c.method !== 'GET' && !c.path.includes('access-token-info') && !c.path.endsWith('/search'));
-    expect(writes.map((c) => `${c.method} ${c.path}`).sort()).toEqual(['PATCH /crm/v3/objects/companies/0', 'PATCH /crm/v3/objects/contacts/0', 'PATCH /crm/v3/objects/deals/0']);
-    expect(writes.every((c) => JSON.stringify(c.body) === '{"properties":{}}')).toBe(true);
+    expect(writes.map((c) => `${c.method} ${c.path}`).sort()).toEqual([
+      'POST /crm/v3/objects/companies/batch/update',
+      'POST /crm/v3/objects/contacts/batch/update',
+      'POST /crm/v3/objects/deals/batch/update',
+    ]);
+    expect(writes.every((c) => JSON.stringify(c.body) === '{"inputs":[]}')).toBe(true);
+    expect(portal.calls.some((c) => c.method === 'PATCH')).toBe(false);
     // Una private app heredada informa sus permisos: no hace falta probar nada.
     portal.calls.length = 0;
     expect((await post({ token: LEGACY })).status).toBe(200);
-    expect(portal.calls.filter((c) => c.method === 'PATCH')).toEqual([]);
+    expect(portal.calls.filter((c) => c.method !== 'GET' && c.path.endsWith('/batch/update'))).toEqual([]);
+  });
+
+  it('si la prueba de escritura no da una respuesta clara, el permiso queda "sin confirmar" y no "falta"', async () => {
+    const w = await workspaceWithMember('hssync-unknown');
+    session.user = asOwner(w.owner);
+    portal.emptyBatchUpdateStatus = 404;
+    const res = await post({ token: SERVICE_KEY });
+    expect(res.status).toBe(200);
+    const writes = ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write'];
+    expect(await res.json()).toMatchObject({ connected: true, missingWrite: [], unknownWrite: writes });
+    // Volver a revisar con una respuesta clara lo confirma.
+    portal.emptyBatchUpdateStatus = null;
+    expect(await (await post({ recheck: true })).json()).toMatchObject({ missingWrite: [], unknownWrite: [] });
+    portal.emptyBatchUpdateStatus = 403;
+    expect(await (await post({ recheck: true })).json()).toMatchObject({ missingWrite: writes, unknownWrite: [] });
+    portal.emptyBatchUpdateStatus = null;
   });
 
   it('sin permisos de escritura conecta igual y dice cuáles faltan para después; sin los de lectura no se guarda', async () => {

@@ -34,11 +34,35 @@ describe('validar la clave', () => {
     const info = await inspect(portal, SERVICE);
     expect(info).toMatchObject({ portalId: '515151', kind: 'service_key', scopesFrom: 'probe' });
     expect(info.scopes).toEqual(LINES_SCOPES);
-    // Los permisos de escritura se prueban con un PATCH sin propiedades al id 0: no cambia nada.
-    const writes = portal.calls.filter((c) => c.method === 'PATCH');
-    expect(writes.map((c) => c.path)).toEqual(['/crm/v3/objects/contacts/0', '/crm/v3/objects/companies/0', '/crm/v3/objects/deals/0']);
-    expect(writes.every((c) => JSON.stringify(c.body) === '{"properties":{}}')).toBe(true);
-    expect(portal.calls.some((c) => c.method === 'POST' && c.path.startsWith('/crm/v3/objects'))).toBe(false);
+    expect(info.unknownScopes).toEqual([]);
+    // Los permisos de escritura se prueban con un batch/update sin registros: no puede tocar ninguno.
+    const writes = portal.calls.filter((c) => c.method !== 'GET' && c.path.startsWith('/crm/v3/objects'));
+    expect(writes.map((c) => `${c.method} ${c.path}`)).toEqual([
+      'POST /crm/v3/objects/contacts/batch/update',
+      'POST /crm/v3/objects/companies/batch/update',
+      'POST /crm/v3/objects/deals/batch/update',
+    ]);
+    expect(writes.every((c) => JSON.stringify(c.body) === '{"inputs":[]}')).toBe(true);
+    expect(portal.calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
+  it('prueba de escritura: solo 403 es "falta"; validación es "está"; otra respuesta queda sin confirmar', async () => {
+    const writes = LINES_SCOPES.filter((s) => s.endsWith('.write'));
+    for (const [status, has, unknown] of [
+      [400, true, false],
+      [422, true, false],
+      [404, false, true],
+      [500, false, true],
+    ] as const) {
+      const portal = seedSyncPortal();
+      portal.emptyBatchUpdateStatus = status;
+      const info = await inspectHubspotToken(SERVICE, { fetch: portal.fetch, budget: null, probe: LINES_SCOPES });
+      expect(writes.every((s) => info.scopes.includes(s)), `status ${status}`).toBe(has);
+      expect(info.unknownScopes, `status ${status}`).toEqual(unknown ? writes : []);
+    }
+    // Sin el permiso, 403: falta, y no queda como sin confirmar.
+    const ro = await inspect(seedSyncPortal(), 'pat-na1-svc-readonly');
+    expect(ro.unknownScopes).toEqual([]);
   });
 
   it('service key cuando HubSpot sí informa sus permisos: no hace falta probar', async () => {
