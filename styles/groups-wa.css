@@ -1229,6 +1229,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .gr-inbox .gr-bubble:has(> .wa-invite) { max-width: min(316px, 100%); }
 @media (max-width: 480px) {
   .wa-invite { width: min(300px, 70vw); }
+  .wa-invite-actions > button, .wa-invite-actions > a { padding: 4px 6px; font-size: 0.8125rem; white-space: nowrap; }
 }
 
 /* Vista previa del link mientras se escribe (components/groups/wa/ComposerLinkPreview.tsx), arriba del campo. */

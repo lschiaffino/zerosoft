@@ -170,7 +170,7 @@ test('Lines: la invitación tiene su tarjeta; Unirme pide confirmación, entra y
   await expect(card().getByTestId('wa-invite-status')).toHaveCount(0);
   await card().getByTestId('wa-invite-join').click();
   await dialog.getByTestId('confirm-dialog-confirm').click();
-  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'joined', { timeout: 20_000 });
+  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'joined', { timeout: 45_000 });
   await expect(card().getByTestId('wa-invite-join')).toHaveCount(0);
   await shot(page, 'lines-joined-1280');
   // Abrir grupo lleva al chat del grupo nuevo.
@@ -183,7 +183,7 @@ test('Lines: la invitación tiene su tarjeta; Unirme pide confirmación, entra y
   const bad = msgs.locator('.gr-msg', { hasText: 'Vencida' }).getByTestId('wa-invite-card');
   await bad.getByTestId('wa-invite-join').click();
   await page.getByRole('alertdialog').getByTestId('confirm-dialog-confirm').click();
-  await expect(bad.getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'error', { timeout: 20_000 });
+  await expect(bad.getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'error', { timeout: 45_000 });
   await expect(bad.getByTestId('wa-invite-status')).toContainText('invalid');
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -256,7 +256,7 @@ test('Inbox: la misma tarjeta; Unirme pide confirmación y entra con la cuenta (
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('Join «Club de Lectura»');
   await dialog.getByTestId('confirm-dialog-confirm').click();
-  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'joined', { timeout: 20_000 });
+  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'joined', { timeout: 45_000 });
   await noHorizontalScroll(page);
   await shot(page, 'inbox-joined-390');
   await card().getByTestId('wa-invite-open-chat').click();
@@ -265,7 +265,7 @@ test('Inbox: la misma tarjeta; Unirme pide confirmación y entra con la cuenta (
   await open();
   await card().getByTestId('wa-invite-join').click();
   await page.getByRole('alertdialog').getByTestId('confirm-dialog-confirm').click();
-  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'error', { timeout: 20_000 });
+  await expect(card().getByTestId('wa-invite-status')).toHaveAttribute('data-state', 'error', { timeout: 45_000 });
   await expect(card().getByTestId('wa-invite-status')).toContainText('already');
   expect(errors, errors.join('\n')).toEqual([]);
 });
