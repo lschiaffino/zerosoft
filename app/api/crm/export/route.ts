@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
+import { requestFilter } from '@/lib/crm-filter-http';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { sessionScope } from '@/lib/crm-visibility';
 import { exportRows, type ExportEntity } from '@/lib/crm';
 import { crmError, unauthorized, forbidden } from '@/lib/crm-http';
@@ -48,7 +51,18 @@ export async function GET(req: NextRequest) {
   if (!entity || !ENTITIES.includes(entity)) return crmError(400, 'invalid_input');
   if (format !== 'csv' && format !== 'json') return crmError(400, 'invalid_input');
 
-  const rows = await exportRows(user.id, entity, await sessionScope(user));
+  // `filters`: el filtro avanzado del listado (contactos, empresas y deals). Uno inválido es 400, no un export completo.
+  const filter =
+    entity === 'activities'
+      ? {}
+      : await requestFilter(sp, entity, { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
+  if ('error' in filter) return crmError(400, 'invalid_filter');
+  const rows = await exportRows(
+    user.id,
+    entity,
+    await sessionScope(user),
+    filter.filters ? { model: filter.filters, customTypes: filter.customTypes, env: filter.filterEnv } : undefined,
+  );
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;
 

@@ -659,6 +659,9 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     async updateParticipants(groupId, action, phones) {
       requireConnected();
       const g = group(groupId);
+      // Como WhatsApp: si la cuenta está en el grupo y no es admin, rechaza el pedido entero.
+      const self = g.participants.find((p) => p.phone === '15550000001');
+      if (self && self.role === 'member') throw new ProviderError('not_group_admin', 403);
       return phones.map((raw) => {
         const phone = phoneDigits(raw);
         const i = g.participants.findIndex((p) => p.phone === phone);
@@ -758,6 +761,20 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
         const t = (e as { type?: unknown })?.type;
         if (t === 'fake_media_release') {
           fakeMediaReleased.add(String((e as { id?: unknown }).id ?? ''));
+          return [];
+        }
+        // Un grupo armado por el test (asunto y participantes con su rol): la cuenta puede quedar sin ser admin.
+        if (t === 'fake_group') {
+          const ev = e as { chatId?: unknown; name?: unknown; participants?: unknown };
+          const id = String(ev.chatId ?? '');
+          if (id.endsWith('@g.us') && Array.isArray(ev.participants)) {
+            const participants = (ev.participants as Array<{ phone?: unknown; role?: unknown }>)
+              .map((p) => ({ phone: phoneDigits(String(p?.phone ?? '')), role: (p?.role === 'admin' || p?.role === 'superadmin' ? p.role : 'member') as 'member' | 'admin' | 'superadmin' }))
+              .filter((p) => p.phone);
+            const name = typeof ev.name === 'string' ? ev.name : '';
+            s.groups.set(id, { id, name, description: '', participants, inviteCode: randomUUID().slice(0, 8) });
+            if (name) (s.chatNames ??= new Map()).set(id, name);
+          }
           return [];
         }
         if (t === 'fake_withheld') {
