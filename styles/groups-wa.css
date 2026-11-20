@@ -1176,28 +1176,36 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
    - grande: la imagen arriba a todo el ancho (dos en grilla), título, descripción y pie con el dominio;
    - compacta: logo o imagen chica al costado;
    - solo texto: sin imagen.
-   El ancho de la grande lo pone --wa-link-w; la imagen no pasa de 4:5 de alto (se recorta, cover). */
-.wa-linkcard { --wa-link-w: 330px; display: flex; margin: 0 0 6px; max-width: min(var(--wa-link-w), 100%); overflow: hidden; color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px; }
+   Las tres tienen el ancho --wa-link-w (o el de la burbuja si es más angosta); la imagen no pasa de 4:5 de alto
+   (se recorta, cover). Título en negrita sin subrayar, descripción de dos líneas como mucho, dominio chico y gris. */
+.wa-linkcard {
+  --wa-link-w: 330px; box-sizing: border-box; display: flex; width: var(--wa-link-w); max-width: 100%; margin: 0 0 6px; overflow: hidden;
+  color: var(--wa-text); text-decoration: none; background: var(--wa-quote-bg); border-radius: 6px;
+}
+/* Ningún texto de la tarjeta va subrayado (ni con un aspecto que subraye los links): se toca la tarjeta entera. */
+.wa-linkcard, .wa-linkcard:hover, .wa-linkcard * { text-decoration: none; }
 .gr-msg-out .wa-linkcard { background: var(--wa-quote-out); }
-.wa-linkcard.is-large { flex-direction: column; width: var(--wa-link-w); }
+.wa-linkcard:hover { background: color-mix(in srgb, var(--wa-quote-bg), var(--wa-text) 4%); }
+.gr-msg-out .wa-linkcard:hover { background: color-mix(in srgb, var(--wa-quote-out), var(--wa-text) 4%); }
+.wa-linkcard.is-large { flex-direction: column; }
 .wa-linkcard-media { display: block; width: 100%; max-height: 360px; overflow: hidden; background: var(--wa-row-active); }
 .wa-linkcard-media img { display: block; width: 100%; height: 100%; max-height: 360px; object-fit: cover; }
 .wa-linkcard-media.is-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; aspect-ratio: 2 / 1; }
 .wa-linkcard-media.is-grid img { aspect-ratio: 1; }
-.wa-linkcard-thumb { flex: none; align-self: stretch; width: 82px; min-height: 82px; object-fit: cover; background: var(--wa-row-active); }
-.wa-linkcard-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 10px 8px; }
-.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; }
+/* Miniatura cuadrada a la izquierda (logo, imagen chica). */
+.wa-linkcard-thumb { flex: none; align-self: stretch; width: 82px; min-height: 82px; max-height: 120px; object-fit: cover; background: var(--wa-row-active); }
+.wa-linkcard-text { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 7px 10px 8px; }
+.wa-linkcard-text strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-preview); line-height: 1.35; font-weight: 600; color: var(--wa-text); }
+/* La descripción, como mucho dos líneas en todas las variantes. */
 .wa-linkcard-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--wa-fs-small); line-height: 1.4; color: var(--wa-text-2); }
-.wa-linkcard.is-large .wa-linkcard-desc { -webkit-line-clamp: 3; }
-.wa-linkcard.is-text .wa-linkcard-desc { -webkit-line-clamp: 4; }
-.wa-linkcard-foot { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 3px; font-size: var(--wa-fs-meta); color: var(--wa-text-2); }
+.wa-linkcard-foot { display: flex; align-items: center; gap: 5px; min-width: 0; margin-top: 2px; font-size: var(--wa-fs-meta); line-height: 1.3; color: var(--wa-text-2); }
 .wa-linkcard-foot svg { flex: none; }
 .wa-linkcard-domain { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-linkcard-fav { flex: none; width: 14px; height: 14px; object-fit: contain; border-radius: 3px; }
-.wa-linkcard:hover strong { text-decoration: underline; }
 .wa-linkcard:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
-/* La burbuja con una tarjeta grande toma su ancho (el texto del link va abajo, como en WhatsApp). */
-.gr-inbox .gr-bubble:has(> .wa-linkcard.is-large) { max-width: min(calc(var(--wa-link-w, 330px) + 16px), 100%); }
+/* La burbuja con una tarjeta toma su ancho, como con una foto: el texto del mensaje se acomoda abajo y la tarjeta
+   nunca queda más angosta que el texto. En una burbuja angosta (390 px) la tarjeta se achica a la burbuja. */
+.gr-inbox .gr-bubble:has(> .wa-linkcard) { max-width: min(calc(var(--wa-link-w, 330px) + 18px), 100%); }
 @media (max-width: 480px) {
   .wa-linkcard, .gr-inbox .gr-bubble { --wa-link-w: min(300px, 70vw); }
   .wa-linkcard-thumb { width: 68px; min-height: 68px; }
@@ -1751,3 +1759,71 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .wa-phone-copy:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
 .wa-details-head .wa-phone-copy span { color: inherit; font-size: inherit; }
 @media (pointer: coarse) { .wa-phone-copy { min-height: 40px; } }
+
+/* Miembros de un grupo (components/groups/wa/GroupMembers.tsx), en el panel de info de Lines e Inbox.
+   Tokens de WhatsApp con los de la app de respaldo: la página del grupo de Lines no está dentro de la bandeja. */
+.wa-gm { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wa-gm-title { margin: 0; font-size: var(--wa-fs-preview, 0.875rem); font-weight: 500; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-actions { display: flex; flex-direction: column; }
+.wa-gm-action {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 4px; font: inherit; font-size: var(--wa-fs-ui, 0.9375rem);
+  text-align: left; color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-gm-action:hover:not(:disabled) { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm-action:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-action:disabled { color: var(--wa-text-2, var(--ink-3)); cursor: not-allowed; }
+.wa-gm-action-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: 50%;
+  color: var(--wa-badge-ink, var(--bg)); background: var(--wa-primary, var(--ink));
+}
+.wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
+.wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border: 1px solid var(--line); border-radius: var(--radius-1); }
+.wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.wa-gm-link .input { flex: 1 1 160px; min-width: 0; font-family: var(--font-data); font-size: 0.8125rem; }
+.wa-gm-issues { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--bad-ink, var(--line)); border-radius: var(--radius-1); color: var(--wa-text, var(--ink)); }
+.wa-gm-issues-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.875rem; }
+.wa-gm-issues-head .wa-icon-btn { width: 28px; height: 28px; }
+.wa-gm-issues ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wa-gm-issues li { display: flex; flex-direction: column; font-size: 0.8125rem; min-width: 0; }
+.wa-gm-issue-who { font-weight: 600; overflow-wrap: anywhere; }
+.wa-gm-issue-why { color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-issues .btn { align-self: flex-start; }
+.wa-gm-search { position: relative; display: flex; align-items: center; }
+.wa-gm-search > svg { position: absolute; left: 12px; color: var(--wa-icon, var(--ink-3)); pointer-events: none; }
+.wa-gm-search .input { width: 100%; padding-left: 38px; }
+.wa-gm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wa-gm-row { display: flex; align-items: center; gap: 6px; min-height: 52px; min-width: 0; }
+.wa-gm-row.is-pending { opacity: 0.6; }
+.wa-gm-open {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 6px 4px; font: inherit; text-align: left;
+  color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1);
+}
+button.wa-gm-open { cursor: pointer; }
+button.wa-gm-open:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-who { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 1px; }
+.wa-gm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-ui, 0.9375rem); }
+.wa-gm-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-preview, 0.8125rem); color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-phone { font-variant-numeric: tabular-nums; }
+.wa-gm-badge {
+  flex: none; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; white-space: nowrap;
+  color: var(--wa-primary-ink, var(--ink)); background: var(--wa-chip-on-bg, var(--bg-soft)); border-radius: var(--radius-1);
+}
+.wa-gm .wa-gm-more { width: 36px; height: 36px; font-size: 1.125rem; color: var(--wa-icon, var(--ink-2)); }
+.wa-gm .wa-gm-more:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm .wa-gm-more:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: 1px; }
+.gr-menu-item:disabled { color: var(--ink-3); cursor: not-allowed; background: transparent; }
+.wa-gm-dialog { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wa-gm-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.wa-gm-chips li { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 4px 2px 8px; font-size: 0.8125rem; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.wa-gm-chips li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-gm-chips button { display: inline-flex; padding: 4px; color: var(--ink-2); background: none; border: 0; cursor: pointer; border-radius: var(--radius-1); }
+.wa-gm-chips button:hover { background: var(--ui-hover); }
+.wa-gm-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: min(50vh, 360px); overflow-y: auto; overflow-x: hidden; }
+.wa-gm-pick-row { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 6px; border-radius: var(--radius-1); cursor: pointer; min-width: 0; }
+.wa-gm-pick-row:hover { background: var(--ui-hover); }
+.wa-gm-pick-row input { flex: none; }
+.wa-gm-pick-row:has(input:disabled) { cursor: default; opacity: 0.7; }
+.wa-gm-empty { padding: 8px 6px; white-space: normal; }
+@media (pointer: coarse) { .wa-gm .wa-gm-more { width: 44px; height: 44px; } }
