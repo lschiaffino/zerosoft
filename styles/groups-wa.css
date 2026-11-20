@@ -415,6 +415,11 @@
   border: 0; border-left: 4px solid var(--wa-primary); border-radius: 6px; cursor: pointer; white-space: normal;
 }
 .gr-inbox .gr-msg-out .gr-quote { background: var(--wa-quote-out); }
+/* La cita no ensancha la burbuja, como en WhatsApp: el ancho lo pone el mensaje (texto, audio, foto) y la cita se
+   acomoda a ese ancho en hasta 3 renglones. Con un mensaje corto ("ok"), la burbuja toma un ancho mínimo para que la
+   cita se lea. En la barra de respuesta del composer (.wa-replying) la cita sigue ocupando su lugar. */
+.gr-inbox .gr-bubble > .gr-quote { contain: inline-size; box-sizing: border-box; }
+.gr-inbox .gr-bubble:has(> .gr-quote) { min-width: min(260px, 100%); }
 .gr-inbox .gr-quote strong { font-size: var(--wa-fs-small); font-weight: 500; color: var(--wa-primary-ink); }
 .gr-inbox .gr-quote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .gr-inbox .gr-quote.wa-q-me { border-left-color: #06cf9c; }
@@ -1014,6 +1019,13 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-stk-empty .wa-stk-empty-title { margin-bottom: 4px; font-weight: 600; color: var(--wa-text); }
 .wa-stk-primary { height: 32px; padding: 0 14px; font: inherit; font-size: 0.875rem; font-weight: 500; color: #fff; background: var(--wa-primary); border: 0; border-radius: 6px; cursor: pointer; }
 .wa-stk-note { margin-top: 10px !important; font-size: 0.8125rem; }
+/* "De tus chats": lo que solo recibió, plegado debajo de lo suyo. */
+.wa-stk-fold { display: flex; align-items: center; gap: 6px; width: 100%; margin: 6px 0 2px; padding: 6px 4px; font: inherit; font-size: 0.75rem; color: var(--wa-text-2); text-align: left; background: none; border: 0; border-top: 1px solid var(--wa-border, var(--line)); cursor: pointer; }
+.wa-stk-fold:hover { color: var(--wa-text); }
+.wa-stk-fold:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-stk-fold svg { flex: none; transform: rotate(-90deg); transition: transform 120ms ease; }
+.wa-stk-fold[aria-expanded='true'] svg { transform: none; }
+.wa-stk-hint { margin: 2px 4px 6px; font-size: 0.75rem; line-height: 1.4; color: var(--wa-text-2); }
 .wa-stk-error { margin: 0 2px 6px; font-size: 0.8125rem; color: var(--wa-danger, #ea0038); }
 
 /* Pestaña GIFs: búsqueda, categorías, mosaico de vistas previas animadas y la atribución del proveedor. */

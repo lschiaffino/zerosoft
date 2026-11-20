@@ -111,6 +111,7 @@ import {
   Note,
 } from './wa/icons';
 import TouchMessageMenu from './wa/TouchMessageMenu';
+import { openMenuAt, pointerOf } from './wa/Menu';
 import SelectionBar from './wa/SelectionBar';
 import { SelectCheck, useMessageSelection } from './wa/useMessageSelection';
 import { useBackLayer } from './wa/backLayer';
@@ -1473,9 +1474,9 @@ export default function ChatThread(props: ThreadProps) {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  /** Abre el menú (la flecha) de un mensaje o una fila. */
-  function openMenuIn(el: HTMLElement) {
-    el.querySelector<HTMLButtonElement>('.wa-chevron, .wa-row-chevron')?.click();
+  /** Abre el menú (la flecha) de un mensaje o una fila; con `at` (el clic derecho), en el puntero. */
+  function openMenuIn(el: HTMLElement, at?: { x: number; y: number }) {
+    openMenuAt(el.querySelector<HTMLButtonElement>('.wa-chevron, .wa-row-chevron'), at);
   }
 
   function menuItems(m: MessageDto): MenuItem[] {
@@ -1867,7 +1868,7 @@ export default function ChatThread(props: ThreadProps) {
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
-          openMenuIn(e.currentTarget);
+          openMenuIn(e.currentTarget, pointerOf(e));
         }}
         {...swipeAndHold({
           // Deslizar a la derecha responde (como WhatsApp); una nota o algo borrado, no.

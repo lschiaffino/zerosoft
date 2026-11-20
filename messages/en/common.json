@@ -1500,6 +1500,44 @@
         "title": "That's the tour",
         "body": "You can take it again from your account menu."
       }
+    },
+    "notes": {
+      "intro": {
+        "title": "Welcome to Notes",
+        "body": "Notes keeps your notes, notebooks and tags in one place, and they save as you type. This tour points out the main parts."
+      },
+      "newNote": {
+        "title": "Write a note",
+        "body": "Start a blank note here, or one from a template. Anywhere in Notes, press N for a new note."
+      },
+      "notebooks": {
+        "title": "Notebooks",
+        "body": "Group notes in notebooks, and notebooks in stacks. Above them are Home, Tasks, Pinned and the notes shared with you."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Search titles and text. Operators like tag: and notebook: narrow it, and the ? button lists them all. Press / to jump here."
+      },
+      "openNote": {
+        "title": "Open a note",
+        "body": "Open any note in the list to read and edit it."
+      },
+      "noteBar": {
+        "title": "The note's tools",
+        "body": "Move the note to a notebook, record audio, pin it, set a reminder or share it with a link or with people."
+      },
+      "tags": {
+        "title": "Tags",
+        "body": "Type a tag and press Enter. Tags show in the list and in the sidebar, across notebooks."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "N creates a note and / searches. Arrow keys move through the list. Cmd+K finds any note."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
     }
   }
 }
