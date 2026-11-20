@@ -117,6 +117,8 @@ async function everyLook(page: Page, context: BrowserContext, baseURL: string, r
           await expect(photo).toBeVisible();
           await c.scrollIntoViewIfNeeded();
           await expect(photo).toHaveAttribute('src', /^\/api\/wa\/link-preview\/image\?url=https%3A%2F%2Fchat\.whatsapp\.com/);
+          // La foto llega (la cuadrada de 640 del lector falso), no queda el círculo vacío.
+          await expect.poll(() => photo.evaluate((i: HTMLImageElement) => i.naturalWidth), { timeout: 60_000 }).toBe(640);
           const pb = (await photo.boundingBox())!;
           expect(Math.abs(pb.width - pb.height)).toBeLessThanOrEqual(1);
           await c.scrollIntoViewIfNeeded();
