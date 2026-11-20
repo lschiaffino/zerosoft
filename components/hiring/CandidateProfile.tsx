@@ -273,7 +273,7 @@ export default function CandidateProfile({
         <div className="hr-profile-main">
           <div className="ui-tabs" role="tablist" aria-label={c.name}>
             {visibleTabs.map((k) => (
-              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+              <button key={k} type="button" role="tab" className="ui-tab" data-profile-tab={k} aria-selected={tab === k} onClick={() => setTab(k)}>
                 {t(`profile.tabs.${k}`)}
               </button>
             ))}
