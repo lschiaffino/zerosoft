@@ -169,7 +169,9 @@ async function checkZoom(page: Page, p: Parts) {
 
   // Se recuerda en este navegador.
   await expect.poll(() => stored(page)).toBe('2');
-  await page.reload({ waitUntil: 'networkidle' });
+  // Sin esperar "networkidle": la bandeja sigue pidiendo cosas de fondo (vistas previas, relecturas) y la recarga
+  // podía no llegar nunca a quedar quieta. Lo que importa se espera abajo.
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await p.open();
   await expect(text).toBeVisible({ timeout: 120_000 });
   await expect.poll(() => zoomAttr(page)).toBe('200');

@@ -49,6 +49,7 @@ import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
+import LinesImportNotices from './LinesImportNotices';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineGroupOption, type LineOption } from './LineFolders';
@@ -197,8 +198,6 @@ function inboxQuery(listId: string | null, folder: string): string {
 }
 
 const IMPORTS_CLOSED_KEY = 'zs-lines-imports-closed';
-/** Una importación terminada: otra importación del mismo número (otros totales) vuelve a avisar. */
-const importKey = (im: { numberId: string; chatsTotal: number; messages: number }) => `${im.numberId}:${im.chatsTotal}:${im.messages}`;
 
 export default function InboxShell({
   labels,
@@ -312,7 +311,7 @@ export default function InboxShell({
   const { hidden: detailsHidden } = useDetailsHidden();
   // Pellizcar en el trackpad agranda solo los mensajes, no la app entera.
   useConversationZoom();
-  // "Importación terminada" se puede cerrar y queda cerrado (por navegador) hasta la próxima importación.
+  // El aviso de una línea caída se puede cerrar y queda cerrado (por navegador). Los de importación: LinesImportNotices.
   const [importsClosed, setImportsClosed] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -391,6 +390,10 @@ export default function InboxShell({
   const listCache = useRef(new ListCache<CachedList>(30)).current;
   const live = useRef({ want: '', shown: '', rows: [] as ChatDto[], next: null as string | null, pinned: 0, kept: 0, etag: '', etagUrl: '', more: false, unreadOnly: false, current: null as string | null });
   const listAbort = useRef<AbortController | null>(null);
+  /** La relectura en curso: otra de la misma lista no la corta (con un servidor lento, ninguna llegaría a terminar). */
+  const listInflight = useRef<string | null>(null);
+  /** Llegó otro aviso mientras esa relectura estaba en curso: al terminar se lee una vez más (puede haber cambiado algo después). */
+  const listAgain = useRef(false);
   const moreAbort = useRef<AbortController | null>(null);
   const activeList = lists.find((l) => l.id === listId) ?? null;
 
@@ -482,11 +485,25 @@ export default function InboxShell({
       // Lo que cuenta para el tamaño de página: sin los fijados de adelante ni el chat abierto que se mantiene en "no leídos".
       const size = L.shown === key ? Math.min(Math.max(L.rows.length - L.pinned - L.kept, PAGE), MAX_HEAD) : PAGE;
       const url = `/api/groups/chats?${key}&cursor=&limit=${size}`;
+      // Una relectura de fondo de la misma lista que ya se está pidiendo espera a esa: si cada aviso o cada 5 s cortara
+      // la anterior, con un servidor lento la lista no llegaría nunca. Otra lista (u otro tamaño) sí corta la anterior.
+      if (silent && listInflight.current === url) {
+        listAgain.current = true;
+        return;
+      }
       listAbort.current?.abort();
       const ctrl = new AbortController();
       listAbort.current = ctrl;
+      listInflight.current = url;
       if (!silent) setError(false);
       const r = await fetchIfChanged<ListData>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (listAbort.current === ctrl) {
+        listInflight.current = null;
+        if (listAgain.current) {
+          listAgain.current = false;
+          queueMicrotask(() => void loadRef.current(true));
+        }
+      }
       if (r.state === 'aborted' || live.current.want !== key) return;
       setLoaded(true);
       if (r.state === 'error') {
@@ -528,6 +545,8 @@ export default function InboxShell({
     },
     [showRows],
   );
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   /** La página que sigue (al llegar al final de la lista): así se recorre toda la historia. */
   const loadMore = useCallback(async () => {
@@ -1588,33 +1607,8 @@ export default function InboxShell({
               <p className="wa-deleted-note">{t('wa.deletedNote')}</p>
             </>
           )}
-          {imports.filter((im) => inLine(im.numberId) && !(im.status === 'done' && importsClosed.includes(importKey(im)))).map((im) => (
-            <div key={im.numberId} className={`wa-import${im.status === 'error' ? ' is-bad' : im.status === 'done' ? ' is-done' : ''}`} role="status">
-              <span>
-                {im.status === 'done'
-                  ? im.messages === 0
-                    ? t('wa.importNothingNew', { chats: im.chatsTotal })
-                    : t('wa.importDone', { chats: im.chatsTotal, messages: im.messages })
-                  : im.status === 'error'
-                    ? t('wa.importFailed')
-                    : im.phase === 'older'
-                      ? t('wa.importOlder', { messages: im.messages })
-                      : im.phase === 'messages' || im.phase === 'pictures'
-                        ? t('wa.importMessages', { done: im.chatsDone, total: im.chatsTotal })
-                        : t('wa.importChats', { n: im.chatsTotal })}
-              </span>
-              {(im.status === 'queued' || im.status === 'running') && (
-                <span className="wa-import-bar" role="progressbar" aria-label={t('wa.importProgress')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={im.chatsTotal ? Math.round((im.chatsDone / im.chatsTotal) * 100) : 0}>
-                  <i style={{ width: `${im.chatsTotal ? Math.max(3, (im.chatsDone / im.chatsTotal) * 100) : 3}%` }} />
-                </span>
-              )}
-              {im.status === 'done' && (
-                <button type="button" className="wa-icon-btn wa-import-close" onClick={() => closeImport(importKey(im))} aria-label={t('common.close')} title={t('common.close')}>
-                  <Close size={16} />
-                </button>
-              )}
-            </div>
-          ))}
+          {/* Con una línea o un grupo de líneas elegido, solo sus avisos. */}
+          <LinesImportNotices imports={imports.filter((im) => inLine(im.numberId))} line="all" />
           {error && (
             <div className="gr-error" role="alert">
               {t('inbox.loadError')}
