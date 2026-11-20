@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
 import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
@@ -18,8 +20,11 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
+  const filter = await requestFilter(sp, 'contacts', { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
+  if ('error' in filter) return crmError(400, 'invalid_filter');
   const { rows, total } = await listContacts(user.id, {
     ownerScope: await sessionScope(user),
+    ...filter,
     q: sp.get('q') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,
     leadStatus: sp.get('leadStatus') ?? undefined,

@@ -155,6 +155,9 @@ test('la tarjeta del link ocupa la burbuja, sin subrayado y con dos líneas de d
     { app: 'inbox', name: inbox, scope: () => page.locator('.ib-wa-thread') },
   ];
   for (const [look, theme] of LOOKS) {
+    // Fuera de la app antes de cambiar el aspecto: una página abierta que se entera del cambio se recarga sola y
+    // cortaba la navegación siguiente (net::ERR_ABORTED).
+    await page.goto('about:blank');
     await request.put('/api/profile/look', { data: { look } });
     await context.addCookies([
       { name: 'zs_theme', value: theme, url: baseURL! },

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import ContactSheet, { type SheetSharedItem } from './wa/ContactSheet';
+import { formatWaPhone } from './wa/format';
 import type { WaPersonCard } from '@/lib/wa-person';
 import { api } from './ui';
 
@@ -28,10 +29,10 @@ const query = (ref: PersonRef) => (ref.messageId ? `message=${encodeURIComponent
 /**
  * Lines: la ficha "Info del contacto" de una persona de un grupo (al tocar su
  * foto o su nombre en un mensaje, o un miembro de la lista). Mensaje abre (o
- * crea) su chat 1:1 en la misma línea; silenciar ese chat, lo compartido y
- * los destacados, y los grupos en común de la línea.
+ * crea) su chat 1:1 en la misma línea; silenciar y bloquear ese chat, lo
+ * compartido y los destacados, y los grupos en común de la línea.
  */
-export function useLinesPersonSheet(groupId: string, onError: (code: string) => void): { open: (ref: PersonRef, name: string, picture?: string) => void; sheet: ReactNode } {
+export function useLinesPersonSheet(groupId: string, onError: (code: string) => void, onToast?: (text: string) => void): { open: (ref: PersonRef, name: string, picture?: string) => void; sheet: ReactNode } {
   const t = useTranslations('groups.wa.contactSheet');
   const router = useRouter();
   const [person, setPerson] = useState<{ ref: PersonRef; name: string; picture?: string } | null>(null);
@@ -86,6 +87,7 @@ export function useLinesPersonSheet(groupId: string, onError: (code: string) => 
     router.push(`/app/lines/inbox/${chatId}${typeof window !== 'undefined' ? window.location.search : ''}`);
   };
 
+  const label = card ? card.name || formatWaPhone(card.phone, card.masked) : (person?.name ?? '');
   const sheet = person ? (
     <ContactSheet
       card={card}
@@ -113,6 +115,14 @@ export function useLinesPersonSheet(groupId: string, onError: (code: string) => 
             }
           : undefined
       }
+      onBlock={async (on) => {
+        if (!card?.dm) return;
+        // En WhatsApp, por el adaptador de la línea (Evolution); la ficha se vuelve a leer para mostrar Desbloquear.
+        const r = await api(`/api/groups/chats/${card.dm.id}`, { body: { action: on ? 'block' : 'unblock' } });
+        if (!r.data) onError(r.error);
+        else onToast?.(on ? t('blockedToast', { name: label }) : t('unblockedToast', { name: label }));
+        void load(person.ref);
+      }}
       loadShared={loadShared}
     />
   ) : null;
