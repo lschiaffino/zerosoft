@@ -81,7 +81,11 @@
     "publishing": "Esta publicação está sendo publicada agora.",
     "conflict": "Alguém alterou isso ao mesmo tempo. Recarregue e tente de novo.",
     "server_error": "Algo falhou do nosso lado.",
-    "too_many_rows": "Linhas demais em um só pedido."
+    "too_many_rows": "Linhas demais em um só pedido.",
+    "ai_disabled": "A IA não está configurada neste servidor.",
+    "ai_quota": "Seu workspace usou a IA incluída deste mês.",
+    "ai_failed": "A IA não respondeu. Tente de novo.",
+    "empty_result": "A IA voltou sem texto. Tente com mais detalhes."
   },
   "issues": {
     "empty": "Escreva algo ou adicione uma foto ou um vídeo.",
@@ -187,6 +191,19 @@
     "schedule": "Agendar",
     "previews": "Prévias",
     "previewEmpty": "Escolha contas para ver como fica em cada rede.",
+    "aiOpen": "Escrever com IA",
+    "aiIdea": "Sobre o que é a publicação?",
+    "aiIdeaHint": "Novo horário a partir de segunda, das 8 às 18",
+    "aiWrite": "Escrever publicação",
+    "aiChanges": "Mudar o texto",
+    "ai_shorter": "Mais curto",
+    "ai_longer": "Mais longo",
+    "ai_casual": "Mais informal",
+    "ai_formal": "Mais formal",
+    "ai_fix": "Corrigir ortografia",
+    "aiUndo": "Desfazer",
+    "aiDone": "A IA mudou o texto. Revise antes de publicar.",
+    "aiLimit": "A IA deixa a publicação abaixo de {limit, number} caracteres, o menor limite das redes escolhidas.",
     "tagSuggestions": "Hashtags e menções já usados",
     "tagUses": "{n, plural, one {# uso} other {# usos}}"
   },

@@ -81,7 +81,11 @@
     "publishing": "This post is being published right now.",
     "conflict": "Someone changed this at the same time. Reload and try again.",
     "server_error": "Something went wrong on our side.",
-    "too_many_rows": "Too many rows in one request."
+    "too_many_rows": "Too many rows in one request.",
+    "ai_disabled": "AI isn't set up on this server.",
+    "ai_quota": "Your workspace used this month's AI allowance.",
+    "ai_failed": "The AI didn't answer. Try again.",
+    "empty_result": "The AI came back empty. Try with more detail."
   },
   "issues": {
     "empty": "Write something or add a photo or video.",
@@ -187,6 +191,19 @@
     "schedule": "Schedule",
     "previews": "Previews",
     "previewEmpty": "Pick accounts to see how the post looks on each network.",
+    "aiOpen": "Write with AI",
+    "aiIdea": "What is the post about?",
+    "aiIdeaHint": "New opening hours from Monday, 8 to 6",
+    "aiWrite": "Write post",
+    "aiChanges": "Change the text",
+    "ai_shorter": "Shorter",
+    "ai_longer": "Longer",
+    "ai_casual": "More casual",
+    "ai_formal": "More formal",
+    "ai_fix": "Fix spelling",
+    "aiUndo": "Undo",
+    "aiDone": "The AI changed the text. Check it before you post.",
+    "aiLimit": "The AI keeps the post under {limit, number} characters, the tightest limit of the networks you picked.",
     "tagSuggestions": "Hashtags and mentions used before",
     "tagUses": "{n, plural, one {# use} other {# uses}}"
   },

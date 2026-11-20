@@ -44,19 +44,20 @@ export function readCandidateCsv(text: string): { rows: ImportRow[]; missing: st
   const all = parseCsv(text);
   if (!all.length) return { rows: [], missing: ['name', 'email'] };
   const cols = all[0].map((h) => HEADERS[h.trim().toLowerCase()] ?? '');
-  const missing = ['name', 'email'].filter((c) => !cols.includes(c));
+  // Alcanza con una de las dos columnas: cada fila necesita nombre o email.
+  const missing = cols.includes('name') || cols.includes('email') ? [] : ['name', 'email'];
   if (missing.length) return { rows: [], missing };
   const seen = new Set<string>();
   const rows = all.slice(1, MAX_IMPORT_ROWS + 1).map((cells, i): ImportRow => {
     const get = (k: string) => (cells[cols.indexOf(k)] ?? '').trim();
     const email = get('email').toLowerCase();
     const src = get('source').toLowerCase();
-    const name = oneLine(get('name')).slice(0, 160);
+    const name = oneLine(get('name')).slice(0, 160) || email;
     let error: string | null = null;
     if (!name) error = 'name_required';
-    else if (!EMAIL.test(email) || email.length > 254) error = 'invalid_email';
-    else if (seen.has(email)) error = 'duplicate_in_file';
-    seen.add(email);
+    else if (email && (!EMAIL.test(email) || email.length > 254)) error = 'invalid_email';
+    else if (email && seen.has(email)) error = 'duplicate_in_file';
+    if (email) seen.add(email);
     return {
       line: i + 2,
       name,

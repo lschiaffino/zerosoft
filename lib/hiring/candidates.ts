@@ -213,8 +213,9 @@ interface NewCandidate {
 }
 
 async function insertCandidate(ws: string, input: NewCandidate): Promise<{ candidate: CandidateRow; forgetToken: string }> {
+  // Sin email solo en la carga manual (Workable deja cargar solo con nombre): ahí no hay dedupe ni emails.
   const email = normalizeEmail(input.email);
-  if (!EMAIL_RE.test(email) || email.length > 254) throw new HiringError('invalid_email');
+  if (email ? !EMAIL_RE.test(email) || email.length > 254 : !input.name.trim()) throw new HiringError('invalid_email');
   const ts = nowIso();
   const forgetToken = randomBytes(24).toString('base64url');
   const id = newId('cand');
@@ -248,13 +249,15 @@ async function insertCandidate(ws: string, input: NewCandidate): Promise<{ candi
   return { candidate: (await getCandidateRow(ws, id))!, forgetToken };
 }
 
-/** Otros registros con el mismo email en el workspace (duplicados). */
+/** Otros registros con el mismo email en el workspace (duplicados). Sin email no hay duplicados: nunca junta a los que no tienen. */
 async function sameEmail(ws: string, email: string): Promise<CandidateRow[]> {
+  if (!normalizeEmail(email)) return [];
   return (await getDb().prepare('SELECT * FROM hiring_candidates WHERE workspace_id = ? AND email = ? ORDER BY created_at').all(ws, normalizeEmail(email))) as CandidateRow[];
 }
 
 /** El registro con ese email que ya se postuló a este puesto, si hay. */
 async function candidateOnJob(ws: string, jobId: string, email: string): Promise<CandidateRow | null> {
+  if (!normalizeEmail(email)) return null;
   return (
     ((await getDb()
       .prepare('SELECT c.* FROM hiring_candidates c JOIN hiring_applications a ON a.candidate_id = c.id WHERE c.workspace_id = ? AND c.email = ? AND a.job_id = ? LIMIT 1')
@@ -410,16 +413,20 @@ export async function applyPublic(handle: string, jobSlug: string, input: z.infe
   return { applicationId: app.id, duplicate, existing: false };
 }
 
-export const manualAddSchema = z.object({
-  jobId: z.string().min(1).max(80),
-  name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)),
-  email: z.string().trim().max(254),
-  phone: z.string().trim().max(40).optional(),
-  location: z.string().trim().max(120).optional(),
-  headline: z.string().trim().max(200).optional(),
-  source: z.enum(SOURCES).default('manual'),
-  tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional(),
-});
+export const manualAddSchema = z
+  .object({
+    jobId: z.string().min(1).max(80),
+    name: z.string().transform(oneLine).pipe(z.string().max(160)).default(''),
+    email: z.string().trim().max(254).default(''),
+    phone: z.string().trim().max(40).optional(),
+    location: z.string().trim().max(120).optional(),
+    headline: z.string().trim().max(200).optional(),
+    source: z.enum(SOURCES).default('manual'),
+    tags: z.array(z.string().trim().min(1).max(40)).max(MAX_TAGS).optional(),
+  })
+  // Con nombre o con email alcanza; sin nombre, el email hace de nombre.
+  .refine((v) => v.name !== '' || v.email !== '', { message: 'name_or_email', path: ['name'] })
+  .transform((v) => ({ ...v, name: v.name || v.email.toLowerCase() }));
 
 /**
  * Carga manual (recruiter, hiring manager o admin). Se une a un candidato
@@ -915,6 +922,8 @@ export async function addNote(actor: HiringActor, appId: string, body: string): 
 
 export const candidatePatchSchema = z.object({
   name: z.string().transform(oneLine).pipe(z.string().min(1).max(160)).optional(),
+  /** Vacío lo saca (el candidato queda sin emails). */
+  email: z.string().trim().max(254).optional(),
   phone: z.string().trim().max(40).optional(),
   location: z.string().trim().max(120).optional(),
   headline: z.string().trim().max(200).optional(),
@@ -929,11 +938,17 @@ export async function updateCandidate(actor: HiringActor, id: string, patch: z.i
   if (!(await canManageCandidate(actor, id))) throw new HiringError('forbidden', 403);
   const oldTags = parseJson<string[]>(c.tags, []);
   const tags = patch.tags ? [...new Set(patch.tags)] : oldTags;
+  let email = c.email;
+  if (patch.email !== undefined) {
+    email = normalizeEmail(patch.email);
+    if (email && !EMAIL_RE.test(email)) throw new HiringError('invalid_email');
+  }
   const custom = patch.custom ? cleanCustomValues(parseJson<CandidateField[]>((await ensureSettings(actor.ws)).candidate_fields, []), patch.custom, parseJson<Record<string, string>>(c.custom, {})) : parseJson<Record<string, string>>(c.custom, {});
   await getDb()
-    .prepare('UPDATE hiring_candidates SET name = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, custom = ?, updated_at = ? WHERE id = ?')
+    .prepare('UPDATE hiring_candidates SET name = ?, email = ?, phone = ?, location = ?, headline = ?, links = ?, tags = ?, keep_consent = ?, custom = ?, updated_at = ? WHERE id = ?')
     .run(
       patch.name ?? c.name,
+      email,
       patch.phone ?? c.phone,
       patch.location ?? c.location,
       patch.headline ?? c.headline,
@@ -1053,7 +1068,8 @@ export async function forgetByToken(token: string): Promise<boolean> {
     return true;
   }
   await trash.purgeTrashedByEmail(row.workspace_id, row.email);
-  const records = await sameEmail(row.workspace_id, row.email);
+  // Sin email (se lo sacaron después de mandarle el link): solo ese registro.
+  const records = row.email ? await sameEmail(row.workspace_id, row.email) : [{ id: row.id }];
   // Registro del workspace sin datos personales: que el candidato pidió el borrado, de qué puestos y las ofertas aceptadas (anónimas).
   const ids = records.map((c) => c.id);
   const marks = ids.map(() => '?').join(',');

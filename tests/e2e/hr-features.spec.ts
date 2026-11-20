@@ -314,7 +314,7 @@ test('Hiring: cadena de aprobación, confidencial, importar, copiar, fusionar y 
     const imported = `Imp ${uid()}`;
     await page.goto(`/en/app/hiring/jobs/${jobId}`, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Import CSV' }).click();
-    await page.getByTestId('csv-file').setInputFiles({ name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from(`Name,Email\n${imported},imp-${uid()}@x.co\nNo mail,\n`) });
+    await page.getByTestId('csv-file').setInputFiles({ name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from(`Name,Email,Phone\n${imported},imp-${uid()}@x.co,\n,,123\n`) });
     await dialogButton(page, 'Check the file').click();
     await expect(page.getByTestId('csv-summary')).toContainText('1 candidate');
     await expect(page.getByTestId('csv-failed')).toContainText('Line 3');
