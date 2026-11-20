@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Shopify',
-  lastReviewed: '2026-11-01',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'catalog', label: loc(['Catalog', 'Catálogo', 'Catálogo']) },
     { id: 'inventory', label: loc(['Inventory', 'Inventario', 'Estoque']) },
@@ -185,11 +185,15 @@ const parity: ProductParity = {
       detail: ['Sort, maximum price and in stock. No filters by option like size or color', 'Orden, precio máximo y con stock. Sin filtros por opción como talle o color', 'Ordem, preço máximo e com estoque. Sem filtros por opção como tamanho ou cor'],
     }),
     row('related-products', 'storefront', ['Related products', 'Productos relacionados', 'Produtos relacionados'], 'have', {
-      detail: ['From the same collection or product type', 'De la misma colección o tipo de producto', 'Da mesma coleção ou tipo de produto'],
+      detail: ['From the same hand-picked collection or the same product type', 'De la misma colección armada a mano o del mismo tipo de producto', 'Da mesma coleção montada à mão ou do mesmo tipo de produto'],
     }),
     row('whatsapp-button', 'storefront', ['WhatsApp button in the store', 'Botón de WhatsApp en la tienda', 'Botão de WhatsApp na loja'], 'have'),
     row('navigation-menus', 'storefront', ['Menus you can edit', 'Menús editables', 'Menus editáveis'], 'partial', {
-      detail: ['The footer lists your pages by itself; menus can’t be arranged by hand', 'El pie lista tus páginas solo; los menús no se ordenan a mano', 'O rodapé lista suas páginas sozinho; os menus não são organizados à mão'],
+      detail: [
+        'The header shows up to 6 published collections (featured first) and the footer lists your pages by itself; menus can’t be arranged by hand',
+        'El encabezado muestra hasta 6 colecciones publicadas (primero las destacadas) y el pie lista tus páginas solo; los menús no se ordenan a mano',
+        'O cabeçalho mostra até 6 coleções publicadas (primeiro as destacadas) e o rodapé lista suas páginas sozinho; os menus não são organizados à mão',
+      ],
     }),
     row('custom-domain', 'storefront', ['Custom domain', 'Dominio propio', 'Domínio próprio'], 'missing', {
       detail: [
@@ -285,9 +289,9 @@ const parity: ProductParity = {
     }),
     row('abandoned-checkout', 'checkout', ['Abandoned checkout emails', 'Emails de carrito abandonado', 'Emails de carrinho abandonado'], 'partial', {
       detail: [
-        'List with recovery link and one reminder email if you turn it on, with caps per recipient and store and an opt-out link. Fixed text: no editable template or discount in the email',
-        'Lista con link para recuperar y un recordatorio por email si lo activás, con topes por destinatario y tienda y link para darse de baja. Texto fijo: sin plantilla editable ni descuento en el email',
-        'Lista com link de recuperação e um lembrete por email se você ativar, com limites por destinatário e loja e link de descadastro. Texto fixo: sem modelo editável nem desconto no email',
+        'List with recovery link and one reminder email, sent by itself if you turn it on or by hand from the list, with caps per recipient and store and an opt-out link. Fixed text: no editable template or discount in the email',
+        'Lista con link para recuperar y un recordatorio por email, que sale solo si lo activás o a mano desde la lista, con topes por destinatario y tienda y link para darse de baja. Texto fijo: sin plantilla editable ni descuento en el email',
+        'Lista com link de recuperação e um lembrete por email, enviado sozinho se você ativar ou à mão pela lista, com limites por destinatário e loja e link de descadastro. Texto fixo: sem modelo editável nem desconto no email',
       ],
     }),
     row('checkout-rate-limits', 'checkout', ['Abuse limits on checkout and discount codes', 'Límites contra abuso en el checkout y los códigos', 'Limites contra abuso no checkout e nos cupons'], 'partial', {
@@ -406,9 +410,9 @@ const parity: ProductParity = {
     }),
     row('reports', 'analytics', ['Custom reports and exports', 'Reportes a medida y exportaciones', 'Relatórios personalizados e exportações'], 'partial', {
       detail: [
-        'Fixed reports by product, payment method, discount, day and top customers, and CSV export of orders and customers (admins). No custom report builder',
-        'Reportes fijos por producto, medio de pago, descuento, día y mejores clientes, y exportar pedidos y clientes a CSV (admins). Sin armador de reportes a medida',
-        'Relatórios fixos por produto, forma de pagamento, desconto, dia e melhores clientes, e exportação de pedidos e clientes em CSV (admins). Sem criador de relatórios personalizados',
+        'Fixed reports by product, payment method, discount, day and top customers, each one downloadable as CSV, plus CSV export of orders and customers (admins). No custom report builder',
+        'Reportes fijos por producto, medio de pago, descuento, día y mejores clientes, cada uno descargable en CSV, y exportar pedidos y clientes a CSV (admins). Sin armador de reportes a medida',
+        'Relatórios fixos por produto, forma de pagamento, desconto, dia e melhores clientes, cada um para baixar em CSV, e exportação de pedidos e clientes em CSV (admins). Sem criador de relatórios personalizados',
       ],
     }),
     // Plataforma
@@ -444,9 +448,9 @@ const parity: ProductParity = {
     row('app-store', 'platform', ['App store', 'Tienda de apps', 'Loja de apps'], 'missing'),
     row('staff-permissions', 'platform', ['Staff access', 'Acceso del equipo', 'Acesso da equipe'], 'partial', {
       detail: [
-        'Shop on or off per person; payments and refunds only for admins. No per-section permissions',
-        'Shop prendida o apagada por persona; cobros y reembolsos solo para admins. Sin permisos por sección',
-        'Shop ligado ou desligado por pessoa; pagamentos e reembolsos só para admins. Sem permissões por seção',
+        'Shop on or off per person; payments, refunds, the store address, currency, publishing and customer exports only for admins. No per-section permissions',
+        'Shop prendida o apagada por persona; cobros, reembolsos, la dirección y la moneda de la tienda, publicarla y exportar clientes solo para admins. Sin permisos por sección',
+        'Shop ligado ou desligado por pessoa; pagamentos, reembolsos, o endereço e a moeda da loja, publicação e exportação de clientes só para admins. Sem permissões por seção',
       ],
     }),
   ],
