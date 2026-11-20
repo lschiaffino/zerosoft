@@ -233,3 +233,42 @@ th[aria-sort] .gr-gt-sort { color: var(--ink); }
 .gr-gt-celleditor-form { display: flex; flex-direction: column; gap: 10px; }
 .gr-gt-celleditor .gr-hsx-editor { display: flex; flex-direction: column; gap: 10px; }
 .gr-gt-labelpick { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; margin: 0; padding: 0; border: 0; }
+
+/* HubSpot en la celda (components/groups/HubspotLinkCell.tsx): "Sin vincular" se vuelve un buscador en la celda,
+   con la lista en un portal anclada debajo; una celda vinculada lleva un menú chico con Cambiar y Desvincular. */
+.gr-hslink.is-searching { padding-top: 2px; padding-bottom: 2px; }
+.gr-hslink-trigger { cursor: pointer; }
+.gr-hslink-trigger .ui-help { overflow: hidden; text-overflow: ellipsis; }
+.gr-hslink-input { width: 100%; min-width: 180px; height: 28px; box-sizing: border-box; font-size: 0.8125rem; }
+.gr-hslink-more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--dim);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.gr-hslink-more:hover,
+.gr-hslink-more[aria-expanded='true'] { color: var(--ink); border-color: var(--line); }
+.gr-hslink-more:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.gr-hslink-pop { display: flex; flex-direction: column; max-height: min(320px, calc(100vh - 16px)); }
+.gr-hslink-status { margin: 0; padding: 6px 10px; font-size: 0.8125rem; }
+.gr-hslink-list { margin: 0; padding: 0; list-style: none; }
+.gr-hslink-opt { min-width: 0; }
+.gr-hslink-opt-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-hslink-opt-meta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-hslink-item { width: 100%; font: inherit; font-size: 0.8125rem; color: var(--ink); text-align: left; background: none; border: 0; }
+.gr-hslink-item:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+@media (max-width: 1023px) {
+  .gr-hslink-input { height: 40px; font-size: 1rem; }
+  .gr-hslink-more { width: 40px; height: 40px; }
+}
+@media (max-width: 640px) {
+  .gr-hslink-input { min-width: 0; }
+}

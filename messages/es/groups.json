@@ -2673,6 +2673,15 @@
     "open": "Abierto",
     "closed": "Cerrado",
     "notLinked": "Sin vincular",
+    "link": {
+      "linkAction": "Vincular una empresa de HubSpot a {name}",
+      "minChars": "Escribí al menos 2 letras",
+      "noResults": "No se encontraron empresas",
+      "options": "Empresa de HubSpot de {name}",
+      "change": "Cambiar",
+      "notLinked": "No se pudo vincular: {reason}",
+      "notUnlinked": "No se pudo desvincular: {reason}"
+    },
     "openInHubspot": "Abrir {name} en HubSpot",
     "broken": "Borrada o fusionada en HubSpot",
     "openInLine": "Abrir en {line}",

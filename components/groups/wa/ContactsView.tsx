@@ -11,6 +11,9 @@ import { Modal, api, useErrorText } from '../dialog-kit';
 import Avatar from './Avatar';
 import PersonHubspot from './PersonHubspot';
 import { onGridKeyDown, useGridBox } from '../table-grid';
+import { useToast } from '../ui';
+import HubspotLinkCell, { type HsCellRecord, type HsCellSearch } from '../HubspotLinkCell';
+import type { HubspotRecord } from '@/lib/groups-hubspot';
 
 /** Una línea (Lines) o cuenta (Inbox) para el filtro y las columnas. */
 export interface ContactsLine {
@@ -215,7 +218,45 @@ export default function ContactsView({
     setChat('');
     setHs('');
   };
-  const onRowChange = (row: ContactRowDto) => setData((d) => (d ? { ...d, rows: d.rows.map((r) => (r.id === row.id ? { ...r, hubspot: row.hubspot } : r)) } : d));
+  const onRowChange = useCallback((row: ContactRowDto) => setData((d) => (d ? { ...d, rows: d.rows.map((r) => (r.id === row.id ? { ...r, hubspot: row.hubspot } : r)) } : d)), []);
+  const [toast, showToast] = useToast();
+  const errText = useErrorText();
+  // El contacto de HubSpot vinculado o cambiado en la celda (Lines): el mismo pedido que la ficha, con sus permisos.
+  // Optimista: la celda cambia ya; si falla, vuelve lo de antes y un aviso dice por qué.
+  const setHubspot = useCallback(
+    (id: string, hubspot: ContactRowDto['hubspot']) => setData((d) => (d ? { ...d, rows: d.rows.map((r) => (r.id === id ? { ...r, hubspot } : r)) } : d)),
+    [],
+  );
+  const linkContact = useCallback(
+    async (row: ContactRowDto, rec: HsCellRecord) => {
+      const prev = row.hubspot;
+      setHubspot(row.id, { contact: { id: rec.id, name: rec.name, url: rec.url, broken: false }, company: null });
+      const res = await api<{ row: ContactRowDto }>(`${endpoint}/person`, { body: { id: row.id, action: 'link', contactId: rec.id } });
+      if (!res.data) {
+        setHubspot(row.id, prev);
+        showToast(t('hsCell.notLinked', { reason: errText(res.error) }), true);
+        return;
+      }
+      onRowChange(res.data.row);
+      showToast(t('hsLinked', { name: res.data.row.hubspot?.contact?.name ?? rec.name }));
+    },
+    [endpoint, setHubspot, onRowChange, showToast, errText, t],
+  );
+  const unlinkContact = useCallback(
+    async (row: ContactRowDto) => {
+      const prev = row.hubspot;
+      setHubspot(row.id, { contact: null, company: null });
+      const res = await api<{ row: ContactRowDto }>(`${endpoint}/person`, { body: { id: row.id, action: 'unlink' } });
+      if (!res.data) {
+        setHubspot(row.id, prev);
+        showToast(t('hsCell.notUnlinked', { reason: errText(res.error) }), true);
+        return;
+      }
+      onRowChange(res.data.row);
+      showToast(t('hsUnlinked'));
+    },
+    [endpoint, setHubspot, onRowChange, showToast, errText, t],
+  );
   const open = rows.find((r) => r.id === openId) ?? null;
   // La caja de la tabla (cabecera y nombre fijos al scrollear, como en Grupos).
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -365,11 +406,14 @@ export default function ContactsView({
                     <td className={r.lastMessageAt ? 'ui-help' : 'gr-empty-cell'} data-label={r.lastMessageAt ? t('colLast') : undefined}>
                       {ago(r.lastMessageAt)}
                     </td>
-                    {hubspotOn && (
-                      <td data-label={t('colHubspot')}>
-                        <HubspotCell hs={r.hubspot} />
-                      </td>
-                    )}
+                    {hubspotOn &&
+                      (isLines ? (
+                        <ContactHubspotCell row={r} name={name} endpoint={endpoint} canWrite={canWrite} onLink={linkContact} onUnlink={unlinkContact} />
+                      ) : (
+                        <td data-label={t('colHubspot')}>
+                          <HubspotCell hs={r.hubspot} />
+                        </td>
+                      ))}
                   </tr>
                 );
               })}
@@ -391,7 +435,77 @@ export default function ContactsView({
           onRowChange={onRowChange}
         />
       )}
+      {toast}
     </div>
+  );
+}
+
+/**
+ * El contacto de HubSpot de la persona en la tabla de Lines: vinculado, con
+ * link a HubSpot (y su empresa) y un menú con "Cambiar" y "Desvincular"; sin
+ * vincular, "Sin vincular" se vuelve en la celda un buscador de contactos.
+ * Como en la ficha: los invitados solo miran, y sin teléfono (o con los
+ * teléfonos ocultos) no se vincula.
+ */
+function ContactHubspotCell({
+  row,
+  name,
+  endpoint,
+  canWrite,
+  onLink,
+  onUnlink,
+}: {
+  row: ContactRowDto;
+  name: string;
+  endpoint: string;
+  canWrite: boolean;
+  onLink: (row: ContactRowDto, rec: HsCellRecord) => Promise<void>;
+  onUnlink: (row: ContactRowDto) => Promise<void>;
+}) {
+  const t = useTranslations('inboxWa.contacts');
+  const errText = useErrorText();
+  const id = row.id;
+  const search = useCallback<HsCellSearch>(
+    async (q, signal) => {
+      const res = await api<{ results: HubspotRecord[] }>(`${endpoint}/person?id=${encodeURIComponent(id)}&hubspot=search&q=${encodeURIComponent(q)}`, { signal });
+      if (!res.data) return { error: errText(res.error) };
+      return { results: res.data.results.map((r) => ({ id: r.id, name: r.name, url: r.url, meta: [r.email, r.company].filter(Boolean).join(' · ') || undefined })) };
+    },
+    [endpoint, id, errText],
+  );
+  const contact = row.hubspot?.contact ?? null;
+  const canEdit = canWrite && Boolean(row.phone) && !row.masked;
+  return (
+    <HubspotLinkCell
+      label={t('colHubspot')}
+      linked={contact ? { name: contact.name, url: contact.url } : null}
+      extra={
+        contact?.broken ? (
+          <span className="badge badge-warn">{t('hsBroken')}</span>
+        ) : row.hubspot?.company ? (
+          <span className="wc-hs-company">{row.hubspot.company.name}</span>
+        ) : undefined
+      }
+      canEdit={canEdit}
+      text={{
+        notLinked: t('notLinked'),
+        linkAction: t('hsCell.linkAction', { name }),
+        search: t('hsCell.search'),
+        results: t('hsCell.results'),
+        minChars: t('hsCell.minChars'),
+        searching: t('hsCell.searching'),
+        noResults: t('hsCell.noResults'),
+        options: t('hsCell.options', { name }),
+        change: t('hsCell.change'),
+        unlink: t('hsUnlink'),
+        open: t('hsOpen', { name: contact?.name ?? '' }),
+        readOnly: !canWrite ? t('hsReadOnly') : canEdit ? '' : t('hsNoPhone'),
+      }}
+      search={search}
+      onLink={(rec) => void onLink(row, rec)}
+      onUnlink={() => void onUnlink(row)}
+      testId="contacts-hubspot"
+    />
   );
 }
 
