@@ -1723,7 +1723,7 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 }
 .wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
 .wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
-.wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border-left: 3px solid var(--warn-ink, var(--ink-2)); border-radius: var(--radius-1); }
+.wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border: 1px solid var(--line); border-radius: var(--radius-1); }
 .wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
 .wa-gm-link .input { flex: 1 1 160px; min-width: 0; font-family: var(--font-data); font-size: 0.8125rem; }
 .wa-gm-issues { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--bad-ink, var(--line)); border-radius: var(--radius-1); color: var(--wa-text, var(--ink)); }
