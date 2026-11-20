@@ -10,7 +10,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { after } from 'next/server';
 import { dbBatch, getDb, type BatchStatement } from './db';
-import { sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
+import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from './wa-archive-sync';
 import { pokeLive } from './wa-live';
 import { transientError } from './transient-error';
 import { fetchStateOf, logMediaFailure, mediaErrorKind } from './wa-media-wire';
@@ -722,7 +722,9 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
   return {
     id: row.id,
     numberId: row.number_id,
-    folderId: row.folder_id ?? null,
+    // La carpeta es de cada persona (groups_chat_folders): la pone quien arma la respuesta para esa persona
+    // (listChats). La columna folder_id de antes no se lee.
+    folderId: null,
     kind: row.kind,
     name: chatDisplayName(row),
     phone: row.phone,
@@ -1006,14 +1008,18 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push('c.number_id IN (SELECT zo.id FROM groups_numbers zo WHERE zo.user_id = c.user_id AND zo.owner_id = ?)');
     args.push(query.ownerId === 'me' ? me : query.ownerId);
   }
-  if (query.folderId === 'none') where.push('c.folder_id IS NULL');
-  else if (query.folderId) {
+  // Carpetas: las de quien pide (`me`) y lo que esa persona puso en ellas. Una carpeta de otra persona es como una
+  // que no existe: no trae nada.
+  if (query.folderId === 'none') {
+    where.push('NOT EXISTS (SELECT 1 FROM groups_chat_folders zcf WHERE zcf.chat_id = c.id AND zcf.person_id = ?)');
+    args.push(me);
+  } else if (query.folderId) {
     const { folderScope } = await import('./groups-lines');
-    const ids = await folderScope(ws, query.folderId);
+    const ids = await folderScope(ws, me, query.folderId);
     if (ids.length === 0) where.push('0 = 1');
     else {
-      where.push(`c.folder_id IN (${ids.map(() => '?').join(',')})`);
-      args.push(...ids);
+      where.push(`c.id IN (SELECT zcf.chat_id FROM groups_chat_folders zcf WHERE zcf.user_id = ? AND zcf.person_id = ? AND zcf.folder_id IN (${ids.map(() => '?').join(',')}))`);
+      args.push(ws, me, ...ids);
     }
   }
   if (query.teamId) {
@@ -1211,6 +1217,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
     { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
+  // En qué carpeta tiene cada chat quien pide (nunca la de otra persona).
+  const myFolders = rows.length ? await (await import('./groups-lines')).chatFoldersFor(ws, me, rows.map((r) => r.id)) : new Map<string, string>();
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
@@ -1219,6 +1227,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       const match = (r.match ?? snippets?.get(r.id)) ? named[i * 2 + 1] : null;
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
+        folderId: myFolders.get(r.id) ?? null,
         lastDirection: dir || null,
         lastStatus: st || null,
         ...(r.kind === 'dm' && receiptsOff.has(r.number_id) ? { readHidden: true } : {}),
@@ -2057,6 +2066,8 @@ export async function touchChat(chatId: string, at: string, preview: string, inc
   const stmt = chatTouch(at, preview, incoming, 'id = ?', [chatId], unarchive);
   if (!incoming && unarchive) {
     await dbBatch([unarchiveMark(at, 'c.id = ?', [chatId]), stmt]);
+    // Un chat con "Mantener archivado": lo que sale lo desarchiva en el teléfono; se vuelve a archivar (lib/wa-archive-sync.ts).
+    await reArchiveKept('lines', chatId);
     return;
   }
   if (incoming) {
@@ -2341,6 +2352,8 @@ export async function sendMessage(
   // Ganó el eco: la fila es la que guardó el webhook, ya con su autor (y él ya emitió el evento de "enviado").
   const row = inserted ?? (providerId ? ((res[1].rows[0] as unknown as MessageRow | undefined) ?? null) : null);
   if (!row) throw new GroupsError('send_failed', 502);
+  // "Mantener archivado": lo que sale lo desarchiva en el teléfono; se vuelve a archivar (lib/wa-archive-sync.ts).
+  if (status === 'sent' && chat.keep_archived === 1) await reArchiveKept('lines', chatId);
   // Quien tenga el chat abierto en esta instancia (otra pestaña, otra persona) lo ve ya.
   pokeLive('lines', ws);
   if (status === 'sent' && inserted) {
@@ -2999,6 +3012,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           continue;
         }
         res.messages++;
+        // "Mantener archivado": WhatsApp lo saca de Archivados en el teléfono con este mensaje; se vuelve a archivar
+        // (una vez por chat cada 20 s, después de responder; lib/wa-archive-sync.ts). Nunca falla.
+        if (stored.chat.keep_archived === 1 && stored.chat.archived_at) await reArchiveKept('lines', stored.chat.id);
         const chat = await finishChat(number, stored.chat, chatInput, stored.created).catch((err) => {
           logAfterError(err);
           return stored.chat;
@@ -3234,10 +3250,18 @@ function needsBookFirst(ev: InboundEvent): boolean {
 export async function applyPhoneArchive(number: Pick<NumberRow, 'id' | 'user_id'>, chatId: string, archived: boolean): Promise<boolean> {
   const db = getDb();
   const chat = await findPhoneChat(number, chatId);
-  const { isArchiveEcho, isStaleUnarchive, traceArchive } = await import('./wa-archive-sync');
+  const { isArchiveEcho, isStaleUnarchive, keptUnarchiveCause, releaseKeptLater, traceArchive } = await import('./wa-archive-sync');
   if (!chat || chat.hidden_at) return traceArchive('lines', chatId, archived, chat ? 'hidden' : 'not_found');
   if (!!chat.archived_at === archived) return traceArchive('lines', chatId, archived, 'same');
   if (await isStaleUnarchive('lines', number.id, archived)) return traceArchive('lines', chatId, archived, 'stale');
+  // "Mantener archivado": el desarchivado que WhatsApp hace por un mensaje se ignora (lo re-archivamos); el que hizo la
+  // persona en el teléfono apaga la marca, pasados unos segundos (lib/wa-archive-sync.ts, keptUnarchiveCause).
+  if (!archived && chat.keep_archived === 1) {
+    if ((await keptUnarchiveCause('lines', chat)) === 'message') return traceArchive('lines', chatId, archived, 'kept');
+    if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
+    await releaseKeptLater('lines', chat.id, () => pokeLive('lines', number.user_id));
+    return traceArchive('lines', chatId, archived, 'deferred');
+  }
   if (await isArchiveEcho('lines', chat.id, archived)) return traceArchive('lines', chatId, archived, 'echo');
   traceArchive('lines', chatId, archived, 'applied');
   const now = nowIso();

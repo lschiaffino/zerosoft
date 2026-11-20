@@ -68,7 +68,8 @@ export default function ChatDetails({
   labels: LabelDto[];
   properties: PropertyDef[];
   agents: Array<{ id: string; name: string }>;
-  crm: { contact: CrmRef | null; company: CrmRef | null };
+  /** null: la app CRM está apagada para quien mira; no hay sección CRM. */
+  crm: { contact: CrmRef | null; company: CrmRef | null } | null;
   caps: ProviderCaps;
   /** Persona logueada (tareas: "para mí" por defecto). */
   me?: string;
@@ -92,7 +93,8 @@ export default function ChatDetails({
   const [memberBusy, setMemberBusy] = useState(false);
   const [memberResult, setMemberResult] = useState<Array<{ phone: string; ok: boolean; error?: string }> | null>(null);
   const [link, setLink] = useState(chat.inviteLink);
-  const [crmState, setCrmState] = useState(crm);
+  const crmOn = crm !== null;
+  const [crmState, setCrmState] = useState(crm ?? { contact: null, company: null });
   const [crmQuery, setCrmQuery] = useState('');
   const [crmResults, setCrmResults] = useState<Array<{ id: string; group: string; label: string; meta: string }>>([]);
   const [tickets, setTickets] = useState<TicketLite[] | null>(null);
@@ -122,7 +124,7 @@ export default function ChatDetails({
 
   useEffect(() => {
     const q = crmQuery.trim();
-    if (q.length < 2) {
+    if (!crmOn || q.length < 2) {
       setCrmResults([]);
       return;
     }
@@ -131,7 +133,7 @@ export default function ChatDetails({
       setCrmResults((r.data?.items ?? []).filter((i) => i.group === 'contacts' || i.group === 'companies').slice(0, 8));
     }, 250);
     return () => clearTimeout(id);
-  }, [crmQuery]);
+  }, [crmQuery, crmOn]);
 
   async function patch(body: Record<string, unknown>) {
     const res = await api<ChatDto>(`/api/groups/chats/${chat.id}`, { method: 'PATCH', body });
@@ -319,54 +321,56 @@ export default function ChatDetails({
         )}
       </section>
 
-      <section className="gr-detail-section">
-        <h3 className="gr-detail-title">{t('details.crm')}</h3>
-        <ul className="gr-crm-links">
-          {crmState.company && (
-            <li>
-              <Link href={`/app/crm/companies/${crmState.company.id}`}>{crmState.company.name}</Link>
-              <span className="ui-help">{t('details.company')}</span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => void patch({ crmCompanyId: null }).then((r) => r && setCrmState((s) => ({ ...s, company: null })))}
-              >
-                {t('common.remove')}
-              </button>
-            </li>
-          )}
-          {crmState.contact && (
-            <li>
-              <Link href={`/app/crm/contacts/${crmState.contact.id}`}>{crmState.contact.name}</Link>
-              <span className="ui-help">{t('details.contact')}</span>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => void patch({ crmContactId: null }).then((r) => r && setCrmState((s) => ({ ...s, contact: null })))}
-              >
-                {t('common.remove')}
-              </button>
-            </li>
-          )}
-        </ul>
-        {(!crmState.company || !crmState.contact) && (
-          <div className="gr-crm-search">
-            <input className="input" type="search" value={crmQuery} onChange={(e) => setCrmQuery(e.target.value)} placeholder={t('details.crmSearch')} aria-label={t('details.crmSearch')} />
-            {crmResults.length > 0 && (
-              <ul className="gr-crm-results">
-                {crmResults.map((r) => (
-                  <li key={`${r.group}-${r.id}`}>
-                    <button type="button" onClick={() => void linkCrm(r)}>
-                      {r.label} <span className="ui-help">{r.group === 'contacts' ? t('details.contact') : t('details.company')}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+      {crmOn && (
+        <section className="gr-detail-section" data-testid="chat-crm">
+          <h3 className="gr-detail-title">{t('details.crm')}</h3>
+          <ul className="gr-crm-links">
+            {crmState.company && (
+              <li>
+                <Link href={`/app/crm/companies/${crmState.company.id}`}>{crmState.company.name}</Link>
+                <span className="ui-help">{t('details.company')}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void patch({ crmCompanyId: null }).then((r) => r && setCrmState((s) => ({ ...s, company: null })))}
+                >
+                  {t('common.remove')}
+                </button>
+              </li>
             )}
-          </div>
-        )}
-        <p className="ui-help">{t('details.crmHelp')}</p>
-      </section>
+            {crmState.contact && (
+              <li>
+                <Link href={`/app/crm/contacts/${crmState.contact.id}`}>{crmState.contact.name}</Link>
+                <span className="ui-help">{t('details.contact')}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void patch({ crmContactId: null }).then((r) => r && setCrmState((s) => ({ ...s, contact: null })))}
+                >
+                  {t('common.remove')}
+                </button>
+              </li>
+            )}
+          </ul>
+          {(!crmState.company || !crmState.contact) && (
+            <div className="gr-crm-search">
+              <input className="input" type="search" value={crmQuery} onChange={(e) => setCrmQuery(e.target.value)} placeholder={t('details.crmSearch')} aria-label={t('details.crmSearch')} />
+              {crmResults.length > 0 && (
+                <ul className="gr-crm-results">
+                  {crmResults.map((r) => (
+                    <li key={`${r.group}-${r.id}`}>
+                      <button type="button" onClick={() => void linkCrm(r)}>
+                        {r.label} <span className="ui-help">{r.group === 'contacts' ? t('details.contact') : t('details.company')}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          <p className="ui-help">{t('details.crmHelp')}</p>
+        </section>
+      )}
 
       <HubspotSection chatId={chat.id} isAdmin={isAdmin} showToast={showToast} />
 
@@ -606,9 +610,11 @@ export default function ChatDetails({
 
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
-        <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
+        {isAdmin && (
+          <a className="btn btn-ghost btn-sm" href={`/api/groups/export?type=messages&chat=${chat.id}`}>
           {t('details.exportMessages')}
         </a>
+        )}
         {isAdmin && (
           <button type="button" className="btn btn-ghost btn-sm gr-danger" onClick={() => setConfirmDelete(true)}>
             {t('details.remove')}

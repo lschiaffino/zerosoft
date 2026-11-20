@@ -478,6 +478,7 @@
     "videos": "Vídeos",
     "desktopApp": "App de desktop",
     "compare": "Comparações",
+    "directory": "Diretório de software",
     "colDownload": "Baixar",
     "dlMacArm": "Mac (Apple silicon)",
     "dlMacIntel": "Mac (Intel)",
@@ -1355,6 +1356,56 @@
     "ask": "Você vai usar por conta própria ou com uma equipe?",
     "solo": "Por conta própria",
     "team": "Com uma equipe",
+    "track": {
+      "intro": {
+        "title": "Boas-vindas ao Track",
+        "body": "O Track reúne os issues, projetos e ciclos da sua equipe em um só lugar. Este tour mostra as partes principais."
+      },
+      "newTeam": {
+        "title": "Crie uma equipe",
+        "body": "Os issues ficam em equipes, como um produto ou uma área. Crie a primeira para começar a adicionar issues."
+      },
+      "overview": {
+        "title": "Suas equipes num relance",
+        "body": "Cada linha é uma equipe com o ciclo atual, os issues atrasados e o que espera na triagem. Abra uma para ver os issues."
+      },
+      "newIssue": {
+        "title": "Crie um issue",
+        "body": "Novo cria um issue, um projeto ou uma equipe. Em qualquer parte do Track, aperte C para um issue novo."
+      },
+      "inbox": {
+        "title": "Caixa de entrada",
+        "body": "Atribuições, menções, comentários e mudanças de status dos issues que você segue chegam aqui."
+      },
+      "myIssues": {
+        "title": "Meus issues",
+        "body": "Tudo o que está atribuído a você, em todas as equipes."
+      },
+      "issues": {
+        "title": "Abra Issues",
+        "body": "Issues lista todos os issues do espaço. Abra para ver os filtros e as visualizações."
+      },
+      "filters": {
+        "title": "Filtrar",
+        "body": "Filtre por status, prioridade, responsável, ciclo, etiquetas ou prazo. Aperte F para adicionar um filtro e / para buscar."
+      },
+      "display": {
+        "title": "Exibição",
+        "body": "Alterne entre lista, quadro, calendário e Gantt, e escolha como os issues são agrupados e ordenados."
+      },
+      "views": {
+        "title": "Visualizações salvas",
+        "body": "Salve como visualização os filtros e a exibição que você usa sempre e volte a eles com um clique."
+      },
+      "shortcuts": {
+        "title": "Atalhos de teclado",
+        "body": "C cria um issue, J e K percorrem a lista e Enter abre. G e depois I vai para a Caixa de entrada. Cmd+K encontra qualquer coisa."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Boas-vindas ao Lines",
@@ -1403,6 +1454,86 @@
       "settings": {
         "title": "Configurações do Lines",
         "body": "Nas configurações do Lines você conecta mais números e escolhe uma cor para cada linha."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
+    },
+    "inbox": {
+      "intro": {
+        "title": "Boas-vindas ao Inbox",
+        "body": "O Inbox junta seu WhatsApp e seu Gmail em uma só lista que só você vê. Este tour mostra as partes principais."
+      },
+      "connect": {
+        "title": "Conecte uma conta",
+        "body": "Vincule seu WhatsApp com um código QR ou conecte o Gmail. As conversas e os e-mails aparecem aqui."
+      },
+      "chatList": {
+        "title": "Suas conversas",
+        "body": "Aqui chegam as conversas do WhatsApp e os e-mails, os mais recentes primeiro. Navegue com J e K."
+      },
+      "filters": {
+        "title": "Filtre a lista",
+        "body": "Escolha o que a lista mostra: tudo, só WhatsApp, só e-mail, grupos ou não lidos."
+      },
+      "search": {
+        "title": "Busque",
+        "body": "Encontre uma conversa pelo nome, pelo número ou por algo que foi dito nela. Aperte / para vir aqui."
+      },
+      "openChat": {
+        "title": "Abra uma conversa",
+        "body": "Abra qualquer conversa da lista para ler e responder."
+      },
+      "composer": {
+        "title": "Responda",
+        "body": "Escreva aqui e aperte Enter para enviar. Digite / para ver os comandos desta conversa."
+      },
+      "triage": {
+        "title": "Zere a caixa",
+        "body": "Arquive uma conversa quando estiver resolvida (E), adie para depois (H) ou peça um lembrete caso ninguém responda."
+      },
+      "settings": {
+        "title": "Configurações do Inbox",
+        "body": "Nas configurações do Inbox você conecta mais contas, importa do inbox-zero e salva respostas rápidas."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
+    },
+    "notes": {
+      "intro": {
+        "title": "Boas-vindas ao Notes",
+        "body": "O Notes reúne suas notas, cadernos e etiquetas em um só lugar, e elas são salvas enquanto você digita. Este tour mostra as partes principais."
+      },
+      "newNote": {
+        "title": "Escreva uma nota",
+        "body": "Comece uma nota em branco aqui, ou uma a partir de um modelo. Em qualquer parte do Notes, N cria uma nota nova."
+      },
+      "notebooks": {
+        "title": "Cadernos",
+        "body": "Agrupe notas em cadernos, e cadernos em pilhas. Acima ficam Início, Tarefas, Fixadas e as notas compartilhadas com você."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "A busca olha títulos e texto. Operadores como tag: e notebook: refinam a busca, e o botão ? mostra todos. Com / você vem direto aqui."
+      },
+      "openNote": {
+        "title": "Abra uma nota",
+        "body": "Abra qualquer nota da lista para ler e editar."
+      },
+      "noteBar": {
+        "title": "As ferramentas da nota",
+        "body": "Mova a nota para um caderno, grave áudio, fixe, crie um lembrete ou compartilhe com um link ou com pessoas."
+      },
+      "tags": {
+        "title": "Etiquetas",
+        "body": "Digite uma etiqueta e aperte Enter. As etiquetas aparecem na lista e na lateral, em todos os cadernos."
+      },
+      "shortcuts": {
+        "title": "Atalhos de teclado",
+        "body": "N cria uma nota e / busca. As setas percorrem a lista. Cmd+K encontra qualquer nota."
       },
       "done": {
         "title": "Fim do tour",

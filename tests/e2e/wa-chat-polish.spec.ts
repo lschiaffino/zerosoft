@@ -176,7 +176,7 @@ for (const width of [1280, 390]) {
         // 36 stickers distintos (uno por color), creados desde una imagen como lo hace "Crear".
         for (let i = 0; i < 36; i++) {
           const png = await sharp({ create: { width: 64, height: 64, channels: 4, background: { r: (i * 53) % 256, g: (i * 97) % 256, b: (i * 31) % 256, alpha: 1 } } }).png().toBuffer();
-          const res = await request.post(app.stickersApi, { multipart: { file: { name: `s${i}.png`, mimeType: 'image/png', buffer: png } } });
+          const res = await request.post(app.stickersApi, { multipart: { line: app.accountId, file: { name: `s${i}.png`, mimeType: 'image/png', buffer: png } } });
           expect(res.ok(), await res.text()).toBe(true);
         }
         const jid = `${phone()}@s.whatsapp.net`;
@@ -187,7 +187,7 @@ for (const width of [1280, 390]) {
         const panel = page.locator('.wa-emoji');
         await panel.getByRole('tab', { name: 'Stickers' }).click();
         const scroller = panel.locator('.wa-stk-scroll');
-        await expect(panel.locator('section[aria-label="Your stickers"] .wa-stk')).toHaveCount(36, { timeout: FIRST_MS });
+        await expect(panel.locator('section[data-section="created"] .wa-stk')).toHaveCount(36, { timeout: FIRST_MS });
         // Las imágenes se ven (bajan perezosas: las de arriba primero, las de abajo al llegar).
         const loaded = (i: Locator) => i.evaluate((el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0);
         await expect.poll(() => loaded(panel.locator('.wa-stk-send img').first()), { timeout: FIRST_MS }).toBe(true);

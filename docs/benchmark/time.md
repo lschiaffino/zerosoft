@@ -32,3 +32,18 @@ Cronómetro y carga a mano, vista del día con la semana arriba, proyectos con c
 ## Segundo corte (2026-11-16)
 
 Hoja semanal en grilla como la vista Week de Harvest: filas por proyecto y tarea, celdas por día, totales, agregar y quitar filas y copiar las filas de la última hoja. Diferencias: las filas no se copian solas a una semana nueva (hay que pedirlo) y una fila sin horas no queda guardada.
+
+## Tercer corte (2026-11-19): equipo y tareas por proyecto
+
+Fuentes (leídas por el buscador; los dominios de Harvest siguen sin resolver desde el sandbox):
+
+- API v2, asignaciones de tareas de un proyecto (cada una con `billable` y `hourly_rate`; una tarea con horas se archiva en vez de borrarse): https://help.getharvest.com/api-v2/projects-api/projects/task-assignments/
+- Tarifas por persona o por tarea (un proyecto no mezcla tipos de tarifa): https://support.getharvest.com/hc/en-us/articles/360052713051
+- Sumar personas y asignarlas a proyectos ("Assign to all projects" al invitar): https://support.getharvest.com/hc/en-us/articles/360048181732
+- Asignar personas a varios proyectos a la vez: https://www.getharvest.com/it/blog/save-time-now-bulk-assign-teammates-to-projects
+
+Lo que hicimos: cada proyecto tiene Equipo (todas las personas con Time, o solo las elegidas) y Tareas (todas
+las del workspace, o solo las elegidas, cada una facturable o no en ese proyecto). Un miembro ve y carga solo en
+sus proyectos; un admin ve todos y carga, como en Harvest, solo donde está en el equipo. Diferencias: no hay
+manager de proyecto, ni tarifa ni presupuesto por persona o tarea, ni asignación en lote desde la ficha de la
+persona. Los proyectos que ya existían quedan abiertos a todos con todas las tareas.

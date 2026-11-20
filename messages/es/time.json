@@ -47,7 +47,7 @@
     "emptyDayBody": "Arrancá un cronómetro o escribí las horas que trabajaste.",
     "noProjectsTitle": "Todavía no hay proyectos",
     "noProjectsAdmin": "Creá un proyecto para empezar a registrar horas.",
-    "noProjectsMember": "Pedile a un dueño o admin del workspace que cree un proyecto.",
+    "noProjectsMember": "Pedile a un dueño o admin del workspace que cree un proyecto o que te sume a uno.",
     "createProject": "Crear un proyecto",
     "deleteTitle": "¿Borrar esta entrada?",
     "deleteBody": "Las horas salen de la hoja y de los reportes.",
@@ -58,7 +58,9 @@
     "loadError": "La hoja de horas no cargó.",
     "entryLabel": "{project}, {task}, {duration}",
     "view": "Vista",
-    "day": "Día"
+    "day": "Día",
+    "notAssignedTitle": "No estás en ningún proyecto",
+    "notAssignedAdmin": "Abrí un proyecto y sumate a su equipo para cargar horas."
   },
   "week": {
     "projectTask": "Proyecto y tarea",
@@ -194,7 +196,9 @@
     "in_use": "Esta tarea tiene horas. Archivala.",
     "duplicate": "Ya hay uno con ese nombre.",
     "unauthorized": "Tu sesión terminó. Volvé a entrar.",
-    "rate_limited": "Demasiados cambios seguidos. Esperá un minuto."
+    "rate_limited": "Demasiados cambios seguidos. Esperá un minuto.",
+    "not_assigned": "No estás en el equipo de este proyecto. Pedile a un dueño o admin que te sume.",
+    "task_not_in_project": "Esa tarea no está en este proyecto. Elegí otra."
   },
   "csv": {
     "date": "Fecha",
@@ -208,5 +212,23 @@
     "amount": "Monto",
     "yes": "Sí",
     "no": "No"
+  },
+  "assign": {
+    "team": "Equipo",
+    "everyone": "Todas las personas con Time",
+    "everyoneHint": "Cualquier persona del workspace que use Time carga horas acá.",
+    "onlyPeople": "Solo estas personas",
+    "onlyPeopleHint": "Solo las personas marcadas ven el proyecto y cargan horas en él.",
+    "pickOnePerson": "Marcá al menos una persona.",
+    "teamSaved": "Equipo guardado",
+    "tasks": "Tareas",
+    "allTasks": "Todas las tareas",
+    "allTasksHint": "Todas las tareas activas, facturables según Ajustes.",
+    "onlyTasks": "Solo estas tareas",
+    "onlyTasksHint": "Elegí las tareas del proyecto y si cada una se factura en él.",
+    "pickOneTask": "Marcá al menos una tarea.",
+    "billable": "Facturable",
+    "tasksSaved": "Tareas guardadas",
+    "save": "Guardar"
   }
 }

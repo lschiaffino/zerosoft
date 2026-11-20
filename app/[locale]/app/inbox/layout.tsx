@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import InboxBranch from '@/components/inbox/InboxBranch';
 import CalmFocus from '@/components/app/CalmFocus';
+import AppTour from '@/components/tour/AppTour';
 import { ChatStyleProvider } from '@/components/chat-style/ChatStyle';
 import { getChatDisplay, getChatStyle } from '@/lib/chat-style';
 import { realUserId, requireUser } from '@/lib/session';
@@ -20,7 +21,7 @@ import '@/styles/wa-touch.css';
 import '@/styles/wa-mobile.css';
 import '@/styles/wa-accent.css';
 
-/** Inbox (personal): WhatsApp y Gmail de la persona. Las carpetas cuelgan del sidebar del shell. */
+/** Inbox (personal): WhatsApp y Gmail de la persona. Las carpetas cuelgan del sidebar del shell; el tour guiado va acá. */
 export default async function InboxLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await requireUser(locale);
@@ -31,6 +32,10 @@ export default async function InboxLayout(props: { children: ReactNode; params: 
         {props.children}
         <InboxBranch />
         <CalmFocus />
+        {/* Tour guiado de Inbox (lib/tours/inbox.ts): la primera vez, y desde el menú de la cuenta. */}
+        <Suspense fallback={null}>
+          <AppTour tour="inbox" />
+        </Suspense>
       </ChatStyleProvider>
     </ClientMessages>
   );

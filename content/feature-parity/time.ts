@@ -23,7 +23,7 @@ function row(id: string, area: string, label: L, status: ParityStatus, opts: { d
 const parity: ProductParity = {
   competitor: 'Harvest',
   alsoCompared: ['Toggl Track', 'Clockify'],
-  lastReviewed: '2026-11-16',
+  lastReviewed: '2026-11-19',
   areas: [
     { id: 'tracking', label: loc(['Tracking time', 'Registrar horas', 'Registrar horas']) },
     { id: 'projects', label: loc(['Projects, clients and tasks', 'Proyectos, clientes y tareas', 'Projetos, clientes e tarefas']) },
@@ -69,11 +69,11 @@ const parity: ProductParity = {
     // Proyectos
     row('projects', 'projects', ['Projects', 'Proyectos', 'Projetos'], 'have', { weight: 2 }),
     row('clients', 'projects', ['Clients', 'Clientes', 'Clientes'], 'have'),
-    row('tasks', 'projects', ['Tasks', 'Tareas', 'Tarefas'], 'partial', {
+    row('tasks', 'projects', ['Tasks', 'Tareas', 'Tarefas'], 'have', {
       detail: [
-        'One list for the workspace, each billable or not; not chosen per project',
-        'Una lista para el workspace, cada una facturable o no; no se eligen por proyecto',
-        'Uma lista para o workspace, cada uma faturável ou não; não se escolhem por projeto',
+        'A list for the workspace; each project uses all of them or the ones you pick, each billable or not on that project',
+        'Una lista para el workspace; cada proyecto usa todas o las que elijas, cada una facturable o no en ese proyecto',
+        'Uma lista para o workspace; cada projeto usa todas ou as que você escolher, cada uma faturável ou não nesse projeto',
       ],
     }),
     row('project-code', 'projects', ['Project codes', 'Códigos de proyecto', 'Códigos de projeto'], 'have'),
@@ -90,8 +90,12 @@ const parity: ProductParity = {
     row('budget-alerts', 'projects', ['Budget alerts', 'Avisos de presupuesto', 'Avisos de orçamento'], 'missing'),
     row('fixed-fee', 'projects', ['Fixed fee projects', 'Proyectos de precio fijo', 'Projetos de preço fixo'], 'missing'),
     row('archive', 'projects', ['Archive and restore', 'Archivar y restaurar', 'Arquivar e restaurar'], 'have'),
-    row('assign-people', 'projects', ['Assign people to projects', 'Asignar personas a proyectos', 'Atribuir pessoas a projetos'], 'missing', {
-      detail: ['Every member can track time on every active project', 'Todos los miembros cargan horas en todos los proyectos activos', 'Todos os membros registram horas em todos os projetos ativos'],
+    row('assign-people', 'projects', ['Assign people to projects', 'Asignar personas a proyectos', 'Atribuir pessoas a projetos'], 'have', {
+      detail: [
+        'Everyone with Time or only the people you pick. Members only see their projects. No bulk assignment from a person yet',
+        'Todas las personas con Time o solo las que elijas. Los miembros ven solo sus proyectos. Todavía sin asignar en lote desde una persona',
+        'Todas as pessoas com Time ou só as que você escolher. Os membros veem só os seus projetos. Ainda sem atribuir em lote a partir de uma pessoa',
+      ],
     }),
     // Equipo
     row('roles', 'team', ['Member, manager and admin roles', 'Roles de miembro, manager y admin', 'Papéis de membro, gerente e admin'], 'partial', {

@@ -271,8 +271,10 @@ test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de 
     expect(list.rows.find((r) => r.name === `Vip${tag}`)!.phone).toContain('•••');
     const other = await db.execute({ sql: "SELECT id FROM groups_chats WHERE name = ?", args: [`Otro${tag}`] });
     expect((await request.get(`/api/groups/chats/${String(other.rows[0].id)}`)).status()).toBe(404);
-    const csv = await (await request.get(`/api/groups/export?type=messages&chat=${vip.id}`)).text();
-    expect(csv).not.toContain('5491199990001');
+    // Exportar es solo de admins: un miembro recibe 403 (y nada del chat).
+    const exp = await request.get(`/api/groups/export?type=messages&chat=${vip.id}`);
+    expect(exp.status()).toBe(403);
+    expect(await exp.text()).not.toContain('5491199990001');
     await page.goto(`/en/app/lines/inbox/${vip.id}`, { waitUntil: 'networkidle' });
     await expect(page.getByText(/\+54 ••• /).first()).toBeVisible();
     await expect(page.locator('body')).not.toContainText('5491199990001');
@@ -280,7 +282,6 @@ test('un miembro ve solo sus etiquetas, con los teléfonos ocultos, y el log de 
     await page.getByRole('button', { name: 'Details' }).click();
     await page.locator('summary', { hasText: 'Activity' }).click();
     await expect(page.getByText(/assigned the chat to/).first()).toBeVisible();
-    await expect(page.getByText(/exported messages/).first()).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await noHorizontalScroll(page);

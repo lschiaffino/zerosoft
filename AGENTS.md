@@ -130,7 +130,11 @@ it should be here too.
   published migration or `lib/schema/baseline.ts`. Migrations must tolerate
   running twice and in parallel (`IF NOT EXISTS`, `addColumn`).
 - **Changelog.** One file per entry in `content/changelog-entries/`, named
-  `YYYY-MM-DD-short-id.ts`, exporting `default { … } satisfies ChangelogEntry`.
+  `YYYY-MM-DD-HHMM-short-id.ts` (HHMM = the time in UTC when you write it),
+  exporting `default { … } satisfies ChangelogEntry`. The time orders entries
+  of the same day: the newest one is what the "new version" notice shows.
+  Older files without a time (`YYYY-MM-DD-short-id.ts`) still work and sort
+  after the timed ones of their day.
   Don't add to the list in `content/changelog.ts` any more: every pull request
   clashed there. The generated lists (`*.generated.ts`) are not committed;
   `next.config.mjs`, vitest and `npm run typecheck`/`lint` build them (run
@@ -153,11 +157,13 @@ it should be here too.
 - **Feature parity.** When you add or remove a capability, update
   `content/feature-parity/<app>.ts` (`status` and `lastReviewed`). The parity
   percentage on each product page comes from there.
-- **API routes need a guard.** Every `route.ts` under `app/api` or
-  `lib/routes` calls a session or API-key guard (the list is `GUARDS` in
-  `scripts/api-route-guards.mjs`). A route that is public on purpose (signed
-  webhook, cron, share link, public page) goes in
-  `scripts/api-public-routes.json` with the reason;
+- **API routes need a guard.** Every exported handler (GET, POST...) of a
+  `route.ts` under `app/api` or `lib/routes` reaches a session or API-key
+  guard (the list is `GUARDS` in `scripts/api-route-guards.mjs`), directly or
+  through a function in the same file. A route that is public on purpose
+  (signed webhook, cron, share link, public page) goes in
+  `scripts/api-public-routes.json` with the reason, as `<file>` or, for a
+  single public handler next to guarded ones, `<file>#<METHOD>`;
   `tests/unit/api-route-guards.test.ts` fails otherwise. Access tests use
   `tests/unit/access-helpers.ts` (anonymous, other workspace, teammate, owner).
 - **Security.** Security bugs never go on the public board or in public

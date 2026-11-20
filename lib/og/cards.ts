@@ -2,6 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { PRODUCT_CONFIG, isProductKey, type ProductKey } from '@/lib/products';
 import { getPost, productOfPost } from '@/lib/blog';
 import { findComparison } from '@/lib/compare';
+import { loc } from '@/lib/feature-parity';
+import { categoryPath, categoryVars, directoryCategory } from '@/lib/software-directory';
 import { getTool } from '@/lib/tools/registry';
 import { CHANGELOG } from '@/content/changelog';
 import { isSeoLocale, siteOrigin } from '@/lib/seo';
@@ -137,6 +139,23 @@ export async function siteCard(kind: string, a?: string, b?: string): Promise<Ca
           title: page === 'vs' ? t('vs.title', vars) : t('alt.title', vars),
           sub: page === 'vs' ? parity : [t('alt.titleDim', vars), parity].filter(Boolean).join(' '),
           url: siteUrl(`/compare/${b}`),
+        },
+      };
+    }
+
+    // Una categoría del directorio (/software/<slug>): su título y la app de zerosoft.
+    case 'software': {
+      const locale = pickLocale(a);
+      const c = b ? directoryCategory(b) : undefined;
+      if (!c) return null;
+      const t = await getTranslations({ locale, namespace: 'pages.directory.category' });
+      return {
+        spec: {
+          seed: `software:${c.slug}`,
+          product: c.apps[0],
+          title: loc(c.title, locale),
+          sub: firstSentence(t('lead', categoryVars(c, locale))),
+          url: siteUrl(categoryPath(c.slug)),
         },
       };
     }

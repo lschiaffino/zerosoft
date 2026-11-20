@@ -52,6 +52,7 @@ import { applyDueChanges } from '@/lib/people-extras';
 import { runSignCron } from '@/lib/sign/signing';
 import { importResearchIdeas, researchIdeaSchema } from '@/lib/roadmap';
 import researchIdeas from '@/research/ideas.json';
+import { syncPendingBacklogIssues } from '@/lib/feature-requests-github';
 import { GET as remindersCron } from '../../calendar/reminders/due/route';
 
 export const runtime = 'nodejs';
@@ -224,6 +225,8 @@ export async function GET(req: NextRequest) {
   )
     .then((r) => ({ created: r.created.length }))
     .catch(() => null);
+  // Pedidos del asistente que no llegaron a su issue de GitHub (solo con BACKLOG_GITHUB_*).
+  const backlogIssues = await syncPendingBacklogIssues({ limit: 20 }).catch(() => null);
   return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
-    docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas });
+    docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas, backlogIssues });
 }

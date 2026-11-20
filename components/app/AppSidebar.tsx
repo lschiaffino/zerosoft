@@ -719,6 +719,7 @@ export default function AppSidebar({
               aria-haspopup="dialog"
               onClick={() => setDrawerOpen(false)}
               data-testid="side-new"
+              data-tour="app-new"
             >
               <Icon name="plus" size={15} />
               <span className="side-label">{labels.new}</span>
@@ -735,6 +736,7 @@ export default function AppSidebar({
               aria-expanded={newOpen}
               title={labels.new}
               data-testid="side-new"
+              data-tour="app-new"
             >
               <Icon name="plus" size={15} />
               <span className="side-label">{labels.new}</span>

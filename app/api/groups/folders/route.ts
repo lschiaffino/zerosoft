@@ -6,14 +6,14 @@ import { conditionalJson } from '@/lib/etag';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Carpetas compartidas del workspace, con los no leídos de quien mira (solo chats que ve). Con If-None-Match y sin cambios responde 304. */
+/** Las carpetas de quien pide (nunca las de otra persona), con sus no leídos (solo chats que ve). Con If-None-Match y sin cambios responde 304. */
 export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
-  return conditionalJson(req, await listFolders(s.ws, await sessionViewer(s)));
+  return conditionalJson(req, await listFolders(s.ws, s.me, await sessionViewer(s)));
 }
 
-/** { name, parentId? } crea una carpeta (hasta 3 niveles de subcarpetas). */
+/** { name, parentId? } crea una carpeta de quien pide (hasta 3 niveles de subcarpetas). */
 export async function POST(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   }
 }
 
-/** { id, name?, parentId?, beforeId? }: renombrar o mover (y ordenar entre hermanas). */
+/** { id, name?, parentId?, beforeId? }: renombrar o mover (y ordenar entre hermanas). Solo las propias: la de otra persona es 404. */
 export async function PATCH(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -33,24 +33,24 @@ export async function PATCH(req: Request) {
   const id = str(b.id, 100);
   if (!id) return groupsError(400, 'invalid_folder');
   try {
-    await updateFolder(s.ws, id, {
+    await updateFolder(s.ws, s.me, id, {
       ...('name' in b ? { name: b.name } : {}),
       ...('parentId' in b ? { parentId: str(b.parentId, 100) || null } : {}),
       ...('beforeId' in b ? { beforeId: str(b.beforeId, 100) || null } : {}),
     });
-    return NextResponse.json(await listFolders(s.ws, await sessionViewer(s)));
+    return NextResponse.json(await listFolders(s.ws, s.me, await sessionViewer(s)));
   } catch (err) {
     return handleGroupsError(err);
   }
 }
 
-/** ?id=<carpeta>: la borra con sus subcarpetas; los chats quedan sin carpeta. Con chats que la persona no ve adentro, 403. */
+/** ?id=<carpeta>: borra una carpeta propia con sus subcarpetas; los chats quedan sin carpeta. La de otra persona es 404. */
 export async function DELETE(req: Request) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = new URL(req.url).searchParams.get('id') ?? '';
   try {
-    return id && (await deleteFolder(s.ws, id, await sessionViewer(s))) ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
+    return id && (await deleteFolder(s.ws, s.me, id)) ? NextResponse.json({ ok: true }) : groupsError(404, 'not_found');
   } catch (err) {
     return handleGroupsError(err);
   }

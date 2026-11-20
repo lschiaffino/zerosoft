@@ -337,7 +337,8 @@
       "groups_chats": "los chats de Lines",
       "list_import_jobs": "las importaciones recientes",
       "integration_health": "las cuentas conectadas",
-      "email_status": "la entrega de emails"
+      "email_status": "la entrega de emails",
+      "my_feature_requests": "tus pedidos"
     },
     "foldersRunning": "Leyendo tu JSON y buscando los chats…",
     "foldersOk": "Plan listo: {summary}",
@@ -389,7 +390,10 @@
     "attention": "Revisando qué espera en {app}",
     "readChats": "Leyendo tus chats de {app}",
     "waitingPermission": "Esperando tu permiso para leer {app}",
-    "inboxActions": "Preparando cambios en Inbox"
+    "inboxActions": "Preparando cambios en Inbox",
+    "featureRecorded": "Anotó un pedido para el equipo: {title}",
+    "problemReported": "Reportó un problema al equipo: {title}",
+    "recording": "Anotando el pedido para el equipo"
   },
   "panel": {
     "pin": "Fijar al costado",
@@ -452,5 +456,9 @@
     "showAll": "Ver todo ({count})",
     "showMore": "Mostrar {count} más"
   },
-  "jumpToLatest": "Ir al final"
+  "jumpToLatest": "Ir al final",
+  "requestNote": {
+    "feature": "Pedido anotado para el equipo: {title}",
+    "problem": "Problema reportado al equipo: {title}"
+  }
 }

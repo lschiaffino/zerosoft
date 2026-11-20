@@ -6,6 +6,7 @@ import TrackUndoToast from '@/components/track/TrackUndoToast';
 import IssuePeek from '@/components/track/IssuePeek';
 import TrackListMemory from '@/components/track/TrackListMemory';
 import TrackIssueDnd from '@/components/track/TrackIssueDnd';
+import AppTour from '@/components/tour/AppTour';
 import '@/styles/track.css';
 import '@/styles/track-quick.css';
 import '@/styles/track-ux.css';
@@ -30,6 +31,10 @@ export default async function TrackLayout(props: { children: ReactNode; params: 
       <IssuePeek />
       <TrackListMemory />
       <TrackIssueDnd />
+      {/* Tour guiado de Track (lib/tours/track.ts): la primera vez, y desde el menú de la cuenta. */}
+      <Suspense fallback={null}>
+        <AppTour tour="track" />
+      </Suspense>
     </ClientMessages>
   );
 }
