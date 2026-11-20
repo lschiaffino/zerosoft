@@ -25,8 +25,11 @@ test('Hiring: alta solo con nombre y edición del perfil', async ({ page, reques
   await page.getByTestId('hr-add-candidate').click();
   const form = page.getByTestId('hr-add-form');
   await form.locator('input[name="name"]').fill(name);
-  await form.locator('button[type="submit"]').click();
-  await expect.poll(async () => (await sql('SELECT email FROM hiring_candidates WHERE name = ?', [name])).length).toBe(1);
+  const [added] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/hiring/applications') && r.request().method() === 'POST'), form.locator('button[type="submit"]').click()]);
+  expect(added.status()).toBe(201);
+  const rows = await sql('SELECT email FROM hiring_candidates WHERE name = ?', [name]);
+  expect(rows).toHaveLength(1);
+  expect(String(rows[0].email)).toBe('');
   const candidateId = String((await sql('SELECT id FROM hiring_candidates WHERE name = ?', [name]))[0].id);
 
   await page.goto(`/en/app/hiring/candidates/${candidateId}`, { waitUntil: 'networkidle' });
