@@ -45,12 +45,19 @@ const PREVIEW_TTL_MS = 7 * 86_400_000;
 export const PREVIEW_KEEP_MS = 2 * PREVIEW_TTL_MS;
 /** Prefijo de la clave de la caché: HMAC de la URL, nunca la URL (puede llevar tokens en la query). */
 const KEY_PREFIX = 'h1:';
-/** Versión del lector: las filas guardadas con una anterior se vuelven a leer (no tenían medidas ni ícono). */
-const PREVIEW_VERSION = 4;
+/**
+ * Versión del lector: las filas guardadas con una anterior se vuelven a leer. La 5 suma más fuentes de imagen
+ * (secure_url, twitter:image, image_src) y prueba la siguiente si una no baja: una fila de la 4 sin imagen se lee
+ * otra vez; una de la 4 con imagen sigue sirviendo.
+ */
+const PREVIEW_VERSION = 5;
+const PREVIEW_VERSION_WITH_IMAGE = 4;
+/** Cuántas imágenes candidatas se prueban como mucho (cada una con su timeout). */
+const IMAGE_TRIES = 3;
 /** Una vista previa pobre (sin imagen ni descripción: solo el nombre del sitio) se vuelve a leer al día, no a la semana. */
 const WEAK_TTL_MS = 86_400_000;
-/** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB). */
-export const IMAGE_MAX = 700 * 1024;
+/** Tope de la imagen grande (las de og:image suelen pesar 50 a 400 KB; la portada que sube alguien a un evento, más). */
+export const IMAGE_MAX = 1536 * 1024;
 const FAVICON_MAX = 24 * 1024;
 /** Tope de píxeles (ancho × alto) de una imagen de vista previa: 40 megapíxeles. */
 const MAX_PIXELS = 40_000_000;
@@ -74,6 +81,8 @@ interface FetchedImage {
   data: string;
   width: number;
   height: number;
+  /** De qué URL salió (firstImage). */
+  src?: string;
 }
 
 const NO_IMAGE: FetchedImage = { data: '', width: 0, height: 0 };
@@ -173,7 +182,7 @@ const inflight = new Map<string, Promise<PreviewRow>>();
 
 async function readPreview(url: string, now: Date): Promise<PreviewRow> {
   const hit = (await getDb().prepare('SELECT * FROM wa_link_previews WHERE url = ?').get(previewKey(url))) as PreviewRow | undefined;
-  if (hit && Number(hit.version) >= PREVIEW_VERSION) {
+  if (hit && (Number(hit.version) >= PREVIEW_VERSION || (Number(hit.version) >= PREVIEW_VERSION_WITH_IMAGE && hit.image))) {
     const age = now.getTime() - Date.parse(hit.fetched_at);
     if (age < (hit.image || hit.description ? PREVIEW_TTL_MS : WEAK_TTL_MS)) return { ...hit, url };
   }
@@ -242,11 +251,11 @@ async function fetchYoutube(id: string): Promise<{ title: string; description: s
   }
 }
 
-/** La primera imagen de la lista que se pudo bajar. */
+/** La primera imagen de la lista que se pudo bajar (y de qué URL salió). */
 async function firstImage(urls: string[]): Promise<FetchedImage> {
   for (const u of urls) {
     const img = await fetchImage(u, IMAGE_MAX, IMAGE_TYPES);
-    if (img.data) return img;
+    if (img.data) return { ...img, src: u };
   }
   return NO_IMAGE;
 }
@@ -255,18 +264,21 @@ async function fetchPreview(url: string, now: Date): Promise<PreviewRow> {
   const ytId = youtubeVideoId(url);
   const yt = ytId ? await fetchYoutube(ytId) : null;
   const got = yt
-    ? { meta: { url, site: 'youtube.com', title: yt.title, description: yt.description, favicon: 'https://www.youtube.com/favicon.ico' }, hints: { images: [] as string[], width: 0, height: 0 } }
+    ? { meta: { url, site: 'youtube.com', title: yt.title, description: yt.description, favicon: 'https://www.youtube.com/favicon.ico' }, hints: { images: [] as string[], candidates: [] as string[], width: 0, height: 0 } }
     : await unfurlLinkDetailed(url, fakeHtml);
   const meta: { title?: string; description?: string; site?: string; image?: string; favicon?: string } | undefined = got?.meta;
-  const hints = got?.hints ?? { images: [], width: 0, height: 0 };
+  const hints = got?.hints ?? { images: [], candidates: [], width: 0, height: 0 };
   const title = (meta?.title ?? '').slice(0, 300);
-  const first = meta?.image ?? hints.images[0];
-  const second = hints.images.find((x) => x !== first);
+  // Las candidatas en orden (og:image, secure_url, twitter:image, image_src...): si una no se baja (muy pesada, de
+  // un tipo que no se acepta, un 403), la siguiente. Hasta IMAGE_TRIES, cada una con su timeout.
+  const candidates = [...new Set([meta?.image, ...hints.candidates, ...hints.images].filter((x): x is string => !!x))].slice(0, IMAGE_TRIES);
+  const first = candidates[0];
   // La imagen, la segunda y el ícono, en paralelo (cada una con su timeout).
   const [img, img2, icon] = title
     ? await Promise.all([
-        yt ? firstImage(youtubeThumbnails(ytId)) : fetchImage(first, IMAGE_MAX, IMAGE_TYPES),
-        second ? fetchImage(second, IMAGE_MAX, IMAGE_TYPES) : Promise.resolve(NO_IMAGE),
+        yt ? firstImage(youtubeThumbnails(ytId)) : firstImage(candidates),
+        // La segunda de la grilla: solo otra og:image de la página (no la misma imagen con otra URL).
+        hints.images[1] && first === hints.images[0] ? fetchImage(hints.images[1], IMAGE_MAX, IMAGE_TYPES) : Promise.resolve(NO_IMAGE),
         fetchImage(meta?.favicon, FAVICON_MAX, ICON_TYPES),
       ])
     : [NO_IMAGE, NO_IMAGE, NO_IMAGE];
@@ -279,7 +291,8 @@ async function fetchPreview(url: string, now: Date): Promise<PreviewRow> {
     // Las medidas de los bytes; si no se pudieron leer, las que declara la página.
     image_w: img.data ? img.width || hints.width : 0,
     image_h: img.data ? img.height || hints.height : 0,
-    image2: img.data ? img2.data : '',
+    // La grilla de dos solo si la primera que bajó es la og:image de la grilla.
+    image2: img.data && img.src === hints.images[0] ? img2.data : '',
     favicon: icon.data,
     version: PREVIEW_VERSION,
     fetched_at: now.toISOString(),
@@ -395,7 +408,8 @@ function fakeHtml(url: string): string {
         : path.includes('gallery')
           ? [`https://${site}/cover.png`, `https://${site}/cover-2.png`]
           : [`https://${site}/cover.png`];
-  const metas = images.map((i) => `<meta property="og:image" content="${i}">`).join('');
+  // /twitter-image → sin og:image, solo twitter:image y relativa (se resuelve contra la página).
+  const metas = path.includes('twitter-image') ? '<meta name="twitter:image" content="/cover.png">' : images.map((i) => `<meta property="og:image" content="${i}">`).join('');
   return `<html><head><title>${title}</title><meta property="og:description" content="${description}">${metas}<link rel="icon" href="/favicon.png"></head><body></body></html>`;
 }
 
