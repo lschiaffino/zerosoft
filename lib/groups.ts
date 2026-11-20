@@ -2599,8 +2599,9 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
   let providerId: string | null = null;
   let status = 'sent';
   let error = '';
-  // Un reenvío que falló vuelve a salir marcado como reenviado.
-  const forward: ForwardFlag | undefined = row.forwarded ? { score: storedForwardScore(parseJson<StoredMeta>(row.meta ?? '', {})) || 1 } : undefined;
+  // Un reenvío que falló vuelve a salir marcado como reenviado (el de un mensaje propio, sin marca: no tiene meta.fwd).
+  const fwdScore = row.forwarded ? storedForwardScore(parseJson<StoredMeta>(row.meta ?? '', {})) : 0;
+  const forward: ForwardFlag | undefined = fwdScore ? { score: fwdScore } : undefined;
   try {
     const poll = parsePoll(row.poll);
     const cards = parseJson<StoredMeta>(row.meta ?? '', {}).contacts ?? [];

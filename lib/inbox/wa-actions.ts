@@ -218,7 +218,8 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
   if (!msg.media_type && !text) throw new InboxError('invalid_input', 400);
   if (msg.media_type && !msg.media_ref) throw new InboxError('media_unavailable', 400);
   let file: ReturnType<typeof inboxMedia> | null = null;
-  const score = nextForwardScore({ forwarded: msg.forwarded === 1, meta });
+  // Un mensaje propio que no era un reenvío da 0: sale sin la marca, como desde el teléfono.
+  const score = nextForwardScore({ forwarded: msg.forwarded === 1, meta, fromMe: msg.from_me === 1 });
   const original = msg.external_id && !msg.external_id.startsWith('local-') ? { id: msg.external_id, remoteJid: source.external_id, fromMe: msg.from_me === 1 } : null;
   const out: ForwardOutcome = { sent: [], failed: [] };
   for (const id of [...new Set(targetIds)].slice(0, 5)) {
@@ -227,7 +228,7 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
       if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
       const target = thread.account_id === account.id ? account : await getAccount(owner, thread.account_id);
       // El original solo sirve en la misma línea (el gateway lo busca entre lo que guardó esa instancia).
-      const forward: ForwardFlag = { score, ...(original && target.id === account.id ? { key: original } : {}) };
+      const forward: ForwardFlag | undefined = score ? { score, ...(original && target.id === account.id ? { key: original } : {}) } : undefined;
       if (!msg.media_type) {
         await sendWhatsappText(target, thread, text, { forwarded: true, forward });
       } else {
@@ -235,7 +236,7 @@ export async function forwardMessage(owner: string, messageId: string, targetIds
         const src = { mediaType: msg.media_type, mediaName: msg.media_name, body: msg.body, meta };
         await forwardWhatsappMedia(target, thread, src, await file, forward);
         // WhatsApp no muestra texto en un audio o un sticker: va aparte, como lo manda Lines (sin el original: ese era el archivo).
-        if (text && !['image', 'video', 'document'].includes(msg.media_type)) await sendWhatsappText(target, thread, text, { forwarded: true, forward: { score } });
+        if (text && !['image', 'video', 'document'].includes(msg.media_type)) await sendWhatsappText(target, thread, text, { forwarded: true, ...(forward ? { forward: { score } } : {}) });
       }
       out.sent.push(thread.id);
     } catch (err) {

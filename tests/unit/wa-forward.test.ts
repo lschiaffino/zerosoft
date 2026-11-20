@@ -31,6 +31,11 @@ describe('score y marca', () => {
     expect(nextForwardScore({ forwarded: false, meta: { fwd: 9 } })).toBe(1);
     expect(nextForwardScore({ forwarded: true })).toBe(2);
     expect(nextForwardScore({ forwarded: true, meta: { fwd: 4 } })).toBe(5);
+    // Propio: sin marca si no era un reenvío (score 0), como el teléfono; con score, suma uno.
+    expect(nextForwardScore({ forwarded: false, fromMe: true })).toBe(0);
+    expect(nextForwardScore({ forwarded: true, fromMe: true })).toBe(0);
+    expect(nextForwardScore({ forwarded: true, fromMe: true, meta: { fwd: 1 } })).toBe(2);
+    expect(nextForwardScore({ forwarded: true, fromMe: false })).toBe(2);
     expect(storedForwardScore({ fwd: 'x' })).toBe(0);
     expect(storedForwardScore(null)).toBe(0);
     expect(forwardedMany(true, { fwd: 5 })).toBe(true);
@@ -156,6 +161,15 @@ describe('Lines', () => {
       ['Cadena', 5],
     ]);
     expect(forwardedMany(copies[1].forwarded, copies[1].meta)).toBe(true);
+
+    // Un mensaje propio (score 0) sale sin la marca, como desde el teléfono; su copia reenviada sí la lleva (score 2).
+    const own = await sendMessage(user.id, user.id, from.id, { body: 'Lo escribí yo' });
+    await withoutNativeForward(() => linesForward(user.id, user.id, own.id, [to.id]));
+    expect(fakeSent(row.id).at(-1)).toMatchObject({ kind: 'text', text: 'Lo escribí yo' });
+    expect(fakeSent(row.id).at(-1)).not.toHaveProperty('forward');
+    const ownCopy = (await listMessages(user.id, to.id)).find((m) => m.body === 'Pasalo' && m.direction === 'out')!;
+    await withoutNativeForward(() => linesForward(user.id, user.id, ownCopy.id, [from.id]));
+    expect(fakeSent(row.id).at(-1)).toMatchObject({ text: 'Pasalo', forward: { score: 2 } });
   });
 
   it('archivo: la foto reenviada lleva la marca en sendMedia', async () => {
@@ -231,6 +245,13 @@ describe('Inbox', () => {
       ['Pasalo', 1],
       ['Cadena', 7],
     ]);
+
+    // Un mensaje propio (score 0) sale sin la marca, como desde el teléfono.
+    await sendWaMessage(owner, from.id, 'Lo escribí yo');
+    const own = (await inboxMessages(owner, from.id)).messages.find((m) => m.fromMe && m.body === 'Lo escribí yo')!;
+    await inboxForward(owner, own.id, [to.id]);
+    expect(sent().at(-1)).toMatchObject({ kind: 'text', text: 'Lo escribí yo' });
+    expect(sent().at(-1)).not.toHaveProperty('forward');
   });
 
   it('archivo: la foto reenviada lleva la marca y la copia queda con su score', async () => {

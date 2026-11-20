@@ -2,7 +2,7 @@
  * Reenvíos de WhatsApp (Lines e Inbox). WhatsApp marca un mensaje reenviado con `contextInfo.isForwarded` y cuenta
  * cuántas veces se reenvió en `contextInfo.forwardingScore`: muestra "Reenviado" y, desde 5, "Reenviado muchas
  * veces". Al reenviar desde zerosoft la copia lleva el score del original + 1 (1 si el original no era un reenvío),
- * como el teléfono. El score se guarda en el meta del mensaje (`fwd`), en los que llegan y en los que mandamos.
+ * como el teléfono. Igual que el teléfono, reenviar un mensaje propio que no era un reenvío (score 0) no lleva la marca. El score se guarda en el meta del mensaje (`fwd`), en los que llegan y en los que mandamos.
  *
  * Sin dependencias de servidor: lo usan también las pantallas.
  */
@@ -33,9 +33,14 @@ export function storedForwardScore(meta: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_SCORE) : 0;
 }
 
-/** El score de la copia: el del original + 1. Un original reenviado sin score conocido cuenta como 1. */
-export function nextForwardScore(original: { forwarded: boolean; meta?: unknown }): number {
-  const before = original.forwarded ? Math.max(1, storedForwardScore(original.meta)) : 0;
+/**
+ * El score de la copia: el del original + 1. Un original recibido y reenviado sin score conocido cuenta como 1. Un
+ * mensaje propio con score 0 (escrito por uno, no reenviado) da 0: sale sin la marca, como desde el teléfono.
+ */
+export function nextForwardScore(original: { forwarded: boolean; meta?: unknown; fromMe?: boolean }): number {
+  const stored = original.forwarded ? storedForwardScore(original.meta) : 0;
+  const before = stored || (original.forwarded && !original.fromMe ? 1 : 0);
+  if (original.fromMe && before === 0) return 0;
   return Math.min(before + 1, MAX_SCORE);
 }
 

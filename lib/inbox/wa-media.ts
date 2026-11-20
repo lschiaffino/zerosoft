@@ -191,7 +191,7 @@ export function forwardKind(src: Pick<ForwardSource, 'mediaType' | 'meta'>, mime
 
 /** Lo que se ve del archivo (medidas, duración, onda, miniatura) pasa a la copia; nada propio del original (cid, menciones). */
 function forwardMeta(meta: WaMessageMeta, kind: MediaKind, mime: string, size: number, score: number): WaMessageMeta {
-  const out: WaMessageMeta = { mime, size, fwd: score };
+  const out: WaMessageMeta = { mime, size, ...(score ? { fwd: score } : {}) };
   for (const k of ['width', 'height', 'duration', 'pages', 'thumb', 'animated', 'waveform'] as const) {
     if (meta[k] !== undefined) (out as Record<string, unknown>)[k] = meta[k];
   }
@@ -211,7 +211,7 @@ export async function forwardWhatsappMedia(
   thread: ThreadRow,
   src: ForwardSource,
   file: { data: Buffer; mimetype: string; filename: string },
-  forward: ForwardFlag,
+  forward: ForwardFlag | undefined,
 ): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
   const mimetype = (baseMime(file.mimetype || src.meta.mime || '') || 'application/octet-stream').slice(0, 100);
@@ -238,7 +238,7 @@ export async function forwardWhatsappMedia(
         base64: file.data.toString('base64'),
         // Un GIF reenviado sigue siendo GIF.
         ...(kind === 'video' && src.meta.animated ? { gifPlayback: true } : {}),
-        forward,
+        ...(forward ? { forward } : {}),
       })
     ).id;
   } catch (err) {
@@ -252,7 +252,7 @@ export async function forwardWhatsappMedia(
     mediaType: storedType(kind),
     mediaName: kind === 'document' || kind === 'audio' ? filename : '',
     mediaRef: id ? JSON.stringify({ providerMessageId: id, chatId: thread.external_id, fromMe: true }) : '',
-    meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length, forward.score)),
+    meta: JSON.stringify(forwardMeta(src.meta, kind, mimetype, file.data.length, forward?.score ?? 0)),
     kind: kind === 'voice' ? 'voice' : kind === 'video' && src.meta.animated ? 'gif' : storedType(kind),
     status: 'sent',
     forwarded: true,
