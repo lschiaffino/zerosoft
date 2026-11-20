@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { LineFolderDto } from '@/lib/groups-lines';
 import { flattenTree } from '@/lib/inbox/folder-tree';
 import MenuSelect from '@/components/ui/MenuSelect';
-import { Modal, api, useErrorText } from './ui';
+import { api, useErrorText } from './ui';
 import LineDot from './LineDot';
+import FolderPickerDialog from '@/components/ui/FolderPickerDialog';
 import { FolderIcon, GroupIcon } from './wa/icons';
 
 export { LineDot };
@@ -122,10 +123,11 @@ export function FolderSelect({ folders, team = [], value, onChange }: { folders:
 }
 
 /**
- * "Mover a carpeta" desde el menú de un chat o la barra de selección (alternativa al arrastre, con teclado), en dos
- * secciones: las del equipo (lo que se pone ahí lo ve todo el workspace) y las propias. Quien todavía no tiene
- * ninguna propia crea la primera acá mismo y el chat va a esa. `teamValue` y `value` marcan dónde está ahora (un
- * solo chat).
+ * "Mover a carpeta" desde el menú de un chat, la barra de selección o la cabecera del chat (alternativa al arrastre,
+ * con teclado). Es el mismo diálogo que Inbox (components/ui/FolderPickerDialog): búsqueda, flechas y Enter, "Sin
+ * carpeta" primero y "+ Carpeta nueva" ahí mismo (crea una propia y mueve el chat). Con carpetas del equipo va en dos
+ * secciones: las del equipo (lo que se pone ahí lo ve todo el workspace) y las propias. `teamValue` y `value` marcan
+ * dónde está ahora (un solo chat).
  */
 export function MoveToFolderModal({
   open,
@@ -148,106 +150,56 @@ export function MoveToFolderModal({
   const t = useTranslations('groups.lines');
   const tc = useTranslations('groups.common');
   const errText = useErrorText();
-  const rows = useMemo(() => flattenTree(folders), [folders]);
-  const teamRows = useMemo(() => flattenTree(team), [team]);
-  const [name, setName] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (!open) {
-      setName(null);
-      setError('');
-    }
-  }, [open]);
-  const create = async () => {
-    const clean = (name ?? '').trim();
-    if (!clean || busy) return;
-    setBusy(true);
-    const r = await api<{ id: string; name: string }>('/api/groups/folders', { body: { name: clean } });
-    setBusy(false);
-    if (!r.data) return setError(errText(r.error));
-    notifyFoldersChanged();
-    onPick(r.data.id, r.data.name, 'personal');
-  };
   const sections = team.length > 0;
+  const plain = (list: LineFolderDto[]) => list.map((f) => ({ id: f.id, parentId: f.parentId, position: f.position, name: f.name }));
+  const nameOf = (id: string) => [...team, ...folders].find((f) => f.id === id)?.name;
   return (
-    <Modal
+    <FolderPickerDialog
       open={open}
       title={t('moveTitle')}
+      testIdPrefix="lines-move"
+      sections={[
+        ...(sections
+          ? [
+              {
+                key: 'team',
+                title: t('moveTeamHeading'),
+                icon: <GroupIcon size={14} />,
+                folders: plain(team),
+                current: teamValue ? [teamValue] : [],
+                none: teamValue ? { label: t('unfiled'), testId: 'lines-move-team-none' } : null,
+                testId: 'lines-move-team',
+              },
+            ]
+          : []),
+        {
+          key: 'personal',
+          title: t('moveMineHeading'),
+          icon: <FolderIcon size={14} />,
+          folders: plain(folders),
+          current: value ? [value] : [],
+          none: folders.length > 0 ? { label: t('unfiled'), testId: 'lines-move-none' } : null,
+          testId: 'lines-move-mine',
+        },
+      ]}
+      labels={{
+        filter: t('moveFilter'),
+        empty: t('foldersEmpty'),
+        noMatch: t('moveNoMatch'),
+        current: t('moveCurrent'),
+        newFolder: t('newFolder'),
+        folderName: t('folderName'),
+        create: t('createAndMove'),
+        close: tc('close'),
+      }}
       onClose={onClose}
-      onSubmit={name !== null ? () => void create() : undefined}
-      busy={busy}
-      foot={
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          {tc('cancel')}
-        </button>
-      }
-    >
-      {sections && (
-        <>
-          <p className="gr-folder-sec" id="gr-move-team">
-            <GroupIcon size={14} />
-            <span>{t('teamFolders')}</span>
-          </p>
-          <ul className="gr-folder-list gr-folder-pick" aria-labelledby="gr-move-team" data-testid="lines-move-team">
-            {teamRows.map(({ folder: f, depth }) => (
-              <li key={f.id} style={{ paddingInlineStart: depth * 14 }}>
-                <button type="button" className="gr-folder" onClick={() => onPick(f.id, f.name, 'team')} aria-pressed={teamValue === f.id || undefined}>
-                  <span className="gr-folder-name">{f.name}</span>
-                </button>
-              </li>
-            ))}
-            {teamValue && (
-              <li>
-                <button type="button" className="gr-folder" onClick={() => onPick(null, undefined, 'team')} data-testid="lines-move-team-none">
-                  <span className="gr-folder-name">{t('unfiled')}</span>
-                </button>
-              </li>
-            )}
-          </ul>
-          <p className="gr-folder-sec" id="gr-move-mine">
-            <FolderIcon size={14} />
-            <span>{t('myFolders')}</span>
-          </p>
-        </>
-      )}
-      {folders.length === 0 && <p className="ui-help">{t('foldersEmpty')}</p>}
-      <ul className="gr-folder-list gr-folder-pick" aria-labelledby={sections ? 'gr-move-mine' : undefined} data-testid="lines-move-mine">
-        {rows.map(({ folder: f, depth }) => (
-          <li key={f.id} style={{ paddingInlineStart: depth * 14 }}>
-            <button type="button" className="gr-folder" onClick={() => onPick(f.id, f.name, 'personal')} aria-pressed={value === f.id || undefined}>
-              <span className="gr-folder-name">{f.name}</span>
-            </button>
-          </li>
-        ))}
-        {folders.length > 0 && (
-          <li>
-            <button type="button" className="gr-folder" onClick={() => onPick(null, undefined, 'personal')}>
-              <span className="gr-folder-name">{t('unfiled')}</span>
-            </button>
-          </li>
-        )}
-      </ul>
-      {name === null ? (
-        <button type="button" className={`btn btn-sm ${folders.length === 0 ? 'btn-primary' : 'btn-ghost'} gr-folder-create`} onClick={() => setName('')} data-testid="lines-move-new-folder">
-          + {t('newFolder')}
-        </button>
-      ) : (
-        <div className="gr-folder-new">
-          <label className="ui-field">
-            <span className="label">{t('folderName')}</span>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} autoFocus required data-testid="lines-move-new-name" />
-          </label>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={!name.trim()} aria-busy={busy || undefined} data-testid="lines-move-new-save">
-            {t('createAndMove')}
-          </button>
-          {error && (
-            <p className="ui-error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-      )}
-    </Modal>
+      onPick={(key, id) => onPick(id, id ? nameOf(id) : undefined, key === 'team' ? 'team' : 'personal')}
+      onCreate={async (name) => {
+        const r = await api<{ id: string; name: string }>('/api/groups/folders', { body: { name } });
+        if (!r.data) return errText(r.error);
+        notifyFoldersChanged();
+        onPick(r.data.id, r.data.name, 'personal');
+      }}
+    />
   );
 }
