@@ -3,6 +3,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import Composer from '@/components/social/Composer';
 import { requireUser, userCanUseApp } from '@/lib/session';
 import { listAccounts, listLibrary, socialActor, socialRoleOf } from '@/lib/social';
+import { socialAiOffered } from '@/lib/social-ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export default async function SocialComposePage(props: { params: Promise<{ local
         library={library}
         canShorten={userCanUseApp(user, 'link')}
         drafter={role === 'drafter'}
+        ai={socialAiOffered()}
         initialDate={date}
         initialAccountId={accounts.some((a) => a.id === sp.account) ? sp.account : null}
       />

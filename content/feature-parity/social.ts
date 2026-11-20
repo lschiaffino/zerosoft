@@ -42,7 +42,7 @@ const UNVERIFIED: L = [
 const parity: ProductParity = {
   competitor: 'Hootsuite',
   alsoCompared: ['Buffer'],
-  lastReviewed: '2026-11-16',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'networks', label: loc(['Networks', 'Redes', 'Redes']) },
     { id: 'composer', label: loc(['Composer', 'Compositor', 'Editor']) },
@@ -112,8 +112,12 @@ const parity: ProductParity = {
       detail: ['Highlighted and listed, plus saved hashtag sets; no suggestions or account search for mentions', 'Resaltados y listados, más grupos de hashtags guardados; sin sugerencias ni búsqueda de cuentas para mencionar', 'Destacados e listados, mais grupos de hashtags salvos; sem sugestões nem busca de contas para mencionar'],
     }),
     row('drafts', 'composer', ['Drafts', 'Borradores', 'Rascunhos'], 'have'),
-    row('ai-writer', 'composer', ['AI writing assistant', 'Asistente de escritura con IA', 'Assistente de escrita com IA'], 'partial', {
-      detail: ['The suite assistant (⌘J) drafts and schedules posts with confirmation; no generator inside the composer', 'El asistente de la suite (⌘J) arma y programa publicaciones con confirmación; sin generador dentro del compositor', 'O assistente da suíte (⌘J) cria e agenda publicações com confirmação; sem gerador dentro do editor'],
+    row('ai-writer', 'composer', ['AI writing assistant', 'Asistente de escritura con IA', 'Assistente de escrita com IA'], 'have', {
+      detail: [
+        'Write with AI in the composer: a post from an idea, or the text shorter, longer, more casual, more formal or fixed, within the networks\' limit and with undo. The suite assistant (⌘J) also drafts and schedules posts',
+        'Escribir con IA en el compositor: una publicación desde una idea, o el texto más corto, más largo, más informal, más formal o corregido, dentro del límite de las redes y con deshacer. El asistente de la suite (⌘J) además arma y programa publicaciones',
+        'Escrever com IA no editor: uma publicação a partir de uma ideia, ou o texto mais curto, mais longo, mais informal, mais formal ou corrigido, dentro do limite das redes e com desfazer. O assistente da suíte (⌘J) também cria e agenda publicações',
+      ],
     }),
     row('image-editor', 'composer', ['Image editor and Canva', 'Editor de imágenes y Canva', 'Editor de imagens e Canva'], 'missing'),
 

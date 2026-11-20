@@ -18,6 +18,13 @@
 .sc-wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .sc-item-side .select { max-width: 100%; }
 .sc-reply-tools .select { width: auto; max-width: 100%; }
+/* Título de panel con acciones al lado (Texto + biblioteca + IA): el margen va en la fila, así quedan centrados. */
+.sc-panel-head { margin-bottom: 12px; }
+.sc-panel .sc-panel-head > h2 { margin: 0; }
+/* Compositor: escribir con IA, una caja debajo del título del texto. */
+.sc-ai { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); }
+.sc-ai .ui-field { margin: 0; }
+.sc-ai .sc-row > .input { min-width: 12rem; }
 .sc-ok { color: var(--ok-ink); }
 
 /* Red: marca de color por red (punto + nombre). */

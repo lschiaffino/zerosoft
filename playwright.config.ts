@@ -197,6 +197,8 @@ export default defineConfig({
       SHOP_PAYMENTS_FAKE: '1',
       // Social contra redes simuladas (lib/social-fake.ts): conectar, publicar, comentarios y métricas sin salir a internet.
       SOCIAL_FAKE: '1',
+      // Social: escribir con IA en el compositor contra el modelo falso (lib/social-ai.ts).
+      SOCIAL_AI_FAKE: '1',
       // Hiring: lectura de resumes y resúmenes de candidatos sin modelo (lib/hiring/ai.ts).
       HIRING_AI_FAKE: '1',
       // Books: Stripe y Mercado Pago sin salir a internet; el cobro lo marca un webhook firmado (lib/books-payments.ts).
