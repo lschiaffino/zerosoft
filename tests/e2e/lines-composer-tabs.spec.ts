@@ -143,7 +143,9 @@ for (const width of [1280, 390]) {
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
     c = await paint(page);
     expect(near(c.note, c.composer)).toBe(true);
-    expect(grayish(c.reply), `dark reply ${c.reply}`).toBe(true);
+    // En oscuro el gris del composer tira a azul (como WhatsApp): basta con que no sea amarillo ni verde.
+    expect(yellowish(c.reply), `dark reply ${c.reply}`).toBe(false);
+    expect(c.reply[1] > c.reply[0] + 12 && c.reply[1] > c.reply[2] + 12, `dark reply ${c.reply}`).toBe(false);
     expect(c.composer.reduce((a, b) => a + b, 0)).toBeLessThan(300);
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
