@@ -877,6 +877,9 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "periskope_auth": "Periskope no aceptó la clave de API. Revisala y probá de nuevo.",
+    "periskope_rate_limited": "Periskope está limitando los pedidos. Esperá un minuto y probá de nuevo.",
+    "periskope_unavailable": "No se pudo llegar a Periskope. Probá de nuevo en un momento.",
     "too_many_stages": "Este tablero ya tiene el máximo de etapas (30).",
     "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
@@ -2781,7 +2784,9 @@
     "until": "Pospuesto hasta {when}"
   },
   "migrate": {
-    "intro": "Traé de Periskope las etiquetas, las respuestas rápidas y el orden de tus chats. Los mensajes vienen de WhatsApp al conectar cada línea por QR, no del archivo. Esta importación es parcial: Periskope no publica las columnas de sus exports, así que leemos los nombres comunes y te decimos qué quedó afuera.",
+    "intro": "Traé tu trabajo de Periskope a Lines. Los mensajes vienen de WhatsApp al conectar cada línea por QR; esta importación suma lo que Periskope guarda encima de ellos.",
+    "csvTitle": "Importar archivos CSV",
+    "api": {"title": "Importar con la API de Periskope", "step2": "En Periskope, abrí Settings › Integrations › API y generá una clave de API.", "step3": "Pegá la clave acá, revisá la vista previa e importá. Podés volver a importar después: lo que ya está no se duplica.", "key": "Clave de la API de Periskope", "keyHelp": "Se usa solo para esta importación. No se guarda.", "working": "Leyendo tu cuenta de Periskope. Puede tardar hasta un minuto.", "previewTitle": "Esto es lo que se importaría:", "doneTitle": "Importado:", "chats": "Chats: {applied} de {rows} con etiquetas, asignado o propiedades", "contacts": "Contactos: {applied} de {rows} con etiquetas", "tickets": "Tickets: {applied} de {found} ({existing} ya estaban)", "notes": "Notas privadas: {applied} de {found} ({existing} ya estaban)", "created": "Etiquetas nuevas: {labels}. Propiedades nuevas: {properties}.", "truncated": "Tu cuenta tiene más de lo que entra en una corrida. Importá de nuevo para seguir.", "issue": "{n} × {reason}"},
     "step1": "Conectá tus líneas por QR en la pestaña Números y esperá a que se importen los chats.",
     "step2": "En Periskope, exportá la lista de chats o un CSV de Analytics › Data Exports. Para etiquetas y respuestas rápidas, usá una planilla con Nombre y Color, o Comando y Mensaje.",
     "step3": "Subí cada archivo acá, revisá la vista previa e importá.",
@@ -2820,7 +2825,8 @@
       "invalid_phone": "teléfono inválido",
       "chat_not_found": "el chat todavía no está en Lines",
       "unknown_assignee": "la persona asignada no está en el workspace",
-      "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
+      "not_applied": "no se pudo aplicar (revisá el acceso por línea)",
+      "invalid_value": "un valor de propiedad no coincide con sus opciones"
     }
   },
   "kanban": {
