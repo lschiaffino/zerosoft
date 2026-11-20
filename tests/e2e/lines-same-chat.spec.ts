@@ -140,6 +140,15 @@ test('Responder desde: por defecto la línea del último mensaje; elegir otra ma
   const first = msgs.filter({ hasText: `por ventas ${w.tag}` });
   const last = msgs.filter({ hasText: `por soporte ${w.tag}` });
   await expect(last).toHaveCount(1, { timeout: 30_000 });
+  // "Recibido en …" y la hora no se pisan.
+  for (const m of [first, last]) {
+    const tag = await m.getByTestId('msg-line').boundingBox();
+    const time = await m.locator('.gr-msg-foot time').boundingBox();
+    if (tag && time) {
+      const overlap = tag.x < time.x + time.width && time.x < tag.x + tag.width && tag.y < time.y + time.height && time.y < tag.y + tag.height;
+      expect(overlap).toBe(false);
+    }
+  }
   const ventasChat = (await first.getAttribute('data-line'))!;
   const soporteChat = (await last.getAttribute('data-line'))!;
   // Por defecto: la línea por la que llegó el último mensaje.
