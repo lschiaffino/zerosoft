@@ -82,13 +82,13 @@ for (const size of [
     // Desbloquear va directo, sin confirmar.
     await sheet.getByTestId('wa-sheet-block').click();
     await expect(sheet.getByTestId('wa-sheet-block')).not.toHaveAttribute('data-blocked', 'true', { timeout: 15_000 });
-    await page.keyboard.press('Escape');
-    await expect(sheet).toBeHidden();
 
-    // Info del chat 1:1: el mismo bloqueo, con el diálogo de confirmar.
-    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.gr-row', { hasText: who }).first().click({ timeout: 20_000 });
-    await expect(page.getByRole('heading', { level: 2, name: who })).toBeVisible({ timeout: 30_000 });
+    // Info del chat 1:1 (Mensaje en la ficha lo abre): el mismo bloqueo, con el diálogo de confirmar.
+    const groupUrl = page.url();
+    await sheet.getByTestId('wa-sheet-message').click();
+    await expect(sheet).toBeHidden();
+    await expect.poll(() => page.url(), { timeout: 20_000 }).not.toBe(groupUrl);
+    await expect(page.getByRole('heading', { level: 2, name: title })).toHaveCount(0, { timeout: 20_000 });
     // La foto del encabezado abre la info (en todos los anchos), como en WhatsApp.
     const head = page.locator('.wa-head-avatar');
     if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
