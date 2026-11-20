@@ -1704,3 +1704,71 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .wa-phone-copy:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
 .wa-details-head .wa-phone-copy span { color: inherit; font-size: inherit; }
 @media (pointer: coarse) { .wa-phone-copy { min-height: 40px; } }
+
+/* Miembros de un grupo (components/groups/wa/GroupMembers.tsx), en el panel de info de Lines e Inbox.
+   Tokens de WhatsApp con los de la app de respaldo: la página del grupo de Lines no está dentro de la bandeja. */
+.wa-gm { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wa-gm-title { margin: 0; font-size: var(--wa-fs-preview, 0.875rem); font-weight: 500; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-actions { display: flex; flex-direction: column; }
+.wa-gm-action {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 4px; font: inherit; font-size: var(--wa-fs-ui, 0.9375rem);
+  text-align: left; color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-gm-action:hover:not(:disabled) { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm-action:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-action:disabled { color: var(--wa-text-2, var(--ink-3)); cursor: not-allowed; }
+.wa-gm-action-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 40px; height: 40px; border-radius: 50%;
+  color: var(--wa-badge-ink, var(--bg)); background: var(--wa-primary, var(--ink));
+}
+.wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
+.wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border-left: 3px solid var(--warn-ink, var(--ink-2)); border-radius: var(--radius-1); }
+.wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.wa-gm-link .input { flex: 1 1 160px; min-width: 0; font-family: var(--font-data); font-size: 0.8125rem; }
+.wa-gm-issues { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--bad-ink, var(--line)); border-radius: var(--radius-1); color: var(--wa-text, var(--ink)); }
+.wa-gm-issues-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.875rem; }
+.wa-gm-issues-head .wa-icon-btn { width: 28px; height: 28px; }
+.wa-gm-issues ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wa-gm-issues li { display: flex; flex-direction: column; font-size: 0.8125rem; min-width: 0; }
+.wa-gm-issue-who { font-weight: 600; overflow-wrap: anywhere; }
+.wa-gm-issue-why { color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-issues .btn { align-self: flex-start; }
+.wa-gm-search { position: relative; display: flex; align-items: center; }
+.wa-gm-search > svg { position: absolute; left: 12px; color: var(--wa-icon, var(--ink-3)); pointer-events: none; }
+.wa-gm-search .input { width: 100%; padding-left: 38px; }
+.wa-gm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wa-gm-row { display: flex; align-items: center; gap: 6px; min-height: 52px; min-width: 0; }
+.wa-gm-row.is-pending { opacity: 0.6; }
+.wa-gm-open {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 6px 4px; font: inherit; text-align: left;
+  color: var(--wa-text, var(--ink)); background: none; border: 0; border-radius: var(--radius-1);
+}
+button.wa-gm-open { cursor: pointer; }
+button.wa-gm-open:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+.wa-gm-who { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 1px; }
+.wa-gm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-ui, 0.9375rem); }
+.wa-gm-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-preview, 0.8125rem); color: var(--wa-text-2, var(--ink-2)); }
+.wa-gm-phone { font-variant-numeric: tabular-nums; }
+.wa-gm-badge {
+  flex: none; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; white-space: nowrap;
+  color: var(--wa-primary-ink, var(--ink)); background: var(--wa-chip-on-bg, var(--bg-soft)); border-radius: var(--radius-1);
+}
+.wa-gm .wa-gm-more { width: 36px; height: 36px; font-size: 1.125rem; color: var(--wa-icon, var(--ink-2)); }
+.wa-gm .wa-gm-more:hover { background: var(--wa-row-hover, var(--ui-hover)); }
+.wa-gm .wa-gm-more:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: 1px; }
+.gr-menu-item:disabled { color: var(--ink-3); cursor: not-allowed; background: transparent; }
+.wa-gm-dialog { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wa-gm-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.wa-gm-chips li { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 4px 2px 8px; font-size: 0.8125rem; border: 1px solid var(--line); border-radius: var(--radius-1); }
+.wa-gm-chips li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-gm-chips button { display: inline-flex; padding: 4px; color: var(--ink-2); background: none; border: 0; cursor: pointer; border-radius: var(--radius-1); }
+.wa-gm-chips button:hover { background: var(--ui-hover); }
+.wa-gm-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: min(50vh, 360px); overflow-y: auto; overflow-x: hidden; }
+.wa-gm-pick-row { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 6px; border-radius: var(--radius-1); cursor: pointer; min-width: 0; }
+.wa-gm-pick-row:hover { background: var(--ui-hover); }
+.wa-gm-pick-row input { flex: none; }
+.wa-gm-pick-row:has(input:disabled) { cursor: default; opacity: 0.7; }
+.wa-gm-empty { padding: 8px 6px; white-space: normal; }
+@media (pointer: coarse) { .wa-gm .wa-gm-more { width: 44px; height: 44px; } }

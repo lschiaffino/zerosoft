@@ -3358,6 +3358,8 @@ export interface MemberDto {
   role: MemberRole;
   /** Foto de perfil guardada ('' si no tiene o todavía no se pidió; lib/wa-contact-pictures.ts). */
   picture?: string;
+  /** Es el número de la línea (la cuenta conectada): "Vos" en la lista, y su rol dice si puede administrar el grupo. */
+  me?: boolean;
 }
 
 export async function listMembers(ws: string, chatId: string): Promise<MemberDto[]> {
@@ -3367,12 +3369,28 @@ export async function listMembers(ws: string, chatId: string): Promise<MemberDto
       `SELECT m.phone, CASE WHEN m.name <> '' THEN m.name ELSE COALESCE((
            SELECT CASE WHEN w.saved_name <> '' THEN w.saved_name ELSE w.push_name END FROM wa_contacts w
            WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') END AS name, m.role,
-         COALESCE((SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') AS picture
-       FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id
-       WHERE m.chat_id = ? AND c.user_id = ? ORDER BY CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
+         COALESCE((SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = m.phone LIMIT 1), '') AS picture,
+         CASE WHEN n.phone IS NOT NULL AND n.phone <> '' AND n.phone = m.phone THEN 1 ELSE 0 END AS me
+       FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id LEFT JOIN groups_numbers n ON n.id = c.number_id
+       WHERE m.chat_id = ? AND c.user_id = ? ORDER BY me DESC, CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
     )
-    .all(chatId, ws)) as MemberDto[];
-  return rows;
+    .all(chatId, ws)) as Array<MemberDto & { me: number | boolean }>;
+  return rows.map(({ me, ...m }) => (me ? { ...m, me: true } : m));
+}
+
+/**
+ * El rol del número de la línea en el grupo: 'member' quiere decir que
+ * WhatsApp no le deja agregar, quitar ni cambiar admins. null si no se sabe
+ * (no está en la lista guardada, o la línea no dio su teléfono): ahí decide WhatsApp.
+ */
+export async function selfGroupRole(ws: string, chatId: string): Promise<MemberRole | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT m.role FROM groups_chats c JOIN groups_numbers n ON n.id = c.number_id JOIN groups_members m ON m.chat_id = c.id AND m.phone = n.phone
+       WHERE c.id = ? AND c.user_id = ? AND n.phone <> '' LIMIT 1`,
+    )
+    .get(chatId, ws)) as { role: MemberRole } | undefined;
+  return row?.role ?? null;
 }
 
 export async function refreshMemberCount(chatId: string): Promise<void> {

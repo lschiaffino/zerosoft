@@ -89,7 +89,7 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
   return {
     chat,
     messages: messages.map((m) => maskMessage(viewer, m)),
-    members: members.map((m) => maskMember(viewer, m)),
+    members: members.map((m) => maskMember(viewer, m, chat.id)),
     people,
     labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
     quickReplies,
