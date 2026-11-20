@@ -550,6 +550,8 @@ export type ProviderErrorCode =
   | 'invalid_phone'
   | 'rate_limited'
   | 'provider_error'
+  /** La cuenta no es admin del grupo: WhatsApp no le deja agregar, quitar ni cambiar admins. */
+  | 'not_group_admin'
   /** La línea no puede mandar cambios de app-state (archivar): le falta la clave o su estado se rompió. Se vuelve a vincular. */
   | 'app_state_unavailable'
   | 'unreachable';

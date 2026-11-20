@@ -170,8 +170,8 @@ test('grupos: crear uno, varios desde CSV y agregar miembros en lote', async ({ 
   await expect(page.getByRole('heading', { level: 1, name: single })).toBeVisible();
   // El que bloquea altas no entra: 2 miembros (el número y uno).
   await expect(page.getByText('2 members').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Get invite link' }).click();
-  await expect(page.getByLabel('Invite link')).toHaveValue(/chat\.whatsapp\.com/);
+  await page.getByTestId('group-invite-link').click();
+  await expect(page.getByTestId('group-invite-value')).toHaveValue(/chat\.whatsapp\.com/);
 
   await page.goto('/en/app/lines/list', { waitUntil: 'networkidle' });
   const a = `Batch A ${uid()}`;

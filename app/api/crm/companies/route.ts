@@ -3,6 +3,8 @@ import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer 
 import { shouldEnrichOnCreate, enrichCompany } from '@/lib/crm-enrich';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
@@ -18,8 +20,11 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
+  const filter = await requestFilter(sp, 'companies', { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
+  if ('error' in filter) return crmError(400, 'invalid_filter');
   const { rows, total } = await listCompanies(user.id, {
     ownerScope: await sessionScope(user),
+    ...filter,
     q: sp.get('q') ?? undefined,
     industry: sp.get('industry') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,

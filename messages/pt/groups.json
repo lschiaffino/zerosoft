@@ -876,6 +876,7 @@
     "waiting": "Aguardando resposta"
   },
   "errors": {
+    "not_group_admin": "Só os admins do grupo podem fazer isso, e este número de WhatsApp não é admin do grupo.", "no_targets": "Escolha pelo menos uma pessoa.",
     "pageTitle": "Esta página não carregou",
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
     "generic": "Algo deu errado. Tente de novo.",
@@ -1718,6 +1719,7 @@
   "wa": {
     "events": {"someone": "Alguém", "createdMe": "Você criou o grupo “{subject}”", "created": "{by} criou o grupo “{subject}”", "createdUnknown": "O grupo “{subject}” foi criado", "createdMeNoName": "Você criou este grupo", "createdNoName": "{by} criou este grupo", "createdUnknownNoName": "Este grupo foi criado", "addedYou": "{by} adicionou você", "addedYouUnknown": "Você foi adicionado", "addedMe": "Você adicionou {who}", "added": "{by} adicionou {who}", "addedUnknown": "{who} foi adicionado", "removedYou": "{by} removeu você", "removedYouUnknown": "Você foi removido", "removedMe": "Você removeu {who}", "removed": "{by} removeu {who}", "removedUnknown": "{who} foi removido", "leftMe": "Você saiu", "left": "{who} saiu", "joinedMe": "Você entrou usando o link de convite", "joined": "{who} entrou usando o link de convite", "promotedYou": "Agora você é admin", "promoted": "{who} agora é admin", "demotedYou": "Você não é mais admin", "demoted": "{who} não é mais admin", "subjectMe": "Você mudou o nome do grupo para “{subject}”", "subject": "{by} mudou o nome do grupo para “{subject}”", "subjectUnknown": "O nome do grupo mudou para “{subject}”", "descriptionMe": "Você mudou a descrição do grupo", "description": "{by} mudou a descrição do grupo", "descriptionUnknown": "A descrição do grupo mudou", "iconMe": "Você mudou a foto do grupo", "icon": "{by} mudou a foto do grupo", "iconUnknown": "A foto do grupo mudou"},
     "newGroup": {"label": "Grupo novo", "members": "Grupo · {n, plural, one {# membro} other {# membros}}", "groupOnly": "Grupo", "addMembers": "Adicionar membros", "invite": "Convidar por link", "inviteCopied": "Link de convite copiado", "description": "Adicionar descrição", "info": "Dados do grupo", "hint": "Diga oi para começar a conversa."},
+    "members": {"title": "{n, plural, one {# membro} other {# membros}}", "add": "Adicionar membros", "invite": "Convidar via link", "search": "Buscar membros", "you": "Você", "admin": "Admin do grupo", "options": "Opções de {name}", "message": "Mandar mensagem para {name}", "makeAdmin": "Tornar admin do grupo", "dismissAdmin": "Remover como admin", "remove": "Remover {name}", "notAdmin": "Só os admins do grupo podem adicionar membros ou mudar admins. Este número de WhatsApp não é admin do grupo: peça a um admin para torná-lo admin.", "adding": "Adicionando…", "promoted": "{name} agora é admin do grupo", "dismissed": "{name} não é mais admin do grupo", "removed": "{name} foi removido do grupo", "added": "{n, plural, one {# pessoa adicionada} other {# pessoas adicionadas}}", "issuesTitle": "Algumas mudanças não foram feitas", "dismiss": "Fechar", "sendInvite": "{n, plural, one {Enviar o link de convite} other {Enviar o link para os #}}", "inviteSent": "{n, plural, one {Link de convite enviado} other {Link de convite enviado para #}}", "inviteText": "Entre no grupo de WhatsApp “{group}” com este link:", "linkCopied": "Link de convite copiado", "linkReset": "Link novo. O anterior deixa de funcionar.", "copy": "Copiar", "reset": "Trocar link", "sampleInvite": "Este é um grupo de exemplo: não tem link de convite real.", "showMore": "Ver mais {n}", "addTitle": "Adicionar membros", "searchContacts": "Busque um nome ou digite um número", "addPhone": "Adicionar {phone}", "alreadyIn": "Já está no grupo", "noResults": "Nenhum contato encontrado. Digite o número completo com o código do país.", "selected": "{n} selecionados", "unpick": "Tirar {name} da seleção", "addN": "{n, plural, =0 {Adicionar} other {Adicionar #}}", "cancel": "Cancelar", "addHelp": "Escolha várias pessoas de uma vez. Se a privacidade de alguém não deixa adicioná-lo, você pode enviar o link de convite.", "errors": {"privacy": "A privacidade dessa pessoa não deixa adicioná-la. Envie o link de convite.", "already_member": "Já está no grupo.", "recently_left": "Saiu do grupo há pouco e o WhatsApp ainda não deixa adicioná-la de novo.", "not_member": "Não está mais no grupo.", "not_on_whatsapp": "Este número não tem WhatsApp.", "not_group_admin": "Este número não é admin do grupo.", "own_number": "É o próprio número conectado.", "not_found": "Não encontramos esse contato.", "invalid_phone": "Confira o número e inclua o código do país.", "failed": "O WhatsApp não aceitou a mudança."}},
     "pause": "Pausar",
     "play": "Reproduzir",
     "seek": "Posição no áudio",
@@ -2046,7 +2048,9 @@
       "video": "Vídeo",
       "loadFailed": "Não foi possível carregar este contato",
       "openFailed": "Não foi possível abrir a conversa",
-      "openFor": "Dados do contato de {name}"
+      "openFor": "Dados do contato de {name}",
+      "blockedToast": "{name} foi bloqueado",
+      "unblockedToast": "{name} foi desbloqueado"
     },
     "replyPrivately": "Responder em particular",
     "messageName": "Enviar mensagem para {name}",

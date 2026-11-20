@@ -46,7 +46,7 @@ test('Outlook: conectar, sincronizar emails y reuniones, enviar y desconectar', 
 
   // La primera sync (30 días) corre sola al conectar: sin tocar "Sync now" el timeline ya tiene el email y la reunión.
   await expect(async () => {
-    await page.goto(`/en/app/crm/contacts/${contact.id}`);
+    await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`);
     await expect(page.getByText('Question about the proposal').first()).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 30_000 });
   await expect(page.getByText('Pricing review with Ana')).toBeVisible();
@@ -84,7 +84,7 @@ test('llamada desde el navegador: ajustes, llamar desde la ficha, registro, grab
   const contact = await (
     await request.post('/api/crm/contacts', { data: { firstName: 'Bruno', lastName: `Calls ${uid()}`, phone: '+54 9 11 5555 0101' } })
   ).json();
-  await page.goto(`/en/app/crm/contacts/${contact.id}`);
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`);
   const callBtn = page.getByRole('button', { name: 'Call from browser' }).first();
   await expect(callBtn).toBeVisible();
   await callBtn.click();
