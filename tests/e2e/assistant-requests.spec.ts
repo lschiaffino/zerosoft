@@ -51,7 +51,8 @@ test('pedir algo: link al pedido, la página del pedido, "¿dónde está mi pedi
   await expect(later.getByTestId('assistant-activity')).toHaveAttribute('data-state', 'done', { timeout: 30_000 });
   await expect(later.locator(`a[href="${href}"]`).first()).toBeVisible();
 
-  await note.click();
+  // `reply` es la última respuesta: después de la segunda pregunta ya no es la que tiene el aviso. Se busca el aviso en el panel.
+  await panel.getByTestId('assistant-request-link').first().click();
   await expect(page).toHaveURL(new RegExp(`/en/app/settings/requests/${id}$`));
   const pageEl = page.getByTestId('request-page');
   await expect(pageEl).toBeVisible();
