@@ -1280,6 +1280,12 @@ export default function ChatThread(props: ThreadProps) {
     showToast(pin ? (res.data.inWhatsApp ? t('thread.pinnedWhatsApp') : t('thread.pinnedHere')) : t('thread.unpinned'));
   }
 
+  // Los destacados de la pantalla: si cambian, la info del chat vuelve a leer su lista.
+  const starredKey = messages
+    .filter((m) => (m.meta as Record<string, unknown>).starred === true)
+    .map((m) => m.id)
+    .join(',');
+
   function jumpTo(m: MessageDto) {
     const el = document.getElementById(`m-${m.id}`);
     if (!el) {
@@ -1667,8 +1673,11 @@ export default function ChatThread(props: ThreadProps) {
 
   async function starSelected() {
     if (!selecting) return;
-    for (const id of selecting) {
-      const res = await api<MessageDto>(`/api/groups/messages/${id}`, { body: { action: 'star' } });
+    // Como WhatsApp (e Inbox): si alguno no está destacado se destacan todos; si ya lo estaban todos, se sacan.
+    const chosen = messages.filter((m) => selecting.has(m.id) && !m.deletedAt && !isTempId(m.id));
+    const star = chosen.some((m) => (m.meta as Record<string, unknown>).starred !== true);
+    for (const { id } of chosen) {
+      const res = await api<MessageDto>(`/api/groups/messages/${id}`, { body: { action: star ? 'star' : 'unstar' } });
       if (res.data) merge([res.data]);
     }
     setSelecting(null);
@@ -2854,6 +2863,17 @@ export default function ChatThread(props: ThreadProps) {
           me={props.me}
           isAdmin={props.isAdmin}
           compact
+          starredKey={starredKey}
+          onJumpToMessage={(id) => {
+            const m = messages.find((x) => x.id === id);
+            if (!m) {
+              showToast(t('thread.pinnedOld'));
+              return;
+            }
+            // En el teléfono la info tapa el chat: se cierra para ver el mensaje.
+            if (!side.wide) setDetailsOpen(false);
+            window.setTimeout(() => jumpTo(m), 0);
+          }}
         />
       </aside>
 

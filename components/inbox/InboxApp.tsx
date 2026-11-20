@@ -1726,6 +1726,13 @@ export default function InboxApp(props: {
           onError={(code) => toast(errText(code), { bad: true })}
           onToast={(text) => toast(text)}
           onChanged={() => void loadDetail(detail.thread.id, true)}
+          starredKey={detail.messages.filter((m) => m.starred).map((m) => m.id).join(',')}
+          onJumpToMessage={(id) => {
+            // Un destacado: la conversación se abre alrededor de ese mensaje y lo marca. En el teléfono la info tapa el chat.
+            if (window.matchMedia('(max-width: 1023px)').matches) setInfoOpen(false);
+            focusRef.current = { threadId: detail.thread.id, messageId: id };
+            void loadDetail(detail.thread.id);
+          }}
         />
       )}
 
