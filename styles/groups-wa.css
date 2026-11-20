@@ -796,6 +796,16 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-image img.is-loaded { opacity: 1; }
 .wa-image[style] img:not(.wa-thumb) { width: 100%; height: 100%; max-height: none; min-width: 0; object-fit: var(--wa-media-fit, cover); }
 .wa-video-thumb > img { width: 100%; height: 100%; object-fit: cover; }
+/* Portada del video: el primer cuadro llena la caja (que ya tiene la proporción del video); la miniatura de
+   WhatsApp, borrosa, solo de lugar hasta que el cuadro está. Sin topes de alto heredados (.gr-media img): sin bandas. */
+.wa-poster { position: absolute; inset: 0; display: block; overflow: hidden; pointer-events: none; }
+.wa-poster > img, .wa-poster > video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; max-height: none; min-width: 0; object-fit: cover; border-radius: 0; }
+.wa-poster > .wa-thumb { filter: blur(8px); transform: scale(1.05); }
+.wa-poster > video { opacity: 0; transition: opacity 0.15s; }
+.wa-poster[data-poster="frame"] > video { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .wa-poster > video { transition: none; } }
+.wa-video-len { display: inline-flex; align-items: center; gap: 4px; }
+.wa-video-len svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
 .wa-viewonce { display: inline-flex; align-items: center; gap: 8px; padding: 8px 6px; font-size: 0.875rem; font-style: italic; color: var(--wa-text-2); }
 .gr-inbox .gr-msg-foot .wa-retry { display: inline-flex; padding: 0 2px; color: var(--wa-danger); background: none; border: 0; cursor: pointer; pointer-events: auto; }
 .wa-retry:focus-visible { outline: 2px solid var(--wa-primary); }
