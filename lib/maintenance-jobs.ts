@@ -11,6 +11,8 @@
  *   lid-repair       dry | apply                  chats duplicados por lid de WhatsApp (lib/wa-dedupe-repair.ts)
  *   wa-webhook-header dry | apply                 webhook de las líneas conectadas con el secreto en un header
  *                                                 (lib/wa-webhook-migrate.ts)
+ *   bot-self-repair  dry | apply                  mensajes de Meta AI que quedaron en el chat con uno mismo
+ *                                                 (lib/wa-bot-self-repair.ts)
  *   wa-media-audit   dry                          solo lectura: archivos de WhatsApp que dependen de Evolution y
  *                                                 filas por instancia (lib/wa-media-audit.ts)
  *
@@ -28,6 +30,7 @@ import type { Client } from '@libsql/client';
 import { ensureMigrated, getClient } from './db';
 import { migrateStep, newMigrateProgress, SCHEDULED_TABLES, type MigrateOptions, type MigrateProgress, type SeenKeys } from './files/migrate';
 import type { LidRepairReport } from './wa-dedupe-repair';
+import type { BotSelfRepairReport } from './wa-bot-self-repair';
 import type { WebhookMigrateDeps, WebhookMigrateState } from './wa-webhook-migrate';
 import type { MediaAuditDeps, MediaAuditState } from './wa-media-audit';
 
@@ -38,6 +41,7 @@ export const MAINTENANCE_JOBS: Record<string, readonly JobMode[]> = {
   'files-migrate': ['dry', 'apply', 'apply-delete'],
   'files-scheduled': ['dry', 'apply', 'apply-delete'],
   'lid-repair': ['dry', 'apply'],
+  'bot-self-repair': ['dry', 'apply'],
   'wa-webhook-header': ['dry', 'apply'],
   // Solo lectura: no tiene apply (la poda de Evolution se decide aparte, docs/design/evolution-disk-retention.md).
   'wa-media-audit': ['dry'],
@@ -114,6 +118,8 @@ export interface RunOptions {
   files?: Pick<MigrateOptions, 'tables' | 'batch' | 'readOriginal' | 'sizeOf' | 'deleteOriginal'>;
   /** Para tests: el arreglo de lids. */
   lidRepair?: (client: Client, opts: { apply: boolean }) => Promise<LidRepairReport>;
+  /** Para tests: el arreglo de los mensajes de Meta AI en el chat propio. */
+  botSelfRepair?: (opts: { apply: boolean }) => Promise<BotSelfRepairReport>;
   /** Para tests: cómo se registra el webhook de cada línea. */
   webhookDeps?: WebhookMigrateDeps;
   /** Para tests: instancias del servidor y nombre de instancia de cada línea. */
@@ -234,6 +240,15 @@ async function lidStep(client: Client, spec: JobSpec, o: RunOptions): Promise<St
   return { state: {}, report, done: true, line };
 }
 
+async function botSelfStep(spec: JobSpec, o: RunOptions): Promise<StepResult> {
+  const run = o.botSelfRepair ?? (await import('./wa-bot-self-repair')).repairBotSelfChat;
+  const r = await run({ apply: spec.mode === 'apply' });
+  const verb = spec.mode === 'apply' ? 'moved' : 'would move';
+  const side = (name: string, c: BotSelfRepairReport['inbox']) =>
+    `${name} ${verb} ${c.moved} to Meta AI and ${c.movedBySender} by sender of ${c.selfMessages} (${c.foundAtGateway} at gateway, ${c.accounts} accounts, ${c.failed} failed, ${c.duplicatesRemoved} duplicates)`;
+  return { state: {}, report: { applied: r.applied, inbox: r.inbox, lines: r.lines }, done: true, line: `${side('inbox', r.inbox)}; ${side('lines', r.lines)}` };
+}
+
 async function webhookStep(spec: JobSpec, state: unknown, deadline: number, o: RunOptions): Promise<StepResult> {
   const { newWebhookMigrateState, webhookMigrateStep } = await import('./wa-webhook-migrate');
   const s: WebhookMigrateState = state && typeof state === 'object' && 'phase' in state ? (state as WebhookMigrateState) : newWebhookMigrateState();
@@ -320,7 +335,9 @@ export async function runMaintenanceJobs(o: RunOptions = {}): Promise<TickResult
         const step =
           spec.job === 'lid-repair'
             ? await lidStep(client, spec, o)
-            : spec.job === 'wa-webhook-header'
+            : spec.job === 'bot-self-repair'
+              ? await botSelfStep(spec, o)
+              : spec.job === 'wa-webhook-header'
               ? await webhookStep(spec, safeJson(cur?.state), deadline, o)
               : spec.job === 'wa-media-audit'
                 ? await mediaAuditJobStep(safeJson(cur?.state), deadline, o)

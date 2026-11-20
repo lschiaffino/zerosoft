@@ -27,6 +27,7 @@ import {
   PROVIDER_KINDS,
   ProviderError,
   isGroupJid,
+  isBotJid,
   isLidJid,
   isValidPhone,
   lidDigits,
@@ -71,6 +72,7 @@ import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type Poll
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 import { lineColor, type LineColor } from './line-colors';
 import type { NumberStats } from './groups-number-stats';
+import { routeSelfChat } from './wa-self-chat';
 
 export { mediaKind, propertyText };
 
@@ -2952,7 +2954,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   // Los ajustes del workspace llegan con el primer mensaje de la tanda (en la misma ida a la base).
   let settings: GroupsSettings | null = null;
   const batchSettings = async () => (settings ??= await getSettings(ws));
-  const slice = events.slice(0, 200);
+  // Lo que llega con el id de la línea y no es del chat con uno mismo (Meta AI, un lid con el teléfono propio) va a su chat.
+  const slice = routeSelfChat(events.slice(0, 200), number.phone);
   // La libreta del número (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero:
   // así sale con teléfono. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
   let batch = slice;
@@ -2976,7 +2979,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
     try {
       if (ev.type === 'message') {
         const isGroup = ev.isGroup || isGroupJid(ev.chatId);
-        let dmName = isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || ev.chatName;
+        // El chat de Meta AI ("@bot") trae su nombre también en lo propio (lib/wa-self-chat.ts).
+        let dmName = isGroup ? ev.chatName : ev.fromMe ? (isBotJid(ev.chatId) ? ev.chatName : undefined) : ev.senderName || ev.chatName;
         // 1:1 con id "@lid" y sin nombre de perfil: un nombre legible en el idioma del workspace (nunca el lid).
         if (!isGroup && !dmName && isLidJid(ev.chatId)) dmName = await lidChatName(ws);
         const at = ev.timestamp && Number.isFinite(Date.parse(ev.timestamp)) ? new Date(ev.timestamp).toISOString() : nowIso();
@@ -3142,10 +3146,18 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           .prepare('SELECT id, status FROM groups_messages WHERE number_id = ? AND provider_message_id = ?')
           .get(number.id, ev.providerMessageId)) as { id: string; status: string } | undefined;
         if (row && (rank[ev.status] ?? 0) > (rank[row.status] ?? 0)) {
-          // La hora de cada estado queda en meta.ack (Info del mensaje).
+          // La hora de cada estado queda en meta.ack (Info del mensaje de un 1:1, lib/groups-receipts.ts).
           await getDb()
             .prepare("UPDATE groups_messages SET status = ?, meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.' || ?, ?) WHERE id = ?")
             .run(ev.status, ev.status, nowIso(), row.id);
+        }
+        // Un audio escuchado (llega como 'read' después de "leído"): su hora, una sola vez.
+        if (row && ev.played) {
+          await getDb()
+            .prepare(
+              "UPDATE groups_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played', ?) WHERE id = ? AND json_extract(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.ack.played') IS NULL",
+            )
+            .run(nowIso(), row.id);
         }
       } else if (ev.type === 'edit' || ev.type === 'revoke') {
         const msg = (await getDb()

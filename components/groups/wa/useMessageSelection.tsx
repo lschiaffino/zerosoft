@@ -56,6 +56,11 @@ export function useMessageSelection(opts: {
       const ids = new Set(prev.ids);
       if (ids.has(id)) ids.delete(id);
       else ids.add(id);
+      // En el teléfono, como WhatsApp: sacar el último elegido sale del modo (en la computadora queda "0 elegidos").
+      if (!ids.size && window.matchMedia('(hover: none)').matches) {
+        focusNext.current = 'composer';
+        return null;
+      }
       return { ...prev, ids };
     });
   }, []);

@@ -42,6 +42,8 @@ export interface ChatItem {
   attachments?: ChatAttachment[];
   /** Aviso del turno (no_vision). */
   notice?: string;
+  /** El turno llegó al tope de pasos (cuántos): se ofrece "Seguir". */
+  limit?: number;
   /** El envío no llegó al servidor: el aviso se va cuando uno sale bien. */
   failedSend?: boolean;
   error?: string;
@@ -73,6 +75,7 @@ export interface StoredMessage {
     | { type: 'tool'; tool: string; input: unknown; output: unknown; ok: boolean }
     | { type: 'action'; actionId: string }
     | { type: 'reasoning'; text: string; ms: number }
+    | { type: 'limit'; steps: number }
     | ({ type: 'attachment' } & ChatAttachment)
   >;
 }
@@ -85,8 +88,9 @@ export function toChatItems(messages: StoredMessage[], actions: ActionView[]): C
     role: m.role,
     content: m.content,
     attachments: m.parts.flatMap((p) => (p.type === 'attachment' ? [{ id: p.id, name: p.name, mime: p.mime, size: p.size, url: p.url, kind: p.kind }] : [])),
+    limit: m.parts.find((p): p is { type: 'limit'; steps: number } => p.type === 'limit')?.steps,
     parts: m.parts.flatMap((p, i): ChatPart[] => {
-      if (p.type === 'attachment') return [];
+      if (p.type === 'attachment' || p.type === 'limit') return [];
       if (p.type === 'reasoning') return p.text ? [{ type: 'reasoning', key: `${m.id}-r${i}`, text: p.text, ms: p.ms }] : [];
       if (p.type === 'tool') return [{ type: 'tool', callId: `${m.id}-${i}`, tool: p.tool, input: p.input, output: p.output, ok: p.ok, running: false }];
       const a = byId.get(p.actionId);

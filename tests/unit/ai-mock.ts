@@ -21,16 +21,28 @@ const USAGE = {
   outputTokens: { total: 5, text: 5, reasoning: undefined },
 };
 
-export type MockStep = { text: string } | { tool: string; input: Record<string, unknown> };
+type MockToolStep = { tool: string; input: Record<string, unknown> };
+/** Un paso: texto, una herramienta o varias en paralelo (`tools`). */
+export type MockStep = { text: string } | MockToolStep | { tools: MockToolStep[] };
 
-function stepContent(step: MockStep, i: number) {
-  if ('text' in step) return { type: 'text' as const, text: step.text };
+function toolCall(step: MockToolStep, i: number) {
   return {
     type: 'tool-call' as const,
     toolCallId: `call-${i}-${crypto.randomUUID().slice(0, 6)}`,
     toolName: step.tool,
     input: JSON.stringify(step.input),
   };
+}
+
+function stepContent(step: MockStep, i: number) {
+  if ('text' in step) return { type: 'text' as const, text: step.text };
+  if ('tools' in step) return step.tools.map((s) => toolCall(s, i))[0];
+  return toolCall(step, i);
+}
+
+function stepCalls(step: MockStep, i: number) {
+  if ('text' in step) return [];
+  return ('tools' in step ? step.tools : [step]).map((s) => toolCall(s, i));
 }
 
 /**
@@ -50,7 +62,7 @@ export function scriptedModel(steps: MockStep[] | ((call: number) => MockStep)) 
     doGenerate: async () => {
       const { step, i } = next();
       return {
-        content: [stepContent(step, i)],
+        content: 'text' in step ? [stepContent(step, i)] : stepCalls(step, i),
         finishReason: { unified: 'text' in step ? ('stop' as const) : ('tool-calls' as const), raw: undefined },
         usage: USAGE,
         warnings: [],
@@ -66,7 +78,7 @@ export function scriptedModel(steps: MockStep[] | ((call: number) => MockStep)) 
               ...content.text.split(/(?<= )/).map((delta) => ({ type: 'text-delta', id: 't', delta })),
               { type: 'text-end', id: 't' },
             ]
-          : [content];
+          : stepCalls(step, i);
       chunks.push({
         type: 'finish',
         finishReason: { unified: content.type === 'text' ? 'stop' : 'tool-calls', raw: undefined },

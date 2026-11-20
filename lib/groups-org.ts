@@ -29,7 +29,7 @@ import {
   type CreateGroupRow,
   type PropertyFilter,
 } from './groups';
-import { EPHEMERAL_OPTIONS, inviteCodeFrom, isValidPhone, phoneDigits, splitPhones, type GroupSettingsPatch } from './groups-provider';
+import { EPHEMERAL_OPTIONS, ProviderError, inviteCodeFrom, isValidPhone, phoneDigits, splitPhones, type GroupSettingsPatch, type InviteFailure } from './groups-provider';
 
 const nowIso = () => new Date().toISOString();
 
@@ -118,7 +118,17 @@ export async function updateGroupSettings(ws: string, chatId: string, input: Gro
 // Entrar y salir
 // ======================================================================
 
-/** Entra a un grupo con el link (o código) de invitación desde un número y lo trae a Groups. */
+/** El motivo de un intento fallido de entrar con un link (el gateway lo reduce a una etiqueta). */
+export function inviteFailureFrom(err: unknown): InviteFailure | null {
+  const r = err instanceof ProviderError ? err.reason : undefined;
+  return r === 'invite_invalid' || r === 'already_member' || r === 'approval_required' ? r : null;
+}
+
+/**
+ * Entra a un grupo con el link (o código) de invitación desde un número y lo trae a Groups.
+ * Errores: invalid_invite (no es un link), invite_invalid (vencido o reiniciado),
+ * invite_already_member, invite_approval_required (quedó la solicitud), not_connected.
+ */
 export async function joinGroup(ws: string, numberId: string, invite: string): Promise<ChatDto> {
   const code = inviteCodeFrom(invite);
   if (!code) throw new GroupsError('invalid_invite');
@@ -130,6 +140,8 @@ export async function joinGroup(ws: string, numberId: string, invite: string): P
   try {
     info = await provider.joinGroup(code);
   } catch (err) {
+    const why = inviteFailureFrom(err);
+    if (why) throw new GroupsError(why === 'invite_invalid' ? why : `invite_${why}`, why === 'invite_invalid' ? 400 : 409);
     const c = providerErrorCode(err);
     throw new GroupsError(c === 'not_found' ? 'invite_invalid' : c, c === 'not_found' ? 400 : 502);
   }

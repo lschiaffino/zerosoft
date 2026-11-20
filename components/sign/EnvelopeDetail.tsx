@@ -100,6 +100,7 @@ export default function EnvelopeDetail({ env }: { env: EnvelopeDto }) {
                   <span className="sg-rowmeta">
                     {[
                       r.notifiedAt && t('detail.notified', { date: date(r.notifiedAt) }),
+                      r.remindedAt && t('detail.remindedOn', { date: date(r.remindedAt) }),
                       r.viewedAt && t('detail.viewed', { date: date(r.viewedAt) }),
                       r.signedAt && t('detail.signed', { date: date(r.signedAt) }),
                       r.declinedAt && t('detail.declined', { date: date(r.declinedAt) }),
