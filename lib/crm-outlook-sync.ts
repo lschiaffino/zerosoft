@@ -144,6 +144,10 @@ async function release(
 
 // ---------- Calendario → reuniones ----------
 
+function isPrivateEvent(ev: GraphEvent): boolean {
+  return ev.sensitivity === 'private' || ev.sensitivity === 'confidential';
+}
+
 function eventKey(ev: GraphEvent): string {
   return (ev.iCalUId || ev.id).slice(0, 500);
 }
@@ -158,6 +162,9 @@ function meetingBody(ev: GraphEvent): string {
 /**
  * Vuelca un evento del calendario al timeline. Devuelve true si creó o
  * actualizó una reunión. Eventos sin contactos del workspace no se guardan.
+ * Un evento marcado privado o confidencial en Outlook tampoco: su asunto y
+ * su texto no van al timeline del contacto, que ve el resto del equipo (si
+ * ya estaba, sale, como uno cancelado).
  */
 export async function storeOutlookEvent(
   userId: string,
@@ -173,7 +180,7 @@ export async function storeOutlookEvent(
     .prepare('SELECT activity_id FROM crm_outlook_events WHERE user_id = ? AND event_key = ?')
     .get(userId, key)) as { activity_id: string | null } | undefined;
 
-  if (ev['@removed'] || ev.isCancelled) {
+  if (ev['@removed'] || ev.isCancelled || isPrivateEvent(ev)) {
     if (existing?.activity_id) await deleteActivity(userId, existing.activity_id).catch(() => null);
     if (existing) await db.prepare('DELETE FROM crm_outlook_events WHERE user_id = ? AND event_key = ?').run(userId, key);
     return Boolean(existing);

@@ -249,6 +249,7 @@
     "recipients": "Recipients",
     "current": "their turn",
     "notified": "sent {date}",
+    "remindedOn": "reminded {date}",
     "viewed": "opened {date}",
     "signed": "signed {date}",
     "declined": "declined {date}",

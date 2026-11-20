@@ -7,7 +7,7 @@
  */
 import { contactPicture } from '../wa-picture-url';
 import { getDb } from '../db';
-import { phoneDigits } from '../groups-provider';
+import { ProviderError, inviteCodeFrom, phoneDigits } from '../groups-provider';
 import { displayName } from '../wa-contacts';
 import {
   NEW_CHAT_FREQUENT,
@@ -22,7 +22,7 @@ import {
   type NewChatDirectory,
   type NewChatEntry,
 } from '../wa-new-chat';
-import { avatarVersion, findThread, listAccounts, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
+import { avatarVersion, findThread, getAccount, getThreadRow, listAccounts, nowIso, upsertThread, type AccountRow, type ThreadRow } from './core';
 import { InboxError } from './types';
 import { waProviderFor } from './whatsapp';
 
@@ -160,5 +160,41 @@ export async function createWhatsappGroup(owner: string, input: { name: string; 
   // "Creaste el grupo «…»": el grupo queda arriba de la lista con su hora aunque todavía no tenga mensajes.
   const { addInboxGroupEvent } = await import('../wa-group-system');
   await addInboxGroupEvent(thread, { t: 'create', by: { p: 'me' }, subject: info.name || name }, nowIso());
+  return (await findThread(account.id, thread.external_id)) ?? thread;
+}
+
+/**
+ * Entra a un grupo de WhatsApp con un link de invitación desde la cuenta de
+ * Inbox (la del chat donde llegó el link, si se pasa) y devuelve su chat.
+ * Solo la dueña: todo filtra por owner. Errores: invalid_invite (no es un
+ * link), not_connected (409), invite_invalid (vencido o reiniciado, 400),
+ * invite_already_member y invite_approval_required (409), join_failed (502).
+ */
+export async function joinWhatsappGroup(owner: string, input: { invite: string; threadId?: string }): Promise<ThreadRow> {
+  const code = inviteCodeFrom(String(input.invite ?? '').slice(0, 300));
+  if (!code) throw new InboxError('invalid_invite', 400);
+  let account: AccountRow | null;
+  if (input.threadId) {
+    const thread = await getThreadRow(owner, input.threadId);
+    account = await getAccount(owner, thread.account_id);
+  } else account = await whatsappAccount(owner);
+  if (!account || account.kind !== 'whatsapp') throw new InboxError('not_found', 404);
+  if (account.status !== 'connected') throw new InboxError('not_connected', 409);
+  const provider = waProviderFor(account);
+  let info: { id: string; name?: string };
+  try {
+    info = await provider.joinGroup(code);
+  } catch (err) {
+    if (err instanceof InboxError) throw err;
+    const why = err instanceof ProviderError ? err.reason : undefined;
+    if (why === 'invite_invalid' || (!why && err instanceof ProviderError && err.code === 'not_found')) throw new InboxError('invite_invalid', 400);
+    if (why === 'already_member' || why === 'approval_required') throw new InboxError(`invite_${why}`, 409);
+    if (err instanceof ProviderError && err.code === 'not_connected') throw new InboxError('not_connected', 409);
+    throw new InboxError('join_failed', 502);
+  }
+  if (!info?.id) throw new InboxError('join_failed', 502);
+  let name = info.name ?? '';
+  if (!name) name = (await provider.listGroups().catch(() => [])).find((g) => g.id === info.id)?.name ?? '';
+  const thread = await upsertThread(account, { externalId: info.id, kind: 'group', title: name, ...(name ? { forceTitle: true } : {}) });
   return (await findThread(account.id, thread.external_id)) ?? thread;
 }

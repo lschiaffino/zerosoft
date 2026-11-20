@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { duration, extensionOf, fileSize, posterFrame, splitFileName, waveBars } from './format';
-import { DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
+import { duration, extensionOf, fileSize, splitFileName, waveBars } from './format';
+import { CameraIcon, DocIcon, Download, MapPin, Mic, MusicIcon, Pause, Person, PhotoIcon, Play, Retry, Smiley } from './icons';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 import Avatar from './Avatar';
+import VideoPoster from './VideoPoster';
+import { videoBox } from './video-poster';
 import { mediaBox, mediaBoxStyle, mediaFit, placeholderBox } from './media-box';
 import { formatPhone } from '@/components/inbox/wa/util';
 
@@ -732,24 +734,27 @@ export function GifView({ url, thumbnail, width, height, onOpen }: { url: string
   );
 }
 
-/** Video: miniatura con el botón de reproducir y la duración; abre el visor. */
+/**
+ * Video: el primer cuadro (la miniatura borrosa de WhatsApp de lugar mientras
+ * tanto) en una caja con la proporción real del video, el botón de reproducir
+ * al centro y la cámara con la duración abajo a la izquierda; abre el visor.
+ */
 export function VideoView({ url, seconds, thumbnail, width, height, onOpen }: { url: string; seconds?: number; thumbnail?: string; width?: number; height?: number; onOpen?: () => void }) {
   const t = useTranslations('groups');
-  const box = boxFor(width, height);
-  const style = boxStyle(box);
+  // Medidas leídas del archivo cuando el mensaje no las trae.
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const style = boxStyle(videoBox(width, height, natural));
   if (!onOpen) return <video className="wa-video" src={url} controls preload="metadata" playsInline />;
   return (
     <button type="button" className="wa-video-thumb" style={style} onClick={onOpen} aria-label={t('wa.playVideo')}>
-      {thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumbnail} alt="" aria-hidden="true" />
-      ) : (
-        <video src={posterFrame(url)} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
-      )}
+      <VideoPoster url={url} thumbnail={thumbnail} onSize={(w, h) => setNatural((n) => (n && n.w === w && n.h === h ? n : { w, h }))} />
       <span className="wa-video-play" aria-hidden="true">
         <Play size={30} />
       </span>
-      {seconds ? <span className="wa-video-len">{duration(seconds)}</span> : null}
+      <span className="wa-video-len" aria-hidden="true">
+        <CameraIcon size={14} />
+        {seconds ? duration(seconds) : null}
+      </span>
     </button>
   );
 }
