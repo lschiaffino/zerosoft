@@ -1451,6 +1451,44 @@
         "title": "Eso es todo",
         "body": "Podés volver a hacer este tour desde el menú de tu cuenta."
       }
+    },
+    "notes": {
+      "intro": {
+        "title": "Te damos la bienvenida a Notes",
+        "body": "Notes junta tus notas, libretas y etiquetas en un lugar, y se guardan mientras escribís. Este tour te muestra las partes principales."
+      },
+      "newNote": {
+        "title": "Escribí una nota",
+        "body": "Empezá una nota en blanco acá, o una desde una plantilla. En cualquier parte de Notes, N crea una nota nueva."
+      },
+      "notebooks": {
+        "title": "Libretas",
+        "body": "Agrupá notas en libretas, y libretas en pilas. Arriba están Inicio, Tareas, Fijadas y las notas que te compartieron."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "La búsqueda mira títulos y texto. Operadores como tag: y notebook: la acotan, y el botón ? los muestra todos. Con / venís directo acá."
+      },
+      "openNote": {
+        "title": "Abrí una nota",
+        "body": "Abrí cualquier nota de la lista para leerla y editarla."
+      },
+      "noteBar": {
+        "title": "Las herramientas de la nota",
+        "body": "Mové la nota a una libreta, grabá audio, fijala, poné un recordatorio o compartila con un link o con personas."
+      },
+      "tags": {
+        "title": "Etiquetas",
+        "body": "Escribí una etiqueta y apretá Enter. Las etiquetas se ven en la lista y en el lateral, en todas las libretas."
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "body": "N crea una nota y / busca. Con las flechas recorrés la lista. Cmd+K encuentra cualquier nota."
+      },
+      "done": {
+        "title": "Eso es todo",
+        "body": "Podés volver a hacer este tour desde el menú de tu cuenta."
+      }
     }
   }
 }
