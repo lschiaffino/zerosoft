@@ -530,6 +530,8 @@
   "tasks": {
     "title": "Tarefas",
     "newTask": "+ Nova tarefa",
+    "privateChat": "Tarefa de um chat do Lines",
+    "privateChatHint": "Foi criada a partir de um chat do Lines ao qual você não tem acesso, por isso o título e as notas estão ocultos.",
     "overdue": "Atrasadas",
     "today": "Hoje",
     "upcoming": "Próximas",

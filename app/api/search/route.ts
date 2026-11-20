@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { searchAll, searchTasks } from '@/lib/crm';
 import { searchDocPagesContent, searchSharedDocPages } from '@/lib/docs';
 import { docsHidden } from '@/lib/docs-guard';
@@ -86,7 +87,8 @@ async function getPrivate(req: NextRequest) {
       const seen = new Set(own.map((h) => h.id));
       return [...own, ...shared.filter((h) => !seen.has(h.id))];
     }),
-    searchTasks(user.id, q, scope),
+    // Tareas de chats de Lines que la persona no ve: no se encuentran por su texto y salen sin él.
+    sessionChatReader(user, req.nextUrl.searchParams.get('locale')).then((reader) => searchTasks(user.id, q, scope, reader)),
     // Notas: solo las de la persona logueada (son privadas aunque el workspace sea compartido).
     searchNotesForPalette(user, q),
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.

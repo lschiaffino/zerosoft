@@ -111,15 +111,18 @@ export function normalizeTaskScope(value: unknown): HomeTaskScope {
  */
 export async function homeCrmTasks(
   user: HomeUser,
-  opts: { scope?: HomeTaskScope; limit?: number } = {},
+  opts: { scope?: HomeTaskScope; limit?: number; locale?: string } = {},
 ): Promise<{ total: number; items: HomeTask[] }> {
   const limit = opts.limit ?? 5;
   const me = user.actingUser?.id ?? user.id;
   if (!homeCanUse(user, 'crm')) return homeGroupsTasks(user, limit);
   const scope = await sessionScope(user);
+  // Tareas de chats de Lines que la persona no ve: sin su texto (lib/crm-chat-privacy.ts).
+  const { sessionChatReader } = await import('./crm-chat-privacy');
+  const chatReader = await sessionChatReader(user, opts.locale);
   const [overdue, today] = await Promise.all([
-    listTasks(user.id, { bucket: 'overdue', ownerScope: scope }),
-    listTasks(user.id, { bucket: 'today', ownerScope: scope }),
+    listTasks(user.id, { bucket: 'overdue', ownerScope: scope, chatReader }),
+    listTasks(user.id, { bucket: 'today', ownerScope: scope, chatReader }),
   ]);
   const mine = (r: { owner_id: string | null }) => opts.scope === 'all' || (r.owner_id ?? user.id) === me;
   const rows = [
