@@ -93,3 +93,18 @@
 .wa-selectbar .wa-icon-btn { min-width: 44px; min-height: 44px; }
 .wa-selectbar .wa-icon-btn.is-danger { color: var(--wa-danger, var(--bad-ink)); }
 .wa-selectbar .wa-icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Teléfono: la barra va arriba, sobre la cabecera del chat (como WhatsApp en Android), y abajo no queda el
+   resto del campo (solapas, "responder desde"): el chat llega hasta el borde. La X sale, igual que "atrás". */
+@media (hover: none) and (max-width: 720px) {
+  .gr-inbox .gr-thread .wa-composer:has(.wa-selectbar) { position: static; min-height: 0; padding: 0; border: 0; }
+  .gr-inbox .gr-thread .wa-composer:has(.wa-selectbar) > :not(.wa-selectbar) { display: none; }
+  .gr-inbox .gr-thread .wa-selectbar {
+    position: absolute; top: 0; right: 0; left: 0; z-index: 30; box-sizing: border-box; min-height: var(--wa-head-h, 56px);
+    padding: 6px 4px; background: var(--wa-panel-header, var(--bg)); border-bottom: 1px solid var(--wa-border, var(--line));
+    animation: wa-selectbar-in 0.14s ease-out;
+  }
+  .gr-inbox .gr-thread .wa-selectbar .wa-rec-label { font-size: 1.0625rem; font-weight: 500; color: var(--wa-text, var(--ink)); }
+}
+@keyframes wa-selectbar-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .gr-inbox .gr-thread .wa-selectbar { animation: none; } }
