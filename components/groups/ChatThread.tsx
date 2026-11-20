@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -1386,8 +1386,10 @@ export default function ChatThread(props: ThreadProps) {
     const d = laterDraft();
     if ('reason' in d) return showToast(d.reason, true);
     const quote = replyTo;
+    // En un grupo, las menciones van con el programado: al salir "@Nombre" pasa a "@<teléfono>", como al mandar ya.
+    const mentions = chat.kind === 'group' && !d.media ? waMentionPicks(d.body, waPeople) : [];
     const res = await api<{ id: string }>('/api/groups/broadcasts', {
-      body: { chatIds: [chat.id], body: d.body, media: d.media, scheduledAt: iso, kind: 'scheduled', replyToId: quote?.id ?? null },
+      body: { chatIds: [chat.id], body: d.body, media: d.media, scheduledAt: iso, kind: 'scheduled', replyToId: quote?.id ?? null, ...(mentions.length ? { mentions } : {}) },
     });
     if (!res.data) return showToast(errText(res.error), true);
     const id = res.data.id;
@@ -1422,8 +1424,10 @@ export default function ChatThread(props: ThreadProps) {
       const bad = checkRule(rule);
       if (bad) return setSchedule((s) => ({ ...s, error: errText(bad) }));
       setSchedule((s) => ({ ...s, busy: true, error: '' }));
+      const media = scheduledMedia();
+      const mentions = chat.kind === 'group' && !media ? waMentionPicks(text, waPeople) : [];
       const res = await api<{ nextRunAt: string | null }>('/api/groups/recurring', {
-        body: { chatIds: [chat.id], body: text, media: scheduledMedia(), rule, timezone, endsAt: endsIso(endsAt) },
+        body: { chatIds: [chat.id], body: text, media, rule, timezone, endsAt: endsIso(endsAt), ...(mentions.length ? { mentions } : {}) },
       });
       if (!res.data) return setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
       setSchedule({ open: false, at: '', busy: false, error: '' });
@@ -1439,8 +1443,10 @@ export default function ChatThread(props: ThreadProps) {
       return;
     }
     setSchedule((s) => ({ ...s, busy: true, error: '' }));
+    const media = scheduledMedia();
+    const mentions = chat.kind === 'group' && !media ? waMentionPicks(text, waPeople) : [];
     const res = await api('/api/groups/broadcasts', {
-      body: { chatIds: [chat.id], body: text, media: scheduledMedia(), scheduledAt: new Date(when).toISOString(), kind: 'scheduled' },
+      body: { chatIds: [chat.id], body: text, media, scheduledAt: new Date(when).toISOString(), kind: 'scheduled', ...(mentions.length ? { mentions } : {}) },
     });
     if (!res.data) {
       setSchedule((s) => ({ ...s, busy: false, error: errText(res.error) }));
