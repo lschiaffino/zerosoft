@@ -109,12 +109,13 @@ describe('Lines: carpetas del equipo', () => {
     const norte = await createFolder(w.ws, w.owner.id, { name: 'Norte', parentId: ventas.id, team: true }, admin);
     // Hasta MAX_FOLDER_DEPTH niveles, como las personales.
     const n3 = await createFolder(w.ws, w.carla.id, { name: 'Nivel 3', parentId: norte.id, team: true }, admin);
-    await expect(createFolder(w.ws, w.carla.id, { name: 'Nivel 4', parentId: n3.id, team: true }, admin)).rejects.toMatchObject({ code: 'too_deep' });
+    const n4 = await createFolder(w.ws, w.carla.id, { name: 'Nivel 4', parentId: n3.id, team: true }, admin);
+    await expect(createFolder(w.ws, w.carla.id, { name: 'Nivel 5', parentId: n4.id, team: true }, admin)).rejects.toMatchObject({ code: 'too_deep' });
     await expect(createFolder(w.ws, w.carla.id, { name: 'ventas', team: true }, admin)).rejects.toMatchObject({ code: 'duplicate_folder' });
 
     for (const v of [w.vAna, w.vBeto, w.vDani, w.vCarla, w.vOwner]) {
       const res = await listFolders(w.ws, v.me, v);
-      expect(names(res.team)).toEqual(['Nivel 3', 'Norte', 'Ventas']);
+      expect(names(res.team)).toEqual(['Nivel 3', 'Nivel 4', 'Norte', 'Ventas']);
       // Ninguna aparece entre las personales de nadie.
       expect(res.folders).toEqual([]);
     }

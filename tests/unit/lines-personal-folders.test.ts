@@ -416,7 +416,7 @@ describe('Lines: la migración a carpetas personales', () => {
       ['Sin autor', 1],
     ]);
     // Quien no había creado ninguna empieza sin carpetas, admin incluida.
-    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], unfiled: { chats: 4, unread: 4 } });
+    expect(await listFolders(ws, w.carla.id, w.vCarla)).toEqual({ folders: [], team: [], unfiled: { chats: 4, unread: 4 } });
     // No se borró nada: las filas y la columna de antes siguen como estaban.
     const left = (await db.prepare('SELECT id, folder_id FROM groups_chats WHERE user_id = ? AND folder_id IS NOT NULL ORDER BY id').all(ws)) as Array<{ id: string; folder_id: string }>;
     expect(left).toHaveLength(4);
