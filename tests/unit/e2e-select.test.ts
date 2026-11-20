@@ -79,6 +79,7 @@ describe('qué e2e corre un pull request (scripts/e2e-select.mjs)', () => {
       ['content/changelog-entries/2026-11-15-x.ts', 'content/feature-parity/inbox.ts', 'research/ideas.json'],
       ['docs/voice.md', 'README.md', 'AGENTS.md'],
       ['desktop/src-tauri/src/main.rs'],
+      ['desktop-mac/App/WebController.swift', 'desktop-mac/project.yml', '.github/workflows/desktop-mac.yml'],
       ['tests/unit/inbox.test.ts'],
     ]) {
       expect(plan(files), files[0]).toMatchObject({ mode: 'none', specs: [], shards: 0, build: false, real: false, quarantine: false, docker: false });
