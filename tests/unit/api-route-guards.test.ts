@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkRouteGuards, guardsUsed, publicRoutes } from '../../scripts/api-route-guards.mjs';
+import { checkRouteGuards, guardsUsed, publicRoutes, unguardedHandlers } from '../../scripts/api-route-guards.mjs';
 
 /**
  * Toda ruta de la API pasa por un chequeo de sesión o de API key, o está en
@@ -8,7 +8,7 @@ import { checkRouteGuards, guardsUsed, publicRoutes } from '../../scripts/api-ro
  * fallar este test: o usa un guard o se agrega a la lista a conciencia.
  */
 describe('rutas de la API: guard de sesión o lista pública explícita', () => {
-  const result = checkRouteGuards() as { files: string[]; unguarded: string[]; missing: string[]; stale: string[] };
+  const result = checkRouteGuards() as { files: string[]; unguarded: string[]; openHandlers: string[]; missing: string[]; stale: string[] };
 
   it('encuentra las rutas', () => {
     expect(result.files.length).toBeGreaterThan(1000);
@@ -26,6 +26,12 @@ describe('rutas de la API: guard de sesión o lista pública explícita', () => 
     for (const [file, reason] of Object.entries(publicRoutes() as Record<string, string>)) {
       expect(reason.trim().length, file).toBeGreaterThan(5);
     }
+  });
+
+  it('mira cada handler: uno sin guard al lado de otro con guard también cuenta', () => {
+    expect(unguardedHandlers('tests/unit/fixtures/route-guards-mixed.ts')).toEqual(['DELETE']);
+    expect(unguardedHandlers('lib/routes/crm/sequences/[id]/route.ts')).toEqual([]);
+    expect(unguardedHandlers('app/api/mcp/route.ts')).toEqual(['GET', 'DELETE']);
   });
 
   it('las rutas de la app que leen datos personales tienen guard', () => {

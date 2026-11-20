@@ -11,6 +11,12 @@
  * se suma un sticker con "Agregar a favoritos" desde un mensaje y se puede
  * crear uno desde una imagen (512×512 en WebP, como WhatsApp).
  *
+ * Lo suyo primero, como WhatsApp: el panel muestra los recientes (los que la
+ * persona mandó desde esa línea, también desde el teléfono: los mensajes
+ * propios de la línea con ese sticker, vistos al traer los de los chats), sus
+ * favoritos y los que creó; lo que solo recibió va aparte, plegado, en "De tus
+ * chats", y sube cuando lo manda o lo marca favorito.
+ *
  * Una colección por línea: cada sticker es de una línea (Lines: el número,
  * groups_numbers.id; Inbox: la cuenta de WhatsApp, inbox_accounts.id), la del
  * chat donde llegó, se creó o se marcó favorito. El panel pide los de la línea
@@ -57,8 +63,13 @@ export interface StickerDto {
   favorite: boolean;
   width: number | null;
   height: number | null;
-  /** Última vez que la persona lo mandó (los recientes). */
+  /**
+   * Última vez que la persona lo mandó desde esta línea (los recientes): desde zerosoft o desde el teléfono (un
+   * mensaje propio de la línea con ese sticker, que se ve al traer los de los chats). null: solo lo recibió.
+   */
   usedAt: string | null;
+  /** Lo creó ella desde una imagen ("Creados por vos"). */
+  created: boolean;
   createdAt: string;
 }
 
@@ -184,6 +195,7 @@ function toDto(r: StickerRow): StickerDto {
     width: r.width,
     height: r.height,
     usedAt: r.last_used_at,
+    created: r.source === 'created',
     createdAt: r.created_at,
   };
 }
@@ -259,7 +271,7 @@ async function knownSticker(o: StickerOwner, hash: string, favorite = false): Pr
 export async function addSticker(
   o: StickerOwner,
   bytes: Buffer,
-  opts: { favorite?: boolean; source?: 'chat' | 'favorite' | 'created' } = {},
+  opts: { favorite?: boolean; source?: 'chat' | 'favorite' | 'created'; sent?: boolean } = {},
 ): Promise<{ sticker: StickerDto; added: boolean }> {
   if (bytes.length === 0 || bytes.length > STICKER_MAX_BYTES) throw new StickerError(bytes.length ? 'sticker_too_large' : 'invalid_sticker', bytes.length ? 413 : 400);
   const info = webpInfo(bytes);
@@ -268,8 +280,9 @@ export async function addSticker(
   const hash = stickerHash(bytes);
   const known = await knownSticker(o, hash, opts.favorite);
   if (known) return { sticker: toDto(known.row), added: known.claimed };
-  // La colección llena: lo que llega de los chats no entra; un favorito o uno creado sí (el tope es para la importación).
-  if ((opts.source ?? 'chat') === 'chat' && (await countStickers(o)) >= MAX_STICKERS) throw new StickerError('stickers_full', 409);
+  // La colección llena: lo que llega de los chats no entra; un favorito, uno creado o uno que la persona mandó sí (el
+  // tope es para lo recibido).
+  if ((opts.source ?? 'chat') === 'chat' && !opts.sent && (await countStickers(o)) >= MAX_STICKERS) throw new StickerError('stickers_full', 409);
   const ref = await files.store(bytes, 'image/webp');
   const id = randomUUID();
   const at = nowIso();
@@ -302,6 +315,14 @@ export async function removeSticker(o: StickerOwner, id: string): Promise<void> 
   const row = await rowById(o, id);
   await getDb().prepare('DELETE FROM wa_stickers WHERE id = ?').run(row.id);
   await files.remove([row.ref]);
+}
+
+/**
+ * Lo mandó desde el teléfono (o desde zerosoft) en `at`: pasa a los recientes. Solo avanza (un mensaje viejo no
+ * pisa uno más nuevo).
+ */
+async function markSent(id: string, at: string): Promise<void> {
+  await getDb().prepare('UPDATE wa_stickers SET last_used_at = ? WHERE id = ? AND (last_used_at IS NULL OR last_used_at < ?)').run(at, id, at);
 }
 
 /** Recién mandado: pasa a los recientes. */
@@ -346,10 +367,15 @@ export async function forgetStickers(o: StickerOwner): Promise<void> {
 // Importar de los chats (y mantenerla al día)
 // ---------------------------------------------------------------------------
 
-/** Un sticker de un chat: el mensaje (rowid, para seguir desde ahí), su SHA-256 si WhatsApp lo mandó y cómo bajarlo. */
+/**
+ * Un sticker de un chat: el mensaje (rowid, para seguir desde ahí), su SHA-256 si WhatsApp lo mandó y cómo bajarlo.
+ * `sentAt` (ISO): lo mandó esta persona desde la línea (Inbox: un mensaje propio; Lines: suyo o desde el teléfono),
+ * y cuándo. Sin `sentAt`, lo recibió: va a "De tus chats".
+ */
 export interface StickerCandidate {
   rowid: number;
   sha?: string;
+  sentAt?: string;
   fetch: () => Promise<Buffer | null>;
 }
 
@@ -357,6 +383,13 @@ export interface StickerCandidate {
 export interface StickerSource {
   /** Los siguientes stickers de sus chats después de `after` (rowid), en orden. */
   next(after: number, limit: number): Promise<StickerCandidate[]>;
+}
+
+/** Una fecha de la base (ISO o 'YYYY-MM-DD HH:MM:SS' en UTC) en ISO, para comparar recientes. */
+export function isoAt(raw: string | null | undefined): string | undefined {
+  if (!raw) return undefined;
+  const d = new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(raw) ? raw : `${raw.replace(' ', 'T')}Z`);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
 export async function syncState(o: StickerOwner): Promise<{ imported: boolean; cursor: number }> {
@@ -393,33 +426,38 @@ export async function syncStickers(
     if (Date.now() > deadline) break;
     scanned++;
     last = c.rowid;
+    let id: string | null = null;
     if (c.sha) {
       const known = await knownSticker(o, c.sha);
       if (known) {
         if (known.claimed) added++;
-        continue;
+        id = known.row.id;
       }
     }
-    let data: Buffer | null = null;
-    try {
-      data = await c.fetch();
-    } catch {
-      data = null;
-    }
-    if (!data || !webpInfo(data)) continue;
-    try {
-      if ((await addSticker(o, data, { source: 'chat' })).added) added++;
-    } catch (err) {
-      if (err instanceof StickerError && err.code === 'stickers_full') {
-        full = true;
-        break;
+    // Con la colección llena, lo recibido no entra (ni se baja); lo que mandó la persona sí.
+    if (!id && (!full || c.sentAt)) {
+      let data: Buffer | null = null;
+      try {
+        data = await c.fetch();
+      } catch {
+        data = null;
       }
-      if (!(err instanceof StickerError)) throw err;
+      if (data && webpInfo(data)) {
+        try {
+          const r = await addSticker(o, data, { source: 'chat', sent: Boolean(c.sentAt) });
+          if (r.added) added++;
+          id = r.sticker.id;
+        } catch (err) {
+          if (err instanceof StickerError && err.code === 'stickers_full') full = true;
+          else if (!(err instanceof StickerError)) throw err;
+        }
+      }
     }
+    if (id && c.sentAt) await markSent(id, c.sentAt);
   }
   // Solo avanza (otra corrida en paralelo pudo ir más lejos).
   await db.prepare(`UPDATE wa_sticker_line_sync SET cursor = MAX(cursor, ?), updated_at = ? WHERE ${OWNER_SQL} AND line_id = ?`).run(last, nowIso(), ...ownerArgs(o), lineOf(o));
-  return { added, scanned, more: !full && scanned === list.length && list.length === limit };
+  return { added, scanned, more: scanned === list.length && list.length === limit };
 }
 
 /**
