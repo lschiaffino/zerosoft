@@ -18,7 +18,7 @@ import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
-import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -477,7 +477,7 @@ const WaComposer = forwardRef<
           ))}
         </ul>
       )}
-      {!editing && <AiComposeBar ai={ai} />}
+      {!editing && <AiComposeBar ai={ai} floating />}
       {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
@@ -506,6 +506,7 @@ const WaComposer = forwardRef<
           ref={area}
           highlights={mentionHits}
           readOnly={paused}
+          adornment={editing ? null : <AiComposeChip ai={ai} />}
           aria-busy={paused || undefined}
           className="wa-input"
           data-testid="composer-input"
