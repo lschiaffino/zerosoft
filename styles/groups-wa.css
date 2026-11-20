@@ -630,11 +630,11 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-mode-reply[aria-selected='true'] { background: var(--wa-reply-surface); }
 .wa-mode-note[aria-selected='true'] { background: var(--wa-note-surface); }
 .wa-mode-tab:focus-visible { outline: 2px solid var(--wa-text); outline-offset: -2px; }
-/* Teléfono y tableta: las solapas son blancos de 40 px para el dedo (la de atrás, 36). */
+/* Teléfono y tableta: las solapas son blancos de 40 px para el dedo (la de adelante, 44). */
 @media (max-width: 1023px) {
   .wa-mode { margin-inline: -8px; padding-inline: 8px; }
-  .wa-mode-tab { height: 36px; min-width: 40px; padding: 0 14px; }
-  .wa-mode-tab[aria-selected='true'] { height: 40px; }
+  .wa-mode-tab { height: 40px; min-width: 40px; padding: 0 14px; }
+  .wa-mode-tab[aria-selected='true'] { height: 44px; }
 }
 .wa-mode-tab .kbd { font-size: 0.625rem; }
 .wa-team-tools { display: inline-flex; align-items: center; gap: 4px; }
