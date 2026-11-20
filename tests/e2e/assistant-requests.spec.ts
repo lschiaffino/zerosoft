@@ -29,7 +29,8 @@ test('pedir algo: link al pedido, la página del pedido, "¿dónde está mi pedi
   await page.keyboard.press('ControlOrMeta+j');
   const panel = page.getByTestId('assistant-panel');
   const input = panel.getByRole('textbox', { name: /Ask anything/ });
-  await input.fill(`I want to export ${word} boards to slides`);
+  // Palabras únicas en todo el pedido: en el reintento de la prueba, un pedido igual al del primer intento se sumaría a aquel.
+  await input.fill(`I want ${word} ${uid()} widgets for ${uid()} slides`);
   await input.press('Enter');
 
   const reply = panel.getByTestId('assistant-msg-assistant').last();
@@ -72,8 +73,10 @@ test('pedir algo: link al pedido, la página del pedido, "¿dónde está mi pedi
   await noHorizontalScroll(page, 'list 1280');
 
   // Un id que no es suyo (o no existe): 404.
-  const missing = await page.goto(`/en/app/settings/requests/missing-${uid()}`);
-  expect(missing?.status()).toBe(404);
+  // (La respuesta puede salir 200 si la página ya empezó a mandarse: lo que cuenta es que no muestra ningún pedido.)
+  await page.goto(`/en/app/settings/requests/missing-${uid()}`);
+  await expect(page.getByTestId('request-page')).toHaveCount(0);
+  await expect(page.getByText(/not found|404/i).first()).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/en/app/settings/requests', { waitUntil: 'load' });
