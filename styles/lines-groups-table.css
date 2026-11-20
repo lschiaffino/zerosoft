@@ -191,3 +191,45 @@ th[aria-sort] .gr-gt-sort { color: var(--ink); }
   .gr-gt-popover,
   .gr-gt-popover.is-end { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
 }
+
+/* Tablas como planilla (Grupos y Contactos; components/groups/table-grid.ts): la tabla scrollea en su caja, que
+   llena la pantalla debajo de la barra, con la cabecera y la casilla y el nombre fijos al moverse en los dos
+   sentidos. Las celdas fijas llevan fondo propio (si no, se ven las de abajo) y su filete como sombra (con
+   border-collapse el borde no se queda con la celda fija). En el teléfono las filas son tarjetas: nada fijo. */
+.gr-grid { --grid-cell-bg: var(--bg); --grid-head-bg: var(--bg); --grid-hover-bg: var(--brand-enamel); }
+:root[data-look='retro'] .gr-grid { --grid-cell-bg: var(--rt-field); --grid-head-bg: var(--rt-face); }
+@media (min-width: 641px) {
+  .table-wrap.gr-grid-wrap {
+    max-height: var(--grid-max-h, calc(100dvh - 160px));
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .gr-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--grid-head-bg);
+    box-shadow: inset 0 -1px 0 var(--ink);
+  }
+  :root:is([data-look='classic'], [data-look='liquid']) .gr-grid thead th { box-shadow: inset 0 -1px 0 var(--line); }
+  :root[data-look='retro'] .gr-grid thead th { box-shadow: var(--rt-raised); }
+  .gr-grid .gr-grid-pin { position: sticky; left: 0; z-index: 1; background: var(--grid-cell-bg); }
+  .gr-grid .gr-grid-pin + .gr-grid-pin { left: var(--grid-pin-1, 0px); }
+  .gr-grid thead .gr-grid-pin { z-index: 3; background: var(--grid-head-bg); }
+  .gr-grid .gr-grid-pin-last { box-shadow: inset -1px 0 0 var(--line); }
+  .gr-grid thead .gr-grid-pin-last { box-shadow: inset -1px 0 0 var(--line), inset 0 -1px 0 var(--ink); }
+  :root:is([data-look='classic'], [data-look='liquid']) .gr-grid thead .gr-grid-pin-last { box-shadow: inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line); }
+  :root[data-look='retro'] .gr-grid thead .gr-grid-pin-last { box-shadow: var(--rt-raised); }
+  .gr-grid tbody tr:hover > .gr-grid-pin { background: var(--grid-hover-bg); }
+  :root[data-look='retro'] .gr-grid tbody tr:hover > .gr-grid-pin { background: var(--ui-selected); }
+  .gr-grid tbody .gr-grid-pin-last { max-width: 320px; }
+}
+/* La celda con el foco del teclado (una de solo lectura no tiene control propio). */
+.gr-grid td:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+/* Solo lectura: sin borde al pasar ni cursor de texto. */
+.gr-gt-ro { cursor: default; }
+.gr-gt-cellvalue { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-gt-cellvalue > .gr-label-row { flex-wrap: nowrap; }
+.gr-gt-celleditor-form { display: flex; flex-direction: column; gap: 10px; }
+.gr-gt-celleditor .gr-hsx-editor { display: flex; flex-direction: column; gap: 10px; }
+.gr-gt-labelpick { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; margin: 0; padding: 0; border: 0; }

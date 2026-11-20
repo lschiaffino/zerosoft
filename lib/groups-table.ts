@@ -13,7 +13,7 @@ import { GroupsError, cleanProperties, getChatRow, labelsFor, listChats, toChatD
 import { canSeeChat, chatAccessSql, maskChat, type GroupsViewer } from './groups-access';
 import { patchChatAs } from './groups-chat-ops';
 import { parseLinesFilters, type LinesFilters } from './groups-filters';
-import { hubspotRecordUrl } from './groups-hubspot';
+import { HUBSPOT_WRITE_SCOPE, hubspotRecordUrl } from './groups-hubspot';
 import { HUBSPOT_PROP_NAME } from './groups-hubspot-shared';
 import { mergeGroupChats, type IdentityChat } from './groups-identity';
 import { GROUPS_TABLE_MAX } from './groups-table-view';
@@ -58,13 +58,27 @@ export interface GroupTableRow {
   deal: GroupTableDeal | null;
   /** Valores de las propiedades de la empresa pedidas (solo las que tienen valor). */
   hs: Record<string, string>;
+  /**
+   * El chat (de los que quien mira ve) que tiene vinculada la empresa: por ese
+   * chat se editan sus propiedades (PATCH /api/groups/hubspot/company). null si
+   * ninguno la tiene vinculada.
+   */
+  hsChatId: string | null;
 }
+
+/**
+ * Si quien mira puede editar en la tabla las propiedades de la empresa de
+ * HubSpot: 'ok'; 'scope' si la conexión no tiene permiso de escritura; 'mask'
+ * si tiene los teléfonos ocultos (tampoco edita en el panel); 'off' sin HubSpot.
+ */
+export type GroupsTableHsEdit = 'ok' | 'scope' | 'mask' | 'off';
 
 export interface GroupsTableDto {
   rows: GroupTableRow[];
   /** Hay más chats que GROUPS_TABLE_MAX con estos filtros: se muestran los más recientes. */
   truncated: boolean;
   hubspot: boolean;
+  hsEdit: GroupsTableHsEdit;
 }
 
 export interface GroupsTableQuery {
@@ -111,10 +125,11 @@ export async function listGroupsTable(ws: string, me: string, viewer: GroupsView
     limit: GROUPS_TABLE_MAX,
   });
   const ids = matched.rows.map((r) => r.id);
-  const hubspotRow = (await db.prepare("SELECT portal_id, ui_domain FROM groups_hubspot WHERE user_id = ? AND token != ''").get(ws)) as
-    | { portal_id: string; ui_domain: string }
+  const hubspotRow = (await db.prepare("SELECT portal_id, ui_domain, scopes FROM groups_hubspot WHERE user_id = ? AND token != ''").get(ws)) as
+    | { portal_id: string; ui_domain: string; scopes: string | null }
     | undefined;
-  if (ids.length === 0) return { rows: [], truncated: false, hubspot: Boolean(hubspotRow) };
+  const hsEdit = hubspotEditMode(hubspotRow?.scopes ?? null, Boolean(hubspotRow), viewer);
+  if (ids.length === 0) return { rows: [], truncated: false, hubspot: Boolean(hubspotRow), hsEdit };
 
   // Las otras líneas de esos grupos, solo las que quien mira ve.
   const access = chatAccessSql(viewer);
@@ -154,6 +169,8 @@ export async function listGroupsTable(ws: string, me: string, viewer: GroupsView
   // HubSpot: la empresa de cada grupo (la de su identidad; si no tiene, la del chat) y sus valores.
   const companyOf = new Map<string, string>();
   const linkName = new Map<string, string>();
+  /** El chat del grupo que tiene vinculada la empresa (por donde se edita). */
+  const hsChatOf = new Map<string, string>();
   const dealOf = new Map<string, { object_id: string; name: string; props: string; missing: number }>();
   if (hubspotRow) {
     const jids = [...new Set(merged.map((g) => g.key).filter((k) => !k.startsWith('chat:')))];
@@ -180,6 +197,7 @@ export async function listGroupsTable(ws: string, me: string, viewer: GroupsView
       const id = companyOf.get(g.key);
       const l = id ? g.chatIds.map((cid) => byChat.get(cid)).find((x) => x?.object_id === id) : undefined;
       if (id && l?.name) linkName.set(id, l.name);
+      if (l) hsChatOf.set(g.key, l.chat_id);
       // El negocio es de cada línea: el del chat principal y, si no tiene, el de la línea más activa que tenga uno.
       const deal = g.chatIds.map((cid) => dealByChat.get(cid)).find(Boolean);
       if (deal) dealOf.set(g.key, deal);
@@ -209,6 +227,7 @@ export async function listGroupsTable(ws: string, me: string, viewer: GroupsView
   return {
     truncated: matched.total > GROUPS_TABLE_MAX,
     hubspot: Boolean(hubspotRow),
+    hsEdit,
     rows: merged.map((g) => {
       const id = companyOf.get(g.key);
       const c = id ? companies.get(id) : undefined;
@@ -247,9 +266,23 @@ export async function listGroupsTable(ws: string, me: string, viewer: GroupsView
           return { id: d.object_id, name: d.name || d.object_id, url: hubspotRecordUrl(conn, 'deal', d.object_id), stage: typeof p.stage === 'string' ? p.stage : '', broken: d.missing === 1 };
         })(),
         hs,
+        hsChatId: id ? (hsChatOf.get(g.key) ?? null) : null,
       };
     }),
   };
+}
+
+/** Ver GroupsTableHsEdit. `scopes` es la lista guardada de la conexión (JSON). */
+export function hubspotEditMode(scopes: string | null, connected: boolean, viewer: Pick<GroupsViewer, 'mask'>): GroupsTableHsEdit {
+  if (!connected) return 'off';
+  let list: unknown = [];
+  try {
+    list = JSON.parse(scopes || '[]');
+  } catch {
+    list = [];
+  }
+  if (!Array.isArray(list) || !list.includes(HUBSPOT_WRITE_SCOPE)) return 'scope';
+  return viewer.mask ? 'mask' : 'ok';
 }
 
 /**
@@ -285,4 +318,41 @@ export async function setGroupProperty(
   }
   if (done.length === 0) throw new GroupsError('not_found', 404);
   return { chatIds: done, value: has ? clean[key] : null };
+}
+
+export interface GroupChatsPatch {
+  labelIds?: string[];
+  status?: 'open' | 'closed';
+}
+
+/**
+ * Edición en la celda de las etiquetas o el estado de un grupo: como
+ * setGroupProperty, va a todos sus chats (uno por línea) que quien edita ve,
+ * por patchChatAs (actividad, eventos y lo mismo que el panel del grupo). Las
+ * etiquetas que no son del workspace se ignoran (setChatLabels).
+ */
+export async function setGroupChats(
+  ws: string,
+  me: string,
+  viewer: GroupsViewer,
+  chatIds: string[],
+  patch: GroupChatsPatch,
+): Promise<{ chatIds: string[]; labels: LabelDto[] | null; status: 'open' | 'closed' | null }> {
+  const clean: GroupChatsPatch = {};
+  if (patch.labelIds) clean.labelIds = [...new Set(patch.labelIds.filter((x) => typeof x === 'string' && x))].slice(0, 20);
+  if (patch.status === 'open' || patch.status === 'closed') clean.status = patch.status;
+  if (clean.labelIds === undefined && clean.status === undefined) throw new GroupsError('invalid_input', 400);
+  const ids = [...new Set(chatIds.filter((x) => typeof x === 'string' && x))].slice(0, 20);
+  const done: string[] = [];
+  let labels: LabelDto[] | null = null;
+  for (const id of ids) {
+    if (!(await canSeeChat(viewer, id))) continue;
+    const row = await getChatRow(ws, id);
+    if (!row || row.kind !== 'group') continue;
+    const after = await patchChatAs(ws, { id: me }, id, clean);
+    if (clean.labelIds) labels = after.labels;
+    done.push(id);
+  }
+  if (done.length === 0) throw new GroupsError('not_found', 404);
+  return { chatIds: done, labels, status: clean.status ?? null };
 }

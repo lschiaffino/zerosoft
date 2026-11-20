@@ -837,7 +837,7 @@ export default function IssueFilters({
 
   return (
     <div className="track-filters" role="search">
-      <div className="track-filter-group" id="track-filter-sheet">
+      <div className="track-filter-group" id="track-filter-sheet" data-tour="track-filters">
         {addMenu}
         {chips}
         {filters.rules.length > 1 && (

@@ -55,7 +55,7 @@ interface ContactsFiltersProps {
   activeViewId: string | null;
   /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
   extraSorts?: Array<{ value: string; label: string }>;
-  /** Filtro avanzado (FilterBuilder): se muestra dentro de "Más filtros". */
+  /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
   children?: React.ReactNode;
 }
 
@@ -178,7 +178,7 @@ export default function ContactsFilters({
     ...Object.values(custom),
   ].filter(Boolean).length;
 
-  const moreActive = [source, createdFrom, createdTo, advanced, ...Object.values(custom)].filter(Boolean).length;
+  const moreActive = [source, createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
   const [savingOpen, setSavingOpen] = useState(false);
 
@@ -319,6 +319,7 @@ export default function ContactsFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
+        {children}
 
         <div className="filter-right">
           {activeFilters > 0 && (
@@ -423,7 +424,6 @@ export default function ContactsFilters({
               </select>
             </label>
           ))}
-          {children && <div className="filter-advanced">{children}</div>}
         </div>
       )}
     </div>

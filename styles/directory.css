@@ -1,0 +1,74 @@
+/* ---------- Directorio de software (/software y /software/<categoría>) ---------- */
+/* Usa las piezas de compare.css (cmp-page, cmp-section, cmp-h2, cmp-note, cmp-other); acá lo propio. */
+
+.sd-page .read-body { padding-bottom: 0; }
+.sd-lead { max-width: 68ch; margin-top: 16px; font-size: 16px; line-height: 1.55; color: var(--ink); }
+
+/* Índice: categoría, open source, pago y la app de zerosoft. */
+.sd-index { table-layout: fixed; }
+.sd-index thead th:nth-child(1) { width: 20%; }
+.sd-index thead th:nth-child(2) { width: 34%; }
+.sd-index thead th:nth-child(3) { width: 26%; }
+.sd-index thead th:nth-child(4) { width: 20%; }
+.sd-index td,
+.sd-index :where(tbody) th { vertical-align: top; padding-top: 12px; padding-bottom: 12px; }
+.sd-cat a { font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.sd-cat a:hover { text-decoration-thickness: 2px; }
+.sd-names { list-style: none; display: flex; flex-wrap: wrap; gap: 2px 14px; line-height: 1.5; }
+.sd-names li { white-space: nowrap; }
+.sd-license { font-family: var(--font-data); font-size: 0.75rem; color: var(--brand-gray-2); }
+.sd-apps a { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+.sd-apps a:hover { text-decoration-color: currentColor; }
+
+/* Categoría: las apps de zerosoft, una tarjeta por app. */
+.sd-ours { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; max-width: 960px; }
+.sd-our { padding: 20px; border: 1px solid var(--line); border-top: var(--stroke-rule) solid var(--brand-ink); border-radius: var(--radius-1); }
+.sd-our-name { display: flex; align-items: center; gap: 8px; font-size: 1.125rem; font-weight: 600; color: var(--ink); }
+.sd-our-desc { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--brand-gray-1); }
+.sd-our .cmp-note { margin-top: 8px; }
+.sd-our-links { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 14px; font-size: 14px; }
+.sd-our-links a,
+.sd-table a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.sd-our-links a:hover,
+.sd-table a:hover { text-decoration-thickness: 2px; }
+
+.sd-table { max-width: 860px; }
+.sd-name { font-weight: 600; }
+.sd-table td { font-family: var(--font-data); font-size: 0.8125rem; color: var(--brand-gray-1); }
+.sd-table td a[aria-label] { font-family: var(--font-ui); font-size: 0.875rem; }
+
+@media (max-width: 860px) {
+  /* Las tablas pasan a filas apiladas, sin scroll lateral. */
+  .sd-index thead,
+  .sd-table thead { display: none; }
+  .sd-index,
+  .sd-index tbody,
+  .sd-index tr,
+  .sd-index th,
+  .sd-index td,
+  .sd-table,
+  .sd-table tbody,
+  .sd-table tr,
+  .sd-table th,
+  .sd-table td { display: block; width: 100%; height: auto; }
+  .sd-index tr,
+  .sd-table tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .sd-index :where(tbody) th,
+  .sd-index td,
+  .sd-table :where(tbody) th,
+  .sd-table td { border: 0; padding: 2px 0; }
+  .sd-index td.sd-cell::before { content: attr(data-label); display: block; margin-top: 6px; font-family: var(--font-ui); font-size: 12px; color: var(--brand-gray-2); }
+  /* Producto arriba; licencia y código en una línea abajo (sin rótulos: se leen solos). */
+  .sd-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding: 12px 0; }
+  .sd-table td { width: auto; }
+  .sd-table td.sd-cell:empty { display: none; }
+  .sd-index-wrap,
+  .sd-page .table-wrap { border: 0; overflow: visible; }
+  .sd-names li { white-space: normal; }
+}
+
+@media (pointer: coarse) {
+  .sd-cat a,
+  .sd-apps a,
+  .sd-our-links a { display: inline-flex; align-items: center; min-height: 40px; }
+}

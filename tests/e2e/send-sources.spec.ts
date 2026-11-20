@@ -289,7 +289,7 @@ test('CRM: la visita queda en la línea de tiempo del contacto con ese email', a
   await t.waitForTimeout(4500);
   await typed.close();
   await slow.poll(async () => (await analytics(request, made.document.id)).totals.visits).toBe(1);
-  await page.goto(`/en/app/crm/contacts/${contactId}`);
+  await page.goto(`/en/app/crm/contacts/${contactId}?tab=activity`);
   await expect(page.getByText('Opened Proposal for CRM in Send')).toHaveCount(0);
   await page.goto(`/en/app/send/documents/${made.document.id}?tab=activity`);
   await expect(page.getByTestId('send-visitors').getByRole('link', { name: 'CRM contact' })).toHaveCount(0);
@@ -309,7 +309,7 @@ test('CRM: la visita queda en la línea de tiempo del contacto con ese email', a
   await v.waitForTimeout(4500);
   await ctx.close();
   await slow.poll(async () => (await analytics(request, made.document.id)).totals.visits).toBe(2);
-  await page.goto(`/en/app/crm/contacts/${contactId}`);
+  await page.goto(`/en/app/crm/contacts/${contactId}?tab=activity`);
   await expect(page.getByText('Opened Proposal for CRM in Send')).toBeVisible();
   await shot(page, 'crm-timeline');
   await page.goto(`/en/app/send/documents/${made.document.id}?tab=activity`);

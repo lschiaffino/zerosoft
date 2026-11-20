@@ -103,7 +103,7 @@ test('playbooks: se crea con C, se edita, se usa desde un contacto y queda en el
   await page.keyboard.press('Escape');
 
   const contact = (await (await request.post('/api/crm/contacts', { data: { firstName: 'Pb', lastName: uid(), email: `${uid()}@pb.test` } })).json()) as { id: string };
-  await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
   await page.getByTestId('playbook-launcher').click();
   await page.getByRole('menuitem', { name: pbName }).click();
   const runner = page.getByTestId('playbook-runner');

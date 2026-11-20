@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { PRODUCT_KEYS } from '../product-taxonomy';
 import { rateLimit } from '../rate-limit';
 import { FEATURE_DETAILS_MAX, FEATURE_TITLE_MAX, recordFeatureRequest, recordProblemReport } from '../feature-requests';
+import { listMyRequests } from '../my-requests';
 import { readTool, type AssistantTool, type ToolCtx } from './registry';
 
 const requestInput = z.object({
@@ -19,7 +20,7 @@ const requestInput = z.object({
 
 function requester(ctx: ToolCtx) {
   const person = ctx.user.actingUser ?? ctx.user;
-  return { personId: ctx.personId, email: person.email ?? null, workspaceId: ctx.workspaceId };
+  return { personId: ctx.personId, email: person.email ?? null, workspaceId: ctx.workspaceId, locale: ctx.locale };
 }
 
 export const requestTools: AssistantTool[] = [
@@ -40,7 +41,26 @@ export const requestTools: AssistantTool[] = [
         askedBefore: r.askedBefore,
         priority: r.priority,
         ...(r.publicItem ? { publicItem: r.publicItem } : {}),
-        note: 'Tell the person, in one short sentence in their language, that you recorded the request for the team and it will be considered. Do not promise a date or that it will be built. Do not mention priority.',
+        url: r.url,
+        note: 'Tell the person, in one short sentence in their language, that you recorded the request for the team and it will be considered, and include the url as a Markdown link (for example [See your request](url)): they can follow it there and get an email when it ships. Do not promise a date or that it will be built. Do not mention priority.',
+      };
+    },
+  }),
+  readTool({
+    name: 'my_feature_requests',
+    app: null,
+    description:
+      "List the feature requests this person made (to the assistant or as ideas), with each one's status and link. Use it when they ask where their request is, for a link to it, or how it is going. Only returns their own requests.",
+    input: z.object({}),
+    run: async (ctx) => {
+      const person = ctx.user.actingUser ?? ctx.user;
+      const rows = await listMyRequests({ id: ctx.personId, email: person.email ?? null }, ctx.locale, { limit: 30 });
+      return {
+        requests: rows.map((r) => ({ title: r.title, status: r.stage, askedAt: r.askedAt.slice(0, 10), url: r.url })),
+        listUrl: `/${ctx.locale}/app/settings/requests`,
+        note: rows.length
+          ? 'Share the matching request as a Markdown link to its url (or the list at listUrl). Never say there is no page.'
+          : 'They have no recorded requests yet. Say so, and that requests they make here show up at listUrl (share it as a Markdown link).',
       };
     },
   }),

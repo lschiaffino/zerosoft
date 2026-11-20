@@ -22,7 +22,8 @@ import { createFeedback, notifyFeedback, type FeedbackRow } from './feedback';
 import { PRODUCT_KEYS, type ProductKey } from './product-taxonomy';
 import { attachFeedbackToItem, getRoadmapItem, ingestFeedback, recordStatusEvent, roadmapTitleKey, runAfterResponse, updateRoadmapItem } from './roadmap';
 import { ROADMAP_OPEN_STATUSES } from './roadmap-constants';
-import { searchTerms } from './board';
+import { searchTerms, subscribe } from './board';
+import { requestLink } from './my-requests';
 import { syncBacklogIssue } from './feature-requests-github';
 
 export const FEATURE_TITLE_MAX = 120;
@@ -100,6 +101,8 @@ export interface FeatureRequester {
   personId: string;
   email: string | null;
   workspaceId: string;
+  /** Idioma de los avisos por email (en si falta). */
+  locale?: string | null;
 }
 
 export interface FeatureRequestInput {
@@ -119,6 +122,9 @@ export interface FeatureRequestResult {
   people: number;
   /** Solo si el ítem es público: título y link al board. Nunca el texto de otro pedido privado. */
   publicItem: { title: string; href: string } | null;
+  /** Link al pedido para la persona: la página pública si está publicado, si no la privada. */
+  url: string;
+  published: boolean;
 }
 
 function productOf(raw: string | null | undefined): ProductKey {
@@ -200,6 +206,9 @@ export async function recordFeatureRequest(who: FeatureRequester, input: Feature
       .run(itemId, title, details, product, now, now, now);
     await recordStatusEvent(itemId, null, 'proposed');
   }
+  // Quien pide sigue el ítem aunque sea privado: le llega el aviso cuando sale.
+  // Antes de la señal, así queda con su idioma. INSERT OR IGNORE: si se desuscribió, no se reactiva.
+  await subscribe(itemId, who.personId, 'author', who.locale);
   // La señal (recalcula los votos y suscribe a la persona si el ítem ya es público).
   await attachFeedbackToItem(feedback, itemId);
   await db.prepare('UPDATE feedback SET status = ? WHERE id = ?').run('read', feedback.id);
@@ -218,6 +227,7 @@ export async function recordFeatureRequest(who: FeatureRequester, input: Feature
 
   const item = await getRoadmapItem(itemId);
   const isPublic = item?.is_public === 1 && item.status !== 'proposed';
+  const link = requestLink(item ?? { id: itemId, title, is_public: 0, status: 'proposed' }, who.locale ?? 'en');
   return {
     itemId,
     feedbackId: feedback.id,
@@ -226,6 +236,8 @@ export async function recordFeatureRequest(who: FeatureRequester, input: Feature
     askedBefore: await askedBefore(itemId, who.personId, feedback.id),
     people: await countRequesters(itemId),
     publicItem: isPublic && item ? { title: item.title, href: `/feedback-board/i/${item.id}` } : null,
+    url: link.url,
+    published: link.published,
   };
 }
 

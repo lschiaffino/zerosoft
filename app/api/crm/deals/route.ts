@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
+import { getUserTimeZone } from '@/lib/user-tz';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, defaultPipelineId, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
@@ -27,8 +29,11 @@ export async function GET(req: NextRequest) {
   const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(user.id));
   if (!pipelineId) return NextResponse.json({ rows: [], total: 0, page, pageSize });
 
+  const filter = await requestFilter(sp, 'deals', { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
+  if ('error' in filter) return crmError(400, 'invalid_filter');
   const { rows, total } = await listDeals(user.id, {
     ownerScope: await sessionScope(user),
+    ...filter,
     pipelineId,
     q: sp.get('q') ?? undefined,
     stageId: sp.get('stageId') ?? undefined,
