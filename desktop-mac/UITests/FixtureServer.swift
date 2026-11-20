@@ -132,9 +132,10 @@ final class FixtureServer {
             lock.lock(); held.append(client); lock.unlock()
             return
         }
-        let (status, body) = page(path: path, mode: mode)
+        let (status, body, extra) = page(path: path, mode: mode)
         let bytes = Array(body.utf8)
-        let head = "HTTP/1.1 \(status)\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(bytes.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
+        let type = extra.isEmpty ? "Content-Type: text/html; charset=utf-8\r\n" : ""
+        let head = "HTTP/1.1 \(status)\r\n\(type)\(extra)Content-Length: \(bytes.count)\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
         _ = Array(head.utf8).withUnsafeBufferPointer { write(client, $0.baseAddress, $0.count) }
         _ = bytes.withUnsafeBufferPointer { write(client, $0.baseAddress, $0.count) }
         close(client)
@@ -152,27 +153,39 @@ final class FixtureServer {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private func page(path: String, mode: Mode) -> (String, String) {
-        if path.hasPrefix("/favicon") { return ("404 Not Found", "") }
+    /// (status line, body, extra headers; with extra headers the page sets its own type).
+    private func page(path: String, mode: Mode) -> (String, String, String) {
+        if path.hasPrefix("/favicon") { return ("404 Not Found", "", "") }
         if mode == .blank {
-            return ("200 OK", "<!doctype html><html><head><title>blank</title></head><body><script>void 0</script></body></html>")
+            return ("200 OK", "<!doctype html><html><head><title>blank</title></head><body><script>void 0</script></body></html>", "")
         }
         if path.hasPrefix("/second") {
-            return ("200 OK", "<!doctype html><html><head><title>second</title></head><body><h1>zs-fixture-second</h1></body></html>")
+            return ("200 OK", "<!doctype html><html><head><title>second</title></head><body><h1>zs-fixture-second</h1></body></html>", "")
         }
-        // The feature line is for block 2, which asserts that Lockdown restrictions are active.
+        // An integration start route: redirects to the provider (another origin).
+        if path.hasPrefix("/api/integrations/demo/start") {
+            return ("302 Found", "", "Location: \(otherOrigin)/provider/authorize\r\nContent-Type: text/html\r\n")
+        }
+        // A file download from the server's own origin.
+        if path.hasPrefix("/files/report.csv") {
+            return ("200 OK", "a,b\n1,2\n", "Content-Type: text/csv\r\nContent-Disposition: attachment; filename=\"report.csv\"\r\n")
+        }
+        // The feature line tells the tests whether Lockdown restrictions are active.
         return ("200 OK", """
         <!doctype html><html><head><meta charset="utf-8"><title>fixture</title></head><body>
         <h1>zs-fixture-ok</h1>
         <p><a href="\(otherOrigin)/elsewhere">Other origin</a></p>
         <p><a href="/second">Same origin</a></p>
+        <p><a href="/api/integrations/demo/start">Connect demo</a></p>
+        <p><a href="/files/report.csv">Download report</a></p>
+        <p><button onclick="window.open()">Open blank</button></p>
         <p id="features">features</p>
         <script>
-        document.getElementById('features').textContent = 'features idb=' + typeof indexedDB +
-          ' rtc=' + typeof RTCPeerConnection + ' media=' + typeof navigator.mediaDevices +
-          ' sw=' + ('serviceWorker' in navigator);
+        document.getElementById('features').textContent = 'features wasm=' + typeof WebAssembly +
+          ' idb=' + typeof indexedDB + ' rtc=' + typeof RTCPeerConnection +
+          ' media=' + typeof navigator.mediaDevices + ' sw=' + ('serviceWorker' in navigator) + ' end';
         </script>
         </body></html>
-        """)
+        """, "")
     }
 }

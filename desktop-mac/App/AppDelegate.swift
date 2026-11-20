@@ -3,6 +3,7 @@ import AppKit
 /// Block 1 of docs/desktop-swift.md: one window with one web view of the server, the navigation
 /// policy and the load watchdog. No network request of its own beyond the web view's.
 @main
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private var web: WebController!

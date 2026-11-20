@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// What the native overlay shows. Lives on the main thread.
+/// What the native overlay shows.
+@MainActor
 final class OverlayModel: ObservableObject {
     @Published var overlay: Overlay = .loading
     let lang: Lang
@@ -70,6 +71,7 @@ struct StatusOverlayView: View {
 
 /// The window's content: the web view with the native overlay on top. The overlay is hidden only
 /// while a page that drew is showing.
+@MainActor
 final class MainContentView: NSView {
     private var overlayHost: NSHostingView<StatusOverlayView>?
     #if DEBUG

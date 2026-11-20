@@ -22,5 +22,8 @@ echo "entitlements: $keys"
 plist="$app/Contents/Info.plist"
 [ "$(plutil -extract CFBundleIdentifier raw "$plist")" = "ai.zerosoft.mac" ] || fail "unexpected bundle id"
 [ "$(plutil -extract LSMinimumSystemVersion raw "$plist")" = "13.0" ] || fail "minimum macOS is not 13.0"
-lipo -archs "$app/Contents/MacOS/zerosoft"
+archs=$(lipo -archs "$app/Contents/MacOS/zerosoft")
+echo "architectures: $archs"
+case " $archs " in *" arm64 "*) ;; *) fail "no arm64 slice ($archs)" ;; esac
+case " $archs " in *" x86_64 "*) ;; *) fail "no x86_64 slice ($archs)" ;; esac
 echo "signature and entitlements OK"

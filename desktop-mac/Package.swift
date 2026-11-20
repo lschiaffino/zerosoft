@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [.library(name: "ZerosoftCore", targets: ["ZerosoftCore"])],
     targets: [
-        .target(name: "ZerosoftCore"),
+        .target(name: "ZerosoftCore", swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]),
         .testTarget(name: "ZerosoftCoreTests", dependencies: ["ZerosoftCore"]),
     ]
 )

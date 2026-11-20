@@ -9,6 +9,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    # Every concurrency check of Swift 6, as warnings. The sources also typecheck in Swift 6 mode
+    # (swiftc -swift-version 6 with the macOS 26 SDK); the switch waits for a green CI on it.
+    SWIFT_STRICT_CONCURRENCY: complete
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"

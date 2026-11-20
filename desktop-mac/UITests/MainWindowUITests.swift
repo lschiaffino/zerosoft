@@ -76,6 +76,26 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(text(app, "zs-fixture-second").waitForExistence(timeout: 15))
     }
 
+    /// A navigation the policy cancels over a drawn page never ends in a false timeout: a start
+    /// route redirecting to another origin (OAuth), a download, window.open() without a URL.
+    func testCancelledNavigationsKeepThePage() throws {
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+
+        link(app, "Connect demo").click()
+        waitForExternal(app, hasPrefix: "\(server.otherOrigin)/provider/authorize")
+
+        link(app, "Download report").click()
+        waitForExternal(app, hasPrefix: "\(server.origin)/files/report.csv")
+
+        app.buttons.matching(showing("Open blank")).firstMatch.click()
+
+        // Past the 10 s load timeout: still the page, no error view.
+        XCTAssertFalse(element(app, "zs-error-view").waitForExistence(timeout: 12), reason(app))
+        XCTAssertTrue(text(app, "zs-fixture-ok").exists)
+    }
+
     func testUnreachableServerShowsNativeErrorAndRetryRecovers() throws {
         let app = launch()
         XCTAssertTrue(element(app, "zs-error-view").waitForExistence(timeout: 20), "no native error view")
@@ -116,19 +136,35 @@ final class MainWindowUITests: XCTestCase {
         try server.start()
         let app = launch(lockdown: "on")
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20), "the page did not show with Lockdown on")
+        let line = featureLine(app)
+        // Lockdown turns WebAssembly off (JIT and Wasm are the first things it disables): proof
+        // that the switch reached WebKit and is not a no-op.
+        XCTAssertTrue(line.contains("wasm=undefined"), "Lockdown restrictions not active: \(line)")
+    }
+
+    /// Without the switch WebAssembly is there, so the Lockdown test above measures the switch.
+    func testWebAssemblyIsOnWithoutLockdown() throws {
+        try server.start()
+        let app = launch(lockdown: "off")
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        let line = featureLine(app)
+        XCTAssertTrue(line.contains("wasm=object"), line)
+    }
+
+    /// The page's feature line ("features wasm=... idb=... end"), attached to the result.
+    private func featureLine(_ app: XCUIApplication) -> String {
         let features = app.staticTexts
             .matching(NSPredicate { obj, _ in
                 // value can be a number for some elements: compare strings only.
                 guard let el = obj as? XCUIElementAttributes else { return false }
                 return el.label.hasPrefix("features ") || (el.value as? String)?.hasPrefix("features ") == true
             }).firstMatch
-        if features.waitForExistence(timeout: 5) {
-            let line = "\(features.label) \(features.value as? String ?? "")"
-            let note = XCTAttachment(string: line)
-            note.name = "web features with Lockdown on"
-            note.lifetime = .keepAlways
-            add(note)
-            print("lockdown-on \(line)")
-        }
+        XCTAssertTrue(features.waitForExistence(timeout: 10), "no feature line in the page")
+        let line = "\(features.label) \(features.value as? String ?? "")"
+        let note = XCTAttachment(string: line)
+        note.name = "web features"
+        note.lifetime = .keepAlways
+        add(note)
+        return line
     }
 }

@@ -4,7 +4,7 @@ import Foundation
 /// desktop/src-tauri/src/nav.rs: only the exact server origin loads inside the app; Google sign-in
 /// and integration OAuth go to the system browser; other http(s), mailto and tel open in the
 /// default browser; every other scheme is blocked.
-public enum NavigationDecision: Equatable {
+public enum NavigationDecision: Equatable, Sendable {
     case allow
     /// Signing in to the app with Google (next-auth). Block 3 runs it with PKCE through
     /// ASWebAuthenticationSession; until then it opens in the browser.
@@ -27,7 +27,10 @@ public enum NavigationPolicy {
         let scheme = target.scheme?.lowercased() ?? ""
         switch scheme {
         case "about", "blob", "data":
-            return target.absoluteString == "about:blank" ? .allow : .block
+            // about:blank included: the main frame only shows the server (the empty state before
+            // the first load is not a navigation), and window.open() without a URL must not
+            // replace the page. nav.rs allows about:blank; this app does not need it.
+            return .block
         case "mailto", "tel":
             return .external
         case "http", "https":

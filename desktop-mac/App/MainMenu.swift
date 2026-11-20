@@ -1,6 +1,7 @@
 import AppKit
 
 /// App, Edit, View and Window menus. The Edit menu is what makes Cmd+C / Cmd+V work in the page.
+@MainActor
 enum MainMenu {
     static func build(lang: Lang, target: AnyObject) -> NSMenu {
         let t = { (key: StringKey) in Strings.text(key, lang) }

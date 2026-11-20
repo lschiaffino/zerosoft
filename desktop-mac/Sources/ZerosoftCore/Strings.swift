@@ -3,7 +3,7 @@ import Foundation
 /// The native strings of block 1 in en, es and pt. Block 11 moves every string to
 /// desktop/strings.json (shared with the Tauri app); until then they live here, where a test
 /// checks that each key has all three languages.
-public enum Lang: String, CaseIterable {
+public enum Lang: String, CaseIterable, Sendable {
     case en
     case es
     case pt
@@ -19,7 +19,7 @@ public enum Lang: String, CaseIterable {
     }
 }
 
-public enum StringKey: String, CaseIterable {
+public enum StringKey: String, CaseIterable, Sendable {
     case errorTitle
     case reasonOffline
     case reasonUnreachable

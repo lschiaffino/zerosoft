@@ -35,7 +35,8 @@ private func enc(_ s: String) -> String {
     #expect(c("javascript:alert(1)") == .block)
     #expect(c("data:text/html,hi") == .block)
     #expect(c("zerosoft://open?path=/app") == .block)
-    #expect(c("about:blank") == .allow)
+    // The main frame never shows about:blank (window.open() without a URL, a blank redirect).
+    #expect(c("about:blank") == .block)
     #expect(c("about:srcdoc") == .block)
     #expect(c("http://localhost:3210/app", "http://localhost:3210") == .allow)
     #expect(c("http://127.0.0.1:3210/app", "http://localhost:3210") == .external)

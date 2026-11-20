@@ -2,7 +2,7 @@ import Foundation
 
 /// Why the page is not showing. `code` is the short reason shown under the message and kept for
 /// diagnostics ("the window is white" reports come with something to act on).
-public enum LoadFailure: Equatable {
+public enum LoadFailure: Equatable, Sendable {
     case offline
     case unreachable
     case timeout
@@ -28,6 +28,7 @@ public enum LoadFailure: Equatable {
     /// A failed navigation (`didFail` / `didFailProvisionalNavigation`) as a reason, or nil when
     /// it is not a failure the person should see: a navigation replaced by another (cancelled),
     /// or one the app cancelled itself (an external link, a server error it already reported).
+    /// The app sends `.cancelled` to the watchdog for those.
     public static func from(domain: String, code: Int) -> LoadFailure? {
         switch domain {
         case "NSURLErrorDomain":
@@ -56,28 +57,30 @@ public enum LoadFailure: Equatable {
 
 /// What covers the web view: nothing (the page is there), a native loading view (nothing has
 /// drawn yet), or the native error view. Never a white web view on its own.
-public enum Overlay: Equatable {
+public enum Overlay: Equatable, Sendable {
     case none
     case loading
     case error(LoadFailure)
 }
 
-public enum WatchdogTimer: Equatable {
+public enum WatchdogTimer: Equatable, Sendable {
     case load
     case paint
 }
 
 /// Work the app does for the watchdog. Timers and paint checks carry the generation they were
 /// made for; results for an older navigation are ignored.
-public enum WatchdogEffect: Equatable {
+public enum WatchdogEffect: Equatable, Sendable {
     case schedule(WatchdogTimer, after: TimeInterval, generation: Int)
     case checkPaint(after: TimeInterval, generation: Int)
+    /// Load the last requested URL (or the server). Always comes with a load timer, so a load
+    /// that never even starts still ends in the error view.
     case reload
 }
 
 /// Load and paint watchdog for one web view (docs/desktop-swift.md, section 4.6). Pure state
 /// machine: the app feeds it WKNavigationDelegate events and performs the effects it returns.
-public struct LoadWatchdog {
+public struct LoadWatchdog: Sendable {
     /// From the start of a navigation to `didFinish`.
     public static let loadTimeout: TimeInterval = 10
     /// From `didFinish` to a body with content.
@@ -94,7 +97,7 @@ public struct LoadWatchdog {
     var r=e.getBoundingClientRect();if(r.width>0&&r.height>0)n++;}return n;})()
     """
 
-    public enum Phase: Equatable {
+    public enum Phase: Equatable, Sendable {
         case idle
         case loading
         case checkingPaint
@@ -102,13 +105,19 @@ public struct LoadWatchdog {
         case failed
     }
 
-    public enum Event: Equatable {
+    public enum Event: Equatable, Sendable {
+        /// The app asks for the first load (`start()`).
+        case loadRequested
         /// `didStartProvisionalNavigation` of the main frame.
         case started
         /// `didFinish`.
         case finished
         /// A failure that `LoadFailure.from` did not ignore.
         case failed(LoadFailure)
+        /// The current navigation was cancelled without a failure to show: replaced, turned into
+        /// a browser open by the policy (a redirect to another origin, a download), or a
+        /// WebKit-internal stop. The page that was drawn is still there.
+        case cancelled
         /// Result of a paint check.
         case paint(hasContent: Bool, generation: Int)
         case timer(WatchdogTimer, generation: Int)
@@ -132,6 +141,9 @@ public struct LoadWatchdog {
 
     public mutating func handle(_ event: Event) -> [WatchdogEffect] {
         switch event {
+        case .loadRequested:
+            return requestLoad()
+
         case .started:
             generation += 1
             phase = .loading
@@ -150,6 +162,14 @@ public struct LoadWatchdog {
         case let .failed(reason):
             guard phase != .shown && phase != .idle else { return [] }
             fail(reason)
+            return []
+
+        case .cancelled:
+            // Back to the page that is drawn. With nothing drawn, the load timer still runs and
+            // ends in the error view.
+            guard phase == .loading, painted else { return [] }
+            phase = .shown
+            overlay = .none
             return []
 
         case let .paint(hasContent, gen):
@@ -175,19 +195,24 @@ public struct LoadWatchdog {
                 return []
             }
             lastCrash = at
-            phase = .loading
-            overlay = .loading
-            return [.reload]
+            return requestLoad()
 
         case .retry:
-            overlay = .loading
-            return [.reload]
+            return requestLoad()
 
         case .networkAvailable:
             guard phase == .failed, overlay == .error(.offline) else { return [] }
-            overlay = .loading
-            return [.reload]
+            return requestLoad()
         }
+    }
+
+    /// A load the app starts itself: loading view, a new generation and its timer.
+    private mutating func requestLoad() -> [WatchdogEffect] {
+        generation += 1
+        phase = .loading
+        painted = false
+        overlay = .loading
+        return [.reload, .schedule(.load, after: Self.loadTimeout, generation: generation)]
     }
 
     private mutating func fail(_ reason: LoadFailure) {
@@ -199,7 +224,7 @@ public struct LoadWatchdog {
 
 /// `-ZSLockdown on|off|system` (docs/desktop-swift.md, section 3.5): `on` forces WebKit's Lockdown
 /// Mode restrictions on every navigation, `off` turns them off, `system` keeps WebKit's default.
-public enum LockdownSetting: String {
+public enum LockdownSetting: String, Sendable {
     case on
     case off
     case system
