@@ -339,3 +339,33 @@ test('el panel se fija al costado, se ensancha arrastrando el borde y va a panta
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('tope de 8 pasos: cierra con un resumen, avisa el tope y "Seguir" es otro pedido', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+j');
+  const panel = page.getByTestId('assistant-panel');
+  const input = panel.getByRole('textbox', { name: /Ask anything/ });
+  // El modelo falso busca sin parar con este pedido (lib/assistant/fake.ts DIG).
+  await input.fill('dig through the catalog for folder operations');
+  await input.press('Enter');
+
+  const reply = panel.getByTestId('assistant-msg-assistant').last();
+  const limit = reply.getByTestId('assistant-step-limit');
+  await expect(limit).toBeVisible({ timeout: 60_000 });
+  // Los 8 pasos quedan en la actividad plegada, y el cierre tiene texto.
+  const activity = await openActivity(reply);
+  await expect(activity.getByTestId('assistant-tool-card')).toHaveCount(8);
+  await expect(reply.getByTestId('assistant-markdown')).not.toBeEmpty();
+
+  // "Seguir": otro pedido que termina sin llegar al tope; el botón viejo se va.
+  const before = await panel.getByTestId('assistant-msg-assistant').count();
+  await limit.getByTestId('assistant-continue').click();
+  await expect(panel.getByTestId('assistant-msg-assistant')).toHaveCount(before + 1);
+  const next = panel.getByTestId('assistant-msg-assistant').last();
+  await expect(next.getByTestId('assistant-activity')).toHaveAttribute('data-state', 'done', { timeout: 60_000 });
+  await expect(next.getByTestId('assistant-markdown')).not.toBeEmpty();
+  await expect(next.getByTestId('assistant-step-limit')).toHaveCount(0);
+  await expect(panel.getByTestId('assistant-continue')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
