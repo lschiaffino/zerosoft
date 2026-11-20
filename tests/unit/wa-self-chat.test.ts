@@ -216,6 +216,9 @@ describe('arreglo de lo que ya quedó en el chat propio', () => {
     async contacts() {
       return [];
     },
+    async picture() {
+      return '';
+    },
   });
 
   it('plan: Meta AI si el servidor lo prueba, recibido al chat del nombre, lo propio sin prueba queda', () => {
