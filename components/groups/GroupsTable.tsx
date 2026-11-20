@@ -172,8 +172,11 @@ export default function GroupsTable({
   }, [filtersKey, statusKey, q, hsKey]);
   useEffect(() => {
     if (!viewReady || reqKey === lastKey.current) return;
-    lastKey.current = reqKey;
-    const id = setTimeout(() => void load(), 200);
+    // La clave se marca al pedir: si el efecto se vuelve a correr antes (y cancela este pedido), el próximo pide igual.
+    const id = setTimeout(() => {
+      lastKey.current = reqKey;
+      void load();
+    }, 200);
     return () => clearTimeout(id);
   }, [reqKey, viewReady, load]);
   const firstSignal = useRef(reloadSignal);

@@ -151,8 +151,10 @@ test('cabecera y nombre fijos, edición en la celda de zerosoft y de HubSpot, Es
   try {
     await openList(page, tag, columns);
     await expect(page.locator('tbody tr')).toHaveCount(ROWS);
-    const wrap = page.getByTestId('groups-table-wrap');
     const row = page.locator(`tr[data-group="${first.jid}"]`);
+    // Los valores de la empresa y el esquema de HubSpot llegan después de la tabla.
+    await expect(row.getByRole('button', { name: `Edit Plan for ${first.name}` })).toContainText('Starter', { timeout: 30_000 });
+    const wrap = page.getByTestId('groups-table-wrap');
 
     // ---------- Cabecera fija al bajar ----------
     const wrapBox = await box(wrap);
