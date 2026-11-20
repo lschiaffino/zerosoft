@@ -4,6 +4,7 @@ import {
   getThread,
   getThreadRow,
   listMessages,
+  listPinnedMessages,
   listScheduled,
   renameThread,
   saveDraft,
@@ -107,6 +108,8 @@ async function buildDetail(owner: string, id: string, around: string | undefined
     scheduled,
     notes: row.notes,
     wa,
+    // Los fijados (como en WhatsApp): la franja de arriba del chat, aunque sean más viejos que la página.
+    ...(row.channel === 'whatsapp' ? { pinned: await listPinnedMessages(owner, id) } : {}),
   };
 }
 

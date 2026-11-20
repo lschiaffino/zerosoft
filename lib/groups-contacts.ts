@@ -33,6 +33,7 @@ import {
   hubspotRecordUrl,
   readHubspotRecord,
   redactHubspot,
+  searchHubspot,
   type HubspotRecord,
   type HubspotSuggestion,
 } from './groups-hubspot';
@@ -482,6 +483,17 @@ export async function createPersonHubspot(scope: GroupsViewer, actor: string | n
 export async function contactHubspotMatches(viewer: GroupsViewer, id: string): Promise<HubspotSuggestion[]> {
   const { person } = await findPerson(viewer, id);
   return personHubspotMatches(viewer.ws, viewer.mask, person);
+}
+
+/**
+ * Busca contactos de HubSpot por nombre (o email) para vincular a la persona
+ * desde la celda de la tabla de Contactos. Solo para una persona que quien
+ * busca ve (404 si no); el email sale tapado para quien tiene los teléfonos ocultos.
+ */
+export async function contactHubspotSearch(viewer: GroupsViewer, id: string, q: string): Promise<HubspotRecord[]> {
+  await findPerson(viewer, id);
+  const list = await searchHubspot(viewer.ws, 'contact', q);
+  return list.map((r) => redactHubspot(viewer.mask, r));
 }
 
 export async function linkContactHubspot(viewer: GroupsViewer, actor: string, id: string, contactId: string): Promise<ContactRowDto> {

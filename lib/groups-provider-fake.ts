@@ -14,7 +14,9 @@
  * - El webhook acepta eventos ya normalizados: { events: InboundEvent[] }.
  * - Edita, borra para todos, fija y reenvía (lo deja en `sent` para los tests).
  * - Entrar por invitación: cualquier código de 6+ letras entra a un grupo
- *   nuevo, salvo los que empiezan con "bad" (link vencido).
+ *   nuevo, salvo los que empiezan con "bad" (link vencido) y los que empiezan
+ *   con "approve" (el grupo pide aprobación: queda la solicitud). Un código de
+ *   un grupo en el que la línea ya está da "already_member".
  * - Historial guardado (como Evolution con base): solo en los números de Inbox
  *   y con INBOX_FAKE_HISTORY=1, tres chats fijos (uno con 230 mensajes, para
  *   paginar). Sin la variable el historial está vacío.
@@ -36,15 +38,23 @@
  *   webhook cambia las "Confirmaciones de lectura" de la cuenta (como si se
  *   cambiaran en el teléfono). Las devuelve privacySettings. Marcar leído hace
  *   lo que Baileys: con 'none' el recibo queda 'read-self' (en `sent`).
+ * - Confirmaciones por persona en grupos (como Evolution con el parche 0014):
+ *   `{ type: 'fake_receipts', providerMessageId, receipts: [{ phone?, lid?,
+ *   deliveredAt?, readAt?, playedAt? }] }` en el webhook las guarda (horas en
+ *   ISO) y messageReceipts las devuelve; `{ type: 'fake_receipts_unsupported',
+ *   on: true }` hace de gateway sin el parche (null, como un 404).
+ *   fakeReceiptRequests() cuenta los pedidos.
  */
 import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
 import { waMentionPayload } from './wa-mention-jids';
+import { FAKE_VIDEO_WEBM } from './wa-video-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
+  type InviteFailure,
   phoneDigits,
   type ArchiveRef,
   type ConnectState,
@@ -55,6 +65,7 @@ import {
   type InboundEvent,
   type Participant,
 } from './groups-provider';
+import type { GatewayReceipt } from './wa-receipts';
 
 export function fakeProviderAllowed(): boolean {
   if (process.env.GROUPS_FAKE !== '1') return false;
@@ -113,6 +124,12 @@ interface FakeState {
   withheld?: Map<string, InboundEvent[]>;
   /** Cada pedido de historial que hizo la app (tests). */
   historyRequests?: FakeHistoryRequest[];
+  /** Confirmaciones por persona de cada mensaje propio en un grupo (fake_receipts). */
+  receipts?: Map<string, GatewayReceipt[]>;
+  /** Gateway sin el parche 0014: messageReceipts devuelve null. */
+  receiptsUnsupported?: boolean;
+  /** Cuántas veces la app pidió confirmaciones (tests). */
+  receiptRequests?: number;
 }
 
 export interface FakeHistoryRequest {
@@ -281,6 +298,11 @@ export function fakeHistoryRequests(numberId: string): FakeHistoryRequest[] {
   return (stateFor(numberId).historyRequests ??= []);
 }
 
+/** Cuántas veces la app le pidió al número las confirmaciones de un mensaje (tests). */
+export function fakeReceiptRequests(numberId: string): number {
+  return stateFor(numberId).receiptRequests ?? 0;
+}
+
 /** Un `fake_withheld` del webhook: el número se guarda el mensaje y la app se entera de que falta. */
 function withhold(s: FakeState, raw: unknown): InboundEvent | null {
   const m = (raw ?? {}) as Partial<Extract<InboundEvent, { type: 'message' }>>;
@@ -383,6 +405,7 @@ function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: stri
   // El tipo sale de lo que sigue al prefijo de falla: "fail1-aud-…" es un audio que falla una vez.
   const kind = id.replace(/^fail\d-/, '');
   if (kind.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
+  if (kind.startsWith('mov-')) return { data: FAKE_VIDEO_WEBM, mimetype: 'video/webm', filename: '' };
   if (kind.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (kind.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (kind.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
@@ -589,6 +612,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       requireConnected();
       return { readReceipts: s.readReceipts ?? 'all' };
     },
+    messageReceipts: async (_chatId, providerMessageId) => {
+      requireConnected();
+      s.receiptRequests = (s.receiptRequests ?? 0) + 1;
+      if (s.receiptsUnsupported) return null;
+      return (s.receipts?.get(providerMessageId) ?? []).map((r) => ({ ...r }));
+    },
     blockContact: async (chatId, block) => void send(chatId, block ? 'block' : 'unblock', 'block'),
     // Para probar "Chat nuevo": un teléfono que termina en 0000000 no tiene WhatsApp; el resto sí.
     checkNumber: async (phone) => {
@@ -625,7 +654,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
     },
-    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), "mov-" un video (WebM), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },
@@ -711,8 +740,15 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     async joinGroup(code) {
       requireConnected();
-      if (code.toLowerCase().startsWith('bad')) throw new ProviderError('not_found', 404);
+      const fail = (reason: InviteFailure, c: 'not_found' | 'provider_error', status: number) => {
+        const e = new ProviderError(c, status);
+        e.reason = reason;
+        return e;
+      };
+      if (code.toLowerCase().startsWith('bad')) throw fail('invite_invalid', 'not_found', 404);
+      if (code.toLowerCase().startsWith('approve')) throw fail('approval_required', 'provider_error', 400);
       const existing = [...s.groups.values()].find((g) => g.inviteCode === code.replace(/^FAKE/, ''));
+      if (existing && !existing.left && existing.participants.some((p) => p.phone === '15550000001')) throw fail('already_member', 'provider_error', 409);
       if (existing) {
         existing.left = false;
         if (!existing.participants.some((p) => p.phone === '15550000001')) existing.participants.push({ phone: '15550000001', role: 'member' });
@@ -756,6 +792,22 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       for (const e of events) {
         const ev = (e ?? {}) as { type?: unknown; readreceipts?: unknown };
         if (ev.type === 'fake_privacy' && (ev.readreceipts === 'all' || ev.readreceipts === 'none')) s.readReceipts = ev.readreceipts;
+      }
+      // Las confirmaciones por persona que el gateway guardó (parche 0014): no pasan por la app, se piden.
+      for (const e of events) {
+        const ev = (e ?? {}) as { type?: unknown; providerMessageId?: unknown; receipts?: unknown; on?: unknown };
+        if (ev.type === 'fake_receipts_unsupported') s.receiptsUnsupported = ev.on !== false;
+        if (ev.type !== 'fake_receipts' || typeof ev.providerMessageId !== 'string' || !Array.isArray(ev.receipts)) continue;
+        const list = (ev.receipts as Array<Record<string, unknown>>).map((r) => {
+          const pick = (k: string) => (typeof r?.[k] === 'string' ? (r[k] as string) : undefined);
+          const out: GatewayReceipt = {};
+          for (const k of ['phone', 'lid', 'deliveredAt', 'readAt', 'playedAt'] as const) {
+            const v = pick(k);
+            if (v) out[k] = v;
+          }
+          return out;
+        });
+        (s.receipts ??= new Map()).set(ev.providerMessageId, list);
       }
       const out = events.flatMap((e): InboundEvent[] => {
         const t = (e as { type?: unknown })?.type;
