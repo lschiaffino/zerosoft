@@ -78,6 +78,7 @@ describe('shouldQueue', () => {
     expect(shouldQueue('/api/crm/emails', 'POST', 'application/json')).toBe(false);
     expect(shouldQueue('/api/crm/emails/draft', 'POST', 'application/json')).toBe(false);
     expect(shouldQueue('/api/crm/import/jobs', 'POST', 'application/json')).toBe(false);
+    expect(shouldQueue('/api/crm/hubspot-sync', 'POST', 'application/json')).toBe(false);
     expect(shouldQueue('/api/crm/files', 'POST', 'multipart/form-data; boundary=x')).toBe(false);
     expect(shouldQueue('/api/crm/contacts/abc/ai-summary', 'POST', 'application/json')).toBe(false);
     expect(shouldQueue('/api/crm/notes', 'POST', 'text/plain')).toBe(false);
