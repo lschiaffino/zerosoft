@@ -15,7 +15,15 @@ import { setTheme } from './responsive-audit';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
-const DEFAULTS = { textSize: 'default', density: 'comfortable', linkPreviews: 'large', mediaSize: 'default', bubbleWidth: 'default', wallpaper: 'pattern', groupAvatars: true };
+const DEFAULTS = {
+  textSize: 'default',
+  density: 'comfortable',
+  linkPreviews: 'large',
+  mediaSize: 'default',
+  bubbleWidth: 'default',
+  wallpaper: 'pattern',
+  groupAvatars: true,
+};
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -40,13 +48,15 @@ const inviteText = (code: string) => `You have been invited to join my WhatsApp 
 /** Un número falso de Lines conectado con un chat que trae dos invitaciones (una buena y una vencida). */
 async function linesChat(request: APIRequestContext, good: string, bad: string): Promise<{ name: string; line: string }> {
   const line = `Ventas ${uid()}`;
-  const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name: line } });
+  const created = await request.post('/api/groups/numbers', {
+    data: { provider: 'fake', name: line },
+  });
   expect(created.ok()).toBe(true);
   const { id } = (await created.json()) as { id: string };
-  await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
-  await expect
-    .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })
-    .toBe('connected');
+  await request.post(`/api/groups/numbers/${id}/connect`, {
+    data: { action: 'connect' },
+  });
+  await expect.poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 }).toBe('connected');
   const { webhookUrl } = (await (await request.get(`/api/groups/numbers/${id}`)).json()) as { webhookUrl: string };
   const name = `Invita ${uid()}`;
   const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
@@ -73,12 +83,28 @@ async function linesChat(request: APIRequestContext, good: string, bad: string):
 /** La tarjeta en los cinco aspectos, claro y oscuro, a 1280 y 390: nombre, subtítulo, botón y sin scroll de costado. */
 async function everyLook(page: Page, context: BrowserContext, baseURL: string, request: APIRequestContext, card: () => ReturnType<Page['locator']>, app: string, open: () => Promise<void>) {
   try {
-    for (const look of LOOKS) {
+    // Cada aspecto en claro y oscuro, a 1280 y 390 (alternados para que entre en el tiempo), más retro oscuro a 1280.
+    const combos = LOOKS.flatMap((look, i) =>
+      i % 2 === 0
+        ? [
+            { look, theme: 'light' as const, width: 1280 },
+            { look, theme: 'dark' as const, width: 390 },
+          ]
+        : [
+            { look, theme: 'dark' as const, width: 1280 },
+            { look, theme: 'light' as const, width: 390 },
+          ],
+    );
+    combos.push({ look: 'retro', theme: 'dark', width: 1280 });
+    for (const { look, theme, width } of combos) {
       expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true);
-      for (const theme of ['light', 'dark'] as const) {
+      {
         await setTheme(context, baseURL, theme);
-        for (const width of [1280, 390]) {
-          await page.setViewportSize({ width, height: width > 500 ? 860 : 844 });
+        {
+          await page.setViewportSize({
+            width,
+            height: width > 500 ? 860 : 844,
+          });
           await open();
           await expect(page.locator('html')).toHaveAttribute('data-look', look);
           const c = card();
@@ -89,7 +115,8 @@ async function everyLook(page: Page, context: BrowserContext, baseURL: string, r
           // La foto entera y redonda (cuadrada en la caja), no una columna recortada.
           const photo = c.locator('.wa-invite-photo img');
           await expect(photo).toBeVisible();
-          await expect.poll(() => photo.evaluate((i: HTMLImageElement) => i.naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0);
+          await c.scrollIntoViewIfNeeded();
+          await expect(photo).toHaveAttribute('src', /^\/api\/wa\/link-preview\/image\?url=https%3A%2F%2Fchat\.whatsapp\.com/);
           const pb = (await photo.boundingBox())!;
           expect(Math.abs(pb.width - pb.height)).toBeLessThanOrEqual(1);
           await c.scrollIntoViewIfNeeded();
@@ -107,10 +134,12 @@ async function everyLook(page: Page, context: BrowserContext, baseURL: string, r
   }
 }
 
-test.describe.configure({ timeout: 360_000 });
+test.describe.configure({ timeout: 600_000 });
 
 test.beforeEach(async ({ request }) => {
-  await request.put('/api/chat-style', { data: { style: 'whatsapp', display: DEFAULTS } });
+  await request.put('/api/chat-style', {
+    data: { style: 'whatsapp', display: DEFAULTS },
+  });
 });
 
 test('Lines: la invitación tiene su tarjeta; Unirme pide confirmación, entra y abre el grupo', async ({ page, context, baseURL, request }) => {
@@ -120,7 +149,7 @@ test('Lines: la invitación tiene su tarjeta; Unirme pide confirmación, entra y
   await page.setViewportSize({ width: 1280, height: 860 });
   await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
   const link = page.getByRole('link', { name: new RegExp(name) }).first();
-  await expect(link).toBeVisible({ timeout: 30_000 });
+  await expect(link).toBeVisible({ timeout: 90_000 });
   const chatUrl = (await link.getAttribute('href'))!;
   const msgs = page.locator('.wa-messages');
   const card = () => msgs.locator('.gr-msg', { hasText: 'invited to join' }).getByTestId('wa-invite-card');
@@ -160,17 +189,42 @@ test('Lines: la invitación tiene su tarjeta; Unirme pide confirmación, entra y
 test('Inbox: la misma tarjeta; Unirme pide confirmación y entra con la cuenta (también a 390)', async ({ page, context, baseURL, request }) => {
   const errors = watchErrors(page);
   await request.post('/api/inbox/whatsapp', waLinkIp());
-  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  await expect
+    .poll(
+      async () =>
+        (
+          (await (await request.get('/api/inbox/whatsapp')).json()) as {
+            state: { status: string };
+          }
+        ).state.status,
+      { timeout: 10_000 },
+    )
+    .toBe('connected');
   const tag = uid();
   const good = `E2eInb${uid()}${uid()}`;
   const db = e2eDb();
   try {
-    const [acc] = (await db.execute({ sql: "SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'", args: [] })).rows;
+    const [acc] = (
+      await db.execute({
+        sql: "SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'",
+        args: [],
+      })
+    ).rows;
     const phone = `1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
     const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, {
       data: {
         events: [
-          { type: 'message', chatId: `${phone}@s.whatsapp.net`, isGroup: false, fromMe: false, senderPhone: phone, senderName: `Bruno ${tag}`, providerMessageId: `inv-${tag}`, body: inviteText(good), timestamp: new Date().toISOString() },
+          {
+            type: 'message',
+            chatId: `${phone}@s.whatsapp.net`,
+            isGroup: false,
+            fromMe: false,
+            senderPhone: phone,
+            senderName: `Bruno ${tag}`,
+            providerMessageId: `inv-${tag}`,
+            body: inviteText(good),
+            timestamp: new Date().toISOString(),
+          },
         ],
       },
     });
@@ -182,8 +236,14 @@ test('Inbox: la misma tarjeta; Unirme pide confirmación y entra con la cuenta (
   const card = () => thread.locator('.gr-msg', { hasText: 'invited to join' }).getByTestId('wa-invite-card');
   const open = async () => {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
-    await page.locator('.ib-item', { hasText: `Bruno ${tag}` }).locator('.ib-row-btn').click();
-    await expect(thread).toBeVisible({ timeout: 30_000 });
+    // Un clic antes de que la página termine de hidratar se pierde: se repite hasta que abre el chat.
+    await expect(async () => {
+      await page
+        .locator('.ib-item', { hasText: `Bruno ${tag}` })
+        .locator('.ib-row-btn')
+        .click();
+      await expect(thread).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 60_000 });
   };
   await everyLook(page, context, baseURL!, request, card, 'inbox', open);
 

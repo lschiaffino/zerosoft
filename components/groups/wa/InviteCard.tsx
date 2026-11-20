@@ -77,7 +77,7 @@ export default function InviteCard({ url, given, join }: { url: string; given?: 
     <div className="wa-invite" data-testid="wa-invite-card">
       <div className="wa-invite-head">
         <span className="wa-invite-photo">
-          <Avatar name={shown} kind="group" src={image || undefined} size={52} />
+          <Avatar name={shown} kind="group" src={image || undefined} size={52} eager />
         </span>
         <span className="wa-invite-text">
           <strong dir="auto" data-testid="wa-invite-name">
