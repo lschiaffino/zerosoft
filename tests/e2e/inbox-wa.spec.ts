@@ -178,7 +178,11 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
     document.body.appendChild(probe);
     const natural = probe.getBoundingClientRect().width;
     probe.remove();
-    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth };
+    const qs = getComputedStyle(el);
+    const bs = getComputedStyle(bubble);
+    const chain = [] as string[];
+    for (let n: HTMLElement | null = el; n && chain.length < 6; n = n.parentElement) { const c = getComputedStyle(n); chain.push(`${n.className.toString().slice(0, 40)}|${c.display}|${c.width}|${c.contain}|${c.maxWidth}`); }
+    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth, qContain: qs.contain, qDisplay: qs.display, qWidth: qs.width, bCls: bubble.className, bDisplay: bs.display, chain };
   });
   expect(q.quote, JSON.stringify(q)).toBeLessThanOrEqual(q.bubble + 0.5);
   expect(q.textW, JSON.stringify(q)).toBeGreaterThanOrEqual(Math.min(q.natural, 400) - 2);
