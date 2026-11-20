@@ -20,7 +20,7 @@ import type { WaReactor } from '@/lib/wa-reactions';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MediaUnavailable, StickerMissing, VideoView, VoicePlayer } from '@/components/groups/wa/MediaParts';
 import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
-import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
+import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
@@ -789,7 +789,8 @@ const WaConversation = forwardRef<
         onContextMenu={(e) => {
           if (selecting || (e.target as HTMLElement).closest('a, input, textarea, video, audio')) return;
           e.preventDefault();
-          e.currentTarget.querySelector<HTMLButtonElement>('.wa-chevron')?.click();
+          // En el puntero, como el menú contextual de WhatsApp (la flecha lo abre pegado a la burbuja).
+          openMenuAt(e.currentTarget.querySelector<HTMLButtonElement>('.wa-chevron'), pointerOf(e));
         }}
         {...gestures}
         onClick={selecting ? (album ? undefined : () => toggleSelected(m.id)) : group ? (e) => openMention(e, m) : undefined}

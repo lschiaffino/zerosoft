@@ -130,7 +130,11 @@ it should be here too.
   published migration or `lib/schema/baseline.ts`. Migrations must tolerate
   running twice and in parallel (`IF NOT EXISTS`, `addColumn`).
 - **Changelog.** One file per entry in `content/changelog-entries/`, named
-  `YYYY-MM-DD-short-id.ts`, exporting `default { … } satisfies ChangelogEntry`.
+  `YYYY-MM-DD-HHMM-short-id.ts` (HHMM = the time in UTC when you write it),
+  exporting `default { … } satisfies ChangelogEntry`. The time orders entries
+  of the same day: the newest one is what the "new version" notice shows.
+  Older files without a time (`YYYY-MM-DD-short-id.ts`) still work and sort
+  after the timed ones of their day.
   Don't add to the list in `content/changelog.ts` any more: every pull request
   clashed there. The generated lists (`*.generated.ts`) are not committed;
   `next.config.mjs`, vitest and `npm run typecheck`/`lint` build them (run
