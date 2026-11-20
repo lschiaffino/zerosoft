@@ -385,6 +385,8 @@ a.asst-file:hover { border-color: var(--ink-2); }
 .asst-file-remove:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .asst-file-limit { margin: 0; font-size: 0.75rem; }
 .asst-notice { margin: 0; font-size: 0.8125rem; }
+/* Tope de pasos: el aviso y "Seguir" en una línea (bajan juntos si no entran). */
+.asst-limit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-top: 8px; border-top: 1px solid var(--line); }
 /* Confirmar deshabilitado (falta tipear la palabra): la etiqueta se lee en claro y en oscuro. */
 .asst-action-buttons .btn.btn-primary:disabled { --btn-bg: transparent; --btn-fg: var(--ink-2); --btn-bd: var(--line); color: var(--ink-2); background: transparent; border-color: var(--line); opacity: 1; }
 

@@ -1877,7 +1877,8 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 .wa-gm-issues .btn { align-self: flex-start; }
 .wa-gm-search { position: relative; display: flex; align-items: center; }
 .wa-gm-search > svg { position: absolute; left: 12px; color: var(--wa-icon, var(--ink-3)); pointer-events: none; }
-.wa-gm-search .input { width: 100%; padding-left: 38px; }
+/* El ícono va adentro del campo: el texto arranca después. (.app-frame .input pisaba este padding con el suyo.) */
+.wa-gm-search > input.input { width: 100%; padding-left: 38px; }
 .wa-gm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .wa-gm-row { display: flex; align-items: center; gap: 6px; min-height: 52px; min-width: 0; }
 .wa-gm-row.is-pending { opacity: 0.6; }

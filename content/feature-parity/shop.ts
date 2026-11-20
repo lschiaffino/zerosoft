@@ -181,8 +181,12 @@ const parity: ProductParity = {
         'As páginas do catálogo são geradas uma vez e regeneradas quando você muda a loja, ou a cada 5 minutos; carrinho e pedido carregam no navegador',
       ],
     }),
-    row('storefront-filters', 'storefront', ['Sort and filter a collection', 'Ordenar y filtrar una colección', 'Ordenar e filtrar uma coleção'], 'partial', {
-      detail: ['Sort, maximum price and in stock. No filters by option like size or color', 'Orden, precio máximo y con stock. Sin filtros por opción como talle o color', 'Ordem, preço máximo e com estoque. Sem filtros por opção como tamanho ou cor'],
+    row('storefront-filters', 'storefront', ['Sort and filter a collection', 'Ordenar y filtrar una colección', 'Ordenar e filtrar uma coleção'], 'have', {
+      detail: [
+        'Sort, maximum price, in stock, and filters by product option (size, color), brand and type, with a count per value. Options must match on the same variant, and the filters stay in the address to share. No filters by tag or custom fields',
+        'Orden, precio máximo, con stock, y filtros por opción (talle, color), marca y tipo, con la cantidad de cada valor. Las opciones se cumplen en la misma variante y los filtros quedan en la dirección para compartir. Sin filtros por etiqueta ni campos propios',
+        'Ordem, preço máximo, com estoque, e filtros por opção (tamanho, cor), marca e tipo, com a quantidade de cada valor. As opções valem para a mesma variante e os filtros ficam no endereço para compartilhar. Sem filtros por tag nem campos próprios',
+      ],
     }),
     row('related-products', 'storefront', ['Related products', 'Productos relacionados', 'Produtos relacionados'], 'have', {
       detail: ['From the same hand-picked collection or the same product type', 'De la misma colección armada a mano o del mismo tipo de producto', 'Da mesma coleção montada à mão ou do mesmo tipo de produto'],

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 
 /**
  * Crea un envío masivo o un mensaje programado: { chatIds, body, media?,
- * scheduledAt?, perMinute?, name?, kind?, replyToId? }. Si es para ahora, el primer lote
+ * scheduledAt?, perMinute?, name?, kind?, replyToId?, mentions? }. Si es para ahora, el primer lote
  * sale después de responder; el resto, con el cron de cada minuto.
  */
 export async function POST(req: Request) {
@@ -65,6 +65,8 @@ export async function POST(req: Request) {
       chatIds: strArr(b.chatIds, 2000).filter((id) => !visible || visible.has(id)),
       poll: b.poll ?? null,
       replyToId: str(b.replyToId, 100) || null,
+      // Menciones de un programado a un grupo: [{ phone, label }] (se validan al guardar).
+      mentions: b.mentions ?? null,
       scheduledAt: str(b.scheduledAt, 40) || null,
       perMinute: Number(b.perMinute) || undefined,
       kind: b.kind === 'scheduled' ? 'scheduled' : 'broadcast',

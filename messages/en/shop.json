@@ -820,6 +820,11 @@
     "inStockOnly": "In stock only",
     "maxPrice": "Max price",
     "noMatch": "No products match these filters.",
+    "filterCount": "Results: {count}",
+    "filterResults": "{shown} of {total} products",
+    "clearFilters": "Clear filters",
+    "filterVendor": "Brand",
+    "filterType": "Type",
     "whatsapp": "WhatsApp",
     "unsubscribed": "Done. This store won’t send you more cart reminders."
   },

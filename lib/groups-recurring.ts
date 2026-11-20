@@ -28,6 +28,8 @@ export interface RecurringRow {
   media_type: string;
   media_name: string;
   poll: string;
+  /** Menciones, JSON `[{ phone, label }]` (lib/wa-compose-mentions.ts): solo con un único grupo. */
+  mentions?: string | null;
   chat_ids: string;
   rule: string;
   timezone: string;
@@ -111,6 +113,8 @@ export interface RecurringInput {
   timezone?: string;
   perMinute?: number;
   endsAt?: string | null;
+  /** Menciones ("@Nombre" → a quién es), solo con un único grupo como destino. */
+  mentions?: unknown;
 }
 
 async function cleanTargets(ws: string, chatIds: string[], numberId?: string): Promise<{ numberId: string; chatIds: string[] }> {
@@ -172,11 +176,13 @@ export async function createRecurring(ws: string, actor: string, input: Recurrin
   await shareScheduledMedia(ws, target.numberId, input.media?.url);
   const id = randomUUID();
   const now = nowIso();
+  const { cleanWaMentionPicks } = await import('./wa-compose-mentions');
+  const picks = !poll && target.chatIds.length === 1 ? cleanWaMentionPicks(input.mentions) : [];
   await getDb()
     .prepare(
       `INSERT INTO groups_recurring (id, user_id, number_id, name, body, media_url, media_type, media_name, poll, chat_ids, rule, timezone,
-         per_minute, status, next_run_at, ends_at, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+         per_minute, status, next_run_at, ends_at, created_by, created_at, updated_at, mentions)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -197,6 +203,7 @@ export async function createRecurring(ws: string, actor: string, input: Recurrin
       actor,
       now,
       now,
+      picks.length ? JSON.stringify(picks) : '',
     );
   return toRecurringDto((await getRecurringRow(ws, id)) as RecurringRow);
 }
@@ -319,8 +326,8 @@ export async function runDueRecurring(now = new Date(), limit = 50): Promise<num
       await db
         .prepare(
           `INSERT INTO groups_broadcasts (id, user_id, number_id, name, body, media_url, media_type, media_name, kind, status, scheduled_at,
-             per_minute, total, created_by, created_at, recurring_id, poll)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?)`,
+             per_minute, total, created_by, created_at, recurring_id, poll, mentions)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -339,6 +346,8 @@ export async function runDueRecurring(now = new Date(), limit = 50): Promise<num
           at,
           r.id,
           r.poll,
+          // Las menciones van solo a un único chat (cada grupo tiene otra gente).
+          alive.length === 1 ? (r.mentions ?? '') : '',
         );
       for (const c of alive) {
         await db.prepare('INSERT OR IGNORE INTO groups_broadcast_recipients (id, broadcast_id, chat_id) VALUES (?, ?, ?)').run(randomUUID(), id, c.id);

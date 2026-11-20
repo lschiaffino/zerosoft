@@ -46,6 +46,8 @@ export async function POST(req: Request) {
       timezone: str(b.timezone, 80),
       perMinute: Number(b.perMinute) || undefined,
       endsAt: str(b.endsAt, 40) || null,
+      // Menciones de un recurrente a un grupo: [{ phone, label }] (se validan al guardar).
+      mentions: b.mentions ?? null,
     });
     return NextResponse.json(rec, { status: 201 });
   } catch (err) {
