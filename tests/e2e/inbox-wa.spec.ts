@@ -171,11 +171,11 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   const q = await mine.locator('.gr-quote').evaluate((el) => {
     const bubble = el.closest('.gr-bubble')!;
     const text = el.querySelector(':scope > span') as HTMLElement;
-    const probe = document.createElement('span');
     const cs = getComputedStyle(text);
-    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:${cs.font};letter-spacing:${cs.letterSpacing}`;
-    probe.textContent = text.innerText;
-    document.body.appendChild(probe);
+    // Ancho natural: una copia del texto en la misma cita (mismas reglas para negrita, cursiva y menciones), sin cortes.
+    const probe = text.cloneNode(true) as HTMLElement;
+    probe.style.cssText = 'position:absolute;visibility:hidden;display:inline-block;white-space:nowrap;max-width:none';
+    el.appendChild(probe);
     const natural = probe.getBoundingClientRect().width;
     probe.remove();
     return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth };
