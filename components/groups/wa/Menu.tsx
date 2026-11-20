@@ -17,6 +17,9 @@ export interface MenuItem {
   glyph?: ReactNode;
   /** Separa este ítem de los anteriores (acciones del equipo debajo de las de WhatsApp). */
   divider?: boolean;
+  /** Se ve pero no se puede elegir (ej. cambiar admins sin ser admin del grupo); `hint` dice por qué. */
+  disabled?: boolean;
+  hint?: string;
 }
 
 /** Evento con el que se abre un MessageMenu en un punto (ver openMenuAt). */
@@ -133,7 +136,7 @@ export function MessageMenu({
       return;
     }
     // Sin mover el scroll: la lista todavía puede estar fuera de la pantalla hasta que se ubica.
-    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    list.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus({ preventScroll: true });
     const close = () => setOpen(false);
     window.addEventListener('resize', close);
     // Si se scrollea algo que mueve el botón (la página o un contenedor suyo), se cierra: la posición dejó de
@@ -159,7 +162,7 @@ export function MessageMenu({
   }, [open]);
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
-    const all = [...(list.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+    const all = [...(list.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
     const i = all.indexOf(document.activeElement as HTMLButtonElement);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
@@ -194,7 +197,10 @@ export function MessageMenu({
           data-key={it.key}
           data-testid={`menu-${it.key}`}
           className={`gr-menu-item${it.danger ? ' gr-danger' : ''}${it.divider ? ' has-divider' : ''}`}
+          disabled={it.disabled}
+          title={it.disabled ? it.hint : undefined}
           onClick={() => {
+            if (it.disabled) return;
             setOpen(false);
             it.onSelect();
           }}
