@@ -11,6 +11,7 @@ import { MAX_FORWARD_TARGETS, formatDuration } from '@/lib/groups-inbox-rules';
 import { ChatPlate, Modal, api, useErrorText, useMediaText } from './ui';
 import { parseDbUtc } from '@/lib/utils';
 import { GroupEventLine } from './wa/GroupEvent';
+import SharedPinnedBar from './wa/PinnedBar';
 import { parseEvent } from '@/lib/wa-group-events';
 
 /** Línea de sistema del hilo: llamada o evento del historial (asignación, equipo, cierre). */
@@ -88,40 +89,21 @@ export function SystemLine({ m, nameOf }: { m: MessageDto; nameOf: (id: string |
   );
 }
 
-/** Mensajes fijados, arriba del hilo: clic va al mensaje, × lo desfija. */
-export function PinnedBar<M extends { id: string; body: string } = MessageDto>({
+/** Mensajes fijados, arriba del hilo: clic va al mensaje, × lo desfija (la misma franja que Inbox). */
+export function PinnedBar({
   pinned,
   onJump,
   onUnpin,
   textOf = (m) => m.body,
-  mediaOf,
 }: {
-  pinned: M[];
-  onJump: (m: M) => void;
-  onUnpin: (m: M) => void;
+  pinned: MessageDto[];
+  onJump: (m: MessageDto) => void;
+  onUnpin: (m: MessageDto) => void;
   /** El texto con las menciones nombradas ("@Nombre" en lugar de "@<dígitos>"). */
-  textOf?: (m: M) => string;
-  /** Sin texto: qué es (Foto, Audio...). Por defecto, el de un mensaje de Lines. Inbox pasa el suyo. */
-  mediaOf?: (m: M) => string;
+  textOf?: (m: MessageDto) => string;
 }) {
-  const t = useTranslations('groups.thread');
   const mediaText = useMediaText();
-  if (pinned.length === 0) return null;
-  return (
-    <div className="gr-pinned" role="region" aria-label={t('pinnedTitle')} data-testid="pinned-bar">
-      {pinned.map((m) => (
-        <div key={m.id} className="gr-pinned-row" data-testid="pinned-row">
-          <button type="button" className="gr-pinned-jump" onClick={() => onJump(m)}>
-            <span className="gr-pinned-tag">{t('pinned')}</span>
-            <span className="gr-pinned-text">{textOf(m).slice(0, 120) || (mediaOf ? mediaOf(m) : mediaText({ media: (m as unknown as MessageDto).media }))}</span>
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onUnpin(m)} aria-label={t('unpinLabel')} data-testid="pinned-unpin">
-            ×
-          </button>
-        </div>
-      ))}
-    </div>
-  );
+  return <SharedPinnedBar pinned={pinned} onJump={onJump} onUnpin={onUnpin} textOf={textOf} mediaOf={(m) => mediaText({ media: m.media })} />;
 }
 
 /** Reenviar un mensaje (o varios elegidos, en orden): buscar chats, marcar hasta 10 y mandar. */

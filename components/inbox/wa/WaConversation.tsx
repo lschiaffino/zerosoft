@@ -25,7 +25,7 @@ import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/compon
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
-import { PinnedBar } from '@/components/groups/ThreadParts';
+import PinnedBar from '@/components/groups/wa/PinnedBar';
 import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
