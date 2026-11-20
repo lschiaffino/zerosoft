@@ -396,6 +396,7 @@
     "import": "Import",
     "security": "Security",
     "notifications": "Notifications",
+    "requests": "My requests",
     "desktop": "Desktop app",
     "admin": "Admin",
     "apps": "Workspace apps",
@@ -1500,7 +1501,6 @@
     "desc": "Turn each app on or off for the workspace, choose who gets it (everyone, teams or people) and override it per person. Turning one off removes it everywhere for everyone; what's inside is kept. Star the apps your team uses most: they go at the top of the apps menu.",
     "feature": "Feature {name}",
     "unfeature": "Stop featuring {name}",
-    "alwaysOn": "Always on for everyone.",
     "featuredNote": "Featured: with at least one, the apps menu shows those at the top and keeps the rest under \"Other apps\". With none, it shows every app by category.",
     "readOnly": "Only the owner and admins can change this.",
     "modes": {
@@ -1702,6 +1702,7 @@
     "profile": "name, language, time zone, photo, email, account",
     "appearance": "theme, dark mode, light mode, colors, system, look, style, lines, classic, liquid, retro",
     "notifications": "email, emails, digest, alerts, unsubscribe",
+    "requests": "requests, feature requests, ideas, feedback, assistant, roadmap, shipped",
     "workspace": "name, logo, mode, company",
     "members": "people, invite, roles, permissions, guests",
     "teams": "groups, departments",
@@ -1873,5 +1874,41 @@
     "dismiss": "Not now",
     "news": "New: {titles}.",
     "seeNews": "See what’s new"
+  },
+  "requests": {
+    "desc": "What you asked for, to the assistant or as an idea, and how it is going. You get an email when something you asked for ships.",
+    "emptyTitle": "No requests yet",
+    "emptyBody": "When you ask the assistant for something the product does not do yet, it records your request and it shows up here.",
+    "listLabel": "Your requests",
+    "asked": "Asked {date}",
+    "changed": "Updated {date}",
+    "status": {
+      "received": "Received",
+      "considering": "Under consideration",
+      "planned": "Planned",
+      "in_progress": "In progress",
+      "shipped": "Shipped",
+      "declined": "Not planned"
+    },
+    "statusHelp": {
+      "received": "The team has your request and will review it.",
+      "considering": "The team is considering it.",
+      "planned": "The team plans to build it.",
+      "in_progress": "The team is building it.",
+      "shipped": "It is out.",
+      "declined": "The team decided not to build it for now."
+    },
+    "back": "My requests",
+    "yourWords": "What you asked for",
+    "statusTitle": "Status",
+    "since": "Since {date}",
+    "changelog": "See what changed in the changelog",
+    "publicPage": "See it on the public board",
+    "emailNote": "You get an email when it ships.",
+    "unsubscribed": "You will not get more emails about this request.",
+    "privateNote": "Only you and the zerosoft team can see this page.",
+    "adminNote": "You see this page as an admin. The people who asked and their words are in the roadmap admin.",
+    "adminLink": "Open in the roadmap admin",
+    "reason": "Reason: {reason}"
   }
 }

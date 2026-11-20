@@ -104,7 +104,7 @@ export function displayCss(d: ChatDisplay): string {
     rules.push('.gr-inbox .gr-msg.has-avatar{padding-left:0}', '.gr-inbox .wa-sender-avatar{display:none}');
   }
   if (d.bubbleWidth === 'wide') rules.push('@media (min-width:1024px){.gr-inbox .gr-msg{max-width:82%}}');
-  if (d.wallpaper === 'plain') rules.push('.gr-inbox .wa-messages{background-image:none}');
+  if (d.wallpaper === 'plain') rules.push('.gr-inbox .wa-messages,.gr-inbox .wa-mode{background-image:none}');
   return [vars.length ? `:root{${vars.join(';')}}` : '', ...rules].filter(Boolean).join('\n');
 }
 

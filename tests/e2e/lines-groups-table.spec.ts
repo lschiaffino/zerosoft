@@ -182,8 +182,10 @@ test('un grupo en dos líneas es una fila; filtro por línea, columnas de HubSpo
   await columns.getByLabel('Plan', { exact: true }).check();
   // El valor de la empresa se ve (la etiqueta de la opción, no el valor interno).
   await expect(page.getByRole('columnheader', { name: 'Plan' })).toBeVisible();
-  await expect(groupRow(page, shared).getByRole('cell', { name: 'Scale', exact: true })).toBeVisible();
-  await expect(groupRow(page, onlyVentas).getByRole('cell', { name: 'Scale', exact: true })).toHaveCount(0);
+  // La celda de una empresa vinculada se edita (un botón con el valor); la del grupo sin empresa, no.
+  await expect(groupRow(page, shared).getByRole('button', { name: `Edit Plan for ${sharedName}` })).toHaveText('Scale');
+  await expect(groupRow(page, onlyVentas).getByText('Scale', { exact: true })).toHaveCount(0);
+  await expect(groupRow(page, onlyVentas).getByRole('button', { name: `Edit Plan for ${ventasName}` })).toHaveCount(0);
   // Orden desde el menú, con el selector sutil y el teclado.
   await page.getByTestId('groups-sort-by').click();
   await expect(page.getByRole('listbox', { name: 'Sort by' })).toBeVisible();

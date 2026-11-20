@@ -24,6 +24,7 @@ export const STATIC_PAGES = {
   home: { path: '', ns: 'common.meta', title: 'homeTitle', description: 'description', priority: 1, freq: 'weekly' },
   products: { path: '/products', ns: 'pages.products.meta', title: 'title', description: 'description', priority: 0.9, freq: 'weekly' },
   compare: { path: '/compare', ns: 'pages.compare.index.meta', title: 'title', description: 'description', priority: 0.8, freq: 'weekly' },
+  software: { path: '/software', ns: 'pages.directory.meta', title: 'title', description: 'description', priority: 0.8, freq: 'monthly' },
   tools: { path: '/tools', ns: 'tools.hub', title: 'metaTitle', description: 'metaDescription', priority: 0.9, freq: 'weekly' },
   blog: { path: '/blog', ns: 'common.blog', title: 'metaTitle', description: 'metaDescription', priority: 0.7, freq: 'weekly' },
   download: { path: '/download', ns: 'pages.download.meta', title: 'title', description: 'description', priority: 0.7, freq: 'weekly' },

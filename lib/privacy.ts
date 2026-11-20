@@ -715,6 +715,31 @@ const PERSONAL_EXPORT: Record<string, { cols: string[]; where: (me: string) => W
       args: [me],
     }),
   },
+  // Fleet: las sesiones de agentes de cada persona (prompts y respuestas); ni un admin las ve.
+  ...Object.fromEntries(
+    ['fleet_sessions', 'fleet_messages', 'fleet_feed', 'fleet_prefs', 'fleet_tokens'].map((t) => [
+      t,
+      { cols: ['person_id'], where: (me: string) => ({ sql: 'person_id = ?', args: [me] }) },
+    ]),
+  ),
+  // Design: un diseño privado es de quien lo creó (un admin no lo ve); las carpetas, de cada persona.
+  design_designs: {
+    cols: ['id', 'created_by', 'workspace_access', 'is_template'],
+    where: (me) => ({
+      sql: "(created_by = ? OR workspace_access IN ('view', 'edit') OR is_template = 1 OR id IN (SELECT design_id FROM design_members WHERE user_id = ?))",
+      args: [me, me],
+    }),
+  },
+  design_folders: { cols: ['created_by'], where: (me) => ({ sql: 'created_by = ?', args: [me] }) },
+  // Flow: las variables son de cada persona.
+  flow_variables: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  // Lines: carpetas y en qué carpeta tiene cada chat cada persona; listas guardadas no compartidas.
+  groups_folders: { cols: ['owner_id'], where: (me) => ({ sql: '(owner_id IS NULL OR owner_id = ?)', args: [me] }) },
+  groups_chat_folders: { cols: ['person_id'], where: (me) => ({ sql: 'person_id = ?', args: [me] }) },
+  groups_saved_lists: { cols: ['owner_id', 'shared'], where: (me) => ({ sql: '(shared = 1 OR owner_id = ?)', args: [me] }) },
+  // Chat: vistas guardadas no compartidas. Track: dashboards personales.
+  chat_views: { cols: ['user_id', 'shared'], where: (me) => ({ sql: '(shared = 1 OR user_id = ?)', args: [me] }) },
+  track_dashboards: { cols: ['user_id', 'visibility'], where: (me) => ({ sql: "(visibility <> 'personal' OR user_id = ?)", args: [me] }) },
   // Board: las notas del modo privado son de quien las escribió hasta que se revelan.
   board_private_drafts: { cols: ['author'], where: (me) => ({ sql: 'author = ?', args: [me] }) },
   // Flow y webhooks: los datos de una corrida o entrega se armaron con el acceso de quien la creó.
