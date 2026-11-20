@@ -131,7 +131,7 @@ describe('grupos de líneas: aislamiento', () => {
     expect(await countUnreadChats(w.owner.id, nora)).toBe(0);
     const visible = await visibleChatIds(ana);
     expect([...visible!]).toEqual([w.c.s1.id]);
-    const folders = await listFolders(w.owner.id, ana);
+    const folders = await listFolders(w.owner.id, ana.me, ana);
     expect(folders.unfiled).toEqual({ unread: 1, chats: 1 });
 
     // Líneas: ni la lista, ni el aviso de línea caída.

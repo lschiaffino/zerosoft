@@ -1455,7 +1455,7 @@ export default function NotesApp({
       {/* ---------- Libretas / filtros ---------- */}
       <aside className="notes-nav" aria-label={t('nav.label')}>
         <div className="notes-nav-top">
-          <button type="button" className="btn btn-primary btn-block notes-new" onClick={() => void createNote()}>
+          <button type="button" className="btn btn-primary btn-block notes-new" onClick={() => void createNote()} data-tour="notes-new">
             <NotesIcon name="plus" size={14} />
             {t('actions.newNote')}
             <kbd className="kbd">N</kbd>
@@ -1482,7 +1482,7 @@ export default function NotesApp({
             canUpdate={Boolean(q.trim())}
           />
 
-          <div className="notes-nav-section">
+          <div className="notes-nav-section" data-tour="notes-notebooks">
             <h2>{t('nav.notebooks')}</h2>
             <button
               type="button"
@@ -1716,6 +1716,7 @@ export default function NotesApp({
             <button
               type="button"
               className="btn btn-sm btn-icon notes-list-new"
+              data-tour="notes-new"
               onClick={() => void createNote()}
               aria-label={t('actions.newNote')}
               title={t('actions.newNote')}
@@ -1724,7 +1725,7 @@ export default function NotesApp({
             </button>
           </div>
           <div className="notes-list-tools">
-            <label className="notes-search">
+            <label className="notes-search" data-tour="notes-search">
               <NotesIcon name="search" size={14} />
               <input
                 ref={searchRef}
@@ -2020,6 +2021,7 @@ export default function NotesApp({
                   key={n.id}
                   type="button"
                   data-id={n.id}
+                  data-tour="notes-item"
                   className={`notes-item${selectMode ? ' is-selecting' : ''}${isSel ? ' is-selected' : ''}`}
                   aria-current={!selectMode && note?.id === n.id ? 'true' : undefined}
                   aria-pressed={selectMode ? isSel : undefined}

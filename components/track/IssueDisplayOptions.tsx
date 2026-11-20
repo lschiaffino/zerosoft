@@ -200,6 +200,7 @@ export default function IssueDisplayOptions({
     <div
       className="track-display"
       ref={wrap}
+      data-tour="track-display"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && open) {
           e.preventDefault();

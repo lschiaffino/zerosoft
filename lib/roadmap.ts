@@ -548,7 +548,10 @@ export async function updateRoadmapItem(
       changelogId: opts.changelogId ?? (after.status === 'done' ? after.shipped_changelog_id : null),
     });
     // Aviso por email a autor, votantes y comentaristas (solo estados que importan).
-    if (after.is_public === 1 && ROADMAP_NOTIFY_STATUSES.includes(after.status)) {
+    // Un pedido privado solo avisa al salir, y solo a quienes lo pidieron (board-notify).
+    const publicNotify = after.is_public === 1 && ROADMAP_NOTIFY_STATUSES.includes(after.status);
+    const privateShipped = after.is_public !== 1 && after.status === 'done';
+    if (publicNotify || privateShipped) {
       const item = after;
       await runAfterResponse(() => notifyStatusChange(item, before.status));
     }

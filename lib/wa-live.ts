@@ -37,6 +37,8 @@ export interface LiveRaw {
   chat_id: string;
   number_id: string;
   kind: LiveKind;
+  /** Aviso solo para esta persona (movió un chat a una carpeta suya). Vacío: para todos los que ven el chat. */
+  person_id?: string | null;
 }
 
 export interface LiveEvent {
@@ -56,8 +58,8 @@ export type ChatFilter = (chatIds: string[]) => Promise<Set<string>>;
  */
 export type LiveViewer =
   | { app: 'inbox'; owner: string }
-  | { app: 'lines'; ws: string; visible: null }
-  | { app: 'lines'; ws: string; visible: ChatFilter; pending: LivePending };
+  | { app: 'lines'; ws: string; visible: null; me?: string }
+  | { app: 'lines'; ws: string; visible: ChatFilter; pending: LivePending; me?: string };
 
 /**
  * Los avisos pendientes, entre `cursor` y `upTo`, de los chats que la persona puede abrir (Lines con acceso
@@ -80,7 +82,7 @@ export async function latestLiveId(viewer: LiveViewer): Promise<number> {
 export async function fetchLive(viewer: LiveViewer, cursor: number, limit = PAGE): Promise<LiveRaw[]> {
   const [app, scope] = scopeOf(viewer);
   const rows = (await getDb()
-    .prepare('SELECT id, chat_id, number_id, kind FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
+    .prepare('SELECT id, chat_id, number_id, kind, person_id FROM wa_live_events WHERE app = ? AND scope_id = ? AND id > ? ORDER BY id LIMIT ?')
     .all(app, scope, cursor, limit)) as LiveRaw[];
   return rows.map((r) => ({ ...r, id: Number(r.id), kind: r.kind === 'msg' ? 'msg' : 'chat' }));
 }
@@ -94,7 +96,10 @@ export async function fetchLive(viewer: LiveViewer, cursor: number, limit = PAGE
  */
 export async function liveBatch(rows: LiveRaw[], viewer: LiveViewer): Promise<LiveEvent[]> {
   const last = new Map<string, LiveEvent>();
+  // Un aviso de una persona (sus carpetas) no sale a nadie más: tampoco a quien ve todos los chats.
+  const me = viewer.app === 'lines' ? viewer.me : undefined;
   for (const r of rows) {
+    if (r.person_id && r.person_id !== me) continue;
     const prev = last.get(r.chat_id);
     last.set(r.chat_id, { id: r.id, chatId: r.chat_id, kind: prev?.kind === 'chat' || r.kind === 'chat' ? 'chat' : 'msg' });
   }
@@ -117,7 +122,7 @@ async function liveBacklog(rows: LiveRaw[], viewer: LiveViewer, cursor: number):
   if (mine === null) return { events: [], cursor: next, gap: true };
   if (mine.length >= PAGE) return { events: [], cursor: upTo, gap: true };
   // Ya vienen filtrados por acceso: solo se juntan por chat.
-  return { events: await liveBatch(mine, { app: 'lines', ws: viewer.ws, visible: null }), cursor: upTo, gap: false };
+  return { events: await liveBatch(mine, { app: 'lines', ws: viewer.ws, visible: null, me: viewer.me }), cursor: upTo, gap: false };
 }
 
 /** La consulta de la pantalla: lo nuevo desde `cursor`; sin cursor, solo el cursor actual. Sin avisos no consulta el acceso. */

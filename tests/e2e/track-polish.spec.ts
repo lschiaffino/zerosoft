@@ -133,10 +133,11 @@ test.describe('Track como Linear (pulido)', () => {
     await page.keyboard.press(' ');
     const peek = page.getByTestId('track-peek');
     await expect(peek).toContainText('En la vista rápida');
-    await peek.getByTestId('track-peek-plan').click();
+    // El chip de Project es el mismo del panel del issue (editable en la vista rápida).
+    await peek.getByTestId('track-side-plan').getByRole('button').click();
     await expect(page.getByTestId('cmdk-crumbs')).toContainText('Project');
     await page.locator('.cmdk').getByText(plan.name, { exact: true }).click();
-    await expect(peek.getByTestId('track-peek-plan')).toContainText(plan.name);
+    await expect(peek.getByTestId('track-side-plan')).toContainText(plan.name);
     await expect.poll(async () => (await issueOf(request, issue.id)).plan_id).toBe(plan.id);
     await page.keyboard.press('Escape');
 

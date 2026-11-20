@@ -810,9 +810,16 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* El mismo chat en varias líneas: por cuál entró o salió el mensaje (lib/same-chat.ts). */
 .gr-line-tag { color: var(--wa-text-2, currentColor); min-width: 0; overflow-wrap: anywhere; }
 /* "Responder desde": la línea por la que sale la respuesta (components/groups/ReplyFromSelect.tsx). */
-.gr-replyfrom { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 10px 2px; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text-2, currentColor); }
+.gr-replyfrom { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 6px 10px 8px; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text-2, currentColor); }
 .gr-replyfrom-label { flex: none; }
-.gr-replyfrom-select { min-width: 0; max-width: 100%; flex: 0 1 auto; width: auto; height: 28px; padding-top: 0; padding-bottom: 0; font-size: inherit; }
+/* Compacto y callado, como el resto de la barra del compositor: sin el alto ni el borde de un campo de formulario
+   (.app-frame .select le ganaba a esta regla y lo dejaba de 36px con borde). El borde aparece al pasar o al enfocar. */
+.gr-replyfrom select.gr-replyfrom-select {
+  min-width: 0; max-width: min(100%, 260px); flex: 0 1 auto; width: auto; min-height: 0; height: 26px;
+  padding: 0 24px 0 6px; font-size: inherit; font-weight: 500; color: var(--wa-text, var(--ink));
+  background-color: transparent; border-color: transparent; text-overflow: ellipsis;
+}
+.gr-replyfrom select.gr-replyfrom-select:hover:not(:disabled):not(:focus) { border-color: var(--ui-field); }
 .gr-task-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .gr-task-list li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .gr-task-list li.is-done .gr-task-title,
@@ -928,7 +935,7 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-reimport { display: inline-flex; align-items: center; gap: 4px; }
 .gr-reimport .select { width: auto; height: 28px; font-size: 0.8125rem; }
 
-/* Lines: selector de línea, etiqueta de línea y carpetas compartidas */
+/* Lines: selector de línea, etiqueta de línea y carpetas (de cada persona) */
 .gr-line-select { max-width: 200px; min-width: 0; }
 .gr-line-badge { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 0 6px; border: 1px solid var(--ui-border); }
 .gr-folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
@@ -939,6 +946,9 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-folder.is-over { background: var(--ui-hover); border-color: var(--ink); border-style: dashed; }
 .gr-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-folder-pick { max-height: 50vh; }
+.gr-folder-create { margin-top: 8px; }
+.gr-folder-new { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.gr-folder-new .ui-field { width: 100%; }
 
 /* Lines: HubSpot en los detalles del chat y en Ajustes > Integraciones */
 .gr-hs-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -949,9 +959,11 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-hs-name { display: inline-flex; align-items: center; min-height: 40px; min-width: 40px; font-size: 0.9375rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
 .gr-hs-name:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .gr-hs-head .btn { flex: none; }
-.gr-hs-props { margin: 0; display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 2px 12px; font-size: 0.8125rem; }
+/* La columna de nombres no pasa del 45% del ancho: con un nombre largo ("Darwin Conversations Last 30 Days") la
+   columna "auto" se quedaba con todo y el valor, que puede cortarse en cualquier letra, quedaba de una letra de ancho. */
+.gr-hs-props { margin: 0; display: grid; grid-template-columns: fit-content(45%) minmax(0, 1fr); gap: 4px 12px; font-size: 0.8125rem; }
 .gr-hs-props > div { display: contents; }
-.gr-hs-props dt { color: var(--brand-gray-2); }
+.gr-hs-props dt { min-width: 0; color: var(--brand-gray-2); overflow-wrap: break-word; }
 .gr-hs-props dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .gr-hs-suggest { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); }
 .gr-hs-suggest-title { margin: 0; font-size: 0.875rem; }

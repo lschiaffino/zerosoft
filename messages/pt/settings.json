@@ -396,6 +396,7 @@
     "import": "Importar",
     "security": "Segurança",
     "notifications": "Avisos",
+    "requests": "Meus pedidos",
     "desktop": "App de desktop",
     "admin": "Admin",
     "apps": "Apps do workspace",
@@ -1500,7 +1501,6 @@
     "desc": "Ligue ou desligue cada app para o workspace, escolha quem usa (todos, equipes ou pessoas) e ajuste por pessoa. Desativar uma tira de todo lugar para todos; o que está dentro fica guardado. Marque com a estrela os apps que sua equipe mais usa: eles ficam no topo do menu de apps.",
     "feature": "Destacar {name}",
     "unfeature": "Deixar de destacar {name}",
-    "alwaysOn": "Sempre ativado para todos.",
     "featuredNote": "Destaques: com pelo menos um, o menu de apps mostra esses no topo e deixa o resto em \"Outros apps\". Sem nenhum, mostra todos os apps por categoria.",
     "readOnly": "Só o owner e os admins mudam isto.",
     "modes": {
@@ -1702,6 +1702,7 @@
     "profile": "nome, idioma, fuso horário, foto, email, conta",
     "appearance": "tema, modo escuro, modo claro, cores, sistema, visual, estilo, linhas, clássico, líquido, retrô",
     "notifications": "email, emails, resumo, avisos, cancelar inscrição",
+    "requests": "pedidos, funcionalidades, ideias, feedback, assistente, roadmap, lançado",
     "workspace": "nome, logo, modo, empresa",
     "members": "pessoas, convidar, funções, permissões, convidados",
     "teams": "grupos, áreas",
@@ -1873,5 +1874,41 @@
     "dismiss": "Agora não",
     "news": "Novidades: {titles}.",
     "seeNews": "Ver novidades"
+  },
+  "requests": {
+    "desc": "O que você pediu, ao assistente ou como ideia, e como está. Você recebe um email quando sai algo que pediu.",
+    "emptyTitle": "Ainda não há pedidos",
+    "emptyBody": "Quando você pede ao assistente algo que o produto ainda não faz, ele registra o seu pedido e ele aparece aqui.",
+    "listLabel": "Seus pedidos",
+    "asked": "Pedido em {date}",
+    "changed": "Atualizado em {date}",
+    "status": {
+      "received": "Recebido",
+      "considering": "Em avaliação",
+      "planned": "Planejado",
+      "in_progress": "Em andamento",
+      "shipped": "Lançado",
+      "declined": "Não planejado"
+    },
+    "statusHelp": {
+      "received": "A equipe tem o seu pedido e vai revisá-lo.",
+      "considering": "A equipe está avaliando.",
+      "planned": "A equipe planeja fazer.",
+      "in_progress": "A equipe está fazendo.",
+      "shipped": "Já saiu.",
+      "declined": "A equipe decidiu não fazer por enquanto."
+    },
+    "back": "Meus pedidos",
+    "yourWords": "O que você pediu",
+    "statusTitle": "Status",
+    "since": "Desde {date}",
+    "changelog": "Veja o que mudou no changelog",
+    "publicPage": "Ver no board público",
+    "emailNote": "Você recebe um email quando sair.",
+    "unsubscribed": "Você não vai receber mais emails deste pedido.",
+    "privateNote": "Só você e a equipe da zerosoft veem esta página.",
+    "adminNote": "Você vê esta página como admin. Quem pediu e as palavras de cada um estão no admin do roadmap.",
+    "adminLink": "Abrir no admin do roadmap",
+    "reason": "Motivo: {reason}"
   }
 }

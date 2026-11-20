@@ -480,6 +480,51 @@
   font-size: 0.8125rem;
 }
 
+/* Propiedades editables: los chips del panel del issue, en fila como el peek de Linear. */
+.track-peek .track-side {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.track-peek .track-prop-chip {
+  margin-left: 0;
+  border: 1px solid var(--line);
+}
+
+.track-peek .track-prop-group {
+  padding: 0;
+}
+
+.track-peek .track-prop-labels {
+  padding: 0;
+}
+
+/* Un cambio de propiedad en la actividad: una línea con su glifo. */
+.track-peek-event {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 2px;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+.track-peek-event .track-event-icon {
+  align-self: center;
+}
+
+.track-peek-event-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.track-peek-event .track-peek-comment-at {
+  flex: none;
+  font-size: 0.75rem;
+}
+
 /* Actividad: avatar chico del asignado nuevo en la fila del evento. */
 .track-event-icon .track-avatar.is-tiny {
   width: 14px;

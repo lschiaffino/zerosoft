@@ -22,10 +22,21 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Las líneas que crean estos tests se borran al terminar, con sus chats. Si quedaran, los 75 chats recién
+ * llegados del test de la lista larga llenan la primera página de la bandeja compartida, y los specs que
+ * después abren un chat desde la lista (en la misma tanda de CI) no encuentran su fila.
+ */
+const madeLines: string[] = [];
+test.afterEach(async ({ request }) => {
+  for (const id of madeLines.splice(0)) await request.delete(`/api/groups/numbers/${id}`).catch(() => null);
+});
+
 async function fakeNumber(request: APIRequestContext, name: string): Promise<{ id: string; webhookUrl: string }> {
   const created = await request.post('/api/groups/numbers', { data: { provider: 'fake', name } });
   expect(created.ok(), await created.text()).toBe(true);
   const { id } = (await created.json()) as { id: string };
+  madeLines.push(id);
   await request.post(`/api/groups/numbers/${id}/connect`, { data: { action: 'connect' } });
   await expect
     .poll(async () => ((await (await request.get(`/api/groups/numbers/${id}/connect`)).json()) as { status: string }).status, { timeout: 10_000 })

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { PARITY } from '@/content/feature-parity';
 import { CHANGELOG } from '@/content/changelog';
+import { DIRECTORY_REVIEWED, SOFTWARE_DIRECTORY } from '@/content/software-directory';
 import { AUTHORS, BLOG_LOCALES, TAG_MIN_POSTS, getAllPosts, getPostsByTag, getTags, latestPostDate, postLocales, tagLocales } from '@/lib/blog';
 import { getComparisons } from '@/lib/compare';
 import { absoluteBoardUrl, boardUsesSubdomain } from '@/lib/board-urls';
@@ -42,6 +43,8 @@ function staticLastmod(key: StaticPageKey, locale: string): string | undefined {
       return latestPostDate(locale) ?? undefined;
     case 'changelog':
       return CHANGELOG[0]?.date;
+    case 'software':
+      return DIRECTORY_REVIEWED;
     default:
       return undefined;
   }
@@ -91,6 +94,7 @@ export function sitemapEntries(): MetadataRoute.Sitemap {
       out.push(entry(`/compare/${c.vsSlug}`, locale, 0.7, 'weekly', c.lastReviewed));
       out.push(entry(`/compare/${c.altSlug}`, locale, 0.7, 'weekly', c.lastReviewed));
     }
+    for (const c of SOFTWARE_DIRECTORY) out.push(entry(`/software/${c.slug}`, locale, 0.7, 'monthly', DIRECTORY_REVIEWED));
     for (const tool of TOOLS) out.push(entry(`/tools/${tool.slug}`, locale, 0.8, 'monthly'));
     out.push(...boardEntries(locale));
   }

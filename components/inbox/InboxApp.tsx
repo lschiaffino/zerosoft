@@ -275,6 +275,9 @@ export default function InboxApp(props: {
   const listCache = useRef(new ListCache<CachedList>(30)).current;
   const live = useRef({ want: listKey, base: listBase, shown: listKey, threads: props.initialThreads, next: props.initialNext ?? null, pinned: props.initialPinned ?? 0, etag: '', etagUrl: '', more: false });
   const listAbort = useRef<AbortController | null>(null);
+  /** La lista que se está pidiendo ahora (su URL) y si llegó otro aviso mientras tanto. */
+  const listInflight = useRef<string | null>(null);
+  const listAgain = useRef(false);
   const moreAbort = useRef<AbortController | null>(null);
   const moreRef = useRef<HTMLLIElement>(null);
   const switching = shownKey !== listKey;
@@ -299,10 +302,25 @@ export default function InboxApp(props: {
       const L = live.current;
       const size = L.shown === key ? Math.min(Math.max(L.threads.length - L.pinned, PAGE), MAX_HEAD) : PAGE;
       const url = `${base}&cursor=&limit=${size}`;
+      // Una relectura de la misma lista que ya se está pidiendo espera a esa: si cada aviso en vivo o cada consulta
+      // periódica cortara la anterior, con un servidor lento la lista no llegaría nunca. Otra lista sí corta la anterior.
+      if (listInflight.current === url) {
+        listAgain.current = true;
+        return;
+      }
       listAbort.current?.abort();
       const ctrl = new AbortController();
       listAbort.current = ctrl;
+      listInflight.current = url;
       const r = await fetchIfChanged<ListPage>(url, L.etagUrl === url ? L.etag : null, ctrl.signal);
+      if (listAbort.current === ctrl) {
+        listInflight.current = null;
+        // Llegó otro aviso mientras tanto: se lee una vez más (puede haber cambiado algo después de esta lectura).
+        if (listAgain.current) {
+          listAgain.current = false;
+          queueMicrotask(() => void reloadRef.current());
+        }
+      }
       if (r.state === 'aborted' || live.current.want !== key) return;
       if (r.state === 'error') {
         // No llegó la lista pedida: no quedan a la vista las filas de la anterior (se ve el error con "Reintentar").
@@ -326,6 +344,8 @@ export default function InboxApp(props: {
   );
 
   const reloadList = useCallback(() => fetchHead(live.current.want, live.current.base), [fetchHead]);
+  const reloadRef = useRef(reloadList);
+  reloadRef.current = reloadList;
 
   /** La página que sigue (al llegar al final de la lista). */
   const loadMore = useCallback(async () => {
@@ -1153,6 +1173,10 @@ export default function InboxApp(props: {
       { key: 'unread', label: th.unread > 0 ? t('more.read') : t('more.unread'), onSelect: () => void runAction([id], { action: th.unread > 0 ? 'read' : 'unread' }) },
       // En Archivados están los archivados y los "hechos": los dos llevan la etiqueta Archivado y los dos se desarchivan.
       { key: 'archive', label: th.archived || th.done ? t('rowMenu.unarchive') : t('rowMenu.archive'), onSelect: () => void runAction([id], { action: th.archived || th.done ? 'unarchive' : 'archive' }) },
+      // Mantener archivado: en un chat de WhatsApp archivado, lo mismo que la llave del panel del chat.
+      ...(th.channel === 'whatsapp' && (th.archived || th.done)
+        ? [{ key: 'keepArchived', label: th.keepArchived ? t('rowMenu.keepArchivedOff') : t('rowMenu.keepArchived'), onSelect: () => void keepArchived([id], !th.keepArchived) }]
+        : []),
       th.snoozedUntil
         ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
@@ -1260,6 +1284,7 @@ export default function InboxApp(props: {
         <button
           type="button"
           className="ib-row-btn"
+          data-tour="inbox-chat-row"
           aria-current={isOpen ? 'true' : undefined}
           title={th.lines?.length ? th.lines.map((l) => l.name).join(' · ') : undefined}
           onClick={(e) => {
@@ -1332,7 +1357,7 @@ export default function InboxApp(props: {
             </button>
           </div>
           {!(view === 'removed' && !folder) && (
-            <div className="ib-search">
+            <div className="ib-search" data-tour={noAccounts ? undefined : 'inbox-search'}>
               <label className="sr-only" htmlFor="ib-search">
                 {t('list.search')}
               </label>
@@ -1362,7 +1387,7 @@ export default function InboxApp(props: {
             </div>
           )}
           {tabView && !q && (
-            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')}>
+            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
               {TABS.map((v) => (
                 <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
                   {t(`tabs.${v}`)}
@@ -1370,7 +1395,8 @@ export default function InboxApp(props: {
               ))}
             </nav>
           )}
-          <div className="ib-mobile-views">
+          {/* En el teléfono las pestañas son esta lista: el paso de filtros del tour la señala. */}
+          <div className="ib-mobile-views" data-tour={noAccounts ? undefined : 'inbox-filters'}>
             <label className="sr-only" htmlFor="ib-view-select">
               {t('list.goTo')}
             </label>
@@ -1493,7 +1519,7 @@ export default function InboxApp(props: {
             ))}
           </div>
         ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
-          <div className="ib-list-empty">
+          <div className="ib-list-empty" data-tour={noAccounts && !q ? 'inbox-connect' : undefined}>
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && <AgentsRow {...props.agentsRow} />}
             {noAccounts && !q ? (
               <EmptyState
@@ -1530,7 +1556,7 @@ export default function InboxApp(props: {
             )}
           </div>
         ) : (
-          <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list>
+          <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list data-tour="inbox-chat-list">
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
               <li>
                 <AgentsRow {...props.agentsRow} />

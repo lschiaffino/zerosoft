@@ -20,7 +20,7 @@ export const MAX_NOTES = 2000;
 export const CURRENCIES = ['USD', 'EUR', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN', 'GBP', 'CAD', 'AUD'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
-export type TimeErrorCode = 'invalid_input' | 'not_found' | 'forbidden' | 'project_archived' | 'task_archived' | 'too_long' | 'in_use' | 'duplicate';
+export type TimeErrorCode = 'invalid_input' | 'not_found' | 'forbidden' | 'project_archived' | 'task_archived' | 'too_long' | 'in_use' | 'duplicate' | 'not_assigned' | 'task_not_in_project';
 
 export class TimeError extends Error {
   constructor(
@@ -273,4 +273,40 @@ export function cellPlan(cell: GridEntry[], minutes: number | null): CellPlan {
   if (next === cur.minutes) return { kind: 'none' };
   if (next === 0 && !cur.notes.trim()) return { kind: 'delete', id: cur.id };
   return { kind: 'update', id: cur.id, minutes: next };
+}
+
+/* ---------- Equipo y tareas de un proyecto ---------- */
+
+/** Una tarea elegida para un proyecto, con su facturable en ese proyecto. */
+export interface ProjectTask {
+  taskId: string;
+  billable: boolean;
+}
+
+/** Quién carga horas en un proyecto y con qué tareas. */
+export interface ProjectAssignments {
+  /** true: todas las personas con Time. */
+  everyone: boolean;
+  /** Personas elegidas (vacío con `everyone`). */
+  people: string[];
+  /** true: todas las tareas activas del workspace. */
+  allTasks: boolean;
+  /** Tareas elegidas (vacío con `allTasks`). */
+  tasks: ProjectTask[];
+}
+
+/** La persona puede cargar horas en el proyecto. */
+export function canTrackOn(p: Pick<ProjectAssignments, 'everyone' | 'people'>, person: string): boolean {
+  return p.everyone || p.people.includes(person);
+}
+
+/**
+ * Tareas activas con las que se cargan horas en el proyecto, en el orden de la
+ * lista del workspace y con el facturable de ese proyecto.
+ */
+export function tasksForProject<T extends { id: string; billable: boolean; archived: boolean }>(p: Pick<ProjectAssignments, 'allTasks' | 'tasks'> | null | undefined, tasks: T[]): T[] {
+  const active = tasks.filter((x) => !x.archived);
+  if (!p || p.allTasks) return active;
+  const chosen = new Map(p.tasks.map((x) => [x.taskId, x.billable]));
+  return active.filter((x) => chosen.has(x.id)).map((x) => ({ ...x, billable: chosen.get(x.id)! }));
 }

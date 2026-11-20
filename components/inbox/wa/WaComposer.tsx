@@ -18,7 +18,7 @@ import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
-import AiComposeBar, { AiComposeButton, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -63,6 +63,8 @@ const WaComposer = forwardRef<
     onSent: (messages: MessageDto[]) => void;
     /** "Responder desde": el chat de otra cuenta por el que sale (vacío: este). */
     via?: string;
+    /** La cuenta de WhatsApp por la que sale la respuesta: la pestaña Stickers muestra los de esa. */
+    stickerLine: string;
     onSaveEdit: (m: MessageDto, body: string) => Promise<boolean>;
     onSendLater: (text: string) => void;
     onError: (code: string) => void;
@@ -76,7 +78,7 @@ const WaComposer = forwardRef<
     /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
     commands?: SlashCommand[];
   }
->(function WaComposer({ thread, via, snippets, disabled, paused, banner, above, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
+>(function WaComposer({ thread, via, stickerLine, snippets, disabled, paused, banner, above, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
@@ -305,7 +307,8 @@ const WaComposer = forwardRef<
     const r = await inboxQueue(threadId)(() =>
       api<{ messages: MessageDto[] }>('/api/inbox/stickers', {
         method: 'POST',
-        json: { action: 'send', id: stickerId, threadId, clientId: newClientId(), ...(replyToId ? { replyTo: replyToId } : {}) },
+        // Sale por la cuenta elegida en "Responder desde", la misma de la que son los stickers que se muestran.
+        json: { action: 'send', id: stickerId, threadId: via || threadId, clientId: newClientId(), ...(replyToId ? { replyTo: replyToId } : {}) },
       }),
     );
     if (!r.ok) {
@@ -435,7 +438,7 @@ const WaComposer = forwardRef<
 
   const hasText = !!text.trim();
   return (
-    <div className="wa-composer ib-wa-composer" aria-busy={busy !== '' || undefined}>
+    <div className="wa-composer ib-wa-composer" data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       {above}
       {banner}
       {linkPv.card}
@@ -474,7 +477,7 @@ const WaComposer = forwardRef<
           ))}
         </ul>
       )}
-      {!editing && <AiComposeBar ai={ai} />}
+      {!editing && <AiComposeBar ai={ai} floating />}
       {emojiSuggest.strip}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
@@ -483,7 +486,7 @@ const WaComposer = forwardRef<
           </button>
           {emoji && (
             <EmojiPicker
-              stickers={editing ? undefined : { api: '/api/inbox/stickers', onSend: (s) => sendSticker(s.id) }}
+              stickers={editing ? undefined : { api: '/api/inbox/stickers', line: stickerLine, onSend: (s) => sendSticker(s.id) }}
               gifs={editing ? undefined : { api: '/api/inbox/gifs', onSend: sendGif }}
               onPick={(e) => insertAtCaret(e)}
               onClose={(reason) => {
@@ -503,6 +506,7 @@ const WaComposer = forwardRef<
           ref={area}
           highlights={mentionHits}
           readOnly={paused}
+          adornment={editing ? null : <AiComposeChip ai={ai} />}
           aria-busy={paused || undefined}
           className="wa-input"
           data-testid="composer-input"

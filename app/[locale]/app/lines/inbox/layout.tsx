@@ -20,6 +20,7 @@ import { listLineGroups } from '@/lib/groups-line-groups';
 import GetStarted from '@/components/groups/GetStarted';
 import { mirrorSummary } from '@/lib/fleet/link';
 import SampleBanner from '@/components/groups/SampleBanner';
+import { roleAtLeast } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +89,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         teams={teams.map((tm) => ({ id: tm.id, name: tm.name }))}
         properties={properties}
         me={me}
+        canExport={roleAtLeast(viewer.role, 'admin')}
         initialLists={lists}
         numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName, color: n.color, groupId: n.groupId }))}
         lineGroups={lineGroups.map((g) => ({ id: g.id, name: g.name }))}

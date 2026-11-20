@@ -35,6 +35,8 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   if (done) {
     const out = (done.output ?? {}) as Record<string, unknown>;
     if (done.tool === 'propose_folders_from_json') return foldersReply(out);
+    if (done.tool === 'request_feature') return featureReply(out, asked);
+    if (done.tool === 'my_feature_requests') return myRequestsReply(out);
     if (done.tool === 'inbox_folders') {
       const rows = (out.folders as Array<{ path: string; chats: number }>) ?? [];
       if (!rows.length) return { text: 'You have no Inbox folders yet.' };
@@ -113,6 +115,17 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
     };
   }
   if (/^(?:summari[sz]e|list|show) my inbox folders/i.test(last)) return { reasoning: 'Read the Inbox folders and count the chats in each.', tool: 'inbox_folders', input: {} };
+  if (MY_REQUESTS_ASK.test(last)) return { reasoning: 'Look up the requests this person made and share the links.', tool: 'my_feature_requests', input: {} };
+  const wish = FEATURE_ASK.exec(last);
+  if (wish) {
+    const need = last.slice(wish[0].length).trim() || last;
+    const app = PRODUCT_WORDS.find((w) => new RegExp(`\\b${w}\\b`, 'i').test(last)) ?? 'other';
+    return {
+      reasoning: 'The product cannot do this yet. Record the request for the team and say so.',
+      tool: 'request_feature',
+      input: { title: `Request: ${need.replace(/\s+/g, ' ').slice(0, 100)}`, details: last, app },
+    };
+  }
   const record = /CURRENT_RECORD:([a-z0-9._]+):([A-Za-z0-9_-]+)/.exec(info.system);
   // Adjuntos: el último de la charla, de la línea de las instrucciones.
   const attachedIds = [...info.system.matchAll(/(att_[a-z0-9]{8,40}) \(/g)].map((m) => m[1]);
@@ -174,6 +187,32 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   const find = /^(?:find|search) (.+)$/i.exec(last);
   if (find) return { tool: 'search_workspace', input: { query: find[1] } };
   return { text: `I can look things up and prepare changes for you to confirm. Apps here: ${can.join(', ') || 'none'}.` };
+}
+
+/** Pedidos de algo que el producto no hace: "quiero que…", "I want…", "eu quero…". */
+const FEATURE_ASK = /^(?:quiero que|quisiera que|me gustar[ií]a que|i want(?: to be able)?(?: to)?|i would like|i'd like|can you add|please add|eu quero que|gostaria que)\b/i;
+const PRODUCT_WORDS = ['inbox', 'crm', 'track', 'docs', 'cal', 'flow', 'lines', 'notes', 'board'];
+
+/** Después de anotar el pedido: una frase, en el idioma de la persona, sin prometer fechas. */
+function featureReply(out: Record<string, unknown>, asked: string): FakeStep {
+  const lang: Lang = /\b(quiero|quisiera|gustar[ií]a|pueda|desde)\b/i.test(asked) ? 'es' : /\b(quero|gostaria|você)\b/i.test(asked) ? 'pt' : langOf(asked);
+  if (out.error) return { text: lang === 'es' ? 'No pude anotar el pedido ahora.' : lang === 'pt' ? 'Não consegui registrar o pedido agora.' : 'I could not record the request right now.' };
+  const url = typeof out.url === 'string' ? out.url : '';
+  const text = {
+    es: `Eso todavía no se puede hacer acá. Anoté tu pedido para el equipo y lo van a considerar.${url ? ` [Ver tu pedido](${url})` : ''}`,
+    pt: `Isso ainda não dá para fazer aqui. Registrei seu pedido para a equipe e ele vai ser considerado.${url ? ` [Ver o seu pedido](${url})` : ''}`,
+    en: `That is not possible here yet. I recorded your request for the team and it will be considered.${url ? ` [See your request](${url})` : ''}`,
+  }[lang];
+  return { text };
+}
+
+/** "¿Dónde anotaste mi pedido?", "link to my request", "meus pedidos". */
+const MY_REQUESTS_ASK = /\b(?:my requests?|link to my request|where is my request|mis pedidos|mi pedido|d[oó]nde anotaste|meus pedidos|meu pedido)\b/i;
+
+function myRequestsReply(out: Record<string, unknown>): FakeStep {
+  const rows = (out.requests as Array<{ title: string; status: string; url: string }> | undefined) ?? [];
+  if (!rows.length) return { text: `You have no recorded requests yet. They show up in [My requests](${String(out.listUrl ?? '')}).` };
+  return { text: rows.slice(0, 5).map((r) => `- [${r.title}](${r.url}) (${r.status})`).join('\n') };
 }
 
 /** Respuesta al plan de carpetas: una tabla con lo que se crea y lo que no encontró. */

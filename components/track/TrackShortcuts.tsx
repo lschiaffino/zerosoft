@@ -86,7 +86,8 @@ export default function TrackShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
-      if (isTypingTarget(e.target) || document.querySelector('[role="dialog"], dialog[open]')) return;
+      // La tarjeta del tour guiado (.zs-tour) no es modal: con ella abierta los atajos siguen andando.
+      if (isTypingTarget(e.target) || document.querySelector('[role="dialog"]:not(.zs-tour), dialog[open]')) return;
       const key = e.key.toLowerCase();
       // G y después una tecla navega, como en Linear (G I inbox, G M mis tareas…).
       if (goPending.current && Date.now() - goPending.current < 1200 && !e.shiftKey) {

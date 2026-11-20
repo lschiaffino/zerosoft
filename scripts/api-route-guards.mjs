@@ -7,8 +7,12 @@
  *
  * Cómo decide: lee cada `route.ts` de `app/api/**` y `lib/routes/**` con el
  * parser de TypeScript y mira si llama a alguna de las funciones de GUARDS,
- * importada del módulo indicado. Una ruta nueva sin guard y fuera de la lista
- * hace fallar tests/unit/api-route-guards.test.ts.
+ * importada del módulo indicado. Además, en un archivo con guard, cada handler
+ * exportado (GET, POST...) tiene que llegar a un guard, directo o a través de
+ * una función del mismo archivo: un DELETE sin guard al lado de un GET con
+ * guard también cuenta. Un handler público a propósito va en la lista como
+ * `<archivo>#<MÉTODO>`. Una ruta nueva sin guard y fuera de la lista hace
+ * fallar tests/unit/api-route-guards.test.ts.
  *
  * Uso: node scripts/api-route-guards.mjs        # lista las rutas sin guard
  */
@@ -145,19 +149,83 @@ export function publicRoutes() {
   return JSON.parse(readFileSync(join(ROOT, 'scripts/api-public-routes.json'), 'utf8'));
 }
 
-/** Rutas sin guard que no están en la lista pública, y entradas de la lista que ya no existen o ya tienen guard. */
+const METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+
+/**
+ * Handlers exportados del archivo que no llegan a ningún guard: ni lo
+ * nombran ni nombran una función o constante del mismo archivo que lo haga.
+ * Los `export { GET } from '...'` no cuentan acá (valen por el archivo de origen).
+ */
+export function unguardedHandlers(file) {
+  const src = readFileSync(join(ROOT, file), 'utf8');
+  const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const wanted = new Set(GUARDS);
+  const guardNames = new Set();
+  const locals = new Map();
+  const handlers = [];
+  for (const st of sf.statements) {
+    if (ts.isImportDeclaration(st)) {
+      const bindings = st.importClause?.namedBindings;
+      if (!bindings || !ts.isNamedImports(bindings)) continue;
+      for (const el of bindings.elements) {
+        if (wanted.has(`${st.moduleSpecifier.text}#${(el.propertyName ?? el.name).text}`)) guardNames.add(el.name.text);
+      }
+      continue;
+    }
+    const exported = st.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (ts.isFunctionDeclaration(st) && st.name) {
+      locals.set(st.name.text, st);
+      if (exported && METHODS.has(st.name.text)) handlers.push(st.name.text);
+    } else if (ts.isVariableStatement(st)) {
+      for (const d of st.declarationList.declarations) {
+        if (!ts.isIdentifier(d.name) || !d.initializer) continue;
+        locals.set(d.name.text, d.initializer);
+        if (exported && METHODS.has(d.name.text)) handlers.push(d.name.text);
+      }
+    }
+  }
+  const memo = new Map();
+  const reaches = (name, seen) => {
+    if (memo.has(name)) return memo.get(name);
+    if (seen.has(name)) return false;
+    seen.add(name);
+    let ok = false;
+    const visit = (n) => {
+      if (ok) return;
+      if (ts.isIdentifier(n) && !(ts.isPropertyAccessExpression(n.parent) && n.parent.name === n)) {
+        if (guardNames.has(n.text) || (n.text !== name && locals.has(n.text) && reaches(n.text, seen))) ok = true;
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(locals.get(name));
+    memo.set(name, ok);
+    return ok;
+  };
+  return handlers.filter((h) => !reaches(h, new Set()));
+}
+
+/**
+ * Rutas sin guard que no están en la lista pública (un archivo entero, o
+ * `archivo#MÉTODO` para un handler suelto), y entradas de la lista que ya no
+ * existen o ya tienen guard.
+ */
 export function checkRouteGuards() {
   const allow = publicRoutes();
   const files = listRouteFiles();
   const unguarded = files.filter((f) => guardsUsed(f).length === 0);
-  const missing = unguarded.filter((f) => !(f in allow));
-  const stale = Object.keys(allow).filter((f) => !unguarded.includes(f));
-  return { files, unguarded, missing, stale };
+  const openHandlers = files
+    .filter((f) => !unguarded.includes(f))
+    .flatMap((f) => unguardedHandlers(f).map((m) => `${f}#${m}`));
+  const missing = [...unguarded, ...openHandlers].filter((f) => !(f in allow));
+  const stale = Object.keys(allow).filter((f) => !unguarded.includes(f) && !openHandlers.includes(f));
+  return { files, unguarded, openHandlers, missing, stale };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { files, unguarded, missing, stale } = checkRouteGuards();
-  console.log(`${files.length} rutas, ${unguarded.length} sin guard (públicas por diseño), ${missing.length} fuera de la lista`);
+  const { files, unguarded, openHandlers, missing, stale } = checkRouteGuards();
+  console.log(
+    `${files.length} rutas, ${unguarded.length} sin guard y ${openHandlers.length} handlers sueltos sin guard (públicos por diseño), ${missing.length} fuera de la lista`,
+  );
   for (const f of missing) console.log(`  sin guard: ${f}`);
   for (const f of stale) console.log(`  sobra en la lista: ${f}`);
   if (missing.length || stale.length) process.exitCode = 1;

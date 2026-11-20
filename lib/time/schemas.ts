@@ -16,6 +16,13 @@ export const projectSchema = z.object({
     .nullable()
     .optional(),
   archived: z.boolean().optional(),
+  everyone: z.boolean().optional(),
+  people: z.array(z.string().min(1).max(80)).max(500).optional(),
+  allTasks: z.boolean().optional(),
+  tasks: z
+    .array(z.object({ taskId: z.string().min(1).max(80), billable: z.boolean() }))
+    .max(200)
+    .optional(),
 });
 
 export const namedSchema = z.object({

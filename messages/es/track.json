@@ -1737,7 +1737,7 @@
       "subIssues": "{done} de {total} sub-issues terminados",
       "activity": "Actividad",
       "noComments": "Todavía no hay comentarios.",
-      "olderComments": "{count, plural, one {# comentario anterior} other {# comentarios anteriores}} en el issue",
+      "olderActivity": "{count, plural, one {# entrada anterior} other {# entradas anteriores}} en el issue",
       "moreSubIssues": "{count, plural, one {# sub-issue más} other {# sub-issues más}}"
     },
     "display": {

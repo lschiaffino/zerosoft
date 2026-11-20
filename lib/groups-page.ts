@@ -19,6 +19,7 @@ import {
 import { PROVIDER_CAPS } from './groups-provider';
 import { listPinned, listTeams } from './groups-inbox';
 import { isWorkspaceAdmin } from './session';
+import { userCanUseApp } from './workspace';
 import { canSeeChat, groupsViewer, maskChat, maskMember, maskMessage, type GroupsViewer } from './groups-access';
 
 /** Quién mira en una página de Groups (acceso por etiqueta y teléfonos ocultos). */
@@ -76,18 +77,21 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
       }).catch(() => null);
     }
   }
-  const contact = chat.crmContactId
+  // El CRM en los detalles, solo con la app CRM abierta para quien mira (Apps del workspace y sus apps).
+  // Sin ella no se lee ni se manda nada del CRM; los vínculos del chat quedan como están.
+  const crmOn = userCanUseApp(user, 'crm');
+  const contact = crmOn && chat.crmContactId
     ? ((await db
         .prepare("SELECT id, TRIM(first_name || ' ' || last_name) AS name, email FROM crm_contacts WHERE id = ? AND user_id = ?")
         .get(chat.crmContactId, ws)) as { id: string; name: string; email: string } | undefined)
     : undefined;
-  const company = chat.crmCompanyId
+  const company = crmOn && chat.crmCompanyId
     ? ((await db.prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?').get(chat.crmCompanyId, ws)) as
         | { id: string; name: string }
         | undefined)
     : undefined;
   return {
-    chat,
+    chat: crmOn ? chat : { ...chat, crmContactId: null, crmCompanyId: null },
     messages: messages.map((m) => maskMessage(viewer, m)),
     members: members.map((m) => maskMember(viewer, m)),
     people,
@@ -95,10 +99,12 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
     quickReplies,
     properties,
     agents,
-    crm: {
-      contact: contact ? { id: contact.id, name: contact.name || contact.email } : null,
-      company: company ? { id: company.id, name: company.name } : null,
-    },
+    crm: crmOn
+      ? {
+          contact: contact ? { id: contact.id, name: contact.name || contact.email } : null,
+          company: company ? { id: company.id, name: company.name } : null,
+        }
+      : null,
     me: user.actingUser?.id ?? user.id,
     isAdmin: isWorkspaceAdmin(user),
     pinned: pinned.map((m) => maskMessage(viewer, m)),
