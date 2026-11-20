@@ -322,6 +322,18 @@
     "moreGroups": "{n, plural, one {y # grupo más} other {y # grupos más}}",
     "moreLines": "{n, plural, one {y # más} other {y # más}}",
     "notLinked": "Sin vincular",
+    "hsCell": {
+      "linkAction": "Vincular un contacto de HubSpot a {name}",
+      "searching": "Buscando en HubSpot",
+      "search": "Buscar contactos en HubSpot",
+      "results": "Contactos de HubSpot",
+      "minChars": "Escribí al menos 2 letras",
+      "noResults": "No se encontraron contactos",
+      "options": "Contacto de HubSpot de {name}",
+      "change": "Cambiar",
+      "notLinked": "No se pudo vincular: {reason}",
+      "notUnlinked": "No se pudo desvincular: {reason}"
+    },
     "open": "Abrir {name}",
     "emptyTitle": "Todavía no hay contactos",
     "emptyLines": "Las personas aparecen acá cuando le escriben a una de tus líneas o están en uno de sus grupos.",
