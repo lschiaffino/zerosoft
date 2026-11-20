@@ -27,6 +27,7 @@ import {
   PROVIDER_KINDS,
   ProviderError,
   isGroupJid,
+  isBotJid,
   isLidJid,
   isValidPhone,
   lidDigits,
@@ -71,6 +72,7 @@ import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type Poll
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 import { lineColor, type LineColor } from './line-colors';
 import type { NumberStats } from './groups-number-stats';
+import { routeSelfChat } from './wa-self-chat';
 
 export { mediaKind, propertyText };
 
@@ -2942,7 +2944,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   // Los ajustes del workspace llegan con el primer mensaje de la tanda (en la misma ida a la base).
   let settings: GroupsSettings | null = null;
   const batchSettings = async () => (settings ??= await getSettings(ws));
-  const slice = events.slice(0, 200);
+  // Lo que llega con el id de la línea y no es del chat con uno mismo (Meta AI, un lid con el teléfono propio) va a su chat.
+  const slice = routeSelfChat(events.slice(0, 200), number.phone);
   // La libreta del número (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero:
   // así sale con teléfono. Si no, la libreta no cambia cómo se guarda nada y se aprende mientras se guarda el mensaje.
   let batch = slice;
@@ -2966,7 +2969,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
     try {
       if (ev.type === 'message') {
         const isGroup = ev.isGroup || isGroupJid(ev.chatId);
-        let dmName = isGroup ? ev.chatName : ev.fromMe ? undefined : ev.senderName || ev.chatName;
+        // El chat de Meta AI ("@bot") trae su nombre también en lo propio (lib/wa-self-chat.ts).
+        let dmName = isGroup ? ev.chatName : ev.fromMe ? (isBotJid(ev.chatId) ? ev.chatName : undefined) : ev.senderName || ev.chatName;
         // 1:1 con id "@lid" y sin nombre de perfil: un nombre legible en el idioma del workspace (nunca el lid).
         if (!isGroup && !dmName && isLidJid(ev.chatId)) dmName = await lidChatName(ws);
         const at = ev.timestamp && Number.isFinite(Date.parse(ev.timestamp)) ? new Date(ev.timestamp).toISOString() : nowIso();
