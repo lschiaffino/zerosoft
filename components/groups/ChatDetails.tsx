@@ -35,6 +35,16 @@ interface TicketLite {
   breached: boolean;
 }
 
+interface StarredLite {
+  id: string;
+  body: string;
+  name: string;
+  mime: string;
+  sentAt: string;
+  fromMe: boolean;
+  senderName: string;
+}
+
 interface ScheduledLite {
   id: string;
   body: string;
@@ -61,6 +71,8 @@ export default function ChatDetails({
   me = '',
   isAdmin = false,
   compact = false,
+  starredKey = '',
+  onJumpToMessage,
 }: {
   chat: ChatDto;
   onChange: (c: ChatDto) => void;
@@ -77,8 +89,13 @@ export default function ChatDetails({
   /** Quitar un chat de Groups es de admins. */
   isAdmin?: boolean;
   compact?: boolean;
+  /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
+  starredKey?: string;
+  /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
+  onJumpToMessage?: (id: string) => void;
 }) {
   const t = useTranslations('groups');
+  const tsheet = useTranslations('groups.wa.contactSheet');
   const errText = useErrorText();
   const router = useRouter();
   const locale = useLocale();
@@ -86,7 +103,7 @@ export default function ChatDetails({
   const [toast, showToast] = useToast();
   const [members, setMembers] = useState(initialMembers);
   // Un miembro abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1 en la línea.
-  const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true));
+  const personSheet = useLinesPersonSheet(chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   const [activityOpen, setActivityOpen] = useState(false);
   const [props, setProps] = useState<Record<string, unknown>>(chat.properties);
   const [memberBusy, setMemberBusy] = useState(false);
@@ -97,9 +114,22 @@ export default function ChatDetails({
   const [tickets, setTickets] = useState<TicketLite[] | null>(null);
   const [scheduled, setScheduled] = useState<ScheduledLite[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const [name, setName] = useState(chat.name);
   const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
+  // Mensajes destacados del chat, como en la info de WhatsApp (un toque lleva al mensaje).
+  const tstar = useTranslations('groups.wa.contactSheet');
+  const [starred, setStarred] = useState<StarredLite[] | null>(null);
+  useEffect(() => {
+    if (!onJumpToMessage) return;
+    let live = true;
+    void api<{ items: StarredLite[] }>(`/api/groups/chats/${chat.id}?shared=starred`).then((r) => live && setStarred(r.data?.items ?? []));
+    return () => {
+      live = false;
+    };
+    // La función cambia en cada dibujo de la conversación: cuenta solo si está o no.
+  }, [chat.id, starredKey, !!onJumpToMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
   // (una etiqueta, "mantener archivado") trae un chat nuevo con `properties` en otro objeto: depender del objeto
@@ -183,6 +213,18 @@ export default function ChatDetails({
       router.push('/app/lines/list');
       router.refresh();
     }
+  }
+
+  // "Bloquear a X" (chat 1:1): en WhatsApp, por el adaptador de la línea, como en la info del contacto de WhatsApp.
+  async function setBlocked(on: boolean) {
+    setConfirmBlock(false);
+    const res = await api<ChatDto>(`/api/groups/chats/${chat.id}`, { body: { action: on ? 'block' : 'unblock' } });
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      return;
+    }
+    onChange({ ...chat, blocked: !!res.data.blocked });
+    showToast(on ? tsheet('blockedToast', { name: chat.name }) : tsheet('unblockedToast', { name: chat.name }));
   }
 
   const toggleLabel = (id: string) => {
@@ -463,6 +505,32 @@ export default function ChatDetails({
 
       {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
 
+      {onJumpToMessage && (
+        <section className="gr-detail-section" data-testid="chat-starred">
+          <h3 className="gr-detail-title">{tstar('starred')}</h3>
+          {starred === null ? (
+            <p className="ui-help">{t('common.loading')}</p>
+          ) : starred.length === 0 ? (
+            <p className="ui-help">{tstar('empty.starred')}</p>
+          ) : (
+            <ul className="gr-mini-list gr-starred-list">
+              {starred.slice(0, 20).map((m) => (
+                <li key={m.id}>
+                  <button type="button" className="gr-starred-item" data-testid="chat-starred-item" onClick={() => onJumpToMessage(m.id)}>
+                    <span className="ui-help">
+                      {m.fromMe ? tstar('you') : m.senderName || chat.name} · <LocalText>{parseDbUtc(m.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
+                    </span>
+                    <span className="gr-starred-text" dir="auto">
+                      {m.body || m.name || (m.mime.startsWith('image/') ? tstar('photo') : m.mime.startsWith('video/') ? tstar('video') : tstar('document'))}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       <ChatTasksSection chatId={chat.id} people={people} me={me} />
 
       <section className="gr-detail-section">
@@ -514,6 +582,20 @@ export default function ChatDetails({
         </details>
       </section>
 
+      {!isGroup && (chat.canBlock || chat.blocked) && (
+        <section className="gr-detail-section gr-detail-block">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm gr-danger"
+            data-testid="chat-block"
+            data-blocked={chat.blocked ? 'true' : undefined}
+            onClick={() => (chat.blocked ? void setBlocked(false) : setConfirmBlock(true))}
+          >
+            {chat.blocked ? tsheet('unblockName', { name: chat.name }) : tsheet('blockName', { name: chat.name })}
+          </button>
+        </section>
+      )}
+
       <section className="gr-detail-section gr-detail-foot">
         <p className="ui-help"><LocalText>{t('details.since', { time: parseDbUtc(chat.createdAt).toLocaleDateString(locale) })}</LocalText></p>
         {isAdmin && (
@@ -536,6 +618,16 @@ export default function ChatDetails({
         danger
         onConfirm={() => void remove()}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmBlock}
+        title={tsheet('blockTitle', { name: chat.name })}
+        body={tsheet('blockBody', { name: chat.name })}
+        confirmLabel={tsheet('block')}
+        cancelLabel={tsheet('cancel')}
+        danger
+        onConfirm={() => void setBlocked(true)}
+        onCancel={() => setConfirmBlock(false)}
       />
       {personSheet.sheet}
       {toast}

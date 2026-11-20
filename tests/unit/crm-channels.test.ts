@@ -162,6 +162,25 @@ describe('Sync de Outlook', () => {
     expect(await meetingsOf(u.id)).toHaveLength(0);
   });
 
+  it('un evento privado o confidencial de Outlook no llega al timeline (y si estaba, sale)', async () => {
+    const u = await makeUser('ol-private');
+    await createContact(u.id, { firstName: 'Ana', email: FAKE_OUTLOOK_CONTACT });
+    const ev = {
+      id: 'p1',
+      iCalUId: 'ical-private',
+      subject: 'Asunto reservado',
+      start: { dateTime: '2030-01-02T10:00:00' },
+      end: { dateTime: '2030-01-02T11:00:00' },
+      attendees: [{ emailAddress: { address: FAKE_OUTLOOK_CONTACT } }],
+    };
+    expect(await storeOutlookEvent(u.id, u.id, FAKE_OUTLOOK_EMAIL, { ...ev, sensitivity: 'private' })).toBe(false);
+    expect(await meetingsOf(u.id)).toHaveLength(0);
+    expect(await storeOutlookEvent(u.id, u.id, FAKE_OUTLOOK_EMAIL, { ...ev, sensitivity: 'normal' })).toBe(true);
+    expect(await meetingsOf(u.id)).toHaveLength(1);
+    await storeOutlookEvent(u.id, u.id, FAKE_OUTLOOK_EMAIL, { ...ev, sensitivity: 'confidential' });
+    expect(await meetingsOf(u.id)).toHaveLength(0);
+  });
+
   it('sin Gmail, el CRM envía por Outlook, responde en el thread y el sync no duplica', async () => {
     const u = await makeUser('ol-send');
     await connectOutlook(u.id);
