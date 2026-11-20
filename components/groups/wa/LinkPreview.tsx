@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useChatDisplay } from '@/components/chat-style/ChatStyle';
 import { linkImageRatio, linkLayout } from '@/lib/chat-display';
+import { inviteCodeOfUrl, isInviteUrl } from '@/lib/wa-invite';
 import { LinkIcon } from './icons';
+import InviteCard, { type InviteJoin } from './InviteCard';
 import { domainOf, fetchPreview, fromGiven, needsFetch, pickPreview, safeHref, safeImage, type LinkPreviewData } from './link-preview-data';
 
 export type { LinkPreviewData } from './link-preview-data';
@@ -20,7 +22,14 @@ export type { LinkPreviewData } from './link-preview-data';
  * la página y sirve la imagen desde nuestro dominio. Sin título, no se ve.
  * Todo el texto va como texto (React lo escapa); el href es solo http(s).
  */
-export default function LinkPreview({ url, given }: { url: string; given?: LinkPreviewData | null }) {
+export default function LinkPreview({ url, given, join }: { url: string; given?: LinkPreviewData | null; join?: InviteJoin }) {
+  // Un link de invitación a un grupo de WhatsApp tiene su propia tarjeta (foto, nombre, Unirme).
+  // La vista previa que vino con el mensaje vale solo si es de esta misma invitación.
+  if (isInviteUrl(url)) return <InviteCard url={url} given={given && inviteCodeOfUrl(given.url) === inviteCodeOfUrl(url) ? given : null} join={join} />;
+  return <LinkCard url={url} given={given} />;
+}
+
+function LinkCard({ url, given }: { url: string; given?: LinkPreviewData | null }) {
   const { linkPreviews } = useChatDisplay();
   const base = useMemo(() => fromGiven(given), [given]);
   const [fetched, setFetched] = useState<LinkPreviewData | null>(null);

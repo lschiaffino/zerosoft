@@ -144,7 +144,9 @@ function seed(tag: string, jid: (end: string) => string) {
   const a = jid('3');
   const b = jid('4');
   const texts: [string, string, string] = [`Primero ${tag}`, `Segundo ${tag}`, `Tercero ${tag}`];
-  const at = (i: number) => new Date(Date.now() - (10 - i) * 60_000).toISOString();
+  // Hace segundos, no minutos: con la base compartida llena de chats de otros tests, uno de hace 10 minutos
+  // quedaba fuera de la primera página de la lista y la fila no aparecía.
+  const at = (i: number) => new Date(Date.now() - (10 - i) * 1000).toISOString();
   const inMsg = (chatId: string, senderName: string, body: string, i: number, id = `fs-${tag}-${i}`) => ({
     type: 'message',
     chatId,
@@ -232,7 +234,8 @@ for (const width of [1280, 390]) {
         name: 'lines',
         open: async (name) => {
           await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
-          // Con muchos chats de otros tests en la base, el chat puede quedar fuera de la primera página: se busca.
+          // Por el buscador: con muchos chats de otros specs en la misma parte, el chat (de hace 10 min) puede quedar
+          // fuera de la primera página de la lista.
           await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(name);
           await page.locator('.gr-row', { hasText: name }).first().click();
           await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();

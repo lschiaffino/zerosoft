@@ -264,6 +264,8 @@ export interface GraphEvent {
   start?: { dateTime?: string; timeZone?: string };
   end?: { dateTime?: string; timeZone?: string };
   isCancelled?: boolean;
+  /** normal | personal | private | confidential (Outlook: marcar como privado). */
+  sensitivity?: string;
   isOnlineMeeting?: boolean;
   onlineMeeting?: { joinUrl?: string } | null;
   location?: { displayName?: string };
