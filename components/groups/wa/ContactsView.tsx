@@ -10,6 +10,7 @@ import type { ContactHubspot, ContactRowDto, ContactsDto } from '@/lib/groups-co
 import { Modal, api, useErrorText } from '../dialog-kit';
 import Avatar from './Avatar';
 import PersonHubspot from './PersonHubspot';
+import { onGridKeyDown, useGridBox } from '../table-grid';
 
 /** Una línea (Lines) o cuenta (Inbox) para el filtro y las columnas. */
 export interface ContactsLine {
@@ -216,6 +217,9 @@ export default function ContactsView({
   };
   const onRowChange = (row: ContactRowDto) => setData((d) => (d ? { ...d, rows: d.rows.map((r) => (r.id === row.id ? { ...r, hubspot: row.hubspot } : r)) } : d));
   const open = rows.find((r) => r.id === openId) ?? null;
+  // La caja de la tabla (cabecera y nombre fijos al scrollear, como en Grupos).
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useGridBox(wrapRef, [data === null, rows.length > 0, error, data?.truncated, hubspotOn]);
 
   return (
     <div className="wc" data-testid="contacts-view">
@@ -308,11 +312,11 @@ export default function ContactsView({
           product={isLines ? 'groups' : 'inbox'}
         />
       ) : (
-        <div className="table-wrap table-stack wc-wrap">
-          <table className="table gr-table wc-table" aria-label={t('title')} data-testid="contacts-table">
+        <div className="table-wrap table-stack wc-wrap gr-grid-wrap" ref={wrapRef} data-testid="contacts-table-wrap">
+          <table className="table gr-table wc-table gr-grid" aria-label={t('title')} data-testid="contacts-table" onKeyDown={onGridKeyDown}>
             <thead>
               <tr>
-                <th>{t('colName')}</th>
+                <th className="gr-grid-pin gr-grid-pin-last">{t('colName')}</th>
                 <th>{isLines ? t('colLines') : t('colAccounts')}</th>
                 <th>{t('colGroups')}</th>
                 <th>{t('colLast')}</th>
@@ -325,7 +329,7 @@ export default function ContactsView({
                 const [firstLine, ...moreLines] = r.lines;
                 return (
                   <tr key={r.id} data-testid="contact-row" data-person={r.id}>
-                    <td className="wc-namecell">
+                    <td className="wc-namecell gr-grid-pin gr-grid-pin-last">
                       <button type="button" className="wc-name" onClick={() => setOpenId(r.id)} aria-label={t('open', { name })} data-testid="contact-open">
                         <Avatar name={r.name || r.phone} kind="dm" src={r.picture || undefined} size={32} seed={r.id} />
                         <span className="wc-name-text">
