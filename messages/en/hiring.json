@@ -279,7 +279,11 @@
       "position_filled": "Position filled",
       "withdrew": "Candidate withdrew",
       "no_response": "No response"
-    }
+    },
+    "pickReason": "Choose a reason",
+    "noReason": "No reason",
+    "otherReason": "Other…",
+    "otherLabel": "Write the reason"
   },
   "profile": {
     "deleteData": "Delete candidate data",
@@ -505,7 +509,9 @@
     "rejectReasons": "Rejection reasons",
     "noRejections": "No rejections in this period.",
     "reasonKnockout": "Knock-out question",
-    "reasonNone": "No reason given"
+    "reasonNone": "No reason given",
+    "csv": "Download CSV",
+    "downloadNamed": "Download {name} as CSV"
   },
   "settings": {
     "title": "Hiring settings",
@@ -548,7 +554,16 @@
       "restored": "{name} is back in Hiring.",
       "conflict": "This candidate cannot be restored.",
       "restoreError": "Could not restore the candidate."
-    }
+    },
+    "rejectReasons": "Rejection reasons",
+    "rejectReasonsHelp": "The list people pick from when they reject a candidate. Reports group rejections by these reasons. They can still pick Other and write one.",
+    "reasonN": "Reason {n}",
+    "removeReason": "Remove {name}",
+    "noReasons": "No reasons in the list: people write one when they reject.",
+    "newReason": "New reason",
+    "addReason": "Add reason",
+    "resetReasons": "Go back to the default reasons",
+    "requireReason": "Ask for a reason to reject a candidate"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",

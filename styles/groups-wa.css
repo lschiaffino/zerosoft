@@ -415,13 +415,16 @@
   border: 0; border-left: 4px solid var(--wa-primary); border-radius: 6px; cursor: pointer; white-space: normal;
 }
 .gr-inbox .gr-msg-out .gr-quote { background: var(--wa-quote-out); }
-/* La cita no ensancha la burbuja, como en WhatsApp: el ancho lo pone el mensaje (texto, audio, foto) y la cita se
-   acomoda a ese ancho en hasta 3 renglones. Con un mensaje corto ("ok"), la burbuja toma un ancho mínimo para que la
-   cita se lea. En la barra de respuesta del composer (.wa-replying) la cita sigue ocupando su lugar. */
-.gr-inbox .gr-bubble > .gr-quote { contain: inline-size; box-sizing: border-box; }
-.gr-inbox .gr-bubble:has(> .gr-quote) { min-width: min(260px, 100%); }
+/* La cita y el ancho de la burbuja, como en WhatsApp: la cita ensancha la burbuja hasta el ancho de su texto, pero
+   no más de 400px; si el mensaje es más ancho, la cita ocupa todo el ancho. Así una cita corta se lee en un renglón
+   aunque la respuesta sea "ok", y una larga no estira la burbuja hasta el borde: baja de renglón (hasta 3, con "…").
+   El tope va en el texto (no en la cita): limita cuánto empuja sin impedir que la cita llene una burbuja más ancha. */
+.gr-inbox .gr-bubble > .gr-quote { box-sizing: border-box; }
+.gr-inbox .gr-bubble > .gr-quote > span, .gr-inbox .gr-bubble > .gr-quote > strong { max-width: 400px; }
 .gr-inbox .gr-quote strong { font-size: var(--wa-fs-small); font-weight: 500; color: var(--wa-primary-ink); }
-.gr-inbox .gr-quote span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* Solo el hijo directo: RichText arma el texto con <span> por tramo (negrita, cursiva, menciones) y, con `span` a secas,
+   cada tramo era un bloque propio: la cita medía lo que su tramo más ancho y partía el renglón en cada uno. */
+.gr-inbox .gr-quote > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .gr-inbox .gr-quote.wa-q-me { border-left-color: #06cf9c; }
 .gr-inbox .gr-quote.wa-q-me strong { color: #06a07f; }
 .gr-inbox .gr-quote.wa-q-them { border-left-color: #53bdeb; }
@@ -1527,23 +1530,27 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 
 /* ---------- Foto o video con texto, como WhatsApp: la foto define el ancho de la burbuja ----------
    El texto, el nombre y la cita no ensanchan la burbuja (contain: inline-size): ocupan el ancho de la
-   foto y se acomodan debajo. La foto va al ras de los bordes, con las esquinas de la burbuja. */
-.gr-inbox .gr-bubble.is-media { padding: 0; }
+   foto y se acomodan debajo. La burbuja deja un marquito de 3px alrededor de la foto (como WhatsApp Web):
+   sin él, el globito de reacciones quedaba colgando de la esquina de la foto, sin borde de burbuja donde apoyarse. */
+.gr-inbox .gr-bubble.is-media { padding: 3px; }
 .gr-inbox .gr-bubble.is-media > :is(.gr-msg-author, .gr-forwarded, .gr-quote, .wa-text, .gr-translation, .wa-tags, .wa-deleted) { contain: inline-size; }
-.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 28px 3px 8px; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 2px 25px 3px 5px; overflow: hidden; }
 .gr-inbox .gr-bubble.is-media > .gr-msg-author .wa-author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 4px 7px 2px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 1px 4px 2px 5px; }
 /* La cita es un <button>: con width:auto se achica a su contenido, y con contain: inline-size ese ancho es 0
-   (el nombre salía letra por letra). Ocupa el ancho de la foto menos el margen. */
-.gr-inbox .gr-bubble.is-media > .gr-quote { display: flex; box-sizing: border-box; margin: 3px; width: calc(100% - 6px); }
-.gr-inbox .gr-bubble.is-media > .wa-text { padding: 5px 7px 7px 8px; }
-.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 7px 6px 8px; }
-.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: inherit; overflow: hidden; }
-.gr-inbox .gr-bubble.is-media > .gr-media:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
-.gr-inbox .gr-bubble.is-media > .gr-media:has(~ :is(.wa-text, .gr-translation, .wa-tags)) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+   (el nombre salía letra por letra). Ocupa el ancho de la foto. */
+.gr-inbox .gr-bubble.is-media > .gr-quote { display: flex; box-sizing: border-box; margin: 0 0 3px; width: 100%; }
+.gr-inbox .gr-bubble.is-media > .wa-text { padding: 2px 4px 4px 5px; }
+.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 4px 3px 5px; }
+.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: 6px; overflow: hidden; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media > .gr-media { border-radius: var(--radius-1); }
 .gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album, .wa-media-ph) { border-radius: 0; }
-.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { right: 0; bottom: 0; left: 0; border-radius: 0 0 7.5px 7.5px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0 0 var(--radius-1) var(--radius-1); }
+/* Reacción sobre una foto o un video sin texto: el globito se monta sobre el borde de abajo de la burbuja, mitad
+   adentro y mitad afuera, con el anillo del color del fondo del chat (como WhatsApp Web). Va después de la burbuja.
+   La hora y los tildes suben un poco para que el globito (a la derecha en los mensajes propios) no los tape. */
+.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) ~ .gr-reactions { margin-top: -11px; }
+.gr-inbox .gr-msg.has-reactions .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { box-sizing: border-box; height: 34px; padding-bottom: 8px; }
 
 /* Archivo que se está mandando (components/groups/wa/UploadRing.tsx): sobre una foto o un video, un anillo fino con el
    avance de la subida; en una nota de voz o un documento, una línea fina abajo. */

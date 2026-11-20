@@ -225,9 +225,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['For those who manage both jobs', 'Para quien gestiona los dos puestos', 'Para quem gerencia as duas vagas'],
     }),
-    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'partial', {
+    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'have', {
       weight: 2,
-      detail: ['A suggested list or your own text, and a report per reason. The reason is optional and the list cannot be edited', 'Una lista sugerida o tu propio texto, y un reporte por motivo. El motivo es opcional y la lista no se edita', 'Uma lista sugerida ou seu próprio texto, e um relatório por motivo. O motivo é opcional e a lista não se edita'],
+      detail: ['An admin edits the list in Settings and can make a reason required; people pick one or write another, and Reports counts rejections per reason', 'Un admin edita la lista en Ajustes y puede hacer obligatorio el motivo; se elige uno o se escribe otro, e Informes cuenta los rechazos por motivo', 'Um admin edita a lista em Ajustes e pode tornar o motivo obrigatório; escolhe-se um ou escreve-se outro, e Relatórios conta as recusas por motivo'],
     }),
     row('interview-kits', 'evaluation', ['Interview guides per stage', 'Guías de entrevista por etapa', 'Guias de entrevista por etapa'], 'have', {
       weight: 2,
@@ -363,8 +363,8 @@ const parity: ProductParity = {
     }),
     row('saved-reports', 'reports', ['Saved reports', 'Reportes guardados', 'Relatórios salvos'], 'missing'),
     row('custom-dashboards', 'reports', ['Custom dashboards', 'Dashboards a medida', 'Painéis personalizados'], 'missing'),
-    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'partial', {
-      detail: ['A CSV of candidates, not of each report. Built; not yet walked end to end in a browser for each role', 'Un CSV de candidatos, no de cada reporte. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Um CSV de candidatos, não de cada relatório. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'have', {
+      detail: ['Each report (funnel, sources, rejection reasons, open jobs) in CSV with the period and job you chose, plus a CSV of candidates. No PDF', 'Cada reporte (embudo, fuentes, motivos de rechazo, puestos abiertos) en CSV con el período y el puesto elegidos, más un CSV de candidatos. Sin PDF', 'Cada relatório (funil, origens, motivos de recusa, vagas abertas) em CSV com o período e a vaga escolhidos, mais um CSV de candidatos. Sem PDF'],
     }),
     row('report-sharing', 'reports', ['Report sharing', 'Compartir reportes', 'Compartilhar relatórios'], 'missing'),
     row('governed-sharing', 'reports', ['Governed report sharing', 'Compartir gobernado', 'Compartilhamento governado'], 'missing'),

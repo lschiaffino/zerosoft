@@ -59,12 +59,18 @@ export default function CalendarView({ posts, view, anchor, tz, today }: { posts
     return map;
   }, [posts, tz, moving]);
 
-  const title = new Intl.DateTimeFormat(locale, view === 'month' ? { month: 'long', year: 'numeric' } : { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${view === 'month' ? `${y}-${String(m).padStart(2, '0')}-15` : days[0]}T12:00:00Z`));
+  // Mes: "noviembre de 2026". Semana: el rango entero ("16–22 nov 2026"), no solo el lunes.
+  // Los espacios finos del rango cambian entre el ICU de Node y el del navegador: se normalizan para que hidrate igual.
+  const title = (
+    view === 'month'
+      ? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${y}-${String(m).padStart(2, '0')}-15T12:00:00Z`))
+      : new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).formatRange(new Date(`${days[0]}T12:00:00Z`), new Date(`${days[6] ?? days[0]}T12:00:00Z`))
+  ).replace(/[   ]/g, ' ');
   const prev = view === 'month' ? addDays(`${y}-${String(m).padStart(2, '0')}-01`, -1).slice(0, 8) + '01' : addDays(anchor, -7);
   const next = view === 'month' ? addDays(`${y}-${String(m).padStart(2, '0')}-28`, 7).slice(0, 8) + '01' : addDays(anchor, 7);
   const href = (date: string, v = view) => `/app/social?view=${v}&date=${date}`;
   const weekdays = days.slice(0, 7).map((d) => new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`)));
-  const time = (iso: string) => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone: tz }).format(new Date(iso));
+  const time = (iso: string) => new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone: tz }).format(new Date(iso));
 
   async function move(post: PostDto, day: string) {
     const from = dayKey(when(post), tz);

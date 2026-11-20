@@ -355,7 +355,7 @@ test('Hiring: cadena de aprobación, confidencial, importar, copiar, fusionar y 
     const rejected = (await (await request.post('/api/hiring/applications', { data: { jobId, name: `Rej ${uid()}`, email: `rej-${uid()}@x.co` } })).json()) as { candidateId: string };
     await page.goto(`/en/app/hiring/candidates/${rejected.candidateId}`, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Reject', exact: true }).click();
-    await page.getByRole('dialog').getByLabel('Reason (internal)').fill('Salary expectations');
+    await page.getByRole('dialog').getByTestId('hr-reject-reason').selectOption('Salary expectations');
     await page.getByRole('dialog').getByRole('checkbox').first().uncheck();
     await dialogButton(page, 'Reject').click();
     await page.goto('/en/app/hiring/reports', { waitUntil: 'networkidle' });

@@ -3889,5 +3889,277 @@
     "allPipelines": "Todos los pipelines",
     "emptyTitle": "No hay deals ni actividad en este período",
     "emptyBody": "Creá un deal o registrá una actividad y los números aparecen acá."
+  },
+  "hubspotSync": {
+    "title": "Sync con HubSpot",
+    "desc": "Usá zerosoft y HubSpot a la par mientras tu equipo se pasa. Conectá tu cuenta de HubSpot y mirá qué haría un sync antes de que cambie nada.",
+    "loading": "Cargando la conexión con HubSpot…",
+    "loadError": "No pudimos cargar la conexión con HubSpot.",
+    "retry": "Reintentar",
+    "off": {
+      "title": "El sync está apagado",
+      "body": "Desde acá todavía no se escribe nada en HubSpot ni en tu CRM. Prender el sync llega en una próxima actualización. Por ahora podés conectar la cuenta y correr la vista previa."
+    },
+    "connect": {
+      "title": "Cuenta de HubSpot",
+      "intro": "Conectá la cuenta de HubSpot que usa tu equipo. Revisamos la clave y mostramos qué puede hacer. Conectar no copia ni cambia ningún registro.",
+      "linesBody": "Este workspace ya conectó HubSpot en Lines. Podés usar esa misma clave acá sin volver a pegarla.",
+      "linesCta": "Usar la clave conectada en Lines",
+      "scopesNow": "Permisos que hacen falta ahora, para leer",
+      "scopesLater": "Hacen falta después, para escribir en HubSpot",
+      "keyLabel": "Service key o token de private app",
+      "keyHelp": "La clave se guarda cifrada y no se vuelve a mostrar.",
+      "cta": "Conectar HubSpot",
+      "checking": "Revisando la clave…",
+      "writeLater": "Leer y la vista previa funcionan con esta clave. Los permisos que le faltan recién hacen falta después, cuando el sync escriba en HubSpot. Se los podés sumar a la clave en ese momento.",
+      "fromLines": "Usa la clave conectada en Lines.",
+      "checked": "Última revisión",
+      "recheck": "Revisar de nuevo",
+      "replace": "Cambiar la clave",
+      "cancelReplace": "Dejar la clave actual",
+      "disconnect": "Desconectar",
+      "disconnectTitle": "Desconectar HubSpot",
+      "disconnectBody": "Se borra la clave guardada y se descarta la vista previa. Tus registros en zerosoft y en HubSpot quedan como están.",
+      "keep": "Seguir conectado",
+      "disconnectConfirm": "Desconectar HubSpot",
+      "writeUnknown": "Todavía no podemos confirmar el permiso de escritura: HubSpot no dio una respuesta clara al revisarlo. Recién hace falta cuando el sync escriba en HubSpot. Revisá la clave de nuevo en ese momento."
+    },
+    "errors": {
+      "invalid_token": "HubSpot no aceptó esa clave. Copiala de nuevo y fijate que sea de la cuenta correcta.",
+      "missing_scope": "A la clave le falta un permiso de lectura. Agregá los permisos de la lista y probá de nuevo.",
+      "provider_error": "No pudimos llegar a HubSpot. Probá de nuevo en un minuto.",
+      "hubspot_busy": "HubSpot está limitando los pedidos en este momento. Probá de nuevo en un minuto.",
+      "lines_not_connected": "Ya no hay una clave de HubSpot conectada en Lines. Pegá una clave acá.",
+      "not_connected": "Primero conectá HubSpot.",
+      "rate_limited": "Demasiados intentos. Probá de nuevo en una hora.",
+      "forbidden": "Solo los admins del workspace pueden hacer esto.",
+      "invalid_input": "Revisá la clave y probá de nuevo.",
+      "portal_changed": "La clave conectada ahora entra a otra cuenta de HubSpot. Desconectala y conectala de nuevo antes de correr una vista previa.",
+      "key_invalid": "HubSpot ya no acepta la clave conectada. Reemplazala antes de correr una vista previa."
+    },
+    "keyProblems": {
+      "invalid_token": "HubSpot ya no acepta esta clave. Cambiala.",
+      "missing_scope": "Esta clave perdió un permiso de lectura que necesita. Sumáselo en HubSpot y revisá de nuevo.",
+      "portal_changed": "Esta clave ahora abre otra cuenta de HubSpot. Desconectá y volvé a conectar.",
+      "provider_error": "No pudimos llegar a HubSpot en la última revisión.",
+      "hubspot_busy": "HubSpot estaba limitando los pedidos en la última revisión. Probá más tarde."
+    },
+    "preview": {
+      "title": "Ver qué haría un sync",
+      "desc": "La vista previa lee los dos lados y los compara: qué ya coincide, qué se crearía de cada lado, qué se actualizaría y qué tiene que decidir una persona. Solo lee.",
+      "run": "Correr la vista previa",
+      "again": "Correr la vista previa de nuevo",
+      "starting": "Arrancando…",
+      "cancel": "Cancelar la vista previa",
+      "cancelled": "La vista previa se canceló. No se cambió nada."
+    },
+    "failures": {
+      "not_connected": "HubSpot ya no está conectado.",
+      "portal_changed": "La cuenta de HubSpot conectada cambió mientras corría la vista previa. Correla de nuevo.",
+      "forbidden": "Quien arrancó esta vista previa ya no es admin del workspace.",
+      "invalid_token": "HubSpot dejó de aceptar la clave. Cambiala y corré la vista previa de nuevo.",
+      "missing_scope": "A la clave le falta un permiso de lectura. Sumáselo en HubSpot, revisá la clave y corré la vista previa de nuevo.",
+      "hubspot_busy": "HubSpot siguió limitando los pedidos y la vista previa se detuvo. Correla de nuevo más tarde.",
+      "network": "Perdimos la conexión con HubSpot varias veces y la vista previa se detuvo. Correla de nuevo.",
+      "provider_error": "HubSpot devolvió un error varias veces y la vista previa se detuvo. Correla de nuevo.",
+      "internal_error": "Algo falló de nuestro lado y la vista previa se detuvo. Correla de nuevo.",
+      "stalled": "La vista previa se cortó varias veces seguidas sin terminar un tramo. Correla de nuevo."
+    },
+    "progress": {
+      "label": "Avance de la vista previa",
+      "stage": {
+        "schema": "Leyendo owners, pipelines y propiedades…",
+        "contacts": "Leyendo contactos de HubSpot…",
+        "companies": "Leyendo empresas de HubSpot…",
+        "deals": "Leyendo deals de HubSpot…",
+        "compare": "Comparando los dos lados…"
+      },
+      "waiting": "HubSpot llegó a su límite diario de pedidos. La vista previa sigue más tarde con lo que ya leyó.",
+      "resume": "Próximo intento",
+      "read": "{n} leídos",
+      "readOf": "{n} de {total} leídos",
+      "leave": "Podés salir de esta página. La vista previa sigue corriendo y el resultado va a estar acá cuando vuelvas."
+    },
+    "objects": {
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals"
+    },
+    "stats": {
+      "hubspot": "En HubSpot",
+      "zerosoft": "En zerosoft",
+      "linked": "Ya vinculados",
+      "matched": "Se vincularían",
+      "create_zerosoft": "Nuevos en zerosoft",
+      "create_hubspot": "Nuevos en HubSpot",
+      "update": "Se actualizarían",
+      "review": "Para revisar"
+    },
+    "report": {
+      "nothingWritten": "No se escribió nada. Esto es solo lo que haría un sync.",
+      "ranAt": "Vista previa terminada",
+      "dealsNote": "Los deals no tienen email ni dominio para emparejar. Un deal cuenta como vinculado solo si se importó desde esta cuenta de HubSpot.",
+      "updateDetail": "Pares donde los dos lados tienen un valor distinto: {conflicting}. HubSpot cambió último: {hubspot}. zerosoft cambió último: {zerosoft}.",
+      "differs": "Distinto de los dos lados: {fields}",
+      "fills": "Vacío de un lado: {fields}",
+      "newer": {
+        "hubspot": "HubSpot cambió último",
+        "zerosoft": "zerosoft cambió último"
+      },
+      "openHere": "Abrir en zerosoft",
+      "openHubspot": "Abrir en HubSpot",
+      "unnamed": "(sin nombre)",
+      "sampleNote": "Se muestran los primeros {shown}.",
+      "more": "Y {n} más.",
+      "incomplete": "Este informe está incompleto en {objects}: HubSpot devolvió un registro sin fecha de modificación y la lectura no pudo seguir después de él. Los números cuentan solo lo leído hasta ahí."
+    },
+    "buckets": {
+      "matched": {
+        "title": "Se vincularían",
+        "contacts": "Un contacto de HubSpot y uno de zerosoft tienen el mismo email. El sync los trataría como la misma persona.",
+        "companies": "Una empresa de HubSpot y una de zerosoft tienen el mismo dominio. El sync las trataría como la misma empresa.",
+        "deals": "Los deals nunca se emparejan por nombre."
+      },
+      "create_zerosoft": {
+        "title": "Se crearían en zerosoft",
+        "contacts": "Estos contactos están en HubSpot y ningún contacto de zerosoft tiene su email.",
+        "companies": "Estas empresas están en HubSpot y ninguna empresa de zerosoft tiene su dominio.",
+        "deals": "Estos deals están en HubSpot y no están vinculados a un deal de zerosoft."
+      },
+      "create_hubspot": {
+        "title": "Se crearían en HubSpot",
+        "contacts": "Estos contactos están en zerosoft y ningún contacto de HubSpot tiene su email.",
+        "companies": "Estas empresas están en zerosoft y ninguna empresa de HubSpot tiene su dominio.",
+        "deals": "Estos deals están en zerosoft y no están vinculados a un deal de HubSpot."
+      },
+      "update": {
+        "title": "Se actualizarían",
+        "contacts": "El mismo contacto de los dos lados, con un valor distinto en al menos un campo estándar. Los valores de los campos personalizados todavía no se comparan.",
+        "companies": "La misma empresa de los dos lados, con un valor distinto en al menos un campo estándar. Los valores de los campos personalizados todavía no se comparan.",
+        "deals": "El mismo deal de los dos lados, con un valor distinto en al menos un campo estándar. Los valores de los campos personalizados todavía no se comparan."
+      },
+      "linked": {
+        "title": "Ya vinculados",
+        "contacts": "Estos contactos vinieron de HubSpot en un import, así que cada uno ya sabe cuál es su par.",
+        "companies": "Estas empresas vinieron de HubSpot en un import, así que cada una ya sabe cuál es su par.",
+        "deals": "Estos deals vinieron de HubSpot en un import, así que cada uno ya sabe cuál es su par."
+      },
+      "multi_hubspot": {
+        "title": "Más de uno en HubSpot",
+        "contacts": "Dos o más contactos de HubSpot apuntan al mismo contacto de zerosoft. Alguien tiene que decir cuál es el par.",
+        "companies": "Dos o más empresas de HubSpot comparten dominio, o apuntan a la misma empresa de zerosoft. HubSpot permite dominios repetidos, así que alguien tiene que decir cuál es el par.",
+        "deals": "Dos o más deals de HubSpot están vinculados al mismo deal de zerosoft."
+      },
+      "multi_zerosoft": {
+        "title": "Más de uno en zerosoft",
+        "contacts": "Un contacto de HubSpot coincide con varios contactos de zerosoft con el mismo email. Fusionalos antes en Contactos › Duplicados.",
+        "companies": "Una empresa de HubSpot coincide con varias empresas de zerosoft con el mismo dominio. Fusionalas antes.",
+        "deals": "Un deal de HubSpot coincide con varios deals de zerosoft."
+      },
+      "duplicate_zerosoft": {
+        "title": "Repetidos en zerosoft",
+        "contacts": "Estos contactos de zerosoft tienen un email que también está en HubSpot, pero no se pudo decidir el par: acá lo tiene más de un contacto, o el contacto de HubSpot está vinculado a otro.",
+        "companies": "Estas empresas de zerosoft tienen un dominio que también está en HubSpot, pero no se pudo decidir el par: acá lo tiene más de una empresa, o la empresa de HubSpot está vinculada a otra.",
+        "deals": "Estos deals de zerosoft repiten un deal que ya tiene par en HubSpot."
+      },
+      "conflict": {
+        "title": "Vinculado a uno, con el email de otro",
+        "contacts": "El contacto está vinculado a un contacto de zerosoft, pero su email en HubSpot ahora es de otro.",
+        "companies": "La empresa está vinculada a una empresa de zerosoft, pero su dominio es de otra.",
+        "deals": "El deal está vinculado a un deal de zerosoft, pero parece otro."
+      },
+      "no_key_hubspot": {
+        "title": "En HubSpot, sin con qué emparejar",
+        "contacts": "Estos contactos de HubSpot no tienen email, así que no se pueden emparejar solos con nadie.",
+        "companies": "Estas empresas de HubSpot no tienen dominio, así que no se pueden emparejar solas.",
+        "deals": "Estos deals de HubSpot no se pueden emparejar solos."
+      },
+      "no_key_zerosoft": {
+        "title": "En zerosoft, sin con qué emparejar",
+        "contacts": "Estos contactos de zerosoft no tienen email, así que no se pueden emparejar solos con nadie.",
+        "companies": "Estas empresas de zerosoft no tienen dominio, así que no se pueden emparejar solas.",
+        "deals": "Estos deals de zerosoft no se pueden emparejar solos."
+      },
+      "gone_hubspot": {
+        "title": "Vinculados, pero no están en HubSpot",
+        "contacts": "Estos contactos se importaron de HubSpot y HubSpot ya no devuelve su par. Puede que se haya borrado allá, o que el import haya sido de otra cuenta.",
+        "companies": "Estas empresas se importaron de HubSpot y HubSpot ya no devuelve su par. Puede que se haya borrado allá, o que el import haya sido de otra cuenta.",
+        "deals": "Estos deals se importaron de HubSpot y HubSpot ya no devuelve su par. Puede que se haya borrado allá, o que el import haya sido de otra cuenta."
+      }
+    },
+    "schema": {
+      "title": "Owners, pipelines y propiedades",
+      "desc": "Qué coincide entre las dos cuentas y qué todavía no tiene equivalente.",
+      "owners": {
+        "title": "Owners",
+        "count": "{matched} de {total} emparejados",
+        "desc": "Un owner de HubSpot se empareja con la persona de este workspace que tiene el mismo email. Un registro no puede conservar su owner al sincronizar hasta que esa persona esté en los dos lados.",
+        "hubspotOnly": "Owners de HubSpot sin una persona acá ({n})",
+        "zerosoftOnly": "Personas de acá sin un owner en HubSpot ({n})",
+        "archived": "Owners desactivados en HubSpot, sin emparejar: {n}."
+      },
+      "pipelines": {
+        "title": "Pipelines y etapas",
+        "count": "{matched} de {total} emparejados",
+        "desc": "Un pipeline de HubSpot se empareja con el que se importó de él o con el que tiene el mismo nombre. Las etapas se emparejan igual, dentro de ese pipeline.",
+        "matched": "coincide con {name}",
+        "unmatched": "sin equivalente en zerosoft",
+        "stagesMissing": "Etapas sin equivalente: {stages}",
+        "zerosoftOnly": "Pipelines de zerosoft sin equivalente en HubSpot",
+        "zerosoftOnlyStages": "Etapas de zerosoft sin equivalente en HubSpot"
+      },
+      "properties": {
+        "title": {
+          "contacts": "Propiedades de contactos",
+          "companies": "Propiedades de empresas",
+          "deals": "Propiedades de deals"
+        },
+        "count": "{n} sin par",
+        "standard": "Campos estándar que se emparejan ({n}): {fields}.",
+        "readOnly": "HubSpot no deja escribir estos, así que solo viajarían de HubSpot a zerosoft: {fields}.",
+        "customMatched": "Propiedades propias que ya tienen un campo personalizado en zerosoft: {n}.",
+        "hubspotOnly": "Propiedades propias de HubSpot sin campo en zerosoft ({n})",
+        "zerosoftOnly": "Campos personalizados de zerosoft sin propiedad en HubSpot ({n})",
+        "standardOnly": "Campos de zerosoft que no tienen lugar en HubSpot: {fields}.",
+        "builtIn": "Propiedades internas de HubSpot (analítica, calculadas y ocultas) que no se tocan: {n}."
+      }
+    },
+    "fields": {
+      "first_name": "Nombre",
+      "last_name": "Apellido",
+      "email": "Email",
+      "phone": "Teléfono",
+      "job_title": "Cargo",
+      "website": "Sitio web",
+      "city": "Ciudad",
+      "country": "País",
+      "lifecycle_stage": "Etapa del ciclo de vida",
+      "lead_status": "Estado del lead",
+      "owner_id": "Owner",
+      "name": "Nombre",
+      "domain": "Dominio",
+      "industry": "Industria",
+      "employees": "Empleados",
+      "stage_id": "Etapa",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "close_date": "Fecha de cierre",
+      "description": "Descripción"
+    },
+    "localFields": {
+      "source": "Fuente",
+      "tags": "Etiquetas",
+      "score": "Puntaje del lead",
+      "description": "Descripción",
+      "priority": "Prioridad"
+    },
+    "limits": {
+      "title": "Lo que esta vista previa no revisa",
+      "custom": "Los valores de los campos personalizados. Dice qué propiedades propias tienen par y compara solo los campos estándar.",
+      "activities": "Notas, llamadas, reuniones, tareas y emails del timeline.",
+      "associations": "Qué contactos son de qué empresa o deal.",
+      "archived": "Registros borrados en HubSpot.",
+      "moment": "Es una foto del momento en que corrió. Correla de nuevo después de cambiar cosas."
+    }
   }
 }

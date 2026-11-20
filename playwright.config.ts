@@ -56,6 +56,7 @@ export default defineConfig({
       // Sin AI real: .env.local puede traer un VERCEL_OIDC_TOKEN y el resultado
       // dependería de la máquina (y de los créditos del Gateway).
       // Import de CRM contra el proveedor falso (lib/crm-import-fake.ts, token "fake").
+      // El sync del CRM con HubSpot usa el mismo flag: la cuenta falsa de lib/hubspot/fake-portal.ts (claves "pat-…").
       CRM_IMPORT_FAKE: '1',
       // Notion por API contra el workspace falso (token "fake-notion"): hub de importación.
       NOTION_IMPORT_FAKE: '1',
@@ -81,6 +82,8 @@ export default defineConfig({
       // Integraciones de Groups (Slack, Freshdesk, Zoho Desk, HubSpot) contra el servidor falso y push web en memoria.
       GROUPS_INTEGRATIONS_FAKE: '1',
       GROUPS_PUSH_FAKE: '1',
+      // Lines › Ajustes › Migrar por API: una cuenta de Periskope simulada sobre los chats del workspace (lib/groups-periskope-fake.ts).
+      GROUPS_PERISKOPE_FAKE: '1',
       // Pestaña GIFs de Lines e Inbox con GIFs de prueba (lib/wa-gifs.ts); la cookie wa_gifs_fake=off muestra el estado sin clave.
       GROUPS_GIFS_FAKE: '1',
       // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.

@@ -18,7 +18,7 @@ export const QUEUED_HEADER = 'x-zs-queued';
 /** Evento de window: un cambio quedó en la cola (detail: { url }). */
 export const QUEUED_EVENT = 'zs:offline-queued';
 
-/** Rutas que nunca se encolan: mandan email, suben archivos o son largas. */
+/** Rutas que nunca se encolan: mandan email, suben archivos, son largas o llevan una clave de un tercero. */
 export const NEVER_QUEUE = [
   '/api/crm/emails',
   '/api/crm/import',
@@ -28,6 +28,7 @@ export const NEVER_QUEUE = [
   '/api/crm/search',
   '/api/crm/voice',
   '/api/crm/calls',
+  '/api/crm/hubspot-sync',
 ] as const;
 
 /** APIs que aceptan encolar cuando la página lo pide (header x-zs-offline, lib/offline-fetch.ts). */
