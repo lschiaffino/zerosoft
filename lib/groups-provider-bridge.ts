@@ -36,6 +36,7 @@ import {
   errorFromStatus,
   hmacHex,
   isGroupJid,
+  isBotJid,
   isLidJid,
   lidDigits,
   phoneDigits,
@@ -689,8 +690,8 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
   ERROR: 'failed',
 };
 
-/** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). */
-const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage'];
+/** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). botInvokeMessage: lo que contesta Meta AI. */
+const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage', 'botInvokeMessage'];
 
 /** Saca los envoltorios (mensajes temporales, "ver una vez", documento con texto). */
 function unwrapBaileys(message: Json): { message: Json; viewOnce: boolean } {
@@ -923,6 +924,20 @@ function inboundEvolutionMedia(
   };
 }
 
+/**
+ * Un mensaje de una conversación con Meta AI (un "@bot"): WhatsApp lo marca con botMetadata o botMessageSecret en
+ * messageContextInfo, lo envuelve en botInvokeMessage, o (historial) trae botMessageInvokerJid / botTargetId. Un
+ * mensaje reenviado de Meta AI a otro chat no cuenta (lleva forwardedAiBotMessageInfo, no estas marcas).
+ */
+export function isBotTraffic(m: Json): boolean {
+  if (isBotJid(String(((m.key ?? {}) as Json).remoteJid ?? ''))) return true;
+  const msg = (m.message ?? {}) as Json;
+  const ctx = (msg.messageContextInfo ?? m.messageContextInfo ?? {}) as Json;
+  if ((ctx.botMetadata && typeof ctx.botMetadata === 'object') || ctx.botMessageSecret) return true;
+  if (msg.botInvokeMessage && typeof msg.botInvokeMessage === 'object') return true;
+  return (typeof m.botMessageInvokerJid === 'string' && m.botMessageInvokerJid !== '') || (typeof m.botTargetId === 'string' && m.botTargetId !== '');
+}
+
 /** Estado de entrega de un mensaje guardado por Evolution (status o el último MessageUpdate). */
 function storedStatus(m: Json): 'sent' | 'delivered' | 'read' | undefined {
   const rank = { sent: 1, delivered: 2, read: 3 } as const;
@@ -1021,6 +1036,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(content.mentions?.length ? { mentions: content.mentions } : {}),
     ...(senderLid ? { senderLid } : {}),
     ...(chatLid ? { chatLid } : {}),
+    ...(!isGroup && isBotTraffic(m) ? { bot: true } : {}),
   };
   return [out];
 }
