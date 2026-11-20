@@ -82,6 +82,8 @@ export default defineConfig({
       // Integraciones de Groups (Slack, Freshdesk, Zoho Desk, HubSpot) contra el servidor falso y push web en memoria.
       GROUPS_INTEGRATIONS_FAKE: '1',
       GROUPS_PUSH_FAKE: '1',
+      // Lines › Ajustes › Migrar por API: una cuenta de Periskope simulada sobre los chats del workspace (lib/groups-periskope-fake.ts).
+      GROUPS_PERISKOPE_FAKE: '1',
       // Pestaña GIFs de Lines e Inbox con GIFs de prueba (lib/wa-gifs.ts); la cookie wa_gifs_fake=off muestra el estado sin clave.
       GROUPS_GIFS_FAKE: '1',
       // Los e2e del cron (/api/cron/minute) mandan este Bearer: sin él, next start se niega a correrlo.
