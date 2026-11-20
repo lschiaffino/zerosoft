@@ -350,7 +350,13 @@
     "failed": "O modelo parou de responder antes que eu pudesse terminar.",
     "pending": "{count, plural, one {Há uma mudança esperando sua confirmação no cartão acima.} other {Há # mudanças esperando sua confirmação nos cartões acima.}}",
     "nothingPending": "Ainda não cheguei a preparar nenhuma mudança.",
-    "next": "Diga se devo continuar ou o que ajustar."
+    "next": "Diga se devo continuar ou o que ajustar.",
+    "limit": "Cheguei ao limite de {steps} passos para este pedido."
+  },
+  "stepLimit": {
+    "notice": "Chegou ao limite de {steps} passos por pedido.",
+    "continue": "Continuar",
+    "message": "Continue de onde parou."
   },
   "activity": {
     "verbs": [
