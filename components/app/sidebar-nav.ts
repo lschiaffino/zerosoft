@@ -712,8 +712,10 @@ export function buildNav(
               active: at('/app/track/inbox'),
               icon: 'inbox',
               badge: unread > 0 ? unread : undefined,
+              // Anclajes del tour de Track (lib/tours/track.ts).
+              tour: 'track-inbox',
             },
-            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks' },
+            { href: '/app/track/my-tasks', label: labels.track.myTasks, active: at('/app/track/my-tasks'), icon: 'myTasks', tour: 'track-my-issues' },
           ],
         },
         {
@@ -726,7 +728,7 @@ export function buildNav(
                 ]
               : []),
             // Todos los issues del workspace: no se marca dentro de un issue (ahí se marca su team).
-            { href: '/app/track/issues', label: labels.track.issues, active: pathname === '/app/track/issues', icon: 'tasks' },
+            { href: '/app/track/issues', label: labels.track.issues, active: pathname === '/app/track/issues', icon: 'tasks', tour: 'track-issues' },
           ],
         },
         {
