@@ -72,54 +72,55 @@ import * as r69 from "@/lib/routes/v1/groups/chats/[id]/route";
 import * as r70 from "@/lib/routes/v1/groups/chats/[id]/members/route";
 import * as r71 from "@/lib/routes/v1/groups/chats/[id]/messages/route";
 import * as r72 from "@/app/api/v1/groups/groups/route";
-import * as r73 from "@/app/api/v1/groups/labels/route";
-import * as r74 from "@/app/api/v1/groups/numbers/route";
-import * as r75 from "@/app/api/v1/groups/recurring/route";
-import * as r76 from "@/app/api/v1/groups/tickets/route";
-import * as r77 from "@/lib/routes/v1/groups/tickets/[id]/route";
-import * as r78 from "@/app/api/v1/hiring/candidates/route";
-import * as r79 from "@/app/api/v1/hiring/jobs/route";
-import * as r80 from "@/app/api/v1/links/route";
-import * as r81 from "@/lib/routes/v1/links/[id]/route";
-import * as r82 from "@/lib/routes/v1/links/[id]/stats/route";
-import * as r83 from "@/app/api/v1/links/analytics/route";
-import * as r84 from "@/app/api/v1/links/track/lead/route";
-import * as r85 from "@/app/api/v1/links/track/sale/route";
-import * as r86 from "@/app/api/v1/notes/route";
-import * as r87 from "@/lib/routes/v1/notes/[id]/route";
-import * as r88 from "@/app/api/v1/notes/notebooks/route";
-import * as r89 from "@/app/api/v1/people/employees/route";
-import * as r90 from "@/app/api/v1/robots/route";
-import * as r91 from "@/lib/routes/v1/robots/[id]/bulk/route";
-import * as r92 from "@/app/api/v1/robots/[id]/runs/route";
-import * as r93 from "@/lib/routes/v1/robots/batches/[id]/route";
-import * as r94 from "@/lib/routes/v1/robots/runs/[id]/route";
-import * as r95 from "@/app/api/v1/send/documents/route";
-import * as r96 from "@/app/api/v1/shop/orders/route";
-import * as r97 from "@/app/api/v1/shop/products/route";
-import * as r98 from "@/app/api/v1/sign/envelopes/route";
-import * as r99 from "@/app/api/v1/social/posts/route";
-import * as r100 from "@/app/api/v1/talk/channels/route";
-import * as r101 from "@/app/api/v1/talk/messages/route";
-import * as r102 from "@/app/api/v1/track/issues/route";
-import * as r103 from "@/lib/routes/v1/track/issues/[id]/route";
-import * as r104 from "@/lib/routes/v1/track/issues/[id]/comments/route";
-import * as r105 from "@/app/api/v1/track/labels/route";
-import * as r106 from "@/app/api/v1/track/projects/route";
-import * as r107 from "@/lib/routes/v1/track/projects/[id]/route";
-import * as r108 from "@/lib/routes/v1/track/projects/[id]/cycles/route";
-import * as r109 from "@/lib/routes/v1/track/projects/[id]/statuses/route";
-import * as r110 from "@/app/api/v1/track/requests/route";
-import * as r111 from "@/app/api/v1/track/teams/route";
-import * as r112 from "@/lib/routes/v1/track/teams/[id]/route";
-import * as r113 from "@/lib/routes/v1/track/teams/[id]/cycles/route";
-import * as r114 from "@/lib/routes/v1/track/teams/[id]/statuses/route";
-import * as r115 from "@/app/api/v1/track/users/route";
-import * as r116 from "@/app/api/v1/voice/dictate/route";
-import * as r117 from "@/app/api/v1/voice/dictionary/route";
-import * as r118 from "@/app/api/v1/voice/sessions/route";
-import * as r119 from "@/lib/routes/v1/voice/sessions/[id]/route";
-import * as r120 from "@/app/api/v1/voice/sessions/[id]/chunks/route";
+import * as r73 from "@/app/api/v1/groups/hubspot/send/route";
+import * as r74 from "@/app/api/v1/groups/labels/route";
+import * as r75 from "@/app/api/v1/groups/numbers/route";
+import * as r76 from "@/app/api/v1/groups/recurring/route";
+import * as r77 from "@/app/api/v1/groups/tickets/route";
+import * as r78 from "@/lib/routes/v1/groups/tickets/[id]/route";
+import * as r79 from "@/app/api/v1/hiring/candidates/route";
+import * as r80 from "@/app/api/v1/hiring/jobs/route";
+import * as r81 from "@/app/api/v1/links/route";
+import * as r82 from "@/lib/routes/v1/links/[id]/route";
+import * as r83 from "@/lib/routes/v1/links/[id]/stats/route";
+import * as r84 from "@/app/api/v1/links/analytics/route";
+import * as r85 from "@/app/api/v1/links/track/lead/route";
+import * as r86 from "@/app/api/v1/links/track/sale/route";
+import * as r87 from "@/app/api/v1/notes/route";
+import * as r88 from "@/lib/routes/v1/notes/[id]/route";
+import * as r89 from "@/app/api/v1/notes/notebooks/route";
+import * as r90 from "@/app/api/v1/people/employees/route";
+import * as r91 from "@/app/api/v1/robots/route";
+import * as r92 from "@/lib/routes/v1/robots/[id]/bulk/route";
+import * as r93 from "@/app/api/v1/robots/[id]/runs/route";
+import * as r94 from "@/lib/routes/v1/robots/batches/[id]/route";
+import * as r95 from "@/lib/routes/v1/robots/runs/[id]/route";
+import * as r96 from "@/app/api/v1/send/documents/route";
+import * as r97 from "@/app/api/v1/shop/orders/route";
+import * as r98 from "@/app/api/v1/shop/products/route";
+import * as r99 from "@/app/api/v1/sign/envelopes/route";
+import * as r100 from "@/app/api/v1/social/posts/route";
+import * as r101 from "@/app/api/v1/talk/channels/route";
+import * as r102 from "@/app/api/v1/talk/messages/route";
+import * as r103 from "@/app/api/v1/track/issues/route";
+import * as r104 from "@/lib/routes/v1/track/issues/[id]/route";
+import * as r105 from "@/lib/routes/v1/track/issues/[id]/comments/route";
+import * as r106 from "@/app/api/v1/track/labels/route";
+import * as r107 from "@/app/api/v1/track/projects/route";
+import * as r108 from "@/lib/routes/v1/track/projects/[id]/route";
+import * as r109 from "@/lib/routes/v1/track/projects/[id]/cycles/route";
+import * as r110 from "@/lib/routes/v1/track/projects/[id]/statuses/route";
+import * as r111 from "@/app/api/v1/track/requests/route";
+import * as r112 from "@/app/api/v1/track/teams/route";
+import * as r113 from "@/lib/routes/v1/track/teams/[id]/route";
+import * as r114 from "@/lib/routes/v1/track/teams/[id]/cycles/route";
+import * as r115 from "@/lib/routes/v1/track/teams/[id]/statuses/route";
+import * as r116 from "@/app/api/v1/track/users/route";
+import * as r117 from "@/app/api/v1/voice/dictate/route";
+import * as r118 from "@/app/api/v1/voice/dictionary/route";
+import * as r119 from "@/app/api/v1/voice/sessions/route";
+import * as r120 from "@/lib/routes/v1/voice/sessions/[id]/route";
+import * as r121 from "@/app/api/v1/voice/sessions/[id]/chunks/route";
 
 export const routes: Record<string, unknown> = {
   "/api/v1/agents/[id]/messages": r0,
@@ -195,52 +196,53 @@ export const routes: Record<string, unknown> = {
   "/api/v1/groups/chats/[id]/members": r70,
   "/api/v1/groups/chats/[id]/messages": r71,
   "/api/v1/groups/groups": r72,
-  "/api/v1/groups/labels": r73,
-  "/api/v1/groups/numbers": r74,
-  "/api/v1/groups/recurring": r75,
-  "/api/v1/groups/tickets": r76,
-  "/api/v1/groups/tickets/[id]": r77,
-  "/api/v1/hiring/candidates": r78,
-  "/api/v1/hiring/jobs": r79,
-  "/api/v1/links": r80,
-  "/api/v1/links/[id]": r81,
-  "/api/v1/links/[id]/stats": r82,
-  "/api/v1/links/analytics": r83,
-  "/api/v1/links/track/lead": r84,
-  "/api/v1/links/track/sale": r85,
-  "/api/v1/notes": r86,
-  "/api/v1/notes/[id]": r87,
-  "/api/v1/notes/notebooks": r88,
-  "/api/v1/people/employees": r89,
-  "/api/v1/robots": r90,
-  "/api/v1/robots/[id]/bulk": r91,
-  "/api/v1/robots/[id]/runs": r92,
-  "/api/v1/robots/batches/[id]": r93,
-  "/api/v1/robots/runs/[id]": r94,
-  "/api/v1/send/documents": r95,
-  "/api/v1/shop/orders": r96,
-  "/api/v1/shop/products": r97,
-  "/api/v1/sign/envelopes": r98,
-  "/api/v1/social/posts": r99,
-  "/api/v1/talk/channels": r100,
-  "/api/v1/talk/messages": r101,
-  "/api/v1/track/issues": r102,
-  "/api/v1/track/issues/[id]": r103,
-  "/api/v1/track/issues/[id]/comments": r104,
-  "/api/v1/track/labels": r105,
-  "/api/v1/track/projects": r106,
-  "/api/v1/track/projects/[id]": r107,
-  "/api/v1/track/projects/[id]/cycles": r108,
-  "/api/v1/track/projects/[id]/statuses": r109,
-  "/api/v1/track/requests": r110,
-  "/api/v1/track/teams": r111,
-  "/api/v1/track/teams/[id]": r112,
-  "/api/v1/track/teams/[id]/cycles": r113,
-  "/api/v1/track/teams/[id]/statuses": r114,
-  "/api/v1/track/users": r115,
-  "/api/v1/voice/dictate": r116,
-  "/api/v1/voice/dictionary": r117,
-  "/api/v1/voice/sessions": r118,
-  "/api/v1/voice/sessions/[id]": r119,
-  "/api/v1/voice/sessions/[id]/chunks": r120,
+  "/api/v1/groups/hubspot/send": r73,
+  "/api/v1/groups/labels": r74,
+  "/api/v1/groups/numbers": r75,
+  "/api/v1/groups/recurring": r76,
+  "/api/v1/groups/tickets": r77,
+  "/api/v1/groups/tickets/[id]": r78,
+  "/api/v1/hiring/candidates": r79,
+  "/api/v1/hiring/jobs": r80,
+  "/api/v1/links": r81,
+  "/api/v1/links/[id]": r82,
+  "/api/v1/links/[id]/stats": r83,
+  "/api/v1/links/analytics": r84,
+  "/api/v1/links/track/lead": r85,
+  "/api/v1/links/track/sale": r86,
+  "/api/v1/notes": r87,
+  "/api/v1/notes/[id]": r88,
+  "/api/v1/notes/notebooks": r89,
+  "/api/v1/people/employees": r90,
+  "/api/v1/robots": r91,
+  "/api/v1/robots/[id]/bulk": r92,
+  "/api/v1/robots/[id]/runs": r93,
+  "/api/v1/robots/batches/[id]": r94,
+  "/api/v1/robots/runs/[id]": r95,
+  "/api/v1/send/documents": r96,
+  "/api/v1/shop/orders": r97,
+  "/api/v1/shop/products": r98,
+  "/api/v1/sign/envelopes": r99,
+  "/api/v1/social/posts": r100,
+  "/api/v1/talk/channels": r101,
+  "/api/v1/talk/messages": r102,
+  "/api/v1/track/issues": r103,
+  "/api/v1/track/issues/[id]": r104,
+  "/api/v1/track/issues/[id]/comments": r105,
+  "/api/v1/track/labels": r106,
+  "/api/v1/track/projects": r107,
+  "/api/v1/track/projects/[id]": r108,
+  "/api/v1/track/projects/[id]/cycles": r109,
+  "/api/v1/track/projects/[id]/statuses": r110,
+  "/api/v1/track/requests": r111,
+  "/api/v1/track/teams": r112,
+  "/api/v1/track/teams/[id]": r113,
+  "/api/v1/track/teams/[id]/cycles": r114,
+  "/api/v1/track/teams/[id]/statuses": r115,
+  "/api/v1/track/users": r116,
+  "/api/v1/voice/dictate": r117,
+  "/api/v1/voice/dictionary": r118,
+  "/api/v1/voice/sessions": r119,
+  "/api/v1/voice/sessions/[id]": r120,
+  "/api/v1/voice/sessions/[id]/chunks": r121,
 };
