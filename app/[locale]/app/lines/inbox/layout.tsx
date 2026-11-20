@@ -17,6 +17,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import InboxShell from '@/components/groups/InboxShell';
 import { listLineGroups } from '@/lib/groups-line-groups';
+import { getKanbanPrefs } from '@/lib/groups-kanban';
 import GetStarted from '@/components/groups/GetStarted';
 import { mirrorSummary } from '@/lib/fleet/link';
 import SampleBanner from '@/components/groups/SampleBanner';
@@ -92,6 +93,7 @@ export default async function GroupsInboxLayout(props: { children: ReactNode; pa
         numbers={numbers.map((n) => ({ id: n.id, name: n.name || (n.phone ? `+${n.phone}` : ''), phone: n.phone, ownerId: n.ownerId, ownerName: n.ownerName, color: n.color, groupId: n.groupId }))}
         lineGroups={lineGroups.map((g) => ({ id: g.id, name: g.name }))}
         initialLine={await getSelectedLine(viewer)}
+        initialKanban={(await getKanbanPrefs(viewer).catch(() => null))?.on ?? false}
         agentsRow={agents ? { href: '/app/lines/agents', label: tf('mirror.row'), unread: agents.unread, waiting: agents.waiting, waitingLabel: tf('mirror.waiting', { n: agents.waiting }) } : null}
       >
         {props.children}

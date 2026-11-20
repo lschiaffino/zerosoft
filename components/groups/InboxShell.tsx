@@ -73,6 +73,11 @@ import DebouncedInput from '@/components/app/DebouncedInput';
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
+import dynamic from 'next/dynamic';
+import { KanbanToggle, useKanbanView } from './KanbanToggle';
+
+// La vista kanban (botón junto al selector de línea): su código baja solo si se prende.
+const InboxKanban = dynamic(() => import('./InboxKanban'), { ssr: false });
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {
@@ -211,6 +216,7 @@ export default function InboxShell({
   initialLine = 'all',
   banner = null,
   agentsRow = null,
+  initialKanban = false,
   children,
 }: {
   labels: LabelDto[];
@@ -229,6 +235,8 @@ export default function InboxShell({
   banner?: ReactNode;
   /** Fila "Agentes" de Fleet arriba de la lista (si la persona prendió el espejo en Fleet). */
   agentsRow?: AgentsRowProps | null;
+  /** La bandeja se ve como kanban (preferencia de la persona, lib/groups-kanban.ts). */
+  initialKanban?: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations('groups');
@@ -242,6 +250,7 @@ export default function InboxShell({
   const locale = useLocale();
   const [imports, setImports] = useState<ImportStatus[]>([]);
   const [archivedView, setArchivedView] = useState(false);
+  const [kanban, setKanban] = useKanbanView(initialKanban);
   const [snoozeFor, setSnoozeFor] = useState<ChatDto | null>(null);
   const laterLabels = useWhenLabels();
   const snoozeLabels = useMemo(() => ({ ...laterLabels, confirm: t('snooze.confirm') }), [laterLabels, t]);
@@ -1354,13 +1363,19 @@ export default function InboxShell({
 
   return (
     <Ctx.Provider value={value}>
-      <div className={`gr-inbox${current ? ' has-chat' : ''}${detailsHidden ? ' is-details-hidden' : ''}`} data-chat-style={chatStyle}>
+      <div className={`gr-inbox${current ? ' has-chat' : ''}${detailsHidden ? ' is-details-hidden' : ''}${kanban ? ' is-kanban' : ''}`} data-chat-style={chatStyle}>
         <section className="gr-list" aria-label={t('inbox.listLabel')}>
           <div className="gr-list-head">
             {banner}
             {bandSlot ? (
               <>
-                {createPortal(<LineSelector numbers={numbers} groups={lineGroups} value={line} onChange={pickLine} />, bandSlot)}
+                {createPortal(
+                  <>
+                    <LineSelector numbers={numbers} groups={lineGroups} value={line} onChange={pickLine} />
+                    <KanbanToggle on={kanban} onChange={setKanban} />
+                  </>,
+                  bandSlot,
+                )}
                 {/* Una lista guardada sí conserva su nombre: la miga dice solo "Bandeja". */}
                 {activeList && (
                   <div className="gr-list-titlebar">
@@ -1372,6 +1387,7 @@ export default function InboxShell({
               <div className="gr-list-titlebar">
                 <h1 className="gr-list-title">{activeList ? activeList.name : t('inbox.title')}</h1>
                 <LineSelector numbers={numbers} groups={lineGroups} value={line} onChange={pickLine} />
+                <KanbanToggle on={kanban} onChange={setKanban} />
                 <button type="button" className="wa-icon-btn gr-newchat-open" onClick={() => setNewChat(true)} aria-label={t('newChat.open')} title={t('newChat.open')}>
                   <Plus size={20} />
                 </button>
@@ -1617,7 +1633,13 @@ export default function InboxShell({
               </button>
             </div>
           )}
-          {!loaded ? (
+          {kanban ? (
+            <>
+              {agentsRowEl}
+              {archivedRow}
+              <InboxKanban query={query} listRows={rows} current={current} listSuffix={listSuffix} numbers={numbers} people={people} manyLines={manyLines && numbers.length > 1} emptyText={emptyText} />
+            </>
+          ) : !loaded ? (
             <div className="ui-loading-stack gr-list-loading" aria-busy="true" aria-label={t('common.loading')}>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="ui-skeleton ui-skeleton-row" />
