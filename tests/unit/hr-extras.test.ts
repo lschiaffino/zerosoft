@@ -628,7 +628,8 @@ describe('Hiring: importar, copiar, fusionar y exportar', () => {
 
   it('importar pide gestionar el puesto y no le manda nada a nadie', async () => {
     const job = await jobFor(w);
-    const csv = `Name,Email\nAna,ana-${uid()}@x.co\n,sin@x.co\n`;
+    // La tercera fila no tiene nombre ni email (con solo uno de los dos alcanza).
+    const csv = `Name,Email,Phone\nAna,ana-${uid()}@x.co,\n,,123\n`;
     await expect(importCandidates(w.outsider, job.id, { csv, dryRun: true })).rejects.toMatchObject({ status: 403 });
     await expect(importCandidates(w.interviewer, job.id, { csv, dryRun: true })).rejects.toMatchObject({ status: 403 });
     expect(await importCandidates(w.recruiter, job.id, { csv, dryRun: true })).toMatchObject({ dryRun: true, valid: 1 });
