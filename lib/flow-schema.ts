@@ -602,6 +602,8 @@ export type FieldKind =
   | 'cron'
   /** Una tabla de datos del workspace (lib/flow-tables.ts). */
   | 'tableRef'
+  /** Un team (proyecto) de Track del workspace. */
+  | 'trackProjectRef'
   /** Un chat o grupo de Groups: buscador por nombre, o una variable ({{trigger.chat.id}}). */
   | 'groupsChatRef'
   /** Una página de Docs: buscador por título, o una variable ({{trigger.page.id}}). */
@@ -929,7 +931,7 @@ export const NODE_DEFS = {
     category: 'app',
     outputs: ['out'],
     fields: [
-      { key: 'projectId', kind: 'text', placeholder: 'project id' },
+      { key: 'projectId', kind: 'trackProjectRef' },
       { key: 'title', kind: 'text', template: true },
       { key: 'description', kind: 'textarea', template: true },
       { key: 'priority', kind: 'select', options: ['low', 'medium', 'high', 'urgent'], default: 'medium' },

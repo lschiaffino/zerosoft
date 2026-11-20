@@ -39,6 +39,8 @@ export interface EditorRefs {
   robots?: Array<{ id: string; name: string; inputs: RobotRefInput[] }>;
   /** Tablas de datos del workspace con sus columnas (nodo Tabla de datos). */
   tables?: Array<{ id: string; name: string; columns: Array<{ name: string; type: string }> }>;
+  /** Teams de Track que ve la persona (nodo Track: crear issue). */
+  trackProjects?: Array<{ id: string; name: string; slug: string }>;
   codeAvailable: boolean;
   flowId: string;
 }
@@ -561,6 +563,48 @@ export default function NodeConfigPanel({
                 {picked ? t('editor.openTable') : t('editor.manageTables')}
               </Link>
             </p>
+          </>
+        );
+      }
+      case 'trackProjectRef': {
+        const projects = refs.trackProjects ?? [];
+        const current = String(value ?? '');
+        const picked = projects.find((x) => x.id === current) ?? null;
+        // Un id que no está en la lista: team borrado, privado o de otro workspace.
+        const missing = current !== '' && !picked;
+        return (
+          <>
+            <select
+              id={id}
+              className="select"
+              value={current}
+              disabled={readOnly}
+              aria-invalid={missing ? true : undefined}
+              data-testid="flow-track-project"
+              onChange={(e) => set(field.key, e.target.value)}
+            >
+              <option value="">{t('editor.pickTrackProject')}</option>
+              {missing && <option value={current}>{t('editor.trackProjectMissing')}</option>}
+              {projects.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            {projects.length === 0 ? (
+              <p className="ui-help">
+                {t('editor.noTrackProjects')}{' '}
+                <Link href="/app/track/teams/new" className="flow-link">
+                  {t('editor.createTrackProject')}
+                </Link>
+              </p>
+            ) : picked ? (
+              <p className="ui-help">
+                <Link href={`/app/track/team/${picked.slug.toUpperCase()}`} className="flow-link">
+                  {t('editor.openTrackProject')}
+                </Link>
+              </p>
+            ) : null}
           </>
         );
       }

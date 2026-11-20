@@ -131,6 +131,13 @@ describe('Flow: errores de paso legibles', () => {
     expect(stepErrorInfo('missing_channel')).toMatchObject({ key: 'missing_field' });
     expect(stepErrorInfo('http_502')).toMatchObject({ key: 'http', values: { status: '502' } });
     expect(stepErrorInfo('slack_ratelimited')).toMatchObject({ key: 'rate_limited', inEditor: false });
+    expect(stepErrorInfo('project_not_found')).toMatchObject({ key: 'project_not_found', inEditor: true });
     expect(stepErrorInfo('context_truncated')).toBeNull();
+  });
+});
+
+describe('Flow: Track crear issue', () => {
+  it('el equipo se elige de una lista (no se tipea un id)', () => {
+    expect(fields('app.track_issue').find((f) => f.key === 'projectId')?.kind).toBe('trackProjectRef');
   });
 });
