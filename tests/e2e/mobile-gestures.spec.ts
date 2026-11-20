@@ -97,6 +97,18 @@ async function gestures(page: Page, cdp: CDPSession, a: string, b: string) {
   await expect(bar).toHaveCount(0);
   await expect(box).toBeVisible();
 
+  // Tocar los elegidos los saca; sin ninguno, sale del modo (como WhatsApp en el teléfono).
+  await hold(page, cdp, second.locator('.gr-bubble'));
+  await tap(cdp, first.locator('.gr-bubble'));
+  await expect(box.locator('.gr-msg.is-selected')).toHaveCount(2);
+  await tap(cdp, first.locator('.gr-bubble'));
+  await expect(box.locator('.gr-msg.is-selected')).toHaveCount(1);
+  await expect(bar).toBeVisible();
+  await tap(cdp, second.locator('.gr-bubble'));
+  await expect(bar).toHaveCount(0);
+  await expect(box.locator('.gr-msg.is-selected')).toHaveCount(0);
+  await expect(box).toBeVisible();
+
   // Toque largo y atrás: se cierra el menú, el chat sigue.
   await hold(page, cdp, second.locator('.gr-bubble'));
   await page.goBack();
