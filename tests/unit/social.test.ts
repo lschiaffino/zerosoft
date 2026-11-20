@@ -164,6 +164,18 @@ describe('Social con datos', () => {
     await expect(getPost(member, other.id)).rejects.toMatchObject({ status: 404 });
   });
 
+  it('la lista filtra por cuenta y por red', async () => {
+    const both = await createPost(owner, { text: 'filtro ambas', accountIds: [fb, li], action: 'draft' });
+    const onlyLi = await createPost(owner, { text: 'filtro linkedin', accountIds: [li], action: 'draft' });
+    const ids = async (o: Parameters<typeof listPosts>[1]) => (await listPosts(owner, { q: 'filtro', ...o })).map((p) => p.id);
+    expect(await ids({ network: 'facebook' })).toEqual([both.id]);
+    expect((await ids({ network: 'linkedin' })).sort()).toEqual([both.id, onlyLi.id].sort());
+    expect(await ids({ accountId: fb })).toEqual([both.id]);
+    expect(await ids({ network: 'x' })).toEqual([]);
+    // El member solo tiene Facebook: el filtro por LinkedIn no le muestra lo ajeno.
+    expect((await listPosts(member, { network: 'linkedin' })).map((p) => p.id)).not.toContain(onlyLi.id);
+  });
+
   it('el cron publica cada destino una sola vez aunque corra dos veces a la vez', async () => {
     const post = await createPost(owner, { text: 'lanzamiento', accountIds: [fb, li], overrides: { [li]: 'texto para LinkedIn' }, action: 'now' });
     expect(post.status).toBe('scheduled');
