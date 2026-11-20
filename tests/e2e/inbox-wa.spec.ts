@@ -167,15 +167,21 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   const mine = thread.locator('.gr-msg-out', { hasText: 'Yo llevo la carne' });
   await expect(mine.locator('.gr-quote')).toContainText('¿Quién viene el sábado?');
   // La cita no ensancha la burbuja: aunque el mensaje citado fuera muy largo, su ancho no supera el de la burbuja.
-  // Y una cita corta entra en un renglón aunque la respuesta sea más corta: la burbuja toma el ancho de la cita.
+  // Y una cita corta entra en un renglón aunque la respuesta sea más corta: la cita ocupa el ancho de su texto (hasta 400px).
   const q = await mine.locator('.gr-quote').evaluate((el) => {
     const bubble = el.closest('.gr-bubble')!;
-    const text = el.querySelector(':scope > span')!;
-    const lh = parseFloat(getComputedStyle(text).lineHeight) || 20;
-    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, lines: Math.round(text.getBoundingClientRect().height / lh), textMax: getComputedStyle(text).maxWidth };
+    const text = el.querySelector(':scope > span') as HTMLElement;
+    const probe = document.createElement('span');
+    const cs = getComputedStyle(text);
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:${cs.font};letter-spacing:${cs.letterSpacing}`;
+    probe.textContent = text.innerText;
+    document.body.appendChild(probe);
+    const natural = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth };
   });
-  expect(q.quote).toBeLessThanOrEqual(q.bubble + 0.5);
-  expect(q.lines).toBe(1);
+  expect(q.quote, JSON.stringify(q)).toBeLessThanOrEqual(q.bubble + 0.5);
+  expect(q.textW, JSON.stringify(q)).toBeGreaterThanOrEqual(Math.min(q.natural, 400) - 2);
   expect(q.textMax).toBe('400px');
   await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
   await expect(thread.locator('.gr-msg-in', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
