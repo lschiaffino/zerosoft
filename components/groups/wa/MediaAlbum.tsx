@@ -3,9 +3,10 @@
 import { useState, type SyntheticEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { albumLayout } from '@/lib/wa-albums';
-import { duration, posterFrame } from './format';
+import { duration } from './format';
 import { CameraIcon, Chevron, Play } from './icons';
 import { longPress } from './longPress';
+import VideoPoster from './VideoPoster';
 import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from './Menu';
 
 /** Una foto o video del álbum, con las acciones de su propio mensaje. */
@@ -127,12 +128,7 @@ function TileMedia({ tile, onLoad }: { tile: AlbumTile; onLoad?: (e: SyntheticEv
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   if (tile.kind === 'video') {
-    return tile.thumbnail ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={tile.thumbnail} alt="" aria-hidden="true" />
-    ) : (
-      <video src={posterFrame(tile.url)} preload="metadata" muted playsInline tabIndex={-1} aria-hidden="true" />
-    );
+    return <VideoPoster url={tile.url} thumbnail={tile.thumbnail} />;
   }
   return (
     <>

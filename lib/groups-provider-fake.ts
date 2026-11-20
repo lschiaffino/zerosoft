@@ -47,6 +47,7 @@ import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
+import { FAKE_VIDEO_WEBM } from './wa-video-fixtures';
 import {
   PROVIDER_CAPS,
   ProviderError,
@@ -392,6 +393,7 @@ function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: stri
   // El tipo sale de lo que sigue al prefijo de falla: "fail1-aud-…" es un audio que falla una vez.
   const kind = id.replace(/^fail\d-/, '');
   if (kind.startsWith('gif-')) return { data: FAKE_GIF_MP4, mimetype: 'video/mp4', filename: '' };
+  if (kind.startsWith('mov-')) return { data: FAKE_VIDEO_WEBM, mimetype: 'video/webm', filename: '' };
   if (kind.startsWith('astk-')) return { data: FAKE_ANIMATED_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (kind.startsWith('stk-')) return { data: FAKE_STICKER_WEBP, mimetype: 'image/webp', filename: '' };
   if (kind.startsWith('aud-')) return { data: fakeWav(), mimetype: 'audio/wav', filename: 'audio.wav' };
@@ -628,7 +630,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
     },
-    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), el resto una foto. */
+    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), "mov-" un video (WebM), el resto una foto. */
     async fetchMedia(ref) {
       return fakeMedia(ref.providerMessageId);
     },
