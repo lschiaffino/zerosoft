@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -301,6 +301,13 @@ const parity: ProductParity = {
     row('bulk-members', 'groups', ['Add and remove members in many groups', 'Agregar y quitar miembros en muchos grupos', 'Adicionar e remover membros em muitos grupos'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
     row('admins', 'groups', ['Promote and demote admins in bulk', 'Promover y degradar admins en masa', 'Promover e rebaixar admins em massa'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('invite-links', 'groups', ['Invite link and reset', 'Link de invitación y regenerarlo', 'Link de convite e redefinir'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
+    row('group-members-panel', 'groups', ['Add members and change admins from the chat', 'Agregar miembros y cambiar admins desde el chat', 'Adicionar membros e mudar admins pela conversa'], 'partial', {
+      detail: [
+        'Members sits near the top of the group details: Add members (several at once, from the line contacts or a typed number), Invite via link, and a menu on each member to make or dismiss a group admin, remove them or message them. Anyone who can see the chat can use it. If the line is not an admin of the group the actions show disabled with the reason; WhatsApp refusals show per person, with an option to send the invite link. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Miembros está arriba en los detalles del grupo: Agregar miembros (varios a la vez, de los contactos de la línea o un número escrito), Invitar con link, y un menú en cada miembro para hacerlo admin o quitarle el admin, sacarlo o mandarle un mensaje. Lo puede usar quien ve el chat. Si la línea no es admin del grupo, las acciones se ven deshabilitadas con el motivo; los rechazos de WhatsApp se ven por persona, con la opción de mandar el link. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Membros fica no topo dos detalhes do grupo: Adicionar membros (vários de uma vez, dos contatos da linha ou um número digitado), Convidar via link e um menu em cada membro para torná-lo admin ou tirar o admin, removê-lo ou mandar mensagem. Quem vê a conversa pode usar. Se a linha não é admin do grupo, as ações aparecem desabilitadas com o motivo; as recusas do WhatsApp aparecem por pessoa, com a opção de enviar o link. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('group-settings', 'groups', ['Group settings (name, description, who can write or edit)', 'Ajustes del grupo (nombre, descripción, quién escribe o edita)', 'Configurações do grupo (nome, descrição, quem escreve ou edita)'], 'partial', {
       detail: [
         'Name, description, photo, admin-only messages and edits, invite link; disappearing messages with Evolution API. Tested against a simulated gateway; not yet tried with real WhatsApp',
