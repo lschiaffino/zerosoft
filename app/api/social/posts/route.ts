@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readBody, withSocial } from '@/lib/social-http';
 import { createPost, listPosts, type ListPostsOptions } from '@/lib/social';
 import { postSchema } from '@/lib/social-schemas';
+import { isSocialNetwork, type SocialNetwork } from '@/lib/social-networks';
 import { jsonError } from '@/lib/write-limit';
 
 export const runtime = 'nodejs';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const STATUSES = ['draft', 'pending_approval', 'rejected', 'scheduled', 'publishing', 'published', 'partial', 'failed', 'scheduled_any', 'needs_approval'];
 
-/** Publicaciones que ve la persona. ?from=&to= (ISO) para el calendario, ?status=, ?account=, ?q=. */
+/** Publicaciones que ve la persona. ?from=&to= (ISO) para el calendario, ?status=, ?account=, ?network=, ?q=. */
 export async function GET(req: NextRequest) {
   return withSocial(async ({ actor }) => {
     const sp = req.nextUrl.searchParams;
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
       to: sp.get('to') ?? undefined,
       status: status && STATUSES.includes(status) ? (status as ListPostsOptions['status']) : undefined,
       accountId: sp.get('account') ?? undefined,
+      network: isSocialNetwork(sp.get('network')) ? (sp.get('network') as SocialNetwork) : undefined,
       q: sp.get('q')?.slice(0, 200) ?? undefined,
       limit: Number(sp.get('limit')) || undefined,
     };

@@ -18,6 +18,10 @@
 .sc-wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .sc-item-side .select { max-width: 100%; }
 .sc-reply-tools .select { width: auto; max-width: 100%; }
+/* Publicaciones: filtros por red y cuenta, y la búsqueda, en una barra debajo de las pestañas. */
+.sc-toolbar { margin-top: -8px; }
+.sc-toolbar > form[role='search'] .input { flex: 1 1 auto; max-width: 360px; }
+.sc-filters .select { width: auto; max-width: 240px; }
 .sc-ok { color: var(--ok-ink); }
 
 /* Red: marca de color por red (punto + nombre). */
@@ -189,4 +193,8 @@
      y la fecha de Reprogramar quedaba apretada contra el botón. */
   .sc-row > .ui-tabs.sc-grow, .sc-row > form[role='search'], form.sc-row > label.sc-grow { flex-basis: 100%; }
   .sc-row > form[role='search'] .input { flex: 1 1 auto; }
+  .sc-toolbar > form[role='search'] .input { max-width: none; }
+  /* Los dos filtros lado a lado y la búsqueda abajo, a lo ancho. */
+  .sc-filters { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+  .sc-filters .select { max-width: none; width: 100%; min-width: 0; }
 }
