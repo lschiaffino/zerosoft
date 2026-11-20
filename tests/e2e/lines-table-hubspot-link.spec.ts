@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
 
@@ -14,6 +14,8 @@ import { PHONE, check, setTheme, settle } from './responsive-audit';
  * Nombres, teléfonos y empresas son inventados.
  */
 
+// Con `next dev` (fuera de CI) cada ruta se compila la primera vez que se pide: más margen.
+const expect = baseExpect.configure({ timeout: process.env.CI ? 15_000 : 60_000 });
 const uid = () => Math.random().toString(36).slice(2, 8);
 const TOKEN = 'pat-na1-e2e-lines-table-hubspot-link';
 const VIEW_STORE = 'zs-groups-view-v1';
@@ -167,6 +169,8 @@ test('Grupos: vincular la empresa en la celda, el panel dice lo mismo, desvincul
   const otherName = `Grupo otro ${tag}`;
   await groupIn(request, n, otherJid, otherName);
 
+  // La búsqueda de HubSpot compila en el primer pedido con `next dev`: se pide antes.
+  await request.get(`/api/groups/hubspot/search?chat=${chatId}&type=company&q=orbit`, { timeout: 120_000 });
   await openList(page, tag);
   const row = groupRow(page, jid);
   const cell = row.getByTestId('groups-company');
@@ -210,7 +214,7 @@ test('Grupos: vincular la empresa en la celda, el panel dice lo mismo, desvincul
   await page.getByRole('searchbox', { name: 'Search by name' }).fill(tag);
   await expect(groupRow(page, jid).getByRole('link', { name: `Open ${companyName} in HubSpot` })).toBeVisible();
   await page.goto(`/en/app/lines/list/${chatId}`, { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('region', { name: 'HubSpot', exact: true }).getByRole('link', { name: `Open ${companyName} in HubSpot`, exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('region', { name: 'HubSpot', exact: true }).getByRole('link', { name: `Open ${companyName} in HubSpot`, exact: true })).toBeVisible({ timeout: process.env.CI ? 30_000 : 120_000 });
 
   // ---------- Unlink desde el menú de la celda ----------
   await openList(page, tag);
@@ -331,9 +335,11 @@ test('Contactos: vincular el contacto de HubSpot en la celda y desvincularlo', a
   await page.goto('/en/app/lines/contacts', { waitUntil: 'domcontentloaded' });
   await settle(page);
   await expect(async () => {
+    // Hasta que la página hidrata el buscador no filtra: se reintenta hasta que queda solo esta persona.
     await page.getByTestId('contacts-search').fill(tag);
-    await expect(page.getByTestId('contact-row').first()).toContainText(personName, { timeout: 3_000 });
-  }).toPass({ timeout: 60_000 });
+    await baseExpect(page.getByTestId('contact-row')).toHaveCount(1, { timeout: 3_000 });
+    await baseExpect(page.getByTestId('contact-row').first()).toContainText(personName, { timeout: 3_000 });
+  }).toPass({ timeout: 90_000 });
   const row = page.getByTestId('contact-row').filter({ hasText: personName });
   const cell = row.getByTestId('contacts-hubspot');
   await cell.getByRole('button', { name: `Link a HubSpot contact to ${personName}` }).click();
