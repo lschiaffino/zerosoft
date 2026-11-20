@@ -650,7 +650,7 @@ describe('visibilidad y workspace: un grupo O nunca ensancha lo que se ve', () =
     expect(((await v1Bad.json()) as { error: { code: string } }).error.code).toBe('invalid_filter');
     expect((await v1Companies.GET(nextReq(`http://x/api/v1/crm/companies?filters=${q(model([{ f: 'name', o: 'known' }]))}`, memberKey))).status).toBe(200);
     expect((await v1Companies.GET(nextReq(`http://x/api/v1/crm/companies?filters=${q(model([{ f: 'email', o: 'known' }]))}`, memberKey))).status).toBe(400);
-    expect((await v1Deals.GET(nextReq(`http://x/api/v1/crm/deals?pipelineId=${p.id}&filters=${q(model([{ f: 'amount', o: 'gte', v: '1' }]))}`, memberKey))).status).toBe(200);
+    expect((await v1Deals.GET(nextReq(`http://x/api/v1/crm/deals?filters=${q(model([{ f: 'amount', o: 'gte', v: '1' }]))}`, memberKey))).status).toBe(200);
     // `tz` fija la zona de las fechas relativas.
     const tz = await v1Contacts.GET(nextReq(`http://x/api/v1/crm/contacts?tz=America/Lima&filters=${q(model([{ f: 'created', o: 'today' }]))}`, memberKey));
     expect(((await tz.json()) as { total: number }).total).toBe(2);
