@@ -84,7 +84,7 @@ export default function ApiKeysPanel({ initialKeys, isAdmin }: { initialKeys: Ap
   const allScopes = scopes.length === API_SCOPES.length;
 
   return (
-    <FormSection
+    <FormSection setting="api-keys"
       id="api-keys"
       title={t('title')}
       description={

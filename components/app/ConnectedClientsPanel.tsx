@@ -43,7 +43,7 @@ export default function ConnectedClientsPanel({ initial, endpoint }: { initial: 
   }
 
   return (
-    <FormSection id="connected" title={t('title')} description={t('desc')} footer={<p className="ui-section-note">{t('note')}</p>}>
+    <FormSection setting="api-connected" id="connected" title={t('title')} description={t('desc')} footer={<p className="ui-section-note">{t('note')}</p>}>
       {error && <p className="ui-error" role="alert">{error}</p>}
       {/* La URL para pegar en claude.ai › Settings › Connectors (y en otros clientes MCP). */}
       <div className="st-connector" data-testid="connector-url">

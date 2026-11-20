@@ -175,7 +175,7 @@ export function CalendarConnectionsPanel({
     : [];
 
   return (
-    <FormSection title={t('connections.calendarsTitle')} description={t('connections.calendarsLead')} onSubmit={anyConnected ? save : undefined}>
+    <FormSection setting="cal-calendars" title={t('connections.calendarsTitle')} description={t('connections.calendarsLead')} onSubmit={anyConnected ? save : undefined}>
       {noticeText && (
         <p className={notice?.result === 'connected' ? 'cal-callout cal-callout-ok' : 'cal-callout'} role="status">
           {noticeText}
@@ -478,7 +478,7 @@ export function SmsPanel({ initial, canEdit }: { initial: SmsView; canEdit: bool
   }
 
   return (
-    <FormSection
+    <FormSection setting="cal-sms"
       title={t('connections.smsTitle')}
       description={t('connections.smsLead')}
       onSubmit={canEdit ? save : undefined}
@@ -556,7 +556,7 @@ export function SmsPanel({ initial, canEdit }: { initial: SmsView; canEdit: bool
 export function AutomationPanel({ mcpUrl }: { mcpUrl: string }) {
   const t = useTranslations('calendar');
   return (
-    <FormSection title={t('connections.mcpTitle')} description={t('connections.mcpLead')}>
+    <FormSection setting="cal-mcp" title={t('connections.mcpTitle')} description={t('connections.mcpLead')}>
       <div className="cal-share-url">
         <span className="data">{mcpUrl}</span>
         <CalCopyButton text={mcpUrl} />

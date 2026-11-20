@@ -52,7 +52,7 @@ export default function PrivacyPanel() {
   const total = preview ? preview.data.bookings + preview.data.submissions + preview.data.votes + preview.data.guestOf : 0;
 
   return (
-    <FormSection
+    <FormSection setting="cal-privacy"
       title={t('privacy.title')}
       description={t('privacy.lead')}
       tone="danger"

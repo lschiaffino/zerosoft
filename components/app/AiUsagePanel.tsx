@@ -14,7 +14,7 @@ export default async function AiUsagePanel({ workspaceId, locale }: { workspaceI
   const n = (v: number) => formatNumber(v, locale);
 
   return (
-    <FormSection
+    <FormSection setting="billing-ai-usage"
       id="ai"
       title={t('title')}
       description={t('desc')}

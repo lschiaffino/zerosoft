@@ -144,7 +144,7 @@ export default function AssignmentSettings(props: Props) {
 
   return (
     <div className="ui-fields">
-      <section className="gr-settings-block" aria-labelledby="gr-teams-title">
+      <section className="gr-settings-block" aria-labelledby="gr-teams-title" data-setting="lines-teams">
         <div className="gr-settings-head">
           <h2 id="gr-teams-title" className="gr-settings-title">
             {t('assign.teams')}
@@ -180,7 +180,7 @@ export default function AssignmentSettings(props: Props) {
         )}
       </section>
 
-      <section className="gr-settings-block" aria-labelledby="gr-rules-title">
+      <section className="gr-settings-block" aria-labelledby="gr-rules-title" data-setting="lines-rules">
         <div className="gr-settings-head">
           <h2 id="gr-rules-title" className="gr-settings-title">
             {t('assign.rules')}
@@ -243,7 +243,7 @@ export default function AssignmentSettings(props: Props) {
         )}
       </section>
 
-      <section className="gr-settings-block" aria-labelledby="gr-avail-title">
+      <section className="gr-settings-block" aria-labelledby="gr-avail-title" data-setting="lines-availability">
         <h2 id="gr-avail-title" className="gr-settings-title">
           {t('assign.availability')}
         </h2>

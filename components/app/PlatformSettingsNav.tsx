@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import SettingsSearch from './SettingsSearch';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
-import { activeRouteTab, legacySettingsTarget, matchesSettingsQuery } from '@/lib/settings-nav';
+import { activeRouteTab, legacySettingsTarget } from '@/lib/settings-nav';
 
 export interface PlatformNavItem {
   key: string;
@@ -22,11 +23,12 @@ export interface PlatformNavGroup {
 
 /**
  * Nav lateral de Ajustes: grupos con rótulo (Cuenta, Workspace, Este
- * dispositivo, Productos) que marcan la sección abierta, con una caja que
- * filtra por nombre o palabra clave. Flechas arriba/abajo recorren la lista,
- * Enter abre y Esc limpia la búsqueda. Bajo 1180px pasa a un select arriba del
- * contenido. También manda los anchors viejos (/app/settings/workspace#api) a
- * su sección nueva.
+ * dispositivo, Productos) que marcan la sección abierta. Arriba, la búsqueda
+ * de Ajustes (SettingsSearch): con texto, la lista se cambia por los ajustes
+ * que coinciden (de todas las secciones y apps). Flechas recorren la lista.
+ * Bajo 1180px la lista pasa a un select arriba del contenido (la búsqueda
+ * sigue arriba). También manda los anchors viejos
+ * (/app/settings/workspace#api) a su sección nueva.
  *
  * `embed`: dentro de la ventana de Ajustes del escritorio. Ahí también se
  * marcan los productos (la nav está en todas las rutas de ajustes) y las
@@ -37,16 +39,11 @@ export default function PlatformSettingsNav({
   groups,
   label,
   selectLabel,
-  searchLabel,
-  noResults,
   embed = false,
 }: {
   groups: PlatformNavGroup[];
   label: string;
   selectLabel: string;
-  searchLabel: string;
-  /** "No settings match “{q}”" (crudo: el {q} se reemplaza acá). */
-  noResults: string;
   embed?: boolean;
 }) {
   const pathname = usePathname();
@@ -63,10 +60,7 @@ export default function PlatformSettingsNav({
     if (target) router.replace(target);
   }, [pathname, router]);
 
-  const shown = useMemo(
-    () => groups.map((g) => ({ ...g, items: g.items.filter((i) => matchesSettingsQuery(q, i.label, i.keywords, g.label)) })).filter((g) => g.items.length),
-    [groups, q],
-  );
+  const searching = q.trim() !== '';
 
   function onSelect(e: ChangeEvent<HTMLSelectElement>) {
     const item = all.find((i) => i.key === e.target.value);
@@ -77,23 +71,6 @@ export default function PlatformSettingsNav({
 
   function links(): HTMLAnchorElement[] {
     return Array.from(navRef.current?.querySelectorAll<HTMLAnchorElement>('a.st-nav-link') ?? []);
-  }
-
-  function onSearchKey(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Escape' && q) {
-      e.preventDefault();
-      e.stopPropagation();
-      setQ('');
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      links()[0]?.focus();
-    } else if (e.key === 'Enter') {
-      const first = links()[0];
-      if (first) {
-        e.preventDefault();
-        first.click();
-      }
-    }
   }
 
   function onNavKey(e: KeyboardEvent<HTMLElement>) {
@@ -107,7 +84,7 @@ export default function PlatformSettingsNav({
     else if (e.key === 'End') next = list[list.length - 1];
     if (e.key === 'ArrowUp' && i === 0) {
       e.preventDefault();
-      document.getElementById('st-nav-search')?.focus();
+      navRef.current?.closest('.st-nav-wrap')?.querySelector<HTMLInputElement>('.st-search-input')?.focus();
       return;
     }
     if (!next) return;
@@ -137,23 +114,10 @@ export default function PlatformSettingsNav({
         </select>
       </div>
       <div className="st-nav-search">
-        <label className="sr-only" htmlFor="st-nav-search">
-          {searchLabel}
-        </label>
-        <input
-          id="st-nav-search"
-          className="input"
-          type="search"
-          placeholder={searchLabel}
-          value={q}
-          autoComplete="off"
-          spellCheck={false}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={onSearchKey}
-        />
+        <SettingsSearch variant="nav" onQueryChange={setQ} />
       </div>
-      <nav className="st-nav" aria-label={label} ref={navRef} onKeyDown={onNavKey}>
-        {shown.map((g) => (
+      <nav className="st-nav" aria-label={label} ref={navRef} onKeyDown={onNavKey} hidden={searching}>
+        {groups.map((g) => (
           <div key={g.key} className="st-nav-group" role="group" aria-labelledby={`st-nav-${g.key}`}>
             <p id={`st-nav-${g.key}`} className="st-nav-heading">
               {g.label}
@@ -179,11 +143,6 @@ export default function PlatformSettingsNav({
             )}
           </div>
         ))}
-        {!shown.length && (
-          <p className="st-nav-empty" role="status">
-            {noResults.replace('{q}', q.trim())}
-          </p>
-        )}
       </nav>
     </div>
   );

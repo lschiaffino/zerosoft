@@ -21,6 +21,7 @@ import AppSidebar from '@/components/app/AppSidebar';
 import AppTopbar from '@/components/app/AppTopbar';
 import AppAccent from '@/components/app/AppAccent';
 import CommandSearch from '@/components/app/CommandSearch';
+import SettingHighlighter from '@/components/app/SettingHighlighter';
 import AssistantPanel from '@/components/assistant/AssistantPanel';
 import MenuLayerGuard from '@/components/app/MenuLayerGuard';
 import KeyboardViewport from '@/components/app/KeyboardViewport';
@@ -131,7 +132,7 @@ export default async function AppLayout(
       getThemePref(),
     ]);
     return (
-      <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'link.common', 'common.theme']}>
+      <ClientMessages locale={locale} namespaces={['settings.switcher', 'settings.sections', 'settings.search', 'link.common', 'common.theme']}>
         <ThemeProvider initial={embedTheme}>
           <LookProvider initial={lookOf(real)}>
           <div className="st-embed">
@@ -143,10 +144,11 @@ export default async function AppLayout(
               groups={navGroups}
               label={tNav('label')}
               selectLabel={tNav('select')}
-              searchLabel={tNav('search')}
-              noResults={tNav.raw('noResults') as string}
             />
             <main className="st-embed-main app-content">{children}</main>
+            <Suspense fallback={null}>
+              <SettingHighlighter />
+            </Suspense>
           </div>
           </LookProvider>
         </ThemeProvider>
@@ -236,7 +238,7 @@ export default async function AppLayout(
   return (
     // Cliente: lo que usan el sidebar y Cmd+K de otras apps; cada app suma su
     // namespace en su layout.
-    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.desktopUpdate', 'settings.appUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
+    <ClientMessages locale={locale} namespaces={['settings.switcher', 'board.list', 'notes.actions', 'notes.nav', 'track.cmdk', 'trackPlanning.cmdk', 'settings.sections', 'settings.cmdk', 'settings.keywords', 'settings.search', 'settings.desktopUpdate', 'settings.appUpdate', 'voice.host', 'voice.errors', 'voice.cmdk', 'voice.recorder', 'voice.reminders', 'voice.prompts', 'rec.signout', 'notes.signOut', 'assistant']}>
       <ThemeProvider initial={themePref}>
       <LookProvider initial={lookOf(real)}>
       {/* El aspecto de la cuenta (users.ui_look) antes del primer paint de la app, aunque este navegador no tenga la cookie. */}
@@ -882,6 +884,10 @@ export default async function AppLayout(
           </main>
         </div>
         <CommandSearch allowedApps={allowedApps} staff={staff} />
+        {/* Marca el ajuste que pidió la búsqueda de Ajustes (#setting-<ancla>). */}
+        <Suspense fallback={null}>
+          <SettingHighlighter />
+        </Suspense>
         {/* Asistente de la plataforma: ⌘J o el botón de la banda, en toda la app. */}
         <AssistantPanel />
         {/* Un solo menú abierto a la vez también para los menús que no usan lib/ui/layers.ts. */}

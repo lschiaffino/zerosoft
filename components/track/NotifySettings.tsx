@@ -66,7 +66,7 @@ export default function NotifySettings({ locale }: { locale: string }) {
 
   return (
     <div data-testid="track-notify-settings">
-      <FormSection
+      <FormSection setting="track-notifications"
         title={t('notifySettings.title')}
         description={t('notifySettings.help')}
         onSubmit={() => save()}

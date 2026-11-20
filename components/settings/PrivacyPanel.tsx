@@ -160,7 +160,7 @@ export function AccountDataSection({ email, locale, pending, workspaceMembers, m
   const t = useTranslations('settings.privacy');
   const [open, setOpen] = useState(false);
   return (
-    <FormSection title={t('title')} description={t('desc')} id="your-data">
+    <FormSection setting="profile-privacy" title={t('title')} description={t('desc')} id="your-data">
       {pending && <PendingNotice pending={pending} locale={locale} />}
       <div className="ws-danger">
         <div>

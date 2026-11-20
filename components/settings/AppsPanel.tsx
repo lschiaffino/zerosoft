@@ -151,7 +151,7 @@ export default function AppsPanel({
 
   return (
     <>
-      <FormSection title={t('title')} description={t('desc')}>
+      <FormSection setting="workspace-apps" title={t('title')} description={t('desc')}>
         {!canEdit && <p className="ui-help">{t('readOnly')}</p>}
         <ul className="ws-apps" data-testid="workspace-apps">
           {apps.map((app) => {
