@@ -49,6 +49,7 @@ import { randomUUID } from 'crypto';
 import { deflateSync } from 'zlib';
 import { FAKE_ANIMATED_STICKER_WEBP, FAKE_STICKER_WEBP } from './wa-sticker-fixtures';
 import { FAKE_GIF_MP4 } from './wa-gif-fixtures';
+import { evolutionForward } from './wa-forward';
 import { waMentionPayload } from './wa-mention-jids';
 import { FAKE_VIDEO_WEBM } from './wa-video-fixtures';
 import {
@@ -93,6 +94,8 @@ export interface FakeSent {
   media?: { kind: string; mimetype: string; base64: boolean; gifPlayback?: boolean };
   /** Teléfonos mencionados (textos en grupos), como los pidió la app. */
   mentions?: string[];
+  /** Reenvío: la marca que pidió la app (score y, si va, el original), como la recibe el gateway (tests). */
+  forward?: { score: number; key?: { id: string; remoteJid: string; fromMe: boolean } };
   /**
    * Lo que recibiría el servidor de WhatsApp (lib/wa-mention-jids.ts): los JIDs mencionados y el texto con el token
    * de cada uno. Un grupo falso con `addressing: 'lid'` menciona por lid. El id que devuelve termina en
@@ -576,6 +579,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     sendText: async (chatId, text, o) => {
       const r = send(chatId, text, 'text');
+      if (o?.forward) s.sent[s.sent.length - 1].forward = evolutionForward(o.forward).forward;
       if (o?.mentions?.length) {
         const g = chatId.endsWith('@g.us') ? s.groups.get(chatId) : undefined;
         const members = g
@@ -593,6 +597,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     },
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
+      if (media.forward) s.sent[s.sent.length - 1].forward = evolutionForward(media.forward).forward;
       return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {

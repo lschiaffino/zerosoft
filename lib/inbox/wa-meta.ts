@@ -67,6 +67,8 @@ export function messageMeta(e: MessageEvent): { meta: string; kind: string } {
   }
   // A quién menciona (teléfono o "<lid>@lid"): con eso "@<dígitos>" se muestra con el nombre.
   if (e.mentions?.length) out.mentions = e.mentions.filter((m) => typeof m === 'string' && /^\d{5,20}(@lid)?$/.test(m)).slice(0, 50);
+  // Cuántas veces se reenvió ("Reenviado muchas veces" desde 5): al reenviarlo, la copia suma uno.
+  if (e.forwarded && e.forwardingScore) out.fwd = e.forwardingScore;
   return { meta: Object.keys(out).length ? JSON.stringify(out) : '', kind };
 }
 

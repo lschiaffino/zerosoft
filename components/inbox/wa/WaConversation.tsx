@@ -63,6 +63,7 @@ import { useInboxThreadCommands } from '../slash-commands';
 import { typingLabel } from './ChatRow';
 import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent';
 import { parseEvent } from '@/lib/wa-group-events';
+import { forwardedMany } from '@/lib/wa-forward';
 import type { WaMentionPick } from '@/lib/wa-compose-mentions';
 
 export interface WaThreadDetail {
@@ -882,8 +883,8 @@ const WaConversation = forwardRef<
             </p>
           )}
           {m.forwarded && !hidden && (
-            <p className="gr-forwarded">
-              <Forwarded size={13} /> {w('forwarded')}
+            <p className="gr-forwarded" data-forwarded={forwardedMany(m.forwarded, m.meta) ? 'many' : 'once'}>
+              <Forwarded size={13} /> {forwardedMany(m.forwarded, m.meta) ? w('forwardedMany') : w('forwarded')}
             </p>
           )}
           {m.reply && !hidden && (

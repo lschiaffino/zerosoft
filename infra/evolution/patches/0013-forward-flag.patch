@@ -1,0 +1,285 @@
+diff --git a/src/api/dto/sendMessage.dto.ts b/src/api/dto/sendMessage.dto.ts
+index ba9ecf5..f45b3de 100644
+--- a/src/api/dto/sendMessage.dto.ts
++++ b/src/api/dto/sendMessage.dto.ts
+@@ -5,6 +5,13 @@ export class Quoted {
+   message: proto.IMessage;
+ }
+ 
++// zerosoft: reenvío. WhatsApp lo muestra "Reenviado" (contextInfo.isForwarded) y "Reenviado muchas veces" con
++// forwardingScore >= 5. `key`: el mensaje original, si está guardado en esta instancia (se reenvía desde ahí).
++export class ForwardOptions {
++  score?: number;
++  key?: proto.IMessageKey;
++}
++
+ export class Options {
+   delay?: number;
+   presence?: WAPresence;
+@@ -14,6 +21,7 @@ export class Options {
+   mentionsEveryOne?: boolean;
+   mentioned?: string[];
+   webhookUrl?: string;
++  forward?: ForwardOptions;
+ }
+ 
+ export class MediaMessage {
+@@ -45,6 +53,7 @@ export class Metadata {
+   mentioned?: string[];
+   encoding?: boolean;
+   notConvertSticker?: boolean;
++  forward?: ForwardOptions;
+ }
+ 
+ export class SendTextDto extends Metadata {
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 7aecbdd..9541c91 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -116,8 +116,10 @@ import makeWASocket, {
+   isJidNewsletter,
+   isPnUser,
+   jidNormalizedUser,
++  generateForwardMessageContent,
+   makeCacheableSignalKeyStore,
+   MessageUpsertType,
++  normalizeMessageContent,
+   MessageUserReceiptUpdate,
+   MiscMessageGenerationOptions,
+   ParticipantAction,
+@@ -2199,6 +2201,16 @@ export class BaileysStartupService extends ChannelStartupService {
+     // NOTE: NÃO DEVEMOS GERAR O messageId AQUI, SOMENTE SE VIER INFORMADO POR PARAMETRO. A GERAÇÃO ANTERIOR IMPEDE O WZAP DE IDENTIFICAR A SOURCE.
+     if (messageId) option.messageId = messageId;
+ 
++    // zerosoft: reenvío del mensaje guardado (zsForwardOriginal), como lo hace el teléfono: el mismo contenido, con
++    // el archivo que ya está en WhatsApp (no se vuelve a subir) y contextInfo.isForwarded/forwardingScore.
++    if (message?.['zsForward']) {
++      return await this.client.sendMessage(
++        sender,
++        { forward: message['zsForward'].original, force: true, contextInfo } as unknown as AnyMessageContent,
++        option as unknown as MiscMessageGenerationOptions,
++      );
++    }
++
+     if (message['viewOnceMessage']) {
+       const m = generateWAMessageFromContent(sender, message, {
+         timestamp: new Date(),
+@@ -2401,6 +2413,10 @@ export class BaileysStartupService extends ChannelStartupService {
+       let mentions: string[];
+       let contextInfo: any;
+ 
++      // zerosoft: un reenvío lleva la marca de WhatsApp ("Reenviado"; "Reenviado muchas veces" con score >= 5).
++      const zsScore = this.zsForwardScore(options?.forward);
++      const zsForwarded = zsScore ? { isForwarded: true, forwardingScore: zsScore } : undefined;
++
+       if (isJidGroup(sender)) {
+         let group;
+         try {
+@@ -2436,6 +2452,7 @@ export class BaileysStartupService extends ChannelStartupService {
+           quoted,
+           null,
+           group?.ephemeralDuration,
++          zsForwarded,
+           // group?.participants,
+         );
+       } else {
+@@ -2449,6 +2466,7 @@ export class BaileysStartupService extends ChannelStartupService {
+             unsigned: false,
+           },
+           disappearingMode: { initiator: 0 },
++          ...(zsForwarded ?? {}),
+         };
+         messageSent = await this.sendMessage(
+           sender,
+@@ -2677,6 +2695,9 @@ export class BaileysStartupService extends ChannelStartupService {
+       throw new BadRequestException('Text is required');
+     }
+ 
++    const forwarded = await this.zsSendForwarded(data, { types: ['conversation', 'extendedTextMessage'], text }, 'composing', isIntegration);
++    if (forwarded) return forwarded;
++
+     return await this.sendMessageWithTyping(
+       data.number,
+       { conversation: data.text },
+@@ -2687,6 +2708,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         linkPreview: data?.linkPreview,
+         mentionsEveryOne: data?.mentionsEveryOne,
+         mentioned: data?.mentioned,
++        forward: data?.forward,
+       },
+       isIntegration,
+     );
+@@ -3010,6 +3032,9 @@ export class BaileysStartupService extends ChannelStartupService {
+ 
+     if (file) mediaData.sticker = file.buffer.toString('base64');
+ 
++    const forwarded = await this.zsSendForwarded(data, { types: ['stickerMessage'] }, 'composing');
++    if (forwarded) return forwarded;
++
+     const convert = data?.notConvertSticker
+       ? Buffer.from(data.sticker, 'base64')
+       : await this.convertToWebP(data.sticker);
+@@ -3026,6 +3051,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         quoted: data?.quoted,
+         mentionsEveryOne: data?.mentionsEveryOne,
+         mentioned: data?.mentioned,
++        forward: data?.forward,
+       },
+     );
+ 
+@@ -3037,6 +3063,20 @@ export class BaileysStartupService extends ChannelStartupService {
+ 
+     if (file) mediaData.media = file.buffer.toString('base64');
+ 
++    const zsType = { image: 'imageMessage', video: 'videoMessage', document: 'documentMessage', audio: 'audioMessage' }[
++      data?.mediatype as string
++    ];
++    if (zsType) {
++      const captioned = zsType !== 'audioMessage';
++      const forwarded = await this.zsSendForwarded(
++        data,
++        { types: [zsType], ...(captioned ? { caption: data?.caption ?? '' } : { ptt: false }) },
++        'composing',
++        isIntegration,
++      );
++      if (forwarded) return forwarded;
++    }
++
+     const generate = await this.prepareMediaMessage(mediaData);
+ 
+     const mediaSent = await this.sendMessageWithTyping(
+@@ -3048,6 +3088,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         quoted: data?.quoted,
+         mentionsEveryOne: data?.mentionsEveryOne,
+         mentioned: data?.mentioned,
++        forward: data?.forward,
+       },
+       isIntegration,
+     );
+@@ -3271,6 +3312,9 @@ export class BaileysStartupService extends ChannelStartupService {
+       data.encoding = true;
+     }
+ 
++    const forwarded = await this.zsSendForwarded(data, { types: ['audioMessage'], ptt: true }, 'recording', isIntegration);
++    if (forwarded) return forwarded;
++
+     if (data?.encoding) {
+       const convert = await this.processAudio(mediaData.audio);
+ 
+@@ -3278,7 +3322,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         const result = this.sendMessageWithTyping<AnyMessageContent>(
+           data.number,
+           { audio: convert, ptt: true, mimetype: 'audio/ogg; codecs=opus' },
+-          { presence: 'recording', delay: data?.delay },
++          { presence: 'recording', delay: data?.delay, forward: data?.forward },
+           isIntegration,
+         );
+ 
+@@ -3295,7 +3339,7 @@ export class BaileysStartupService extends ChannelStartupService {
+         ptt: true,
+         mimetype: 'audio/ogg; codecs=opus',
+       },
+-      { presence: 'recording', delay: data?.delay },
++      { presence: 'recording', delay: data?.delay, forward: data?.forward },
+       isIntegration,
+     );
+   }
+@@ -4953,6 +4997,98 @@ export class BaileysStartupService extends ChannelStartupService {
+     throw new Error('Method not available in the Baileys service');
+   }
+ 
++  // zerosoft: reenvíos (patches/0013). `forward: { score?, key? }` en sendText, sendMedia, sendWhatsAppAudio y
++  // sendSticker. Sin `forward` nada cambia.
++
++  /** El forwardingScore pedido (1 si no dice), o 0 si no es un reenvío. */
++  private zsForwardScore(forward: any): number {
++    if (!forward || typeof forward !== 'object') return 0;
++    const n = Math.floor(Number(forward.score ?? 1));
++    return Number.isFinite(n) && n >= 1 ? Math.min(n, 1000) : 1;
++  }
++
++  /** Lo que la base guarda como JSON vuelve a bytes: `{ "0": .., "1": .. }` (Uint8Array) y `{ type: 'Buffer', data }`. */
++  private zsRevive(value: any): any {
++    if (value === null || typeof value !== 'object') return value;
++    if (Buffer.isBuffer(value) || value instanceof Uint8Array) return value;
++    if (Array.isArray(value)) return value.map((v) => this.zsRevive(v));
++    if (value.type === 'Buffer' && Array.isArray(value.data)) return Buffer.from(value.data);
++    const keys = Object.keys(value);
++    if (keys.length && keys.every((k) => /^\d+$/.test(k))) {
++      return Uint8Array.from(keys.sort((a, b) => Number(a) - Number(b)).map((k) => Number(value[k])));
++    }
++    const out: any = {};
++    for (const k of keys) out[k] = this.zsRevive(value[k]);
++    return out;
++  }
++
++  /**
++   * El original de un reenvío, si está guardado en esta instancia y es lo mismo que se pide mandar (mismo tipo, mismo
++   * texto o pie, nota de voz o no). Un archivo solo si tiene su clave y su ruta en WhatsApp y es de los últimos 7 días
++   * (después WhatsApp puede haberlo borrado de su servidor y quien lo recibe no podría bajarlo). Si no, null: sale
++   * como un mensaje nuevo con la marca de reenviado.
++   */
++  private async zsForwardOriginal(
++    forward: any,
++    want: { types: string[]; text?: string; caption?: string; ptt?: boolean },
++  ): Promise<{ original: WAMessage; score: number } | null> {
++    const id = forward?.key?.id;
++    if (typeof id !== 'string' || !id || id.length > 128) return null;
++    try {
++      const rows = (await this.prismaRepository.$queryRaw`
++        SELECT "key", "message", "messageTimestamp" FROM "Message"
++        WHERE "instanceId" = ${this.instanceId} AND "key"->>'id' = ${id}
++        LIMIT 1
++      `) as any[];
++      const row = rows?.[0];
++      if (!row?.message || !row?.key) return null;
++      const raw = this.zsRevive(row.message);
++      if (raw.viewOnceMessage || raw.viewOnceMessageV2 || raw.viewOnceMessageV2Extension) return null;
++      const content: any = normalizeMessageContent(proto.Message.fromObject(raw));
++      const type = getContentType(content);
++      if (!type || !want.types.includes(type)) return null;
++      const inner: any = content[type];
++      if (inner?.viewOnce) return null;
++      if (type === 'conversation' || type === 'extendedTextMessage') {
++        const text = type === 'conversation' ? content.conversation : inner?.text;
++        if (String(text ?? '').trim() !== String(want.text ?? '').trim()) return null;
++      } else {
++        if (!(inner?.mediaKey instanceof Uint8Array) || inner.mediaKey.length !== 32 || !inner.directPath) return null;
++        if (want.ptt !== undefined && Boolean(inner.ptt) !== want.ptt) return null;
++        if (want.caption !== undefined && String(inner.caption ?? '').trim() !== want.caption.trim()) return null;
++        const ts = Number(row.messageTimestamp);
++        if (!ts || Date.now() / 1000 - ts > 7 * 24 * 3600) return null;
++      }
++      const message = proto.Message.fromObject({ [type]: inner });
++      const original = { key: row.key, message } as WAMessage;
++      // Lo que Baileys arma al reenviar: si falla acá, sale como un mensaje nuevo.
++      generateForwardMessageContent(original, true);
++      const before = Number(inner?.contextInfo?.forwardingScore) || 0;
++      return { original, score: Math.min(Math.max(this.zsForwardScore(forward), before + 1), 1000) };
++    } catch (error) {
++      this.logger.warn(`zerosoft forward: original not usable (${error?.message ?? error})`);
++      return null;
++    }
++  }
++
++  /** Reenvía desde la base si se puede (zsForwardOriginal); null si hay que mandarlo como un mensaje nuevo. */
++  private async zsSendForwarded(
++    data: { number: string; delay?: number; forward?: any },
++    want: { types: string[]; text?: string; caption?: string; ptt?: boolean },
++    presence: WAPresence,
++    isIntegration = false,
++  ) {
++    if (!data?.forward) return null;
++    const found = await this.zsForwardOriginal(data.forward, want);
++    if (!found) return null;
++    return await this.sendMessageWithTyping(
++      data.number,
++      { zsForward: found } as any,
++      { delay: data?.delay, presence, forward: { score: found.score } },
++      isIntegration,
++    );
++  }
++
+   private deserializeMessageBuffers(obj: any): any {
+     if (obj === null || obj === undefined) {
+       return obj;
