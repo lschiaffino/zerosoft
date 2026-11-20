@@ -434,7 +434,7 @@ export async function deleteField(ctx: PeopleCtx, id: string): Promise<boolean> 
 
 // ---------- Fichas ----------
 
-interface EmployeeRow {
+export interface EmployeeRow {
   id: string;
   workspace_id: string;
   user_id: string | null;

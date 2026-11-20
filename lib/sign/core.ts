@@ -236,6 +236,7 @@ export function recipientDto(r: RecipientRow, current: boolean) {
     status: r.status,
     current,
     notifiedAt: r.notified_at,
+    remindedAt: r.reminded_at && r.reminded_at !== r.notified_at ? r.reminded_at : null,
     viewedAt: r.viewed_at,
     signedAt: r.signed_at,
     declinedAt: r.declined_at,

@@ -249,6 +249,7 @@
     "recipients": "Destinatarios",
     "current": "le toca",
     "notified": "enviado {date}",
+    "remindedOn": "recordatorio {date}",
     "viewed": "abierto {date}",
     "signed": "firmó {date}",
     "declined": "rechazó {date}",

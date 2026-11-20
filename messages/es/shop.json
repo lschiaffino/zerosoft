@@ -802,6 +802,11 @@
     "inStockOnly": "Solo con stock",
     "maxPrice": "Precio máximo",
     "noMatch": "Ningún producto coincide con estos filtros.",
+    "filterCount": "Resultados: {count}",
+    "filterResults": "{shown} de {total} productos",
+    "clearFilters": "Borrar filtros",
+    "filterVendor": "Marca",
+    "filterType": "Tipo",
     "whatsapp": "WhatsApp",
     "unsubscribed": "Listo. Esta tienda no te manda más recordatorios del carrito."
   },

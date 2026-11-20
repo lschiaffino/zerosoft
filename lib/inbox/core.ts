@@ -15,6 +15,7 @@ import { parseSearch, threadIdsMatching } from './message-search';
 import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { publicLink } from '../wa-link-thumb';
+import { cleanWaMentionPicks } from '../wa-compose-mentions';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -1020,6 +1021,7 @@ interface MessageRow {
   reactions?: string;
   forwarded?: number;
   starred_at?: string | null;
+  pinned_at?: string | null;
 }
 
 /** Meta para el navegador: la imagen grande del link va por la ruta del mensaje, sin la clave ni los bytes. */
@@ -1044,6 +1046,7 @@ function messageDto(r: MessageRow, reply: MessageQuote | null = null): MessageDt
     reactions: Array.isArray(reactions) ? reactions.filter((x) => x && typeof x.emoji === 'string' && x.emoji) : [],
     forwarded: r.forwarded === 1,
     starred: !!r.starred_at,
+    ...(r.pinned_at ? { pinnedAt: r.pinned_at } : {}),
     meta: publicMeta(parseJson<WaMessageMeta>(r.meta), r.id),
     id: r.id,
     fromMe: r.from_me === 1,
@@ -1105,6 +1108,14 @@ export async function listMessages(
     }
   }
   return page;
+}
+
+/** Mensajes fijados del chat (como en WhatsApp, hasta 3), el más nuevo primero. */
+export async function listPinnedMessages(owner: string, threadId: string): Promise<MessageDto[]> {
+  const rows = (await getDb()
+    .prepare('SELECT * FROM inbox_messages WHERE thread_id = ? AND owner_id = ? AND pinned_at IS NOT NULL AND hidden_at IS NULL AND revoked_at IS NULL ORDER BY pinned_at DESC LIMIT 3')
+    .all(threadId, owner)) as MessageRow[];
+  return rows.map((r) => messageDto(r));
 }
 
 /**
@@ -1773,6 +1784,8 @@ export interface ScheduledRow {
   media_duration: number;
   /** Mensaje (nuestro id) que cita. */
   reply_to: string;
+  /** Menciones, JSON `[{ phone, label }]` (lib/wa-compose-mentions.ts). */
+  mentions?: string | null;
 }
 
 export async function listScheduled(owner: string, threadId?: string): Promise<ScheduledDto[]> {
@@ -1801,6 +1814,7 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     mediaVoice: r.media_kind === 'voice',
     mediaDuration: Number(r.media_duration ?? 0),
     replyTo: r.reply_to ?? '',
+    mentions: cleanWaMentionPicks(r.mentions),
   }));
 }
 

@@ -259,6 +259,14 @@ const parity: ProductParity = {
     }),
     row('filters', 'inbox', ['Filters: unread, unanswered, mine, label', 'Filtros: sin leer, sin responder, míos, etiqueta', 'Filtros: não lidas, sem resposta, minhas, etiqueta'], 'have'),
     row('message-search', 'inbox', ['Search chats and message text', 'Buscar chats y texto de mensajes', 'Buscar chats e texto das mensagens'], 'have'),
+    row('kanban-inbox', 'inbox', ['Kanban view of the inbox', 'Vista kanban de la bandeja', 'Visualização kanban da caixa'], 'better', {
+      competitorHas: false,
+      detail: [
+        'Chats as cards in columns: team stages set by an admin, your own private stages, or the options of a HubSpot company property (moving a card writes it to HubSpot). Filters, search, folders and lines apply to the board',
+        'Los chats como tarjetas en columnas: etapas del equipo que define un admin, tus etapas privadas o las opciones de una propiedad de la empresa de HubSpot (mover una tarjeta la escribe en HubSpot). Filtros, búsqueda, carpetas y líneas valen en el tablero',
+        'As conversas como cartões em colunas: etapas da equipe definidas por um admin, suas etapas privadas ou as opções de uma propriedade da empresa no HubSpot (mover um cartão grava no HubSpot). Filtros, busca, pastas e linhas valem no quadro',
+      ],
+    }),
     row('close-reopen', 'inbox', ['Close, reopen and mark as read', 'Cerrar, reabrir y marcar leído', 'Fechar, reabrir e marcar como lida'], 'have', {
       detail: [
         'Close, reopen, read or unread and pin chats to the top, one by one or in bulk, with E, U, P and X',
@@ -325,16 +333,16 @@ const parity: ProductParity = {
     row('sync-groups', 'groups', ['Refresh groups and members from WhatsApp', 'Refrescar grupos y miembros desde WhatsApp', 'Atualizar grupos e membros pelo WhatsApp'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'] }),
     row('groups-table', 'groups', ['Groups table with columns, filters and sorting', 'Tabla de grupos con columnas, filtros y orden', 'Tabela de grupos com colunas, filtros e ordenação'], 'have', {
       detail: [
-        'Pick the columns (group, zerosoft properties, HubSpot company properties, company owner, deal and deal stage), add your own, edit them in the cell (labels, status, zerosoft properties and HubSpot company properties, written to HubSpot), sort by any of them and filter by one, several or all numbers. A group that several of your numbers are in is one row that lists those numbers, with one HubSpot company. The header and the name stay in place while you scroll, and arrow keys move between cells',
-        'Elegís las columnas (del grupo, propiedades de zerosoft, de la empresa en HubSpot, dueño, negocio y etapa), agregás las tuyas, las editás en la celda (etiquetas, estado, propiedades de zerosoft y de la empresa en HubSpot, que se escriben en HubSpot), ordenás por cualquiera y filtrás por una, varias o todas las líneas. Un grupo en el que están varias de tus líneas es una sola fila que dice en cuáles está, con una sola empresa de HubSpot. La cabecera y el nombre quedan fijos al scrollear, y las flechas pasan de celda en celda',
-        'Escolha as colunas (do grupo, propriedades do zerosoft, da empresa no HubSpot, dono, negócio e etapa), adicione as suas, edite na célula (etiquetas, status, propriedades do zerosoft e da empresa no HubSpot, gravadas no HubSpot), ordene por qualquer uma e filtre por uma, várias ou todas as linhas. Um grupo em que estão várias das suas linhas é uma só linha da tabela que mostra em quais está, com uma só empresa do HubSpot. O cabeçalho e o nome ficam fixos ao rolar, e as setas passam de célula em célula',
+        'Pick the columns (group, zerosoft properties, HubSpot company properties, company owner, deal and deal stage), add your own, edit them in the cell (labels, status, zerosoft properties and HubSpot company properties, written to HubSpot), sort by any of them and filter by one, several or all numbers. A group that several of your numbers are in is one row that lists those numbers, with one HubSpot company, which you link, change or unlink right in the cell by searching HubSpot as you type (the Contacts table does the same with the HubSpot contact). The header and the name stay in place while you scroll, and arrow keys move between cells',
+        'Elegís las columnas (del grupo, propiedades de zerosoft, de la empresa en HubSpot, dueño, negocio y etapa), agregás las tuyas, las editás en la celda (etiquetas, estado, propiedades de zerosoft y de la empresa en HubSpot, que se escriben en HubSpot), ordenás por cualquiera y filtrás por una, varias o todas las líneas. Un grupo en el que están varias de tus líneas es una sola fila que dice en cuáles está, con una sola empresa de HubSpot, que se vincula, cambia o desvincula en la misma celda buscando en HubSpot mientras escribís (la tabla de Contactos hace lo mismo con el contacto de HubSpot). La cabecera y el nombre quedan fijos al scrollear, y las flechas pasan de celda en celda',
+        'Escolha as colunas (do grupo, propriedades do zerosoft, da empresa no HubSpot, dono, negócio e etapa), adicione as suas, edite na célula (etiquetas, status, propriedades do zerosoft e da empresa no HubSpot, gravadas no HubSpot), ordene por qualquer uma e filtre por uma, várias ou todas as linhas. Um grupo em que estão várias das suas linhas é uma só linha da tabela que mostra em quais está, com uma só empresa do HubSpot, que se vincula, troca ou desvincula na própria célula buscando no HubSpot enquanto você digita (a tabela de Contatos faz o mesmo com o contato do HubSpot). O cabeçalho e o nome ficam fixos ao rolar, e as setas passam de célula em célula',
       ],
     }),
     row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'partial', {
       detail: [
-        'Join with the invite link and the group arrives with its members; leaving keeps the history. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Entrar con el link de invitación trae el grupo con sus miembros; salir conserva el historial. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Entrar com o link de convite traz o grupo com os membros; sair mantém o histórico. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Join with the invite link, or with Join group on an invite card in a chat (after a confirmation), and the group arrives with its members; leaving keeps the history. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Entrar con el link de invitación, o con Unirme al grupo en la tarjeta de una invitación en un chat (después de confirmar), trae el grupo con sus miembros; salir conserva el historial. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Entrar com o link de convite, ou com Entrar no grupo no cartão de um convite numa conversa (depois de confirmar), traz o grupo com os membros; sair mantém o histórico. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
 

@@ -65,7 +65,7 @@ export function NewGroupCard({
     <section className="wa-newgroup" aria-label={t('label')} data-testid="new-group-card">
       <Avatar name={name} kind="group" src={avatar} seed={seed} size={56} />
       {who && <p className="wa-newgroup-who">{who}</p>}
-      <p className="wa-newgroup-meta">{members > 0 ? t('members', { n: members }) : t('groupOnly')}</p>
+      <p className="wa-newgroup-meta" data-testid="new-group-members" data-count={members}>{members > 0 ? t('members', { n: members }) : t('groupOnly')}</p>
       {actions.length > 0 && (
         <div className="wa-newgroup-actions">
           {actions.map((a) => (

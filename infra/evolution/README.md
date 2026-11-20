@@ -143,6 +143,29 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   llega a saber (si era un archivado hecho en el teléfono, ese no aparece). Cuenta por clave en
   `globalThis.__zsAppStateNoKey`.
 
+- `0014-group-receipts-on-demand.patch`: "Leído por" y "Entregado a" de los mensajes propios en grupos, **sin
+  webhooks** (lo que no pudo 0011). Baileys emite `message-receipt.update` por persona (`{ key, receipt: { userJid,
+  receiptTimestamp | readTimestamp } }`); Evolution 2.3.7 solo lo usaba para marcar leídos los mensajes *recibidos*
+  de ese chat (`updateMessagesReadedByTimestamp`) y no lo guardaba ni lo mandaba (`MessageUpdate` guarda el
+  `status` de `messages.update`, que en un grupo nunca trae a la persona ni la hora). Ahora:
+  - cada confirmación de un mensaje propio en un grupo (no la de la propia cuenta) entra a una cola en memoria que
+    junta las repetidas (misma persona y mensaje: una fila con la hora más temprana), con tope de 20.000 filas;
+  - cada 2 s la cola se escribe en la tabla `ZsMessageReceipt` (clave instancia + mensaje + persona; se crea sola
+    con `CREATE TABLE IF NOT EXISTS`, sin migración de Prisma) con un `INSERT ... ON CONFLICT` de hasta 500 filas
+    por sentencia. Lo de más de 30 días se borra una vez por hora;
+  - `POST /chat/messageReceipts/{instance}` con `{ id, remoteJid? }` (mismo `apikey`) responde
+    `{ id, receipts: [{ userJid, phone?, deliveredAt, readAt, playedAt }] }` (segundos Unix; `phone` es el
+    teléfono de un lid si Baileys lo sabe). zerosoft lo pide solo cuando alguien abre la Info del mensaje
+    (lib/wa-receipts-store.ts: como mucho un pedido cada 15 s por mensaje, y nada por 10 min en una línea que da 404);
+  - en el `Dockerfile`, un `sed` hace que Baileys guarde "escuchado" (audio) como `playedTimestamp` en vez de
+    `readTimestamp` (el build falla si la línea cambió).
+
+  **Apagado por defecto:** solo con `ZS_MESSAGE_RECEIPTS=true` en el servicio y con Postgres. Apagado, no se guarda
+  nada y el endpoint responde 404, como un Evolution sin el parche: zerosoft muestra lo que tiene (las horas de los
+  1:1 llegan por el webhook de siempre) y una nota en los grupos. Carga: cero webhooks nuevos; en el gateway, una
+  escritura por tanda de 2 s (en vez de una por confirmación); en zerosoft, un pedido por apertura de la Info.
+  Para ver cómo va: `globalThis.__zsReceipts` (encoladas, descartadas, escritas, fallidas).
+
 **Qué imagen corre.** Cada parche llega a las líneas solo cuando el servicio de Railway usa la etiqueta nueva: el
 workflow publica la imagen pero no cambia Railway. El 15/11 el servicio seguía en `2.3.7-zs4` (sin 0004 ni 0005)
 después de publicarse `zs6`. Para ver cuál corre: `railway deployment list -p <proyecto> -s evolution --json`

@@ -48,6 +48,7 @@
   "peopleOnboarding": "Tarefas de integração de {name}",
   "peopleOffboarding": "Tarefas de desligamento de {name}",
   "timeOffRequested": "{name} pediu folga",
+  "timeOffEdited": "{name} alterou um pedido de folga",
   "timeOffRequestedBody": "{range} · {days} dia(s)",
   "timeOffApproved": "Sua folga foi aprovada",
   "timeOffDeclined": "Sua folga foi recusada",

@@ -16,6 +16,8 @@
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
+import { groupAddressing, waMentionPayload, type MentionGroup } from './wa-mention-jids';
+import { receiptTime, type GatewayReceipt } from './wa-receipts';
 import {
   evolutionFileName,
   evolutionStickerBody,
@@ -34,10 +36,12 @@ import {
   errorFromStatus,
   hmacHex,
   isGroupJid,
+  isBotJid,
   isLidJid,
   lidDigits,
   phoneDigits,
   safeEqual,
+  inviteFailureOf,
   type ArchiveRef,
   type BridgeConfig,
   type ChatInfo,
@@ -486,7 +490,7 @@ export function wahaProvider(
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
         // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
-        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => `${p}@c.us`) } : {}),
+        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
@@ -686,8 +690,8 @@ const EVOLUTION_ACK: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = 
   ERROR: 'failed',
 };
 
-/** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). */
-const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage'];
+/** Envoltorios de Baileys que traen el mensaje real adentro ({ message: {...} }). botInvokeMessage: lo que contesta Meta AI. */
+const BAILEYS_WRAPPERS = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage', 'deviceSentMessage', 'lottieStickerMessage', 'botInvokeMessage'];
 
 /** Saca los envoltorios (mensajes temporales, "ver una vez", documento con texto). */
 function unwrapBaileys(message: Json): { message: Json; viewOnce: boolean } {
@@ -722,6 +726,37 @@ export function parseEvolutionPrivacy(raw: unknown): PrivacySettings | null {
   const body = (r.readreceipts !== undefined ? r : (r.privacySettings ?? r.data ?? r.response ?? {})) as Json;
   const v = String(body?.readreceipts ?? '').toLowerCase();
   return v === 'all' || v === 'none' ? { readReceipts: v } : null;
+}
+
+/**
+ * /chat/messageReceipts (parche 0014 de infra/evolution) → las confirmaciones
+ * por persona: `{ receipts: [{ userJid, phone?, deliveredAt?, readAt?,
+ * playedAt? }] }`, con las horas en segundos Unix. `userJid` es el teléfono
+ * (`@s.whatsapp.net`) o el lid (`@lid`); `phone` es el teléfono de un lid si
+ * el gateway lo sabe.
+ */
+export function parseEvolutionReceipts(raw: unknown): GatewayReceipt[] {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Json;
+  const list = Array.isArray(r.receipts) ? (r.receipts as unknown[]) : [];
+  const out: GatewayReceipt[] = [];
+  for (const item of list.slice(0, 2000)) {
+    if (!item || typeof item !== 'object') continue;
+    const x = item as Json;
+    const jid = String(x.userJid ?? '');
+    const user = jid.replace(/@.*$/, '').replace(/:\d+$/, '').replace(/\D/g, '');
+    const lid = /@lid$/.test(jid) ? user : '';
+    const phone = lid ? phoneDigits(String(x.phone ?? '')) : /@(s\.whatsapp\.net|c\.us)$/.test(jid) ? user : '';
+    if (!phone && !lid) continue;
+    const times = { deliveredAt: receiptTime(x.deliveredAt), readAt: receiptTime(x.readAt), playedAt: receiptTime(x.playedAt) };
+    out.push({
+      ...(phone ? { phone } : {}),
+      ...(lid ? { lid } : {}),
+      ...(times.deliveredAt ? { deliveredAt: times.deliveredAt } : {}),
+      ...(times.readAt ? { readAt: times.readAt } : {}),
+      ...(times.playedAt ? { playedAt: times.playedAt } : {}),
+    });
+  }
+  return out;
 }
 
 export function cleanPushName(raw: unknown): string {
@@ -889,6 +924,20 @@ function inboundEvolutionMedia(
   };
 }
 
+/**
+ * Un mensaje de una conversación con Meta AI (un "@bot"): WhatsApp lo marca con botMetadata o botMessageSecret en
+ * messageContextInfo, lo envuelve en botInvokeMessage, o (historial) trae botMessageInvokerJid / botTargetId. Un
+ * mensaje reenviado de Meta AI a otro chat no cuenta (lleva forwardedAiBotMessageInfo, no estas marcas).
+ */
+export function isBotTraffic(m: Json): boolean {
+  if (isBotJid(String(((m.key ?? {}) as Json).remoteJid ?? ''))) return true;
+  const msg = (m.message ?? {}) as Json;
+  const ctx = (msg.messageContextInfo ?? m.messageContextInfo ?? {}) as Json;
+  if ((ctx.botMetadata && typeof ctx.botMetadata === 'object') || ctx.botMessageSecret) return true;
+  if (msg.botInvokeMessage && typeof msg.botInvokeMessage === 'object') return true;
+  return (typeof m.botMessageInvokerJid === 'string' && m.botMessageInvokerJid !== '') || (typeof m.botTargetId === 'string' && m.botTargetId !== '');
+}
+
 /** Estado de entrega de un mensaje guardado por Evolution (status o el último MessageUpdate). */
 function storedStatus(m: Json): 'sent' | 'delivered' | 'read' | undefined {
   const rank = { sent: 1, delivered: 2, read: 3 } as const;
@@ -987,6 +1036,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(content.mentions?.length ? { mentions: content.mentions } : {}),
     ...(senderLid ? { senderLid } : {}),
     ...(chatLid ? { chatLid } : {}),
+    ...(!isGroup && isBotTraffic(m) ? { bot: true } : {}),
   };
   return [out];
 }
@@ -1159,7 +1209,9 @@ export function parseEvolutionWebhook(body: unknown): InboundEvent[] {
         // La confirmación de un chat 1:1 que vino solo por lid: con ella se aprende de quién es ese lid.
         const sk = (u.key ?? {}) as Json;
         const rj = pnJid(String(u.remoteJid ?? sk.remoteJid ?? ''), sk.remoteJidAlt, u.remoteJidAlt);
-        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}) });
+        // PLAYED (un audio escuchado) llega como 'read' con la marca: la Info del mensaje lo muestra aparte.
+        const played = String(u.status ?? '').toUpperCase() === 'PLAYED';
+        if (st && id) out.push({ type: 'status', providerMessageId: id, status: st, ...(isLidJid(rj) ? { chatId: rj } : {}), ...(played ? { played: true } : {}) });
         // Resultado agregado de una encuesta: [{ name, voters: [jid] }] → un voto por persona.
         const agg = Array.isArray(u.pollUpdates) ? (u.pollUpdates as Json[]) : null;
         if (agg && id) {
@@ -1307,6 +1359,29 @@ async function evolutionMedia(
   return { data, mimetype: String(r.mimetype ?? 'application/octet-stream'), filename: String(r.fileName ?? '') };
 }
 
+/**
+ * Cómo direcciona WhatsApp un grupo y quiénes son (teléfono y lid), para las
+ * menciones (lib/wa-mention-jids.ts), a partir de /group/findGroupInfos:
+ * Baileys da cada participante con su id ("<lid>@lid" en un grupo por lid) y
+ * el otro id al lado (phoneNumber o lid).
+ */
+export function mentionGroupOf(raw: unknown): MentionGroup | null {
+  const parts = Array.isArray((raw as Json | null)?.participants) ? ((raw as Json).participants as unknown[]) : null;
+  if (!parts?.length) return null;
+  return {
+    addressing: groupAddressing(parts.map((p) => (typeof p === 'string' ? p : (p as Json | null)?.id))),
+    members: parts.slice(0, 2000).flatMap((p) => {
+      const phone = participantPhone(p);
+      const lid = participantLid(p);
+      return phone || lid ? [{ phone, ...(lid ? { lid } : {}) }] : [];
+    }),
+  };
+}
+
+/** Grupos ya consultados para mencionar (5 minutos): dos menciones seguidas en el mismo grupo no lo piden dos veces. */
+const mentionGroups = new Map<string, { at: number; group: MentionGroup }>();
+const MENTION_GROUP_TTL = 5 * 60_000;
+
 export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider & { start(): Promise<ConnectState> } {
   const f = opts.fetch ?? defaultBridgeFetch;
   const fMedia = opts.fetch ?? mediaBridgeFetch;
@@ -1320,6 +1395,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     bridgeRequest(opts.fetch ?? slowMediaFetch, `${baseOf(cfg)}${path}`, headers, method, body, o);
   const mediaApi = (path: string, body: unknown) => bridgeRequest(fMedia, `${baseOf(cfg)}${path}`, headers, 'POST', body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
+
+  /** El grupo para mencionar (cacheado); null si el servidor no lo da: se menciona por teléfono. */
+  async function mentionGroup(chatId: string): Promise<MentionGroup | null> {
+    const key = `${baseOf(cfg)}|${instance}|${chatId}`;
+    const hit = mentionGroups.get(key);
+    if (hit && Date.now() - hit.at < MENTION_GROUP_TTL) return hit.group;
+    const group = mentionGroupOf(await api(`/group/findGroupInfos/${instance}${q(chatId)}`).catch(() => null));
+    if (mentionGroups.size > 500) mentionGroups.clear();
+    // Si el servidor no respondió, no se recuerda: el próximo envío vuelve a preguntar.
+    if (group) mentionGroups.set(key, { at: Date.now(), group });
+    return group;
+  }
 
   async function qr(): Promise<string | undefined> {
     const r = (await api(`/instance/connect/${instance}`).catch(() => null)) as Json | null;
@@ -1608,11 +1695,14 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
     },
     async sendText(chatId, text, o) {
+      // Menciones: el texto y la lista con el mismo id por persona (lid en un grupo por lid, si no el teléfono con su
+      // JID completo), igual en lo mandado en el momento y en lo programado (lib/wa-mention-jids.ts).
+      const m = o?.mentions?.length ? waMentionPayload(text, o.mentions, isGroupJid(chatId) ? await mentionGroup(chatId) : null) : null;
       const r = (await api(`/message/sendText/${instance}`, 'POST', {
         number: chatId,
-        text,
+        text: m ? m.text : text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
-        ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
+        ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
       })) as Json;
@@ -1700,6 +1790,20 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async privacySettings() {
       return parseEvolutionPrivacy(await api(`/chat/fetchPrivacySettings/${instance}`));
     },
+    /**
+     * /chat/messageReceipts (parche 0014 de infra/evolution): las confirmaciones
+     * por persona que el gateway guardó de un mensaje propio en un grupo, a
+     * pedido (Evolution no las manda por el webhook). Sin el parche, o con el
+     * parche apagado, responde 404: null.
+     */
+    async messageReceipts(chatId, providerMessageId) {
+      try {
+        return parseEvolutionReceipts(await api(`/chat/messageReceipts/${instance}`, 'POST', { id: providerMessageId, remoteJid: chatId }));
+      } catch (err) {
+        if (err instanceof ProviderError && err.code === 'not_found') return null;
+        throw err;
+      }
+    },
     fetchMedia: (ref, maxBytes) => evolutionMedia(api, instance, ref, maxBytes, slowApi),
     async listGroups(): Promise<GroupInfo[]> {
       const rows = (await api(`/group/fetchAllGroups/${instance}?getParticipants=false`)) as Json[];
@@ -1761,10 +1865,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       await api(`/group/updateGroupPicture/${instance}${q(groupId)}`, 'POST', { image: image.url });
     },
     async joinGroup(code) {
-      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`)) as Json;
+      // Evolution responde { accepted: true, groupJid } o un error con el de WhatsApp en el cuerpo
+      // ("not-authorized": link reiniciado, "conflict": ya está, ...): se reduce a una etiqueta.
+      const r = (await api(`/group/acceptInviteCode/${instance}?inviteCode=${encodeURIComponent(code)}`, 'GET', undefined, { errorReason: inviteFailureOf })) as Json;
       const id = String(r.groupJid ?? r.id ?? (typeof r.accepted === 'string' ? r.accepted : ''));
-      if (!id || !isGroupJid(id)) throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
-      return { id };
+      if (id && isGroupJid(id)) return { id };
+      // Aceptada sin grupo: el grupo pide aprobación de un admin y quedó la solicitud.
+      if (r.accepted === true) {
+        const e = new ProviderError('provider_error');
+        e.reason = 'approval_required';
+        throw e;
+      }
+      throw new ProviderError(r.accepted === false ? 'not_found' : 'provider_error');
     },
     async leaveGroup(groupId) {
       await api(`/group/leaveGroup/${instance}${q(groupId)}`, 'DELETE');

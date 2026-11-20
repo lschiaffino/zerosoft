@@ -11,9 +11,10 @@ import { BLOCKED_SQL, readInboxMedia, scheduleNextPart } from './schedule';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { onceInFlight } from '../send-once';
+import { applyWaMentionPicks } from '../wa-compose-mentions';
 
-async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string): Promise<void> {
-  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, clientId ? { clientId } : {});
+async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string, mentions: string[] = []): Promise<void> {
+  if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, { ...(clientId ? { clientId } : {}), ...(mentions.length ? { mentions } : {}) });
   else await sendGmailReply(account, thread, text);
 }
 
@@ -134,7 +135,11 @@ async function sendScheduledPart(id: string, now: Date, force: boolean): Promise
     const thread = await getThreadRow(row.owner_id, row.thread_id);
     const account = await getAccount(row.owner_id, thread.account_id);
     if (row.media_url) await deliverMedia(account, thread, row);
-    else await deliver(account, thread, row.body);
+    else {
+      // Menciones guardadas: "@Nombre" sale como "@<teléfono>" con la lista, igual que al mandar en el momento.
+      const out = thread.channel === 'whatsapp' && thread.kind === 'group' ? applyWaMentionPicks(row.body, row.mentions) : { body: row.body, mentions: [] };
+      await deliver(account, thread, out.body, undefined, out.mentions);
+    }
     await finishScheduled(id, true);
     if (row.media_url) await deleteUploads([row.media_url]);
     return { result: 'sent', next: await scheduleNextPart(row, now) };

@@ -392,6 +392,10 @@ function fakeHtml(url: string): string {
   const u = new URL(url);
   // Link corto de prueba: "short.test/<lo que sea>" manda (meta refresh) a la página del producto, que tiene og:image.
   if (u.hostname === 'short.test') return `<html><head><title>Short</title><meta http-equiv="refresh" content="0; url=https://shop.test/producto/${u.pathname.slice(1)}"></head></html>`;
+  // Invitación a un grupo de WhatsApp: como la página real, el nombre en og:title, el título genérico y la foto cuadrada.
+  if (u.hostname === 'chat.whatsapp.com') {
+    return `<html><head><title>WhatsApp Group Invite</title><meta property="og:title" content="Club de Lectura | WhatsApp Group Invite"><meta property="og:description" content="WhatsApp Group Invite"><meta property="og:site_name" content="WhatsApp.com"><meta property="og:image" content="https://pps.whatsapp.test/group.png"></head><body></body></html>`;
+  }
   const site = u.hostname.replace(/^www\./, '');
   const path = u.pathname.toLowerCase();
   const long = path.includes('long');
@@ -416,6 +420,8 @@ function fakeHtml(url: string): string {
 type Rgb = [number, number, number];
 const FAKE_SIZES: Record<string, [number, number, Rgb, Rgb]> = {
   'logo.png': [96, 96, [0, 128, 105], [0, 168, 132]],
+  // La foto de un grupo de WhatsApp (cuadrada).
+  'group.png': [640, 640, [233, 120, 80], [64, 81, 181]],
   'tall.png': [600, 1500, [64, 81, 181], [233, 120, 80]],
   'cover-2.png': [1200, 630, [233, 120, 80], [250, 196, 90]],
   'favicon.png': [32, 32, [0, 168, 132], [0, 168, 132]],
