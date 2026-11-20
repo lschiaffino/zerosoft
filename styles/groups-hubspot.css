@@ -179,3 +179,90 @@ html[data-hubspot-pinned] .ib-app.gr-inbox .ib-wa-thread .wa-head { flex-wrap: w
   .gr-hsx-dock-btn { display: none; }
   html[data-hubspot-pinned] .app-frame { padding-right: 0; }
 }
+
+/* ---------- Panel de detalles del chat (Lines) e info del contacto (Inbox) ----------
+   Una sola escala, como la barra lateral de HubSpot o Linear: el título de cada
+   sección en versalitas (.gr-detail-title), el texto, los valores, los campos y
+   los botones a 13px (el tamaño de .btn-sm en la app), los rótulos en gris del
+   mismo tamaño y las ayudas un paso abajo (12px). Los controles miden lo que un
+   .btn-sm de la app (28px); con el dedo rigen los pisos de ui.css (40px y 16px
+   en los campos, para que iOS no haga zoom). */
+.gr-detail-body.is-compact,
+.ib-hs-card {
+  --panel-fs: 0.8125rem;
+  --panel-fs-help: 0.75rem;
+  --panel-ctl-h: 28px;
+}
+.gr-detail-body.is-compact :is(.ui-help, .ui-error),
+.ib-hs-card :is(.ui-help, .ui-error) { font-size: var(--panel-fs-help); line-height: 1.45; margin: 0; }
+.gr-detail-body.is-compact :is(.ui-switch, .gr-crm-links li, .gr-crm-results button, .gr-hs-suggest-title, .gr-hs-suggestion, .gr-hs-results button, .gr-mini-list li, .gr-members li, .gr-detail-link, .gr-description-text),
+.ib-hs-card :is(.wc-dl, .wc-hs-label, .wc-note, .wc-list-item) { font-size: var(--panel-fs); }
+.gr-detail-body.is-compact .gr-crm-results .ui-help { font-size: var(--panel-fs-help); }
+@media (pointer: fine) {
+  .gr-detail-body.is-compact :is(input.input, select.select, select.input),
+  .ib-hs-card :is(input.input, select.select) {
+    height: var(--panel-ctl-h);
+    min-height: var(--panel-ctl-h);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-inline-start: 8px;
+    font-size: var(--panel-fs);
+  }
+  .gr-detail-body.is-compact input.input,
+  .ib-hs-card input.input { padding-inline-end: 8px; }
+  .gr-detail-body.is-compact textarea.input { font-size: var(--panel-fs); padding: 6px 8px; }
+}
+
+/* HubSpot: el título con sus acciones en una fila, las acciones como links quietos. */
+.gr-detail-body.is-compact .gr-hs,
+.ib-hs-card { gap: 12px; }
+.gr-hs-title { min-height: var(--panel-ctl-h, 28px); }
+.gr-hs-title-actions { gap: 2px; }
+/* Los botones del panel, en peso medio; las acciones de un título o de un registro, como links quietos. */
+.gr-detail-body.is-compact .btn,
+.ib-hs-card .btn { font-weight: 500; }
+.gr-detail-body.is-compact :is(.gr-hs-title-actions, .gr-hs-head, .gr-detail-head) .btn-ghost:not(.gr-danger),
+.ib-hs-card .gr-hs-title-actions .btn-ghost {
+  --btn-px: 6px;
+  --btn-fg: var(--brand-gray-1);
+}
+.gr-detail-body.is-compact .gr-hs-title-actions { margin-inline-end: -6px; }
+
+/* El registro vinculado: nombre a 13px y peso medio, con el ícono de "abre HubSpot". */
+.gr-detail-body.is-compact .gr-hs-links { gap: 12px; }
+.gr-detail-body.is-compact .gr-hs-record { gap: 4px; padding-bottom: 12px; }
+.gr-detail-body.is-compact .gr-hs-record:last-child { padding-bottom: 0; }
+.gr-hs-kind { margin: 0; line-height: 1.4; }
+.gr-detail-body.is-compact .gr-hs-head { gap: 8px; }
+.gr-detail-body.is-compact .gr-hs-name,
+.ib-hs-card .gr-hs-name,
+.ib-hs-card .gr-gt-company-link {
+  gap: 4px;
+  min-height: var(--panel-ctl-h);
+  font-size: var(--panel-fs);
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+}
+.gr-detail-body.is-compact .gr-hs-name:hover,
+.ib-hs-card :is(.gr-hs-name, .gr-gt-company-link):hover { text-decoration: underline; text-underline-offset: 3px; }
+.gr-hs-name svg { flex: none; color: var(--brand-gray-2); }
+@media (pointer: coarse) {
+  .gr-detail-body.is-compact .gr-hs-name,
+  .ib-hs-card :is(.gr-hs-name, .gr-gt-company-link) { min-height: 40px; }
+}
+
+/* Propiedades: rótulo y valor a la misma altura de línea, alineados por la base. */
+.gr-hs-props { align-items: baseline; line-height: 1.45; }
+.gr-detail-body.is-compact .gr-hs-props,
+.ib-hs-card .gr-hs-props { font-size: var(--panel-fs); gap: 4px 12px; }
+
+/* Inbox: el contacto vinculado con la misma escala. */
+.ib-hs-card .wc-dl { gap: 4px 12px; margin: 0; align-items: baseline; line-height: 1.45; }
+.ib-hs-card .wc-dl dt { color: var(--brand-gray-2); }
+.ib-hs-card .wc-name-main { font-weight: 500; }
+.ib-hs-card .wc-name-sub { font-size: var(--panel-fs-help); }
+.ib-hs-card .wc-hs-linked { display: flex; flex-direction: column; gap: 8px; }
+.ib-hs-card .ib-hs-record { gap: 4px; padding-top: 12px; }
+.ib-hs-card .ib-hs-record-head .gr-hs-name { min-height: var(--panel-ctl-h); }
+.ib-hs-card .ib-hs-actions { padding-top: 0; margin-inline-start: -6px; }
