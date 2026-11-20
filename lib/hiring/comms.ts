@@ -205,6 +205,11 @@ export async function sendCandidateEmail(
   const vars = mailVars(settings, ctx);
   const subject = renderTemplate(tpl.subject, vars).slice(0, 300) || ctx.job.title;
   const text = renderTemplate(tpl.body, vars).slice(0, 20_000);
+  // Cargado sin email: nada sale, y queda en la línea de tiempo.
+  if (!ctx.candidate.email) {
+    await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_dropped', actorId, { reason: 'no_email' });
+    return { ok: false, code: 'no_email' };
+  }
   const capped = await reserveCandidateMail(ws, ctx.candidate.email, opts.kind ?? 'custom');
   if (capped) {
     await addEvent(ws, ctx.candidate.id, ctx.applicationId, 'email_dropped', actorId, { reason: capped });

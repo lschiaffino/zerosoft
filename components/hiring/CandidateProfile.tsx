@@ -11,6 +11,76 @@ import { OVERALL } from '@/lib/hiring/types';
 import { VARIABLES } from './variables';
 import { AppStatusBadge, HrDialog, RejectReasonField, api, money, useDate, useErrorText, useToast, type RejectConfig } from './ui';
 
+/** Editar los datos del candidato: nombre, email, teléfono, ubicación, titular y links (uno por línea). */
+function EditCandidateDialog({ open, candidate, onClose, onSaved, onError }: { open: boolean; candidate: Profile['candidate']; onClose: () => void; onSaved: () => void; onError: (code: string | undefined) => void }) {
+  const t = useTranslations('hiring');
+  const [busy, setBusy] = useState(false);
+  return (
+    <HrDialog open={open} title={t('profile.editTitle')} onClose={onClose}>
+      <form
+        data-testid="hr-edit-candidate"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const val = (k: string) => String(f.get(k) ?? '').trim();
+          setBusy(true);
+          const res = await api(`/api/hiring/candidates/${candidate.id}`, {
+            method: 'PATCH',
+            json: {
+              name: val('name'),
+              email: val('email'),
+              phone: val('phone'),
+              location: val('location'),
+              headline: val('headline'),
+              links: val('links').split(/\s+/).filter(Boolean).slice(0, 10),
+            },
+          });
+          setBusy(false);
+          if (!res.ok) return onError(res.data.error);
+          onSaved();
+        }}
+      >
+        <div className="ui-modal-body ui-fields">
+          <label className="ui-field">
+            <span className="label">{t('apply.name')}</span>
+            <input className="input" name="name" required maxLength={160} defaultValue={candidate.name} autoFocus />
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('apply.email')}</span>
+            <input className="input" name="email" type="email" maxLength={254} defaultValue={candidate.email} />
+            {!candidate.email && <span className="ui-help">{t('profile.noEmailHelp')}</span>}
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('profile.phone')}</span>
+            <input className="input" name="phone" type="tel" maxLength={40} defaultValue={candidate.phone} />
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('profile.location')}</span>
+            <input className="input" name="location" maxLength={120} defaultValue={candidate.location} />
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('profile.headline')}</span>
+            <input className="input" name="headline" maxLength={200} defaultValue={candidate.headline} />
+          </label>
+          <label className="ui-field">
+            <span className="label">{t('profile.links')}</span>
+            <textarea className="textarea" name="links" rows={3} defaultValue={candidate.links.join('\n')} placeholder="https://" />
+            <span className="ui-help">{t('profile.linksHelp')}</span>
+          </label>
+        </div>
+        <div className="ui-modal-foot">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" className="btn btn-primary" data-testid="hr-edit-save" disabled={busy}>
+            {t('common.save')}
+          </button>
+        </div>
+      </form>
+    </HrDialog>
+  );
+}
+
 type Tpl = { id: string; jobId: string | null; kind: string; name: string; subject: string; body: string };
 const TABS = ['timeline', 'resume', 'scorecards', 'interviews', 'offers'] as const;
 
@@ -174,6 +244,7 @@ export default function CandidateProfile({
   const [offerDraft, setOfferDraft] = useState({ title: app.job.title, salary: '', currency: 'USD', startDate: '' });
   const [offerLink, setOfferLink] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     if (tab === 'interviews') void api<{ interviews: InterviewDto[] }>(`/api/hiring/applications/${app.id}/interviews`).then((r) => setInterviews(r.ok ? r.data.interviews : []));
@@ -203,7 +274,7 @@ export default function CandidateProfile({
         title={c.name}
         description={
           <span className="hr-head-meta">
-            <span>{c.email}</span>
+            {c.email ? <span>{c.email}</span> : <span data-testid="hr-no-email">{t('profile.noEmail')}</span>}
             {c.phone && <span>{c.phone}</span>}
             {c.location && <span>{c.location}</span>}
             {c.headline && <span>{c.headline}</span>}
@@ -211,10 +282,19 @@ export default function CandidateProfile({
         }
         back={{ href: '/app/hiring/candidates', label: t('nav.candidates') }}
         actions={
-          profile.canDelete ? (
-            <button type="button" className="btn btn-ghost" onClick={() => setConfirmDelete(true)}>
-              {t('profile.deleteData')}
-            </button>
+          profile.canEditCustom || profile.canDelete ? (
+            <>
+              {profile.canEditCustom && (
+                <button type="button" className="btn btn-secondary" data-testid="hr-edit-open" onClick={() => setEditOpen(true)}>
+                  {t('profile.edit')}
+                </button>
+              )}
+              {profile.canDelete && (
+                <button type="button" className="btn btn-ghost" onClick={() => setConfirmDelete(true)}>
+                  {t('profile.deleteData')}
+                </button>
+              )}
+            </>
           ) : undefined
         }
       />
@@ -301,7 +381,7 @@ export default function CandidateProfile({
                     {t('profile.addNote')}
                   </button>
                   {app.canManage && (
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMailOpen(true)}>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={!c.email} title={c.email ? undefined : t('profile.noEmailHelp')} onClick={() => setMailOpen(true)}>
                       {t('profile.sendEmail')}
                     </button>
                   )}
@@ -899,11 +979,11 @@ export default function CandidateProfile({
           onSubmit={async (e) => {
             e.preventDefault();
             setBusy(true);
-            const res = await api<{ link: string }>(`/api/hiring/applications/${app.id}/interviews`, { method: 'POST', json: { ...schedule, locale } });
+            const res = await api<{ link: string }>(`/api/hiring/applications/${app.id}/interviews`, { method: 'POST', json: { ...schedule, sendEmail: schedule.sendEmail && Boolean(c.email), locale } });
             setBusy(false);
             if (!res.ok) return push(errText(res.data.error), 'bad');
             setScheduleOpen(false);
-            push(schedule.sendEmail ? t('interviews.sent') : t('interviews.created'));
+            push(schedule.sendEmail && c.email ? t('interviews.sent') : t('interviews.created'));
             const list = await api<{ interviews: InterviewDto[] }>(`/api/hiring/applications/${app.id}/interviews`);
             if (list.ok) setInterviews(list.data.interviews);
             await reload();
@@ -922,9 +1002,10 @@ export default function CandidateProfile({
               </select>
             </label>
             <label className="ui-check">
-              <input type="checkbox" checked={schedule.sendEmail} onChange={(e) => setSchedule({ ...schedule, sendEmail: e.target.checked })} />
+              <input type="checkbox" checked={schedule.sendEmail && Boolean(c.email)} disabled={!c.email} onChange={(e) => setSchedule({ ...schedule, sendEmail: e.target.checked })} />
               {t('interviews.sendEmail')}
             </label>
+            {!c.email && <p className="ui-help">{t('profile.noEmailHelp')}</p>}
           </div>
           <div className="ui-modal-foot">
             <button type="button" className="btn btn-ghost" onClick={() => setScheduleOpen(false)}>
@@ -986,6 +1067,20 @@ export default function CandidateProfile({
         </form>
       </HrDialog>
 
+      <EditCandidateDialog
+        key={`${c.id}:${c.name}:${c.email}:${editOpen}`}
+        open={editOpen}
+        candidate={c}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => {
+          setEditOpen(false);
+          push(t('common.saved'));
+          void reload();
+          router.refresh();
+        }}
+        onError={(code) => push(errText(code), 'bad')}
+      />
+
       <HrDialog open={confirmDelete} title={t('profile.deleteTitle')} onClose={() => setConfirmDelete(false)}>
         <div className="ui-modal-body">
           <p>{t('profile.deleteBody', { name: c.name })}</p>
@@ -1027,7 +1122,7 @@ function eventVars(data: Record<string, unknown>, t: ReturnType<typeof useTransl
     title: s(data.title),
     tags: [...((data.added as string[]) ?? []).map((x) => `+${x}`), ...((data.removed as string[]) ?? []).map((x) => `-${x}`)].join(' '),
     action: s(data.action) && t.has(`ai.actions.${s(data.action)}`) ? t(`ai.actions.${s(data.action)}`) : s(data.action),
-    reason: s(data.reason),
+    reason: s(data.reason) && t.has(`events.dropReasons.${s(data.reason)}`) ? t(`events.dropReasons.${s(data.reason)}`) : s(data.reason),
   };
 }
 

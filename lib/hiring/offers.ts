@@ -237,6 +237,7 @@ export async function offerForSignature(actor: HiringActor, offerId: string): Pr
   if (!offer) throw new HiringError('not_found', 404);
   const { job, candidate } = await requireManageApp(actor, offer.application_id);
   if (offer.status !== 'approved') throw new HiringError('offer_not_approved', 409);
+  if (!candidate.email) throw new HiringError('no_email', 409);
   const settings = await ensureSettings(actor.ws);
   return { offer, candidate: { name: candidate.name, email: candidate.email }, jobTitle: offer.title || job.title, locale: settings.locale };
 }

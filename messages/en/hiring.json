@@ -221,7 +221,8 @@
     "emptyBody": "Applications from the careers page land here. You can also add a candidate yourself.",
     "knockout": "Knock-out",
     "moveTo": "Move {name} to stage",
-    "add": "Add"
+    "add": "Add",
+    "nameOrEmail": "A name or an email is enough."
   },
   "sources": {
     "careers": "Careers page",
@@ -329,7 +330,15 @@
     "documents": "Other documents",
     "duplicates": "Same email in other jobs",
     "unverifiedDoc": "sent with a new application, unverified",
-    "hireUndone": "Moved out of Hired. The People profile stays: HR was told."
+    "hireUndone": "Moved out of Hired. The People profile stays: HR was told.",
+    "edit": "Edit",
+    "editTitle": "Edit candidate",
+    "phone": "Phone",
+    "location": "Location",
+    "headline": "Headline",
+    "linksHelp": "One link per line, starting with https://",
+    "noEmail": "No email",
+    "noEmailHelp": "Without an email nothing can be sent to this candidate. Add one to send emails."
   },
   "events": {
     "applied": "Applied ({source})",
@@ -360,7 +369,10 @@
     "email_dropped": "Email not accepted ({reason})",
     "unverified": "Sender not verified",
     "anotherJob": "another job",
-    "restored": "Restored from the trash"
+    "restored": "Restored from the trash",
+    "dropReasons": {
+      "no_email": "no email on file"
+    }
   },
   "score": {
     "submitted": "Scorecard submitted.",
@@ -605,9 +617,9 @@
     "not_your_step": "It is not your turn to decide.",
     "reason_required": "Write a reason to reject.",
     "email_limit": "Daily email limit reached for this address or workspace. Try again tomorrow.",
-    "csv_columns": "The file needs a header row with Name and Email columns.",
+    "csv_columns": "The file needs a header row with a Name or an Email column.",
     "csv_empty": "The file has no rows.",
-    "name_required": "A row has no name.",
+    "name_required": "A row has no name or email.",
     "duplicate_in_file": "This email is repeated in the file.",
     "same_job": "That is the same job.",
     "same_candidate": "That is the same candidate.",
@@ -617,7 +629,10 @@
     "no_other_approver": "Someone other than you has to approve this, and there is nobody else. Invite another admin, or remove the approvers in Hiring settings.",
     "close_to_edit": "This job is published. Close it to change the title or salary, show a hidden salary or turn off confidential, then request approval.",
     "job_not_open": "That job is not open.",
-    "application_withdrawn": "This application was withdrawn."
+    "application_withdrawn": "This application was withdrawn.",
+    "name_or_email": "Write a name or an email.",
+    "no_email": "This candidate has no email. Add one in the profile first.",
+    "invalid_link": "A link is not valid: each one starts with https://"
   },
   "esign": {
     "send": "Send for e-signature with Sign",
@@ -656,7 +671,7 @@
   "import": {
     "button": "Import CSV",
     "title": "Import candidates",
-    "help": "A CSV with a header row. Name and Email are required; also Phone, Location, Headline, Source and Tags (separated by |). No email goes out to anyone. Check you may store their data before importing.",
+    "help": "A CSV with a header row. Each row needs a Name or an Email; also Phone, Location, Headline, Source and Tags (separated by |). No email goes out to anyone. Check you may store their data before importing.",
     "file": "CSV file (2 MB, 500 rows at most)",
     "preview": "Check the file",
     "confirm": "Import",
