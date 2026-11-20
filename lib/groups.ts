@@ -596,6 +596,8 @@ export interface ChatRow {
   presence_at?: string | null;
   /** Desde cuándo le falta un mensaje que WhatsApp no pudo entregar (lib/wa-history-gaps.ts). */
   history_gap_at?: string | null;
+  /** 1:1 bloqueado en WhatsApp desde Lines (lib/groups-block.ts): cuándo. */
+  blocked_at?: string | null;
 }
 
 export interface LabelDto {
@@ -669,6 +671,10 @@ export interface ChatDto {
   match?: string;
   /** Empresa (o, si no hay, negocio) de HubSpot vinculada al chat (lib/groups-hubspot.ts). */
   hubspotName?: string;
+  /** 1:1 con el contacto bloqueado en WhatsApp (desde Lines). */
+  blocked?: boolean;
+  /** La línea puede bloquear a este contacto (1:1, conectada, proveedor con bloqueo). Solo en getChat. */
+  canBlock?: boolean;
   /** Le falta un mensaje que WhatsApp no pudo entregar: al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
   historyGap?: boolean;
   /**
@@ -761,6 +767,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     ...(row.hidden_at ? { hiddenAt: row.hidden_at } : {}),
     presence: chatPresence(row),
     ...(row.history_gap_at ? { historyGap: true } : {}),
+    ...(row.kind === 'dm' && row.blocked_at ? { blocked: true } : {}),
   };
 }
 
@@ -816,6 +823,9 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     // Las confirmaciones de lectura de la línea (y, si el dato tiene más de un día, se vuelve a leer después de responder).
     const number = await getNumberRow(ws, row.number_id);
     if (number) {
+      // "Bloquear a X" en la info del chat: si la línea está conectada y su proveedor bloquea.
+      const { blockProvider } = await import('./groups-block');
+      if (blockProvider(number)) dto.canBlock = true;
       const { readHiddenInWhatsapp, refreshPrivacyIfStale } = await import('./wa-privacy');
       if (readHiddenInWhatsapp(number.read_receipts, false)) dto.readHidden = true;
       if (number.status === 'connected') await refreshPrivacyIfStale('lines', number, () => providerFor(number));
