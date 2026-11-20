@@ -1108,7 +1108,9 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-contact-list .wa-contact-card .wa-contact-actions { margin-bottom: 0; }
 
 /* Info del mensaje. */
-.wa-info { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+/* "Info del mensaje" (Lines e Inbox): el texto del tamaño del chat, no del de un formulario (se veía más grande que
+   los mensajes de atrás). */
+.wa-info { display: flex; flex-direction: column; gap: 8px; margin: 0; font-size: 0.875rem; }
 .wa-info > div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .wa-info dt { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
 .wa-info dd { margin: 0; color: var(--ink-2); text-align: right; }
