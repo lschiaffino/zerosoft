@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Workable',
-  lastReviewed: '2026-11-18',
+  lastReviewed: '2026-11-20',
   percentHidden: { note: loc(['This table lists everything Workable documents, feature by feature, including its AI agent, sourcing and integrations, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que Workable documenta, función por función, con su agente de IA, búsqueda de candidatos e integraciones, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o Workable documenta, função por função, com seu agente de IA, busca de candidatos e integrações, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'jobs', label: loc(['Jobs', 'Puestos', 'Vagas']) },
@@ -363,8 +363,8 @@ const parity: ProductParity = {
     }),
     row('saved-reports', 'reports', ['Saved reports', 'Reportes guardados', 'Relatórios salvos'], 'missing'),
     row('custom-dashboards', 'reports', ['Custom dashboards', 'Dashboards a medida', 'Painéis personalizados'], 'missing'),
-    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'partial', {
-      detail: ['A CSV of candidates, not of each report. Built; not yet walked end to end in a browser for each role', 'Un CSV de candidatos, no de cada reporte. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Um CSV de candidatos, não de cada relatório. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'have', {
+      detail: ['Each report (funnel, sources, rejection reasons, open jobs) in CSV with the period and job you chose, plus a CSV of candidates. No PDF', 'Cada reporte (embudo, fuentes, motivos de rechazo, puestos abiertos) en CSV con el período y el puesto elegidos, más un CSV de candidatos. Sin PDF', 'Cada relatório (funil, origens, motivos de recusa, vagas abertas) em CSV com o período e a vaga escolhidos, mais um CSV de candidatos. Sem PDF'],
     }),
     row('report-sharing', 'reports', ['Report sharing', 'Compartir reportes', 'Compartilhar relatórios'], 'missing'),
     row('governed-sharing', 'reports', ['Governed report sharing', 'Compartir gobernado', 'Compartilhamento governado'], 'missing'),
