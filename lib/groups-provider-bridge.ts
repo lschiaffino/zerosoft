@@ -16,6 +16,7 @@
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
+import { groupAddressing, waMentionPayload, type MentionGroup } from './wa-mention-jids';
 import {
   evolutionFileName,
   evolutionStickerBody,
@@ -486,7 +487,7 @@ export function wahaProvider(
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
         // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
-        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => `${p}@c.us`) } : {}),
+        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
@@ -1307,6 +1308,29 @@ async function evolutionMedia(
   return { data, mimetype: String(r.mimetype ?? 'application/octet-stream'), filename: String(r.fileName ?? '') };
 }
 
+/**
+ * Cómo direcciona WhatsApp un grupo y quiénes son (teléfono y lid), para las
+ * menciones (lib/wa-mention-jids.ts), a partir de /group/findGroupInfos:
+ * Baileys da cada participante con su id ("<lid>@lid" en un grupo por lid) y
+ * el otro id al lado (phoneNumber o lid).
+ */
+export function mentionGroupOf(raw: unknown): MentionGroup | null {
+  const parts = Array.isArray((raw as Json | null)?.participants) ? ((raw as Json).participants as unknown[]) : null;
+  if (!parts?.length) return null;
+  return {
+    addressing: groupAddressing(parts.map((p) => (typeof p === 'string' ? p : (p as Json | null)?.id))),
+    members: parts.slice(0, 2000).flatMap((p) => {
+      const phone = participantPhone(p);
+      const lid = participantLid(p);
+      return phone || lid ? [{ phone, ...(lid ? { lid } : {}) }] : [];
+    }),
+  };
+}
+
+/** Grupos ya consultados para mencionar (5 minutos): dos menciones seguidas en el mismo grupo no lo piden dos veces. */
+const mentionGroups = new Map<string, { at: number; group: MentionGroup }>();
+const MENTION_GROUP_TTL = 5 * 60_000;
+
 export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike } = {}): GroupsProvider & { start(): Promise<ConnectState> } {
   const f = opts.fetch ?? defaultBridgeFetch;
   const fMedia = opts.fetch ?? mediaBridgeFetch;
@@ -1320,6 +1344,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     bridgeRequest(opts.fetch ?? slowMediaFetch, `${baseOf(cfg)}${path}`, headers, method, body, o);
   const mediaApi = (path: string, body: unknown) => bridgeRequest(fMedia, `${baseOf(cfg)}${path}`, headers, 'POST', body);
   const q = (groupId: string) => `?groupJid=${encodeURIComponent(groupId)}`;
+
+  /** El grupo para mencionar (cacheado); null si el servidor no lo da: se menciona por teléfono. */
+  async function mentionGroup(chatId: string): Promise<MentionGroup | null> {
+    const key = `${baseOf(cfg)}|${instance}|${chatId}`;
+    const hit = mentionGroups.get(key);
+    if (hit && Date.now() - hit.at < MENTION_GROUP_TTL) return hit.group;
+    const group = mentionGroupOf(await api(`/group/findGroupInfos/${instance}${q(chatId)}`).catch(() => null));
+    if (mentionGroups.size > 500) mentionGroups.clear();
+    // Si el servidor no respondió, no se recuerda: el próximo envío vuelve a preguntar.
+    if (group) mentionGroups.set(key, { at: Date.now(), group });
+    return group;
+  }
 
   async function qr(): Promise<string | undefined> {
     const r = (await api(`/instance/connect/${instance}`).catch(() => null)) as Json | null;
@@ -1608,11 +1644,14 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
       }
     },
     async sendText(chatId, text, o) {
+      // Menciones: el texto y la lista con el mismo id por persona (lid en un grupo por lid, si no el teléfono con su
+      // JID completo), igual en lo mandado en el momento y en lo programado (lib/wa-mention-jids.ts).
+      const m = o?.mentions?.length ? waMentionPayload(text, o.mentions, isGroupJid(chatId) ? await mentionGroup(chatId) : null) : null;
       const r = (await api(`/message/sendText/${instance}`, 'POST', {
         number: chatId,
-        text,
+        text: m ? m.text : text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
-        ...(o?.mentions?.length ? { mentioned: o.mentions.slice(0, 50) } : {}),
+        ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
       })) as Json;

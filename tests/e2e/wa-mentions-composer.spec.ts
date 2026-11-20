@@ -248,3 +248,109 @@ test('Inbox: la mención se pinta en el campo y sale como mención de WhatsApp',
   await expect(page.locator('.ib-wa-thread .wa-mention', { hasText: `@Ezequiel Sculli ${tag}` }).last()).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('Lines: un mensaje programado con mención en un grupo por lid sale como mención (por lid)', async ({ page, request }) => {
+  test.setTimeout(300_000);
+  const errors = watchErrors(page);
+  const n = await fakeLinesNumber(request);
+  const tag = uid();
+  const ana = phone();
+  const lid = `1${Math.floor(1e13 + Math.random() * 8e13)}`;
+  const gid = groupId();
+  const title = `Programado ${tag}`;
+  // Un grupo que WhatsApp direcciona por lid: Ana tiene teléfono y lid.
+  await n.post([{ type: 'fake_contacts', contacts: [{ phone: ana, lid, name: `Ana Prueba ${tag}`, groups: [gid] }], lidGroups: [gid] }]);
+  await n.post([message(gid, { chatName: title, senderPhone: ana, senderName: `Ana Prueba ${tag}`, body: 'hola' })]);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.gr-row', { hasText: title }).click({ timeout: 90_000 });
+  await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('.wa-head-sub')).toContainText(`Ana Prueba ${tag}`, { timeout: 20_000 });
+  const input = page.getByRole('textbox', { name: 'WhatsApp' });
+  await input.click();
+  await input.pressSequentially('cómo estás @ana');
+  const pop = page.getByRole('listbox', { name: 'Mention someone' });
+  await expect(pop).toBeVisible();
+  await page.keyboard.press('Enter');
+  await input.pressSequentially('?');
+  await expect(input).toHaveValue(`cómo estás @Ana Prueba ${tag} ?`);
+
+  // Programar: el pedido lleva a quién es la mención.
+  const created = page.waitForRequest((r) => r.method() === 'POST' && /\/api\/groups\/broadcasts$/.test(r.url()));
+  await page.getByTestId('lines-send-later').click();
+  await page.getByRole('dialog', { name: 'Send later' }).locator('[data-preset="tomorrow"]').click();
+  const body = (await created).postDataJSON() as { body: string; mentions?: Array<{ phone: string; label: string }> };
+  expect(body.body).toBe(`cómo estás @Ana Prueba ${tag} ?`);
+  expect(body.mentions).toEqual([{ phone: ana, label: `Ana Prueba ${tag}` }]);
+  // En la tira de programados se lee con el nombre.
+  const item = page.getByTestId('lines-scheduled-strip').getByTestId('lines-scheduled-item');
+  await expect(item).toContainText(`@Ana Prueba ${tag}`);
+  await item.getByRole('button', { name: 'Send now' }).click();
+
+  // Sale como mención: guardado con "@<teléfono>" y la mención; al servidor (falso) le llegó el lid de Ana.
+  await expect
+    .poll(async () => (await sql("SELECT body, meta, provider_message_id FROM groups_messages WHERE number_id = ? AND direction = 'out'", [n.id]))[0] ?? null, { timeout: 30_000 })
+    .not.toBeNull();
+  const [out] = await sql("SELECT body, meta, provider_message_id FROM groups_messages WHERE number_id = ? AND direction = 'out'", [n.id]);
+  expect(out.body).toBe(`cómo estás @${ana} ?`);
+  expect(JSON.parse(String(out.meta)).mentions).toEqual([ana]);
+  expect(String(out.provider_message_id).split('~')[1]).toBe(`${lid}@lid`);
+  // En la burbuja: "@Nombre".
+  const bubble = page.locator('.gr-msg', { hasText: 'cómo estás' });
+  await expect(bubble.locator('.wa-mention')).toHaveText(`@Ana Prueba ${tag}`, { timeout: 20_000 });
+  await expect(bubble).not.toContainText(ana);
+  expect(errors).toEqual([]);
+});
+
+test('Inbox: un mensaje programado con mención en un grupo sale como mención', async ({ page, request }) => {
+  test.setTimeout(300_000);
+  const errors = watchErrors(page);
+  await request.post('/api/inbox/whatsapp', waLinkIp());
+  await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
+  const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
+  const post = async (list: unknown[]) => {
+    const res = await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: list } });
+    expect(res.ok()).toBe(true);
+  };
+  const tag = uid();
+  const ana = phone();
+  const gid = groupId();
+  const title = `Programado ${tag}`;
+  await post([{ type: 'fake_contacts', contacts: [{ phone: ana, name: `Ana Prueba ${tag}`, groups: [gid] }] }]);
+  await post([message(gid, { chatName: title, senderPhone: ana, senderName: `Ana Prueba ${tag}`, body: 'hola' })]);
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click({ timeout: 90_000 });
+  const input = page.locator('.ib-wa-composer textarea.wa-input');
+  await expect(async () => {
+    const retry = page.getByRole('button', { name: 'Try again' });
+    if (await retry.isVisible()) await retry.click();
+    await expect(input).toBeVisible({ timeout: 15_000 });
+  }).toPass({ timeout: 180_000 });
+  await input.click();
+  await input.pressSequentially('cómo estás @ana');
+  await expect(page.locator('.ib-wa-mentions')).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press('Enter');
+  await input.pressSequentially('?');
+
+  const created = page.waitForRequest((r) => r.method() === 'POST' && /\/api\/inbox\/scheduled$/.test(r.url()));
+  await page.getByTestId('inbox-send-later').click();
+  await page.getByRole('dialog', { name: 'Send later' }).getByRole('button', { name: /Tomorrow morning/ }).click();
+  const req = (await created).postDataJSON() as { parts: Array<{ body: string; mentions?: Array<{ phone: string; label: string }> }> };
+  expect(req.parts[0]).toMatchObject({ body: `cómo estás @Ana Prueba ${tag} ?`, mentions: [{ phone: ana, label: `Ana Prueba ${tag}` }] });
+  const list = page.locator('.ib-scheduled');
+  await expect(list).toContainText(`@Ana Prueba ${tag}`);
+  await list.getByRole('button', { name: 'Send now' }).click();
+
+  // Guardado con "@<teléfono>" (el hilo muestra el nombre) y al servidor (falso) le llegó el JID completo de Ana.
+  const sentRow = async () =>
+    (await sql("SELECT m.body, m.external_id FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.external_id = ? AND m.from_me = 1", [gid]))[0] ?? null;
+  await expect.poll(sentRow, { timeout: 30_000 }).not.toBeNull();
+  const out = (await sentRow())!;
+  expect(out.body).toBe(`cómo estás @${ana} ?`);
+  expect(String(out.external_id).split('~')[1]).toBe(`${ana}@s.whatsapp.net`);
+  await expect(page.locator('.ib-wa-thread .wa-mention', { hasText: `@Ana Prueba ${tag}` }).last()).toBeVisible({ timeout: 20_000 });
+  expect(errors).toEqual([]);
+});

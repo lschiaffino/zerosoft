@@ -15,6 +15,7 @@ import { parseSearch, threadIdsMatching } from './message-search';
 import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-sync';
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { publicLink } from '../wa-link-thumb';
+import { cleanWaMentionPicks } from '../wa-compose-mentions';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -1773,6 +1774,8 @@ export interface ScheduledRow {
   media_duration: number;
   /** Mensaje (nuestro id) que cita. */
   reply_to: string;
+  /** Menciones, JSON `[{ phone, label }]` (lib/wa-compose-mentions.ts). */
+  mentions?: string | null;
 }
 
 export async function listScheduled(owner: string, threadId?: string): Promise<ScheduledDto[]> {
@@ -1801,6 +1804,7 @@ export async function listScheduled(owner: string, threadId?: string): Promise<S
     mediaVoice: r.media_kind === 'voice',
     mediaDuration: Number(r.media_duration ?? 0),
     replyTo: r.reply_to ?? '',
+    mentions: cleanWaMentionPicks(r.mentions),
   }));
 }
 
