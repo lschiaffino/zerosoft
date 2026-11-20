@@ -3675,7 +3675,7 @@
     "sequencesUnenrollTitle": "Remover um contato de uma sequência",
     "sequencesUnenrollDesc": "Remove o contato da sequência (status exited, motivo manual).",
     "paramTemplateKind": "Filtrar por tipo: template ou snippet.",
-    "paramSenderId": "Membro do workspace cujo Gmail envia os emails. Por padrão, o owner do contato e depois quem criou a sequência.",
+    "paramSenderId": "Membro do workspace cujo Gmail envia os emails. Só o owner ou um admin do workspace podem escolher (por padrão, o owner do contato e depois quem criou a sequência); com a key de um member sempre envia da caixa desse member.",
     "crmProductsTitle": "CRM · Produtos e line items",
     "crmProductsDesc": "Catálogo de produtos e os line items de cada deal. Enquanto um deal tiver line items, o valor dele é a soma dos líquidos (depois do desconto, antes dos impostos), a menos que amountOverride esteja ativo.",
     "crmQuotesTitle": "CRM · Orçamentos",

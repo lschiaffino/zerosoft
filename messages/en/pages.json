@@ -3675,7 +3675,7 @@
     "sequencesUnenrollTitle": "Unenroll a contact",
     "sequencesUnenrollDesc": "Removes the contact from the sequence (status exited, reason manual).",
     "paramTemplateKind": "Filter by kind: template or snippet.",
-    "paramSenderId": "Workspace member whose Gmail sends the emails. Defaults to the contact owner, then the sequence creator.",
+    "paramSenderId": "Workspace member whose Gmail sends the emails. Only the workspace owner or an admin can set it (defaults to the contact owner, then the sequence creator); a member's key always sends from that member's mailbox.",
     "crmProductsTitle": "CRM · Products & line items",
     "crmProductsDesc": "Product catalog and the line items of each deal. While a deal has line items, its amount is the sum of their net totals (after discount, before tax) unless amountOverride is on.",
     "crmQuotesTitle": "CRM · Quotes",
