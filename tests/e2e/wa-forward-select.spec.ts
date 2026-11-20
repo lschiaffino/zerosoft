@@ -239,6 +239,8 @@ for (const width of [1280, 390]) {
         name: 'lines',
         open: async (name) => {
           await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+          // Por nombre en el buscador: en la base compartida otros tests dejan chats más nuevos arriba de la lista.
+          await page.getByRole('searchbox', { name: 'Search chats and messages' }).fill(name);
           await page.locator('.gr-row', { hasText: name }).click();
           await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
         },
