@@ -35,6 +35,7 @@
 .sd-table { max-width: 860px; }
 .sd-name { font-weight: 600; }
 .sd-table td { font-family: var(--font-data); font-size: 0.8125rem; color: var(--brand-gray-1); }
+.sd-table td a[aria-label] { font-family: var(--font-ui); font-size: 0.875rem; }
 
 @media (max-width: 860px) {
   /* Las tablas pasan a filas apiladas, sin scroll lateral. */
@@ -56,8 +57,10 @@
   .sd-index td,
   .sd-table :where(tbody) th,
   .sd-table td { border: 0; padding: 2px 0; }
-  .sd-index td.sd-cell::before,
-  .sd-table td.sd-cell::before { content: attr(data-label); display: block; margin-top: 6px; font-family: var(--font-ui); font-size: 12px; color: var(--brand-gray-2); }
+  .sd-index td.sd-cell::before { content: attr(data-label); display: block; margin-top: 6px; font-family: var(--font-ui); font-size: 12px; color: var(--brand-gray-2); }
+  /* Producto arriba; licencia y código en una línea abajo (sin rótulos: se leen solos). */
+  .sd-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding: 12px 0; }
+  .sd-table td { width: auto; }
   .sd-table td.sd-cell:empty { display: none; }
   .sd-index-wrap,
   .sd-page .table-wrap { border: 0; overflow: visible; }
