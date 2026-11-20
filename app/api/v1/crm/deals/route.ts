@@ -5,6 +5,7 @@ import { createDeal, listDeals } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { requestFilter } from '@/lib/crm-filter-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,9 @@ export async function GET(req: NextRequest) {
   const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(auth.user.id));
   if (!pipelineId) return NextResponse.json({ deals: [], total: 0, page, pageSize });
 
-  const { rows, total } = await listDeals(auth.user.id, { pipelineId, page, pageSize, ownerScope: await apiScope(auth) });
+  const filter = await requestFilter(sp, 'deals', { viewer: apiFieldViewer(auth), viewerId: auth.personId, timeZone: sp.get('tz') });
+  if ('error' in filter) return apiError(400, 'invalid_filter', 'The filters parameter is not valid: unknown property or operator, a missing value, or too many groups.');
+  const { rows, total } = await listDeals(auth.user.id, { pipelineId, page, pageSize, ownerScope: await apiScope(auth), ...filter });
   const hiddenFields = await hiddenFieldsFor(apiFieldViewer(auth), 'deals');
   return NextResponse.json({ deals: rows.map((r) => cleanRow(redactRow(r, hiddenFields))), total, page, pageSize });
 }
