@@ -51,6 +51,8 @@
 }
 .gr-kanban-col {
   flex: 0 0 272px;
+  width: 272px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -61,7 +63,7 @@
   scroll-snap-align: start;
 }
 .gr-kanban-col.is-over { border-color: var(--accent-ink, var(--ink)); background: var(--ui-hover); }
-.gr-kanban-col.is-collapsed { flex-basis: 44px; }
+.gr-kanban-col.is-collapsed { flex-basis: 44px; width: 44px; }
 .gr-kanban-col-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 4px 4px 12px; border-bottom: 1px solid var(--line); }
 .gr-kanban-col-name { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 600; line-height: 1.3; color: var(--ink); }
 .gr-kanban-count { flex: none; font-family: var(--font-data); font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--brand-gray-2); }
@@ -163,6 +165,6 @@
 @media (max-width: 719px) {
   .gr-kanban-head { padding: 8px 12px 6px; }
   .gr-kanban-cols { padding: 2px 12px 12px; gap: 8px; scroll-snap-type: x mandatory; }
-  .gr-kanban-col { flex-basis: min(300px, calc(100vw - 48px)); }
-  .gr-kanban-col.is-collapsed { flex-basis: 44px; }
+  .gr-kanban-col { flex-basis: min(300px, calc(100vw - 48px)); width: min(300px, calc(100vw - 48px)); }
+  .gr-kanban-col.is-collapsed { flex-basis: 44px; width: 44px; }
 }

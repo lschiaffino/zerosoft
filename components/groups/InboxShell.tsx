@@ -73,11 +73,8 @@ import DebouncedInput from '@/components/app/DebouncedInput';
 import '@/lib/ui/focus-on-open';
 import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
-import dynamic from 'next/dynamic';
 import { KanbanToggle, useKanbanView } from './KanbanToggle';
-
-// La vista kanban (botón junto al selector de línea): su código baja solo si se prende.
-const InboxKanban = dynamic(() => import('./InboxKanban'), { ssr: false });
+import InboxKanban from './InboxKanban';
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {

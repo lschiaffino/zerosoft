@@ -117,6 +117,9 @@ for (const size of [
     const b = await member(browser, `Bea Kanban ${tag}`, size);
     try {
       await request.put('/api/groups/kanban', { data: { on: false, board: 'team' } });
+      // Con next dev cada ruta compila en su primer pedido: que no le toque a un paso con espera corta.
+      await request.get('/api/groups/kanban/stages?scope=team');
+      await request.post('/api/groups/kanban/move', { data: {} });
       await page.setViewportSize(size);
 
       // ---------- El botón solo está en la bandeja de Lines ----------
@@ -128,11 +131,13 @@ for (const size of [
       await expect(toggle).toBeVisible({ timeout: 30_000 });
       await expect(toggle).toHaveAttribute('aria-pressed', 'false');
       // En escritorio va en la banda de arriba, después del selector de línea.
-      if (wide) await expect(page.locator('#band-app-slot').getByTestId('lines-kanban-toggle')).toBeVisible();
-      await toggle.click();
-      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-      const board = page.getByTestId('lines-kanban');
-      await expect(board).toBeVisible();
+      if (wide) await expect(page.locator('#band-app-slot').getByTestId('lines-kanban-toggle')).toBeVisible({ timeout: 30_000 });
+      // Un clic antes de que la página termine de hidratar no hace nada: se reintenta hasta que queda prendido.
+      await expect(async () => {
+        if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true', { timeout: 2_000 });
+      }).toPass({ timeout: 45_000 });
+      await expect(page.getByTestId('lines-kanban')).toBeVisible({ timeout: 30_000 });
       await search(page, tag);
       await expect(card(page, uno)).toBeVisible({ timeout: 30_000 });
       await expect(card(page, dos)).toBeVisible();
@@ -144,8 +149,8 @@ for (const size of [
         await expect(dialog).toBeVisible();
         await dialog.getByTestId('kanban-stage-name').fill(stage);
         await dialog.getByRole('button', { name: 'Save' }).click();
-        await expect(dialog).toBeHidden();
-        await expect(columnNamed(page, stage)).toBeVisible();
+        await expect(dialog).toBeHidden({ timeout: 15_000 });
+        await expect(columnNamed(page, stage)).toBeVisible({ timeout: 15_000 });
       }
       const stages = (await (await request.get('/api/groups/kanban/stages?scope=team')).json()) as { stages: Array<{ id: string; name: string }> };
       const onb = stages.stages.find((s) => s.name === `Onb ${tag}`)!.id;
@@ -158,13 +163,13 @@ for (const size of [
       if (wide) {
         await card(page, uno).dragTo(column(page, onb));
         await expect(column(page, onb).locator(`[data-chat-id="${uno}"]`)).toBeVisible();
-        await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), uno)).toBe(onb);
+        await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), uno), { timeout: 30_000 }).toBe(onb);
       } else {
         await moveWithMenu(page, card(page, uno), names[0], `Onb ${tag}`);
-        await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), uno)).toBe(onb);
+        await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), uno), { timeout: 30_000 }).toBe(onb);
       }
       await moveWithMenu(page, card(page, dos), names[1], `Live ${tag}`);
-      await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), dos)).toBe(live);
+      await expect.poll(async () => columnOfCard(await boardOf(request, `board=team&q=${tag}`), dos), { timeout: 30_000 }).toBe(live);
       if (!wide) await column(page, live).scrollIntoViewIfNeeded();
       await expect(column(page, live).locator(`[data-chat-id="${dos}"]`)).toBeVisible();
 
@@ -290,7 +295,7 @@ test('kanban de HubSpot: las opciones de la propiedad son las columnas y mover e
     await moveWithMenu(page, card(page, chat), name, 'Scale');
     await expect(column(page, 'scale').locator(`[data-chat-id="${chat}"]`)).toBeVisible();
     await expect
-      .poll(async () => ((await (await request.get('/api/groups/hubspot/fake?company=9002')).json()) as { properties: Record<string, string> }).properties.plan_tier)
+      .poll(async () => ((await (await request.get('/api/groups/hubspot/fake?company=9002')).json()) as { properties: Record<string, string> }).properties.plan_tier, { timeout: 30_000 })
       .toBe('scale');
     // Sin cambios en otras empresas, y el tablero de la API dice lo mismo.
     expect(columnOfCard(await boardOf(request, `board=hs:plan_tier&q=${tag}`), chat)).toBe('scale');
