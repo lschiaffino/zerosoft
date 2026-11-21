@@ -95,6 +95,35 @@ export async function updateSpace(actor: SendActor, id: string, patch: { title?:
   return { ...s, ...next };
 }
 
+/**
+ * Duplica un espacio como hace DocSend: título, descripción, a quién se muestra y sus
+ * documentos con orden y carpetas. Solo copia los documentos que quien duplica ve. Los
+ * links, la lista de acceso por persona y las visitas no se copian: la copia arranca
+ * sin compartir. Quien duplica queda como dueño.
+ */
+export async function duplicateSpace(actor: SendActor, sourceId: string, title?: string): Promise<SpaceRow> {
+  const src = await getSpace(actor, sourceId);
+  const items = (await getDb()
+    .prepare(
+      `SELECT i.document_id, i.folder FROM send_space_items i
+       JOIN send_documents d ON d.id = i.document_id AND d.deleted_at IS NULL
+       WHERE i.space_id = ? AND ${docVisibleSql} ORDER BY i.position, i.added_at`,
+    )
+    .all(src.id, actor.admin ? 1 : 0, actor.person)) as Array<{ document_id: string; folder: string }>;
+  const id = newId('sp');
+  const ts = nowIso();
+  const db = getDb();
+  const name = title?.trim().slice(0, 200) || src.title;
+  await db
+    .prepare('INSERT INTO send_spaces (id, workspace_id, owner_id, title, description, sharing, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, actor.ws, actor.person, name, src.description, src.sharing, ts, ts);
+  let pos = 0;
+  for (const it of items) {
+    await db.prepare('INSERT INTO send_space_items (space_id, document_id, position, folder, added_at) VALUES (?, ?, ?, ?, ?)').run(id, it.document_id, pos++, it.folder, ts);
+  }
+  return (await db.prepare('SELECT * FROM send_spaces WHERE id = ?').get(id)) as SpaceRow;
+}
+
 /** Borra el espacio y sus links; los documentos siguen en Send. */
 export async function deleteSpace(actor: SendActor, id: string): Promise<void> {
   await requireEdit(actor, id);

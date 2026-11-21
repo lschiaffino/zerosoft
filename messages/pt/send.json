@@ -279,7 +279,12 @@
     "sharingWorkspace": "Todo o workspace",
     "lastAccessTitle": "Remover a última pessoa?",
     "lastAccessBody": "Com a lista vazia o espaço abre de novo: quem tem um link vê tudo, sem verificação.",
-    "lastAccessConfirm": "Remover e abrir o espaço"
+    "lastAccessConfirm": "Remover e abrir o espaço",
+    "duplicate": "Duplicar",
+    "duplicateTitle": "Duplicar este espaço",
+    "duplicateConfirm": "Duplicar",
+    "copyName": "{title} (cópia)",
+    "duplicateHelp": "A cópia mantém a descrição e os documentos com sua ordem e pastas. Os links, a lista de acesso e as visitas não são copiados: a cópia começa sem compartilhar."
   },
   "settings": {
     "title": "Ajustes do Send",

@@ -261,7 +261,9 @@ const parity: ProductParity = {
     row('space-audit', 'spaces', ['Audit log', 'Registro de auditoría', 'Registro de auditoria'], 'missing'),
     row('space-qa', 'spaces', ['Questions and answers', 'Preguntas y respuestas', 'Perguntas e respostas'], 'missing'),
     row('space-diligence', 'spaces', ['Diligence tracker', 'Seguimiento de due diligence', 'Acompanhamento de due diligence'], 'missing'),
-    row('space-duplicate', 'spaces', ['Duplicate and templates', 'Duplicar y plantillas', 'Duplicar e modelos'], 'missing'),
+    row('space-duplicate', 'spaces', ['Duplicate and templates', 'Duplicar y plantillas', 'Duplicar e modelos'], 'have', {
+      detail: ['Duplicate a space with its description, documents, order and folders, to use one as a template. Links, the access list and visits start empty', 'Duplicar un espacio con su descripción, documentos, orden y carpetas, para usar uno de plantilla. Los links, la lista de acceso y las visitas arrancan vacíos', 'Duplicar um espaço com sua descrição, documentos, ordem e pastas, para usar um como modelo. Os links, a lista de acesso e as visitas começam vazios'],
+    }),
     row('space-notify', 'spaces', ['Notify a space\'s visitors', 'Avisar a los visitantes del espacio', 'Avisar os visitantes do espaço'], 'missing'),
     row('space-tags', 'spaces', ['Tags on spaces', 'Etiquetas en los espacios', 'Etiquetas nos espaços'], 'missing'),
     row('file-requests', 'spaces', ['File requests', 'Pedidos de archivos', 'Pedidos de arquivos'], 'missing'),
