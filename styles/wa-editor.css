@@ -39,7 +39,7 @@
 .wa-edit-filters::-webkit-scrollbar { display: none; }
 .wa-edit-filter { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; font: inherit; color: var(--wa-icon, var(--ink)); background: none; border: 0; cursor: pointer; }
 .wa-edit-filter-thumb { display: block; width: 56px; height: 56px; overflow: hidden; background: var(--wa-panel, rgba(0, 0, 0, 0.06)); border: 2px solid transparent; border-radius: 6px; }
-.wa-edit-filter-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wa-edit-filter-thumb[data-ready] { background-size: cover; background-position: center; }
 .wa-edit-filter-name { font-size: 0.75rem; line-height: 1; }
 .wa-edit-filter[aria-checked='true'] .wa-edit-filter-thumb { border-color: var(--wa-primary, #00a884); }
 .wa-edit-filter[aria-checked='true'] .wa-edit-filter-name { color: var(--wa-primary, #00a884); font-weight: 600; }

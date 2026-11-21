@@ -165,7 +165,7 @@ async function editAndSend(page: Page, input: Locator, thread: Locator, app: str
   const strip = pane.getByTestId('edit-filter-strip');
   await expect(strip.getByRole('radio')).toHaveCount(6);
   await expect(strip.locator('[data-filter="none"]')).toHaveAttribute('aria-checked', 'true');
-  await expect.poll(() => strip.locator('img').count()).toBe(6);
+  await expect.poll(() => strip.locator('[data-ready]').count()).toBe(6);
   await strip.locator('[data-filter="bw"]').click();
   await expect(strip.locator('[data-filter="bw"]')).toHaveAttribute('aria-checked', 'true');
   await expect.poll(async () => spread(await pixel(canvas, [0.05, 0.05]))).toBeLessThan(4);
@@ -249,7 +249,7 @@ async function moreShots(page: Page, input: Locator, app: string, baseURL: strin
       await dragOn(page, pane.getByTestId('edit-canvas'), [0.3, 0.5], [0.7, 0.5]);
       await shot(page, `${app}-editor-blur-${width}-${theme}`);
       await pane.getByTestId('edit-filters').click();
-      await expect.poll(() => pane.getByTestId('edit-filter-strip').locator('img').count()).toBe(6);
+      await expect.poll(() => pane.getByTestId('edit-filter-strip').locator('[data-ready]').count()).toBe(6);
       await pane.getByTestId('edit-filter-strip').locator('[data-filter="film"]').click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await shot(page, `${app}-editor-filters-${width}-${theme}`);

@@ -508,7 +508,7 @@ export default function ImageEditor({
                 data-filter={f}
                 onClick={() => !on && onChange({ ...edits, filter: f as FilterId }, true)}
               >
-                <span className="wa-edit-filter-thumb">{thumbs?.get(f) ? <img src={thumbs.get(f)} alt="" width={56} height={56} /> : null}</span>
+                <span className="wa-edit-filter-thumb" data-ready={thumbs?.get(f) ? '' : undefined} style={thumbs?.get(f) ? { backgroundImage: `url(${thumbs.get(f)})` } : undefined} aria-hidden="true" />
                 <span className="wa-edit-filter-name">{t(`filterNames.${f}`)}</span>
               </button>
             );
