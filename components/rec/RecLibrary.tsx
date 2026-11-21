@@ -443,6 +443,7 @@ export default function RecLibrary({
               disabled={uploading !== null}
               aria-busy={uploading !== null || undefined}
               data-testid="rec-upload"
+              data-tour="rec-upload"
             >
               {uploading !== null ? t('uploadingPct', { pct: uploading }) : t('upload')}
             </button>
@@ -456,7 +457,7 @@ export default function RecLibrary({
               data-testid="rec-upload-file"
               onChange={(e) => void onUpload(e.target.files?.[0])}
             />
-            <Link href={recordHref} className="btn btn-primary" data-testid="rec-record">
+            <Link href={recordHref} className="btn btn-primary" data-testid="rec-record" data-tour="rec-record">
               {t('record')}
             </Link>
           </>
@@ -542,12 +543,13 @@ export default function RecLibrary({
         )
       ) : (
         <ul className="rec-grid" aria-label={t('videos')}>
-          {videos.map((v) => {
+          {videos.map((v, i) => {
             const dur = trimmedDuration(v.durationSec, v.trimStart, v.trimEnd);
             const file = `/api/rec/videos/${v.id}/file`;
             return (
               <li key={v.id} className="rec-card" data-testid="rec-card">
-                <Link href={`/app/rec/${v.id}`} className="rec-card-link">
+                {/* La primera tarjeta es el anclaje del tour de Rec (lib/tours/rec.ts): abrirla sigue el tour. */}
+                <Link href={`/app/rec/${v.id}`} className="rec-card-link" data-tour={i === 0 ? 'rec-video-item' : undefined}>
                   <span className={`rec-thumb${v.hasGif ? ' has-gif' : ''}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element -- miniatura servida por la ruta con permisos */}
                     {v.hasThumb ? <img src={`${file}?kind=thumb`} alt="" loading="lazy" /> : <span className="rec-thumb-empty" aria-hidden="true" />}

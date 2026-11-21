@@ -319,7 +319,7 @@ export default function RecDetail({
         actions={
           <>
             <RecCopy text={shareUrl} label={t('copyLink')} className="btn btn-primary" testId="rec-copy-link" />
-            <button type="button" className="btn btn-secondary" onClick={() => setShare(true)} data-testid="rec-share">
+            <button type="button" className="btn btn-secondary" onClick={() => setShare(true)} data-testid="rec-share" data-tour="rec-share">
               {t('share')}
             </button>
           </>
@@ -383,7 +383,7 @@ export default function RecDetail({
           />
           <div className="ui-tabs" role="tablist" aria-label={t('tabs')}>
             {(['details', 'transcript', ...(video.canManage ? (['insights', 'edit'] as const) : [])] as Tab[]).map((k) => (
-              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`rec-tab-${k}`}>
+              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`rec-tab-${k}`} data-tour={k === 'insights' ? 'rec-insights' : undefined}>
                 {t(`tab.${k}`)}
               </button>
             ))}
