@@ -2937,7 +2937,9 @@
     "title": "Robots: Add a Toggle option to the Check or uncheck step",
     "description": "UiPath's Check/Uncheck activity offers Check, Uncheck and Toggle (switch the current state) (https://docs.uipath.com/activities/other/latest/ui-automation/activities-index). Our Check or uncheck step (lib/robots-schema.ts) only sets a final state of checked or unchecked. Toggle matters for switches that a site renders as a custom button where the current state is not readable. First scope: a third state value that clicks once and logs the result.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-21-robots-check-toggle"
   },
   {
     "title": "Robots: Add a Hover Text step that finds text and hovers over it",

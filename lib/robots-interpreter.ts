@@ -898,8 +898,25 @@ export async function robotInterpreter(
       }
       case 'check': {
         if (!selector) fail('missing_selector');
-        const want = str(s.state).trim() !== 'unchecked';
         const target = page.locator(selector).first();
+        if (str(s.state).trim() === 'toggle') {
+          // Como el Toggle de UiPath: un clic, y el resultado queda en el detalle si se puede leer.
+          await target.click({ timeout: timeout() });
+          const now = await target
+            .evaluate(
+              (el) => {
+                const input = el as HTMLInputElement;
+                if (/^(checkbox|radio)$/i.test(String(input.type ?? ''))) return input.checked ? 'on' : 'off';
+                const aria = el.getAttribute('aria-checked') ?? el.getAttribute('aria-pressed');
+                return aria === 'true' ? 'on' : aria === 'false' ? 'off' : '';
+              },
+              undefined,
+              { timeout: 2000 },
+            )
+            .catch(() => '');
+          return { detail: `${selector} ⇄${now === 'on' ? ' ✓' : now === 'off' ? ' ✗' : ''}` };
+        }
+        const want = str(s.state).trim() !== 'unchecked';
         const setChecked = target.setChecked?.bind(target);
         if (!setChecked) return fail('unsupported');
         await setChecked(want, { timeout: timeout() });

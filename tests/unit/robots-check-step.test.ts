@@ -8,12 +8,23 @@ function steps(list: unknown[]): InterpreterStep[] {
   return v.steps as unknown as InterpreterStep[];
 }
 
-function pageWithChecks(calls: Array<{ selector: string; checked: boolean }>, fail = false) {
+function pageWithChecks(calls: Array<{ selector: string; checked: boolean }>, fail = false, clicks: string[] = [], after: Record<string, unknown> = {}) {
   const page = {
     locator: (selector: string) => {
       const l = {
         first: () => l,
         count: async () => 1,
+        click: async () => {
+          if (fail) throw new Error('Timeout exceeded');
+          clicks.push(selector);
+        },
+        // Corre la función del paso contra un elemento falso con el estado que quedó.
+        evaluate: async (fn: (el: Element) => unknown) => {
+          const st = after[selector];
+          if (st === 'throw') throw new Error('detached');
+          const el = { type: '', checked: false, getAttribute: () => null, ...(st as object) };
+          return fn(el as unknown as Element);
+        },
         setChecked: async (checked: boolean) => {
           if (fail) throw new Error('Timeout exceeded');
           calls.push({ selector, checked });
@@ -36,6 +47,7 @@ describe('Marcar o desmarcar', () => {
     if (ok.ok) expect((ok.steps[0] as { state: string }).state).toBe('checked');
     expect(validateSteps([{ type: 'check', selector: '' }]).ok).toBe(false);
     expect(validateSteps([{ type: 'check', selector: '#a', state: 'maybe' }]).ok).toBe(false);
+    expect(validateSteps([{ type: 'check', selector: '#a', state: 'toggle' }]).ok).toBe(true);
   });
 
   it('el editor crea el paso marcado', () => {
@@ -62,6 +74,35 @@ describe('Marcar o desmarcar', () => {
 
   it('falla la corrida si la casilla no se puede cambiar', async () => {
     const res = await robotInterpreter(pageWithChecks([], true), steps([{ type: 'check', selector: '#terms' }]), {}, opts());
+    expect(res.status).not.toBe('success');
+  });
+
+  it('cambiar: un clic y el detalle dice cómo quedó, si se puede leer', async () => {
+    const clicks: string[] = [];
+    const calls: Array<{ selector: string; checked: boolean }> = [];
+    const res = await robotInterpreter(
+      pageWithChecks(calls, false, clicks, {
+        '#box': { type: 'checkbox', checked: true },
+        '#switch': { getAttribute: (n: string) => (n === 'aria-checked' ? 'false' : null) },
+        '#custom': 'throw',
+      }),
+      steps([
+        { type: 'check', selector: '#box', state: 'toggle' },
+        { type: 'check', selector: '#switch', state: 'toggle' },
+        { type: 'check', selector: '#custom', state: 'toggle' },
+      ]),
+      {},
+      opts(),
+    );
+    expect(res.status).toBe('success');
+    expect(clicks).toEqual(['#box', '#switch', '#custom']);
+    expect(calls).toEqual([]);
+    const details = res.logs.filter((l) => l.type === 'check').map((l) => l.detail);
+    expect(details).toEqual(['#box ⇄ ✓', '#switch ⇄ ✗', '#custom ⇄']);
+  });
+
+  it('cambiar falla la corrida si el clic no llega', async () => {
+    const res = await robotInterpreter(pageWithChecks([], true), steps([{ type: 'check', selector: '#x', state: 'toggle' }]), {}, opts());
     expect(res.status).not.toBe('success');
   });
 });
