@@ -7,7 +7,9 @@ import PageHeader from '@/components/ui/PageHeader';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ProductListItem } from '@/lib/shop';
-import { ShopDialog, StatusBadge, useErrorText, useMoney, useToast } from './shop-ui';
+import { ShopDialog, StatusBadge, api, useErrorText, useMoney, useToast } from './shop-ui';
+
+type BulkAction = 'active' | 'draft' | 'archived' | 'sale' | 'end-sale' | 'adjust' | 'delete';
 
 interface ImportSummary {
   format: string;
@@ -33,14 +35,42 @@ export default function ProductsList({ initial, total, currency, q, status, face
   const fileRef = useRef<HTMLInputElement>(null);
   const [update, setUpdate] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [bulkAction, setBulkAction] = useState<'active' | 'draft' | 'archived' | 'delete'>('active');
+  const [bulkAction, setBulkAction] = useState<BulkAction>('active');
   const [confirmBulk, setConfirmBulk] = useState(false);
+  const [priceOpen, setPriceOpen] = useState(false);
+  const [percent, setPercent] = useState('');
+  const [priceBusy, setPriceBusy] = useState(false);
+  const [priceError, setPriceError] = useState('');
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const allSelected = initial.length > 0 && selected.length === initial.length;
   const runBulk = async () => {
     setConfirmBulk(false);
-    const res = await fetch('/api/shop/products/bulk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: selected, action: bulkAction }) });
-    if (!res.ok) return;
+    const res = await api('/api/shop/products/bulk', { method: 'POST', json: { ids: selected, action: bulkAction } });
+    if (!res.ok) return push(errText(res.data.error ?? ''), 'bad');
+    setSelected([]);
+    router.refresh();
+  };
+  const applyBulk = () => {
+    if (bulkAction === 'delete') return setConfirmBulk(true);
+    if (bulkAction === 'sale' || bulkAction === 'adjust' || bulkAction === 'end-sale') {
+      setPercent('');
+      setPriceError('');
+      return setPriceOpen(true);
+    }
+    void runBulk();
+  };
+  const pct = Number(percent.replace(',', '.'));
+  const pctValid = bulkAction === 'end-sale' || (percent.trim() !== '' && Number.isFinite(pct) && (bulkAction === 'sale' ? pct >= 1 && pct <= 90 : pct !== 0 && pct >= -90 && pct <= 500));
+  const runPrices = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pctValid || priceBusy) return setPriceError(t(bulkAction === 'sale' ? 'products.pricesSaleRange' : 'products.pricesAdjustRange'));
+    setPriceBusy(true);
+    const change = bulkAction === 'end-sale' ? { mode: 'end-sale' } : { mode: bulkAction, percent: Math.round(pct * 100) / 100 };
+    const res = await api<{ products: number; variants: number }>('/api/shop/products/bulk', { method: 'POST', json: { ids: selected, action: 'prices', change } });
+    setPriceBusy(false);
+    if (!res.ok) return setPriceError(errText(res.data.error ?? ''));
+    setPriceOpen(false);
+    push(res.data.variants ? t('products.pricesDone', { n: res.data.variants }) : t('products.pricesNone'));
     setSelected([]);
     router.refresh();
   };
@@ -151,9 +181,12 @@ export default function ProductsList({ initial, total, currency, q, status, face
                 <option value="active">{t('products.bulkActive')}</option>
                 <option value="draft">{t('products.bulkDraft')}</option>
                 <option value="archived">{t('products.bulkArchive')}</option>
+                <option value="sale">{t('products.bulkSale')}</option>
+                <option value="end-sale">{t('products.bulkEndSale')}</option>
+                <option value="adjust">{t('products.bulkAdjust')}</option>
                 <option value="delete">{t('products.bulkDelete')}</option>
               </select>
-              <button type="button" className={`btn btn-sm ${bulkAction === 'delete' ? 'btn-danger' : 'btn-primary'}`} onClick={() => (bulkAction === 'delete' ? setConfirmBulk(true) : void runBulk())}>
+              <button type="button" className={`btn btn-sm ${bulkAction === 'delete' ? 'btn-danger' : 'btn-primary'}`} onClick={applyBulk} data-testid="shop-bulk-apply">
                 {t('products.bulkApply')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>
@@ -230,6 +263,47 @@ export default function ProductsList({ initial, total, currency, q, status, face
         onConfirm={() => void runBulk()}
         onCancel={() => setConfirmBulk(false)}
       />
+      <ShopDialog open={priceOpen} title={t(`products.pricesTitle.${bulkAction === 'sale' ? 'sale' : bulkAction === 'adjust' ? 'adjust' : 'endSale'}`, { n: selected.length })} onClose={() => !priceBusy && setPriceOpen(false)}>
+        <form onSubmit={runPrices} noValidate data-testid="shop-prices-form">
+          <div className="ui-modal-body">
+            {bulkAction === 'end-sale' ? (
+              <p className="ui-help">{t('products.pricesEndSaleHelp')}</p>
+            ) : (
+              <>
+                <label className="ui-field">
+                  <span className="label">{t(bulkAction === 'sale' ? 'products.pricesSalePercent' : 'products.pricesAdjustPercent')}</span>
+                  <input
+                    className="input"
+                    name="percent"
+                    inputMode="decimal"
+                    autoFocus
+                    value={percent}
+                    onChange={(e) => (setPercent(e.target.value), setPriceError(''))}
+                    aria-invalid={priceError ? true : undefined}
+                    aria-describedby="shop-prices-help"
+                  />
+                </label>
+                <p className="ui-help" id="shop-prices-help">
+                  {t(bulkAction === 'sale' ? 'products.pricesSaleHelp' : 'products.pricesAdjustHelp')}
+                </p>
+              </>
+            )}
+            {priceError && (
+              <p className="ui-error" role="alert">
+                {priceError}
+              </p>
+            )}
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-secondary" onClick={() => setPriceOpen(false)} disabled={priceBusy}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" aria-busy={priceBusy} disabled={priceBusy}>
+              {t('products.pricesApply')}
+            </button>
+          </div>
+        </form>
+      </ShopDialog>
       <ShopDialog open={importOpen} title={t('products.importTitle')} onClose={() => !busy && (setImportOpen(false), setSummary(null))}>
         <form onSubmit={doImport}>
           <div className="ui-modal-body">

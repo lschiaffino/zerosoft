@@ -314,7 +314,7 @@ test('Hiring: cadena de aprobación, confidencial, importar, copiar, fusionar y 
     const imported = `Imp ${uid()}`;
     await page.goto(`/en/app/hiring/jobs/${jobId}`, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Import CSV' }).click();
-    await page.getByTestId('csv-file').setInputFiles({ name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from(`Name,Email\n${imported},imp-${uid()}@x.co\nNo mail,\n`) });
+    await page.getByTestId('csv-file').setInputFiles({ name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from(`Name,Email,Phone\n${imported},imp-${uid()}@x.co,\n,,123\n`) });
     await dialogButton(page, 'Check the file').click();
     await expect(page.getByTestId('csv-summary')).toContainText('1 candidate');
     await expect(page.getByTestId('csv-failed')).toContainText('Line 3');
@@ -355,7 +355,7 @@ test('Hiring: cadena de aprobación, confidencial, importar, copiar, fusionar y 
     const rejected = (await (await request.post('/api/hiring/applications', { data: { jobId, name: `Rej ${uid()}`, email: `rej-${uid()}@x.co` } })).json()) as { candidateId: string };
     await page.goto(`/en/app/hiring/candidates/${rejected.candidateId}`, { waitUntil: 'networkidle' });
     await page.getByRole('button', { name: 'Reject', exact: true }).click();
-    await page.getByRole('dialog').getByLabel('Reason (internal)').fill('Salary expectations');
+    await page.getByRole('dialog').getByTestId('hr-reject-reason').selectOption('Salary expectations');
     await page.getByRole('dialog').getByRole('checkbox').first().uncheck();
     await dialogButton(page, 'Reject').click();
     await page.goto('/en/app/hiring/reports', { waitUntil: 'networkidle' });

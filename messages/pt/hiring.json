@@ -221,7 +221,8 @@
     "emptyBody": "As candidaturas da página de vagas chegam aqui. Você também pode adicionar um candidato à mão.",
     "knockout": "Eliminatória",
     "moveTo": "Mover {name} de etapa",
-    "add": "Adicionar"
+    "add": "Adicionar",
+    "nameOrEmail": "Basta um nome ou um email."
   },
   "sources": {
     "careers": "Página de vagas",
@@ -278,7 +279,11 @@
       "position_filled": "Vaga preenchida",
       "withdrew": "O candidato desistiu",
       "no_response": "Sem resposta"
-    }
+    },
+    "pickReason": "Escolha um motivo",
+    "noReason": "Sem motivo",
+    "otherReason": "Outro…",
+    "otherLabel": "Escreva o motivo"
   },
   "profile": {
     "deleteData": "Excluir dados do candidato",
@@ -325,7 +330,15 @@
     "documents": "Outros documentos",
     "duplicates": "O mesmo email em outras vagas",
     "unverifiedDoc": "veio com uma nova candidatura, sem verificar",
-    "hireUndone": "Saiu de Contratados. O perfil no People continua: o RH foi avisado."
+    "hireUndone": "Saiu de Contratados. O perfil no People continua: o RH foi avisado.",
+    "edit": "Editar",
+    "editTitle": "Editar candidato",
+    "phone": "Telefone",
+    "location": "Localização",
+    "headline": "Título",
+    "linksHelp": "Um link por linha, começando com https://",
+    "noEmail": "Sem email",
+    "noEmailHelp": "Sem email não dá para enviar nada a este candidato. Adicione um para enviar emails."
   },
   "events": {
     "applied": "Candidatou-se ({source})",
@@ -356,7 +369,10 @@
     "email_dropped": "Email não aceito ({reason})",
     "unverified": "Remetente não verificado",
     "anotherJob": "outra vaga",
-    "restored": "Restaurado da lixeira"
+    "restored": "Restaurado da lixeira",
+    "dropReasons": {
+      "no_email": "não tem email"
+    }
   },
   "score": {
     "submitted": "Scorecard enviado.",
@@ -493,7 +509,9 @@
     "rejectReasons": "Motivos de recusa",
     "noRejections": "Sem recusas neste período.",
     "reasonKnockout": "Pergunta eliminatória",
-    "reasonNone": "Sem motivo"
+    "reasonNone": "Sem motivo",
+    "csv": "Baixar CSV",
+    "downloadNamed": "Baixar {name} em CSV"
   },
   "settings": {
     "title": "Configurações do Hiring",
@@ -536,7 +554,16 @@
       "restored": "{name} voltou ao Hiring.",
       "conflict": "Este candidato não pode ser restaurado.",
       "restoreError": "Não foi possível restaurar o candidato."
-    }
+    },
+    "rejectReasons": "Motivos de recusa",
+    "rejectReasonsHelp": "A lista da qual se escolhe ao recusar um candidato. Os relatórios agrupam as recusas por esses motivos. Também dá para escolher Outro e escrever um.",
+    "reasonN": "Motivo {n}",
+    "removeReason": "Remover {name}",
+    "noReasons": "Não há motivos na lista: escreve-se um ao recusar.",
+    "newReason": "Novo motivo",
+    "addReason": "Adicionar motivo",
+    "resetReasons": "Voltar aos motivos padrão",
+    "requireReason": "Pedir um motivo para recusar um candidato"
   },
   "errors": {
     "generic": "Algo deu errado. Tente de novo.",
@@ -590,9 +617,9 @@
     "not_your_step": "Ainda não é sua vez de decidir.",
     "reason_required": "Escreva um motivo para recusar.",
     "email_limit": "Limite diário de emails atingido para este endereço ou workspace. Tente amanhã.",
-    "csv_columns": "O arquivo precisa de uma linha de títulos com as colunas Nome e Email.",
+    "csv_columns": "O arquivo precisa de uma linha de títulos com uma coluna Nome ou Email.",
     "csv_empty": "O arquivo não tem linhas.",
-    "name_required": "Uma linha não tem nome.",
+    "name_required": "Uma linha não tem nome nem email.",
     "duplicate_in_file": "Este email está repetido no arquivo.",
     "same_job": "É a mesma vaga.",
     "same_candidate": "É o mesmo candidato.",
@@ -602,7 +629,10 @@
     "no_other_approver": "Outra pessoa precisa aprovar e não há mais ninguém. Convide outro admin ou remova os aprovadores em Ajustes do Hiring.",
     "close_to_edit": "Esta vaga está publicada. Feche para mudar o título ou o salário, mostrar um salário oculto ou tirar o confidencial, e peça aprovação.",
     "job_not_open": "Essa vaga não está aberta.",
-    "application_withdrawn": "Esta candidatura foi retirada."
+    "application_withdrawn": "Esta candidatura foi retirada.",
+    "name_or_email": "Escreva um nome ou um email.",
+    "no_email": "Este candidato não tem email. Adicione um no perfil primeiro.",
+    "invalid_link": "Um link não é válido: cada um começa com https://"
   },
   "esign": {
     "send": "Enviar para assinatura com Sign",
@@ -641,7 +671,7 @@
   "import": {
     "button": "Importar CSV",
     "title": "Importar candidatos",
-    "help": "Um CSV com uma linha de títulos. Nome e Email são obrigatórios; também Telefone, Localização, Título, Origem e Tags (separadas por |). Nenhum email é enviado. Verifique se você pode guardar esses dados antes de importar.",
+    "help": "Um CSV com uma linha de títulos. Cada linha precisa de Nome ou Email; também Telefone, Localização, Título, Origem e Tags (separadas por |). Nenhum email é enviado. Verifique se você pode guardar esses dados antes de importar.",
     "file": "Arquivo CSV (2 MB e 500 linhas no máximo)",
     "preview": "Verificar o arquivo",
     "confirm": "Importar",

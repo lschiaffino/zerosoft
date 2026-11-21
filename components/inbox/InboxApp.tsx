@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { useMounted } from '@/components/ui/useMounted';
 import type { ThreadAction } from '@/lib/inbox/core';
 import type { FolderDto, InboxAccountDto, InboxView, MessageDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
+import { FOLDER_COLORS } from '@/lib/inbox/types';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import { api, INBOX_CHANGED, longWhen, notifyInboxChanged, shortWhen, typingIn } from './api';
 import { aheadWhen } from '@/lib/when-presets';
@@ -1788,9 +1789,24 @@ export default function InboxApp(props: {
           setMoveIds(null);
           await runAction(ids, add ? { action: 'addFolder', folderId } : { action: 'removeFolder', folderId });
         }}
-        onNewFolder={() => {
+        onClear={() => {
+          const ids = moveIds ?? [];
+          const inIt = ids.length === 1 ? (threads.find((x) => x.id === ids[0])?.folderIds ?? detail?.thread.folderIds ?? []) : [];
           setMoveIds(null);
-          setFolderEdit('new');
+          void (async () => {
+            for (const folderId of inIt) await runAction(ids, { action: 'removeFolder', folderId });
+          })();
+        }}
+        onCreate={async (name) => {
+          const ids = moveIds ?? [];
+          const color = FOLDER_COLORS[state.folders.length % FOLDER_COLORS.length];
+          const r = await api<{ folder: FolderDto }>('/api/inbox/folders', { method: 'POST', json: { name, color, parentId: null } });
+          if (!r.ok || !r.data.folder) return errText(r.data.error);
+          setMoveIds(null);
+          notifyInboxChanged();
+          await runAction(ids, { action: 'addFolder', folderId: r.data.folder.id });
+          void reloadState();
+          toast(t('toast.folderCreated', { name: r.data.folder.name }));
         }}
       />
       <MoreDialog

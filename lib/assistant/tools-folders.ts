@@ -199,7 +199,7 @@ async function inboxSnapshot(owner: string): Promise<Snapshot> {
 /** Las carpetas de Lines de la persona (nunca las de otra). */
 async function lineFolderRows(ws: string, me: string): Promise<ExistingFolder[]> {
   await adoptOwnerlessFolders(ws);
-  const rows = (await getDb().prepare('SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? ORDER BY position, id').all(ws, me)) as Array<{
+  const rows = (await getDb().prepare("SELECT id, name, parent_id FROM groups_folders WHERE user_id = ? AND owner_id = ? AND scope = 'personal' ORDER BY position, id").all(ws, me)) as Array<{
     id: string;
     name: string;
     parent_id: string | null;
@@ -692,13 +692,17 @@ export const folderTools: AssistantTool[] = [
   readTool({
     name: 'lines_folders',
     app: 'groups',
-    description: "The person's own folders and subfolders in Lines (each person has their own; nobody else sees them), with the number of chats in each that the person can see.",
+    description:
+      "Folders and subfolders in Lines, with the number of chats in each that the person can see: `folders` are the person's own (nobody else sees them), `team` are the workspace's team folders (everyone sees them; only admins create, rename or delete them).",
     input: z.object({}),
     run: async (ctx) => {
       const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
       const res = await listLineFolders(ctx.workspaceId, viewer.me, viewer);
-      const paths = folderPaths(res.folders.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId })));
-      return { folders: flattenTree(res.folders).map(({ folder: f }) => ({ path: paths.get(f.id), chats: f.chats })), unfiled: res.unfiled.chats, href: '/app/lines/inbox' };
+      const list = (rows: typeof res.folders) => {
+        const paths = folderPaths(rows.map((f) => ({ id: f.id, name: f.name, parentId: f.parentId })));
+        return flattenTree(rows).map(({ folder: f }) => ({ path: paths.get(f.id), chats: f.chats }));
+      };
+      return { folders: list(res.folders), team: list(res.team), unfiled: res.unfiled.chats, href: '/app/lines/inbox' };
     },
   }),
   writeTool({

@@ -167,12 +167,22 @@ test('conversación como WhatsApp: burbujas, nombres de color, cita, reacciones,
   const mine = thread.locator('.gr-msg-out', { hasText: 'Yo llevo la carne' });
   await expect(mine.locator('.gr-quote')).toContainText('¿Quién viene el sábado?');
   // La cita no ensancha la burbuja: aunque el mensaje citado fuera muy largo, su ancho no supera el de la burbuja.
+  // Y una cita corta entra en un renglón aunque la respuesta sea más corta: la cita ocupa el ancho de su texto (hasta 400px).
   const q = await mine.locator('.gr-quote').evaluate((el) => {
     const bubble = el.closest('.gr-bubble')!;
-    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, contain: getComputedStyle(el).contain };
+    const text = el.querySelector(':scope > span') as HTMLElement;
+    const cs = getComputedStyle(text);
+    // Ancho natural: una copia del texto en la misma cita (mismas reglas para negrita, cursiva y menciones), sin cortes.
+    const probe = text.cloneNode(true) as HTMLElement;
+    probe.style.cssText = 'position:absolute;visibility:hidden;display:inline-block;white-space:nowrap;max-width:none';
+    el.appendChild(probe);
+    const natural = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { quote: el.getBoundingClientRect().width, bubble: bubble.getBoundingClientRect().width, textW: text.getBoundingClientRect().width, natural, textMax: cs.maxWidth };
   });
-  expect(q.quote).toBeLessThanOrEqual(q.bubble);
-  expect(q.contain).toContain('inline-size');
+  expect(q.quote).toBeLessThanOrEqual(q.bubble + 0.5);
+  expect(q.textW).toBeGreaterThanOrEqual(Math.min(q.natural, 400) - 2);
+  expect(q.textMax).toBe('400px');
   await expect(mine.locator('.wa-ticks.is-read')).toBeVisible();
   await expect(thread.locator('.gr-msg-in', { hasText: '¿Quién viene' }).locator('.ib-wa-reactions')).toContainText('❤️');
   // Media: foto (abre el visor), audio, documento, ubicación, contacto, encuesta, reenviado, borrado.

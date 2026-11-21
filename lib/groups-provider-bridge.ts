@@ -16,6 +16,7 @@
 import { readTextCapped, safeFetch, UnsafeUrlError } from './safe-fetch';
 import { gatewayReason, mediaWireOf, wireMessage, type MediaWire } from './wa-media-wire';
 import { linkHqOf } from './wa-link-thumb';
+import { evolutionForward, forwardScoreOf } from './wa-forward';
 import { groupAddressing, waMentionPayload, type MentionGroup } from './wa-mention-jids';
 import { receiptTime, type GatewayReceipt } from './wa-receipts';
 import {
@@ -501,6 +502,8 @@ export function wahaProvider(
         chatId,
         file: { mimetype: media.mimetype, filename: media.filename, url: media.url },
         caption: media.caption ?? '',
+        // Menciones en el pie, como en sendText ("<teléfono>@c.us" o "<lid>@lid").
+        ...(media.caption && media.mentions?.length ? { mentions: media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
       })) as Json;
       return { id: idString(r.id) };
     },
@@ -777,6 +780,8 @@ interface BaileysContent {
   protocol?: { kind: 'edit' | 'revoke'; target: string; body: string };
   poll?: { question: string; options: string[]; multi: boolean };
   forwarded?: boolean;
+  /** contextInfo.forwardingScore: cuántas veces se reenvió. */
+  forwardScore?: number;
   link?: LinkPreview;
   /** Ids mencionados (dígitos de teléfono o lid). */
   mentions?: string[];
@@ -842,7 +847,11 @@ export function baileysContent(raw: Json, topContext?: unknown): BaileysContent 
     const top = (topContext ?? {}) as Json;
     const stanza = ctx.stanzaId ?? top.stanzaId;
     if (stanza) out.replyTo = String(stanza);
-    if (ctx.isForwarded === true || top.isForwarded === true) out.forwarded = true;
+    if (ctx.isForwarded === true || top.isForwarded === true) {
+      out.forwarded = true;
+      const score = forwardScoreOf(ctx.forwardingScore ?? top.forwardingScore);
+      if (score) out.forwardScore = score;
+    }
     const mentions = mentionIds(ctx.mentionedJid ?? top.mentionedJid);
     if (mentions.length) out.mentions = mentions;
     return out;
@@ -1032,6 +1041,7 @@ export function evolutionMessageEvents(m: Json, history = false): InboundEvent[]
     ...(fromMe ? { status: storedStatus(m) } : {}),
     ...(content.poll ? { poll: content.poll } : {}),
     ...(content.forwarded ? { forwarded: true } : {}),
+    ...(content.forwarded && content.forwardScore ? { forwardingScore: content.forwardScore } : {}),
     ...(content.link ? { link: content.link } : {}),
     ...(content.mentions?.length ? { mentions: content.mentions } : {}),
     ...(senderLid ? { senderLid } : {}),
@@ -1705,6 +1715,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
+        // Reenvío: la marca "Reenviado" de WhatsApp (parche 0013 del gateway; sin él, el campo se ignora).
+        ...evolutionForward(o?.forward),
       })) as Json;
       return { id: String(((r.key ?? {}) as Json).id ?? '') };
     },
@@ -1721,14 +1733,18 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
     async sendMedia(chatId, media) {
       const kind = media.kind ?? planOutboundKind(media.mimetype, undefined, null);
       const source = media.base64 ?? media.url;
-      const quoted = media.replyTo ? { quoted: { key: { id: media.replyTo } } } : {};
+      // `forward` (reenvío) va en los cuatro: la marca "Reenviado" de WhatsApp (lib/wa-forward.ts).
+      const extra = { ...(media.replyTo ? { quoted: { key: { id: media.replyTo } } } : {}), ...evolutionForward(media.forward) };
       let r: Json;
       if (kind === 'voice') {
-        r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...quoted })) as Json;
+        r = (await mediaApi(`/message/sendWhatsAppAudio/${instance}`, { number: chatId, audio: source, encoding: true, ...extra })) as Json;
       } else if (kind === 'sticker') {
-        r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...quoted })) as Json;
+        r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...extra })) as Json;
       } else {
         const fileName = evolutionFileName(media.filename, media.mimetype, kind);
+        // Menciones en el pie: igual que en sendText (el pie y `mentioned` con el mismo id por persona).
+        const caption = media.caption ?? '';
+        const m = kind !== 'audio' && caption && media.mentions?.length ? waMentionPayload(caption, media.mentions, isGroupJid(chatId) ? await mentionGroup(chatId) : null) : null;
         r = (await mediaApi(`/message/sendMedia/${instance}`, {
           number: chatId,
           mediatype: kind,
@@ -1736,11 +1752,12 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           media: source,
           fileName,
           // WhatsApp no muestra texto en un audio: lo manda aparte quien llama.
-          ...(kind === 'audio' ? {} : { caption: media.caption ?? '' }),
+          ...(kind === 'audio' ? {} : { caption: m ? m.text : caption }),
+          ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
           // Un GIF (lib/wa-gifs.ts). Evolution lo lee desde la rama develop (después de 2.3.7); las versiones
           // anteriores ignoran el campo y fijan gifPlayback en false, así que llega como un video común.
           ...(kind === 'video' && media.gifPlayback ? { gifPlayback: true } : {}),
-          ...quoted,
+          ...extra,
         })) as Json;
       }
       const id = String(((r.key ?? {}) as Json).id ?? '');

@@ -95,7 +95,7 @@ export default function BuildPanel({ def, setDef }: { def: FormDefinition; setDe
         <button type="button" className={`fm-outline-item${selected === 'welcome' ? ' is-on' : ''}`} onClick={() => setSelected('welcome')} aria-current={selected === 'welcome' || undefined}>
           {t('welcome')}
         </button>
-        <ol className="fm-outline-list">
+        <ol className="fm-outline-list" data-tour="forms-questions">
           {def.questions.map((x, i) => (
             <li key={x.id}>
               <button type="button" className={`fm-outline-item${selected === x.id ? ' is-on' : ''}`} onClick={() => setSelected(x.id)} aria-current={selected === x.id || undefined}>
@@ -106,7 +106,7 @@ export default function BuildPanel({ def, setDef }: { def: FormDefinition; setDe
             </li>
           ))}
         </ol>
-        <div className="fm-add">
+        <div className="fm-add" data-tour="forms-add">
           <label className="sr-only" htmlFor="fm-add-type">
             {t('questionType')}
           </label>

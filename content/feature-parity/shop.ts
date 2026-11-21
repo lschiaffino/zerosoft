@@ -99,9 +99,9 @@ const parity: ProductParity = {
     }),
     row('bulk-editor', 'catalog', ['Bulk product editor', 'Edición masiva de productos', 'Edição em massa de produtos'], 'partial', {
       detail: [
-        'Select products to change their status or delete them. No spreadsheet to edit prices and fields of many products at once',
-        'Seleccionar productos para cambiarles el estado o borrarlos. Sin planilla para editar precios y campos de muchos productos a la vez',
-        'Selecionar produtos para mudar o status ou excluí-los. Sem planilha para editar preços e campos de muitos produtos de uma vez',
+        'Select products to change their status, delete them, or change all their prices at once: put on sale with a percentage off (the regular price shows crossed out), end the sale, or raise or lower prices by a percentage. No spreadsheet to edit any field of many products',
+        'Seleccionar productos para cambiarles el estado, borrarlos o cambiar todos sus precios juntos: ponerlos en oferta con un porcentaje de descuento (el precio de lista queda tachado), terminar la oferta, o subir o bajar los precios un porcentaje. Sin planilla para editar cualquier campo de muchos productos',
+        'Selecionar produtos para mudar o status, excluí-los ou mudar todos os preços de uma vez: colocar em promoção com uma porcentagem de desconto (o preço de tabela fica riscado), encerrar a promoção, ou aumentar ou baixar os preços em uma porcentagem. Sem planilha para editar qualquer campo de muitos produtos',
       ],
     }),
     row('product-seo', 'catalog', ['SEO title, description and URL handle', 'Título, descripción y URL para buscadores', 'Título, descrição e URL para buscadores'], 'have'),

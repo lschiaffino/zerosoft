@@ -5,6 +5,7 @@ import {
   approvePost,
   createPost,
   getPost,
+  listPostEvents,
   listAccounts,
   listPosts,
   listSocialPeople,
@@ -15,6 +16,7 @@ import {
   credsOf,
   reschedulePost,
   retryTarget,
+  duplicatePost,
   registerMedia,
   startOAuth,
   finishOAuth,
@@ -162,6 +164,41 @@ describe('Social con datos', () => {
     const other = await createPost(owner, { text: 'solo linkedin', accountIds: [li], action: 'draft' });
     expect((await listPosts(member)).map((p) => p.id)).not.toContain(other.id);
     await expect(getPost(member, other.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('duplicar deja un borrador sin fecha con las cuentas que la persona todavía puede usar', async () => {
+    const original = await createPost(owner, {
+      text: 'duplicar texto',
+      accountIds: [fb, li],
+      overrides: { [fb]: 'texto para facebook' },
+      firstComment: 'primer comentario',
+      linkUrl: 'https://example.com/x',
+      action: 'schedule',
+      scheduledAt: '2031-05-04T10:00:00.000Z',
+    });
+    const copy = await duplicatePost(owner, original.id);
+    expect(copy.id).not.toBe(original.id);
+    expect(copy).toMatchObject({ text: 'duplicar texto', status: 'draft', scheduledAt: null, firstComment: 'primer comentario', linkUrl: 'https://example.com/x' });
+    expect(copy.targets.map((x) => [x.accountId, x.textOverride]).sort()).toEqual([[fb, 'texto para facebook'], [li, null]].sort());
+    expect((await getPost(owner, original.id)).status).toBe('scheduled');
+    expect((await listPostEvents(owner, copy.id)).map((e) => e.kind)).toContain('duplicated');
+    // Una persona que solo tiene Facebook copia lo que puede ver: LinkedIn queda afuera.
+    await setAccountMembers(owner, fb, [member.personId]);
+    const shared = await createPost(owner, { text: 'duplicar compartido', accountIds: [fb], action: 'draft' });
+    expect((await duplicatePost(member, shared.id)).targets.map((x) => x.accountId)).toEqual([fb]);
+    await expect(duplicatePost(outsider, original.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('la lista filtra por cuenta y por red', async () => {
+    const both = await createPost(owner, { text: 'filtro ambas', accountIds: [fb, li], action: 'draft' });
+    const onlyLi = await createPost(owner, { text: 'filtro linkedin', accountIds: [li], action: 'draft' });
+    const ids = async (o: Parameters<typeof listPosts>[1]) => (await listPosts(owner, { q: 'filtro', ...o })).map((p) => p.id);
+    expect(await ids({ network: 'facebook' })).toEqual([both.id]);
+    expect((await ids({ network: 'linkedin' })).sort()).toEqual([both.id, onlyLi.id].sort());
+    expect(await ids({ accountId: fb })).toEqual([both.id]);
+    expect(await ids({ network: 'x' })).toEqual([]);
+    // El member solo tiene Facebook: el filtro por LinkedIn no le muestra lo ajeno.
+    expect((await listPosts(member, { network: 'linkedin' })).map((p) => p.id)).not.toContain(onlyLi.id);
   });
 
   it('el cron publica cada destino una sola vez aunque corra dos veces a la vez', async () => {

@@ -82,3 +82,49 @@ test('Flow: tabs con flechas y modal de prueba con Esc', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
+
+test('Flow: el paso Track crear issue elige el equipo de una lista', async ({ page }) => {
+  const teamRes = await page.request.post('/api/track/projects', { data: { name: `E2E flow team ${uid()}` } });
+  expect(teamRes.ok()).toBeTruthy();
+  const team = (await teamRes.json()) as { id: string; slug: string };
+  try {
+    const graph = (projectId: string) => ({
+      nodes: [
+        { id: 'trigger', type: 'trigger.event', position: { x: 0, y: 0 }, config: { event: 'booking.created' } },
+        { id: 'issue', type: 'app.track_issue', position: { x: 0, y: 160 }, config: { projectId, title: 'E2E', priority: 'medium' } },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'issue' }],
+    });
+    const created = async (projectId: string) => {
+      const res = await page.request.post('/api/flow/flows', { data: { name: `E2E ${uid()}`, graph: graph(projectId) } });
+      expect(res.ok()).toBeTruthy();
+      const { id } = (await res.json()) as { id: string };
+      createdFlows.push(id);
+      return id;
+    };
+    const openIssueNode = async (flowId: string) => {
+      await page.goto(`/en/app/flow/${flowId}`);
+      const node = page.locator('.react-flow__node[data-id="issue"]');
+      await expect(node).toBeVisible();
+      await expect(async () => {
+        await node.click();
+        await expect(page.getByTestId('flow-track-project')).toBeVisible({ timeout: 1000 });
+      }).toPass({ timeout: 20_000 });
+      return page.getByTestId('flow-track-project');
+    };
+
+    // Sin equipo: el select ofrece los equipos de Track y, al elegir uno, el link para abrirlo.
+    const picker = await openIssueNode(await created(''));
+    await expect(picker).toHaveValue('');
+    await picker.selectOption(team.id);
+    await expect(picker).toHaveValue(team.id);
+    await expect(page.locator(`.flow-side a[href$="/app/track/team/${team.slug.toUpperCase()}"]`)).toBeVisible();
+
+    // Un id que ya no existe queda marcado como inválido en lugar de mostrarse vacío.
+    const stale = await openIssueNode(await created('00000000-0000-4000-8000-000000000000'));
+    await expect(stale).toHaveAttribute('aria-invalid', 'true');
+    await expect(stale).toHaveValue('00000000-0000-4000-8000-000000000000');
+  } finally {
+    await page.request.delete(`/api/track/projects/${team.id}`).catch(() => null);
+  }
+});

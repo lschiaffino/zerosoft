@@ -4,7 +4,8 @@
     "projects": "Projetos",
     "reports": "Relatórios",
     "track": "Registrar horas",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "approvals": "Aprovações"
   },
   "common": {
     "cancel": "Cancelar",
@@ -198,7 +199,11 @@
     "unauthorized": "Sua sessão terminou. Entre de novo.",
     "rate_limited": "Muitas mudanças seguidas. Espere um minuto.",
     "not_assigned": "Você não está na equipe deste projeto. Peça a um dono ou admin para incluir você.",
-    "task_not_in_project": "Essa tarefa não está neste projeto. Escolha outra."
+    "task_not_in_project": "Essa tarefa não está neste projeto. Escolha outra.",
+    "locked": "Esta semana foi enviada para aprovação. Retire-a, ou peça a um admin que a devolva, para mudar as horas.",
+    "timer_running": "Pare o cronômetro desta semana antes de enviá-la.",
+    "empty_week": "Não há horas nesta semana para enviar.",
+    "bad_state": "Alguém mudou esta semana agora há pouco. Recarregue a página."
   },
   "csv": {
     "date": "Data",
@@ -230,5 +235,61 @@
     "billable": "Faturável",
     "tasksSaved": "Tarefas salvas",
     "save": "Salvar"
+  },
+  "approval": {
+    "submit": "Enviar semana para aprovação",
+    "submitAgain": "Enviar de novo",
+    "withdraw": "Retirar",
+    "submitTitle": "Enviar esta semana para aprovação?",
+    "submitBody": "As horas ficam travadas até que um dono ou admin aprove a semana ou a devolva para você. Enquanto estiver pendente, você pode retirá-la.",
+    "submittedToast": "Semana enviada para aprovação",
+    "withdrawnToast": "Semana retirada",
+    "approveToast": "Semana aprovada",
+    "returnToast": "Semana devolvida",
+    "reopenToast": "Semana reaberta",
+    "submitToast": "Semana enviada",
+    "withdrawToast": "Semana retirada",
+    "openHint": "Quando a semana estiver completa, envie-a para aprovação.",
+    "submittedHint": "Aguardando aprovação. As horas estão travadas.",
+    "approvedHint": "Aprovada por {who} em {date}. As horas estão travadas.",
+    "returnedHint": "Devolvida por {who} em {date}. Corrija as horas e envie de novo.",
+    "status": {
+      "open": "Não enviada",
+      "submitted": "Pendente",
+      "approved": "Aprovada",
+      "returned": "Devolvida"
+    },
+    "statusLabel": "Status",
+    "tab": {
+      "submitted": "Pendentes",
+      "approved": "Aprovadas",
+      "returned": "Devolvidas"
+    },
+    "descAdmin": "As semanas que sua equipe enviou. Aprove para travar as horas ou devolva com uma nota.",
+    "descMember": "As semanas que você enviou e o que aconteceu com cada uma.",
+    "approve": "Aprovar",
+    "approveAll": "Aprovar todas",
+    "return": "Devolver",
+    "reopen": "Reabrir",
+    "view": "Ver",
+    "returnTitle": "Devolver esta semana?",
+    "reopenTitle": "Reabrir esta semana aprovada?",
+    "returnBody": "{who} pode editar de novo a semana de {week} e enviá-la outra vez.",
+    "note": "Nota para a pessoa (opcional)",
+    "person": "Pessoa",
+    "week": "Semana",
+    "actions": "Ações",
+    "approvedBy": "Aprovada por {who} em {date}",
+    "returnedBy": "Devolvida por {who} em {date}",
+    "empty": {
+      "submitted": "Nada para aprovar",
+      "approved": "Ainda não há semanas aprovadas",
+      "returned": "Não há semanas devolvidas"
+    },
+    "emptyPendingBody": "Quando alguém enviar uma semana pela folha de horas, ela aparece aqui.",
+    "emptyMember": "Você ainda não enviou nenhuma semana",
+    "emptyMemberBody": "Abra a folha de horas e envie a semana quando estiver completa.",
+    "noEntries": "Esta semana não tem horas.",
+    "loadError": "As aprovações não carregaram."
   }
 }

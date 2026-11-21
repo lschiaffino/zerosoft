@@ -125,8 +125,9 @@ export default function EventTypesView({ items, handle, bookBase, openNew, limit
         />
       ) : (
         <ul className="cal-list" data-testid="cal-event-list">
-          {shown.map((et) => (
-            <li key={et.id} className={`cal-row${et.active ? '' : ' is-off'}`}>
+          {shown.map((et, i) => (
+            // El tour de Cal (lib/tours/cal.ts) resalta la primera fila: el link para reservar y sus acciones.
+            <li key={et.id} className={`cal-row${et.active ? '' : ' is-off'}`} data-tour={i === 0 ? 'cal-event-item' : undefined}>
               <span className="cal-swatch" style={{ background: et.color }} aria-hidden="true" />
               <Link href={`/app/calendar/event-types/${et.id}`} className="cal-row-main">
                 <span className="cal-row-title">{et.title}</span>
@@ -227,6 +228,7 @@ export function NewEventTypeButton() {
       className="btn btn-primary"
       title={t('list.shortcut')}
       onClick={() => window.dispatchEvent(new Event('zs-cal:new-event-type'))}
+      data-tour="cal-new"
     >
       {t('eventTypes.newCta')}
       <span className="kbd" aria-hidden="true">

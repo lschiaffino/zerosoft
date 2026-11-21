@@ -4,12 +4,48 @@ import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { HiringReport } from '@/lib/hiring/reports';
+import { reportCsv, reportFileName, type ReportCsvLabels, type ReportSection } from '@/lib/hiring/report-csv';
+
+/** Baja el informe que se ve en CSV (lo arma el navegador con los datos ya filtrados). */
+function CsvButton({ report, section, labels, title }: { report: HiringReport; section: ReportSection; labels: ReportCsvLabels; title: string }) {
+  const t = useTranslations('hiring');
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      data-testid={`hr-report-csv-${section}`}
+      aria-label={t('reports.downloadNamed', { name: title })}
+      onClick={() => {
+        const url = URL.createObjectURL(new Blob(['\ufeff', reportCsv(report, section, labels)], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = reportFileName(report, section);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }}
+    >
+      {t('reports.csv')}
+    </button>
+  );
+}
 
 export default function HiringReports({ report, jobs }: { report: HiringReport; jobs: Array<{ id: string; title: string }> }) {
   const t = useTranslations('hiring');
   const router = useRouter();
   const go = (days: number, job: string | null) => router.push(`/app/hiring/reports?days=${days}${job ? `&job=${job}` : ''}`);
   const max = Math.max(1, ...report.funnel.map((f) => f.reached));
+  const labels: ReportCsvLabels = {
+    headers: {
+      funnel: [t('reports.stage'), t('reports.reached'), t('reports.conversion')],
+      sources: [t('candidates.colSource'), t('reports.applications'), t('reports.interviews'), t('reports.hires')],
+      reasons: [t('reject.reason'), t('reports.total')],
+      jobs: [t('jobs.colTitle'), t('reports.daysOpen'), t('reports.active'), t('reports.total')],
+    },
+    source: (k) => (t.has(`sources.${k}`) ? t(`sources.${k}`) : k),
+    reason: (r) => (r === 'knockout' ? t('reports.reasonKnockout') : r || t('reports.reasonNone')),
+  };
   return (
     <div className="app-page ui-page hr-page">
       <PageHeader title={t('nav.reports')} description={t('reports.desc')} />
@@ -52,9 +88,12 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
       </div>
 
       <section className="panel hr-report" aria-labelledby="hr-funnel">
-        <h2 id="hr-funnel" className="hr-panel-title">
-          {t('reports.funnel')}
-        </h2>
+        <div className="hr-report-head">
+          <h2 id="hr-funnel" className="hr-panel-title">
+            {t('reports.funnel')}
+          </h2>
+          <CsvButton report={report} section="funnel" labels={labels} title={t('reports.funnel')} />
+        </div>
         <table className="table hr-table">
           <caption className="sr-only">{t('reports.funnel')}</caption>
           <thead>
@@ -84,9 +123,12 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
       </section>
 
       <section className="panel hr-report" aria-labelledby="hr-sources">
-        <h2 id="hr-sources" className="hr-panel-title">
-          {t('reports.sources')}
-        </h2>
+        <div className="hr-report-head">
+          <h2 id="hr-sources" className="hr-panel-title">
+            {t('reports.sources')}
+          </h2>
+          {report.sources.length > 0 && <CsvButton report={report} section="sources" labels={labels} title={t('reports.sources')} />}
+        </div>
         {report.sources.length === 0 ? (
           <p className="ui-help">{t('reports.noData')}</p>
         ) : (
@@ -122,9 +164,12 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
       </section>
 
       <section className="panel hr-report" aria-labelledby="hr-reject-reasons-title" data-testid="hiring-reject-reasons">
-        <h2 id="hr-reject-reasons-title" className="hr-panel-title">
-          {t('reports.rejectReasons')}
-        </h2>
+        <div className="hr-report-head">
+          <h2 id="hr-reject-reasons-title" className="hr-panel-title">
+            {t('reports.rejectReasons')}
+          </h2>
+          {report.rejectReasons.length > 0 && <CsvButton report={report} section="reasons" labels={labels} title={t('reports.rejectReasons')} />}
+        </div>
         {report.rejectReasons.length === 0 ? (
           <p className="ui-help">{t('reports.noRejections')}</p>
         ) : (
@@ -139,9 +184,12 @@ export default function HiringReports({ report, jobs }: { report: HiringReport; 
         )}
       </section>
       <section className="panel hr-report" aria-labelledby="hr-open">
-        <h2 id="hr-open" className="hr-panel-title">
-          {t('reports.openJobs')}
-        </h2>
+        <div className="hr-report-head">
+          <h2 id="hr-open" className="hr-panel-title">
+            {t('reports.openJobs')}
+          </h2>
+          {report.openJobs.length > 0 && <CsvButton report={report} section="jobs" labels={labels} title={t('reports.openJobs')} />}
+        </div>
         {report.openJobs.length === 0 ? (
           <p className="ui-help">{t('overview.noOpenJobs')}</p>
         ) : (

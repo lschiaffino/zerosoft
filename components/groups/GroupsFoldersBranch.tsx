@@ -12,15 +12,12 @@ import type { LineFolderDto } from '@/lib/groups-lines';
 import { menuPlace } from '@/lib/menu-place';
 import { canMoveFolder, childrenMap, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { Modal, api, useErrorText } from './ui';
-import { FOLDERS_CHANGED, notifyFoldersChanged } from './LineFolders';
+import { FOLDERS_CHANGED, notifyFoldersChanged, type LineFoldersResponse } from './LineFolders';
 import { ASSISTANT_APPLIED_EVENT } from '@/components/assistant/client';
-import { FolderIcon } from './wa/icons';
+import { FolderIcon, GroupIcon } from './wa/icons';
 
 type FolderDto = LineFolderDto;
-interface FolderData {
-  folders: LineFolderDto[];
-  unfiled: { unread: number; chats: number };
-}
+type FolderData = LineFoldersResponse;
 
 const FOLDER_MIME = 'application/x-zs-lines-folder';
 const COLLAPSED_KEY = 'zs-lines-folders-collapsed';
@@ -37,15 +34,21 @@ function readCollapsed(): Set<string> {
 
 /**
  * Carpetas de Lines en el sidebar, debajo de "Bandeja": el mismo árbol que
- * Inbox (InboxBranch). Subcarpetas que se pliegan, no leídos que suben a los
- * padres, la abierta marcada y un menú por carpeta (subcarpeta, renombrar,
- * subir, bajar, mover, borrar). Las carpetas se arrastran para ordenarlas o
- * meterlas en otra; los chats de la lista se sueltan encima (cada fila es un
- * destino `data-chat-drop` de components/ui/chat-gestures.tsx, que la marca
- * y mueve los chats). Con el teclado:
- * Alt+↑/↓ ordena, Alt+→ mete en la de arriba, Alt+← saca un nivel, F2
- * renombra. La carpeta abierta va en la URL (?folder=). Con el sidebar
- * colapsado o en el teléfono la bandeja ofrece un selector en su lugar.
+ * Inbox (InboxBranch), en dos secciones. "Equipo": las carpetas del workspace,
+ * que ve todo el mundo y administran los admins (los demás las abren y les
+ * sueltan chats, sin menú ni arrastre para ordenarlas). "Mías": las de la
+ * persona, que nadie más ve. Sin carpetas del equipo y sin ser admin, solo
+ * están las suyas, sin títulos.
+ *
+ * Subcarpetas que se pliegan, no leídos que suben a los padres, la abierta
+ * marcada y un menú por carpeta (subcarpeta, renombrar, subir, bajar, mover,
+ * borrar). Las carpetas se arrastran para ordenarlas o meterlas en otra de su
+ * misma sección; los chats de la lista se sueltan encima de cualquiera (cada
+ * fila es un destino `data-chat-drop` de components/ui/chat-gestures.tsx, que
+ * la marca y mueve los chats). Con el teclado: Alt+↑/↓ ordena, Alt+→ mete en
+ * la de arriba, Alt+← saca un nivel, F2 renombra. La carpeta abierta va en la
+ * URL (?folder=). Con el sidebar colapsado o en el teléfono la bandeja ofrece
+ * un selector en su lugar.
  */
 export default function GroupsFoldersBranch() {
   const t = useTranslations('groups.lines.branch');
@@ -58,9 +61,8 @@ export default function GroupsFoldersBranch() {
   const slot = useShellBranch();
   const rail = useCollapsedBranch();
   const [data, setData] = useState<FolderData | null>(null);
-  const folders = data?.folders ?? null;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [creating, setCreating] = useState<{ parentId: string | null; name: string } | null>(null);
+  const [creating, setCreating] = useState<{ parentId: string | null; name: string; team: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState<FolderDto | null>(null);
   const [moving, setMoving] = useState<FolderDto | null>(null);
@@ -190,7 +192,9 @@ export default function GroupsFoldersBranch() {
   const create = async () => {
     if (!creating || !creating.name.trim()) return;
     setBusy(true);
-    const r = await api<{ id: string; parentId: string | null }>('/api/groups/folders', { body: { name: creating.name, parentId: creating.parentId } });
+    const r = await api<{ id: string; parentId: string | null }>('/api/groups/folders', {
+      body: { name: creating.name, parentId: creating.parentId, ...(creating.team ? { team: true } : {}) },
+    });
     setBusy(false);
     if (!r.data) return fail(r.error);
     if (creating.parentId) toggle(creating.parentId, true);
@@ -200,32 +204,47 @@ export default function GroupsFoldersBranch() {
     router.push(hrefOf(r.data.id));
   };
 
-  if (!slot && rail && folders) {
+  const team = data?.team ?? [];
+  const mine = data?.folders ?? [];
+  const canManageTeam = !!data?.canManageTeam;
+  const teamIds = new Set(team.map((f) => f.id));
+  const isTeam = (f: FolderDto | null | undefined) => !!f && teamIds.has(f.id);
+
+  if (!slot && rail && data) {
+    const railRow = ({ folder: f, depth }: { folder: FolderDto; depth: number }) => ({
+      id: f.id,
+      name: f.name,
+      href: selected === f.id ? base : hrefOf(f.id),
+      active: selected === f.id,
+      unread: f.unread,
+      depth,
+    });
     return createPortal(
       <FolderRail
         label={tl('folders')}
         unreadLabel={(n, name) => `${name}: ${tl('folderUnread', { n })}`}
-        folders={flattenTree(folders).map(({ folder: f, depth }) => ({
-          id: f.id,
-          name: f.name,
-          href: selected === f.id ? base : hrefOf(f.id),
-          active: selected === f.id,
-          unread: f.unread,
-          depth,
-        }))}
+        folders={[...flattenTree(team).map(railRow), ...flattenTree(mine).map(railRow)]}
       />,
       rail,
     );
   }
-  if (!slot || !data || !folders) return null;
+  if (!slot || !data) return null;
 
-  const kids = childrenMap(folders);
-  const siblingsOf = (f: FolderDto) => kids.get(f.parentId && folders.some((x) => x.id === f.parentId) ? f.parentId : null) ?? [];
+  /** Lo que se hace con una carpeta depende de su sección: se ordena y se mueve solo entre las de su misma lista. */
+  const listOf = (f: FolderDto) => (isTeam(f) ? team : mine);
+  const canEdit = (f: FolderDto) => !isTeam(f) || canManageTeam;
+  const kidsTeam = childrenMap(team);
+  const kidsMine = childrenMap(mine);
+  const siblingsOf = (f: FolderDto) => {
+    const list = listOf(f);
+    const kids = isTeam(f) ? kidsTeam : kidsMine;
+    return kids.get(f.parentId && list.some((x) => x.id === f.parentId) ? f.parentId : null) ?? [];
+  };
   const nextSibling = (f: FolderDto) => {
     const s = siblingsOf(f);
     return s[s.indexOf(f) + 1] ?? null;
   };
-  const byId = new Map(folders.map((f) => [f.id, f]));
+  const byId = new Map([...team, ...mine].map((f) => [f.id, f]));
 
   const moveUp = (f: FolderDto) => {
     const s = siblingsOf(f);
@@ -240,14 +259,12 @@ export default function GroupsFoldersBranch() {
   const indent = (f: FolderDto) => {
     const s = siblingsOf(f);
     const prev = s[s.indexOf(f) - 1];
-    if (prev && canMoveFolder(folders, f.id, prev.id) === 'ok') void move(f, prev.id, null);
+    if (prev && canMoveFolder(listOf(f), f.id, prev.id) === 'ok') void move(f, prev.id, null);
   };
   const outdent = (f: FolderDto) => {
     const parent = f.parentId ? byId.get(f.parentId) : null;
     if (parent) void move(f, parent.parentId, nextSibling(parent)?.id ?? null);
   };
-
-  const rows = flattenTree(folders, collapsed);
 
   const zoneFor = (e: DragEvent<HTMLElement>): Zone => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -261,9 +278,12 @@ export default function GroupsFoldersBranch() {
     const types = Array.from(e.dataTransfer.types);
     const id = dragId.current;
     if (!id || !types.includes(FOLDER_MIME) || id === f.id) return;
+    const dragged = byId.get(id);
+    // Una carpeta no cambia de sección: una del equipo no pasa a ser personal ni al revés.
+    if (!dragged || isTeam(dragged) !== isTeam(f) || !canEdit(f)) return;
     const zone = zoneFor(e);
     const parent = zone === 'inside' ? f.id : f.parentId;
-    if (canMoveFolder(folders, id, parent) !== 'ok') {
+    if (canMoveFolder(listOf(f), id, parent) !== 'ok') {
       if (drop) setDrop(null);
       return;
     }
@@ -279,23 +299,24 @@ export default function GroupsFoldersBranch() {
     const id = dragId.current;
     dragId.current = null;
     const dragged = id ? byId.get(id) : null;
-    if (!dragged || dragged.id === f.id) return;
+    if (!dragged || dragged.id === f.id || isTeam(dragged) !== isTeam(f)) return;
     if (zone === 'inside') void move(dragged, f.id, null);
     else if (zone === 'before') void move(dragged, f.parentId, f.id);
     else void move(dragged, f.parentId, nextSibling(f)?.id === dragged.id ? (nextSibling(dragged)?.id ?? null) : (nextSibling(f)?.id ?? null));
   };
 
   const linkKeys = (e: KeyboardEvent<HTMLAnchorElement>, f: FolderDto, hasChildren: boolean) => {
-    if (e.altKey && e.key === 'ArrowUp') {
+    const editable = canEdit(f);
+    if (editable && e.altKey && e.key === 'ArrowUp') {
       e.preventDefault();
       moveUp(f);
-    } else if (e.altKey && e.key === 'ArrowDown') {
+    } else if (editable && e.altKey && e.key === 'ArrowDown') {
       e.preventDefault();
       moveDown(f);
-    } else if (e.altKey && e.key === 'ArrowRight') {
+    } else if (editable && e.altKey && e.key === 'ArrowRight') {
       e.preventDefault();
       indent(f);
-    } else if (e.altKey && e.key === 'ArrowLeft') {
+    } else if (editable && e.altKey && e.key === 'ArrowLeft') {
       e.preventDefault();
       outdent(f);
     } else if (!e.altKey && e.key === 'ArrowRight' && hasChildren && collapsed.has(f.id)) {
@@ -304,7 +325,7 @@ export default function GroupsFoldersBranch() {
     } else if (!e.altKey && e.key === 'ArrowLeft' && hasChildren && !collapsed.has(f.id)) {
       e.preventDefault();
       toggle(f.id, false);
-    } else if (e.key === 'F2') {
+    } else if (editable && e.key === 'F2') {
       e.preventDefault();
       setRenaming(f.id);
     }
@@ -314,7 +335,7 @@ export default function GroupsFoldersBranch() {
     const s = siblingsOf(f);
     const i = s.indexOf(f);
     return [
-      { key: 'newSub', run: () => setCreating({ parentId: f.id, name: '' }), disabled: depthOf(folders, f.id) + 1 > MAX_FOLDER_DEPTH },
+      { key: 'newSub', run: () => setCreating({ parentId: f.id, name: '', team: isTeam(f) }), disabled: depthOf(listOf(f), f.id) + 1 > MAX_FOLDER_DEPTH },
       { key: 'rename', run: () => setRenaming(f.id) },
       { key: 'moveUp', run: () => moveUp(f), disabled: i <= 0 },
       { key: 'moveDown', run: () => moveDown(f), disabled: i < 0 || i >= s.length - 1 },
@@ -323,16 +344,192 @@ export default function GroupsFoldersBranch() {
     ];
   };
 
+  const renderRow = ({ folder: f, depth, hasChildren }: { folder: FolderDto; depth: number; hasChildren: boolean }, kind: 'team' | 'personal') => {
+    const active = selected === f.id;
+    const href = active ? base : hrefOf(f.id);
+    const open = hasChildren && !collapsed.has(f.id);
+    const shown = f.unread;
+    const editable = kind === 'personal' || canManageTeam;
+    const dropCls = drop?.id === f.id ? ` drop drop-${drop.zone}` : '';
+    return (
+      <li
+        key={f.id}
+        data-folder={f.id}
+        data-folder-kind={kind}
+        data-chat-drop={f.id}
+        data-chat-drop-scope="lines"
+        data-chat-drop-name={f.name}
+        className={`docs-tree-row${active ? ' active' : ''}${dropCls}`}
+        style={{ ['--d' as string]: depth }}
+        draggable={editable && renaming !== f.id}
+        onDragStart={(e) => {
+          if (!editable) return;
+          dragId.current = f.id;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(FOLDER_MIME, f.id);
+          e.dataTransfer.setData('text/plain', f.name);
+        }}
+        onDragEnd={() => {
+          dragId.current = null;
+          setDrop(null);
+        }}
+        onDragOver={(e) => onDragOver(e, f)}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null) && drop?.id === f.id) setDrop(null);
+        }}
+        onDrop={(e) => onDrop(e, f)}
+      >
+        {hasChildren ? (
+          <button
+            type="button"
+            className={`grf-ftree-chevron${open ? ' open' : ''}`}
+            aria-expanded={open}
+            data-chat-drop-expand
+            aria-label={open ? t('collapse', { name: f.name }) : t('expand', { name: f.name })}
+            onClick={() => toggle(f.id)}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+              <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+        ) : (
+          <span className="docs-tree-chevron-spacer" aria-hidden="true" />
+        )}
+        {renaming === f.id ? (
+          <input
+            className="input grf-ftree-rename"
+            aria-label={t('renameLabel', { name: f.name })}
+            defaultValue={f.name}
+            maxLength={60}
+            autoFocus
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void rename(f, e.currentTarget.value);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                setRenaming(null);
+                focusFolder(f.id);
+              }
+            }}
+            onBlur={(e) => void rename(f, e.currentTarget.value)}
+          />
+        ) : (
+          <Link
+            href={href}
+            prefetch={false}
+            className="docs-tree-link"
+            data-testid={kind === 'team' ? 'lines-team-folder' : 'lines-folder'}
+            aria-current={active ? 'page' : undefined}
+            draggable={false}
+            onKeyDown={(e) => linkKeys(e, f, hasChildren)}
+          >
+            <span className="docs-tree-icon" aria-hidden="true">
+              <span className={`grf-swatch${kind === 'team' ? ' grf-swatch-team' : ''}`} />
+            </span>
+            <span className="docs-tree-title">{f.name}</span>
+            {shown > 0 && (
+              <span className="grf-branch-count" aria-label={tl('folderUnread', { n: shown })}>
+                {shown > 99 ? '99+' : shown}
+              </span>
+            )}
+          </Link>
+        )}
+        {renaming !== f.id && editable && (
+          <span className="grf-ftree-actions" data-chat-drop-hide>
+            <button
+              type="button"
+              className="grf-ftree-btn"
+              aria-label={t('actionsFor', { name: f.name })}
+              aria-haspopup="menu"
+              aria-expanded={menu === f.id}
+              onClick={(e) => {
+                menuBtn.current = e.currentTarget;
+                setMenu((m) => (m === f.id ? null : f.id));
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <circle cx="5" cy="12" r="1.8" />
+                <circle cx="12" cy="12" r="1.8" />
+                <circle cx="19" cy="12" r="1.8" />
+              </svg>
+            </button>
+            {menu === f.id &&
+              createPortal(
+                <ul
+                  ref={menuBox}
+                  className="grf-menu grf-ftree-menu"
+                  data-testid="lines-folder-menu"
+                  // El clic en una opción no le saca el foco al menú antes de tiempo (Safari no enfoca botones al hacer clic).
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={menuAt ? { top: menuAt.top, left: menuAt.left } : { top: 0, left: 0, visibility: 'hidden' }}
+                  role="menu"
+                  aria-label={t('actionsFor', { name: f.name })}
+                  onKeyDown={(e) => {
+                    const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+                    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMenu(null);
+                      focusFolder(f.id);
+                    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const to = e.relatedTarget as Node | null;
+                    if (!e.currentTarget.contains(to) && !menuBtn.current?.contains(to)) setMenu(null);
+                  }}
+                >
+                  {menuItems(f).map((it) => (
+                    <li key={it.key} role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={`grf-menu-item${it.danger ? ' grf-danger' : ''}`}
+                        disabled={it.disabled}
+                        onClick={() => {
+                          setMenu(null);
+                          it.run();
+                        }}
+                      >
+                        {t(`menu.${it.key}`)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>,
+                document.body,
+              )}
+          </span>
+        )}
+      </li>
+    );
+  };
+
+  const anyFolders = team.length > 0 || mine.length > 0;
+  // La sección del equipo está si hay carpetas del equipo o si quien mira puede crearlas; sin ella, las suyas van sin título.
+  const showTeam = team.length > 0 || canManageTeam;
+  const deletingTeam = isTeam(deleting);
+  const movingTeam = isTeam(moving);
+
   return createPortal(
     <nav ref={navRef} className="docs-branch grf-branch" aria-label={tl('folders')} data-testid="lines-folders" data-chat-drop-zone="lines">
-      {folders.length === 0 ? (
-        <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
-      ) : (
-        <ul className="docs-tree grf-ftree" role="list" aria-label={tl('folders')}>
-          {/* "Sin carpeta" arriba, antes de la primera carpeta: se filtran los sueltos y se arrastran a las carpetas de abajo. */}
+      {anyFolders && (
+        <ul className="docs-tree grf-ftree" role="list" aria-label={tl('unfiled')}>
+          {/* "Sin carpeta" arriba, antes de la primera carpeta: se filtran los sueltos (ni en una suya ni en una del equipo) y se arrastran a las carpetas de abajo. */}
           <li className={`docs-tree-row${selected === 'none' ? ' active' : ''}`} data-chat-drop="none" data-chat-drop-scope="lines" data-chat-drop-name={tl('unfiled')} data-testid="lines-nofolder">
             <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-            <Link href={selected === 'none' ? base : hrefOf('none')} prefetch={false} className="docs-tree-link" aria-current={selected === 'none' ? 'page' : undefined}>
+            <Link
+              href={selected === 'none' ? base : hrefOf('none')}
+              prefetch={false}
+              className="docs-tree-link"
+              aria-current={selected === 'none' ? 'page' : undefined}
+              title={tl('unfiledHint')}
+            >
               <span className="docs-tree-icon" aria-hidden="true">
                 <FolderIcon size={15} />
               </span>
@@ -344,172 +541,54 @@ export default function GroupsFoldersBranch() {
               )}
             </Link>
           </li>
-          {rows.map(({ folder: f, depth, hasChildren }) => {
-            const active = selected === f.id;
-            const href = active ? base : hrefOf(f.id);
-            const open = hasChildren && !collapsed.has(f.id);
-            const shown = f.unread;
-            const dropCls = drop?.id === f.id ? ` drop drop-${drop.zone}` : '';
-            return (
-              <li
-                key={f.id}
-                data-folder={f.id}
-                data-chat-drop={f.id}
-                data-chat-drop-scope="lines"
-                data-chat-drop-name={f.name}
-                className={`docs-tree-row${active ? ' active' : ''}${dropCls}`}
-                style={{ ['--d' as string]: depth }}
-                draggable={renaming !== f.id}
-                onDragStart={(e) => {
-                  dragId.current = f.id;
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData(FOLDER_MIME, f.id);
-                  e.dataTransfer.setData('text/plain', f.name);
-                }}
-                onDragEnd={() => {
-                  dragId.current = null;
-                  setDrop(null);
-                }}
-                onDragOver={(e) => onDragOver(e, f)}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null) && drop?.id === f.id) setDrop(null);
-                }}
-                onDrop={(e) => onDrop(e, f)}
-              >
-                {hasChildren ? (
-                  <button
-                    type="button"
-                    className={`grf-ftree-chevron${open ? ' open' : ''}`}
-                    aria-expanded={open}
-                    data-chat-drop-expand
-                    aria-label={open ? t('collapse', { name: f.name }) : t('expand', { name: f.name })}
-                    onClick={() => toggle(f.id)}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-                      <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                  </button>
-                ) : (
-                  <span className="docs-tree-chevron-spacer" aria-hidden="true" />
-                )}
-                {renaming === f.id ? (
-                  <input
-                    className="input grf-ftree-rename"
-                    aria-label={t('renameLabel', { name: f.name })}
-                    defaultValue={f.name}
-                    maxLength={60}
-                    autoFocus
-                    onFocus={(e) => e.currentTarget.select()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void rename(f, e.currentTarget.value);
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setRenaming(null);
-                        focusFolder(f.id);
-                      }
-                    }}
-                    onBlur={(e) => void rename(f, e.currentTarget.value)}
-                  />
-                ) : (
-                  <Link href={href} prefetch={false} className="docs-tree-link" data-testid="lines-folder" aria-current={active ? 'page' : undefined} draggable={false} onKeyDown={(e) => linkKeys(e, f, hasChildren)}>
-                    <span className="docs-tree-icon" aria-hidden="true">
-                      <span className="grf-swatch" style={{ background: 'var(--c-groups)' }} />
-                    </span>
-                    <span className="docs-tree-title">{f.name}</span>
-                    {shown > 0 && (
-                      <span className="grf-branch-count" aria-label={tl('folderUnread', { n: shown })}>
-                        {shown > 99 ? '99+' : shown}
-                      </span>
-                    )}
-                  </Link>
-                )}
-                {renaming !== f.id && (
-                  <span className="grf-ftree-actions" data-chat-drop-hide>
-                    <button
-                      type="button"
-                      className="grf-ftree-btn"
-                      aria-label={t('actionsFor', { name: f.name })}
-                      aria-haspopup="menu"
-                      aria-expanded={menu === f.id}
-                      onClick={(e) => {
-                        menuBtn.current = e.currentTarget;
-                        setMenu((m) => (m === f.id ? null : f.id));
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <circle cx="5" cy="12" r="1.8" />
-                        <circle cx="12" cy="12" r="1.8" />
-                        <circle cx="19" cy="12" r="1.8" />
-                      </svg>
-                    </button>
-                    {menu === f.id && createPortal(
-                      <ul
-                        ref={menuBox}
-                        className="grf-menu grf-ftree-menu"
-                        data-testid="lines-folder-menu"
-                        // El clic en una opción no le saca el foco al menú antes de tiempo (Safari no enfoca botones al hacer clic).
-                        onMouseDown={(e) => e.preventDefault()}
-                        style={menuAt ? { top: menuAt.top, left: menuAt.left } : { top: 0, left: 0, visibility: 'hidden' }}
-                        role="menu"
-                        aria-label={t('actionsFor', { name: f.name })}
-                        onKeyDown={(e) => {
-                          const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
-                          const i = items.indexOf(document.activeElement as HTMLButtonElement);
-                          if (e.key === 'Escape') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setMenu(null);
-                            focusFolder(f.id);
-                          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                            e.preventDefault();
-                            items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const to = e.relatedTarget as Node | null;
-                          if (!e.currentTarget.contains(to) && !menuBtn.current?.contains(to)) setMenu(null);
-                        }}
-                      >
-                        {menuItems(f).map((it) => (
-                          <li key={it.key} role="none">
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className={`grf-menu-item${it.danger ? ' grf-danger' : ''}`}
-                              disabled={it.disabled}
-                              onClick={() => {
-                                setMenu(null);
-                                it.run();
-                              }}
-                            >
-                              {t(`menu.${it.key}`)}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>,
-                      document.body,
-                    )}
-                  </span>
-                )}
-              </li>
-            );
-          })}
         </ul>
       )}
+      {showTeam && (
+        <section className="grf-sec" aria-label={t('teamLabel')} data-testid="lines-team-folders">
+          <p className="grf-sec-head" title={tl('teamFoldersHelp')}>
+            <GroupIcon size={14} />
+            <span>{tl('teamFolders')}</span>
+          </p>
+          {team.length > 0 ? (
+            <ul className="docs-tree grf-ftree" role="list" aria-label={t('teamLabel')}>
+              {flattenTree(team, collapsed).map((r) => renderRow(r, 'team'))}
+            </ul>
+          ) : (
+            <p className="docs-sidebar-empty">{t('teamEmpty')}</p>
+          )}
+          {canManageTeam && (
+            <button type="button" className="grf-branch-new" onClick={() => setCreating({ parentId: null, name: '', team: true })} data-testid="lines-team-folder-new">
+              + {t('newTeam')}
+            </button>
+          )}
+        </section>
+      )}
+      <section className="grf-sec" aria-label={t('mineLabel')} data-testid="lines-my-folders">
+        {showTeam && (
+          <p className="grf-sec-head">
+            <FolderIcon size={14} />
+            <span>{tl('myFolders')}</span>
+          </p>
+        )}
+        {mine.length === 0 ? (
+          <p className="docs-sidebar-empty">{t('branchEmpty')}</p>
+        ) : (
+          <ul className="docs-tree grf-ftree" role="list" aria-label={showTeam ? t('mineLabel') : tl('folders')}>
+            {flattenTree(mine, collapsed).map((r) => renderRow(r, 'personal'))}
+          </ul>
+        )}
+        <button type="button" className="grf-branch-new" onClick={() => setCreating({ parentId: null, name: '', team: false })} data-testid="lines-folder-new">
+          + {t('new')}
+        </button>
+      </section>
       {error && (
         <p className="ui-error grf-ftree-error" role="alert">
           {error}
         </p>
       )}
-      <button type="button" className="grf-branch-new" onClick={() => setCreating({ parentId: null, name: '' })} data-testid="lines-folder-new">
-        + {t('new')}
-      </button>
       <Modal
         open={creating !== null}
-        title={creating?.parentId ? tl('newSubfolder') : tl('newFolder')}
+        title={creating?.team ? (creating.parentId ? tl('newTeamSubfolder') : tl('newTeamFolder')) : creating?.parentId ? tl('newSubfolder') : tl('newFolder')}
         onClose={() => setCreating(null)}
         onSubmit={() => void create()}
         busy={busy}
@@ -525,6 +604,7 @@ export default function GroupsFoldersBranch() {
         }
       >
         <div className="ui-fields">
+          {creating?.team && <p className="ui-help">{tl('teamFoldersHelp')}</p>}
           <label className="ui-field">
             <span className="label">{tl('folderName')}</span>
             <input className="input" value={creating?.name ?? ''} onChange={(e) => setCreating((s) => (s ? { ...s, name: e.target.value } : s))} maxLength={60} autoFocus required />
@@ -539,7 +619,7 @@ export default function GroupsFoldersBranch() {
       <ConfirmDialog
         open={deleting !== null}
         title={tl('deleteFolderTitle', { name: deleting?.name ?? '' })}
-        body={tl('deleteFolderBody')}
+        body={deletingTeam ? tl('deleteTeamFolderBody') : tl('deleteFolderBody')}
         confirmLabel={tc('delete')}
         cancelLabel={tc('cancel')}
         danger
@@ -548,7 +628,7 @@ export default function GroupsFoldersBranch() {
       />
       <MoveFolderDialog
         folder={moving}
-        folders={folders}
+        folders={movingTeam ? team : mine}
         onClose={() => setMoving(null)}
         onPick={(parentId) => {
           const f = moving;
@@ -561,7 +641,7 @@ export default function GroupsFoldersBranch() {
   );
 }
 
-/** "Mover a…": elegir la carpeta padre con el teclado (o primer nivel). */
+/** "Mover a…": elegir la carpeta padre con el teclado (o primer nivel), entre las de su misma sección. */
 function MoveFolderDialog({ folder, folders, onClose, onPick }: { folder: FolderDto | null; folders: FolderDto[]; onClose: () => void; onPick: (parentId: string | null) => void }) {
   const t = useTranslations('groups.lines.branch');
   const tc = useTranslations('groups.common');

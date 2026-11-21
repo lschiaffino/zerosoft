@@ -24,7 +24,9 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Search as SearchIcon, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ChatSearchPanel, useChatSearchShortcut, type ChatSearchFn } from '@/components/groups/wa/ChatSearch';
+import type { MessageHit } from '@/lib/inbox/message-search';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
 import PinnedBar from '@/components/groups/wa/PinnedBar';
@@ -63,6 +65,7 @@ import { useInboxThreadCommands } from '../slash-commands';
 import { typingLabel } from './ChatRow';
 import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent';
 import { parseEvent } from '@/lib/wa-group-events';
+import { forwardedMany } from '@/lib/wa-forward';
 import type { WaMentionPick } from '@/lib/wa-compose-mentions';
 
 export interface WaThreadDetail {
@@ -325,6 +328,11 @@ const WaConversation = forwardRef<
 
   // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
   const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
+  // "@" en un grupo (el campo del chat y el pie de los archivos): los participantes, sin la cuenta misma.
+  const groupMentionables = useMemo(
+    () => (group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined),
+    [group, wa],
+  );
 
   // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
@@ -412,7 +420,7 @@ const WaConversation = forwardRef<
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
   const keepAtEnd = () => anchor.restore();
 
-  const jumpTo = (id: string, load = true) => {
+  const jumpTo = (id: string, load = true, smooth = true) => {
     const el = document.getElementById(`m-${id}`);
     if (!el) {
       // Más viejo que lo cargado (un fijado): el chat se abre alrededor de ese mensaje (una vez).
@@ -420,7 +428,7 @@ const WaConversation = forwardRef<
       return;
     }
     anchor.unstick();
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
     setFlash(id);
     window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1500);
   };
@@ -431,7 +439,8 @@ const WaConversation = forwardRef<
     const focus = detail.focus;
     let off = 0;
     const id = window.setTimeout(() => {
-      jumpTo(focus, false);
+      // Sin animación: la conversación recién se armó alrededor del mensaje (y en el teléfono una animación larga se cortaba).
+      jumpTo(focus, false, false);
       // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
       setHitId(focus);
       off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
@@ -711,9 +720,29 @@ const WaConversation = forwardRef<
     attach: connected ? () => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click() : undefined,
   });
 
+  // Buscar en el chat (la lupa de la cabecera): components/groups/wa/ChatSearch.tsx. Busca en este chat y en el mismo
+  // chat de las otras cuentas; un resultado viejo abre la conversación alrededor de él (jumpTo).
+  const [searchOpen, setSearchOpen] = useState(false);
+  useChatSearchShortcut(() => setSearchOpen(true));
+  useEffect(() => setSearchOpen(false), [thread.id]);
+  const searchThreads = [thread.id, ...sameLines.map((l) => l.chatId).filter((id) => id !== thread.id)].join(',');
+  const searchChat = useCallback<ChatSearchFn>(
+    async (q, before) => {
+      const sp = new URLSearchParams({ q, limit: '30' });
+      if (before) sp.set('before', before);
+      for (const id of searchThreads.split(',')) sp.append('thread', id);
+      const r = await api<{ messages: MessageHit[]; more: boolean }>(`/api/inbox/search?${sp}`);
+      if (!r.ok) return null;
+      return { hits: r.data.messages.map((h) => ({ id: h.id, sentAt: h.sentAt, fromMe: h.fromMe, senderName: h.senderName, snippet: h.snippet })), more: r.data.more };
+    },
+    [searchThreads],
+  );
+
   const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
     { key: 'info', label: group ? w('groupInfo') : w('contactInfo'), onSelect: props.onToggleInfo },
+    // También en el menú: en el teléfono la lupa no entra en la cabecera.
+    { key: 'search', label: gw('chatSearch.open'), onSelect: () => setSearchOpen(true) },
     { key: 'followUp', label: t('actions.followUp'), onSelect: () => onAction('followUp') },
     { key: 'move', label: t('actions.move'), onSelect: () => onAction('move') },
     { key: 'notes', label: t('actions.notes'), onSelect: () => void openNotes() },
@@ -882,8 +911,8 @@ const WaConversation = forwardRef<
             </p>
           )}
           {m.forwarded && !hidden && (
-            <p className="gr-forwarded">
-              <Forwarded size={13} /> {w('forwarded')}
+            <p className="gr-forwarded" data-forwarded={forwardedMany(m.forwarded, m.meta) ? 'many' : 'once'}>
+              <Forwarded size={13} /> {forwardedMany(m.forwarded, m.meta) ? w('forwardedMany') : w('forwarded')}
             </p>
           )}
           {m.reply && !hidden && (
@@ -1190,9 +1219,33 @@ const WaConversation = forwardRef<
             <Note size={20} />
           </button>
           {thread.pinned && <PinIcon size={16} label={t('list.pinned')} />}
+          <button
+            type="button"
+            className={`wa-icon-btn ib-hide-sm${searchOpen ? ' is-on' : ''}`}
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-expanded={searchOpen}
+            aria-label={gw('chatSearch.open')}
+            title={`${gw('chatSearch.open')} (${gw('chatSearch.shortcut')})`}
+            data-testid="chat-search-open"
+          >
+            <SearchIcon size={20} />
+          </button>
           <MessageMenu label={t('actions.more')} items={headMenu} className="wa-icon-btn" />
         </div>
       </header>
+      {searchOpen && (
+        <ChatSearchPanel
+          chatKey={thread.id}
+          chatName={name}
+          group={group}
+          search={searchChat}
+          onPick={(h, covering) => {
+            if (covering) setSearchOpen(false);
+            window.setTimeout(() => jumpTo(h.id, true, !covering), covering ? 60 : 0);
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
       <PinnedBar
         pinned={pinned}
         onJump={(m) => jumpTo(m.id)}
@@ -1360,7 +1413,7 @@ const WaConversation = forwardRef<
           )}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
-          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined}
+          mentionables={groupMentionables}
           onTyping={() => presence('composing')}
           commands={slashCommands}
           onCancelBanner={() => {
@@ -1390,6 +1443,7 @@ const WaConversation = forwardRef<
           onReplace={tray.replace}
           stickerApi="/api/inbox/stickers"
           stickerLine={stickerLine}
+          mentionables={groupMentionables}
         />
       )}
       {dragging && (

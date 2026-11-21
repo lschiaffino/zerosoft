@@ -9,6 +9,7 @@ import { mediaFromBody } from '@/lib/groups-media-input';
 import { onceInFlight } from '@/lib/send-once';
 import { conditionalJson } from '@/lib/etag';
 import { sameChatIds } from '@/lib/groups-same-chat';
+import { searchChatMessages } from '@/lib/groups-chat-search';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,13 @@ export async function GET(req: Request, ctx: Ctx) {
   const chat = await getChatRow(s.ws, id);
   if (!chat) return groupsError(404, 'not_found');
   const p = new URL(req.url).searchParams;
+  // ?q=: buscar en el chat (la lupa de la cabecera). ?before= pagina con la fecha del último resultado.
+  const q = p.get('q');
+  if (q !== null) {
+    const chatIds = await sameChatIds(s.ws, guard.viewer, chat);
+    const r = await searchChatMessages(s.ws, guard.viewer, chatIds, q, { before: p.get('before') || undefined, limit: Number(p.get('limit')) || 30 });
+    return NextResponse.json({ hits: r.hits, more: r.more });
+  }
   const after = p.get('after') || undefined;
   // ?before=<createdAt>: los anteriores (el hilo carga más al subir).
   const before = p.get('before') || undefined;

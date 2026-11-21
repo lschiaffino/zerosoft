@@ -649,6 +649,8 @@ export interface ListPostsOptions {
   to?: string;
   status?: PostStatus | 'scheduled_any' | 'needs_approval';
   accountId?: string;
+  /** Solo las que van a alguna cuenta de esta red. */
+  network?: SocialNetwork;
   q?: string;
   limit?: number;
 }
@@ -676,6 +678,12 @@ export async function listPosts(actor: SocialActor, opts: ListPostsOptions = {})
   if (opts.accountId) {
     where.push('EXISTS (SELECT 1 FROM social_post_targets x WHERE x.post_id = p.id AND x.account_id = ?)');
     args.push(opts.accountId);
+  }
+  if (opts.network) {
+    where.push(
+      'EXISTS (SELECT 1 FROM social_post_targets y JOIN social_accounts ya ON ya.id = y.account_id AND ya.workspace_id = p.workspace_id WHERE y.post_id = p.id AND ya.network = ?)',
+    );
+    args.push(opts.network);
   }
   if (opts.q?.trim()) {
     where.push("p.text LIKE ? ESCAPE '\\'");
@@ -916,6 +924,36 @@ async function savePost(actor: SocialActor, input: PostInput, existing: PostRow 
 
 export async function createPost(actor: SocialActor, input: PostInput): Promise<PostDto> {
   return savePost(actor, input, null);
+}
+
+/**
+ * Duplicar: una copia en borrador, sin fecha, con el mismo texto, medios,
+ * primer comentario, link y textos por red. Quedan las cuentas que la persona
+ * todavía puede usar; el original no se toca.
+ */
+export async function duplicatePost(actor: SocialActor, id: string): Promise<PostDto> {
+  const source = await getPost(actor, id);
+  const visible = new Set((await visibleAccountRows(actor)).map((a) => a.id));
+  const targets = source.targets.filter((tg) => tg.account && visible.has(tg.accountId));
+  const overrides: Record<string, string | null> = {};
+  for (const tg of targets) overrides[tg.accountId] = tg.textOverride;
+  const copy = await savePost(
+    actor,
+    {
+      text: source.text,
+      accountIds: targets.map((tg) => tg.accountId),
+      overrides,
+      media: source.media,
+      firstComment: source.firstComment,
+      linkUrl: source.linkUrl,
+      shortUrl: source.shortUrl,
+      action: 'draft',
+      scheduledAt: null,
+    },
+    null,
+  );
+  await addEvent(copy.id, actor.personId, 'duplicated', source.id);
+  return copy;
 }
 
 // ---------- Programación masiva (CSV) ----------

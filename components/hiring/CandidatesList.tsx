@@ -6,7 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import type { ApplicationListItem } from '@/lib/hiring/candidates';
-import { AppStatusBadge, api, useDate, useToast } from './ui';
+import { AppStatusBadge, api, useDate, useToast, type RejectConfig } from './ui';
 import BulkBar from './BulkBar';
 
 interface Filters {
@@ -25,12 +25,14 @@ export default function CandidatesList({
   jobs,
   tags,
   templates,
+  reject,
   filters,
 }: {
   initial: ApplicationListItem[];
   jobs: Array<{ id: string; title: string }>;
   tags: string[];
   templates: Array<{ id: string; name: string }>;
+  reject: RejectConfig;
   filters: Filters;
 }) {
   const t = useTranslations('hiring');
@@ -117,7 +119,7 @@ export default function CandidatesList({
           {t('filters.knockout')}
         </label>
       </div>
-      <BulkBar selected={[...selected]} stages={stages} templates={templates} onDone={() => router.refresh()} push={push} />
+      <BulkBar selected={[...selected]} stages={stages} templates={templates} reject={reject} onDone={() => router.refresh()} push={push} />
       {initial.length === 0 ? (
         filtered ? (
           <EmptyState compact body={t('filters.noMatch')} />

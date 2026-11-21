@@ -2,14 +2,14 @@
 
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { RejectReasonOptions } from './ui';
-import { HrDialog, api, useErrorText } from './ui';
+import { HrDialog, RejectReasonField, api, useErrorText, type RejectConfig } from './ui';
 
 /** Acciones en lote sobre las postulaciones elegidas: mover de etapa, rechazar (con email de plantilla) o etiquetar. */
 export default function BulkBar({
   selected,
   stages,
   templates = [],
+  reject,
   onDone,
   push,
 }: {
@@ -17,6 +17,7 @@ export default function BulkBar({
   /** Etapas para mover (solo con un puesto elegido). */
   stages: Array<{ id: string; name: string }> | null;
   templates?: Array<{ id: string; name: string }>;
+  reject: RejectConfig;
   onDone: () => void;
   push: (msg: string, tone?: 'ok' | 'bad') => void;
 }) {
@@ -40,7 +41,7 @@ export default function BulkBar({
     onDone();
   };
 
-  const reject = async (e: FormEvent) => {
+  const submitReject = async (e: FormEvent) => {
     e.preventDefault();
     setRejectOpen(false);
     await run({ action: 'reject', reason, sendEmail, templateId: templateId || null });
@@ -86,13 +87,9 @@ export default function BulkBar({
         {t('bulk.reject')}
       </button>
       <HrDialog open={rejectOpen} title={t('reject.title', { count: selected.length })} onClose={() => setRejectOpen(false)}>
-        <form onSubmit={reject}>
+        <form onSubmit={submitReject}>
           <div className="ui-modal-body ui-fields">
-            <label className="ui-field">
-              <span className="label">{t('reject.reason')}</span>
-              <input className="input" list="hr-reject-reasons" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
-              <RejectReasonOptions />
-            </label>
+            <RejectReasonField config={reject} value={reason} onChange={setReason} autoFocus />
             <label className="ui-check">
               <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
               {t('reject.sendEmail')}

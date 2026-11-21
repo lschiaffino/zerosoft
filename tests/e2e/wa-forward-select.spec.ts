@@ -6,7 +6,9 @@ import { waLinkIp } from './helpers/wa-link';
  * "Reenviar" en un mensaje entra en modo selección, como WhatsApp (Inbox y Lines, WhatsApp falso con
  * GROUPS_FAKE=1), a 1280 y a 390: ese mensaje queda tildado, se suma otro (con el mouse y con el teclado), la
  * barra cuenta cuántos van, Esc sale y deja el foco en el campo, lo borrado no tiene casilla, y dos mensajes
- * reenviados llegan al otro chat en el orden en que se mandaron. Con WA_SHOTS=<carpeta> guarda capturas.
+ * reenviados llegan al otro chat en el orden en que se mandaron, con la marca "Forwarded" (el segundo ya llegó
+ * reenviado 4 veces: la copia suma uno y dice "Forwarded many times", como WhatsApp desde 5). Con WA_SHOTS=<carpeta>
+ * guarda capturas.
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -119,6 +121,9 @@ async function forwardBySelecting(page: Page, app: App, width: number, from: str
   await app.open(to);
   await expect(app.outgoing).toHaveText([new RegExp(one), new RegExp(two)], { timeout: 30_000 });
   await expect(app.outgoing.locator('.gr-forwarded')).toHaveCount(2);
+  // La copia suma uno al score del original: el primero queda "Forwarded", el segundo (4 + 1) "Forwarded many times".
+  await expect(app.outgoing.filter({ hasText: one }).locator('.gr-forwarded')).toHaveAttribute('data-forwarded', 'once');
+  await expect(app.outgoing.filter({ hasText: two }).locator('.gr-forwarded')).toHaveAttribute('data-forwarded', 'many');
   await noSideScroll(page);
   await shot(page, `${app.name}-${width}-arrived`);
 }
@@ -147,7 +152,7 @@ function seed(tag: string, jid: (end: string) => string) {
   // Hace segundos, no minutos: con la base compartida llena de chats de otros tests, uno de hace 10 minutos
   // quedaba fuera de la primera página de la lista y la fila no aparecía.
   const at = (i: number) => new Date(Date.now() - (10 - i) * 1000).toISOString();
-  const inMsg = (chatId: string, senderName: string, body: string, i: number, id = `fs-${tag}-${i}`) => ({
+  const inMsg = (chatId: string, senderName: string, body: string, i: number, id = `fs-${tag}-${i}`, extra: Record<string, unknown> = {}) => ({
     type: 'message',
     chatId,
     isGroup: false,
@@ -157,11 +162,13 @@ function seed(tag: string, jid: (end: string) => string) {
     providerMessageId: id,
     body,
     timestamp: at(i),
+    ...extra,
   });
   const events = [
     inMsg(b, to, `Hola ${tag}`, 0),
     inMsg(a, from, texts[0], 1),
-    inMsg(a, from, texts[1], 2),
+    // Ya llegó reenviado 4 veces (contextInfo.forwardingScore).
+    inMsg(a, from, texts[1], 2, undefined, { forwarded: true, forwardingScore: 4 }),
     inMsg(a, from, texts[2], 3),
     { type: 'revoke', chatId: a, providerMessageId: `fs-${tag}-3` },
   ];

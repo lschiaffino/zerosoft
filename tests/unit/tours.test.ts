@@ -32,6 +32,86 @@ describe('tours: registro y rutas', () => {
     expect(TOURS.track.steps.find((s) => s.id === 'issues')).toMatchObject({ advanceOn: 'click' });
   });
 
+  it('el tour de Board arranca en la lista y sigue en el lienzo; equipo ve el taller y compartir con el workspace', () => {
+    expect(tourForPath('/app/board')?.key).toBe('board');
+    expect(tourForPath('/es/app/board/abc')?.key).toBe('board');
+    expect(tourForPath('/app/boards')).toBeNull();
+    expect(atTourStart(TOURS.board, '/pt/app/board')).toBe(true);
+    expect(atTourStart(TOURS.board, '/app/board/abc')).toBe(false);
+    const steps = ids([...TOURS.board.steps]);
+    // Abrir una pizarra (clic en una tarjeta) va antes de los pasos del lienzo.
+    for (const id of ['toolbar', 'canvasTools', 'zoom', 'share']) expect(steps.indexOf('openBoard')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.board.steps.find((s) => s.id === 'openBoard')).toMatchObject({ advanceOn: 'click' });
+    const team = ids(stepsFor(TOURS.board, { audience: 'team', admin: false }));
+    const solo = ids(stepsFor(TOURS.board, { audience: 'solo', admin: false }));
+    expect(team).toContain('workshop');
+    expect(team).toContain('shareTeam');
+    expect(team).not.toContain('share');
+    expect(solo).not.toContain('workshop');
+    expect(solo).toContain('share');
+    expect(solo).not.toContain('shareTeam');
+  });
+
+  it('el tour de Cal vive en /app/calendar, arranca en el resumen y suma el ruteo para equipo', () => {
+    expect(tourForPath('/app/calendar')?.key).toBe('cal');
+    expect(tourForPath('/es/app/calendar/event-types/abc')?.key).toBe('cal');
+    expect(tourForPath('/app/calendars')).toBeNull();
+    expect(atTourStart(TOURS.cal, '/pt/app/calendar')).toBe(true);
+    expect(atTourStart(TOURS.cal, '/app/calendar/bookings')).toBe(false);
+    const team = ids(stepsFor(TOURS.cal, { audience: 'team', admin: false }));
+    const solo = ids(stepsFor(TOURS.cal, { audience: 'solo', admin: false }));
+    expect(team).toContain('routing');
+    expect(solo).not.toContain('routing');
+    expect(solo).toEqual(expect.arrayContaining(['newEventType', 'eventType', 'upcoming', 'bookings', 'availability', 'settings']));
+  });
+
+  it('el tour de Send arranca en la lista y sigue en el documento; equipo ve quién lo ve', () => {
+    expect(tourForPath('/app/send')?.key).toBe('send');
+    expect(tourForPath('/es/app/send/documents/abc')?.key).toBe('send');
+    expect(tourForPath('/app/sendx')).toBeNull();
+    expect(atTourStart(TOURS.send, '/pt/app/send')).toBe(true);
+    expect(atTourStart(TOURS.send, '/app/send/new')).toBe(false);
+    const steps = ids([...TOURS.send.steps]);
+    // Abrir un documento (clic en una fila) va antes de los pasos del documento.
+    for (const id of ['links', 'activity', 'sharing']) expect(steps.indexOf('openDocument')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.send.steps.find((s) => s.id === 'openDocument')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.send, { audience: 'team', admin: false }))).toContain('sharing');
+    const solo = ids(stepsFor(TOURS.send, { audience: 'solo', admin: false }));
+    expect(solo).not.toContain('sharing');
+    expect(solo).toEqual(expect.arrayContaining(['newDocument', 'openDocument', 'links', 'activity', 'spaces', 'analytics']));
+  });
+
+  it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
+    expect(tourForPath('/app/talk')?.key).toBe('talk');
+    expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');
+    expect(tourForPath('/app/talkx')).toBeNull();
+    expect(atTourStart(TOURS.talk, '/pt/app/talk')).toBe(true);
+    expect(atTourStart(TOURS.talk, '/en/app/talk/abc123')).toBe(true);
+    expect(atTourStart(TOURS.talk, '/app/talk/settings')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talk/analytics')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talk/abc123/extra')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talkx')).toBe(false);
+    // Los demás tours siguen arrancando solo en su ruta exacta.
+    expect(atTourStart(TOURS.cal, '/app/calendar/abc123')).toBe(false);
+    // Mismos pasos para todos; el redactor va antes que hilos (en el teléfono se saltea).
+    expect(ids(stepsFor(TOURS.talk, { audience: 'solo', admin: false }))).toEqual(ids([...TOURS.talk.steps]));
+    expect(ids([...TOURS.talk.steps])).toEqual(['intro', 'channels', 'dms', 'composer', 'threads', 'search', 'done']);
+  });
+
+  it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
+    expect(tourForPath('/app/forms')?.key).toBe('forms');
+    expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');
+    expect(tourForPath('/app/formsx')).toBeNull();
+    expect(atTourStart(TOURS.forms, '/pt/app/forms')).toBe(true);
+    expect(atTourStart(TOURS.forms, '/app/forms/new')).toBe(false);
+    const steps = ids([...TOURS.forms.steps]);
+    // Abrir un formulario (clic en una fila) va antes de los pasos del formulario.
+    for (const id of ['questions', 'publish', 'share', 'responses', 'access']) expect(steps.indexOf('openForm')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.forms.steps.find((s) => s.id === 'openForm')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.forms, { audience: 'team', admin: false }))).toContain('access');
+    expect(ids(stepsFor(TOURS.forms, { audience: 'solo', admin: false }))).not.toContain('access');
+  });
+
   it('el tour de Inbox vive en /app/inbox, arranca en la bandeja y no tiene pasos de equipo', () => {
     expect(tourForPath('/app/inbox')?.key).toBe('inbox');
     expect(tourForPath('/es/app/inbox/v/reply')?.key).toBe('inbox');
@@ -54,6 +134,20 @@ describe('tours: registro y rutas', () => {
     expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('noteBar'));
     expect(steps.indexOf('openNote')).toBeLessThan(steps.indexOf('tags'));
     expect(TOURS.notes.steps.find((s) => s.id === 'openNote')).toMatchObject({ advanceOn: 'click' });
+  });
+
+  it('el tour de Docs arranca en /app/docs; abrir una página va antes que los pasos de la página', () => {
+    expect(tourForPath('/app/docs')?.key).toBe('docs');
+    expect(tourForPath('/es/app/docs/abc123')?.key).toBe('docs');
+    expect(tourForPath('/app/docsx')).toBeNull();
+    expect(atTourStart(TOURS.docs, '/pt/app/docs')).toBe(true);
+    expect(atTourStart(TOURS.docs, '/app/docs/abc123')).toBe(false);
+    // Docs no pregunta si es equipo: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.docs, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.docs.steps]));
+    expect(ids(stepsFor(TOURS.docs, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.docs.steps]));
+    const steps = ids([...TOURS.docs.steps]);
+    for (const onPage of ['write', 'comments', 'share', 'pageMenu']) expect(steps.indexOf('openPage')).toBeLessThan(steps.indexOf(onPage));
+    expect(TOURS.docs.steps.find((s) => s.id === 'openPage')).toMatchObject({ advanceOn: 'click' });
   });
 
   it('ids de pasos únicos por tour', () => {
@@ -138,7 +232,8 @@ describe('tours: textos y anclajes', () => {
   it('cada anclaje de un paso existe como data-tour en algún componente', () => {
     const walk = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []));
-    const source = walk('components').map((f) => readFileSync(f, 'utf8')).join('\n');
+    // Componentes y páginas (el inicio de Docs ancla sus botones en la página del servidor).
+    const source = [...walk('components'), ...walk('app')].map((f) => readFileSync(f, 'utf8')).join('\n');
     for (const key of TOUR_KEYS) {
       for (const step of TOURS[key].steps) {
         for (const target of step.targets ?? []) {

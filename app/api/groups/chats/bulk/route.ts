@@ -18,11 +18,13 @@ export async function POST(req: Request) {
   const b = await readJson(req);
   const action = str(b.action, 20) as BulkAction | 'folder' | undefined;
   if (action === 'folder') {
-    // Mover a una carpeta propia (folderId null la saca): solo chats que esta persona ve. La de otra persona es 404.
+    // Mover a una carpeta propia o del equipo (folderId null la saca: `scope` dice de cuál, 'personal' por defecto,
+    // 'team' o 'all'). Solo chats que esta persona ve, que son los que puede editar. La de otra persona es 404.
     const ids = strArr(b.ids, 200);
     if (ids.length === 0) return groupsError(400, 'no_recipients');
+    const scope = b.scope === 'team' || b.scope === 'all' ? b.scope : 'personal';
     try {
-      return NextResponse.json(await moveChatsToFolder(s.ws, await sessionViewer(s), ids, typeof b.folderId === 'string' && b.folderId ? b.folderId : null));
+      return NextResponse.json(await moveChatsToFolder(s.ws, await sessionViewer(s), ids, typeof b.folderId === 'string' && b.folderId ? b.folderId : null, { kind: scope }));
     } catch (err) {
       return handleGroupsError(err);
     }

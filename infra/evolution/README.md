@@ -142,6 +142,23 @@ La imagen sale como `ghcr.io/lschiaffino/zerosoft-evolution:<VERSION>-zs<PATCH_L
   su MAC igual entra en el hash, así los demás cambios se leen y se mandan. Lo que decía el cambio salteado no se
   llega a saber (si era un archivado hecho en el teléfono, ese no aparece). Cuenta por clave en
   `globalThis.__zsAppStateNoKey`.
+- `0013-forward-flag.patch`: los reenvíos de zerosoft salen marcados como reenvíos. WhatsApp muestra "Reenviado" con
+  `contextInfo.isForwarded` y "Reenviado muchas veces" con `contextInfo.forwardingScore` >= 5; Evolution no dejaba
+  pasar ninguno de los dos y el reenvío llegaba como un mensaje nuevo.
+  - `/message/sendText`, `/message/sendMedia`, `/message/sendWhatsAppAudio` y `/message/sendSticker` aceptan
+    `forward: { score?: number, key?: { id, remoteJid, fromMe } }`. Sin `forward` no cambia nada.
+  - Con `key`, si ese mensaje está guardado en la base de esta instancia y es lo mismo que se pide mandar (mismo tipo,
+    mismo texto o pie, nota de voz o no), sale con el reenvío de Baileys (`sendMessage(jid, { forward, force: true })`,
+    `generateForwardMessageContent`): el mismo contenido y, en un archivo, el que ya está en el servidor de WhatsApp,
+    sin volver a subirlo. Un archivo solo si tiene su clave (32 bytes) y su ruta y es de los últimos 7 días (después
+    WhatsApp puede haberlo borrado y quien lo recibe no lo podría bajar). El score es el mayor entre el pedido y el
+    del original + 1.
+  - Si no, el mensaje se arma como siempre (texto, o el archivo que manda zerosoft) y lleva `isForwarded: true` y
+    `forwardingScore` en el `contextInfo` (en grupos y en chats de a dos).
+
+  zerosoft lo manda solo al reenviar (`evolutionForward` en lib/wa-forward.ts; Lines e Inbox). Un Evolution sin este
+  parche ignora el campo (la validación de Evolution no rechaza campos de más) y el reenvío sale como antes, sin la
+  marca.
 
 - `0014-group-receipts-on-demand.patch`: "Leído por" y "Entregado a" de los mensajes propios en grupos, **sin
   webhooks** (lo que no pudo 0011). Baileys emite `message-receipt.update` por persona (`{ key, receipt: { userJid,

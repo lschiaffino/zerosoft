@@ -112,8 +112,10 @@ import {
   ArrowLeft,
   LinkIcon,
   Note,
+  Search as SearchIcon,
 } from './wa/icons';
 import TouchMessageMenu from './wa/TouchMessageMenu';
+import { ChatSearchPanel, useChatSearchShortcut, type ChatSearchFn, type ChatSearchHitView } from './wa/ChatSearch';
 import { openMenuAt, pointerOf } from './wa/Menu';
 import SelectionBar from './wa/SelectionBar';
 import { SelectCheck, useMessageSelection } from './wa/useMessageSelection';
@@ -131,6 +133,7 @@ import { useComposerLinkPreview } from './wa/ComposerLinkPreview';
 import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
+import { forwardedMany } from '@/lib/wa-forward';
 import HubspotDock from './HubspotDock';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -432,6 +435,11 @@ export default function ChatThread(props: ThreadProps) {
   const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
+  // "@" en el pie de un archivo (vista previa de adjuntos): los participantes del grupo, con su foto.
+  const captionMentionables = useMemo(
+    () => (props.chat.kind === 'group' ? props.members.filter((m) => !m.me).map((m) => ({ phone: m.phone, name: m.name, avatar: m.picture || undefined })) : undefined),
+    [props.chat.kind, props.members],
+  );
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
   const { labelsFor: mentionsFor, textOf } = useLinesMentions(props.members);
   // Texto plano con las menciones nombradas (citas, fijados, copiar, tickets). Las notas internas no llevan menciones de WhatsApp.
@@ -892,7 +900,9 @@ export default function ChatThread(props: ThreadProps) {
       files.forEach((f, i) => {
         const taken = tray.take(f.key);
         if (!taken) return;
-        const caption = (f.caption ?? '').trim();
+        // En un grupo, "@Ana" del pie sale como "@<teléfono>" con la lista de mencionados (como un texto).
+        const out = chat.kind === 'group' && f.captionOut?.mentions.length ? f.captionOut : null;
+        const caption = ((out ? out.body : f.caption) ?? '').trim();
         const kind = mediaKindOf(f.type);
         // Audio no lleva pie: el texto va aparte, después.
         const withCaption = kind !== 'audio';
@@ -901,6 +911,7 @@ export default function ChatThread(props: ThreadProps) {
           ...(via ? { via } : {}),
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
+          ...(withCaption && out ? { mentions: out.mentions } : {}),
           file: f.file,
           preview: f.preview,
           upload: taken.done,
@@ -908,7 +919,7 @@ export default function ChatThread(props: ThreadProps) {
         });
         taken.onProgress((p) => uploadProgress.set(cid, p));
         if (f.progress) uploadProgress.set(cid, f.progress);
-        if (!withCaption && caption) sendTextNow(caption, null);
+        if (!withCaption && caption) sendTextNow(caption, null, out?.mentions ?? []);
       });
       if (text.trim() && !previewOpen) sendTextNow(text, null);
     } else if (mode === 'note') {
@@ -1311,6 +1322,51 @@ export default function ChatThread(props: ThreadProps) {
     el.classList.add('is-target');
   }
 
+  // Buscar en el chat (la lupa de la cabecera): components/groups/wa/ChatSearch.tsx.
+  const [searchOpen, setSearchOpen] = useState(false);
+  useChatSearchShortcut(() => setSearchOpen(true));
+  // Teléfono: el panel tapa el chat; "atrás" lo cierra.
+  useBackLayer(searchOpen && narrow, () => setSearchOpen(false));
+  useEffect(() => setSearchOpen(false), [chat.id]);
+  const searchChat = useCallback<ChatSearchFn>(
+    async (q, before) => {
+      const res = await api<{ hits: ChatSearchHitView[]; more: boolean }>(
+        `/api/groups/chats/${chat.id}/messages?${new URLSearchParams({ q, ...(before ? { before } : {}) })}`,
+      );
+      return res.data ?? null;
+    },
+    [chat.id],
+  );
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  /** Ir a un resultado: si es más viejo que lo cargado, se cargan los anteriores hasta llegar (como mucho unos 3000). */
+  async function jumpToHit(hit: ChatSearchHitView, covering: boolean) {
+    if (covering) setSearchOpen(false);
+    let found = messagesRef.current.find((x) => x.id === hit.id);
+    let first = messagesRef.current[0];
+    for (let page = 0; !found && first && page < 6; page++) {
+      const res = await api<{ messages: MessageDto[] }>(`/api/groups/chats/${chat.id}/messages?limit=500&before=${encodeURIComponent(olderCursor(first))}`);
+      const list = res.data?.messages ?? [];
+      if (!list.length) break;
+      merge(list);
+      if (list.length < 500) setHasOlder(false);
+      found = list.find((x) => x.id === hit.id);
+      first = list[0];
+    }
+    if (!found) {
+      showToast(t('thread.pinnedOld'));
+      return;
+    }
+    const target = found;
+    // Espera a que el mensaje esté pintado (recién cargado o con la info cerrada en el teléfono).
+    let tries = 0;
+    const go = () => {
+      if (document.getElementById(`m-${target.id}`) || tries++ > 30) jumpTo(target);
+      else requestAnimationFrame(go);
+    };
+    requestAnimationFrame(go);
+  }
+
   async function copyText(m: MessageDto) {
     try {
       await navigator.clipboard.writeText(waText(m));
@@ -1492,6 +1548,10 @@ export default function ChatThread(props: ThreadProps) {
       const el = e.target as HTMLElement | null;
       if (el && (el.closest('[role="dialog"], [role="menu"], [role="alertdialog"]') || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !el.classList.contains('wa-input'))) return;
       if (document.querySelector('dialog[open], [role="dialog"]:not(dialog):not([hidden]), [role="alertdialog"]:not(dialog), [role="menu"], .wa-viewer')) return;
+      if (searchOpen) {
+        setSearchOpen(false);
+        return;
+      }
       if (detailsOpen) {
         setDetailsOpen(false);
         return;
@@ -1996,8 +2056,8 @@ export default function ChatThread(props: ThreadProps) {
             </p>
           )}
           {m.forwarded && (
-            <p className="gr-forwarded">
-              <Forwarded size={13} /> {t('thread.forwarded')}
+            <p className="gr-forwarded" data-forwarded={forwardedMany(m.forwarded, m.meta) ? 'many' : 'once'}>
+              <Forwarded size={13} /> {forwardedMany(m.forwarded, m.meta) ? t('thread.forwardedMany') : t('thread.forwarded')}
             </p>
           )}
           {privateQuote && (
@@ -2432,6 +2492,17 @@ export default function ChatThread(props: ThreadProps) {
             >
               {chat.status === 'open' ? <CheckCircle /> : <Retry />}
             </button>
+            <button
+              type="button"
+              className={`wa-icon-btn wa-search-btn${searchOpen ? ' is-on' : ''}`}
+              onClick={() => setSearchOpen((o) => !o)}
+              aria-expanded={searchOpen}
+              aria-label={t('wa.chatSearch.open')}
+              title={`${t('wa.chatSearch.open')} (${t('wa.chatSearch.shortcut')})`}
+              data-testid="chat-search-open"
+            >
+              <SearchIcon size={20} />
+            </button>
             <MessageMenu
               label={t('thread.chatMenu')}
               className="wa-icon-btn"
@@ -2439,6 +2510,8 @@ export default function ChatThread(props: ThreadProps) {
               items={[
                 // Como el ⋯ de WhatsApp: info, seleccionar, silenciar, fijar, leído; después lo del equipo (IA) y, en el teléfono, asignar y cerrar.
                 { key: 'details', glyph: <InfoIcon size={18} />, label: chat.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'), onSelect: toggleDetails },
+                // También en el menú: en el teléfono la lupa no entra en la cabecera.
+                { key: 'search', glyph: <SearchIcon size={18} />, label: t('wa.chatSearch.open'), onSelect: () => setSearchOpen(true) },
                 { key: 'select', glyph: <CheckCircle size={18} />, label: t('wa.selectMessages'), onSelect: () => setSelecting(new Set()) },
                 { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
@@ -2556,6 +2629,9 @@ export default function ChatThread(props: ThreadProps) {
         </div>
 
         <ScheduledStrip chatId={chat.id} onToast={showToast} />
+        {searchOpen && (
+          <ChatSearchPanel chatKey={chat.id} chatName={chat.name} group={chat.kind === 'group'} search={searchChat} onPick={(h, covering) => void jumpToHit(h, covering)} onClose={() => setSearchOpen(false)} />
+        )}
 
         <div className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
@@ -2852,6 +2928,7 @@ export default function ChatThread(props: ThreadProps) {
             stickerApi="/api/groups/stickers"
             stickerLine={stickerLine}
             sending={sending}
+            mentionables={captionMentionables}
           />
         )}
       </section>

@@ -557,6 +557,7 @@ export default function DocsSidebar({
         onClick={() => window.dispatchEvent(new Event(DOCS_SWITCHER_EVENT))}
         aria-keyshortcuts="Meta+P Control+P"
         data-testid="docs-search-button"
+        data-tour="docs-search"
       >
         <DocsGlyph name="search" size={14} />
         <span className="docs-tree-search-label">{t('switcher.open')}</span>
@@ -635,7 +636,7 @@ export default function DocsSidebar({
         </p>
       )}
       {tree.length === 0 ? (
-        <div className="docs-sidebar-empty">
+        <div className="docs-sidebar-empty" data-tour={inShell ? 'docs-pages' : undefined}>
           <p>{labels.empty}</p>
           {canCreateRoot && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
@@ -646,7 +647,8 @@ export default function DocsSidebar({
         </div>
       ) : inShell ? (
         // Ya está dentro del <nav> del sidebar: una lista, no otro landmark.
-        <ul className="docs-tree" aria-label={t('sidebar.pages')}>
+        // El tour de Docs resalta solo el árbol: Buscar tiene su propio paso y el marco no pisa la fila "Páginas".
+        <ul className="docs-tree" aria-label={t('sidebar.pages')} data-tour="docs-pages">
           {workspaceRoots.map((n) => renderNode(n, 0))}
         </ul>
       ) : (
@@ -712,6 +714,7 @@ export default function DocsSidebar({
           aria-expanded={mobileOpen}
           aria-controls="docs-sidebar-body"
           data-testid="docs-drawer-toggle"
+          data-tour="docs-pages"
         >
           {/* Sin páginas propias y con compartidas (un guest), el botón no dice "0 páginas". */}
           <span className="docs-sidebar-title">{pages.length === 0 && shared.length > 0 ? t('sidebar.sharedWithMe') : t('sidebar.pages')}</span>
