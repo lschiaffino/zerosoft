@@ -44,6 +44,16 @@ async function sql(statement: string, args: Array<string | number | null> = []) 
   }
 }
 
+/** Abre el alta rápida con su botón; si la página todavía no hidrató (next dev), reintenta. */
+async function openQuick(page: Page, kind: 'contact' | 'deal', list: string) {
+  await page.goto(list, { waitUntil: 'networkidle' });
+  await expect(async () => {
+    if (!(await page.getByRole('dialog').isVisible())) await page.getByTestId(`crm-quick-${kind}`).first().click();
+    await expect(page.getByRole('dialog').getByTestId('quick-create-fields')).toBeAttached({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
+  return page.getByRole('dialog');
+}
+
 /** Cuenta nueva, ya onboardeada y sin tours: su propio workspace, owner de él. */
 async function person(browser: Browser, opts: { width?: number; theme?: 'light' | 'dark' } = {}) {
   const baseURL = test.info().project.use.baseURL as string;
@@ -140,13 +150,12 @@ test('el alta rápida y los formularios completos siguen la configuración (1280
       const tag = uid();
 
       // La ruta de la app exige las obligatorias.
-      const refused = await request.post('/api/crm/contacts', { data: { firstName: `Sin ${tag}` } });
+      const refused = await request.post('/api/crm/contacts', { data: { firstName: `Sin ${tag}`, createForm: true } });
       expect(refused.status()).toBe(400);
       expect(await refused.json()).toMatchObject({ error: 'missing_required', fields: ['jobTitle', 'custom.plan_tier'] });
 
       // Alta rápida de contacto.
-      await page.goto('/en/app/crm/contacts?new=1', { waitUntil: 'networkidle' });
-      const dialog = page.getByRole('dialog');
+      const dialog = await openQuick(page, 'contact', '/en/app/crm/contacts');
       await expect(dialog.getByTestId('create-field-jobTitle')).toBeVisible();
       const jobTitle = dialog.getByLabel(/Job title/);
       await expect(jobTitle).toHaveAttribute('required', '');
@@ -177,8 +186,7 @@ test('el alta rápida y los formularios completos siguen la configuración (1280
       await expect(page).toHaveURL(/\/en\/app\/crm\/contacts\/[0-9a-f-]{36}$/, { timeout: 20_000 });
 
       // Alta rápida de deal: deal type obligatorio.
-      await page.goto('/en/app/crm/deals?new=1', { waitUntil: 'networkidle' });
-      const dealDialog = page.getByRole('dialog');
+      const dealDialog = await openQuick(page, 'deal', '/en/app/crm/deals');
       await expect(dealDialog.getByTestId('create-field-dealType')).toBeVisible();
       await dealDialog.getByLabel('Name').fill(`Deal ${tag}`);
       await dealDialog.getByLabel(/Deal type/).selectOption('newbusiness');
@@ -224,8 +232,8 @@ test('formulario de alta en los cinco aspectos, claro a 1280 y oscuro a 390', as
         expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
         await shot(page, info, `d3b-looks-settings-${look}-${theme}-${width}`);
 
-        await page.goto('/en/app/crm/contacts?new=1', { waitUntil: 'networkidle' });
-        await expect(page.getByRole('dialog').getByTestId('create-field-custom.plan_tier')).toBeVisible();
+        const quick = await openQuick(page, 'contact', '/en/app/crm/contacts');
+        await expect(quick.getByTestId('create-field-custom.plan_tier')).toBeVisible();
         expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
         await shot(page, info, `d3b-looks-quick-${look}-${theme}-${width}`);
         // Esc cierra el modal.

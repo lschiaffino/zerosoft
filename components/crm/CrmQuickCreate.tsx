@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 import { EmailTakenText, emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
 import CreateFormFields, { missingFromResponse, useCreateForm, useMissingMessage, type CreateFormOption } from './CreateFormFields';
-import { createFormBody } from './formPayload';
+import { createFormBody, deriveDomain } from './formPayload';
 import { configuredFields, isRequired, missingRequired, type CreateFormEntity } from '@/lib/crm-create-form-shared';
 
 export type QuickCreateKind = 'contact' | 'company' | 'deal';
@@ -295,7 +295,8 @@ function QuickCreateForm({
         ...(site ? siteExtras(site) : {}),
         ...extra,
         name: name.trim(),
-        domain: domain.trim() || undefined,
+        // Vacío: sale del sitio web, como en el formulario completo.
+        domain: deriveDomain(domain.trim() || undefined, typeof extra.website === 'string' ? extra.website : undefined),
       };
       if (!body.industry && site?.industry) body.industry = site.industry;
     } else {
@@ -328,7 +329,7 @@ function QuickCreateForm({
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     setBusy(false);
     if (res && res.status === 201) {
@@ -477,7 +478,7 @@ function QuickCreateForm({
                 maxLength={500}
                 spellCheck={false}
                 data-testid="quick-company-domain"
-                {...reqAttr('domain')}
+                aria-required={required('domain') || undefined}
               />
             </label>
           </div>

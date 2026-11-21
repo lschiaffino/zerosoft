@@ -52,6 +52,9 @@ export function importDealType(raw: string | undefined): DealType | undefined {
   if ((DEAL_TYPES as readonly string[]).includes(v)) return v as DealType;
   if (['new', 'nuevo', 'novo', 'negocionuevo', 'novonegocio', 'novonegocios', 'nuevonegocio'].includes(v)) return 'newbusiness';
   if (['existing', 'existente', 'negocioexistente', 'clienteexistente', 'upsell', 'renewal'].includes(v)) return 'existingbusiness';
+  // Salesforce: "New Customer", "Existing Customer - Upgrade"…
+  if (v.startsWith('new')) return 'newbusiness';
+  if (v.startsWith('existing')) return 'existingbusiness';
   return undefined;
 }
 
@@ -762,8 +765,8 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
         ...(source && (SOURCES as readonly string[]).includes(source) ? { source } : {}),
         ...(raw.description ? { description: raw.description } : {}),
         ...(dealType ? { dealType } : {}),
-        ...(raw.nextStep?.trim() ? { nextStep: raw.nextStep.trim() } : {}),
-        ...(raw.wonReason?.trim() ? { wonReason: raw.wonReason.trim() } : {}),
+        ...(raw.nextStep?.trim() ? { nextStep: raw.nextStep.trim().slice(0, 500) } : {}),
+        ...(raw.wonReason?.trim() ? { wonReason: raw.wonReason.trim().slice(0, 500) } : {}),
         ...(ownerId ? { ownerId } : {}),
         ...(company ? { companyId: company.id } : {}),
       };

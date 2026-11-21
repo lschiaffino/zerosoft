@@ -19,6 +19,8 @@ export interface CloneSourceDeal {
   description: string;
   owner_id: string | null;
   custom: string;
+  deal_type?: string;
+  next_step?: string;
 }
 
 export interface CloneStage {
@@ -74,5 +76,8 @@ export function buildDealCloneBody(
   if (deal.close_date) body.closeDate = deal.close_date.slice(0, 10);
   if (links.companyId) body.companyId = links.companyId;
   if (deal.owner_id) body.ownerId = deal.owner_id;
+  // Tipo y próximo paso viajan; el motivo de ganado no (la copia nace abierta).
+  if (deal.deal_type) body.dealType = deal.deal_type;
+  if (deal.next_step) body.nextStep = deal.next_step;
   return body;
 }

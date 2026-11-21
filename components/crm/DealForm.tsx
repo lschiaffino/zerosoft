@@ -86,7 +86,7 @@ export default function DealForm({ pipelineId, stageId, fixedContactId, onDone, 
     const res = await fetch('/api/crm/deals', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     if (res && res.status === 201) {
       onDone();

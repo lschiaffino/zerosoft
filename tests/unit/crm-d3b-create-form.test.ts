@@ -197,18 +197,21 @@ describe('formulario de alta: configuración y permisos', () => {
     for (const leak of ['salary', 'Salary band', 'PO number']) expect(text).not.toContain(leak);
 
     // Falta la única obligatoria que ve: 400 sin nombrar las ocultas.
-    const missing = await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { firstName: 'Ana' }));
+    const missing = await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { createForm: true, firstName: 'Ana' }));
     expect(missing.status).toBe(400);
     const body = (await missing.json()) as { error: string; fields: string[]; labels: Record<string, string> };
     expect(body).toEqual({ error: 'missing_required', fields: ['custom.plan'], labels: { 'custom.plan': 'Plan' } });
 
-    const created = await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { firstName: 'Ana', custom: { plan: 'Pro' } }));
+    const created = await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { createForm: true, firstName: 'Ana', custom: { plan: 'Pro' } }));
     expect(created.status).toBe(201);
+
+    // Otras altas de la app (guardar un contacto desde un chat, el MCP) no pasan por el formulario.
+    expect((await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { firstName: 'Chat' }))).status).toBe(201);
 
     // El owner sí tiene que completar las tres.
     session.user = asOwner(w.owner);
     const ownerMissing = (await (
-      await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { firstName: 'Ana', custom: { plan: 'Pro' } }))
+      await contactsRoute.POST(json('http://x/api/crm/contacts', 'POST', { createForm: true, firstName: 'Ana', custom: { plan: 'Pro' } }))
     ).json()) as { fields: string[] };
     expect(ownerMissing.fields).toEqual(['custom.salary', 'custom.po']);
   });
@@ -219,21 +222,21 @@ describe('formulario de alta: configuración y permisos', () => {
     await setCreateForm(w.owner.id, 'deals', [{ key: 'amount', required: true }, { key: 'dealType', required: true }]);
     session.user = asMember(w.owner, w.member);
 
-    const co = await companiesRoute.POST(json('http://x/api/crm/companies', 'POST', { name: 'Acme' }));
+    const co = await companiesRoute.POST(json('http://x/api/crm/companies', 'POST', { createForm: true, name: 'Acme' }));
     expect(co.status).toBe(400);
     expect(((await co.json()) as { fields: string[] }).fields).toEqual(['domain', 'industry']);
     expect(
-      (await companiesRoute.POST(json('http://x/api/crm/companies', 'POST', { name: 'Acme', domain: 'acme.test', industry: 'Retail' })))
+      (await companiesRoute.POST(json('http://x/api/crm/companies', 'POST', { createForm: true, name: 'Acme', domain: 'acme.test', industry: 'Retail' })))
         .status,
     ).toBe(201);
 
     const p = await createPipeline(w.owner.id, 'Ventas');
     const s = await createStage(w.owner.id, p.id, { name: 'Abierto' });
     const base = { pipelineId: p.id, stageId: s!.id, name: 'Renovación' };
-    const deal = await dealsRoute.POST(json('http://x/api/crm/deals', 'POST', base));
+    const deal = await dealsRoute.POST(json('http://x/api/crm/deals', 'POST', { ...base, createForm: true }));
     expect(((await deal.json()) as { fields: string[] }).fields).toEqual(['amount', 'dealType']);
     const ok = await dealsRoute.POST(
-      json('http://x/api/crm/deals', 'POST', { ...base, amount: 0, dealType: 'existingbusiness', nextStep: 'Demo', wonReason: 'Precio' }),
+      json('http://x/api/crm/deals', 'POST', { createForm: true, ...base, amount: 0, dealType: 'existingbusiness', nextStep: 'Demo', wonReason: 'Precio' }),
     );
     expect(ok.status).toBe(201);
     const row = (await getDeal(w.owner.id, ((await ok.json()) as { id: string }).id))!;
@@ -256,6 +259,8 @@ describe('deal type, next step y won reason: edición en masa e import', () => {
     expect(importDealType('existingbusiness')).toBe('existingbusiness');
     expect(importDealType('Negocio nuevo')).toBe('newbusiness');
     expect(importDealType('raro')).toBeUndefined();
+    expect(importDealType('Existing Customer - Upgrade')).toBe('existingbusiness');
+    expect(importDealType('New Customer')).toBe('newbusiness');
     expect(importDealType('nuevo')).toBe('newbusiness');
     const headers = ['Deal Name', 'Deal Type', 'Next step', 'Closed won reason'];
     expect(hubspotMapping(headers, 'deals')).toEqual(['name', 'dealType', 'nextStep', 'wonReason']);

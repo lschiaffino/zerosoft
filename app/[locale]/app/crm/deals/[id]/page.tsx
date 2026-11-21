@@ -192,8 +192,10 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     ),
   };
 
+  // La copia lleva solo las propiedades propias que la persona puede editar.
+  const cloneRestricted = (await fieldAccessFor(sessionFieldViewer(user), 'deals')).restricted;
   const cloneBody = buildDealCloneBody(
-    deal,
+    { ...deal, custom: redactCustomJson(deal.custom, new Set(cloneRestricted.keys())) },
     stages,
     {
       contactIds: contacts.map((c) => c.id),

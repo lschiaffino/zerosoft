@@ -104,7 +104,7 @@ export default function DealFullForm({ pipelines, form, more, people, me, baseCu
     const res = await fetch('/api/crm/deals', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     if (res && res.status === 201) {
       const deal = (await res.json().catch(() => null)) as { id?: string } | null;

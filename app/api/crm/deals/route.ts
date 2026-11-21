@@ -7,6 +7,7 @@ import { getUserTimeZone } from '@/lib/user-tz';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
 import { dealSessionCreateSchema } from '@/lib/crm-schema';
 import { createFormMissing } from '@/lib/crm-create-form';
+import { isCreateFormRequest } from '@/lib/crm-create-form-shared';
 import { catchRef, crmError, CrmRefError, defaultPipelineId, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -59,9 +60,11 @@ export async function POST(req: NextRequest) {
   const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'deal', null, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
   const data = { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) };
-  // Las obligatorias del formulario de alta (Ajustes › Datos), solo para quien crea desde la app.
-  const missing = await createFormMissing(sessionFieldViewer(user), 'deals', data);
-  if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
+  // Las obligatorias del formulario de alta (Ajustes › Datos), solo para las altas desde ese formulario.
+  if (isCreateFormRequest(body)) {
+    const missing = await createFormMissing(sessionFieldViewer(user), 'deals', data);
+    if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
+  }
   const result = await catchRef(createDeal(user.id, data));
   if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {

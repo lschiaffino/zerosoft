@@ -66,7 +66,7 @@ export default function CompanyForm({ form, more, people, me }: CompanyFormProps
     const res = await fetch('/api/crm/companies', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     if (res && res.status === 201) {
       const created = (await res.json()) as { id: string };

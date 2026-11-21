@@ -9,8 +9,10 @@
  * - propiedades propias del objeto (`phone`, `dealType`…, las de BUILTIN_FIELDS);
  * - propiedades personalizadas, como `custom.<name>`.
  *
- * Lo obligatorio se aplica al crear desde la app (las rutas de sesión). La API
- * v1, el import, los formularios públicos y la sync no lo piden, como HubSpot.
+ * Lo obligatorio se aplica a las altas desde los formularios de la app (las
+ * rutas de sesión con `createForm: true`). La API v1, el MCP, el import, los
+ * formularios públicos, la sync y otras altas de la app (guardar un contacto
+ * desde un chat) no lo piden, como en HubSpot.
  */
 import { DEAL_TYPES, LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES, SOURCES } from './crm-constants';
 
@@ -113,6 +115,18 @@ export const DEFAULT_CREATE_FORM: Record<CreateFormEntity, readonly CreateFormFi
 };
 
 export const MAX_CREATE_FORM_FIELDS = 40;
+
+/**
+ * Marca del body que mandan los formularios de alta de la app
+ * (`createForm: true`). Solo esos pedidos se controlan contra las
+ * obligatorias: guardar un contacto desde un chat, el MCP o una integración
+ * crean sin el formulario, como en HubSpot.
+ */
+export const CREATE_FORM_FLAG = 'createForm';
+
+export function isCreateFormRequest(body: unknown): boolean {
+  return !!body && typeof body === 'object' && (body as Record<string, unknown>)[CREATE_FORM_FLAG] === true;
+}
 export const CUSTOM_KEY_PREFIX = 'custom.';
 
 export interface CreateFormField {
