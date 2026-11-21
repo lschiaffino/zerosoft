@@ -133,6 +133,8 @@ interface FakeState {
   receiptsUnsupported?: boolean;
   /** Cuántas veces la app pidió confirmaciones (tests). */
   receiptRequests?: number;
+  /** Las fotos que mandó la app, por id: fetchMedia las devuelve, como Evolution (no una foto inventada). */
+  sentFiles?: Map<string, { data: Buffer; mimetype: string; filename: string }>;
 }
 
 export interface FakeHistoryRequest {
@@ -602,13 +604,21 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
       if (media.forward) s.sent[s.sent.length - 1].forward = evolutionForward(media.forward).forward;
+      let out = media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
       if (media.caption && media.mentions?.length && media.kind !== 'sticker' && media.kind !== 'voice' && media.kind !== 'audio') {
         // Menciones en el pie, como Evolution (sendMedia con `mentioned`): el id lleva los JIDs, igual que en sendText.
         const wire = fakeMentionWire(chatId, media.caption, media.mentions);
         Object.assign(s.sent[s.sent.length - 1], { mentions: [...media.mentions], mentioned: wire.mentioned, mentionText: wire.text });
-        return { id: `${r.id}~${wire.mentioned.join(',')}` };
+        out = { id: `${r.id}~${wire.mentioned.join(',')}` };
       }
-      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
+      // Una foto que salió se baja después tal como se mandó (Inbox la muestra bajándola del servidor).
+      if (media.kind === 'image' && media.base64) {
+        const files = (s.sentFiles ??= new Map());
+        files.set(out.id, { data: Buffer.from(media.base64, 'base64'), mimetype: media.mimetype, filename: media.filename });
+        // Solo las últimas (memoria del proceso de tests).
+        if (files.size > 50) files.delete(files.keys().next().value!);
+      }
+      return out;
     },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
@@ -669,8 +679,10 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       s.withheld?.delete(chatId);
       return { requestId: `fake-hist-${randomUUID()}`, events };
     },
-    /** Archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), "mov-" un video (WebM), el resto una foto. */
+    /** Una foto que mandó la app: la misma. Si no, archivos inventados según el prefijo del id: "gone-" no está, "aud-" audio, "vid-" o "doc-" documento, "stk-"/"astk-" sticker, "gif-" un GIF (MP4), "mov-" un video (WebM), el resto una foto. */
     async fetchMedia(ref) {
+      const sent = s.sentFiles?.get(ref.providerMessageId);
+      if (sent) return { ...sent, data: Buffer.from(sent.data) };
       return fakeMedia(ref.providerMessageId);
     },
     listTemplates: async () => [],
