@@ -9,7 +9,8 @@
  */
 import HOLIDAYS from './people-holidays.json';
 
-export type AccrualKind = 'annual' | 'monthly' | 'per_pay_period' | 'none';
+/** 'manual': sin devengo automático, el saldo es lo que HR carga con ajustes. 'none': sin saldo, solo registra lo usado. */
+export type AccrualKind = 'annual' | 'monthly' | 'per_pay_period' | 'manual' | 'none';
 export type PayPeriod = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
 export type HalfDay = '' | 'am' | 'pm';
 
@@ -171,7 +172,7 @@ export function accrualEvents(policy: AccrualPolicy, start: string, to: string, 
 
 function baseAccrualEvents(policy: AccrualPolicy, start: string, to: string, payPeriod: PayPeriod): Array<{ date: string; days: number }> {
   const out: Array<{ date: string; days: number }> = [];
-  if (policy.accrual === 'none' || !isIsoDate(start) || !isIsoDate(to) || to < start || policy.daysPerYear <= 0) return out;
+  if (policy.accrual === 'none' || policy.accrual === 'manual' || !isIsoDate(start) || !isIsoDate(to) || to < start || policy.daysPerYear <= 0) return out;
   const per = policy.daysPerYear;
   const startY = toDate(start).getUTCFullYear();
   const endY = toDate(to).getUTCFullYear();
