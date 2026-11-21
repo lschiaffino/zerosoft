@@ -656,6 +656,43 @@ test('editar: recorte, llamada a la acción, capítulos; página pública y embe
   await expect(page.getByTestId('rec-cta')).toBeVisible();
 });
 
+test('embed: empezar en un segundo y reproducir sin sonido, desde el diálogo, la URL y el oEmbed', async ({ page, baseURL }) => {
+  test.setTimeout(90_000);
+  await page.goto('/en/app/rec', { waitUntil: 'networkidle' });
+  const v = await uploadVideo(page.request, await makeWebm(page, 4200), `Embed ${uid()}`, 4);
+  await page.goto(`/en/app/rec/${v.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId('rec-share').click();
+  const share = page.getByRole('dialog');
+  await share.locator('.rec-share-more > summary').click();
+  const code = share.getByRole('textbox', { name: 'Embed', exact: true });
+  await expect(code).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed"`));
+  // Un tiempo que no se entiende avisa y no cambia el código.
+  await share.getByTestId('rec-embed-start').fill('9:99');
+  await expect(share.getByTestId('rec-embed-start')).toHaveAttribute('aria-invalid', 'true');
+  await expect(share.getByTestId('rec-embed-start-error')).toBeVisible();
+  await expect(code).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed"`));
+  await share.getByTestId('rec-embed-start').fill('0:02');
+  await expect(share.getByTestId('rec-embed-start-error')).toHaveCount(0);
+  await share.getByTestId('rec-embed-autoplay').check();
+  await expect(code).toHaveValue(new RegExp(`/en/v/${v.shareId}/embed\\?t=2&amp;autoplay=1"`));
+  await page.keyboard.press('Escape');
+
+  // El embed con ?t=2&autoplay=1 arranca en el segundo 2, sin sonido y reproduciendo.
+  await page.goto(`/en/v/${v.shareId}/embed?t=2&autoplay=1`);
+  const video = page.getByTestId('rec-video');
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.muted)).toBe(true);
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 15_000 }).toBeGreaterThanOrEqual(1.9);
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => !el.paused || el.ended || el.currentTime > 2.05), { timeout: 15_000 }).toBe(true);
+
+  // Sin opciones, como siempre: al principio, con sonido y en pausa.
+  await page.goto(`/en/v/${v.shareId}/embed`, { waitUntil: 'networkidle' });
+  expect(await video.evaluate((el: HTMLVideoElement) => ({ t: el.currentTime, paused: el.paused, muted: el.muted }))).toEqual({ t: 0, paused: true, muted: false });
+
+  // Un link con ?t= pegado en Slack o Notion inserta el reproductor en ese segundo.
+  const oembed = await ok<{ html: string }>(page.request.get(`/api/rec/oembed?url=${encodeURIComponent(`${baseURL}/en/v/${v.shareId}?t=1m`)}`));
+  expect(oembed.html).toContain(`/en/v/${v.shareId}/embed?t=60"`);
+});
+
 test('IA apagada: el detalle explica ai_disabled y deja reintentar', async ({ page, context, baseURL }) => {
   await context.addCookies([{ name: 'rec_ai_fake', value: 'off', url: baseURL! }]);
   await page.goto('/en/app/rec', { waitUntil: 'networkidle' });

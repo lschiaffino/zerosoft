@@ -7,7 +7,21 @@ import { brandStyle, type RecWatchVideo } from './RecWatch';
 import type { RecBrand } from '@/lib/rec-admin';
 
 /** Reproductor insertado: el video, la llamada a la acción y el título con link a la página. */
-export default function RecEmbed({ video, shareUrl, brand }: { video: RecWatchVideo; shareUrl: string; brand?: RecBrand | null }) {
+export default function RecEmbed({
+  video,
+  shareUrl,
+  brand,
+  startAt = null,
+  autoPlay = false,
+}: {
+  video: RecWatchVideo;
+  shareUrl: string;
+  brand?: RecBrand | null;
+  /** Segundo (del video recortado) donde arranca: `?t=` del embed. */
+  startAt?: number | null;
+  /** Reproduce sin sonido al cargar: `?autoplay=1` del embed. */
+  autoPlay?: boolean;
+}) {
   const file = `/api/rec/v/${encodeURIComponent(video.shareId)}/file`;
   const viewerName = useCallback(() => storedViewerName(), []);
   return (
@@ -30,6 +44,8 @@ export default function RecEmbed({ video, shareUrl, brand }: { video: RecWatchVi
         viewerName={viewerName}
         overlays={video.overlays}
         noDownload={!video.allowDownload}
+        startAt={startAt}
+        autoPlay={autoPlay}
         compact
       />
     </main>
