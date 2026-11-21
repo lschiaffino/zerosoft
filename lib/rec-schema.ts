@@ -82,6 +82,28 @@ export function withStartParam(url: string, sec: number): string {
   return /^https?:/i.test(url) ? u.toString() : `${u.pathname}${u.search}${u.hash}`;
 }
 
+/** Parámetro `autoplay` del embed: "1", "true" o "yes" (como Loom); cualquier otra cosa es no. */
+export function parseAutoplayParam(raw: string | null | undefined): boolean {
+  return /^(1|true|yes)$/i.test(String(raw ?? '').trim());
+}
+
+/** Dirección del embed con sus opciones: `t` (segundo de inicio) y `autoplay=1` (arranca sin sonido). */
+export function recEmbedSrc(shareUrl: string, opts: { start?: number | null; autoplay?: boolean } = {}): string {
+  const base = `${shareUrl.replace(/\/+$/, '')}/embed`;
+  const q: string[] = [];
+  const n = Math.floor(Number(opts.start) || 0);
+  if (n >= 1) q.push(`t=${n}`);
+  if (opts.autoplay) q.push('autoplay=1');
+  return q.length ? `${base}?${q.join('&')}` : base;
+}
+
+const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Código del iframe para pegar en una web, Notion o Docs (atributos escapados). */
+export function recEmbedCode(src: string, title: string): string {
+  return `<iframe src="${escAttr(src)}" width="640" height="400" frameborder="0" allow="autoplay; fullscreen" allowfullscreen title="${escAttr(title)}"></iframe>`;
+}
+
 /**
  * Capítulos como en Loom: una línea por capítulo, "0:00 Intro". Tienen que
  * empezar en 0:00 y durar al menos 5 s; se ordenan y se descartan los que no.
