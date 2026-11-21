@@ -1406,6 +1406,44 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "cal": {
+      "intro": {
+        "title": "Boas-vindas ao Cal",
+        "body": "O Cal te dá links de agendamento para as pessoas escolherem um horário que funcione para você. Este tour mostra as partes principais."
+      },
+      "newEventType": {
+        "title": "Crie um tipo de evento",
+        "body": "Cada tipo de evento é um link de agendamento com sua duração, seus horários e suas perguntas. Nesta página, a tecla C também cria um."
+      },
+      "eventType": {
+        "title": "Compartilhe seu link",
+        "body": "Copie o link para enviar, abra a página que as pessoas veem ou desligue a chave para parar de receber agendamentos. Abra a linha para editar."
+      },
+      "upcoming": {
+        "title": "Próximos agendamentos",
+        "body": "As próximas reuniões que as pessoas agendaram com você aparecem aqui, com quem agendou e para quê."
+      },
+      "bookings": {
+        "title": "Agendamentos",
+        "body": "Todos os agendamentos, os próximos e os passados. De lá dá para reagendar, cancelar ou marcar que a pessoa não veio."
+      },
+      "availability": {
+        "title": "Disponibilidade",
+        "body": "Defina seus horários da semana e bloqueie os dias de folga. Seus tipos de evento só oferecem horários dentro deles."
+      },
+      "routing": {
+        "title": "Formulários de roteamento",
+        "body": "Faça algumas perguntas antes do agendamento e envie cada pessoa para o tipo de evento certo, como vendas ou suporte."
+      },
+      "settings": {
+        "title": "Configurações do Cal",
+        "body": "Seu link público, sua marca, as conexões com seus calendários e como você cobra pelos agendamentos."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "board": {
       "intro": {
         "title": "Boas-vindas ao Board",

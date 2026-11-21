@@ -52,6 +52,19 @@ describe('tours: registro y rutas', () => {
     expect(solo).not.toContain('shareTeam');
   });
 
+  it('el tour de Cal vive en /app/calendar, arranca en el resumen y suma el ruteo para equipo', () => {
+    expect(tourForPath('/app/calendar')?.key).toBe('cal');
+    expect(tourForPath('/es/app/calendar/event-types/abc')?.key).toBe('cal');
+    expect(tourForPath('/app/calendars')).toBeNull();
+    expect(atTourStart(TOURS.cal, '/pt/app/calendar')).toBe(true);
+    expect(atTourStart(TOURS.cal, '/app/calendar/bookings')).toBe(false);
+    const team = ids(stepsFor(TOURS.cal, { audience: 'team', admin: false }));
+    const solo = ids(stepsFor(TOURS.cal, { audience: 'solo', admin: false }));
+    expect(team).toContain('routing');
+    expect(solo).not.toContain('routing');
+    expect(solo).toEqual(expect.arrayContaining(['newEventType', 'eventType', 'upcoming', 'bookings', 'availability', 'settings']));
+  });
+
   it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
     expect(tourForPath('/app/forms')?.key).toBe('forms');
     expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');

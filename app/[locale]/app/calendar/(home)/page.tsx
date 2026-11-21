@@ -42,12 +42,12 @@ export default async function CalendarLandingPage(props: { params: Promise<{ loc
         </Link>
       </p>
 
-      <section className="cal-block" aria-labelledby="cal-upcoming">
+      <section className="cal-block" aria-labelledby="cal-upcoming" data-tour="cal-upcoming" data-testid="cal-upcoming">
         <div className="cal-block-head">
           <h2 id="cal-upcoming" className="cal-block-title">
             {t('overview.upcoming')}
           </h2>
-          <Link href="/app/calendar/bookings" className="cal-inline-link">
+          <Link href="/app/calendar/bookings" className="cal-inline-link" data-tour="cal-all-bookings">
             {t('overview.allBookings')}
           </Link>
         </div>

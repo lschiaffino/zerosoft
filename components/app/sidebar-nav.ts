@@ -678,12 +678,18 @@ export function buildNav(
           section: labels.records,
           items: [
             { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: at('/app/calendar/event-types'), icon: 'tasks' },
-            { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists' },
+            { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists', tour: 'cal-routing' },
             ...(labels.calendar.polls
               ? [{ href: '/app/calendar/polls', label: labels.calendar.polls, active: at('/app/calendar/polls'), icon: 'insights' as const }]
               : []),
-            { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts' },
-            { href: '/app/calendar/availability', label: labels.calendar.availability, active: at('/app/calendar/availability'), icon: 'myTasks' },
+            { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts', tour: 'cal-bookings' },
+            {
+              href: '/app/calendar/availability',
+              label: labels.calendar.availability,
+              active: at('/app/calendar/availability'),
+              icon: 'myTasks',
+              tour: 'cal-availability',
+            },
           ],
         },
         {
@@ -694,7 +700,7 @@ export function buildNav(
         },
         {
           items: [
-            { href: '/app/calendar/settings', label: labels.calendar.settings, active: at('/app/calendar/settings'), icon: 'settings' },
+            { href: '/app/calendar/settings', label: labels.calendar.settings, active: at('/app/calendar/settings'), icon: 'settings', tour: 'cal-settings' },
           ],
         },
       ];

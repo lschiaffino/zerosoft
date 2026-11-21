@@ -1406,6 +1406,44 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "cal": {
+      "intro": {
+        "title": "Welcome to Cal",
+        "body": "Cal gives you booking links so people pick a time that works for you. This tour points out the main parts."
+      },
+      "newEventType": {
+        "title": "Create an event type",
+        "body": "Each event type is a booking link with its own length, hours and questions. On this page, C creates one too."
+      },
+      "eventType": {
+        "title": "Share your link",
+        "body": "Copy the link to send it, open the page people see, or turn the switch off to stop taking bookings. Open the row to edit it."
+      },
+      "upcoming": {
+        "title": "Upcoming bookings",
+        "body": "The next meetings people booked with you show up here, with who booked and for what."
+      },
+      "bookings": {
+        "title": "Bookings",
+        "body": "Every booking, upcoming and past. From there you can reschedule, cancel or mark a no-show."
+      },
+      "availability": {
+        "title": "Availability",
+        "body": "Set your weekly hours and block days off. Your event types only offer times inside them."
+      },
+      "routing": {
+        "title": "Routing forms",
+        "body": "Ask a few questions before booking and send each person to the right event type, like sales or support."
+      },
+      "settings": {
+        "title": "Cal settings",
+        "body": "Your public link, your brand, your calendar connections and how you charge for bookings."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "board": {
       "intro": {
         "title": "Welcome to Board",

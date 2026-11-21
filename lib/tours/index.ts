@@ -12,6 +12,7 @@
  * Puro: lo usan el servidor, el cliente y los tests.
  */
 import { BOARD_TOUR } from './board';
+import { CAL_TOUR } from './cal';
 import { DOCS_TOUR } from './docs';
 import { FORMS_TOUR } from './forms';
 import { INBOX_TOUR } from './inbox';
@@ -19,7 +20,7 @@ import { LINES_TOUR } from './lines';
 import { NOTES_TOUR } from './notes';
 import { TRACK_TOUR } from './track';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -59,6 +60,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   docs: DOCS_TOUR,
   board: BOARD_TOUR,
   forms: FORMS_TOUR,
+  cal: CAL_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */
