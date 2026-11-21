@@ -123,7 +123,8 @@ const WaConversation = forwardRef<
     onBack: () => void;
     onAction: (action: string) => void;
     onSent: (messages: MessageDto[]) => void;
-    onSendLater: (text: string, mentions?: WaMentionPick[]) => void;
+    /** `file`: un archivo de la vista previa (sale con el texto como pie); `onScheduled` cierra la vista previa. */
+    onSendLater: (text: string, mentions?: WaMentionPick[], withFile?: { file: File; onScheduled: () => void }) => void;
     onScheduledChange: () => void;
     onError: (code: string) => void;
     onToast: (text: string) => void;
@@ -1444,6 +1445,16 @@ const WaConversation = forwardRef<
           stickerApi="/api/inbox/stickers"
           stickerLine={stickerLine}
           mentionables={groupMentionables}
+          onLater={
+            editing
+              ? undefined
+              : () => {
+                  // Un archivo, con su pie (y sus menciones en un grupo): se programa como el primer mensaje.
+                  const it = tray.items.length === 1 ? tray.items[0] : null;
+                  if (!it) return;
+                  props.onSendLater((it.caption ?? '').trim(), it.captionOut?.picks ?? [], { file: it.file, onScheduled: tray.clear });
+                }
+          }
         />
       )}
       {dragging && (

@@ -31,6 +31,8 @@ export interface TaskRow {
   priority?: 'low' | 'medium' | 'high';
   /** Origen fuera del CRM (lib/tasks.ts): el chat de WhatsApp, la página, el issue. */
   source?: { href: string; app: 'groups' | 'chat' | 'docs' | 'track'; label: string };
+  /** De un chat de Lines que quien mira no ve: `subject` es el marcador (lib/crm-chat-privacy.ts). */
+  chatPrivate?: boolean;
 }
 
 type Bucket = 'overdue' | 'today' | 'upcoming' | 'done';
@@ -373,6 +375,8 @@ export default function TasksView({
             <div
               key={row.id}
               className={`task-row${row.done ? ' done' : ''}${row.pinned ? ' pinned' : ''}${busyId === row.id ? ' row-busy' : ''}`}
+              data-testid="crm-task-row"
+              data-chat-private={row.chatPrivate ? 'true' : undefined}
             >
               <button
                 type="button"
@@ -386,7 +390,12 @@ export default function TasksView({
 
               <div className="task-main">
                 <div className="task-top">
-                  <Link href={`/app/crm/tasks/${row.id}`} className="task-subject">
+                  <Link
+                    href={`/app/crm/tasks/${row.id}`}
+                    className={`task-subject${row.chatPrivate ? ' crm-private-task' : ''}`}
+                    title={row.chatPrivate ? t('tasks.privateChatHint') : undefined}
+                    data-testid={row.chatPrivate ? 'crm-private-chat-task' : undefined}
+                  >
                     {row.subject}
                   </Link>
                   {row.projectName && (

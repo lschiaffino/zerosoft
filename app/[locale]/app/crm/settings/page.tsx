@@ -194,7 +194,7 @@ export default async function CrmSettingsPage(props: {
     body = (
       <>
         <FormSection setting="crm-custom-fields" title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
-          <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} />
+          <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} canEditUnique={admin} />
         </FormSection>
         <FormSection setting="crm-field-permissions" title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>
           <FieldPermissionsPanel

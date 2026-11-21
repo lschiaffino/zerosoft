@@ -289,6 +289,8 @@ a.vc-row-main:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px
 @media (max-width: 520px) {
   .vc-upcoming li { flex-wrap: wrap; }
   .vc-move { max-width: 100%; flex: 1 1 100%; }
+  /* La búsqueda de Reuniones baja debajo del título y ocupa el ancho: al lado, el texto de ayuda quedaba cortado. */
+  .vc-search { max-width: none; flex-basis: 100%; }
 }
 
 /* ---------- Chat: respuestas de a pedazos, citas y sugerencias ---------- */

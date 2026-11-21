@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { CRM_CUSTOM_FIELD_TYPES, type CrmCustomFieldRow } from '@/lib/schema/types';
-import { fieldCurrency } from '@/lib/crm-custom-fields';
+import { fieldCurrency, UNIQUE_FIELD_ENTITIES, UNIQUE_FIELD_TYPES } from '@/lib/crm-custom-fields';
 import { RemoveIcon } from './RowTools';
 
 interface CustomFieldsPanelProps {
@@ -14,6 +14,8 @@ interface CustomFieldsPanelProps {
    * empresas, deals y leads. Los objetos propios usan `obj:<id>`.
    */
   entities?: Array<{ value: string; label: string }>;
+  /** Owner/admin: puede pedir valor único (regla de todo el workspace). */
+  canEditUnique?: boolean;
 }
 
 const FIXED_ENTITIES = ['contacts', 'companies', 'deals', 'leads'] as const;
@@ -45,7 +47,12 @@ function parseOptions(json: string): string[] {
 }
 
 /** Alta, edición inline y borrado de custom fields por entidad. */
-export default function CustomFieldsPanel({ initialFields, entities }: CustomFieldsPanelProps) {
+/** ¿El campo admite valor único? Contactos, empresas y deals; texto, número, url o teléfono. */
+function uniqueAllowed(f: Pick<CrmCustomFieldRow, 'entity' | 'type'>): boolean {
+  return (UNIQUE_FIELD_ENTITIES as readonly string[]).includes(f.entity) && UNIQUE_FIELD_TYPES.has(f.type);
+}
+
+export default function CustomFieldsPanel({ initialFields, entities, canEditUnique = false }: CustomFieldsPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const ENTITIES = entities ?? FIXED_ENTITIES.map((value) => ({ value, label: t(`settings.entities.${value}`) }));
@@ -57,6 +64,7 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
   const [type, setType] = useState<(typeof TYPES)[number]>('text');
   const [options, setOptions] = useState('');
   const [currency, setCurrency] = useState('USD');
+  const [group, setGroup] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +114,7 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
         type,
         options: WITH_OPTIONS.has(type) ? optionsArray() : type === 'currency' ? [currency] : [],
         position: fields.filter((f) => f.entity === entity).length,
+        group: group.trim(),
       }),
     });
     if (status === 201 && data) {
@@ -115,6 +124,7 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
       setNameTouched(false);
       setType('text');
       setOptions('');
+      setGroup('');
       flashSaved();
       router.refresh();
     } else {
@@ -123,8 +133,11 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
     setBusy(false);
   }
 
-  async function onPatch(id: string, patch: { label?: string; options?: string[] }) {
-    if (busy) return;
+  async function onPatch(
+    id: string,
+    patch: { label?: string; options?: string[]; group?: string; description?: string; isUnique?: boolean },
+  ) {
+    // Sin cortar por `busy`: un blur mientras otro guardado está en vuelo no se pierde.
     setBusy(true);
     const { status, data } = await api(`/api/crm/custom-fields/${id}`, {
       method: 'PATCH',
@@ -157,8 +170,28 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
     setBusy(false);
   }
 
+  /** Grupos ya usados en cada objeto (sugerencias del campo Grupo). */
+  function groupListId(ent: string): string {
+    return `cf-groups-${ent.replace(/[^a-z0-9]/gi, '-')}`;
+  }
+  const groupsByEntity = new Map<string, string[]>();
+  for (const f of fields) {
+    const g = (f.group_name ?? '').trim();
+    if (!g) continue;
+    const list = groupsByEntity.get(f.entity) ?? [];
+    if (!list.some((x) => x.toLowerCase() === g.toLowerCase())) list.push(g);
+    groupsByEntity.set(f.entity, list);
+  }
+
   return (
     <div className="cf-panel">
+      {ENTITIES.map((en) => (
+        <datalist key={en.value} id={groupListId(en.value)}>
+          {(groupsByEntity.get(en.value) ?? []).map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
+      ))}
       <form className="cf-create" onSubmit={onCreate}>
         {ENTITIES.length > 1 && (
           <select
@@ -231,6 +264,17 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
             aria-label={t('settings.fieldOptions')}
           />
         )}
+        <input
+          className="input"
+          type="text"
+          value={group}
+          onChange={(e) => setGroup(e.target.value)}
+          placeholder={t('settings.fieldGroup')}
+          aria-label={t('settings.fieldGroup')}
+          list={groupListId(entity)}
+          maxLength={80}
+          data-testid="cf-create-group"
+        />
         <button type="submit" className="btn btn-solid btn-small" disabled={busy || !label.trim()}>
           {busy ? t('common.creating') : t('settings.newField')}
         </button>
@@ -251,7 +295,8 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
             <div className="cf-group" key={en.value}>
               {ENTITIES.length > 1 && <p className="label cf-group-title">{en.label}</p>}
               {rows.map((f) => (
-                <div className="cf-row" key={f.id}>
+                <div className="cf-item" key={f.id} data-testid="cf-item" data-field={f.name}>
+                <div className="cf-row">
                   <input
                     className="input"
                     type="text"
@@ -332,6 +377,57 @@ export default function CustomFieldsPanel({ initialFields, entities }: CustomFie
                       <RemoveIcon />
                     </button>
                   )}
+                </div>
+                <div className="cf-meta">
+                  <label className="cf-meta-field">
+                    <span className="cf-meta-label">{t('settings.fieldGroup')}</span>
+                    <input
+                      className="input"
+                      type="text"
+                      defaultValue={f.group_name ?? ''}
+                      placeholder={t('settings.fieldGroupHint')}
+                      aria-label={`${t('settings.fieldGroup')}: ${f.label}`}
+                      list={groupListId(f.entity)}
+                      maxLength={80}
+                      data-testid="cf-group"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== (f.group_name ?? '')) onPatch(f.id, { group: v });
+                      }}
+                    />
+                  </label>
+                  <label className="cf-meta-field cf-desc">
+                    <span className="cf-meta-label">{t('settings.fieldDescription')}</span>
+                    <input
+                      className="input"
+                      type="text"
+                      defaultValue={f.description ?? ''}
+                      placeholder={t('settings.fieldDescriptionHint')}
+                      aria-label={`${t('settings.fieldDescription')}: ${f.label}`}
+                      maxLength={500}
+                      data-testid="cf-description"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== (f.description ?? '')) onPatch(f.id, { description: v });
+                      }}
+                    />
+                  </label>
+                  {uniqueAllowed(f) && (
+                    <label
+                      className="ui-check cf-unique"
+                      title={canEditUnique ? t('settings.fieldUniqueHelp') : t('settings.fieldUniqueAdmin')}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!f.is_unique}
+                        disabled={!canEditUnique || busy}
+                        onChange={(e) => onPatch(f.id, { isUnique: e.target.checked })}
+                        data-testid="cf-unique"
+                      />
+                      <span>{t('settings.fieldUnique')}</span>
+                    </label>
+                  )}
+                </div>
                 </div>
               ))}
             </div>

@@ -270,7 +270,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
                           <div className="ppl-rowmeta">{t(`settings.kinds.${p.kind}`)}</div>
                         </th>
                         <td>{t(`settings.accruals.${p.accrual}`)}</td>
-                        <td className="num">{p.accrual === 'none' ? '' : p.daysPerYear}</td>
+                        <td className="num">{p.accrual === 'none' || p.accrual === 'manual' ? '' : p.daysPerYear}</td>
                         <td className="ppl-hide-sm">{p.carryoverMax == null ? t('settings.unlimited') : p.carryoverMax}</td>
                         <td className="ppl-hide-sm">{p.capDays == null ? t('settings.unlimited') : p.capDays}</td>
                         <td className="ppl-actions">
@@ -535,14 +535,14 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
               </Field>
               <Field label={t('settings.accrual')} htmlFor="pol-accrual">
                 <select id="pol-accrual" name="accrual" className="select" defaultValue={editing?.accrual ?? 'annual'}>
-                  {(['annual', 'monthly', 'per_pay_period', 'none'] as const).map((k) => (
+                  {(['annual', 'monthly', 'per_pay_period', 'manual', 'none'] as const).map((k) => (
                     <option key={k} value={k}>
                       {t(`settings.accruals.${k}`)}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label={t('settings.daysPerYear')} htmlFor="pol-days">
+              <Field label={t('settings.daysPerYear')} htmlFor="pol-days" hint={t('settings.daysPerYearHint')}>
                 <input id="pol-days" name="daysPerYear" type="number" min={0} max={366} step="0.5" className="input" defaultValue={editing?.daysPerYear ?? 15} />
               </Field>
               <Field label={t('settings.carryover')} htmlFor="pol-carry" hint={t('settings.blankUnlimited')}>

@@ -6,6 +6,7 @@ import { activityCreateSchema } from '@/lib/crm-schema';
 import { ACTIVITY_TYPES, type ActivityType } from '@/lib/crm-constants';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { apiChatReader } from '@/lib/crm-chat-privacy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   const typeParam = sp.get('type');
   const type = (ACTIVITY_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as ActivityType) : undefined;
   const limit = Math.min(Math.max(Number(sp.get('limit') ?? '50') || 50, 1), 200);
-  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth) });
+  const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth), chatReader: await apiChatReader(auth) });
   return NextResponse.json({ activities: rows.map(cleanRow) });
 }
 

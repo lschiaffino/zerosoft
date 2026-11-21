@@ -456,3 +456,17 @@ test('390px grabando: el indicador es compacto y no ensancha la barra', async ({
   await page.getByRole('menuitem', { name: 'Stop' }).click();
   await expect(page.locator('.vc-rec-indicator')).toHaveCount(0, { timeout: 25_000 });
 });
+
+test('390px Reuniones: la búsqueda va debajo del título, ocupa el ancho y no hay scroll lateral', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/en/app/voice', { waitUntil: 'networkidle' });
+  const list = content(page).locator('section[aria-labelledby="vc-list"]');
+  const search = list.getByRole('searchbox');
+  await expect(search).toBeVisible();
+  const [box, heading, section] = await Promise.all([search.boundingBox(), list.locator('#vc-list').boundingBox(), list.boundingBox()]);
+  // Antes quedaba al lado del título, angosta, con el texto de ayuda cortado.
+  expect(box!.y).toBeGreaterThanOrEqual(heading!.y + heading!.height - 1);
+  expect(box!.width).toBeGreaterThan(section!.width - 4);
+  const { scroll, inner } = await page.evaluate(() => ({ scroll: document.scrollingElement!.scrollWidth, inner: window.innerWidth }));
+  expect(scroll, `scrollWidth ${scroll} > ${inner}`).toBeLessThanOrEqual(inner + 1);
+});

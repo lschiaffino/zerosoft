@@ -8,9 +8,10 @@ import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
-import { listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
-import { getCompany, LIFECYCLE_STAGES, listTimeline, nextTaskFor, parseCustom } from '@/lib/crm';
+import { buildRecordTimeline } from '@/lib/crm-timeline';
+import { getCompany, LIFECYCLE_STAGES, nextTaskFor, parseCustom } from '@/lib/crm';
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -30,16 +31,14 @@ import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { formatMoney } from '@/lib/crm-money';
 import RecordTags from '@/components/crm/RecordTags';
-import { customPropFields } from '@/components/crm/customPropFields';
+import { customFieldSections, customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
-import { withTaskSources } from '@/lib/tasks';
-import { withCallDetails } from '@/lib/crm-voice';
 import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
 import FilesPanel from '@/components/crm/FilesPanel';
-import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
+import { listRecordFiles, toView } from '@/lib/crm-files';
 import AiSummaryCard from '@/components/crm/AiSummaryCard';
-import { crmAiAvailable, getRecordSummary, withCallSummaries } from '@/lib/crm-ai';
+import { crmAiAvailable, getRecordSummary } from '@/lib/crm-ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import { listMembers } from '@/lib/teams';
@@ -254,11 +253,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // La ficha carga todo de una vez: las tres columnas están a la vista juntas.
   const contactScope = scopeAnd('crm_contacts', scope);
   const dealScope = scopeAnd('crm_deals', scope);
-  const [timeline, threadsRaw, nextTaskRaw, aiAvailable, aiSummaryRaw, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
+  // Tareas de chats de Lines que la persona no ve: sin su texto.
+  const chatReader = await sessionChatReader(user, locale);
+  const [timelinePage, nextTaskRaw, aiAvailable, aiSummaryRaw, recordFilesRaw, fieldAccess, contactRows, allCompanies, allDeals] =
     await Promise.all([
-      listTimeline(user.id, { companyId: id, limit: 100, ownerScope: scope }),
-      listEmailThreads(user.id, { companyId: id, limit: 100 }),
-      nextTaskFor(user.id, { companyId: id }),
+      buildRecordTimeline(user, { kind: 'company', id }, { ownerScope: scope, chatReader }),
+      nextTaskFor(user.id, { companyId: id, chatReader }),
       crmAiAvailable(),
       getRecordSummary(user.id, 'company', company.id, scope),
       listRecordFiles(user.id, 'company', company.id),
@@ -287,8 +287,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // respetan el alcance).
   const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
   const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
-  const threads = scope && rawDetail.contacts.length !== contacts.length ? { threads: [], activityIds: [] } : threadsRaw;
-  const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
+  // Emails solo de los contactos que la persona ve (lib/crm-timeline.ts visibleEmailContacts).
+  const timelineItems = timelinePage.items;
   const recordFiles = recordFilesRaw.map(toView);
   const allContacts = contactRows.map((c) => ({
     id: c.id,
@@ -354,9 +354,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     { id: 'socials', title: t('companiesEnrich.socials'), keys: ['linkedinUrl', 'twitterUrl', 'facebookUrl', 'instagramUrl'] },
     { id: 'lifecycle', title: t('companies.detail.lifecycleSection'), keys: ['lifecycleStage'] },
     { id: 'ownership', title: t('companies.detail.ownershipSection'), keys: ['ownerId'] },
-    ...(customFields.length
-      ? [{ id: 'custom', title: t('companies.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-      : []),
+    // Una tarjeta por grupo de propiedades (Ajustes › Datos); las sin grupo, en la de siempre.
+    ...customFieldSections(customFieldDefs, customFields, t('companies.detail.customFieldsSection')),
   ];
 
   const about = (
@@ -503,6 +502,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         recordType="company"
         recordId={company.id}
         items={timelineItems}
+        hasMore={timelinePage.hasMore}
+        currentPersonId={user.actingUser?.id ?? user.id}
         emptyLabel={t('companies.detail.emptyTimeline')}
         mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
         locale={locale}

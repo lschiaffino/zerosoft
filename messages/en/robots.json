@@ -239,7 +239,8 @@
     },
     "checkState": {
       "checked": "Checked",
-      "unchecked": "Unchecked"
+      "unchecked": "Unchecked",
+      "toggle": "Switch it (one click)"
     },
     "waitUntil": {
       "appears": "Appears in the page",

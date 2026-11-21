@@ -375,19 +375,22 @@
 
 :root:is([data-look='classic'], [data-look='liquid']) .ui-page-header { border-bottom-color: var(--line); }
 :root:is([data-look='classic'], [data-look='liquid']) .table th { border-bottom-color: var(--line); }
-:root:is([data-look='classic'], [data-look='liquid']) :is(.panel, .ui-section, .ui-empty, .table-wrap) {
+:root:is([data-look='classic'], [data-look='liquid']) :is(.panel, .ui-section, .ui-empty:not(.ui-empty-compact, .ui-empty-quiet), .table-wrap) {
   box-shadow: var(--card-shadow);
 }
-:root[data-look='classic'] :is(.panel, .ui-section, .ui-empty, .table-wrap) { border-radius: 12px; border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+:root[data-look='classic'] :is(.panel, .ui-section, .ui-empty:not(.ui-empty-compact, .ui-empty-quiet), .table-wrap) { border-radius: 12px; border-color: color-mix(in srgb, var(--line) 80%, transparent); }
 /* Classic: el lateral como el de Linear: filas redondeadas, la elegida con relleno y sin filete. */
 :root[data-look='classic'] :is(.side-link, .side-stop) { border-radius: var(--radius-item); }
 :root[data-look='classic'] .ui-page-header { border-bottom-width: 1px; }
-:root[data-look='liquid'] :is(.panel, .ui-section, .ui-empty, .table-wrap) {
+:root[data-look='liquid'] :is(.panel, .ui-section, .ui-empty:not(.ui-empty-compact, .ui-empty-quiet), .table-wrap) {
   /* Sin backdrop-filter: haría de cada caja el bloque contenedor de los menús position: fixed de adentro. */
   border-radius: 16px;
   background-color: var(--glass-strong);
   border-color: var(--glass-line);
 }
+/* El vacío compacto y el quieto son texto dentro de una sección: sin el fondo de la caja (sobre el vidrio
+   quedaba un recuadro blanco con el texto pegado al borde). */
+:root[data-look='liquid'] :is(.ui-empty-compact, .ui-empty-quiet) { background: transparent; }
 :root[data-look='liquid'] .table th { background: transparent; }
 :root[data-look='liquid'] .ui-section-foot { background: transparent; }
 

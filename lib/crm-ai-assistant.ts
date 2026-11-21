@@ -362,7 +362,10 @@ function buildTools(ctx: ToolContext): ToolSet {
       inputSchema: z.object({ bucket: z.enum(['overdue', 'today', 'upcoming']), mine: z.boolean().optional() }),
       execute: async ({ bucket, mine }) => {
         note('list_tasks');
-        const rows = await listTasks(ctx.workspaceId, { bucket, ownerScope: ctx.scope, ownerId: mine ? ctx.personId : undefined });
+        // Tareas de chats de Lines que la persona no ve: sin su texto (lib/crm-chat-privacy.ts).
+        const { personChatReader } = await import('./crm-chat-privacy');
+        const chatReader = await personChatReader(ctx.workspaceId, ctx.personId, ctx.locale);
+        const rows = await listTasks(ctx.workspaceId, { bucket, ownerScope: ctx.scope, ownerId: mine ? ctx.personId : undefined, chatReader });
         const top = rows.slice(0, 20);
         top.forEach((t) => ctx.records.set(`task:${t.id}`, { type: 'task', id: t.id, name: t.subject || 'Task', href: `/app/crm/tasks/${t.id}`, meta: t.due_at?.slice(0, 10) }));
         return {

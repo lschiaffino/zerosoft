@@ -234,10 +234,10 @@ test('teléfono: sin teams apunta a crear uno, tarjeta pegada abajo y sin scroll
       await cardBesideTarget(p, 'track-new-team', look);
       await noHorizontalScroll(p, look);
       // En el teléfono el lateral es un cajón: sus pasos no tienen dónde mostrarse.
-      await p.getByTestId('tour-next').click();
-      await stepIs(p, 'shortcuts');
+      // Tampoco el de atajos de teclado, y los textos no nombran atajos.
       await p.getByTestId('tour-next').click();
       await stepIs(p, 'done');
+      await expect(p.getByTestId('tour')).toHaveAttribute('data-tour-touch', 'true');
       await noHorizontalScroll(p, `${look} done`);
     } finally {
       await ctx.close();
@@ -257,7 +257,8 @@ test('teléfono con un team: el resumen se señala sin taparlo', async ({ browse
     await cardBesideTarget(p, 'track-overview', 'overview 390');
     await noHorizontalScroll(p, 'overview 390');
     await p.getByTestId('tour-next').click();
-    await stepIs(p, 'shortcuts');
+    // Sin el paso de atajos de teclado en el teléfono.
+    await stepIs(p, 'done');
   } finally {
     await ctx.close();
   }

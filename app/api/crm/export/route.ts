@@ -4,6 +4,8 @@ import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
+import { requestLocale } from '@/lib/request-locale';
 import { exportRows, type ExportEntity } from '@/lib/crm';
 import { crmError, unauthorized, forbidden } from '@/lib/crm-http';
 
@@ -62,6 +64,8 @@ export async function GET(req: NextRequest) {
     entity,
     await sessionScope(user),
     filter.filters ? { model: filter.filters, customTypes: filter.customTypes, env: filter.filterEnv } : undefined,
+    // Tareas de chats de Lines que quien exporta no ve: sin su texto.
+    await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'))),
   );
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;

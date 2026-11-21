@@ -16,6 +16,7 @@
 import { coerceCustomFieldValue } from './crm-custom-fields';
 import { CrmRefError } from './crm-refs';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
+import { assertUniqueCustom, CrmUniqueValueError } from './crm-unique';
 import { setParentCompany } from './crm-assoc';
 import { getCrmSettings } from './crm-currency';
 import { PRIORITIES, SOURCES } from './crm-constants';
@@ -40,6 +41,21 @@ import {
   type CrmImportPresetRow,
   type Db,
 } from './db';
+
+/** Un valor único que ya tiene otro registro: esa fila no se importa (el resto sí). */
+async function catchUnique<T>(p: Promise<T>): Promise<T | CrmUniqueValueError> {
+  try {
+    return await p;
+  } catch (e) {
+    if (e instanceof CrmUniqueValueError) return e;
+    throw e;
+  }
+}
+
+/** Sin el valor ni el registro que lo tiene: solo el campo (puede ser de alguien que no ve). */
+function uniqueRowError(rowNo: number, e: CrmUniqueValueError): string {
+  return `Row ${rowNo}: "${e.field}" must be unique and another record already has that value, skipped`;
+}
 
 // ---------- Tipos ----------
 
@@ -476,6 +492,12 @@ export async function importContacts(
       }
       const ownerId = resolveOwner(people, ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, rawCustom, rowNo, result.errors);
+      // Valor único repetido: la fila se saltea antes de crear su empresa.
+      const taken = await catchUnique(assertUniqueCustom(userId, 'contacts', existing?.id ?? null, customVals, {}, tdb));
+      if (taken instanceof CrmUniqueValueError) {
+        result.errors.push(uniqueRowError(rowNo, taken));
+        continue;
+      }
       const company =
         companyName || companyDomain
           ? await findCompany(userId, { name: companyName, domain: companyDomain }, tdb, true)
@@ -488,10 +510,18 @@ export async function importContacts(
       };
       if (existing) {
         const custom = await mergedCustom(tdb, 'crm_contacts', existing.id, customVals);
-        await updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb);
+        const updated = await catchUnique(updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb));
+        if (updated instanceof CrmUniqueValueError) {
+          result.errors.push(uniqueRowError(rowNo, updated));
+          continue;
+        }
         result.updated++;
       } else {
-        const created = await catchEmailTaken(createContact(userId, { ...data, custom: customVals }, tdb));
+        const created = await catchUnique(catchEmailTaken(createContact(userId, { ...data, custom: customVals }, tdb)));
+        if (created instanceof CrmUniqueValueError) {
+          result.errors.push(uniqueRowError(rowNo, created));
+          continue;
+        }
         // Otra entrada creó ese email mientras corría el import: no se duplica.
         if (created instanceof ContactEmailTakenError) {
           result.skipped++;
@@ -555,11 +585,20 @@ export async function importCompanies(
       let id: string;
       if (existing) {
         const custom = await mergedCustom(tdb, 'crm_companies', existing.id, customVals);
-        await updateCompany(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb);
+        const updated = await catchUnique(updateCompany(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb));
+        if (updated instanceof CrmUniqueValueError) {
+          result.errors.push(uniqueRowError(rowNo, updated));
+          continue;
+        }
         id = existing.id;
         result.updated++;
       } else {
-        id = (await createCompany(userId, { ...data, custom: customVals }, tdb)).id;
+        const created = await catchUnique(createCompany(userId, { ...data, custom: customVals }, tdb));
+        if (created instanceof CrmUniqueValueError) {
+          result.errors.push(uniqueRowError(rowNo, created));
+          continue;
+        }
+        id = created.id;
         result.created++;
       }
       if (parentCompanyName || parentCompanyDomain) {
@@ -659,6 +698,12 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
               .get(userId, pipeline.id, name)) as { id: string; stage_id: string } | undefined)
           : undefined;
 
+      // Valor único repetido: la fila se saltea antes de crear empresa o contactos.
+      const taken = await catchUnique(assertUniqueCustom(userId, 'deals', existing?.id ?? null, customVals, {}, db));
+      if (taken instanceof CrmUniqueValueError) {
+        result.errors.push(uniqueRowError(rowNo, taken));
+        continue;
+      }
       // Asociaciones: empresa (se crea si falta) y contactos por email (se crean si faltan).
       const company =
         raw.companyName || raw.companyDomain
@@ -738,6 +783,10 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
       }
       result.created++;
     } catch (e) {
+      if (e instanceof CrmUniqueValueError) {
+        result.errors.push(uniqueRowError(rowNo, e));
+        continue;
+      }
       if (e instanceof CrmRefError) {
         result.errors.push(`Row ${rowNo}: ${e.code}`);
         continue;

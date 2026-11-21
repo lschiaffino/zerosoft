@@ -69,6 +69,15 @@ function boxOf(el: HTMLElement): Box {
   return { top, left, width: Math.max(right - left, 0), height: Math.max(bottom - top, 0) };
 }
 
+/**
+ * Teléfono o pantalla táctil: el ancho donde la tarjeta va pegada, o un
+ * puntero grueso sin hover. Ahí los textos no nombran atajos de teclado.
+ */
+function touchScreen(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth <= DOCK_MAX || window.matchMedia?.('(hover: none) and (pointer: coarse)').matches === true;
+}
+
 const sameBox = (a: Box | null, b: Box | null) => a === b || (!!a && !!b && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height);
 
 /**
@@ -83,6 +92,8 @@ const sameBox = (a: Box | null, b: Box | null) => a === b || (!!a && !!b && a.to
  * - Un paso cuyo elemento no está a la vista se saltea (o va centrado).
  * - Esc sale; el foco va al botón principal de cada paso y vuelve a donde
  *   estaba al cerrar.
+ * - En el teléfono o con pantalla táctil, un texto que nombra atajos de
+ *   teclado usa su versión `bodyTouch` y los pasos de atajos se saltean.
  *
  * El progreso, "No mostrar más tours" y la respuesta equipo/sola se guardan
  * en /api/tours.
@@ -95,7 +106,9 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
   const ids = useId();
 
   const [audience, setAudience] = useState<TourAudience | null>(boot.audience);
-  const steps = useMemo(() => stepsFor(def, { audience, admin: boot.admin }), [def, audience, boot.admin]);
+  // Se mide al montar (en el servidor no se renderiza nada del tour): fija los pasos para todo el recorrido.
+  const [touch] = useState(touchScreen);
+  const steps = useMemo(() => stepsFor(def, { audience, admin: boot.admin, touch }), [def, audience, boot.admin, touch]);
   const [running, setRunning] = useState(false);
   /** Índice del paso que se busca o se muestra. */
   const [idx, setIdx] = useState(0);
@@ -411,13 +424,14 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
     setAudience(a);
     post({ kind: 'audience', audience: a });
     // Con la respuesta cambian los pasos: el siguiente es el que sigue a este en la lista nueva.
-    const nextSteps = stepsFor(def, { audience: a, admin: boot.admin });
+    const nextSteps = stepsFor(def, { audience: a, admin: boot.admin, touch });
     const at = nextSteps.findIndex((s) => s.id === current?.id);
     setHistory((h) => h.map((i) => nextSteps.findIndex((s) => s.id === steps[i]?.id)).filter((i) => i >= 0));
     setDir(1);
     setIdx(at + 1);
   };
 
+  const touchBody = touch && t.has(`${def.key}.${current?.id}.bodyTouch`);
   const style = accent ? ({ '--tour-accent': accent } as CSSProperties) : undefined;
   return createPortal(
     <div className="zs-tour-layer" style={style} data-testid="tour-layer">
@@ -432,6 +446,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
           aria-describedby={`${ids}-body`}
           data-testid="tour"
           data-tour-step={current.id}
+          data-tour-touch={touch || undefined}
         >
           <div className="zs-tour-head">
             <p className="zs-tour-count" data-testid="tour-count">
@@ -447,7 +462,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
             {t(`${def.key}.${current.id}.title`)}
           </h2>
           <p className="zs-tour-body" id={`${ids}-body`}>
-            {t(`${def.key}.${current.id}.body`)}
+            {t(`${def.key}.${current.id}.${touchBody ? 'bodyTouch' : 'body'}`)}
           </p>
           {ask && (
             <div className="zs-tour-ask" role="group" aria-labelledby={`${ids}-ask`}>

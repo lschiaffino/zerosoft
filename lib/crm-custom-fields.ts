@@ -22,6 +22,40 @@ export interface CustomFieldDefLike {
   options: string | string[];
 }
 
+/** Tipos que admiten "valor único" (lib/crm-unique.ts): los que identifican un registro. */
+export const UNIQUE_FIELD_TYPES: ReadonlySet<string> = new Set(['text', 'number', 'url', 'phone']);
+/** Objetos donde se puede pedir valor único. */
+export const UNIQUE_FIELD_ENTITIES = ['contacts', 'companies', 'deals'] as const;
+
+/**
+ * Propiedades agrupadas como en la ficha de HubSpot: primero las que no tienen
+ * grupo (bajo `fallbackTitle`), después un grupo por nombre, en el orden en
+ * que aparece su primera propiedad (sin distinguir mayúsculas).
+ */
+export function groupCustomFields<T extends { name: string; group_name?: string | null }>(
+  defs: T[],
+): Array<{ group: string; defs: T[] }> {
+  const out: Array<{ group: string; defs: T[] }> = [];
+  const byGroup = new Map<string, { group: string; defs: T[] }>();
+  const ungrouped: T[] = [];
+  for (const def of defs) {
+    const group = (def.group_name ?? '').trim();
+    if (!group) {
+      ungrouped.push(def);
+      continue;
+    }
+    const k = group.toLowerCase();
+    let bucket = byGroup.get(k);
+    if (!bucket) {
+      bucket = { group, defs: [] };
+      byGroup.set(k, bucket);
+      out.push(bucket);
+    }
+    bucket.defs.push(def);
+  }
+  return ungrouped.length ? [{ group: '', defs: ungrouped }, ...out] : out;
+}
+
 /** Tipos que eligen de una lista de opciones definida en el campo. */
 export const OPTION_FIELD_TYPES: ReadonlySet<CrmCustomFieldType> = new Set(['select', 'multiselect']);
 

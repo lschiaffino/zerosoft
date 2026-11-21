@@ -126,26 +126,30 @@ test('crm timeline: Cmd/Ctrl+Enter guarda y el tipo sale de una sola fuente', as
   const rows = async () =>
     ((await (await request.get(`/api/crm/activities?contactId=${contact.id}`)).json()).rows as Array<{ type: string; body: string | null }>);
 
-  // Nota con Ctrl+Enter (Meta+Enter en Mac, los dos sirven).
+  // Nota con Ctrl+Enter (Meta+Enter en Mac, los dos sirven), desde "Crear actividad".
+  await page.getByTestId('timeline-create').click();
+  await page.getByTestId('timeline-create-note').click();
+  await expect(composer).toHaveAttribute('data-kind', 'note');
   await composer.locator('textarea').fill('Saved from the keyboard');
   await composer.locator('textarea').press('Control+Enter');
   await expect.poll(async () => (await rows()).find((r) => r.body === 'Saved from the keyboard')?.type).toBe('note');
-  await expect(composer.locator('textarea')).toHaveValue('');
+  await expect(composer).toHaveCount(0);
 
-  // En una pestaña de tipo no hay select: lo que se ve es lo que se guarda.
-  await page.getByRole('tab', { name: /^Call/ }).click();
-  await expect(composer.locator('.tl-type-select')).toHaveCount(0);
-  await expect(composer.getByRole('button', { name: 'Log call' })).toBeVisible();
+  // En una pestaña de tipo, su botón de HubSpot: lo que se ve es lo que se guarda.
+  await page.getByRole('tab', { name: /^Calls/ }).click();
+  await page.getByTestId('timeline-create-call').click();
+  await expect(composer).toHaveAttribute('data-kind', 'call');
   await composer.locator('textarea').fill('Called about pricing');
   await composer.locator('textarea').press('Meta+Enter');
   await expect.poll(async () => (await rows()).find((r) => r.body === 'Called about pricing')?.type).toBe('call');
 
-  // En "All" el select elige el tipo y el botón lo refleja.
-  await page.getByRole('tab', { name: /^All/ }).click();
-  const select = composer.locator('.tl-type-select');
-  await expect(select).toHaveValue('call');
-  await select.selectOption('meeting');
-  await expect(composer.getByRole('button', { name: 'Log meeting' })).toBeVisible();
+  // Esc cierra el composer sin guardar.
+  await page.getByRole('tab', { name: /^Meetings/ }).click();
+  await page.getByTestId('timeline-create-meeting').click();
+  await composer.locator('textarea').fill('Not saved');
+  await composer.locator('textarea').press('Escape');
+  await expect(composer).toHaveCount(0);
+  await page.getByTestId('timeline-create-meeting').click();
   await composer.locator('textarea').fill('Kickoff meeting');
   await composer.locator('textarea').press('Control+Enter');
   await expect.poll(async () => (await rows()).find((r) => r.body === 'Kickoff meeting')?.type).toBe('meeting');
