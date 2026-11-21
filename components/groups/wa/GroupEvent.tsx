@@ -4,19 +4,13 @@ import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Avatar from './Avatar';
 import { groupEventMessage, personLabel, type WaGroupEvent } from '@/lib/wa-group-events';
-
-/** "+54 9 11 5555-0000" como en la lista de Inbox; otros países, "+" y los dígitos. */
-function phoneLabel(d: string): string {
-  const ar = /^549(11|\d{3})(\d{3,4})(\d{4})$/.exec(d);
-  if (ar) return `+54 9 ${ar[1]} ${ar[2]}-${ar[3]}`;
-  return `+${d}`;
-}
+import { formatPhone } from '@/components/inbox/wa/util';
 
 /** Texto de un aviso del grupo ("Ana te agregó", "Saliste"), en el idioma de la pantalla (Inbox y Lines). */
 export function useGroupEventText(): (e: WaGroupEvent) => string {
   const t = useTranslations('groups.wa.events');
   return (e) => {
-    const { key, values } = groupEventMessage(e, (p) => personLabel(p, t('someone'), phoneLabel));
+    const { key, values } = groupEventMessage(e, (p) => personLabel(p, t('someone'), formatPhone));
     return t(key, values);
   };
 }

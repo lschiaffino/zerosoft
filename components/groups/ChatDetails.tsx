@@ -20,6 +20,7 @@ import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
 import AssignmentHistory from './AssignmentHistory';
 import { parseDbUtc } from '@/lib/utils';
+import { phoneLabel } from '@/components/inbox/wa/util';
 
 interface CrmRef {
   id: string;
@@ -309,7 +310,7 @@ export default function ChatDetails({
             canManage={caps.groups}
             unsupported={t('details.groupsUnsupported')}
             initialLink={chat.inviteLink}
-            showPhone={(p) => `+${p}`}
+            showPhone={phoneLabel}
             toast={showToast}
             limit={compact ? 30 : 200}
             more={
@@ -360,7 +361,7 @@ export default function ChatDetails({
               const res = await api<{ results: MemberTargetResult[] }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'inviteSend', ...targets, text } });
               return res.data ? { results: res.data.results } : { error: res.error };
             }}
-            onOpen={(m) => personSheet.open({ phone: m.phone }, m.name || `+${m.phone}`, m.picture || undefined)}
+            onOpen={(m) => personSheet.open({ phone: m.phone }, m.name || phoneLabel(m.phone), m.picture || undefined)}
             onMessage={async (m) => {
               const res = await api<{ id: string }>(`/api/groups/chats/${chat.id}/members`, { body: { action: 'message', phone: m.phone } });
               if (res.data) router.push(`/app/lines/inbox/${res.data.id}`);
