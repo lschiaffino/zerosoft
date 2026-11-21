@@ -2036,7 +2036,18 @@
       "photo": "Photo being edited",
       "hd": "HD quality",
       "hdOn": "HD: sends the photo at full size",
-      "hdOff": "Standard quality: a lighter photo, like WhatsApp. Turn on HD to send it at full size"
+      "hdOff": "Standard quality: a lighter photo, like WhatsApp. Turn on HD to send it at full size",
+      "blur": "Blur",
+      "blurSize": "Blur brush size",
+      "filters": "Filters",
+      "filterNames": {
+        "none": "Original",
+        "pop": "Pop",
+        "bw": "B&W",
+        "cool": "Cool",
+        "chrome": "Chrome",
+        "film": "Film"
+      }
     },
     "contactSheet": {
       "title": "Contact info",

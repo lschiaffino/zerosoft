@@ -115,3 +115,29 @@ for (const look of ['current', 'lines', 'classic', 'liquid', 'retro'] as const) 
     expect(errors).toEqual([]);
   });
 }
+
+test('el vacío compacto y el quieto van sin caja en los cinco aspectos (el filete no tapa la primera letra)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const look of ['current', 'lines', 'classic', 'liquid', 'retro'] as const) {
+    await setLook(page, look);
+    await page.goto('/en/app/send', { waitUntil: 'networkidle' });
+    await expect(page.locator('html')).toHaveAttribute('data-look', look);
+    // Los mismos que arma EmptyState (components/ui/EmptyState.tsx) con `compact` y con `quiet`.
+    const shadows = await page.evaluate(() => {
+      const main = document.querySelector('main') ?? document.body;
+      return ['ui-empty ui-empty-compact', 'ui-empty ui-empty-quiet'].map((cls) => {
+        const box = document.createElement('div');
+        box.className = cls;
+        box.innerHTML = '<p class="ui-empty-body">No links yet</p>';
+        main.appendChild(box);
+        const { boxShadow, backgroundColor } = getComputedStyle(box);
+        box.remove();
+        return { boxShadow, backgroundColor };
+      });
+    });
+    expect(shadows.map((s) => s.boxShadow), look).toEqual(['none', 'none']);
+    // Sobre el vidrio de Liquid, sin el recuadro de fondo.
+    if (look === 'liquid') expect(shadows.map((s) => s.backgroundColor)).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
+  }
+});

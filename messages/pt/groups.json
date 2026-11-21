@@ -2036,7 +2036,18 @@
       "photo": "Foto sendo editada",
       "hd": "Qualidade HD",
       "hdOn": "HD: envia a foto em tamanho real",
-      "hdOff": "Qualidade padrão: uma foto mais leve, como no WhatsApp. Ative o HD para enviar em tamanho real"
+      "hdOff": "Qualidade padrão: uma foto mais leve, como no WhatsApp. Ative o HD para enviar em tamanho real",
+      "blur": "Desfocar",
+      "blurSize": "Espessura do desfoque",
+      "filters": "Filtros",
+      "filterNames": {
+        "none": "Original",
+        "pop": "Pop",
+        "bw": "P&B",
+        "cool": "Frio",
+        "chrome": "Cromo",
+        "film": "Filme"
+      }
     },
     "contactSheet": {
       "title": "Dados do contato",

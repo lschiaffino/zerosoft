@@ -45,7 +45,8 @@ import {
   type FilterModel,
   type FilterRule,
 } from './crm-filters';
-import { filterTypeFor } from './crm-custom-fields';
+import { filterTypeFor, UNIQUE_FIELD_TYPES } from './crm-custom-fields';
+import { assertUniqueCustom, hasDuplicateValues, isUniqueEntity } from './crm-unique';
 import { trashRecords } from './crm-trash';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
 import { cleanPriority, type TaskPriority } from './tasks-shared';
@@ -55,6 +56,7 @@ import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } f
 
 export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import type { ChatReader } from './crm-chat-privacy';
 import {
   cleanContactEmail,
   ContactEmailTakenError,
@@ -685,6 +687,7 @@ export async function createContact(
   db: Db = getDb(),
 ): Promise<CrmContactRow> {
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'contacts', null, data.custom, {}, db);
   const id = crypto.randomUUID();
   const email = cleanContactEmail(data.email);
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
@@ -745,6 +748,7 @@ export async function updateContact(
     .get(id, userId)) as CrmContactRow | undefined;
   if (!existing) return null;
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'contacts', id, data.custom, parseCustom(existing.custom), db);
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   // El email es la identidad del contacto (lib/crm-contact-email.ts). Solo se
   // chequea cuando cambia: un duplicado de antes se puede seguir editando.
@@ -1233,6 +1237,7 @@ export async function createCompany(
   db: Db = getDb(),
 ): Promise<CrmCompanyRow> {
   await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'companies', null, data.custom, {}, db);
   const id = crypto.randomUUID();
   await db
     .prepare(
@@ -1279,6 +1284,7 @@ export async function updateCompany(
     .get(id, userId)) as CrmCompanyRow | undefined;
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'companies', id, data.custom, parseCustom(existing.custom), db);
   // Primero la jerarquía: si hay ciclo lanza CrmRefError y no se guarda nada.
   if (data.parentCompanyId !== undefined) {
     await setParentCompany(userId, id, data.parentCompanyId, db);
@@ -1550,6 +1556,9 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   forecastCategory: { expr: 'd.forecast_category', type: 'select' },
   description: { expr: 'd.description', type: 'text' },
   lostReason: { expr: 'd.lost_reason', type: 'text' },
+  dealType: { expr: 'd.deal_type', type: 'select' },
+  nextStep: { expr: 'd.next_step', type: 'text' },
+  wonReason: { expr: 'd.won_reason', type: 'text' },
   // La empresa principal: la misma que ya muestra la fila del listado.
   companyName: {
     expr: `(SELECT xco.name FROM crm_deal_companies xpdc JOIN crm_companies xco ON xco.id = xpdc.company_id
@@ -1778,6 +1787,10 @@ export interface DealInput {
   source?: string;
   description?: string;
   lostReason?: string;
+  /** '' | DEAL_TYPES. */
+  dealType?: string;
+  nextStep?: string;
+  wonReason?: string;
   ownerId?: string | null;
   custom?: Record<string, unknown>;
   contactIds?: string[];
@@ -1825,6 +1838,7 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
   }
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
+  await assertUniqueCustom(userId, 'deals', null, data.custom, {}, db);
   const contactIds = await ownedContactIds(userId, data.contactIds ?? [], db);
   const currency = (data.currency || (await getCrmSettings(userId, db)).baseCurrency).toUpperCase();
   const id = crypto.randomUUID();
@@ -1842,8 +1856,8 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
       .prepare(
         `INSERT INTO crm_deals
          (id, user_id, owner_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
-          source, description, lost_reason, position, custom, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          source, description, lost_reason, deal_type, next_step, won_reason, position, custom, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -1859,6 +1873,9 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         data.source ?? '',
         data.description ?? '',
         data.lostReason ?? '',
+        data.dealType ?? '',
+        data.nextStep ?? '',
+        data.wonReason ?? '',
         maxPos + 1024,
         JSON.stringify(data.custom ?? {}),
         ts,
@@ -1889,6 +1906,9 @@ const DEAL_COLS: Record<string, string> = {
   source: 'source',
   description: 'description',
   lostReason: 'lost_reason',
+  dealType: 'deal_type',
+  nextStep: 'next_step',
+  wonReason: 'won_reason',
   ownerId: 'owner_id',
   amountOverride: 'amount_override',
   custom: 'custom',
@@ -1907,6 +1927,7 @@ export async function updateDeal(
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
+  await assertUniqueCustom(userId, 'deals', id, data.custom, parseCustom(existing.custom), db);
   const setIds = data.contactIds ? await ownedContactIds(userId, data.contactIds, db) : undefined;
   const addIds = await ownedContactIds(userId, data.addContactIds ?? [], db);
   const patch: Record<string, unknown> = { ...data };
@@ -2153,7 +2174,23 @@ export type ActivityListRow = CrmActivityRow & {
   owner_name: string | null;
   project_name: string | null;
   project_color: string | null;
+  /** Salió de un chat de Lines que quien lee no ve: el título es el marcador y no hay notas (lib/crm-chat-privacy.ts). */
+  chat_private?: 1;
 };
+
+/**
+ * Las filas como las ve `reader`: las tareas de chats de Lines que no ve, con el marcador en lugar del
+ * título y sin notas. Sin lector, tal cual.
+ */
+async function forReader<T extends { id: string; subject: string; body: string }>(
+  userId: string,
+  rows: T[],
+  reader: ChatReader | null | undefined,
+): Promise<T[]> {
+  if (!reader || !rows.length) return rows;
+  const { redactChatTasks } = await import('./crm-chat-privacy');
+  return redactChatTasks(userId, rows, reader);
+}
 
 const ACTIVITY_SELECT = `
   SELECT a.*,
@@ -2216,9 +2253,22 @@ export async function fireDueTasks(limit = 200): Promise<number> {
     if (!claimed.changes) continue;
     await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
     const task = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(row.id)) as CrmActivityRow | undefined;
-    if (task) await emitEvent(row.user_id, 'task.due', taskEventPayload(task));
+    if (task) await emitEvent(row.user_id, 'task.due', taskEventPayload(await dueTaskForOwner(task)));
   }
   return rows.length;
+}
+
+/**
+ * El aviso de vencimiento le llega a quien tiene la tarea (sin owner, al dueño del workspace): si la tarea
+ * salió de un chat de Lines que esa persona no ve, va sin el texto, con el marcador en el idioma en que se creó.
+ */
+async function dueTaskForOwner(task: CrmActivityRow): Promise<CrmActivityRow> {
+  const origin = (await getDb().prepare('SELECT locale FROM groups_tasks WHERE activity_id = ?').get(task.id)) as { locale: string | null } | undefined;
+  if (!origin) return task;
+  const { noChatReader, personChatReader } = await import('./crm-chat-privacy');
+  // Si no se puede saber qué ve (falla la lectura), va sin el texto. null = ve todos los chats.
+  const reader = await personChatReader(task.user_id, task.owner_id ?? task.user_id, origin.locale).catch(() => noChatReader(task.user_id, origin.locale));
+  return (await forReader(task.user_id, [task], reader))[0];
 }
 
 /** Datos de una tarea para los disparadores de Flow (task.*). */
@@ -2394,13 +2444,14 @@ export async function deleteActivity(userId: string, id: string, actorEmail = ''
   return (await trashRecords(userId, 'activity', [id], actorEmail)) > 0;
 }
 
-export async function getActivity(userId: string, id: string): Promise<ActivityListRow | null> {
-  return (await getDb()
+export async function getActivity(userId: string, id: string, reader?: ChatReader | null): Promise<ActivityListRow | null> {
+  const row = ((await getDb()
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.id = ? AND a.user_id = ?`,
     )
-    .get(id, userId)) as ActivityListRow | undefined ?? null;
+    .get(id, userId)) as ActivityListRow | undefined) ?? null;
+  return row ? (await forReader(userId, [row], reader))[0] : null;
 }
 
 // ============================================================
@@ -2538,6 +2589,8 @@ export interface TimelineFilter {
   limit?: number;
   /** Visibilidad por owner: solo actividades de registros visibles. */
   ownerScope?: OwnerScope;
+  /** Quien lee: las tareas de chats de Lines que no ve, sin su texto. */
+  chatReader?: ChatReader | null;
 }
 
 /** Timeline de un registro (contacto, empresa o deal), más reciente primero. */
@@ -2578,7 +2631,7 @@ export async function listTimeline(
     args.push(...scope.args);
   }
   const limit = Math.min(Math.max(f.limit ?? 200, 1), 500);
-  return (await db
+  const rows = (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE ${where.join(' AND ')}
@@ -2586,12 +2639,13 @@ export async function listTimeline(
        LIMIT ?`,
     )
     .all(...args, limit)) as ActivityListRow[];
+  return forReader(userId, rows, f.chatReader);
 }
 
 /** Próxima tarea abierta de un registro (la de vencimiento más cercano; sin fecha al final). */
 export async function nextTaskFor(
   userId: string,
-  f: { contactId?: string; companyId?: string; dealId?: string },
+  f: { contactId?: string; companyId?: string; dealId?: string; chatReader?: ChatReader | null },
 ): Promise<ActivityListRow | null> {
   const where: string[] = ["a.user_id = ?", "a.type = 'task'", 'a.done = 0'];
   const args: Array<string | number> = [userId];
@@ -2615,7 +2669,7 @@ export async function nextTaskFor(
        LIMIT 1`,
     )
     .get(...args)) as ActivityListRow | undefined;
-  return row ?? null;
+  return row ? (await forReader(userId, [row], f.chatReader))[0] : null;
 }
 
 export type TaskBucket = 'overdue' | 'today' | 'upcoming' | 'done';
@@ -2625,6 +2679,8 @@ export interface ListTasksFilter {
   projectId?: string;
   ownerId?: string;
   ownerScope?: OwnerScope;
+  /** Quien lee: las tareas de chats de Lines que no ve, sin su texto. */
+  chatReader?: ChatReader | null;
 }
 
 export async function listTasks(userId: string, filter: TaskBucket | ListTasksFilter): Promise<ActivityListRow[]> {
@@ -2667,31 +2723,37 @@ export async function listTasks(userId: string, filter: TaskBucket | ListTasksFi
     f.bucket === 'done'
       ? 'a.done_at DESC, a.updated_at DESC'
       : 'a.due_at IS NULL, a.due_at ASC, a.created_at DESC';
-  return (await db
+  const rows = (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task' AND ${cond}
        ORDER BY ${order}`,
     )
     .all(...args)) as ActivityListRow[];
+  return forReader(userId, rows, f.chatReader);
 }
 
-/** Busca tareas por subject, body o entidad asociada. */
-export async function searchTasks(userId: string, q: string, ownerScope?: OwnerScope): Promise<ActivityListRow[]> {
+/**
+ * Busca tareas por subject, body o entidad asociada. Con `reader`, el texto de una tarea de un chat de
+ * Lines que no ve no cuenta para la búsqueda (sí el contacto, la empresa o el deal) y sale sin él.
+ */
+export async function searchTasks(userId: string, q: string, ownerScope?: OwnerScope, reader?: ChatReader | null): Promise<ActivityListRow[]> {
   const db = getDb();
   const like = `%${escapeLike(q)}%`;
   const scope = activityScopeSql('a', ownerScope);
-  return (await db
+  const hidden = reader ? (await import('./crm-chat-privacy')).chatHiddenSql('a', reader) : null;
+  const rows = (await db
     .prepare(
       `${ACTIVITY_SELECT}
        WHERE a.user_id = ? AND a.type = 'task'
-         AND (a.subject LIKE ? ESCAPE '\\' OR a.body LIKE ? ESCAPE '\\'
+         AND (((a.subject LIKE ? ESCAPE '\\' OR a.body LIKE ? ESCAPE '\\')${hidden ? ` AND NOT ${hidden.sql}` : ''})
               OR c.first_name LIKE ? ESCAPE '\\' OR c.last_name LIKE ? ESCAPE '\\'
               OR co.name LIKE ? ESCAPE '\\' OR d.name LIKE ? ESCAPE '\\')${scope.sql ? ` AND ${scope.sql}` : ''}
        ORDER BY a.updated_at DESC
        LIMIT 10`,
     )
-    .all(userId, like, like, like, like, like, like, ...scope.args)) as ActivityListRow[];
+    .all(userId, like, like, ...(hidden?.args ?? []), like, like, like, like, ...scope.args)) as ActivityListRow[];
+  return forReader(userId, rows, reader);
 }
 
 /** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
@@ -3026,6 +3088,26 @@ export interface CustomFieldInput {
   type?: CrmCustomFieldType;
   options?: string[];
   position?: number;
+  /** Grupo de la propiedad ('' = sin grupo). */
+  group?: string;
+  /** Ayuda junto al campo. */
+  description?: string;
+  /** Valor único (lib/crm-unique.ts). La ruta exige admin. */
+  isUnique?: boolean;
+}
+
+/**
+ * ¿Se puede pedir valor único para este campo? Solo contactos, empresas y
+ * deals, y tipos que identifican (texto, número, url, teléfono).
+ * Lanza CrmRefError('invalid_unique') si no; 'not_unique' si ya hay duplicados.
+ */
+async function assertCanBeUnique(
+  userId: string,
+  field: { entity: string; name: string; type: string },
+  checkValues = true,
+): Promise<void> {
+  if (!isUniqueEntity(field.entity) || !UNIQUE_FIELD_TYPES.has(field.type)) throw new CrmRefError('invalid_unique');
+  if (checkValues && (await hasDuplicateValues(userId, field.entity, field))) throw new CrmRefError('not_unique');
 }
 
 export async function createCustomField(
@@ -3034,20 +3116,26 @@ export async function createCustomField(
 ): Promise<CrmCustomFieldRow> {
   const db = getDb();
   const id = crypto.randomUUID();
+  const entity = data.entity ?? 'contacts';
+  const type = data.type ?? 'text';
+  if (data.isUnique) await assertCanBeUnique(userId, { entity, name: data.name ?? '', type });
   await db
     .prepare(
-      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position, group_name, description, is_unique)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
-      data.entity ?? 'contacts',
+      entity,
       data.name ?? '',
       data.label ?? '',
-      data.type ?? 'text',
+      type,
       JSON.stringify(data.options ?? []),
       data.position ?? 0,
+      data.group ?? '',
+      data.description ?? '',
+      data.isUnique ? 1 : 0,
     );
   return (await db
     .prepare('SELECT * FROM crm_custom_fields WHERE id = ?')
@@ -3060,10 +3148,17 @@ export async function updateCustomField(
   data: CustomFieldInput,
 ): Promise<CrmCustomFieldRow | null> {
   const db = getDb();
-  const existing = await db
-    .prepare('SELECT id FROM crm_custom_fields WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const existing = (await db
+    .prepare('SELECT * FROM crm_custom_fields WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmCustomFieldRow | undefined;
   if (!existing) return null;
+  // Prender la regla valida el campo y que no haya duplicados (la ruta lo deja solo a admins).
+  // Cambiar el tipo de un campo que ya la tiene solo valida el tipo.
+  const turningOn = data.isUnique === true && !existing.is_unique;
+  const typeChanges = data.type !== undefined && data.type !== existing.type;
+  if (turningOn || (typeChanges && (data.isUnique ?? !!existing.is_unique))) {
+    await assertCanBeUnique(userId, { entity: existing.entity, name: existing.name, type: data.type ?? existing.type }, turningOn);
+  }
   const sets: Array<[string, string | number]> = [];
   if (data.entity !== undefined) sets.push(['entity', data.entity]);
   if (data.name !== undefined) sets.push(['name', data.name]);
@@ -3071,6 +3166,9 @@ export async function updateCustomField(
   if (data.type !== undefined) sets.push(['type', data.type]);
   if (data.options !== undefined) sets.push(['options', JSON.stringify(data.options)]);
   if (data.position !== undefined) sets.push(['position', data.position]);
+  if (data.group !== undefined) sets.push(['group_name', data.group]);
+  if (data.description !== undefined) sets.push(['description', data.description]);
+  if (data.isUnique !== undefined) sets.push(['is_unique', data.isUnique ? 1 : 0]);
   if (sets.length) {
     await db
       .prepare(
@@ -3129,6 +3227,8 @@ export async function exportRows(
   entity: ExportEntity,
   ownerScope?: OwnerScope,
   filter?: ExportFilter,
+  /** Actividades: las tareas de chats de Lines que quien exporta no ve, sin su texto. */
+  reader?: ChatReader | null,
 ): Promise<Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>> {
   const db = getDb();
   const table =
@@ -3158,13 +3258,14 @@ export async function exportRows(
     where.push(scope.sql);
     args.push(...scope.args);
   }
-  return (await db
+  const rows = (await db
     .prepare(
       `SELECT ${alias}.*, u.email AS owner_email FROM ${table} ${alias}
        LEFT JOIN users u ON u.id = ${alias}.owner_id
        WHERE ${where.join(' AND ')} ORDER BY ${alias}.created_at DESC`,
     )
     .all(...args)) as Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>;
+  return entity === 'activities' ? forReader(userId, rows as CrmActivityRow[], reader) : rows;
 }
 
 // ============================================================
@@ -3279,7 +3380,7 @@ export async function wonLostByMonth(userId: string, ownerScope?: OwnerScope): P
   }));
 }
 
-export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): Promise<CrmOverview> {
+export async function getCrmOverview(userId: string, ownerScope?: OwnerScope, reader?: ChatReader | null): Promise<CrmOverview> {
   const db = getDb();
   const { start, end } = await todayRange();
   const month = start.slice(0, 7);
@@ -3371,8 +3472,8 @@ export async function getCrmOverview(userId: string, ownerScope?: OwnerScope): P
     closingThisMonth,
     funnel,
     wonLostByMonth: wonLost,
-    recentActivities,
-    upcomingTasks,
+    recentActivities: await forReader(userId, recentActivities, reader),
+    upcomingTasks: await forReader(userId, upcomingTasks, reader),
   };
 }
 

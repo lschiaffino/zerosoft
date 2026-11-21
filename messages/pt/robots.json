@@ -239,7 +239,8 @@
     },
     "checkState": {
       "checked": "Marcado",
-      "unchecked": "Desmarcado"
+      "unchecked": "Desmarcado",
+      "toggle": "Alternar (um clique)"
     },
     "waitUntil": {
       "appears": "Aparecer na página",

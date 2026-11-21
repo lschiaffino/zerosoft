@@ -415,7 +415,10 @@
     "linkOptions": "Opções do link",
     "invitedSkip": "Pessoas convidadas por email não precisam da senha e continuam com acesso mesmo se o link vencer.",
     "embedAndLink": "Incorporar e trocar o link",
-    "embedHelp": "Incorporado, só toca para quem pode abrir o link."
+    "embedHelp": "Incorporado, só toca para quem pode abrir o link.",
+    "embedStart": "Começar em",
+    "embedAutoplay": "Tocar ao carregar, sem som",
+    "embedStartInvalid": "Use um tempo como 1:30 ou 90."
   },
   "detail": {
     "library": "Vídeos",

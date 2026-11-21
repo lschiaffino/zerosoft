@@ -4,7 +4,7 @@ import { shouldEnrichOnCreate, enrichCompany } from '@/lib/crm-enrich';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, refErrorMessage, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'company', null, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
   const company = await catchRef(createCompany(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
-  if (company instanceof CrmRefError) return apiError(400, company.code, 'A referenced record does not exist.');
+  if (company instanceof CrmRefError) return apiError(400, company.code, refErrorMessage(company.code));
   // Datos del sitio en segundo plano (lo que el formulario no precargó).
   if (shouldEnrichOnCreate(company)) {
     const companyId = company.id;

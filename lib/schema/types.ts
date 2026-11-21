@@ -241,6 +241,10 @@ export interface CrmDealRow {
   source: string;
   description: string;
   lost_reason: string;
+  /** '' | 'newbusiness' | 'existingbusiness' (DEAL_TYPES). */
+  deal_type?: string;
+  next_step?: string;
+  won_reason?: string;
   position: number;
   closed_at: string | null;
   /** 1 = el amount es manual aunque haya line items (si no, se recalcula). */
@@ -361,6 +365,12 @@ export interface CrmCustomFieldRow {
   /** JSON string[]: opciones (select, multiselect) o [moneda ISO] (currency). */
   options: string;
   position: number;
+  /** Grupo de la propiedad ('' = sin grupo). */
+  group_name?: string;
+  /** Ayuda que se muestra junto al campo ('' = sin ayuda). */
+  description?: string;
+  /** 1 = valor único entre los registros del objeto (lib/crm-unique.ts). */
+  is_unique?: number;
 }
 
 export const CRM_CUSTOM_FIELD_TYPES = [

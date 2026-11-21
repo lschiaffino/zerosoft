@@ -1,0 +1,19 @@
+import type { ChangelogEntry } from '../changelog';
+
+export default {
+  id: '2026-11-21-1616-crm-record-timeline',
+  date: '2026-11-21',
+  title: {
+    en: 'CRM: the record timeline works like HubSpot’s, with filters, search and activity from associated records',
+    es: 'CRM: el timeline de la ficha funciona como el de HubSpot, con filtros, búsqueda y la actividad de los registros asociados',
+    pt: 'CRM: o timeline do registro funciona como o do HubSpot, com filtros, busca e a atividade dos registros associados',
+  },
+  items: [
+    {
+      product: 'crm',
+      en: 'On contacts, companies and deals the timeline has tabs for Activity, Notes, Emails, Calls, Tasks and Meetings, plus WhatsApp for Lines chats linked to the record. Filter activity picks several types, the users menu picks who logged it, and a search box finds text in activities, emails and messages. Activity is grouped into Pinned, Upcoming, This month and one group per month, and Collapse all folds the cards. Each card shows who logged it, when, and its associated records, with a menu to pin, edit, change associations or delete. Each tab has the HubSpot button: Create note, Create email, Log email, Log call, Create task and Log meeting, and logged calls and meetings take a date and an outcome. Company and deal timelines also show the activity of their contacts and deals, marked with where it comes from, with a switch to hide it. Load more activity reaches the whole history. Only what you can see shows up: records outside your visibility, Lines chats you do not have and the text of tasks from those chats stay out.',
+      es: 'En contactos, empresas y deals el timeline tiene pestañas Actividad, Notas, Emails, Llamadas, Tareas y Reuniones, más WhatsApp para los chats de Lines vinculados al registro. Filtrar actividad elige varios tipos, el menú de personas elige quién la registró y una búsqueda encuentra texto en actividades, emails y mensajes. La actividad se agrupa en Fijada, Próximas, Este mes y un grupo por mes, y Contraer todo pliega las tarjetas. Cada tarjeta muestra quién la registró, cuándo y sus registros asociados, con un menú para fijar, editar, cambiar asociaciones o eliminar. Cada pestaña tiene el botón de HubSpot: Crear nota, Crear email, Registrar email, Registrar llamada, Crear tarea y Registrar reunión, y las llamadas y reuniones registradas llevan fecha y resultado. El timeline de empresas y deals también muestra la actividad de sus contactos y deals, marcada con su origen, con un interruptor para esconderla. Cargar más actividad llega a todo el historial. Solo aparece lo que podés ver: los registros fuera de tu visibilidad, los chats de Lines que no tenés y el texto de las tareas de esos chats quedan afuera.',
+      pt: 'Em contatos, empresas e negócios o timeline tem abas Atividade, Notas, E-mails, Chamadas, Tarefas e Reuniões, mais WhatsApp para os chats do Lines vinculados ao registro. Filtrar atividade escolhe vários tipos, o menu de pessoas escolhe quem registrou e uma busca encontra texto em atividades, e-mails e mensagens. A atividade é agrupada em Fixada, Próximas, Este mês e um grupo por mês, e Recolher tudo dobra os cartões. Cada cartão mostra quem registrou, quando e seus registros associados, com um menu para fixar, editar, trocar associações ou excluir. Cada aba tem o botão do HubSpot: Criar nota, Criar e-mail, Registrar e-mail, Registrar chamada, Criar tarefa e Registrar reunião, e chamadas e reuniões registradas levam data e resultado. O timeline de empresas e negócios também mostra a atividade dos seus contatos e negócios, marcada com a origem, com um interruptor para escondê-la. Carregar mais atividade chega a todo o histórico. Só aparece o que você pode ver: registros fora da sua visibilidade, chats do Lines que você não tem e o texto das tarefas desses chats ficam de fora.',
+    },
+  ],
+} satisfies ChangelogEntry;

@@ -2937,7 +2937,9 @@
     "title": "Robots: Add a Toggle option to the Check or uncheck step",
     "description": "UiPath's Check/Uncheck activity offers Check, Uncheck and Toggle (switch the current state) (https://docs.uipath.com/activities/other/latest/ui-automation/activities-index). Our Check or uncheck step (lib/robots-schema.ts) only sets a final state of checked or unchecked. Toggle matters for switches that a site renders as a custom button where the current state is not readable. First scope: a third state value that clicks once and logs the result.",
     "product": "robots",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-21-robots-check-toggle"
   },
   {
     "title": "Robots: Add a Hover Text step that finds text and hovers over it",
@@ -3003,7 +3005,9 @@
     "title": "Rec: Start embedded videos at a given second and autoplay from the embed URL",
     "description": "Loom lets you add URL parameters to the embed code to start a video at a timestamp, autoplay it or hide player elements (https://support.atlassian.com/loom/docs/make-embedded-videos-autoplay-or-play-at-a-specific-time/). Rec now opens the share page at ?t= (components/rec/RecWatch.tsx), but the embed page (components/rec/RecEmbed.tsx, app/[locale]/v/[share]/embed) ignores any parameter and the embed code in RecShareDialog has no options. Teams paste a video into a help article or a Notion page and want it to begin at the step that matters. First scope: honor t and autoplay (muted, as browsers require) on the embed route and add a Start at field to the embed dialog.",
     "product": "rec",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-21-rec-embed-start-autoplay"
   },
   {
     "title": "Rec: Blur the background of the camera bubble while recording",

@@ -10,6 +10,7 @@ import {
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { apiChatReader } from '@/lib/crm-chat-privacy';
 import { z } from 'zod';
 import { API_LINK_KINDS } from '@/lib/tasks-shared';
 
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest) {
     if (!BUCKETS.includes(bucket as TaskBucket)) {
       return apiError(400, 'invalid_input', 'bucket must be one of: overdue, today, upcoming, done.');
     }
-    rows = await listTasks(auth.user.id, { bucket: bucket as TaskBucket, ownerScope: await apiScope(auth) });
+    rows = await listTasks(auth.user.id, { bucket: bucket as TaskBucket, ownerScope: await apiScope(auth), chatReader: await apiChatReader(auth) });
   } else {
-    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500, ownerScope: await apiScope(auth) });
+    rows = await listTimeline(auth.user.id, { type: 'task', limit: 500, ownerScope: await apiScope(auth), chatReader: await apiChatReader(auth) });
   }
 
   const { page, pageSize } = pageParams(sp);

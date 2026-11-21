@@ -1,0 +1,184 @@
+/* ---------- Timeline de la ficha (components/crm/Timeline.tsx), como el de HubSpot ----------
+   Pestañas por tipo, barra con búsqueda, filtros, contraer/expandir y botones de crear; tarjetas con
+   ícono, autor, fecha relativa, asociados y un menú de acciones; agrupado por Fijada, Próximas y mes.
+   Solo tokens: los cinco aspectos (styles/looks*.css) dibujan botones, campos y menús (role="menu"). */
+
+.atl { gap: 12px; min-width: 0; }
+/* Pestañas de texto con subrayado, como las de HubSpot: entran en la columna del medio. */
+.atl-tabs { display: flex; flex-wrap: wrap; gap: 0 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.atl-tab {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 6px 0 7px;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.atl-tab:hover { color: var(--ink); }
+.atl-tab[aria-selected='true'] { color: var(--ink); font-weight: 500; border-bottom-color: var(--accent-ink, var(--ink)); }
+.atl-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.atl-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.atl-search { position: relative; display: flex; align-items: center; flex: 1 1 180px; min-width: 0; max-width: 320px; color: var(--dim); }
+.atl-search svg { position: absolute; left: 10px; pointer-events: none; }
+.atl-search .input { width: 100%; padding-left: 30px; }
+.atl-tool { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.atl-tool.is-active { border-color: var(--ink); }
+.atl-create { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+
+/* Menús (filtrar, personas, crear, acciones). */
+.atl-menu-wrap { position: relative; display: inline-flex; }
+.atl-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: min(300px, calc(100vw - 16px));
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+}
+.atl-menu-start { left: 0; }
+.atl-menu-end { right: 0; }
+.atl-menu-label { margin: 6px 10px 2px; font-size: 11px; color: var(--brand-gray-2); }
+.atl-menu-rule { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--line); }
+.atl-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.atl-menu-item:hover, .atl-menu-item:focus-visible { background: var(--ui-hover); outline: none; }
+.atl-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
+.atl-menu-item.danger { color: var(--bad-ink); }
+.atl-menu-hint { display: block; margin-top: 2px; font-size: 11px; color: var(--dim); }
+/* Casilla de los ítems de tilde. */
+.atl-box {
+  flex: none;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.atl-check[aria-checked='true'] .atl-box { background: var(--ink); color: var(--bg); }
+
+@media (max-width: 640px) {
+  /* Como los demás menús anclados de la app: hoja de acciones al pie, a todo el ancho. */
+  .atl-menu {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    max-width: none;
+    max-height: 70dvh;
+    transform: none !important;
+    overscroll-behavior: contain;
+    box-shadow: 0 0 0 100vmax var(--ui-backdrop);
+  }
+  .atl-create { margin-left: 0; }
+  .atl-search { flex-basis: 100%; max-width: none; }
+}
+@media (pointer: coarse) {
+  .atl-menu-item { min-height: 44px; }
+}
+
+/* Composer: se abre desde los botones, con su título y cerrar. */
+.atl-composer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.875rem; }
+.atl-fields { align-items: flex-end; }
+.atl-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--brand-gray-2); min-width: 0; }
+.atl-field .input, .atl-field .filter-select { font-size: 0.8125rem; }
+.atl-field .tl-duration { width: 110px; }
+
+/* Grupos y tarjetas. */
+.atl-list { gap: 16px; }
+.atl-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.atl-group-title { margin: 0; font-family: var(--font-data); font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--brand-gray-2); }
+
+.tl-item.atl-card {
+  padding: 10px 12px;
+  margin-left: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  min-width: 0;
+}
+.tl-item.atl-card:last-child { padding-bottom: 10px; }
+.tl-item.atl-card.tl-pinned { background: var(--bg-soft); }
+.atl-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.atl-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  color: var(--ink);
+}
+.atl-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.atl-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.atl-title .tl-type { flex: none; font-weight: 500; color: var(--ink); font-size: 0.8125rem; }
+.atl-preview { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.atl-from { font-size: 11px; color: var(--brand-gray-2); max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atl-when { margin-left: 0; }
+.atl-done, .atl-more { flex: none; }
+.atl-done.is-done { color: var(--ink); background: var(--bg-soft); }
+.atl-card-body { padding: 4px 0 0 32px; min-width: 0; }
+.atl-subject { margin: 4px 0 0; }
+.atl-card-body .tl-body { margin-top: 4px; }
+.atl-assoc { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 0; font-size: 12px; }
+.atl-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.atl-link:hover { text-decoration-color: currentColor; }
+.atl-assoc-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-width: 420px; }
+.atl-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 0 32px; font-size: 0.8125rem; }
+.atl-wa { display: flex; flex-direction: column; gap: 6px; }
+.atl-wa-messages { list-style: none; margin: 0; padding: 0 0 0 10px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.atl-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.atl-more-row { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+@media (max-width: 640px) {
+  .atl-card-body, .atl-confirm { padding-left: 0; margin-left: 0; }
+  .atl-from { max-width: 100%; }
+}

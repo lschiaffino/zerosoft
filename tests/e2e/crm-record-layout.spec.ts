@@ -102,8 +102,8 @@ const toggle = (c: Locator) => c.getByTestId('record-card-toggle');
 const prop = (page: Page, key: string) => page.getByTestId('record-about').locator(`[data-prop="${key}"]`);
 const quick = (page: Page, type: (typeof QUICK)[number]) => page.getByTestId(`record-quick-${type}`);
 const composer = (page: Page) => page.getByTestId('record-panel-activity').locator('form.tl-composer');
-/** El select de tipo del composer (solo existe con la lista en "Todas"). */
-const composerType = (page: Page) => composer(page).locator('select.tl-type-select');
+/** La barra del timeline (búsqueda, filtros, crear): está siempre que se ve la pestaña Actividad. */
+const timelineTools = (page: Page) => page.getByTestId('record-panel-activity').getByTestId('timeline-search');
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
@@ -194,7 +194,7 @@ test.describe('ficha en tres columnas a 1280', () => {
     const row = prop(page, 'jobTitle');
     await expect(row.locator('.prop-btn')).toHaveText('Buyer');
     // El timeline sigue en pantalla mientras se edita.
-    await expect(composer(page)).toBeVisible();
+    await expect(timelineTools(page)).toBeVisible();
 
     await row.locator('.prop-btn').click();
     const input = row.locator('input');
@@ -328,7 +328,7 @@ test.describe('ficha en tres columnas a 1280', () => {
     await tab(page, 'activity').click();
     await expect(page).toHaveURL(/[?&]tab=activity/);
     await expect(tab(page, 'activity')).toHaveAttribute('aria-current', 'page');
-    await expect(composer(page)).toBeVisible();
+    await expect(timelineTools(page)).toBeVisible();
     await expect(page.getByTestId('record-highlights')).toHaveCount(0);
     // Los costados no cambian con la pestaña.
     await expect(page.getByTestId('record-about').locator('.prop-row').first()).toBeVisible();
@@ -345,16 +345,16 @@ test.describe('ficha en tres columnas a 1280', () => {
     // La lista sigue en "Todas": la acción elige qué se escribe, no filtra el timeline.
     const types = page.getByTestId('record-panel-activity').getByRole('tablist');
     await expect(types.getByRole('tab').first()).toHaveAttribute('aria-selected', 'true');
-    await expect(composerType(page)).toHaveValue('task');
+    await expect(composer(page)).toHaveAttribute('data-kind', 'task');
     await expect(composer(page).locator('input, textarea').first()).toBeFocused();
     expect(documentRequests, 'cambiar de pestaña no vuelve a pedir la ficha').toEqual([]);
 
     // Con el timeline ya en pantalla, otra acción cambia el tipo.
     await quick(page, 'note').click();
-    await expect(composerType(page)).toHaveValue('note');
+    await expect(composer(page)).toHaveAttribute('data-kind', 'note');
     await expect(composer(page).locator('input, textarea').first()).toBeFocused();
     const subject = `Columns note ${s.tag}`;
-    await composer(page).locator('input').first().fill(subject);
+    await composer(page).locator('textarea').fill(subject);
     await composer(page).locator('button[type="submit"]').click();
     const items = page.getByTestId('record-panel-activity').locator('.timeline .tl-item');
     await expect(items.filter({ hasText: subject })).toBeVisible();
@@ -366,16 +366,17 @@ test.describe('ficha en tres columnas a 1280', () => {
     await types.getByRole('tab').first().click();
     await expect(items.filter({ hasText: subject })).toBeVisible();
     // Lo que se estaba escribiendo no se pierde al ir al Resumen y volver.
-    await composer(page).locator('input').first().fill('Half written');
+    await quick(page, 'note').click();
+    await composer(page).locator('textarea').fill('Half written');
     await tab(page, 'overview').click();
     await page.getByTestId('record-see-activity').click();
     await expect(composer(page)).toBeVisible();
-    await expect(composer(page).locator('input').first()).toHaveValue('Half written');
+    await expect(composer(page).locator('textarea')).toHaveValue('Half written');
 
     // Los links guardados: Actividad (también en plural), y las pestañas de la ficha anterior.
     await page.goto(`${s.paths.contact}?tab=activities`, { waitUntil: 'networkidle' });
     await expect(tab(page, 'activity')).toHaveAttribute('aria-current', 'page');
-    await expect(composer(page)).toBeVisible();
+    await expect(timelineTools(page)).toBeVisible();
     await page.goto(`${s.paths.contact}?tab=properties`, { waitUntil: 'networkidle' });
     await expect(page.getByTestId('contact-score-card').first()).toBeVisible();
     await expect(tab(page, 'overview')).toHaveAttribute('aria-current', 'page');
@@ -455,7 +456,7 @@ test.describe('ficha en una columna a 390', () => {
 
       await tab(page, 'activity').click();
       await expect(page).toHaveURL(/[?&]tab=activity/);
-      await expect(composer(page)).toBeVisible();
+      await expect(timelineTools(page)).toBeVisible();
       await expect(about).toBeHidden();
       await expect(right).toBeHidden();
       await noSideScroll(page);
@@ -512,7 +513,7 @@ test.describe('ficha en una columna a 390', () => {
     await quick(page, 'call').click();
     await expect(page).toHaveURL(/[?&]tab=activity/);
     await expect(composer(page)).toBeVisible();
-    await expect(composerType(page)).toHaveValue('call');
+    await expect(composer(page)).toHaveAttribute('data-kind', 'call');
     await noSideScroll(page);
 
     await page.goto(`${s.paths.contact}?tab=related`, { waitUntil: 'networkidle' });

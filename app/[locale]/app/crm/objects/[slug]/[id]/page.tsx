@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { canSeeOwner, scopeAnd, sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
 import { getObjectBySlug, getRecord, objectEntity, recordLinks } from '@/lib/crm-objects';
 import { listTimeline, parseCustom } from '@/lib/crm';
@@ -88,7 +89,7 @@ export default async function ObjectRecordPage(props: {
 
   if (tab === 'activity') {
     const [timeline, links] = await Promise.all([
-      listTimeline(user.id, { objectRecordId: record.id, limit: 100 }),
+      sessionChatReader(user, locale).then((chatReader) => listTimeline(user.id, { objectRecordId: record.id, limit: 100, chatReader })),
       recordLinks(user.id, record.id),
     ]);
     const items = await withActivityFiles(timeline);
@@ -111,6 +112,7 @@ export default async function ObjectRecordPage(props: {
                 emptyLabel={t('objects.emptyTimeline')}
                 mentionables={owners.map((o) => ({ id: o.value, name: o.label, email: '' }))}
                 locale={locale}
+                currentPersonId={user.actingUser?.id ?? user.id}
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>
