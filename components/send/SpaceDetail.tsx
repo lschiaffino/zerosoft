@@ -1,17 +1,28 @@
-'use client';
+"use client";
 
-import { useState, type FormEvent } from 'react';
-import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import EmptyState from '@/components/ui/EmptyState';
-import TitleInput from '@/components/ui/TitleInput';
-import type { LinkDto } from '@/lib/send/core';
-import type { SpaceAccessDto, SpaceAnalytics, SpaceItemDto } from '@/lib/send/spaces';
-import LinksPanel from './LinksPanel';
-import { api, formatSeconds, SendDialog, useDate, useErrorText, useToast } from './ui';
+import { useState, type FormEvent } from "react";
+import { useTranslations } from "next-intl";
+import { Link, useRouter } from "@/i18n/navigation";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import EmptyState from "@/components/ui/EmptyState";
+import TitleInput from "@/components/ui/TitleInput";
+import type { LinkDto } from "@/lib/send/core";
+import type {
+  SpaceAccessDto,
+  SpaceAnalytics,
+  SpaceItemDto,
+} from "@/lib/send/spaces";
+import LinksPanel from "./LinksPanel";
+import {
+  api,
+  formatSeconds,
+  SendDialog,
+  useDate,
+  useErrorText,
+  useToast,
+} from "./ui";
 
-type Tab = 'documents' | 'links' | 'access' | 'activity';
+type Tab = "documents" | "links" | "access" | "activity";
 
 /** Un espacio: sus documentos, links, acceso por persona y números. */
 export default function SpaceDetail({
@@ -24,7 +35,13 @@ export default function SpaceDetail({
   analytics,
   admin,
 }: {
-  space: { id: string; title: string; description: string; sharing: string; canEdit: boolean };
+  space: {
+    id: string;
+    title: string;
+    description: string;
+    sharing: string;
+    canEdit: boolean;
+  };
   initialItems: SpaceItemDto[];
   initialAccess: SpaceAccessDto[];
   links: LinkDto[];
@@ -33,9 +50,9 @@ export default function SpaceDetail({
   analytics: SpaceAnalytics;
   admin: boolean;
 }) {
-  const t = useTranslations('send.spaces');
-  const tv = useTranslations('send.visits');
-  const tc = useTranslations('send.common');
+  const t = useTranslations("send.spaces");
+  const tv = useTranslations("send.visits");
+  const tc = useTranslations("send.common");
   const errorText = useErrorText();
   const router = useRouter();
   const date = useDate();
@@ -45,22 +62,33 @@ export default function SpaceDetail({
   const [items, setItems] = useState(initialItems);
   const [links, setLinks] = useState(initialLinks);
   const [access, setAccess] = useState(initialAccess);
-  const [tab, setTab] = useState<Tab>('documents');
-  const [adding, setAdding] = useState('');
+  const [tab, setTab] = useState<Tab>("documents");
+  const [adding, setAdding] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [grantEmail, setGrantEmail] = useState('');
+  const [grantEmail, setGrantEmail] = useState("");
   const [grantDocs, setGrantDocs] = useState<string[]>([]);
   const [granting, setGranting] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyTitle, setCopyTitle] = useState("");
+  const [copyError, setCopyError] = useState("");
 
-  const available = documents.filter((d) => !items.some((i) => i.documentId === d.id));
+  const available = documents.filter(
+    (d) => !items.some((i) => i.documentId === d.id),
+  );
 
-  const saveItems = async (next: Array<{ documentId: string; folder: string }>) => {
-    const r = await api<{ items: SpaceItemDto[] }>(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { items: next } });
+  const saveItems = async (
+    next: Array<{ documentId: string; folder: string }>,
+  ) => {
+    const r = await api<{ items: SpaceItemDto[] }>(
+      `/api/send/spaces/${space.id}`,
+      { method: "PATCH", json: { items: next } },
+    );
     if (r.ok) setItems(r.data.items);
-    else toast(errorText(r.data.error), 'bad');
+    else toast(errorText(r.data.error), "bad");
   };
-  const asPlain = () => items.map((i) => ({ documentId: i.documentId, folder: i.folder }));
+  const asPlain = () =>
+    items.map((i) => ({ documentId: i.documentId, folder: i.folder }));
   const move = (index: number, delta: number) => {
     const list = asPlain();
     const to = index + delta;
@@ -72,27 +100,52 @@ export default function SpaceDetail({
   const saveTitle = async () => {
     const next = title.trim();
     if (!next || next === space.title) return setTitle(space.title);
-    const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { title: next } });
+    const r = await api(`/api/send/spaces/${space.id}`, {
+      method: "PATCH",
+      json: { title: next },
+    });
     if (r.ok) setSpace((s) => ({ ...s, title: next }));
     else setTitle(space.title);
   };
 
   const remove = async () => {
     setBusy(true);
-    const r = await api(`/api/send/spaces/${space.id}`, { method: 'DELETE' });
+    const r = await api(`/api/send/spaces/${space.id}`, { method: "DELETE" });
     setBusy(false);
-    if (!r.ok) return toast(errorText(r.data.error), 'bad');
-    router.push('/app/send/spaces');
+    if (!r.ok) return toast(errorText(r.data.error), "bad");
+    router.push("/app/send/spaces");
     router.refresh();
+  };
+
+  const openCopy = () => {
+    setCopyTitle(t("copyName", { title: space.title }).slice(0, 200));
+    setCopyError("");
+    setCopying(true);
+  };
+  const duplicate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!copyTitle.trim() || busy) return;
+    setBusy(true);
+    const r = await api<{ space: { id: string } }>("/api/send/spaces", {
+      method: "POST",
+      json: { title: copyTitle, duplicateOf: space.id },
+    });
+    setBusy(false);
+    if (!r.ok) return setCopyError(errorText(r.data.error));
+    setCopying(false);
+    router.push(`/app/send/spaces/${r.data.space.id}`);
   };
 
   const grant = async (e: FormEvent) => {
     e.preventDefault();
-    const r = await api<{ access: SpaceAccessDto[] }>(`/api/send/spaces/${space.id}/access`, { method: 'PUT', json: { email: grantEmail, documentIds: grantDocs } });
-    if (!r.ok) return toast(errorText(r.data.error), 'bad');
+    const r = await api<{ access: SpaceAccessDto[] }>(
+      `/api/send/spaces/${space.id}/access`,
+      { method: "PUT", json: { email: grantEmail, documentIds: grantDocs } },
+    );
+    if (!r.ok) return toast(errorText(r.data.error), "bad");
     setAccess(r.data.access);
     setGranting(false);
-    setGrantEmail('');
+    setGrantEmail("");
     setGrantDocs([]);
   };
   const [lastRevoke, setLastRevoke] = useState<string | null>(null);
@@ -102,60 +155,107 @@ export default function SpaceDetail({
     else void revoke(email);
   };
   const revoke = async (email: string) => {
-    const r = await api<{ access: SpaceAccessDto[] }>(`/api/send/spaces/${space.id}/access?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+    const r = await api<{ access: SpaceAccessDto[] }>(
+      `/api/send/spaces/${space.id}/access?email=${encodeURIComponent(email)}`,
+      { method: "DELETE" },
+    );
     if (r.ok) setAccess(r.data.access);
   };
 
   const a = analytics;
-  const tabs: Tab[] = ['documents', 'links', 'access', 'activity'];
+  const tabs: Tab[] = ["documents", "links", "access", "activity"];
 
   return (
     <div className="app-page ui-page sd-page">
       {toasts}
-      <nav className="sd-crumb" aria-label={t('title')}>
-        <Link href="/app/send/spaces">{t('title')}</Link>
+      <nav className="sd-crumb" aria-label={t("title")}>
+        <Link href="/app/send/spaces">{t("title")}</Link>
       </nav>
       <div className="sd-doc-head">
         <div className="sd-doc-title">
-          {space.canEdit ? <TitleInput className="ui-title-input sd-title-input" value={title} maxLength={200} aria-label={t('colTitle')} onValueChange={setTitle} onBlur={saveTitle} data-testid="send-space-title-input" /> : <h1 className="sd-title-static">{space.title}</h1>}
+          {space.canEdit ? (
+            <TitleInput
+              className="ui-title-input sd-title-input"
+              value={title}
+              maxLength={200}
+              aria-label={t("colTitle")}
+              onValueChange={setTitle}
+              onBlur={saveTitle}
+              data-testid="send-space-title-input"
+            />
+          ) : (
+            <h1 className="sd-title-static">{space.title}</h1>
+          )}
         </div>
-        {space.canEdit && (
-          <div className="sd-doc-actions">
-            <select
-              className="input sd-sharing"
-              value={space.sharing}
-              aria-label={t('sharing')}
-              data-testid="send-space-sharing"
-              onChange={async (e) => {
-                const sharing = e.target.value;
-                const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { sharing } });
-                if (r.ok) setSpace((x) => ({ ...x, sharing }));
-                else toast(errorText(r.data.error), 'bad');
-              }}
-            >
-              <option value="private">{t('sharingPrivate')}</option>
-              <option value="workspace">{t('sharingWorkspace')}</option>
-            </select>
-            <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setDeleting(true)} data-testid="send-space-delete">
-              {tc('delete')}
-            </button>
-          </div>
-        )}
+        <div className="sd-doc-actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={openCopy}
+            data-testid="send-space-duplicate"
+          >
+            {t("duplicate")}
+          </button>
+          {space.canEdit && (
+            <>
+              <select
+                className="input sd-sharing"
+                value={space.sharing}
+                aria-label={t("sharing")}
+                data-testid="send-space-sharing"
+                onChange={async (e) => {
+                  const sharing = e.target.value;
+                  const r = await api(`/api/send/spaces/${space.id}`, {
+                    method: "PATCH",
+                    json: { sharing },
+                  });
+                  if (r.ok) setSpace((x) => ({ ...x, sharing }));
+                  else toast(errorText(r.data.error), "bad");
+                }}
+              >
+                <option value="private">{t("sharingPrivate")}</option>
+                <option value="workspace">{t("sharingWorkspace")}</option>
+              </select>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-danger"
+                onClick={() => setDeleting(true)}
+                data-testid="send-space-delete"
+              >
+                {tc("delete")}
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="ui-tabs sd-tabs" role="tablist" aria-label={t('title')}>
+      <div className="ui-tabs sd-tabs" role="tablist" aria-label={t("title")}>
         {tabs.map((x) => (
-          <button key={x} type="button" role="tab" className="ui-tab" aria-selected={tab === x} onClick={() => setTab(x)} data-testid={`send-space-tab-${x}`}>
+          <button
+            key={x}
+            type="button"
+            role="tab"
+            className="ui-tab"
+            aria-selected={tab === x}
+            onClick={() => setTab(x)}
+            data-testid={`send-space-tab-${x}`}
+          >
             {t(`tab_${x}`)}
           </button>
         ))}
       </div>
 
-      {tab === 'documents' && (
+      {tab === "documents" && (
         <section data-testid="send-space-documents">
           {space.canEdit && (
             <div className="sd-filters">
-              <select className="input" value={adding} onChange={(e) => setAdding(e.target.value)} aria-label={t('addDocument')} data-testid="send-space-pick">
-                <option value="">{t('addDocument')}</option>
+              <select
+                className="input"
+                value={adding}
+                onChange={(e) => setAdding(e.target.value)}
+                aria-label={t("addDocument")}
+                data-testid="send-space-pick"
+              >
+                <option value="">{t("addDocument")}</option>
                 {available.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.title}
@@ -167,47 +267,86 @@ export default function SpaceDetail({
                 className="btn btn-primary btn-sm"
                 disabled={!adding}
                 onClick={() => {
-                  void saveItems([...asPlain(), { documentId: adding, folder: '' }]);
-                  setAdding('');
+                  void saveItems([
+                    ...asPlain(),
+                    { documentId: adding, folder: "" },
+                  ]);
+                  setAdding("");
                 }}
                 data-testid="send-space-add"
               >
-                {t('add')}
+                {t("add")}
               </button>
             </div>
           )}
           {items.length === 0 ? (
-            <EmptyState compact body={documents.length ? t('docsEmpty') : t('docsEmptyNoDocs')} />
+            <EmptyState
+              compact
+              body={documents.length ? t("docsEmpty") : t("docsEmptyNoDocs")}
+            />
           ) : (
             <ul className="sd-items">
               {items.map((it, i) => (
                 <li key={it.documentId} data-testid="send-space-item">
                   <div className="sd-link-main">
-                    <Link className="sd-rowtitle" href={`/app/send/documents/${it.documentId}`}>
+                    <Link
+                      className="sd-rowtitle"
+                      href={`/app/send/documents/${it.documentId}`}
+                    >
                       {it.title}
                     </Link>
                     <input
                       className="input sd-folder"
-                      placeholder={t('folder')}
-                      aria-label={t('folder')}
+                      placeholder={t("folder")}
+                      aria-label={t("folder")}
                       defaultValue={it.folder}
                       disabled={!space.canEdit}
                       maxLength={80}
                       onBlur={(e) => {
-                        if (e.target.value !== it.folder) void saveItems(asPlain().map((x) => (x.documentId === it.documentId ? { ...x, folder: e.target.value } : x)));
+                        if (e.target.value !== it.folder)
+                          void saveItems(
+                            asPlain().map((x) =>
+                              x.documentId === it.documentId
+                                ? { ...x, folder: e.target.value }
+                                : x,
+                            ),
+                          );
                       }}
                     />
                   </div>
                   {space.canEdit && (
                     <div className="sd-link-actions">
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => move(i, -1)} aria-label={t('moveUp')}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={i === 0}
+                        onClick={() => move(i, -1)}
+                        aria-label={t("moveUp")}
+                      >
                         ↑
                       </button>
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label={t('moveDown')}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={i === items.length - 1}
+                        onClick={() => move(i, 1)}
+                        aria-label={t("moveDown")}
+                      >
                         ↓
                       </button>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => void saveItems(asPlain().filter((x) => x.documentId !== it.documentId))} data-testid="send-space-remove">
-                        {t('remove')}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() =>
+                          void saveItems(
+                            asPlain().filter(
+                              (x) => x.documentId !== it.documentId,
+                            ),
+                          )
+                        }
+                        data-testid="send-space-remove"
+                      >
+                        {t("remove")}
                       </button>
                     </div>
                   )}
@@ -218,33 +357,62 @@ export default function SpaceDetail({
         </section>
       )}
 
-      {tab === 'links' && <LinksPanel links={links} setLinks={setLinks} createUrl={`/api/send/spaces/${space.id}/links`} templates={templates} canCreate={items.length > 0} />}
+      {tab === "links" && (
+        <LinksPanel
+          links={links}
+          setLinks={setLinks}
+          createUrl={`/api/send/spaces/${space.id}/links`}
+          templates={templates}
+          canCreate={items.length > 0}
+        />
+      )}
 
-      {tab === 'access' && (
+      {tab === "access" && (
         <section data-testid="send-space-access">
           <div className="sd-section-head">
-            <h2>{t('accessTitle')}</h2>
+            <h2>{t("accessTitle")}</h2>
             {space.canEdit && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setGranting(true)} data-testid="send-access-new">
-                {t('accessNew')}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setGranting(true)}
+                data-testid="send-access-new"
+              >
+                {t("accessNew")}
               </button>
             )}
           </div>
-          <p className="sd-help">{t('accessHelp')}</p>
+          <p className="sd-help">{t("accessHelp")}</p>
           {access.length === 0 ? (
-            <EmptyState compact body={t('accessEmpty')} />
+            <EmptyState compact body={t("accessEmpty")} />
           ) : (
             <ul className="sd-items">
               {access.map((g) => (
                 <li key={g.email} data-testid="send-access-row">
                   <div className="sd-link-main">
                     <strong className="sd-wrap">{g.email}</strong>
-                    <span className="sd-rowmeta">{g.documentIds.length ? g.documentIds.map((id) => items.find((i) => i.documentId === id)?.title ?? '').filter(Boolean).join(', ') : t('accessNone')}</span>
+                    <span className="sd-rowmeta">
+                      {g.documentIds.length
+                        ? g.documentIds
+                            .map(
+                              (id) =>
+                                items.find((i) => i.documentId === id)?.title ??
+                                "",
+                            )
+                            .filter(Boolean)
+                            .join(", ")
+                        : t("accessNone")}
+                    </span>
                   </div>
                   {space.canEdit && (
                     <div className="sd-link-actions">
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => askRevoke(g.email)} data-testid="send-access-remove">
-                        {t('remove')}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => askRevoke(g.email)}
+                        data-testid="send-access-remove"
+                      >
+                        {t("remove")}
                       </button>
                     </div>
                   )}
@@ -252,29 +420,61 @@ export default function SpaceDetail({
               ))}
             </ul>
           )}
-          <SendDialog open={granting} title={t('accessNew')} onClose={() => setGranting(false)}>
+          <SendDialog
+            open={granting}
+            title={t("accessNew")}
+            onClose={() => setGranting(false)}
+          >
             <form onSubmit={grant}>
               <div className="ui-modal-body sd-link-body">
                 <div className="sd-field">
-                  <label htmlFor="sa-email">{t('accessEmail')}</label>
-                  <input id="sa-email" className="input" type="email" required value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} autoFocus data-testid="send-access-email" />
+                  <label htmlFor="sa-email">{t("accessEmail")}</label>
+                  <input
+                    id="sa-email"
+                    className="input"
+                    type="email"
+                    required
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    autoFocus
+                    data-testid="send-access-email"
+                  />
                 </div>
                 <fieldset className="sd-fieldset">
-                  <legend>{t('accessDocs')}</legend>
+                  <legend>{t("accessDocs")}</legend>
                   {items.map((it) => (
                     <label className="sd-check" key={it.documentId}>
-                      <input type="checkbox" checked={grantDocs.includes(it.documentId)} onChange={(e) => setGrantDocs((x) => (e.target.checked ? [...x, it.documentId] : x.filter((d) => d !== it.documentId)))} data-testid="send-access-doc" />
+                      <input
+                        type="checkbox"
+                        checked={grantDocs.includes(it.documentId)}
+                        onChange={(e) =>
+                          setGrantDocs((x) =>
+                            e.target.checked
+                              ? [...x, it.documentId]
+                              : x.filter((d) => d !== it.documentId),
+                          )
+                        }
+                        data-testid="send-access-doc"
+                      />
                       <span>{it.title}</span>
                     </label>
                   ))}
                 </fieldset>
               </div>
               <div className="ui-modal-foot">
-                <button type="button" className="btn btn-ghost" onClick={() => setGranting(false)}>
-                  {tc('cancel')}
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setGranting(false)}
+                >
+                  {tc("cancel")}
                 </button>
-                <button type="submit" className="btn btn-primary" data-testid="send-access-save">
-                  {tc('save')}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  data-testid="send-access-save"
+                >
+                  {tc("save")}
                 </button>
               </div>
             </form>
@@ -282,51 +482,58 @@ export default function SpaceDetail({
         </section>
       )}
 
-      {tab === 'activity' && (
+      {tab === "activity" && (
         <section data-testid="send-space-activity">
           <div className="sd-filters">
             {admin && (
-              <a className="btn btn-secondary btn-sm sd-push" href={`/api/send/spaces/${space.id}/analytics?format=csv`} data-testid="send-space-export">
-                {tv('export')}
+              <a
+                className="btn btn-secondary btn-sm sd-push"
+                href={`/api/send/spaces/${space.id}/analytics?format=csv`}
+                data-testid="send-space-export"
+              >
+                {tv("export")}
               </a>
             )}
           </div>
           <div className="sd-kpis">
             <div>
               <strong className="num">{a.totals.visits}</strong>
-              <span>{tv('kVisits')}</span>
+              <span>{tv("kVisits")}</span>
             </div>
             <div>
               <strong className="num">{a.totals.visitors}</strong>
-              <span>{tv('kVisitors')}</span>
+              <span>{tv("kVisitors")}</span>
             </div>
             <div>
               <strong className="num">{formatSeconds(a.totals.seconds)}</strong>
-              <span>{t('kTotalTime')}</span>
+              <span>{t("kTotalTime")}</span>
             </div>
             <div>
               <strong className="num">{a.totals.downloads}</strong>
-              <span>{tv('kDownloads')}</span>
+              <span>{tv("kDownloads")}</span>
             </div>
           </div>
           {a.totals.visits === 0 && a.denied.length === 0 ? (
-            <EmptyState compact body={tv('empty')} />
+            <EmptyState compact body={tv("empty")} />
           ) : (
             <>
-              <h3 className="sd-h3">{t('perDocument')}</h3>
+              <h3 className="sd-h3">{t("perDocument")}</h3>
               <div className="table-wrap">
-                <table className="table sd-table" data-testid="send-space-docstats">
+                <table
+                  className="table sd-table"
+                  data-testid="send-space-docstats"
+                >
                   <thead>
                     <tr>
-                      <th scope="col">{t('colDocument')}</th>
+                      <th scope="col">{t("colDocument")}</th>
                       <th scope="col" className="num">
-                        {tv('kVisits')}
+                        {tv("kVisits")}
                       </th>
                       <th scope="col" className="num">
-                        {tv('colTime')}
+                        {tv("colTime")}
                       </th>
                       <th scope="col" className="num">
-                        {tv('colCompletion')}
+                        {tv("colCompletion")}
                       </th>
                     </tr>
                   </thead>
@@ -334,7 +541,10 @@ export default function SpaceDetail({
                     {a.documents.map((d) => (
                       <tr key={d.documentId}>
                         <th scope="row">
-                          <Link className="sd-rowtitle" href={`/app/send/documents/${d.documentId}?tab=activity`}>
+                          <Link
+                            className="sd-rowtitle"
+                            href={`/app/send/documents/${d.documentId}?tab=activity`}
+                          >
                             {d.title}
                           </Link>
                         </th>
@@ -346,20 +556,23 @@ export default function SpaceDetail({
                   </tbody>
                 </table>
               </div>
-              <h3 className="sd-h3">{tv('peopleTitle')}</h3>
+              <h3 className="sd-h3">{tv("peopleTitle")}</h3>
               <div className="table-wrap">
-                <table className="table sd-table" data-testid="send-space-people">
+                <table
+                  className="table sd-table"
+                  data-testid="send-space-people"
+                >
                   <thead>
                     <tr>
-                      <th scope="col">{tv('colVisitor')}</th>
+                      <th scope="col">{tv("colVisitor")}</th>
                       <th scope="col" className="num">
-                        {t('colDocuments')}
+                        {t("colDocuments")}
                       </th>
                       <th scope="col" className="num">
-                        {tv('colTime')}
+                        {tv("colTime")}
                       </th>
                       <th scope="col" className="sd-hide-sm">
-                        {tv('colLast')}
+                        {tv("colLast")}
                       </th>
                     </tr>
                   </thead>
@@ -367,8 +580,16 @@ export default function SpaceDetail({
                     {a.visitors.map((v) => (
                       <tr key={v.key}>
                         <th scope="row">
-                          <span className="sd-rowtitle sd-wrap">{v.email ?? tv('anonymous')}</span>
-                          {v.email && <span className={`badge ${v.verified ? 'badge-ok' : 'badge-outline'}`}>{v.verified ? tv('verified') : tv('unverified')}</span>}
+                          <span className="sd-rowtitle sd-wrap">
+                            {v.email ?? tv("anonymous")}
+                          </span>
+                          {v.email && (
+                            <span
+                              className={`badge ${v.verified ? "badge-ok" : "badge-outline"}`}
+                            >
+                              {v.verified ? tv("verified") : tv("unverified")}
+                            </span>
+                          )}
                         </th>
                         <td className="num">{v.documents}</td>
                         <td className="num">{formatSeconds(v.seconds)}</td>
@@ -380,13 +601,15 @@ export default function SpaceDetail({
               </div>
               {a.denied.length > 0 && (
                 <>
-                  <h3 className="sd-h3">{tv('deniedTitle')}</h3>
+                  <h3 className="sd-h3">{tv("deniedTitle")}</h3>
                   <ul className="sd-denied" data-testid="send-space-denied">
                     {a.denied.map((d, i) => (
                       <li key={i}>
-                        <span className="sd-wrap">{d.email ?? tv('anonymous')}</span>
+                        <span className="sd-wrap">
+                          {d.email ?? tv("anonymous")}
+                        </span>
                         <span className="sd-rowmeta">
-                          {d.linkName ? `${d.linkName} · ` : ''}
+                          {d.linkName ? `${d.linkName} · ` : ""}
                           {date(d.at)}
                         </span>
                       </li>
@@ -400,10 +623,10 @@ export default function SpaceDetail({
       )}
       <ConfirmDialog
         open={lastRevoke !== null}
-        title={t('lastAccessTitle')}
-        body={t('lastAccessBody')}
-        confirmLabel={t('lastAccessConfirm')}
-        cancelLabel={tc('cancel')}
+        title={t("lastAccessTitle")}
+        body={t("lastAccessBody")}
+        confirmLabel={t("lastAccessConfirm")}
+        cancelLabel={tc("cancel")}
         danger
         onConfirm={() => {
           const email = lastRevoke;
@@ -412,7 +635,63 @@ export default function SpaceDetail({
         }}
         onCancel={() => setLastRevoke(null)}
       />
-      <ConfirmDialog open={deleting} title={t('deleteTitle')} body={t('deleteBody')} confirmLabel={tc('delete')} cancelLabel={tc('cancel')} danger busy={busy} onConfirm={remove} onCancel={() => setDeleting(false)} />
+      <SendDialog
+        open={copying}
+        title={t("duplicateTitle")}
+        onClose={() => setCopying(false)}
+      >
+        <form onSubmit={duplicate} data-testid="send-space-duplicate-dialog">
+          <div className="ui-modal-body">
+            <div className="sd-field">
+              <label htmlFor="sp-copy-title">{t("colTitle")}</label>
+              <input
+                id="sp-copy-title"
+                className="input"
+                value={copyTitle}
+                maxLength={200}
+                onChange={(e) => setCopyTitle(e.target.value)}
+                required
+                autoFocus
+                data-testid="send-space-duplicate-title"
+              />
+            </div>
+            <p className="sd-help">{t("duplicateHelp")}</p>
+            {copyError && (
+              <p className="sd-error" role="alert">
+                {copyError}
+              </p>
+            )}
+          </div>
+          <div className="ui-modal-foot">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setCopying(false)}
+            >
+              {tc("cancel")}
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={busy || !copyTitle.trim()}
+              data-testid="send-space-duplicate-confirm"
+            >
+              {t("duplicateConfirm")}
+            </button>
+          </div>
+        </form>
+      </SendDialog>
+      <ConfirmDialog
+        open={deleting}
+        title={t("deleteTitle")}
+        body={t("deleteBody")}
+        confirmLabel={tc("delete")}
+        cancelLabel={tc("cancel")}
+        danger
+        busy={busy}
+        onConfirm={remove}
+        onCancel={() => setDeleting(false)}
+      />
     </div>
   );
 }

@@ -279,7 +279,12 @@
     "sharingWorkspace": "Whole workspace",
     "lastAccessTitle": "Remove the last person?",
     "lastAccessBody": "With an empty list the space opens again: everyone with a link sees all of it, with no verification.",
-    "lastAccessConfirm": "Remove and open the space"
+    "lastAccessConfirm": "Remove and open the space",
+    "duplicate": "Duplicate",
+    "duplicateTitle": "Duplicate this space",
+    "duplicateConfirm": "Duplicate",
+    "copyName": "{title} (copy)",
+    "duplicateHelp": "The copy keeps the description and the documents with their order and folders. Links, the access list and visits are not copied, so the copy starts unshared."
   },
   "settings": {
     "title": "Send settings",
