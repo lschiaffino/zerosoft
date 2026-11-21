@@ -25,6 +25,8 @@ export const ACTIVITY_TYPES = ['note', 'task', 'call', 'meeting', 'email'] as co
 /** Tipo de una tarea (HubSpot: To-do, Call, Email): '' = to-do. */
 export const TASK_KINDS = ['', 'call', 'email'] as const;
 export const PRIORITIES = ['low', 'medium', 'high'] as const;
+/** Tipo de deal (HubSpot dealtype): negocio nuevo o con un cliente que ya existe. '' = sin elegir. */
+export const DEAL_TYPES = ['newbusiness', 'existingbusiness'] as const;
 
 export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number];
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
@@ -32,6 +34,7 @@ export type Source = (typeof SOURCES)[number];
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 export type TaskKind = (typeof TASK_KINDS)[number];
 export type Priority = (typeof PRIORITIES)[number];
+export type DealType = (typeof DEAL_TYPES)[number];
 
 // ---------- Modelo nivel HubSpot (asociaciones, tags, productos, quotes) ----------
 

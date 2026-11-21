@@ -159,6 +159,10 @@
       "champion": "Champion",
       "influencer": "Influencer",
       "former_employee": "Former employee"
+    },
+    "dealType": {
+      "newbusiness": "New business",
+      "existingbusiness": "Existing business"
     }
   },
   "overview": {
@@ -482,7 +486,10 @@
       "description": "Description",
       "contacts": "Contacts",
       "stage": "Stage",
-      "owner": "Owner"
+      "owner": "Owner",
+      "dealType": "Deal type",
+      "nextStep": "Next step",
+      "wonReason": "Closed won reason"
     },
     "detail": {
       "back": "← Pipeline",
@@ -1086,7 +1093,14 @@
     "probabilityShort": "Prob. %",
     "rottingShort": "Rotting after (days)",
     "migrateTitle": "Import from another CRM",
-    "migrateDesc": "Bring everything from HubSpot or Pipedrive with an API token. Running it again updates what was imported."
+    "migrateDesc": "Bring everything from HubSpot or Pipedrive with an API token. Running it again updates what was imported.",
+    "fieldGroup": "Group",
+    "fieldDescription": "Description",
+    "fieldUnique": "Unique value",
+    "fieldUniqueHelp": "Two records of this object cannot have the same value. Whoever can edit the property learns when a value is already used, even on records they cannot see",
+    "fieldUniqueAdmin": "Only workspace owners and admins can change this",
+    "fieldDescriptionHint": "Shown under the name on the record",
+    "fieldGroupHint": "None"
   },
   "importP": {
     "title": "Import {entity}",
@@ -1231,7 +1245,10 @@
     "invalid_record": "That record doesn't exist.",
     "invalid_pipeline": "Pick a deal pipeline.",
     "approval_required": "This stage needs approval.",
-    "invalid_filter": "These filters are not valid. Check them and try again."
+    "invalid_filter": "These filters are not valid. Check them and try again.",
+    "value_taken": "Another record already has this value, and this property only allows unique values.",
+    "not_unique": "Some records already share a value in this property. Fix the duplicates first.",
+    "invalid_unique": "Only text, number, URL and phone properties of contacts, companies and deals can require unique values."
   },
   "filters": {
     "advanced": "Advanced filters",

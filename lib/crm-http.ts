@@ -80,6 +80,13 @@ export function cleanRow<T extends { user_id: string }>(row: T): Omit<T, 'user_i
  * Resuelve la promesa; si falló por una referencia inválida (CrmRefError) la
  * devuelve como valor para que la ruta responda 400 en vez de 500.
  */
+/** Mensaje de la API v1 para un CrmRefError (sin nombrar ningún registro). */
+export function refErrorMessage(code: string): string {
+  return code === 'value_taken'
+    ? 'Another record already has this value, and the property only allows unique values.'
+    : 'A referenced record does not exist.';
+}
+
 export async function catchRef<T>(p: Promise<T>): Promise<T | CrmRefError> {
   try {
     return await p;
