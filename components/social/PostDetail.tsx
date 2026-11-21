@@ -48,6 +48,17 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
     }
   }
 
+  async function duplicate() {
+    setBusy('duplicate');
+    try {
+      const copy = await api<PostDto>(`/posts/${post.id}`, { method: 'POST', json: { action: 'duplicate' } });
+      router.push(`/app/social/posts/${copy.id}?edit=1`);
+    } catch (err) {
+      showToast(errorText(err), true);
+      setBusy(null);
+    }
+  }
+
   async function act(action: 'approve' | 'reject' | 'retry', extra: Record<string, string> = {}) {
     setBusy(action + (extra.targetId ?? ''));
     try {
@@ -245,6 +256,9 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
             ))}
           </ol>
         </section>
+        <button type="button" className="btn btn-sm" disabled={Boolean(busy)} aria-busy={busy === 'duplicate'} onClick={() => void duplicate()} data-testid="post-duplicate">
+          {t('duplicate')}
+        </button>
         {(post.canEdit || post.status === 'published' || post.status === 'failed' || post.status === 'partial') && (
           <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} data-testid="post-delete">
             {t('delete')}

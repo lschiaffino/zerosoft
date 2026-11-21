@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { readBody, withSocial } from '@/lib/social-http';
-import { approvePost, deletePost, getPost, listPostEvents, rejectPost, reschedulePost, retryTarget, updatePost } from '@/lib/social';
+import { approvePost, deletePost, duplicatePost, getPost, listPostEvents, rejectPost, reschedulePost, retryTarget, updatePost } from '@/lib/social';
 import { postSchema } from '@/lib/social-schemas';
 import { jsonError } from '@/lib/write-limit';
 
@@ -34,12 +34,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 }
 
 const actionSchema = z.object({
-  action: z.enum(['approve', 'reject', 'retry']),
+  action: z.enum(['approve', 'reject', 'retry', 'duplicate']),
   comment: z.string().max(2000).optional(),
   targetId: z.string().max(64).optional(),
 });
 
-/** Aprobar o rechazar (con comentario), o reintentar un destino que falló. */
+/** Aprobar o rechazar (con comentario), reintentar un destino que falló, o duplicar en un borrador nuevo. */
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   return withSocial(
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       if (!body) return jsonError(400, 'invalid_input');
       if (body.action === 'approve') return NextResponse.json(await approvePost(actor, id, body.comment));
       if (body.action === 'reject') return NextResponse.json(await rejectPost(actor, id, body.comment ?? ''));
+      if (body.action === 'duplicate') return NextResponse.json(await duplicatePost(actor, id));
       if (!body.targetId) return jsonError(400, 'invalid_input');
       return NextResponse.json(await retryTarget(actor, id, body.targetId));
     },

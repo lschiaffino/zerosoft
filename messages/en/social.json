@@ -209,6 +209,7 @@
   },
   "post": {
     "title": "Post",
+    "duplicate": "Duplicate",
     "edit": "Edit",
     "publishedAt": "Published {when}",
     "scheduledFor": "Planned for {when}",
@@ -258,6 +259,7 @@
     "rescheduled": "{name} changed the date",
     "approved": "{name} approved it",
     "rejected": "{name} rejected it",
+    "duplicated": "{name} duplicated it",
     "retry": "{name} retried it",
     "published": "Published",
     "failed": "Failed",
