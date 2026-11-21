@@ -757,7 +757,7 @@ export default function BoardList({
       )}
 
       {view.kind !== 'trash' && !searchingNow && (
-        <section className={`board-templates${boards.length > 0 ? ' is-compact' : ''}`} aria-labelledby="board-templates-title" data-tour="board-templates">
+        <section className={`board-templates${boards.length > 0 ? ' is-compact' : ''}`} aria-labelledby="board-templates-title">
           <details
             className="board-templates-details"
             // Sin pizarras, las plantillas son el camino principal: siempre abiertas.
@@ -776,8 +776,9 @@ export default function BoardList({
               {t('list.templatesTitle')}
             </summary>
             <ul className="board-templates-grid">
-              {BOARD_TEMPLATES.map((key) => (
-                <li key={key}>
+              {BOARD_TEMPLATES.map((key, i) => (
+                // El tour resalta la primera: la sección entera es más alta que un teléfono y la tarjeta la tapaba.
+                <li key={key} data-tour={i === 0 ? 'board-templates' : undefined}>
                   <button
                     type="button"
                     className="board-template"

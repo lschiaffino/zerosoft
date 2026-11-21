@@ -30,7 +30,8 @@ async function run(browser: Browser, opts: { width: number; scheme: 'light' | 'd
     let n = 0;
     for (let i = 0; i < 20; i++) {
       const card = p.getByTestId('tour');
-      if ((await card.count()) === 0) break;
+      // Entre pasos la tarjeta se desmonta mientras busca el elemento siguiente.
+      if (!(await card.waitFor({ timeout: 10_000 }).then(() => true, () => false))) break;
       const id = await card.getAttribute('data-tour-step');
       await p.waitForTimeout(400);
       const overflow = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -73,8 +73,12 @@ async function noHorizontalScroll(p: Page, label: string) {
   expect(overflow, label).toBeLessThanOrEqual(0);
 }
 
-/** La tarjeta no tapa el elemento resaltado y entra en la ventana. */
+/** La tarjeta no tapa el elemento resaltado y entra en la ventana (después de que la página termina de desplazarse). */
 async function cardBesideTarget(p: Page, target: string, label: string) {
+  await expect(async () => checkCardBeside(p, target, label)).toPass({ timeout: 5_000 });
+}
+
+async function checkCardBeside(p: Page, target: string, label: string) {
   const card = await p.getByTestId('tour').boundingBox();
   const el = await p.locator(`[data-tour="${target}"]`).filter({ visible: true }).first().boundingBox();
   const vp = p.viewportSize()!;
@@ -285,8 +289,7 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en
       ] as const) {
         await p.getByTestId('tour-next').click();
         await stepIs(p, id);
-        // Las plantillas ocupan más que media pantalla: alcanza con que la tarjeta entre y no haya scroll lateral.
-        if (id === 'organize') await cardBesideTarget(p, target, `${look} ${id}`);
+        await cardBesideTarget(p, target, `${look} ${id}`);
         await noHorizontalScroll(p, `${look} ${id}`);
       }
       await p.getByTestId('tour-next').click();
