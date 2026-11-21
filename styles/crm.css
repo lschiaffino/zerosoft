@@ -390,6 +390,8 @@
 .tl-source { color: var(--dim); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-source:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .tl-done .tl-subject { text-decoration: line-through; color: var(--dim); }
+/* Tarea de un chat de Lines que quien mira no ve: el marcador, apagado y en cursiva (no es un título real). */
+.crm-private-task { color: var(--dim); font-style: italic; font-weight: 400; }
 
 .tl-composer {
   border: 1px solid var(--line);

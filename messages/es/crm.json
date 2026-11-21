@@ -530,6 +530,8 @@
   "tasks": {
     "title": "Tareas",
     "newTask": "+ Nueva tarea",
+    "privateChat": "Tarea de un chat de Lines",
+    "privateChatHint": "Se creó desde un chat de Lines al que no tenés acceso, así que su título y sus notas están ocultos.",
     "overdue": "Vencidas",
     "today": "Hoy",
     "upcoming": "Próximas",

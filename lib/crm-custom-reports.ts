@@ -12,6 +12,7 @@
  */
 import { getDb, type Db } from './db';
 import { baseAmountSql } from './crm-currency';
+import { privateChatMarker } from './crm-chat-privacy';
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import {
   BUILTIN_FIELDS,
@@ -206,7 +207,8 @@ const BUILTIN_EXPR: Record<ReportObject, Record<string, string>> = {
   },
   activity: {
     type: 'a.type',
-    subject: 'a.subject',
+    // Una tarea de un chat de Lines: el marcador, no su título (el reporte lo ven personas que no ven el chat).
+    subject: `CASE WHEN EXISTS (SELECT 1 FROM groups_tasks zrt WHERE zrt.activity_id = a.id) THEN '${privateChatMarker('en').replace(/'/g, "''")}' ELSE a.subject END`,
     done: 'a.done',
     owner: 'COALESCE(a.owner_id, a.user_id)',
     outcome: 'a.outcome',

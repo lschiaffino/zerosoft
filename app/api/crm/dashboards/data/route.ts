@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
+import { requestLocale } from '@/lib/request-locale';
 import { getWidgetData, listReportOwners } from '@/lib/crm-dashboards';
 import { dashboardDataRequestSchema } from '@/lib/crm-dashboards-schema';
 import { invalidBody, unauthorized } from '@/lib/crm-http';
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
 
   const scope = await sessionScope(user);
   const owners = await listReportOwners(user, scope);
-  const data = await getWidgetData(user.id, parsed.data, owners, scope);
+  const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
+  const data = await getWidgetData(user.id, parsed.data, owners, scope, await sessionChatReader(user, locale));
   return NextResponse.json(data);
 }
