@@ -183,6 +183,10 @@ section > .sd-help:last-child { margin-top: 12px; }
 .sv-space-group button { display: flex; width: 100%; gap: 12px; justify-content: space-between; align-items: center; padding: 12px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .sv-space-group button:hover, .sv-space-group button:focus-visible { background: var(--ui-hover); }
 .sv-space-group strong { overflow-wrap: anywhere; min-width: 0; }
+/* Índice numerado del espacio: el número antes del nombre, en mono y alineado. */
+.sd-index, .sv-space-group .sv-index { display: inline-block; min-width: 2.5em; margin-right: 8px; font-family: var(--font-data); font-feature-settings: "zero" 1, "tnum" 1; font-size: 0.8125rem; font-weight: 500; color: var(--brand-gray-2); white-space: nowrap; }
+.sv-space-group h2 .sv-index { min-width: 0; }
+.sd-index-bar .sd-check { max-width: 520px; }
 .sv-space-group span { color: var(--brand-gray-2); font-size: 0.8125rem; white-space: nowrap; }
 
 @media (max-width: 640px) {

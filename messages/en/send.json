@@ -284,7 +284,10 @@
     "duplicateTitle": "Duplicate this space",
     "duplicateConfirm": "Duplicate",
     "copyName": "{title} (copy)",
-    "duplicateHelp": "The copy keeps the description and the documents with their order and folders. Links, the access list and visits are not copied, so the copy starts unshared."
+    "duplicateHelp": "The copy keeps the description and the documents with their order and folders. Links, the access list and visits are not copied, so the copy starts unshared.",
+    "numbered": "Number folders and documents",
+    "numberedHelp": "Shows 1, 2, 2.1 before each folder and document, here and to whoever opens a link, so people can refer to them. Visitors can download the index.",
+    "downloadIndex": "Download index"
   },
   "settings": {
     "title": "Send settings",
@@ -349,7 +352,8 @@
     "unavailableTitle": "This link is no longer available",
     "linkTo": "Open {url}",
     "linkToPage": "Go to page {page}",
-    "buttonTitle": "Opens {host} in a new tab"
+    "buttonTitle": "Opens {host} in a new tab",
+    "downloadIndex": "Download index"
   },
   "errors": {
     "generic": "Something went wrong. Try again.",

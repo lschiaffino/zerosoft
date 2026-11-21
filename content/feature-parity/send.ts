@@ -257,7 +257,9 @@ const parity: ProductParity = {
     }),
     row('space-granular', 'spaces', ['Granular per link: visible, downloadable', 'Permisos por link: visible, descargable', 'Permissões por link: visível, baixável'], 'missing'),
     row('space-groups', 'spaces', ['Visitor groups with email invites', 'Grupos de visitantes con invitación por email', 'Grupos de visitantes com convite por email'], 'missing'),
-    row('space-index', 'spaces', ['Numbered index', 'Índice numerado', 'Índice numerado'], 'missing'),
+    row('space-index', 'spaces', ['Numbered index', 'Índice numerado', 'Índice numerado'], 'have', {
+      detail: ['Turn on numbering per space: 1, 2, 2.1 on folders and documents, the same for every visitor. The owner and visitors download the index as CSV (number, folder, name, type, pages); a visitor gets only the documents they can open', 'Numeración por espacio: 1, 2, 2.1 en carpetas y documentos, iguales para cada visitante. El dueño y quien visita bajan el índice en CSV (número, carpeta, nombre, tipo, páginas); quien visita recibe solo los documentos que puede abrir', 'Numeração por espaço: 1, 2, 2.1 em pastas e documentos, iguais para cada visitante. O dono e quem visita baixam o índice em CSV (número, pasta, nome, tipo, páginas); quem visita recebe só os documentos que pode abrir'],
+    }),
     row('space-audit', 'spaces', ['Audit log', 'Registro de auditoría', 'Registro de auditoria'], 'missing'),
     row('space-qa', 'spaces', ['Questions and answers', 'Preguntas y respuestas', 'Perguntas e respostas'], 'missing'),
     row('space-diligence', 'spaces', ['Diligence tracker', 'Seguimiento de due diligence', 'Acompanhamento de due diligence'], 'missing'),
