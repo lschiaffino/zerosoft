@@ -557,6 +557,7 @@ export default function DocsSidebar({
         onClick={() => window.dispatchEvent(new Event(DOCS_SWITCHER_EVENT))}
         aria-keyshortcuts="Meta+P Control+P"
         data-testid="docs-search-button"
+        data-tour="docs-search"
       >
         <DocsGlyph name="search" size={14} />
         <span className="docs-tree-search-label">{t('switcher.open')}</span>
@@ -694,7 +695,7 @@ export default function DocsSidebar({
   if (branch) {
     return (
       <>
-        {createPortal(<div className="docs-branch">{body(true)}</div>, branch)}
+        {createPortal(<div className="docs-branch" data-tour="docs-pages">{body(true)}</div>, branch)}
         {switcher}
       </>
     );
@@ -712,6 +713,7 @@ export default function DocsSidebar({
           aria-expanded={mobileOpen}
           aria-controls="docs-sidebar-body"
           data-testid="docs-drawer-toggle"
+          data-tour="docs-pages"
         >
           {/* Sin páginas propias y con compartidas (un guest), el botón no dice "0 páginas". */}
           <span className="docs-sidebar-title">{pages.length === 0 && shared.length > 0 ? t('sidebar.sharedWithMe') : t('sidebar.pages')}</span>

@@ -4521,6 +4521,7 @@ export default function DocsEditor({
               type="button"
               ref={menuBtnRef}
               className="btn btn-ghost btn-sm btn-icon docs-action-btn"
+              data-tour="docs-page-menu"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label={t('editor.pageOptions')}
               title={t('editor.pageOptions')}
@@ -4713,6 +4714,7 @@ export default function DocsEditor({
         <div
           ref={titleRef}
           className="docs-title"
+          data-tour="docs-title"
           contentEditable={mode === 'edit'}
           suppressContentEditableWarning
           role="textbox"

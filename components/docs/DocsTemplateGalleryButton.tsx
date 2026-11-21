@@ -22,7 +22,7 @@ export default function DocsTemplateGalleryButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="docs-templates-open">
+      <button type="button" className={className} onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="docs-templates-open" data-tour="docs-templates">
         <DocsGlyph name="template" size={15} />
         {t('templates.browse')}
       </button>
