@@ -1444,6 +1444,36 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "talk": {
+      "intro": {
+        "title": "Boas-vindas ao Talk",
+        "body": "O Talk é onde sua equipe conversa: canais por assunto, mensagens diretas e threads. Este tour mostra as partes principais."
+      },
+      "channels": {
+        "title": "Canais",
+        "body": "Cada canal reúne a conversa de um assunto, um projeto ou uma área. Todo espaço começa com #general. Com o + você cria um novo."
+      },
+      "dms": {
+        "title": "Mensagens diretas",
+        "body": "Para falar com uma pessoa ou um grupo pequeno fora dos canais. Com o + você começa uma."
+      },
+      "composer": {
+        "title": "Escreva uma mensagem",
+        "body": "Enter envia e Shift+Enter pula uma linha. Mencione com @, anexe arquivos ou agende o envio. Com / você tem comandos como /remind."
+      },
+      "threads": {
+        "title": "Threads",
+        "body": "Responda uma mensagem em uma thread (↩ nas ações dela) para não encher o canal. As respostas das threads que você segue chegam aqui."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "Encontre mensagens de todos os seus canais. Filtre com in:#canal, from:@pessoa ou has:link. Cmd+G traz você para cá."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "board": {
       "intro": {
         "title": "Boas-vindas ao Board",

@@ -1444,6 +1444,36 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "talk": {
+      "intro": {
+        "title": "Welcome to Talk",
+        "body": "Talk is where your team chats: channels by topic, direct messages and threads. This tour points out the main parts."
+      },
+      "channels": {
+        "title": "Channels",
+        "body": "Each channel holds the conversation about a topic, a project or a team. Every workspace starts with #general. Use + to create one."
+      },
+      "dms": {
+        "title": "Direct messages",
+        "body": "Talk with one person or a small group outside the channels. Use + to start one."
+      },
+      "composer": {
+        "title": "Write a message",
+        "body": "Enter sends and Shift+Enter adds a line. Mention people with @, attach files or schedule the message. Type / for commands like /remind."
+      },
+      "threads": {
+        "title": "Threads",
+        "body": "Reply to a message in a thread (↩ in its actions) to keep the channel tidy. Replies in the threads you follow land here."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find messages across your channels. Narrow it with in:#channel, from:@person or has:link. Cmd+G brings you here."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "board": {
       "intro": {
         "title": "Welcome to Board",
