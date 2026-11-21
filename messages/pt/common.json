@@ -1593,6 +1593,56 @@
         "title": "Fim do tour",
         "body": "Você pode refazer este tour pelo menu da sua conta."
       }
+    },
+    "docs": {
+      "intro": {
+        "title": "Boas-vindas ao Docs",
+        "body": "O Docs reúne suas páginas e wikis, com texto, tabelas, bancos de dados e conteúdo incorporado, e salva enquanto você digita. Este tour mostra as partes principais."
+      },
+      "newPage": {
+        "title": "Comece uma página",
+        "body": "Crie uma página em branco aqui. Nesta tela, C faz o mesmo."
+      },
+      "templates": {
+        "title": "Modelos",
+        "body": "Comece de uma página pronta, como notas de reunião ou um plano de projeto, ou de uma que seu workspace salvou."
+      },
+      "pages": {
+        "title": "Suas páginas",
+        "body": "Todas as suas páginas aparecem nesta árvore. Arraste para reordenar, ou coloque uma dentro de outra como subpágina."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "Encontre qualquer página pelo título ou pelo texto. Com Cmd+P você busca de qualquer parte do Docs."
+      },
+      "openPage": {
+        "title": "Abra uma página",
+        "body": "Abra qualquer página da lista para ler e editar."
+      },
+      "write": {
+        "title": "Escreva",
+        "body": "Clique no título para renomear a página. No corpo, digite / para adicionar títulos, listas, tabelas, imagens e mais."
+      },
+      "comments": {
+        "title": "Comentários",
+        "body": "Comente a página ou um bloco, responda e resolva a conversa quando ela estiver encerrada."
+      },
+      "share": {
+        "title": "Compartilhar",
+        "body": "Convide pessoas para ler, comentar ou editar, ou publique a página com um link."
+      },
+      "pageMenu": {
+        "title": "Mais opções da página",
+        "body": "Histórico de versões, exportar, bloquear a página, salvar como modelo ou mandar para a lixeira."
+      },
+      "shortcuts": {
+        "title": "Atalhos de teclado",
+        "body": "C cria uma página no início do Docs, Cmd+P busca páginas e / adiciona um bloco. Cmd+K encontra qualquer coisa."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode refazer este tour pelo menu da sua conta."
+      }
     }
   }
 }

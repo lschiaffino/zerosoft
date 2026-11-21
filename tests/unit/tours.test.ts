@@ -76,6 +76,20 @@ describe('tours: registro y rutas', () => {
     expect(TOURS.notes.steps.find((s) => s.id === 'openNote')).toMatchObject({ advanceOn: 'click' });
   });
 
+  it('el tour de Docs arranca en /app/docs; abrir una página va antes que los pasos de la página', () => {
+    expect(tourForPath('/app/docs')?.key).toBe('docs');
+    expect(tourForPath('/es/app/docs/abc123')?.key).toBe('docs');
+    expect(tourForPath('/app/docsx')).toBeNull();
+    expect(atTourStart(TOURS.docs, '/pt/app/docs')).toBe(true);
+    expect(atTourStart(TOURS.docs, '/app/docs/abc123')).toBe(false);
+    // Docs no pregunta si es equipo: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.docs, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.docs.steps]));
+    expect(ids(stepsFor(TOURS.docs, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.docs.steps]));
+    const steps = ids([...TOURS.docs.steps]);
+    for (const onPage of ['write', 'comments', 'share', 'pageMenu']) expect(steps.indexOf('openPage')).toBeLessThan(steps.indexOf(onPage));
+    expect(TOURS.docs.steps.find((s) => s.id === 'openPage')).toMatchObject({ advanceOn: 'click' });
+  });
+
   it('ids de pasos únicos por tour', () => {
     for (const key of TOUR_KEYS) {
       const list = ids([...TOURS[key].steps]);
@@ -158,7 +172,8 @@ describe('tours: textos y anclajes', () => {
   it('cada anclaje de un paso existe como data-tour en algún componente', () => {
     const walk = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []));
-    const source = walk('components').map((f) => readFileSync(f, 'utf8')).join('\n');
+    // Componentes y páginas (el inicio de Docs ancla sus botones en la página del servidor).
+    const source = [...walk('components'), ...walk('app')].map((f) => readFileSync(f, 'utf8')).join('\n');
     for (const key of TOUR_KEYS) {
       for (const step of TOURS[key].steps) {
         for (const target of step.targets ?? []) {
