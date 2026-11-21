@@ -307,13 +307,15 @@ export async function associateDealContact(
   await assertOwned(db, 'deal', userId, dealId);
   await assertOwned(db, 'contact', userId, contactId);
   const label = opts.label === undefined ? undefined : await normalizeAssocLabel(userId, 'deal_contact', opts.label, db);
-  await db
+  const inserted = await db
     .prepare('INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)')
     .run(dealId, contactId);
   if (label !== undefined) {
     await db.prepare('UPDATE crm_deal_contacts SET label = ? WHERE deal_id = ? AND contact_id = ?').run(label, dealId, contactId);
   }
-  await autoAssociateContactCompanies(userId, dealId, [contactId], db);
+  // Solo una asociación nueva suma la empresa del contacto: cambiar el label no
+  // vuelve a poner una empresa que alguien sacó del deal.
+  if (inserted.changes > 0) await autoAssociateContactCompanies(userId, dealId, [contactId], db);
 }
 
 export async function removeDealContact(

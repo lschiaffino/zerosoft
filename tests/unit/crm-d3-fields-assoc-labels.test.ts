@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server';
 import { createContact, createCompany, createCustomField, createDeal, createPipeline, createStage, getContact, getDeal, updateDeal } from '@/lib/crm';
 import { MEMBER_SUBJECT, setFieldPermissions, visibleFieldDefinitions, canSeeFieldDefinition } from '@/lib/crm-field-perms';
 import { createSalesTeam, setMemberVisibility } from '@/lib/crm-visibility';
-import { associate, associateContactCompany, listAssociations } from '@/lib/crm-assoc';
+import { associate, associateContactCompany, dissociate, listAssociations } from '@/lib/crm-assoc';
 import {
   assocLabelOptions,
   createAssociationLabel,
@@ -129,7 +129,7 @@ describe('definiciones de campos propios: cada persona ve las que tiene permitid
   });
 
   it('PATCH de un campo oculto responde 404 al member y no lo cambia', async () => {
-    const { w, secret, readOnly } = await setup('d3-defs-patch');
+    const { w, secret, readOnly, open } = await setup('d3-defs-patch');
     session.user = asMember(w.owner, w.member);
     const hidden = await fieldRoute.PATCH(
       json(`http://x/api/crm/custom-fields/${secret.id}`, 'PATCH', { label: 'Renamed' }),
@@ -139,9 +139,11 @@ describe('definiciones de campos propios: cada persona ve las que tiene permitid
     expect(await hidden.text()).not.toContain('Salary');
     const row = (await getDb().prepare('SELECT label FROM crm_custom_fields WHERE id = ?').get(secret.id)) as { label: string };
     expect(row.label).toBe('Salary');
-    // El de solo lectura (valores) sigue siendo una definición visible.
-    const visible = await fieldRoute.PATCH(json(`http://x/api/crm/custom-fields/${readOnly.id}`, 'PATCH', { label: 'PO number' }), ctx(readOnly.id));
-    expect(visible.status).toBe(200);
+    // El de solo lectura se ve, pero su definición no se edita.
+    const readOnlyPatch = await fieldRoute.PATCH(json(`http://x/api/crm/custom-fields/${readOnly.id}`, 'PATCH', { label: 'PO number' }), ctx(readOnly.id));
+    expect(readOnlyPatch.status).toBe(403);
+    const openPatch = await fieldRoute.PATCH(json(`http://x/api/crm/custom-fields/${open.id}`, 'PATCH', { label: 'Plan tier' }), ctx(open.id));
+    expect(openPatch.status).toBe(200);
     session.user = asOwner(w.owner);
     const owner = await fieldRoute.PATCH(json(`http://x/api/crm/custom-fields/${secret.id}`, 'PATCH', { label: 'Pay' }), ctx(secret.id));
     expect(owner.status).toBe(200);
@@ -226,6 +228,14 @@ describe('labels de asociación: datos y permisos', () => {
       [b.id, ''],
       [a.id, customLabelValue(decisor.id)],
     ]);
+
+    // Cambiar el label no vuelve a sumar al deal la empresa del contacto que alguien sacó.
+    const co = await createCompany(ws, { name: 'Acme' });
+    await associateContactCompany(ws, a.id, co.id, {});
+    await associate(ws, { fromType: 'deal', fromId: d.id, toType: 'company', toId: co.id });
+    await dissociate(ws, { fromType: 'deal', fromId: d.id, toType: 'company', toId: co.id });
+    await associate(ws, { fromType: 'deal', fromId: d.id, toType: 'contact', toId: a.id, label: '' });
+    expect((await listAssociations(ws, 'deal', d.id))?.companies).toEqual([]);
 
     // Un label de fábrica de contacto ↔ empresa no vale para deal ↔ contacto.
     expect(await rejection(associate(ws, { fromType: 'deal', fromId: d.id, toType: 'contact', toId: b.id, label: 'billing' }))).toBeInstanceOf(

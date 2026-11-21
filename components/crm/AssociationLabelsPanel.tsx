@@ -133,7 +133,7 @@ export default function AssociationLabelsPanel({ initial, canEdit }: { initial: 
                   className="input"
                   value={drafts[pair]}
                   onChange={(e) => setDrafts((d) => ({ ...d, [pair]: e.target.value }))}
-                  placeholder={t('assocLabels.placeholder')}
+                  placeholder={t(`assocLabels.placeholders.${pair}`)}
                   aria-label={`${t('assocLabels.name')} (${t(`assocLabels.pairs.${pair}`)})`}
                   maxLength={60}
                   data-testid={`assoc-labels-input-${pair}`}

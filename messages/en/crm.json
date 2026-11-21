@@ -4392,8 +4392,11 @@
     "builtin": "Built in: {labels}.",
     "empty": "No labels of your own yet.",
     "name": "Label name",
-    "placeholder": "For example, Billing contact",
     "add": "Add label",
-    "delete": "Delete label"
+    "delete": "Delete label",
+    "placeholders": {
+      "contact_company": "For example, Billing contact",
+      "deal_contact": "For example, Decision maker"
+    }
   }
 }

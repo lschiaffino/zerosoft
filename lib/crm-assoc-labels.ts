@@ -124,6 +124,16 @@ async function assertUniqueName(db: Db, workspaceId: string, pair: AssocLabelPai
   if (dup) throw new CrmRefError('duplicate_label');
 }
 
+/** Dos altas a la vez con el mismo nombre: el índice único rechaza la segunda. */
+async function uniqueOrDuplicate(p: Promise<unknown>): Promise<void> {
+  try {
+    await p;
+  } catch (err) {
+    if (/UNIQUE constraint failed/i.test(String(err))) throw new CrmRefError('duplicate_label');
+    throw err;
+  }
+}
+
 export async function createAssociationLabel(
   workspaceId: string,
   pair: AssocLabelPair,
@@ -137,9 +147,11 @@ export async function createAssociationLabel(
   if (count.n >= MAX_ASSOC_LABELS) throw new CrmRefError('too_many_labels');
   await assertUniqueName(db, workspaceId, pair, clean);
   const id = crypto.randomUUID();
-  await db
-    .prepare('INSERT INTO crm_association_labels (id, user_id, pair, name, position) VALUES (?, ?, ?, ?, ?)')
-    .run(id, workspaceId, pair, clean, count.last + 1);
+  await uniqueOrDuplicate(
+    db
+      .prepare('INSERT INTO crm_association_labels (id, user_id, pair, name, position) VALUES (?, ?, ?, ?, ?)')
+      .run(id, workspaceId, pair, clean, count.last + 1),
+  );
   return (await db.prepare('SELECT * FROM crm_association_labels WHERE id = ?').get(id)) as CrmAssociationLabelRow;
 }
 
@@ -156,7 +168,7 @@ export async function renameAssociationLabel(
   if (!row) return null;
   const clean = cleanName(name);
   await assertUniqueName(db, workspaceId, row.pair, clean, id);
-  await db.prepare('UPDATE crm_association_labels SET name = ? WHERE id = ? AND user_id = ?').run(clean, id, workspaceId);
+  await uniqueOrDuplicate(db.prepare('UPDATE crm_association_labels SET name = ? WHERE id = ? AND user_id = ?').run(clean, id, workspaceId));
   return { ...row, name: clean };
 }
 

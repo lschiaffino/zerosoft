@@ -221,15 +221,21 @@ export async function visibleFieldDefinitions(viewer: FieldViewer, db: Db = getD
   return defs.filter((d) => accessFor(byField.get(d.id) ?? [], subjects) !== 'hidden');
 }
 
-/** ¿La persona puede ver la definición del campo? false si no es del workspace o lo tiene oculto. */
-export async function canSeeFieldDefinition(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<boolean> {
+/** Acceso de la persona a un campo propio. null si el campo no es del workspace. */
+export async function fieldDefinitionAccess(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<FieldAccess | null> {
   const row = (await db
     .prepare('SELECT entity FROM crm_custom_fields WHERE id = ? AND user_id = ?')
     .get(fieldId, viewer.workspaceId)) as { entity: string } | undefined;
-  if (!row) return false;
-  if (isUnrestricted(viewer)) return true;
+  if (!row) return null;
+  if (isUnrestricted(viewer)) return 'edit';
   const { all } = await fieldAccessFor(viewer, row.entity, db);
-  return all.some((f) => f.id === fieldId && f.access !== 'hidden');
+  return all.find((f) => f.id === fieldId)?.access ?? null;
+}
+
+/** ¿La persona puede ver la definición del campo? false si no es del workspace o lo tiene oculto. */
+export async function canSeeFieldDefinition(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<boolean> {
+  const access = await fieldDefinitionAccess(viewer, fieldId, db);
+  return access !== null && access !== 'hidden';
 }
 
 /** Campos ocultos para la persona en la entidad (para redactar filas). */

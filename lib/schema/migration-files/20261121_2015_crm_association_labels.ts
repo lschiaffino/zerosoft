@@ -34,6 +34,9 @@ export default {
     await c.execute(
       'CREATE INDEX IF NOT EXISTS idx_crm_association_labels_user ON crm_association_labels(user_id, pair, position)',
     );
+    await c.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_association_labels_name ON crm_association_labels(user_id, pair, lower(name))',
+    );
     await addColumn(c, "ALTER TABLE crm_deal_contacts ADD COLUMN label TEXT NOT NULL DEFAULT ''");
   },
 } satisfies Migration;

@@ -4392,8 +4392,11 @@
     "builtin": "De fábrica: {labels}.",
     "empty": "Todavía no hay labels propios.",
     "name": "Nombre del label",
-    "placeholder": "Por ejemplo, Contacto de facturación",
     "add": "Agregar label",
-    "delete": "Borrar label"
+    "delete": "Borrar label",
+    "placeholders": {
+      "contact_company": "Por ejemplo, Contacto de facturación",
+      "deal_contact": "Por ejemplo, Decisor"
+    }
   }
 }

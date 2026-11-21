@@ -4392,8 +4392,11 @@
     "builtin": "Padrão: {labels}.",
     "empty": "Ainda não há rótulos próprios.",
     "name": "Nome do rótulo",
-    "placeholder": "Por exemplo, Contato de cobrança",
     "add": "Adicionar rótulo",
-    "delete": "Excluir rótulo"
+    "delete": "Excluir rótulo",
+    "placeholders": {
+      "contact_company": "Por exemplo, Contato de cobrança",
+      "deal_contact": "Por exemplo, Decisor"
+    }
   }
 }
