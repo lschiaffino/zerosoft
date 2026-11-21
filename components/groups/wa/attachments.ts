@@ -18,6 +18,11 @@ export interface TrayItem {
   uploaded?: UploadedFile;
   /** Comentario de este archivo (como en WhatsApp, uno por archivo). */
   caption?: string;
+  /**
+   * Grupos: el pie como sale a WhatsApp ("@Ana" pasa a "@<teléfono>") y a quiénes menciona. Lo arma la vista
+   * previa al escribir (components/groups/wa/AttachPreview.tsx); sin menciones no está.
+   */
+  captionOut?: { body: string; mentions: string[] };
   /** Huella del contenido (fileFingerprint): el mismo archivo pegado dos veces no entra dos veces. */
   print?: string;
   /** Tamaño de una foto, medido acá (la burbuja provisoria ya ocupa su lugar antes de que termine la subida). */
@@ -265,7 +270,7 @@ export function useAttachTray() {
     return { item: it, done, onProgress: (fn: (p: number) => void) => up && (up.progress = fn) };
   }, []);
 
-  const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), [patch]);
+  const setCaption = useCallback((key: string, caption: string, out?: TrayItem['captionOut']) => patch(key, { caption, captionOut: out }), [patch]);
 
   const clear = useCallback(() => {
     uploads.current.forEach((u) => u.abort());

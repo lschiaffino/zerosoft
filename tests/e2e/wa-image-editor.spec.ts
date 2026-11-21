@@ -150,8 +150,8 @@ async function editAndSend(page: Page, input: Locator, thread: Locator, app: str
   await expect(handle).toHaveCount(0);
 
   // Comentario y Enter: sale la foto editada.
-  await pane.locator('.wa-attach-caption input').fill('Editada');
-  await pane.locator('.wa-attach-caption input').press('Enter');
+  await pane.locator('.wa-attach-caption textarea').fill('Editada');
+  await pane.locator('.wa-attach-caption textarea').press('Enter');
   await expect(pane).toHaveCount(0, { timeout: 20_000 });
   await expect.poll(() => thread.locator('.gr-msg-out img').count(), { timeout: 30_000 }).toBeGreaterThan(before);
   const img = thread.locator('.gr-msg-out img').last();
