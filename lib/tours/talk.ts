@@ -11,8 +11,11 @@ import type { TourDef } from './index';
  *   talk-composer   components/talk/Composer.tsx (el redactor del canal, no el de un hilo)
  *   talk-threads    components/talk/Sidebar.tsx (Hilos: las respuestas de los hilos que seguís)
  *   talk-search     components/talk/Sidebar.tsx (buscador, Cmd+G)
+ *   talk-analytics  components/app/sidebar-nav.ts (Analítica en el lateral de la app)
+ *   talk-settings   components/app/sidebar-nav.ts (Ajustes de Talk en el lateral de la app)
  * En el teléfono se ve la lista (canales y mensajes directos) sin la
- * conversación: el paso del redactor se saltea.
+ * conversación: el paso del redactor se saltea, y el lateral de la app es un
+ * cajón: analítica y ajustes también.
  */
 export const TALK_TOUR = {
   key: 'talk',
@@ -26,6 +29,8 @@ export const TALK_TOUR = {
     { id: 'composer', targets: ['talk-composer'] },
     { id: 'threads', targets: ['talk-threads'] },
     { id: 'search', targets: ['talk-search'] },
+    { id: 'analytics', targets: ['talk-analytics'] },
+    { id: 'settings', targets: ['talk-settings'] },
     { id: 'done' },
   ],
 } as const satisfies TourDef;

@@ -27,7 +27,7 @@ export const NOTES_TOUR = {
     { id: 'openNote', targets: ['notes-item'], advanceOn: 'click' },
     { id: 'noteBar', targets: ['notes-note-bar'] },
     { id: 'tags', targets: ['notes-tags'] },
-    { id: 'shortcuts' },
+    { id: 'shortcuts', keyboard: true },
     { id: 'done' },
   ],
 } as const satisfies TourDef;

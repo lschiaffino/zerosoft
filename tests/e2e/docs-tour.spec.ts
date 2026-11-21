@@ -266,10 +266,10 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar, sin búsqueda y sin sc
         await stepIs(p, id);
         await cardBesideTarget(p, target, `${look} ${id}`);
       }
-      await p.getByTestId('tour-next').click();
-      await stepIs(p, 'shortcuts');
+      // En el teléfono el paso de atajos de teclado se saltea, y los textos no nombran atajos.
       await p.getByTestId('tour-next').click();
       await stepIs(p, 'done');
+      await expect(p.getByTestId('tour')).toHaveAttribute('data-tour-touch', 'true');
       await noHorizontalScroll(p, `${look} done`);
     } finally {
       await ctx.close();

@@ -95,7 +95,7 @@ describe('tours: registro y rutas', () => {
     expect(atTourStart(TOURS.cal, '/app/calendar/abc123')).toBe(false);
     // Mismos pasos para todos; el redactor va antes que hilos (en el teléfono se saltea).
     expect(ids(stepsFor(TOURS.talk, { audience: 'solo', admin: false }))).toEqual(ids([...TOURS.talk.steps]));
-    expect(ids([...TOURS.talk.steps])).toEqual(['intro', 'channels', 'dms', 'composer', 'threads', 'search', 'done']);
+    expect(ids([...TOURS.talk.steps])).toEqual(['intro', 'channels', 'dms', 'composer', 'threads', 'search', 'analytics', 'settings', 'done']);
   });
 
   it('el tour de Voice arranca en Reuniones, no en una reunión ni en dictado, y es igual para todos', () => {
@@ -230,6 +230,54 @@ describe('tours: estado por persona', () => {
     expect(shouldAutoStart({ ...base, tours: { seen: { lines: { status: 'exited', at: '' } } } })).toBe(false);
     // A medias: se retoma.
     expect(shouldAutoStart({ ...base, tours: { seen: { lines: { status: 'active', step: 'search', at: '' } } } })).toBe(true);
+  });
+});
+
+describe('tours: teléfono y pantalla táctil', () => {
+  /** Nombra un atajo de teclado: Cmd/Ctrl/Shift/Enter/Tab/Esc, "press", una tecla suelta como (E) o "C creates". */
+  const KEYS = /\b(?:Cmd|Ctrl|Shift|Enter|Tab|Esc)\b|\b[Pp]ress\b|\(\p{Lu}\)|(?:^|[\s,:.])\p{Lu}(?= (?:and|then|for|creates|adds|shows|goes|to)\b)|\b(?:with|key:) \p{Lu}\b|\bG then\b/u;
+
+  it('los pasos que solo enseñan atajos se saltean en el teléfono', () => {
+    for (const key of TOUR_KEYS) {
+      const all = ids(stepsFor(TOURS[key], { audience: 'team', admin: true }));
+      const touch = ids(stepsFor(TOURS[key], { audience: 'team', admin: true, touch: true }));
+      expect(touch, key).toEqual(all.filter((id) => !TOURS[key].steps.find((s) => s.id === id)?.keyboard));
+    }
+    expect(TOURS.track.steps.find((s) => s.id === 'shortcuts')).toMatchObject({ keyboard: true });
+    expect(ids(stepsFor(TOURS.track, { audience: 'team', admin: true, touch: true }))).not.toContain('shortcuts');
+  });
+
+  it('un texto que nombra atajos tiene su versión sin atajos (bodyTouch) en en, es y pt', () => {
+    const en = messages('en').tour as Record<string, Record<string, { body?: string; bodyTouch?: string }>>;
+    const flagged: string[] = [];
+    for (const key of TOUR_KEYS) {
+      for (const step of TOURS[key].steps) {
+        if (step.keyboard) continue;
+        const text = en[key]?.[step.id];
+        if (!text?.body || !KEYS.test(text.body)) continue;
+        flagged.push(`${key}.${step.id}`);
+        for (const locale of ['en', 'es', 'pt']) {
+          const touch = (messages(locale).tour as typeof en)[key]?.[step.id]?.bodyTouch;
+          expect(touch, `${locale} ${key}.${step.id}.bodyTouch`).toBeTruthy();
+          if (locale === 'en') expect(KEYS.test(touch!), `en ${key}.${step.id}.bodyTouch`).toBe(false);
+        }
+      }
+    }
+    // El de Talk que lo pidió (Cmd+G en la búsqueda) y el detector no se quedan cortos.
+    expect(flagged).toEqual(expect.arrayContaining(['talk.search', 'talk.composer', 'inbox.triage', 'track.newIssue', 'docs.search', 'board.toolbar']));
+  });
+
+  it('bodyTouch solo donde hay un body, y sin los atajos de es y pt', () => {
+    for (const locale of ['en', 'es', 'pt']) {
+      const tour = messages(locale).tour as Record<string, Record<string, { body?: string; bodyTouch?: string }>>;
+      for (const key of TOUR_KEYS) {
+        for (const [id, text] of Object.entries(tour[key] ?? {})) {
+          if (!text.bodyTouch) continue;
+          expect(text.body, `${locale} ${key}.${id}`).toBeTruthy();
+          expect(/\b(?:Cmd|Ctrl|Shift|Enter|Tab)\b|\(\p{Lu}\)|\b(?:apretá|aperte)\b/u.test(text.bodyTouch), `${locale} ${key}.${id}.bodyTouch`).toBe(false);
+        }
+      }
+    }
   });
 });
 

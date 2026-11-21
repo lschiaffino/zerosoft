@@ -235,7 +235,9 @@
 
 /* ---------- Listas, tablas, paneles ---------- */
 
-:root[data-look='retro'] :is(.table-wrap, .ui-empty) { background: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
+/* El vacío compacto y el quieto van sin caja (son texto dentro de una sección): con el campo hundido
+   y sin relleno a los lados, el filete de adentro tapaba la primera letra. */
+:root[data-look='retro'] :is(.table-wrap, .ui-empty:not(.ui-empty-compact, .ui-empty-quiet)) { background: var(--rt-field); border-color: transparent; box-shadow: var(--rt-sunken); }
 :root[data-look='retro'] .table th { background: var(--rt-face); color: var(--ink); border-bottom: 0; box-shadow: var(--rt-raised); }
 :root[data-look='retro'] .table tbody tr:hover { background: var(--ui-selected); }
 :root[data-look='retro'] :is(.panel, .ui-section) { background: var(--rt-face); border-color: transparent; box-shadow: var(--rt-window); }

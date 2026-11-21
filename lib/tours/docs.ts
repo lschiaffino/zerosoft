@@ -34,7 +34,7 @@ export const DOCS_TOUR = {
     { id: 'comments', targets: ['docs-comments'] },
     { id: 'share', targets: ['docs-share'] },
     { id: 'pageMenu', targets: ['docs-page-menu'] },
-    { id: 'shortcuts' },
+    { id: 'shortcuts', keyboard: true },
     { id: 'done' },
   ],
 } as const satisfies TourDef;

@@ -1371,7 +1371,8 @@
       },
       "newIssue": {
         "title": "Create an issue",
-        "body": "New creates an issue, a project or a team. Anywhere in Track, press C for a new issue."
+        "body": "New creates an issue, a project or a team. Anywhere in Track, press C for a new issue.",
+        "bodyTouch": "New creates an issue, a project or a team."
       },
       "inbox": {
         "title": "Inbox",
@@ -1387,7 +1388,8 @@
       },
       "filters": {
         "title": "Filter",
-        "body": "Filter by status, priority, assignee, cycle, labels or due date. Press F to add a filter and / to search."
+        "body": "Filter by status, priority, assignee, cycle, labels or due date. Press F to add a filter and / to search.",
+        "bodyTouch": "Filter by status, priority, assignee, cycle, labels or due date."
       },
       "display": {
         "title": "Display",
@@ -1413,7 +1415,8 @@
       },
       "newEventType": {
         "title": "Create an event type",
-        "body": "Each event type is a booking link with its own length, hours and questions. On this page, C creates one too."
+        "body": "Each event type is a booking link with its own length, hours and questions. On this page, C creates one too.",
+        "bodyTouch": "Each event type is a booking link with its own length, hours and questions."
       },
       "eventType": {
         "title": "Share your link",
@@ -1539,7 +1542,8 @@
       },
       "composer": {
         "title": "Write a message",
-        "body": "Enter sends and Shift+Enter adds a line. Mention people with @, attach files or schedule the message. Type / for commands like /remind."
+        "body": "Enter sends and Shift+Enter adds a line. Mention people with @, attach files or schedule the message. Type / for commands like /remind.",
+        "bodyTouch": "Write your message and send it. Mention people with @, attach files or schedule the message. Type / for commands like /remind."
       },
       "threads": {
         "title": "Threads",
@@ -1547,7 +1551,16 @@
       },
       "search": {
         "title": "Search",
-        "body": "Find messages across your channels. Narrow it with in:#channel, from:@person or has:link. Cmd+G brings you here."
+        "body": "Find messages across your channels. Narrow it with in:#channel, from:@person or has:link. Cmd+G brings you here.",
+        "bodyTouch": "Find messages across your channels. Narrow it with in:#channel, from:@person or has:link."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "body": "Messages, thread replies, who posts and when, reactions and huddles in the conversations you can read, against the previous period."
+      },
+      "settings": {
+        "title": "Talk settings",
+        "body": "Settings for Talk, with a shortcut to the workspace members to invite your team."
       },
       "done": {
         "title": "That's the tour",
@@ -1577,11 +1590,13 @@
       },
       "toolbar": {
         "title": "Shapes and drawing",
-        "body": "Pick a shape, an arrow, text or the pen. Each tool has a key: R for a rectangle, A for an arrow, T for text."
+        "body": "Pick a shape, an arrow, text or the pen. Each tool has a key: R for a rectangle, A for an arrow, T for text.",
+        "bodyTouch": "Pick a shape, an arrow, text or the pen."
       },
       "canvasTools": {
         "title": "Stickies and more",
-        "body": "Add a sticky (N), highlight, insert a table, attach a file or show the minimap (M). With a sticky selected, Tab adds the next one."
+        "body": "Add a sticky (N), highlight, insert a table, attach a file or show the minimap (M). With a sticky selected, Tab adds the next one.",
+        "bodyTouch": "Add a sticky, highlight, insert a table, attach a file or show the minimap."
       },
       "zoom": {
         "title": "Zoom and undo",
@@ -1673,7 +1688,8 @@
       },
       "search": {
         "title": "Search",
-        "body": "Find a chat by its name or by something said in it. Press / to jump here."
+        "body": "Find a chat by its name or by something said in it. Press / to jump here.",
+        "bodyTouch": "Find a chat by its name or by something said in it."
       },
       "openChat": {
         "title": "Open a chat",
@@ -1681,11 +1697,13 @@
       },
       "composer": {
         "title": "Reply",
-        "body": "Write here and press Enter to send. Type / to see the commands for this chat."
+        "body": "Write here and press Enter to send. Type / to see the commands for this chat.",
+        "bodyTouch": "Write here and send. Type / to see the commands for this chat."
       },
       "assign": {
         "title": "Give it an owner",
-        "body": "Assign the chat to a teammate so it's clear who answers. Press A to take it yourself."
+        "body": "Assign the chat to a teammate so it's clear who answers. Press A to take it yourself.",
+        "bodyTouch": "Assign the chat to a teammate so it is clear who answers, or take it yourself."
       },
       "note": {
         "title": "Notes for your team",
@@ -1715,7 +1733,8 @@
       },
       "chatList": {
         "title": "Your chats",
-        "body": "WhatsApp chats and emails land here, the latest first. Move through them with J and K."
+        "body": "WhatsApp chats and emails land here, the latest first. Move through them with J and K.",
+        "bodyTouch": "WhatsApp chats and emails land here, the latest first."
       },
       "filters": {
         "title": "Filter the list",
@@ -1723,7 +1742,8 @@
       },
       "search": {
         "title": "Search",
-        "body": "Find a chat by name, number or something said in it. Press / to jump here."
+        "body": "Find a chat by name, number or something said in it. Press / to jump here.",
+        "bodyTouch": "Find a chat by name, number or something said in it."
       },
       "openChat": {
         "title": "Open a chat",
@@ -1731,11 +1751,13 @@
       },
       "composer": {
         "title": "Reply",
-        "body": "Write here and press Enter to send. Type / to see the commands for this chat."
+        "body": "Write here and press Enter to send. Type / to see the commands for this chat.",
+        "bodyTouch": "Write here and send. Type / to see the commands for this chat."
       },
       "triage": {
         "title": "Clear it out",
-        "body": "Archive a chat once it's handled (E), snooze it for later (H) or ask for a reminder in case nobody answers."
+        "body": "Archive a chat once it's handled (E), snooze it for later (H) or ask for a reminder in case nobody answers.",
+        "bodyTouch": "Archive a chat once it's handled, snooze it for later or ask for a reminder in case nobody answers."
       },
       "settings": {
         "title": "Inbox settings",
@@ -1753,7 +1775,8 @@
       },
       "newNote": {
         "title": "Write a note",
-        "body": "Start a blank note here, or one from a template. Anywhere in Notes, press N for a new note."
+        "body": "Start a blank note here, or one from a template. Anywhere in Notes, press N for a new note.",
+        "bodyTouch": "Start a blank note here, or one from a template."
       },
       "notebooks": {
         "title": "Notebooks",
@@ -1761,7 +1784,8 @@
       },
       "search": {
         "title": "Search",
-        "body": "Search titles and text. Operators like tag: and notebook: narrow it, and the ? button lists them all. Press / to jump here."
+        "body": "Search titles and text. Operators like tag: and notebook: narrow it, and the ? button lists them all. Press / to jump here.",
+        "bodyTouch": "Search titles and text. Operators like tag: and notebook: narrow it, and the ? button lists them all."
       },
       "openNote": {
         "title": "Open a note",
@@ -1773,7 +1797,8 @@
       },
       "tags": {
         "title": "Tags",
-        "body": "Type a tag and press Enter. Tags show in the list and in the sidebar, across notebooks."
+        "body": "Type a tag and press Enter. Tags show in the list and in the sidebar, across notebooks.",
+        "bodyTouch": "Type a tag to add it. Tags show in the list and in the sidebar, across notebooks."
       },
       "shortcuts": {
         "title": "Keyboard shortcuts",
@@ -1791,7 +1816,8 @@
       },
       "newPage": {
         "title": "Start a page",
-        "body": "Create a blank page here. Press C on this screen to do the same."
+        "body": "Create a blank page here. Press C on this screen to do the same.",
+        "bodyTouch": "Create a blank page here."
       },
       "templates": {
         "title": "Templates",
@@ -1803,7 +1829,8 @@
       },
       "search": {
         "title": "Search",
-        "body": "Find any page by its title or its text. Press Cmd+P to search from anywhere in Docs."
+        "body": "Find any page by its title or its text. Press Cmd+P to search from anywhere in Docs.",
+        "bodyTouch": "Find any page by its title or its text."
       },
       "openPage": {
         "title": "Open a page",

@@ -1286,9 +1286,10 @@ export function buildNav(
       return [
         { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`) && !at(`${base}/analytics`), icon: product }] },
         ...(labels.talk.analytics
-          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const }] }]
+          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const, tour: 'talk-analytics' }] }]
           : []),
-        appSettingsGroup(`${base}/settings`),
+        // Anclajes del tour de Talk (lib/tours/talk.ts).
+        appSettingsGroup(`${base}/settings`, { tour: 'talk-settings' }),
       ];
     }
 
