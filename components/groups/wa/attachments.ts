@@ -22,7 +22,7 @@ export interface TrayItem {
    * Grupos: el pie como sale a WhatsApp ("@Ana" pasa a "@<teléfono>") y a quiénes menciona. Lo arma la vista
    * previa al escribir (components/groups/wa/AttachPreview.tsx); sin menciones no está.
    */
-  captionOut?: { body: string; mentions: string[] };
+  captionOut?: { body: string; mentions: string[]; picks?: Array<{ phone: string; label: string }> };
   /** Huella del contenido (fileFingerprint): el mismo archivo pegado dos veces no entra dos veces. */
   print?: string;
   /** Tamaño de una foto, medido acá (la burbuja provisoria ya ocupa su lugar antes de que termine la subida). */

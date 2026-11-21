@@ -1651,7 +1651,9 @@ export default function InboxApp(props: {
             onBack={closeConvo}
             onAction={act}
             onSent={sentTo(detail.thread.id)}
-            onSendLater={(text, mentions) => setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text, ...(mentions?.length ? { mentions } : {}) })}
+            onSendLater={(text, mentions, withFile) =>
+              setPlan({ threadId: detail.thread.id, channel: detail.thread.channel, text, ...(mentions?.length ? { mentions } : {}), ...(withFile ? { file: withFile.file, onScheduled: withFile.onScheduled } : {}) })
+            }
             onScheduledChange={() => {
               void loadDetail(detail.thread.id, true);
               void reloadState();
@@ -1772,7 +1774,9 @@ export default function InboxApp(props: {
           const p = plan;
           setPlan(null);
           if (!p) return;
-          composer.current?.clear();
+          // Desde la vista previa de un archivo: se cierra la vista previa (el texto del campo sigue ahí).
+          if (p.onScheduled) p.onScheduled();
+          else composer.current?.clear();
           toast(t('toast.scheduled', { when: longWhen(sendAt, locale) }));
           void loadDetail(p.threadId, true);
           void reloadState();
