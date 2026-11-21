@@ -3900,7 +3900,7 @@
     "retry": "Reintentar",
     "off": {
       "title": "El sync está apagado",
-      "body": "Conectá HubSpot para traer sus empresas, contactos, deals y actividad al CRM. No se escribe nada en HubSpot."
+      "body": "Conectá HubSpot para traer sus empresas, contactos, deals y actividad al CRM. Escribir en HubSpot es un interruptor aparte y arranca apagado."
     },
     "connect": {
       "title": "Cuenta de HubSpot",
@@ -4165,7 +4165,7 @@
     },
     "inbound": {
       "title": "De HubSpot al CRM",
-      "desc": "Trae empresas, contactos, deals con sus pipelines y etapas, y notas, llamadas, reuniones, tareas y emails a este CRM, y después revisa los cambios en HubSpot cada minuto. No se escribe nada en HubSpot ni se borra nada acá.",
+      "desc": "Trae empresas, contactos, deals con sus pipelines y etapas, y notas, llamadas, reuniones, tareas y emails a este CRM, y después revisa los cambios en HubSpot cada minuto. No se borra nada acá.",
       "loading": "Cargando el sync…",
       "loadError": "No pudimos cargar el estado del sync.",
       "retry": "Reintentar",
@@ -4217,7 +4217,7 @@
         "deals": "Deals",
         "activities": "Actividad"
       },
-      "conflicts": "{n} registros cambiaron de los dos lados desde el último sync. Quedó el valor de zerosoft. Elegir qué lado gana llega con la escritura en HubSpot.",
+      "conflicts": "{n} registros cambiaron de los dos lados desde el último sync. Quedó el valor de zerosoft, y la escritura en HubSpot tampoco manda ese campo.",
       "archived": "{n} registros se archivaron en HubSpot. Siguen en el CRM.",
       "objectsTitle": "Qué traer",
       "objects": {
@@ -4278,7 +4278,127 @@
         "deletes": "Los registros archivados en HubSpot quedan acá. Un registro que borrás acá no vuelve.",
         "owners": "Los dueños se emparejan por email con las personas del workspace. Un dueño de HubSpot que no está en el workspace deja el registro sin asignar.",
         "fields": "Las propiedades propias de HubSpot pasan a ser campos personalizados acá, y se crean si faltan. También se crean los pipelines y etapas que falten.",
-        "hubspot": "Todavía no se escribe nada en HubSpot."
+        "hubspot": "Escribir en HubSpot es un interruptor aparte, más abajo, apagado hasta que un admin lo prenda."
+      }
+    },
+    "outbound": {
+      "title": "Del CRM a HubSpot",
+      "desc": "Manda a HubSpot lo que cambia acá en empresas, contactos y deals sincronizados: propiedades, dueño, pipeline y etapa, registros nuevos y asociaciones nuevas. Arranca apagado, va aparte de traer datos y nunca borra nada en HubSpot.",
+      "loading": "Cargando la escritura en HubSpot…",
+      "loadError": "No pudimos cargar el estado de la escritura en HubSpot.",
+      "retry": "Probar de nuevo",
+      "state": {
+        "unavailable": "La escritura en HubSpot todavía no está disponible",
+        "off": "La escritura en HubSpot está apagada",
+        "on": "Prendida. Lo que cambia acá va a HubSpot cada minuto.",
+        "paused": "Pausada junto con el sync. No se manda nada hasta que lo retomes.",
+        "waiting": "HubSpot llegó a su límite diario de pedidos. Los cambios se mandan solos más tarde.",
+        "retrying": "La última vuelta falló. Vuelve a intentar sola, esperando un poco más cada vez.",
+        "blocked": "La escritura se frenó por la clave de HubSpot."
+      },
+      "blockers": {
+        "not_connected": "Primero conectá HubSpot.",
+        "read_sync_first": "Arrancá arriba el sync de HubSpot al CRM y dejá que termine la primera vuelta. La escritura usa los vínculos que crea.",
+        "missing_write_scope": "La clave no puede escribir en HubSpot. Agregale estos permisos y volvé a revisar la clave:"
+      },
+      "failures": {
+        "hubspot_busy": "HubSpot siguió limitando los pedidos.",
+        "network": "No pudimos llegar a HubSpot.",
+        "provider_error": "HubSpot devolvió un error.",
+        "internal_error": "Algo falló de nuestro lado.",
+        "missing_scope": "A la clave le falta un permiso de escritura.",
+        "invalid_token": "HubSpot ya no acepta la clave. Reemplazala arriba.",
+        "portal_changed": "La clave ahora abre otra cuenta de HubSpot. La escritura se apagó.",
+        "daily_limit": "HubSpot llegó a su límite diario de pedidos."
+      },
+      "nextTry": "Próximo intento",
+      "lastRun": "Último envío",
+      "neverRun": "Todavía no se mandó nada",
+      "enabledAt": "Prendida",
+      "queued": "{n, plural, one {# cambio esperando} other {# cambios esperando}}",
+      "countsCaption": "Cambios mandados a HubSpot, por objeto",
+      "col": {
+        "object": "Objeto",
+        "updated": "Actualizados",
+        "created": "Creados",
+        "associations": "Asociaciones",
+        "conflicts": "Conflictos",
+        "failed": "Fallidos"
+      },
+      "objects": {
+        "companies": "Empresas",
+        "contacts": "Contactos",
+        "deals": "Deals"
+      },
+      "failedItems": "{n, plural, one {HubSpot rechazó # cambio varias veces. Queda anotado en los últimos problemas y vuelve a salir cuando se edite el registro.} other {HubSpot rechazó # cambios varias veces. Quedan anotados en los últimos problemas y vuelven a salir cuando se edite el registro.}}",
+      "preview": {
+        "title": "Qué se mandaría",
+        "at": "Vista previa del",
+        "empty": "Nada cambió acá desde el último sync. Solo se mandarían los cambios nuevos.",
+        "records": "{n, plural, one {# registro para actualizar} other {# registros para actualizar}}",
+        "create": "{n, plural, one {# registro nuevo} other {# registros nuevos}}",
+        "associations": "{n, plural, one {# asociación nueva} other {# asociaciones nuevas}}",
+        "truncated": "Solo se revisaron los primeros registros.",
+        "note": "Esta vista previa lee solo el CRM, no HubSpot. Al mandar, un campo que también cambió en HubSpot no se manda y cuenta como conflicto."
+      },
+      "confirm": {
+        "title": "¿Prender la escritura en HubSpot?",
+        "body": "{n, plural, =0 {No hay nada de la vista previa para mandar ahora.} one {# registro de la vista previa va a HubSpot ahora.} other {# registros de la vista previa van a HubSpot ahora.}} Después, también va cada cambio en {objects}. No se borra nada en HubSpot.",
+        "cancel": "Cancelar",
+        "yes": "Prender"
+      },
+      "enabling": "Prendiendo…",
+      "previewing": "Revisando…",
+      "previewRun": "Ver qué se mandaría",
+      "previewAgain": "Revisar de nuevo",
+      "enable": "Prender la escritura",
+      "disable": "Apagar la escritura",
+      "previewFirst": "Primero mirá la vista previa. Después se puede prender durante una hora.",
+      "errorsTitle": "Últimos problemas",
+      "codes": {
+        "hubspot_busy": "HubSpot limitó los pedidos",
+        "network": "No se pudo llegar a HubSpot",
+        "provider_error": "HubSpot devolvió un error",
+        "internal_error": "Algo falló de nuestro lado",
+        "missing_scope": "A la clave le falta un permiso de escritura",
+        "invalid_token": "HubSpot rechazó la clave",
+        "portal_changed": "La clave abre otra cuenta",
+        "daily_limit": "Se llegó al límite diario de pedidos",
+        "value_not_accepted": "HubSpot no acepta un valor de acá (por ejemplo una opción que allá no existe)",
+        "property_missing": "Un campo no tiene propiedad en HubSpot",
+        "read_only": "Un campo es de solo lectura en HubSpot",
+        "owner_unmapped": "El dueño no es un usuario de HubSpot",
+        "stage_unmapped": "Una etapa de deal no tiene equivalente en HubSpot",
+        "email_taken": "Otro contacto de HubSpot ya usa ese email",
+        "ambiguous_match": "Más de una empresa de HubSpot tiene ese dominio",
+        "not_found": "El registro ya no está en HubSpot",
+        "association_rejected": "HubSpot no aceptó una asociación",
+        "linked_meanwhile": "La otra dirección vinculó el registro al mismo tiempo",
+        "waiting_link": "Una asociación espera a su otro registro",
+        "rejected": "HubSpot rechazó un cambio de un registro",
+        "create_uncertain": "Puede que un registro ya se haya creado en HubSpot sin vínculo: revisalo allá y editalo acá para reintentar",
+        "other": "Otro problema"
+      },
+      "errors": {
+        "generic": "No funcionó. Probá de nuevo en un momento.",
+        "not_connected": "Primero conectá HubSpot.",
+        "read_sync_first": "Arrancá el sync de HubSpot al CRM y dejá que termine la primera vuelta.",
+        "missing_write_scope": "La clave no puede escribir en HubSpot. Agregale los permisos de escritura y volvé a revisarla.",
+        "preview_required": "Mirá la vista previa de nuevo antes de prender la escritura.",
+        "portal_changed": "La clave ahora abre otra cuenta de HubSpot. Conectá la correcta arriba.",
+        "key_invalid": "HubSpot ya no acepta la clave. Reemplazala arriba.",
+        "rate_limited": "Demasiados cambios en poco tiempo. Probá más tarde.",
+        "forbidden": "Solo los admins del workspace pueden hacer esto."
+      },
+      "rules": {
+        "title": "Cómo decide la escritura",
+        "what": "Un campo va a HubSpot cuando cambió acá desde el último sync y HubSpot todavía tiene el valor de ese sync.",
+        "conflict": "Si el campo también cambió en HubSpot, no se manda: cada lado se queda con su valor y el registro cuenta como conflicto, solo con el nombre del campo.",
+        "echo": "Lo que el sync trajo de HubSpot no vuelve a salir, y lo que mandamos no vuelve como conflicto.",
+        "create": "Un registro creado acá se crea en HubSpot. Un contacto con un email o una empresa con un dominio que HubSpot ya tiene se vincula a ese.",
+        "associations": "Las asociaciones que se agregan acá se agregan en HubSpot. Quitar una acá no la quita allá.",
+        "deletes": "Borrar un registro acá nunca lo borra en HubSpot: solo se marca el vínculo.",
+        "pause": "Pausar el sync de arriba pausa las dos direcciones."
       }
     }
   },
