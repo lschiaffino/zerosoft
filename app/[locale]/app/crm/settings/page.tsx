@@ -4,7 +4,7 @@ import { workspaceTeamId } from '@/lib/workspace';
 import { getEmailSettings } from '@/lib/crm-email';
 import { getMailboxSync } from '@/lib/crm-email-sync';
 import { scopeAllowsSend } from '@/lib/gmail';
-import { listCustomFields, listPipelinesWithStages } from '@/lib/crm';
+import { listPipelinesWithStages } from '@/lib/crm';
 import { getIntegration, gmailRedirectUri } from '@/lib/integrations';
 import { microsoftConfigured, OUTLOOK_PROVIDER, outlookRedirectUri } from '@/lib/microsoft';
 import { getOutlookSync } from '@/lib/crm-outlook-sync';
@@ -49,8 +49,10 @@ import LeadStagesEditor from '@/components/crm/LeadStagesEditor';
 import FieldPermissionsPanel from '@/components/crm/FieldPermissionsPanel';
 import { ensureLeadStages } from '@/lib/crm-leads';
 import { listObjects, objectEntity } from '@/lib/crm-objects';
-import { listFieldPermissions } from '@/lib/crm-field-perms';
+import { fieldAccessFor, listFieldPermissions, sessionFieldViewer, visibleFieldDefinitions } from '@/lib/crm-field-perms';
 import AppsPanel from '@/components/crm/AppsPanel';
+import AssociationLabelsPanel from '@/components/crm/AssociationLabelsPanel';
+import { listAssociationLabels } from '@/lib/crm-assoc-labels';
 import HubspotSyncPanel from '@/components/crm/HubspotSyncPanel';
 import { listApps } from '@/lib/crm-apps';
 import { parseDbUtc } from '@/lib/utils';
@@ -120,7 +122,7 @@ export default async function CrmSettingsPage(props: {
       listExchangeRates(user.id),
       missingRates(user.id),
       quotaProgress(user.id, { ownerIds: scope, people: people.map((p) => ({ id: p.id, name: p.label })) }),
-      listCustomFields(user.id, 'deals'),
+      fieldAccessFor(sessionFieldViewer(user), 'deals').then((a) => a.visible),
       ensureLeadStages(user.id, {
         new: t('leads.defaultStages.new'),
         attempting: t('leads.defaultStages.attempting'),
@@ -179,12 +181,13 @@ export default async function CrmSettingsPage(props: {
       </>
     );
   } else if (tab === 'data') {
-    const [customFields, tags, objects, permissions, salesTeams] = await Promise.all([
-      listCustomFields(user.id),
+    const [customFields, tags, objects, permissions, salesTeams, assocLabels] = await Promise.all([
+      visibleFieldDefinitions(sessionFieldViewer(user)),
       listTags(user.id, undefined, await sessionScope(user)),
       listObjects(user.id),
       admin ? listFieldPermissions(user.id) : Promise.resolve([]),
       listSalesTeams(user.id),
+      listAssociationLabels(user.id),
     ]);
     const entityLabel = (entity: string): string => {
       const obj = objects.find((o) => objectEntity(o.id) === entity);
@@ -201,6 +204,12 @@ export default async function CrmSettingsPage(props: {
             fields={customFields.map((f) => ({ id: f.id, name: f.name, label: f.label, entityLabel: entityLabel(f.entity) }))}
             teams={salesTeams.map((x) => ({ id: x.id, name: x.name }))}
             initialRules={permissions.map((r) => ({ field_id: r.field_id, subject: r.subject, access: r.access }))}
+            canEdit={admin}
+          />
+        </FormSection>
+        <FormSection title={t('assocLabels.title')} description={t('assocLabels.desc')}>
+          <AssociationLabelsPanel
+            initial={assocLabels.map((l) => ({ id: l.id, pair: l.pair, name: l.name }))}
             canEdit={admin}
           />
         </FormSection>
@@ -225,7 +234,7 @@ export default async function CrmSettingsPage(props: {
       unavailablePeople(user.id),
       listAssignmentHistory(user.id, 15),
       listScoreRules(user.id),
-      listCustomFields(user.id, 'contacts'),
+      fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
       listScores(user.id),
     ]);
     body = (

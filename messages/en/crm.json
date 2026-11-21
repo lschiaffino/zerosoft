@@ -1248,7 +1248,9 @@
     "invalid_filter": "These filters are not valid. Check them and try again.",
     "value_taken": "Another record already has this value, and this property only allows unique values.",
     "not_unique": "Some records already share a value in this property. Fix the duplicates first.",
-    "invalid_unique": "Only text, number, URL and phone properties of contacts, companies and deals can require unique values."
+    "invalid_unique": "Only text, number, URL and phone properties of contacts, companies and deals can require unique values.",
+    "duplicate_label": "There is already a label with that name.",
+    "too_many_labels": "You reached the limit of labels for this association."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -4379,5 +4381,19 @@
       "no_show": "No show",
       "canceled": "Canceled"
     }
+  },
+  "assocLabels": {
+    "title": "Association labels",
+    "desc": "Describe how records relate, like a billing contact at a company or the decision maker on a deal. People pick a label on the record's association cards.",
+    "pairs": {
+      "contact_company": "Contact to company",
+      "deal_contact": "Deal to contact"
+    },
+    "builtin": "Built in: {labels}.",
+    "empty": "No labels of your own yet.",
+    "name": "Label name",
+    "placeholder": "For example, Billing contact",
+    "add": "Add label",
+    "delete": "Delete label"
   }
 }

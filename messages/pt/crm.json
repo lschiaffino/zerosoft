@@ -1248,7 +1248,9 @@
     "invalid_filter": "Estes filtros não são válidos. Revise e tente de novo.",
     "value_taken": "Outro registro já tem este valor, e esta propriedade só aceita valores únicos.",
     "not_unique": "Alguns registros já compartilham um valor nesta propriedade. Corrija os duplicados primeiro.",
-    "invalid_unique": "Só propriedades de texto, número, URL e telefone de contatos, empresas e negócios podem exigir valor único."
+    "invalid_unique": "Só propriedades de texto, número, URL e telefone de contatos, empresas e negócios podem exigir valor único.",
+    "duplicate_label": "Já existe um rótulo com esse nome.",
+    "too_many_labels": "Você atingiu o limite de rótulos para esta associação."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -4379,5 +4381,19 @@
       "no_show": "Não compareceu",
       "canceled": "Cancelada"
     }
+  },
+  "assocLabels": {
+    "title": "Rótulos de associação",
+    "desc": "Descrevem como os registros se relacionam, como o contato de cobrança de uma empresa ou quem decide em um negócio. São escolhidos nos cartões de associações da ficha.",
+    "pairs": {
+      "contact_company": "Contato com empresa",
+      "deal_contact": "Negócio com contato"
+    },
+    "builtin": "Padrão: {labels}.",
+    "empty": "Ainda não há rótulos próprios.",
+    "name": "Nome do rótulo",
+    "placeholder": "Por exemplo, Contato de cobrança",
+    "add": "Adicionar rótulo",
+    "delete": "Excluir rótulo"
   }
 }

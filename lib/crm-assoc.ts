@@ -1,11 +1,11 @@
 /**
  * CRM — asociaciones nivel HubSpot. Server-only.
  *
- * - contact ↔ company: many-to-many con label (CONTACT_COMPANY_LABELS) y una
- *   primaria por contacto. crm_contacts.company_id es SIEMPRE el espejo de la
+ * - contact ↔ company: many-to-many con label (de fábrica o del workspace,
+ *   lib/crm-assoc-labels.ts) y una primaria por contacto. crm_contacts.company_id es SIEMPRE el espejo de la
  *   primaria (compatibilidad con la API/listados existentes).
  * - deal ↔ company: many-to-many con una primaria por deal.
- * - deal ↔ contact: la tabla de siempre (crm_deal_contacts).
+ * - deal ↔ contact: la tabla de siempre (crm_deal_contacts), con label del workspace.
  * - company → parent company: jerarquía sin ciclos (parent_company_id).
  *
  * Invariante: si un registro tiene asociaciones a empresas, exactamente una es
@@ -14,7 +14,7 @@
  */
 import { CrmRefError } from './crm-refs';
 import { baseAmountSql, getCrmSettings } from './crm-currency';
-import { CONTACT_COMPANY_LABELS } from './crm-constants';
+import { normalizeAssocLabel } from './crm-assoc-labels';
 import {
   getDb,
   type CrmCompanyRow,
@@ -36,13 +36,6 @@ async function ownsRow(db: Db, table: string, userId: string, id: string): Promi
 async function assertOwned(db: Db, type: AssocObject, userId: string, id: string): Promise<void> {
   const table = type === 'contact' ? 'crm_contacts' : type === 'company' ? 'crm_companies' : 'crm_deals';
   if (!id || !(await ownsRow(db, table, userId, id))) throw new CrmRefError(`invalid_${type}`);
-}
-
-function normLabel(label: string | undefined | null): string {
-  const v = (label ?? '').trim();
-  if (!v) return '';
-  if (!(CONTACT_COMPANY_LABELS as readonly string[]).includes(v)) throw new CrmRefError('invalid_label');
-  return v;
 }
 
 // ============================================================
@@ -140,7 +133,7 @@ export async function associateContactCompany(
 ): Promise<void> {
   await assertOwned(db, 'contact', userId, contactId);
   await assertOwned(db, 'company', userId, companyId);
-  const label = opts.label === undefined ? undefined : normLabel(opts.label);
+  const label = opts.label === undefined ? undefined : await normalizeAssocLabel(userId, 'contact_company', opts.label, db);
   const existing = (await db
     .prepare('SELECT is_primary FROM crm_contact_companies WHERE contact_id = ? AND company_id = ?')
     .get(contactId, companyId)) as { is_primary: number } | undefined;
@@ -309,12 +302,17 @@ export async function associateDealContact(
   dealId: string,
   contactId: string,
   db: Db = getDb(),
+  opts: { label?: string | null } = {},
 ): Promise<void> {
   await assertOwned(db, 'deal', userId, dealId);
   await assertOwned(db, 'contact', userId, contactId);
+  const label = opts.label === undefined ? undefined : await normalizeAssocLabel(userId, 'deal_contact', opts.label, db);
   await db
     .prepare('INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)')
     .run(dealId, contactId);
+  if (label !== undefined) {
+    await db.prepare('UPDATE crm_deal_contacts SET label = ? WHERE deal_id = ? AND contact_id = ?').run(label, dealId, contactId);
+  }
   await autoAssociateContactCompanies(userId, dealId, [contactId], db);
 }
 
@@ -373,8 +371,8 @@ export async function associate(userId: string, a: AssociationInput, db: Db = ge
     if (a.label) throw new CrmRefError('invalid_label');
     await associateDealCompany(userId, ids[0], ids[1], { primary: a.primary }, db);
   } else {
-    if (a.label || a.primary) throw new CrmRefError('invalid_association');
-    await associateDealContact(userId, ids[0], ids[1], db);
+    if (a.primary) throw new CrmRefError('invalid_association');
+    await associateDealContact(userId, ids[0], ids[1], db, { label: a.label });
   }
 }
 
@@ -392,7 +390,7 @@ export async function dissociate(
 export interface AssociationList {
   companies?: Array<{ id: string; name: string; domain: string; is_primary: boolean; label?: string }>;
   contacts?: Array<{ id: string; name: string; email: string; is_primary?: boolean; label?: string }>;
-  deals?: Array<{ id: string; name: string; amount: number; currency: string; is_primary?: boolean }>;
+  deals?: Array<{ id: string; name: string; amount: number; currency: string; is_primary?: boolean; label?: string }>;
   parent?: { id: string; name: string } | null;
   children?: Array<{ id: string; name: string }>;
 }
@@ -413,11 +411,11 @@ export async function listAssociations(
     const companies = await listContactCompanies(userId, id, db);
     const deals = (await db
       .prepare(
-        `SELECT d.id, d.name, d.amount, d.currency FROM crm_deals d
+        `SELECT d.id, d.name, d.amount, d.currency, dc.label FROM crm_deals d
          JOIN crm_deal_contacts dc ON dc.deal_id = d.id
          WHERE dc.contact_id = ? AND d.user_id = ? ORDER BY d.created_at DESC`,
       )
-      .all(id, userId)) as Array<{ id: string; name: string; amount: number; currency: string }>;
+      .all(id, userId)) as Array<{ id: string; name: string; amount: number; currency: string; label: string }>;
     return {
       companies: companies.map((c) => ({ id: c.id, name: c.name, domain: c.domain, is_primary: !!c.is_primary, label: c.label })),
       deals,
@@ -427,14 +425,14 @@ export async function listAssociations(
     const companies = await listDealCompanies(userId, id, db);
     const contacts = (await db
       .prepare(
-        `SELECT c.id, c.first_name, c.last_name, c.email FROM crm_contacts c
+        `SELECT c.id, c.first_name, c.last_name, c.email, dc.label FROM crm_contacts c
          JOIN crm_deal_contacts dc ON dc.contact_id = c.id
          WHERE dc.deal_id = ? AND c.user_id = ? ORDER BY dc.rowid ASC`,
       )
-      .all(id, userId)) as Array<{ id: string; first_name: string; last_name: string; email: string }>;
+      .all(id, userId)) as Array<{ id: string; first_name: string; last_name: string; email: string; label: string }>;
     return {
       companies: companies.map((c) => ({ id: c.id, name: c.name, domain: c.domain, is_primary: !!c.is_primary })),
-      contacts: contacts.map((c) => ({ id: c.id, name: personName(c), email: c.email })),
+      contacts: contacts.map((c) => ({ id: c.id, name: personName(c), email: c.email, label: c.label })),
     };
   }
   const contacts = await listCompanyContacts(userId, id, db);

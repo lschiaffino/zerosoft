@@ -25,7 +25,9 @@ import {
   setDealCompanyPrimary,
   associateContactToDeal,
   removeContactFromDeal,
+  setDealContactLabel,
 } from '@/components/crm/associationActions';
+import { assocLabelOptions, listAssociationLabels } from '@/lib/crm-assoc-labels';
 import DealStagePanel from '@/components/crm/DealStagePanel';
 import LineItemsPanel from '@/components/crm/LineItemsPanel';
 import DealQuotesPanel from '@/components/crm/DealQuotesPanel';
@@ -78,7 +80,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const detail = scopeDealDetail(rawDetail, scope);
   const { deal, pipeline, contacts, company, companies: dealCompanies } = detail;
   const base = `/app/crm/deals/${deal.id}`;
-  const [currencyCtx, allTags, recordTags, teamMembers, eventTypes, stages, approvals, splits] = await Promise.all([
+  const [currencyCtx, allTags, recordTags, teamMembers, eventTypes, stages, approvals, splits, assocLabels] = await Promise.all([
     getCurrencyContext(user.id),
     listTags(user.id),
     tagsForRecords(user.id, 'deal', [id]),
@@ -91,7 +93,9 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       .all(deal.pipeline_id) as Promise<CrmStageRow[]>,
     listApprovals(user.id, { dealId: id, limit: 5 }),
     getSplits(user.id, id),
+    listAssociationLabels(user.id, 'deal_contact'),
   ]);
+  const contactLabelOptions = assocLabelOptions('deal_contact', assocLabels, (k) => k);
   // Monto en la moneda base del workspace (solo si es otra moneda y hay tipo de cambio).
   const baseAmount =
     deal.currency.toUpperCase() !== currencyCtx.base
@@ -630,7 +634,10 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
             name: contactName(c),
             href: `/app/crm/contacts/${c.id}`,
             meta: c.email || undefined,
+            label: c.assoc_label,
           }))}
+          onSetLabel={contactLabelOptions.length ? setDealContactLabel.bind(null, deal.id) : undefined}
+          labelOptions={contactLabelOptions.length ? contactLabelOptions : undefined}
           options={contactRows
             .filter((c) => !associatedContactIds.has(c.id))
             .map((c) => ({ id: c.id, value: contactName(c) }))}
