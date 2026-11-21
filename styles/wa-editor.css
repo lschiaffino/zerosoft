@@ -31,7 +31,26 @@
 .wa-edit-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; overflow: hidden; }
 .wa-edit-canvas { position: relative; flex: none; }
 .wa-edit-photo { display: block; touch-action: none; border-radius: 2px; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2); }
-.wa-edit[data-tool='draw'] .wa-edit-photo { cursor: crosshair; }
+.wa-edit[data-tool='draw'] .wa-edit-photo, .wa-edit[data-tool='blur'] .wa-edit-photo { cursor: crosshair; }
+/* Pincel de desenfoque: el tamaño como un punto difuso (sin color). */
+.wa-edit-brush.is-blur i { background: radial-gradient(circle, var(--wa-icon, var(--ink)) 0, transparent 75%); box-shadow: none; opacity: 0.8; }
+/* Filtros: una tira de miniaturas con su nombre, la elegida marcada (como WhatsApp). */
+.wa-edit-filters { display: flex; gap: 10px; justify-content: safe center; padding: 2px 8px 8px; overflow-x: auto; scrollbar-width: none; }
+.wa-edit-filters::-webkit-scrollbar { display: none; }
+.wa-edit-filter { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; font: inherit; color: var(--wa-icon, var(--ink)); background: none; border: 0; cursor: pointer; }
+.wa-edit-filter-thumb { display: block; width: 56px; height: 56px; overflow: hidden; background: var(--wa-panel, rgba(0, 0, 0, 0.06)); border: 2px solid transparent; border-radius: 6px; }
+.wa-edit-filter-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wa-edit-filter-name { font-size: 0.75rem; line-height: 1; }
+.wa-edit-filter[aria-checked='true'] .wa-edit-filter-thumb { border-color: var(--wa-primary, #00a884); }
+.wa-edit-filter[aria-checked='true'] .wa-edit-filter-name { color: var(--wa-primary, #00a884); font-weight: 600; }
+.wa-edit-filter:hover .wa-edit-filter-thumb { border-color: var(--wa-border-strong, rgba(0, 0, 0, 0.25)); }
+.wa-edit-filter[aria-checked='true']:hover .wa-edit-filter-thumb { border-color: var(--wa-primary, #00a884); }
+@media (max-width: 480px) {
+  .wa-edit-filters { gap: 6px; padding-inline: 10px; }
+  .wa-edit-filter-thumb { width: 50px; height: 50px; }
+}
+.wa-edit-filter:focus-visible { outline: none; }
+.wa-edit-filter:focus-visible .wa-edit-filter-thumb { outline: 2px solid var(--wa-primary, #00a884); outline-offset: 1px; }
 .wa-edit-sel { position: absolute; border: 1.5px dashed #fff; border-radius: 4px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); pointer-events: none; }
 .wa-edit-typing {
   position: absolute; z-index: 2; margin: 0; padding: 0 8px; font-weight: 600; font-family: system-ui, sans-serif;

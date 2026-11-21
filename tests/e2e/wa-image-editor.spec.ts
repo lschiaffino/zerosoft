@@ -99,7 +99,19 @@ async function dragOn(page: Page, el: Locator, from: [number, number], to: [numb
   await page.mouse.up();
 }
 
-/** Lo de WhatsApp: dibujar, texto, emoji, deshacer, recortar, y mandar con Enter. */
+/** El color (r, g, b) de la vista del editor en un punto relativo (0..1). */
+async function pixel(canvas: Locator, at: readonly [number, number]): Promise<number[]> {
+  return canvas.evaluate((c, [fx, fy]) => {
+    const el = c as HTMLCanvasElement;
+    const d = el.getContext('2d')!.getImageData(Math.floor(el.width * fx), Math.floor(el.height * fy), 1, 1).data;
+    return [d[0], d[1], d[2]];
+  }, at as [number, number]);
+}
+const colorDistance = (a: number[], b: number[]) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+/** Cuánto se separan los canales (0 = gris). */
+const spread = (c: number[]) => Math.max(...c) - Math.min(...c);
+
+/** Lo de WhatsApp: dibujar, texto, emoji, deshacer, desenfocar, filtro, recortar, y mandar con Enter. */
 async function editAndSend(page: Page, input: Locator, thread: Locator, app: string) {
   const before = await thread.locator('.gr-msg-out img').count();
   await pasteImage(input);
@@ -136,6 +148,33 @@ async function editAndSend(page: Page, input: Locator, thread: Locator, app: str
   await shot(page, `${app}-editor-1280`);
   await undo.click();
 
+  // Desenfoque: una pasada sobre el borde entre dos franjas las mezcla (sin color: el pixel deja de ser liso).
+  const probe = [0.85, 0.47] as const;
+  const plain = await pixel(canvas, probe);
+  await pane.getByTestId('edit-blur').click();
+  await expect(pane.getByTestId('edit-blur')).toHaveAttribute('aria-pressed', 'true');
+  await expect(pane.locator('.wa-edit-colors')).toHaveCount(0);
+  await pane.locator('.wa-edit-brushes [role="radio"]').nth(2).click();
+  await dragOn(page, canvas, [0.76, 0.5], [0.95, 0.5]);
+  await expect.poll(async () => colorDistance(await pixel(canvas, probe), plain)).toBeGreaterThan(20);
+  await shot(page, `${app}-editor-blur-1280`);
+  await pane.getByTestId('edit-blur').click();
+
+  // Filtros: la tira con Original y cinco más; B&N deja la foto en gris.
+  await pane.getByTestId('edit-filters').click();
+  const strip = pane.getByTestId('edit-filter-strip');
+  await expect(strip.getByRole('radio')).toHaveCount(6);
+  await expect(strip.locator('[data-filter="none"]')).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => strip.locator('img').count()).toBe(6);
+  await strip.locator('[data-filter="bw"]').click();
+  await expect(strip.locator('[data-filter="bw"]')).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(async () => spread(await pixel(canvas, [0.05, 0.05]))).toBeLessThan(4);
+  await shot(page, `${app}-editor-filters-1280`);
+  // Esc cierra la tira (el filtro queda).
+  await page.keyboard.press('Escape');
+  await expect(strip).toHaveCount(0);
+  await expect(pane).toBeVisible();
+
   // Recortar: achicar desde la esquina de abajo a la derecha, rotar y listo.
   await pane.getByTestId('edit-crop').click();
   const handle = pane.locator('.wa-edit-handle.is-se');
@@ -160,6 +199,17 @@ async function editAndSend(page: Page, input: Locator, thread: Locator, app: str
   // Recortada: más chica que la original en los dos lados.
   expect(size.w).toBeLessThan(W);
   expect(size.h).toBeLessThan(H);
+  // Y en blanco y negro (la esquina de arriba, azul en la original, sale gris).
+  const corner = await img.evaluate((i) => {
+    const im = i as HTMLImageElement;
+    const c = document.createElement('canvas');
+    c.width = im.naturalWidth;
+    c.height = im.naturalHeight;
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(im, 0, 0);
+    return Array.from(ctx.getImageData(4, 4, 1, 1).data.slice(0, 3));
+  });
+  expect(spread(corner)).toBeLessThan(8);
   await shot(page, `${app}-editor-sent-1280`);
 }
 
@@ -194,6 +244,15 @@ async function moreShots(page: Page, input: Locator, app: string, baseURL: strin
       await pane.getByTestId('edit-draw').click();
       await pane.getByTestId('edit-crop').click();
       await shot(page, `${app}-editor-crop-${width}-${theme}`);
+      await page.keyboard.press('Escape');
+      await pane.getByTestId('edit-blur').click();
+      await dragOn(page, pane.getByTestId('edit-canvas'), [0.3, 0.5], [0.7, 0.5]);
+      await shot(page, `${app}-editor-blur-${width}-${theme}`);
+      await pane.getByTestId('edit-filters').click();
+      await expect.poll(() => pane.getByTestId('edit-filter-strip').locator('img').count()).toBe(6);
+      await pane.getByTestId('edit-filter-strip').locator('[data-filter="film"]').click();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await shot(page, `${app}-editor-filters-${width}-${theme}`);
       await page.keyboard.press('Escape');
       await page.keyboard.press('Escape');
       await expect(pane).toHaveCount(0);

@@ -5,9 +5,16 @@ import { useTranslations } from 'next-intl';
 import EmojiPicker from './EmojiPicker';
 import type { StickerItem } from './StickerPanel';
 import { Trash } from './icons';
-import { NO_EDITS, cropOf, fromView, rectFromView, renderEdits, rotateLeft, toView, viewSize, EMOJI_FONT, TEXT_FONT, type Ctx2D, type Edits, type Overlay, type Rect } from '@/lib/wa-image-edit';
+import { NO_EDITS, cropOf, fromView, hasBlur, rectFromView, renderEdits, rotateLeft, toView, viewSize, EMOJI_FONT, TEXT_FONT, type Ctx2D, type Edits, type Overlay, type Rect } from '@/lib/wa-image-edit';
+import { FILTERS, type FilterId } from '@/lib/wa-image-filters';
+import { blurredPhoto, filterThumb, filteredPhoto } from './photo-sources';
 
-type Tool = '' | 'draw' | 'crop';
+type Tool = '' | 'draw' | 'crop' | 'blur' | 'filter';
+/** Grosor del pincel de desenfoque en px de pantalla (chico, mediano, grande). */
+const BLUR_BRUSHES = [18, 34, 56];
+/** La vista en pantalla no necesita la foto filtrada más grande que esto (lado largo, px). */
+const VIEW_MAX_SIDE = 2048;
+const THUMB_PX = 112;
 /** Los colores del lápiz y del texto (los de WhatsApp, de claro a oscuro). */
 export const EDIT_COLORS = ['#ffffff', '#000000', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00a884', '#007aff', '#af52de', '#ff2d92'];
 /** Grosor del lápiz en px de pantalla (chico, mediano, grande). */
@@ -76,6 +83,7 @@ export default function ImageEditor({
   const [tool, setTool] = useState<Tool>('');
   const [color, setColor] = useState(EDIT_COLORS[2]);
   const [brush, setBrush] = useState(BRUSHES[1]);
+  const [blurBrush, setBlurBrush] = useState(BLUR_BRUSHES[1]);
   const [selected, setSelected] = useState<string | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -88,6 +96,12 @@ export default function ImageEditor({
   const imageUrls = useMemo(() => [src, ...edits.overlays.filter((o) => o.kind === 'image' && o.src).map((o) => o.src!)], [src, edits.overlays]);
   const images = useImages(imageUrls);
   const photo = images.get(src);
+  // La foto con su filtro (a lo sumo del tamaño de la pantalla) y su copia desenfocada (solo si se usa el pincel).
+  const filtered = useMemo(() => (photo ? filteredPhoto(photo, natural, edits.filter, VIEW_MAX_SIDE) : null), [photo, natural, edits.filter]);
+  const usesBlur = hasBlur(edits) || tool === 'blur';
+  const blurred = useMemo(() => (filtered && usesBlur ? blurredPhoto(filtered, natural) : null), [filtered, natural, usesBlur]);
+  // Miniaturas de los filtros: se arman al abrir la tira.
+  const thumbs = useMemo(() => (photo && tool === 'filter' ? new Map(FILTERS.map((f) => [f, filterThumb(photo, natural, f, THUMB_PX)])) : null), [photo, natural, tool]);
 
   useEffect(() => onBusyKey?.(!!typing), [typing, onBusyKey]);
   // Al cerrar una herramienta, su botón puede desaparecer: el foco queda en el editor (Esc y Enter siguen andando).
@@ -119,7 +133,7 @@ export default function ImageEditor({
   // Dibujar la vista (en el próximo cuadro, una vez aunque cambien varias cosas).
   useEffect(() => {
     const c = canvasRef.current;
-    if (!c || !photo || !scale) return;
+    if (!c || !filtered || !scale) return;
     const id = requestAnimationFrame(() => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       c.width = Math.round(cssW * dpr);
@@ -128,7 +142,7 @@ export default function ImageEditor({
       if (!ctx) return;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, c.width, c.height);
-      renderEdits(ctx as unknown as Ctx2D, photo, natural, shown, scale * dpr, { images, skipOverlay: typing ?? undefined });
+      renderEdits(ctx as unknown as Ctx2D, filtered, natural, shown, scale * dpr, { images, skipOverlay: typing ?? undefined, ...(blurred ? { blurred } : {}) });
     });
     return () => cancelAnimationFrame(id);
   });
@@ -208,15 +222,15 @@ export default function ImageEditor({
   function onPointerDown(e: RPointerEvent<HTMLCanvasElement>) {
     if (!scale || e.button > 0) return;
     if (typing) finishTyping();
-    if (tool === 'draw') {
+    if (tool === 'draw' || tool === 'blur') {
       e.currentTarget.setPointerCapture(e.pointerId);
       const p = toOrig(e);
-      const stroke = { color, width: brush / scale, points: [p.x, p.y] };
+      const stroke = tool === 'blur' ? { color: '', width: blurBrush / scale, points: [p.x, p.y], blur: true } : { color, width: brush / scale, points: [p.x, p.y] };
       drag.current = { kind: 'draw', stroke: edits.strokes.length };
       onChange({ ...edits, strokes: [...edits.strokes, stroke] }, false);
       return;
     }
-    if (tool === 'crop') return;
+    if (tool === 'crop' || tool === 'filter') return;
     const o = hit(e);
     if (o) {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -441,13 +455,67 @@ export default function ImageEditor({
             >
               <PencilIcon />
             </button>
+            <button
+              type="button"
+              className={`wa-edit-btn${tool === 'blur' ? ' is-on' : ''}`}
+              onClick={() => (finishTyping(), setEmojiOpen(false), setSelected(null), setTool(tool === 'blur' ? '' : 'blur'))}
+              aria-label={t('blur')}
+              title={t('blur')}
+              aria-pressed={tool === 'blur'}
+              data-testid="edit-blur"
+            >
+              <BlurIcon />
+            </button>
+            <button
+              type="button"
+              className={`wa-edit-btn${tool === 'filter' ? ' is-on' : ''}`}
+              onClick={() => (finishTyping(), setEmojiOpen(false), setSelected(null), setTool(tool === 'filter' ? '' : 'filter'))}
+              aria-label={t('filters')}
+              title={t('filters')}
+              aria-pressed={tool === 'filter'}
+              data-testid="edit-filters"
+            >
+              <FilterIcon />
+            </button>
             <button type="button" className="wa-edit-btn" onClick={onUndo} disabled={!canUndo} aria-label={t('undo')} title={t('undo')} data-testid="edit-undo">
               <UndoIcon />
             </button>
           </>
         )}
       </div>
-      {(showColors || sel) && tool !== 'crop' && (
+      {tool === 'blur' && (
+        <div className="wa-edit-props">
+          <div className="wa-edit-brushes" role="radiogroup" aria-label={t('blurSize')}>
+            {BLUR_BRUSHES.map((b, i) => (
+              <button key={b} type="button" role="radio" aria-checked={blurBrush === b} aria-label={t(`brushSizes.${i}`)} title={t(`brushSizes.${i}`)} className="wa-edit-brush is-blur" onClick={() => setBlurBrush(b)}>
+                <i style={{ width: Math.round(b / 2.4), height: Math.round(b / 2.4) }} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {tool === 'filter' && (
+        <div className="wa-edit-filters" role="radiogroup" aria-label={t('filters')} data-testid="edit-filter-strip">
+          {FILTERS.map((f) => {
+            const on = (edits.filter ?? 'none') === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                className="wa-edit-filter"
+                data-filter={f}
+                onClick={() => !on && onChange({ ...edits, filter: f as FilterId }, true)}
+              >
+                <span className="wa-edit-filter-thumb">{thumbs?.get(f) ? <img src={thumbs.get(f)} alt="" width={56} height={56} /> : null}</span>
+                <span className="wa-edit-filter-name">{t(`filterNames.${f}`)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {(showColors || sel) && tool !== 'crop' && tool !== 'blur' && tool !== 'filter' && (
         <div className="wa-edit-props">
           {showColors && (
             <div className="wa-edit-colors" role="radiogroup" aria-label={t('color')}>
@@ -610,6 +678,21 @@ const PencilIcon = () => (
   <I>
     <path d="M4 20h4L19 9l-4-4L4 16Z" />
     <path d="m13.5 6.5 4 4" />
+  </I>
+);
+/** Desenfoque: una gota con puntos que se desvanecen. */
+const BlurIcon = () => (
+  <I>
+    <path d="M12 3c3.5 4.2 6 7.6 6 10.5a6 6 0 0 1-12 0C6 10.6 8.5 7.2 12 3Z" />
+    <path d="M10 13h.01M14 13h.01M12 16h.01M12 10.5h.01" />
+  </I>
+);
+/** Filtros: tres círculos que se cruzan. */
+const FilterIcon = () => (
+  <I>
+    <circle cx="9" cy="9" r="5" />
+    <circle cx="15" cy="9" r="5" />
+    <circle cx="12" cy="14.5" r="5" />
   </I>
 );
 const UndoIcon = () => (

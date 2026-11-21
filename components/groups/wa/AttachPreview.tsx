@@ -11,7 +11,8 @@ import MentionTextarea from './MentionTextarea';
 import Avatar from './Avatar';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
 import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
-import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
+import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasBlur, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
+import { blurredPhoto, filteredPhoto } from './photo-sources';
 import '@/styles/wa-editor.css';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
 
@@ -70,7 +71,10 @@ async function renderPhoto(orig: Orig, edits: Edits, hd: boolean): Promise<{ fil
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, c.width, c.height);
     }
-    renderEdits(ctx as unknown as Ctx2D, img, orig.natural, edits, s, { images });
+    // El filtro de color, a la resolución con que sale; la copia desenfocada solo si hay pasadas del pincel.
+    const source = filteredPhoto(img, orig.natural, edits.filter, Math.ceil(Math.max(orig.natural.w, orig.natural.h) * s));
+    const blurred = hasBlur(edits) ? blurredPhoto(source, orig.natural) : null;
+    renderEdits(ctx as unknown as Ctx2D, source, orig.natural, edits, s, { images, ...(blurred ? { blurred } : {}) });
     const blob = await new Promise<Blob | null>((r) => c.toBlob(r, type, hd ? 0.92 : 0.82));
     if (!blob) return null;
     return { file: new File([blob], outputName(orig.file.name, type), { type, lastModified: Date.now() }), width: c.width, height: c.height };
