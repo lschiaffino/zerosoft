@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canSeeActivity, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeActivityRefs, sessionScope } from '@/lib/crm-visibility';
 import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
+import { unpinSiblings } from '@/lib/crm-timeline';
 import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
 import { activityUpdateSchema } from '@/lib/crm-schema';
@@ -15,11 +16,20 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
+  const scope = await sessionScope(user);
+  if (!(await canSeeActivity(user.id, params.id, scope))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  // Asociar a otro registro (timeline › Asociaciones): solo a registros que la persona ve.
+  const { contactId, companyId, dealId } = parsed.data;
+  if (
+    (contactId || companyId || dealId) &&
+    !(await canSeeActivityRefs(user.id, { contact_id: contactId ?? null, company_id: companyId ?? null, deal_id: dealId ?? null }, scope))
+  ) {
+    return notFound();
+  }
 
   // Tarea de un chat de Lines que la persona no ve: puede completarla, moverla o reasignarla, pero no
   // reescribir un texto que no ve, y la respuesta tampoco lo trae.
@@ -28,6 +38,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const textEdit = parsed.data.subject !== undefined || parsed.data.body !== undefined;
   if (textEdit && (await isChatHidden(user.id, params.id, reader))) return crmError(403, 'chat_private');
   const before = await getActivity(user.id, params.id);
+  // Una sola fijada por registro (como en HubSpot): fijar esta desfija las otras de sus registros.
+  if (parsed.data.pinned === true) await unpinSiblings(user.id, params.id);
   const updated = await catchRef(updateActivity(user.id, params.id, parsed.data));
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();

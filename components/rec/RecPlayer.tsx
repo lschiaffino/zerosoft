@@ -73,9 +73,13 @@ const RecPlayer = forwardRef<
     sprite?: { url: string; meta: RecSpriteMeta } | null;
     /** Silencios (segundos del original, de la transcripción): "Saltar silencios" los pasa de largo. */
     silences?: Range[];
+    /** Segundo (del video recortado) donde arranca, como el `?t=` de un link. */
+    startAt?: number | null;
+    /** Reproduce al cargar, sin sonido (los navegadores solo dejan así). */
+    autoPlay?: boolean;
   }
 >(function RecPlayer(props, ref) {
-  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload, sprite, silences = [] } = props;
+  const { src, captionsSrc, poster, title, durationSec, trimStart, trimEnd, chapters = [], markers = [], cta, trackUrl, viewerName, onTime, compact, overlays = [], noDownload, sprite, silences = [], startAt = null, autoPlay = false } = props;
   const t = useTranslations('rec.player');
   const wrap = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -83,7 +87,7 @@ const RecPlayer = forwardRef<
   const [time, setTime] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(autoPlay);
   const [captions, setCaptions] = useState(false);
   const [ended, setEnded] = useState(false);
   const [speedOpen, setSpeedOpen] = useState(false);
@@ -130,6 +134,20 @@ const RecPlayer = forwardRef<
   }, []);
 
   useImperativeHandle(ref, () => ({ seek, current: () => time, video: () => video.current, pop }), [seek, time, pop]);
+
+  // Arranque pedido por el embed: primero el segundo, después el play sin sonido.
+  // Si el navegador no deja reproducir solo, queda el botón de play.
+  const startedRef = useRef(false);
+  useEffect(() => {
+    const v = video.current;
+    if (!v || startedRef.current) return;
+    startedRef.current = true;
+    if (startAt && startAt > 0) seek(startAt);
+    if (autoPlay) {
+      v.muted = true;
+      v.play().catch(() => {});
+    }
+  }, [startAt, autoPlay, seek]);
 
   // ---------- Seguimiento de la vista ----------
   const send = useCallback(

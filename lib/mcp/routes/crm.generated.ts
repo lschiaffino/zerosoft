@@ -143,25 +143,26 @@ import * as r140 from "@/lib/routes/crm/tasks/[id]/track/route";
 import * as r141 from "@/app/api/crm/tasks/due-count/route";
 import * as r142 from "@/app/api/crm/tasks/projects/route";
 import * as r143 from "@/lib/routes/crm/tasks/projects/[id]/route";
-import * as r144 from "@/app/api/crm/trash/route";
-import * as r145 from "@/lib/routes/crm/trash/[id]/restore/route";
-import * as r146 from "@/app/api/crm/videos/route";
-import * as r147 from "@/lib/routes/crm/videos/[id]/route";
-import * as r148 from "@/lib/routes/crm/videos/[id]/file/route";
-import * as r149 from "@/app/api/crm/views/route";
-import * as r150 from "@/lib/routes/crm/views/[id]/route";
-import * as r151 from "@/app/api/crm/visibility/route";
-import * as r152 from "@/app/api/crm/voice/calls/route";
-import * as r153 from "@/lib/routes/crm/voice/calls/[id]/route";
-import * as r154 from "@/lib/routes/crm/voice/calls/[id]/end/route";
-import * as r155 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
-import * as r156 from "@/app/api/crm/voice/calls/[id]/summarize/route";
-import * as r157 from "@/app/api/crm/voice/fake/route";
-import * as r158 from "@/app/api/crm/voice/settings/route";
-import * as r159 from "@/app/api/crm/workflows/route";
-import * as r160 from "@/lib/routes/crm/workflows/[id]/route";
-import * as r161 from "@/lib/routes/crm/workflows/[id]/run/route";
-import * as r162 from "@/lib/routes/crm/workflows/[id]/toggle/route";
+import * as r144 from "@/app/api/crm/timeline/route";
+import * as r145 from "@/app/api/crm/trash/route";
+import * as r146 from "@/lib/routes/crm/trash/[id]/restore/route";
+import * as r147 from "@/app/api/crm/videos/route";
+import * as r148 from "@/lib/routes/crm/videos/[id]/route";
+import * as r149 from "@/lib/routes/crm/videos/[id]/file/route";
+import * as r150 from "@/app/api/crm/views/route";
+import * as r151 from "@/lib/routes/crm/views/[id]/route";
+import * as r152 from "@/app/api/crm/visibility/route";
+import * as r153 from "@/app/api/crm/voice/calls/route";
+import * as r154 from "@/lib/routes/crm/voice/calls/[id]/route";
+import * as r155 from "@/lib/routes/crm/voice/calls/[id]/end/route";
+import * as r156 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
+import * as r157 from "@/app/api/crm/voice/calls/[id]/summarize/route";
+import * as r158 from "@/app/api/crm/voice/fake/route";
+import * as r159 from "@/app/api/crm/voice/settings/route";
+import * as r160 from "@/app/api/crm/workflows/route";
+import * as r161 from "@/lib/routes/crm/workflows/[id]/route";
+import * as r162 from "@/lib/routes/crm/workflows/[id]/run/route";
+import * as r163 from "@/lib/routes/crm/workflows/[id]/toggle/route";
 
 export const routes: Record<string, unknown> = {
   "/api/crm/activities": r0,
@@ -308,23 +309,24 @@ export const routes: Record<string, unknown> = {
   "/api/crm/tasks/due-count": r141,
   "/api/crm/tasks/projects": r142,
   "/api/crm/tasks/projects/[id]": r143,
-  "/api/crm/trash": r144,
-  "/api/crm/trash/[id]/restore": r145,
-  "/api/crm/videos": r146,
-  "/api/crm/videos/[id]": r147,
-  "/api/crm/videos/[id]/file": r148,
-  "/api/crm/views": r149,
-  "/api/crm/views/[id]": r150,
-  "/api/crm/visibility": r151,
-  "/api/crm/voice/calls": r152,
-  "/api/crm/voice/calls/[id]": r153,
-  "/api/crm/voice/calls/[id]/end": r154,
-  "/api/crm/voice/calls/[id]/recording": r155,
-  "/api/crm/voice/calls/[id]/summarize": r156,
-  "/api/crm/voice/fake": r157,
-  "/api/crm/voice/settings": r158,
-  "/api/crm/workflows": r159,
-  "/api/crm/workflows/[id]": r160,
-  "/api/crm/workflows/[id]/run": r161,
-  "/api/crm/workflows/[id]/toggle": r162,
+  "/api/crm/timeline": r144,
+  "/api/crm/trash": r145,
+  "/api/crm/trash/[id]/restore": r146,
+  "/api/crm/videos": r147,
+  "/api/crm/videos/[id]": r148,
+  "/api/crm/videos/[id]/file": r149,
+  "/api/crm/views": r150,
+  "/api/crm/views/[id]": r151,
+  "/api/crm/visibility": r152,
+  "/api/crm/voice/calls": r153,
+  "/api/crm/voice/calls/[id]": r154,
+  "/api/crm/voice/calls/[id]/end": r155,
+  "/api/crm/voice/calls/[id]/recording": r156,
+  "/api/crm/voice/calls/[id]/summarize": r157,
+  "/api/crm/voice/fake": r158,
+  "/api/crm/voice/settings": r159,
+  "/api/crm/workflows": r160,
+  "/api/crm/workflows/[id]": r161,
+  "/api/crm/workflows/[id]/run": r162,
+  "/api/crm/workflows/[id]/toggle": r163,
 };

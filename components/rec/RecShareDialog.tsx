@@ -6,7 +6,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { RecVideoDto } from '@/lib/rec';
 import type { RecAccessRequestDto } from '@/lib/rec-admin';
 import type { RecPersonDto } from '@/lib/rec-share';
-import { cleanEmails, type RecPrivacy, type RecRole } from '@/lib/rec-schema';
+import { cleanEmails, parseStartParam, recEmbedCode, recEmbedSrc, type RecPrivacy, type RecRole } from '@/lib/rec-schema';
 import RecCopy from './RecCopy';
 
 function toLocalInput(db: string | null): string {
@@ -58,6 +58,9 @@ export default function RecShareDialog({
   const [notify, setNotify] = useState(video.notify);
   const [requireAccount, setRequireAccount] = useState(video.commentsRequireAccount);
   const [requireEmail, setRequireEmail] = useState(video.requireEmail);
+  // Opciones del código para insertar (no se guardan: cambian solo el iframe).
+  const [embedStart, setEmbedStart] = useState('');
+  const [embedAutoplay, setEmbedAutoplay] = useState(false);
   const [busy, setBusy] = useState(false);
   const [requests, setRequests] = useState<RecAccessRequestDto[]>([]);
   const [rotating, setRotating] = useState(false);
@@ -98,6 +101,8 @@ export default function RecShareDialog({
       setNotify(video.notify);
       setRequireAccount(video.commentsRequireAccount);
       setRequireEmail(video.requireEmail);
+      setEmbedStart('');
+      setEmbedAutoplay(false);
       setDraft('');
       setAddMsg(null);
       setPeople(null);
@@ -113,8 +118,9 @@ export default function RecShareDialog({
     if (!open && d.open) d.close();
   }, [open, video, loadPeople]);
 
-  const embedUrl = `${shareUrl}/embed`;
-  const embed = `<iframe src="${embedUrl}" width="640" height="400" frameborder="0" allow="fullscreen" allowfullscreen title="${video.title.replace(/"/g, '&quot;')}"></iframe>`;
+  const embedStartSec = parseStartParam(embedStart);
+  const embedStartBad = embedStart.trim() !== '' && embedStartSec === null;
+  const embed = recEmbedCode(recEmbedSrc(shareUrl, { start: embedStartSec, autoplay: embedAutoplay }), video.title);
   const personal = video.space === 'personal';
   const inSpace = !!video.spaceId;
 
@@ -479,6 +485,32 @@ export default function RecShareDialog({
                   </div>
                   <p className="ui-help">{t('embedHelp')}</p>
                 </div>
+                <div className="rec-embed-opts">
+                  <div className="ui-field rec-embed-start">
+                    <label className="label" htmlFor={`${id}-embed-start`}>
+                      {t('embedStart')}
+                    </label>
+                    <input
+                      id={`${id}-embed-start`}
+                      className="input data"
+                      placeholder="0:00"
+                      value={embedStart}
+                      onChange={(e) => setEmbedStart(e.target.value)}
+                      aria-invalid={embedStartBad || undefined}
+                      aria-describedby={embedStartBad ? `${id}-embed-start-error` : undefined}
+                      data-testid="rec-embed-start"
+                    />
+                  </div>
+                  <label className="ui-check">
+                    <input type="checkbox" checked={embedAutoplay} onChange={(e) => setEmbedAutoplay(e.target.checked)} data-testid="rec-embed-autoplay" />
+                    <span>{t('embedAutoplay')}</span>
+                  </label>
+                </div>
+                {embedStartBad && (
+                  <p className="ui-error" id={`${id}-embed-start-error`} role="alert" data-testid="rec-embed-start-error">
+                    {t('embedStartInvalid')}
+                  </p>
+                )}
                 {video.canManage && (
                   <div className="rec-share-group">
                     <p className="label">{t('rotate')}</p>

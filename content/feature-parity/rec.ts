@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Loom',
-  lastReviewed: '2026-11-18',
+  lastReviewed: '2026-11-21',
   areas: [
     { id: 'capture', label: loc(['Recording', 'Grabación', 'Gravação']) },
     { id: 'recorder', label: loc(['Recording tools', 'Herramientas al grabar', 'Ferramentas de gravação']) },
@@ -168,9 +168,9 @@ const parity: ProductParity = {
     }),
     row('embed-player', 'sharing', ['Embed the player in other sites', 'Insertar el reproductor en otros sitios', 'Incorporar o player em outros sites'], 'have', {
       detail: [
-        'Copy an iframe code for /v/<id>/embed; it works in any page that accepts iframes',
-        'Copiás un código iframe de /v/<id>/embed; anda en cualquier página que acepte iframes',
-        'Você copia um código iframe de /v/<id>/embed; funciona em qualquer página que aceite iframes',
+        'Copy an iframe code for /v/<id>/embed; it works in any page that accepts iframes. Like Loom, ?t= starts it at a second and ?autoplay=1 plays it muted on load, both settable in the Share dialog; a link with ?t= pasted where oEmbed works keeps that second',
+        'Copiás un código iframe de /v/<id>/embed; anda en cualquier página que acepte iframes. Como en Loom, ?t= lo hace empezar en un segundo y ?autoplay=1 lo reproduce sin sonido al cargar, las dos cosas desde el diálogo Compartir; un link con ?t= pegado donde funciona oEmbed conserva ese segundo',
+        'Você copia um código iframe de /v/<id>/embed; funciona em qualquer página que aceite iframes. Como no Loom, ?t= faz começar num segundo e ?autoplay=1 toca sem som ao carregar, as duas coisas no diálogo Compartilhar; um link com ?t= colado onde o oEmbed funciona mantém esse segundo',
       ],
     }),
     row('cta-button', 'sharing', ['Call to action button', 'Botón de llamada a la acción', 'Botão de chamada para ação'], 'have', {
