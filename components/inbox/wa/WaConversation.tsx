@@ -415,7 +415,7 @@ const WaConversation = forwardRef<
   // Una foto que terminó de cargar: la conversación queda donde estaba (o abajo de todo, si estaba ahí).
   const keepAtEnd = () => anchor.restore();
 
-  const jumpTo = (id: string, load = true) => {
+  const jumpTo = (id: string, load = true, smooth = true) => {
     const el = document.getElementById(`m-${id}`);
     if (!el) {
       // Más viejo que lo cargado (un fijado): el chat se abre alrededor de ese mensaje (una vez).
@@ -423,7 +423,7 @@ const WaConversation = forwardRef<
       return;
     }
     anchor.unstick();
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
     setFlash(id);
     window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 1500);
   };
@@ -434,7 +434,8 @@ const WaConversation = forwardRef<
     const focus = detail.focus;
     let off = 0;
     const id = window.setTimeout(() => {
-      jumpTo(focus, false);
+      // Sin animación: la conversación recién se armó alrededor del mensaje (y en el teléfono una animación larga se cortaba).
+      jumpTo(focus, false, false);
       // Marcado un rato más largo que el de una cita (para encontrarlo al llegar).
       setHitId(focus);
       off = window.setTimeout(() => setHitId((h) => (h === focus ? null : h)), 3000);
@@ -735,6 +736,8 @@ const WaConversation = forwardRef<
   const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
     { key: 'info', label: group ? w('groupInfo') : w('contactInfo'), onSelect: props.onToggleInfo },
+    // También en el menú: en el teléfono la lupa no entra en la cabecera.
+    { key: 'search', label: gw('chatSearch.open'), onSelect: () => setSearchOpen(true) },
     { key: 'followUp', label: t('actions.followUp'), onSelect: () => onAction('followUp') },
     { key: 'move', label: t('actions.move'), onSelect: () => onAction('move') },
     { key: 'notes', label: t('actions.notes'), onSelect: () => void openNotes() },
@@ -1213,7 +1216,7 @@ const WaConversation = forwardRef<
           {thread.pinned && <PinIcon size={16} label={t('list.pinned')} />}
           <button
             type="button"
-            className={`wa-icon-btn${searchOpen ? ' is-on' : ''}`}
+            className={`wa-icon-btn ib-hide-sm${searchOpen ? ' is-on' : ''}`}
             onClick={() => setSearchOpen((o) => !o)}
             aria-expanded={searchOpen}
             aria-label={gw('chatSearch.open')}
@@ -1233,7 +1236,7 @@ const WaConversation = forwardRef<
           search={searchChat}
           onPick={(h, covering) => {
             if (covering) setSearchOpen(false);
-            window.setTimeout(() => jumpTo(h.id), covering ? 60 : 0);
+            window.setTimeout(() => jumpTo(h.id, true, !covering), covering ? 60 : 0);
           }}
           onClose={() => setSearchOpen(false)}
         />

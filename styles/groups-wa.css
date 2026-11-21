@@ -1128,7 +1128,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 
 /* Teléfono: el encabezado deja solo el nombre; lo demás va al menú ⋯. */
 @media (max-width: 720px) {
-  .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle { display: none; }
+  .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle, .gr-inbox .wa-head .wa-search-btn { display: none; }
   .gr-inbox .gr-msg.has-avatar { padding-left: 30px; }
 }
 .gr-reimport-label { font-size: 0.8125rem; color: var(--ink-2); }

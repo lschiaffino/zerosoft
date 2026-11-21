@@ -2486,7 +2486,7 @@ export default function ChatThread(props: ThreadProps) {
             </button>
             <button
               type="button"
-              className={`wa-icon-btn${searchOpen ? ' is-on' : ''}`}
+              className={`wa-icon-btn wa-search-btn${searchOpen ? ' is-on' : ''}`}
               onClick={() => setSearchOpen((o) => !o)}
               aria-expanded={searchOpen}
               aria-label={t('wa.chatSearch.open')}
@@ -2502,6 +2502,8 @@ export default function ChatThread(props: ThreadProps) {
               items={[
                 // Como el ⋯ de WhatsApp: info, seleccionar, silenciar, fijar, leído; después lo del equipo (IA) y, en el teléfono, asignar y cerrar.
                 { key: 'details', glyph: <InfoIcon size={18} />, label: chat.kind === 'group' ? t('wa.groupInfo') : t('wa.contactInfo'), onSelect: toggleDetails },
+                // También en el menú: en el teléfono la lupa no entra en la cabecera.
+                { key: 'search', glyph: <SearchIcon size={18} />, label: t('wa.chatSearch.open'), onSelect: () => setSearchOpen(true) },
                 { key: 'select', glyph: <CheckCircle size={18} />, label: t('wa.selectMessages'), onSelect: () => setSelecting(new Set()) },
                 { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },

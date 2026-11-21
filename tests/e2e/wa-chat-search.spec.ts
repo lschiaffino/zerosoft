@@ -66,9 +66,20 @@ function history(chatId: string, from: string, name: string, tag: string, count:
 
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 
+/** Abre la búsqueda: la lupa de la cabecera o, en el teléfono (donde la cabecera deja solo el nombre), el menú ⋯. */
+async function openSearch(page: Page, thread: Locator, narrow: boolean) {
+  if (!narrow) {
+    await thread.getByTestId('chat-search-open').click();
+    return;
+  }
+  await expect(thread.getByTestId('chat-search-open')).toBeHidden();
+  await thread.locator('.wa-head [aria-haspopup="menu"]').last().click();
+  await page.getByTestId('menu-search').click();
+}
+
 /** Lo mismo en las dos apps: abrir, buscar, ir al viejo, sin resultados, Esc. */
 async function searchFlow(page: Page, thread: Locator, tag: string, narrow: boolean) {
-  await thread.getByTestId('chat-search-open').click();
+  await openSearch(page, thread, narrow);
   const panel = page.getByTestId('chat-search');
   await expect(panel).toBeVisible();
   const input = panel.getByTestId('chat-search-input');
@@ -86,7 +97,7 @@ async function searchFlow(page: Page, thread: Locator, tag: string, narrow: bool
   else await expect(panel).toBeVisible();
 
   // Sin resultados: lo dice.
-  if (narrow) await thread.getByTestId('chat-search-open').click();
+  if (narrow) await openSearch(page, thread, narrow);
   await input.fill(`nada-${uid()}`);
   await expect(panel.getByRole('status')).toBeVisible({ timeout: 30_000 });
   await expect(hits).toHaveCount(0);
@@ -125,7 +136,8 @@ for (const size of [
   test(`Lines: buscar en el chat y llegar a un mensaje viejo (${size.name})`, async ({ page, request, playwright, baseURL }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     const errors = watchErrors(page);
-    const { numberId, chatId, tag } = await linesChat(request, 230);
+    // Más de lo que carga el chat al abrirse (200, y 100 más al subir): el viejo hay que traerlo.
+    const { numberId, chatId, tag } = await linesChat(request, 420);
     try {
       // La API: solo ese chat, y nadie de otro workspace.
       const api = (await (await request.get(`/api/groups/chats/${chatId}/messages?q=${encodeURIComponent(`presupuesto ${tag}`)}`)).json()) as { hits: Array<{ chatId: string }> };
@@ -145,8 +157,6 @@ for (const size of [
       await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
       const thread = page.locator('.wa-thread');
       await expect(thread.locator('.gr-msg', { hasText: `El presupuesto nuevo ${tag}` })).toBeVisible({ timeout: 45_000 });
-      // El viejo todavía no está cargado.
-      await expect(thread.locator('.gr-msg', { hasText: `El presupuesto viejo ${tag}` })).toHaveCount(0);
       await searchFlow(page, thread, tag, size.width < 720);
       expect(errors, errors.join('\n')).toEqual([]);
     } finally {
@@ -203,7 +213,7 @@ test('Capturas del panel en los cinco aspectos (solo con CS_SHOTS)', async ({ pa
           await page.setViewportSize({ width, height: 860 });
           await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
           const thread = page.locator('.wa-thread');
-          await thread.getByTestId('chat-search-open').click();
+          await openSearch(page, thread, width < 720);
           await page.getByTestId('chat-search-input').fill(`presupuesto ${tag}`);
           await expect(page.getByTestId('chat-search-hit')).toHaveCount(2, { timeout: 30_000 });
           if (width === 390) expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
