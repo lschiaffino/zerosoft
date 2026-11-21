@@ -212,9 +212,13 @@
 @media (max-width: 720px) {
   .hsync-card { padding: 12px; }
   .hsync-objects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hsync-table th, .hsync-table td { padding: 6px 6px; }
+  .hsync-table th, .hsync-table td { padding: 6px 6px; font-size: 0.75rem; }
   .hsync-scopes { grid-template-columns: minmax(0, 1fr); }
   .hsync-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hsync-sample { grid-template-columns: minmax(0, 1fr); }
   .hsync-sample-links { white-space: normal; flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  /* A 390 px entran las columnas que importan (vinculados, creados, conflictos); el resto se ve en una pantalla más ancha. */
+  .hsync-table [data-col='updated'], .hsync-table [data-col='skipped'] { display: none; }
 }

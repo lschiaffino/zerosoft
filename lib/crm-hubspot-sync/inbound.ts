@@ -87,7 +87,7 @@ import { START_CURSOR, readModifiedPage, type ActivityObject, type HsRecord, typ
 
 // ---------- Constantes ----------
 
-/** Cada cuánto se busca lo que cambió en HubSpot, una vez al día. */
+/** Cada cuánto se busca lo que cambió en HubSpot. */
 export const LIVE_INTERVAL_MS = 60_000;
 /** Margen hacia atrás de cada vuelta: el índice de búsqueda de HubSpot tarda en incluir lo recién cambiado. */
 export const OVERLAP_MS = 3 * 60_000;
@@ -137,6 +137,9 @@ interface ObjectCursor {
   readCount: number;
   total: number | null;
   error: string;
+  /** Un registro no se pudo guardar: la vuelta siguiente relee desde su fecha (hasta 3 veces seguidas). */
+  retryFrom?: number;
+  retries?: number;
 }
 
 interface Cursors {
@@ -622,15 +625,24 @@ async function editedAfterImport(ctx: PageCtx, object: SyncObject | 'activity', 
 }
 
 /** Vínculo que dejó el importador: el registro tiene que existir en este workspace y no estar vinculado a otro. */
-async function importerRecord(ctx: PageCtx, linkObject: string, table: string, hubspotKey: string): Promise<string | null> {
+async function importerRecord(ctx: PageCtx, linkObject: string, table: string, hubspotKey: string): Promise<{ id: string; row: Record<string, unknown> } | null> {
   const row = (await ctx.db
     .prepare(
-      `SELECT e.record_id AS id FROM crm_external_ids e JOIN ${table} r ON r.id = e.record_id AND r.user_id = e.user_id
+      `SELECT r.* FROM crm_external_ids e JOIN ${table} r ON r.id = e.record_id AND r.user_id = e.user_id
        WHERE e.user_id = ? AND e.provider = 'hubspot' AND e.object = ? AND e.external_id = ?`,
     )
-    .get(ctx.ws, linkObject, hubspotKey)) as { id: string } | undefined;
+    .get(ctx.ws, linkObject, hubspotKey)) as Record<string, unknown> | undefined;
   if (!row) return null;
-  return (await linkOfRecord(ctx, linkObject, row.id)) ? null : row.id;
+  const id = String(row.id);
+  return (await linkOfRecord(ctx, linkObject, id)) ? null : { id, row };
+}
+
+/** ¿El registro nuestro ya vino del importador desde otro registro de HubSpot? Entonces no es de este. */
+async function importedFromOther(ctx: PageCtx, linkObject: string, recordId: string, hubspotId: string): Promise<boolean> {
+  const row = (await ctx.db
+    .prepare(`SELECT 1 AS one FROM crm_external_ids WHERE user_id = ? AND provider = 'hubspot' AND object = ? AND record_id = ? AND external_id != ? LIMIT 1`)
+    .get(ctx.ws, linkObject, recordId, hubspotId)) as { one: number } | undefined;
+  return Boolean(row);
 }
 
 /** `seen`: ya estaba al día con esta versión de HubSpot (la relectura del margen); no se cuenta. */
@@ -707,18 +719,33 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
   if (link?.state === 'deleted_here' || link?.state === 'merged') return 'skipped';
 
   const fields = ctx.plan.fields[object] ?? [];
-  const remote: Values = { ...mapped.values, ...mapCustom(fields, rec.properties) };
+  const custom = mapCustom(fields, rec.properties);
+  const remote: Values = { ...mapped.values, ...custom.values };
+  for (const f of custom.skip) mapped.skip.add(f);
   let trusted = false;
   let recordId = link?.record_id ?? '';
   if (!link) {
     const fromImport = await importerRecord(ctx, linkObject, table, rec.id);
+    // crm_external_ids no guarda de qué cuenta de HubSpot vino: el vínculo del importador vale si la clave coincide
+    // (email o dominio, o vacía acá); solo así HubSpot pisa lo que nadie tocó desde el import. Los deals nunca son "de confianza".
+    const importKeyOk = (r: Record<string, unknown>) => {
+      if (object === 'contacts') {
+        const local = String(r.email ?? '').trim().toLowerCase();
+        return !local || contactEmails(rec.properties).includes(local);
+      }
+      if (object === 'companies') {
+        const local = normalizeCompanyDomain(String(r.domain ?? ''));
+        return !local || local === remote.domain;
+      }
+      return false;
+    };
     if (fromImport) {
-      recordId = fromImport;
-      trusted = !(await editedAfterImport(ctx, object, rec.id));
+      recordId = fromImport.id;
+      trusted = importKeyOk(fromImport.row) && !(await editedAfterImport(ctx, object, rec.id));
     } else if (object === 'contacts') {
       for (const email of contactEmails(rec.properties)) {
         const hit = await findContactByEmail(ws, email, db);
-        if (hit && !(await linkOfRecord(ctx, linkObject, hit.id))) {
+        if (hit && !(await linkOfRecord(ctx, linkObject, hit.id)) && !(await importedFromOther(ctx, linkObject, hit.id, rec.id))) {
           recordId = hit.id;
           break;
         }
@@ -729,7 +756,7 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
         .all(ws, remote.domain)) as Array<{ id: string; domain: string }>;
       const same = hits.filter((h) => normalizeCompanyDomain(h.domain) === remote.domain);
       const free: string[] = [];
-      for (const h of same) if (!(await linkOfRecord(ctx, linkObject, h.id))) free.push(h.id);
+      for (const h of same) if (!(await linkOfRecord(ctx, linkObject, h.id)) && !(await importedFromOther(ctx, linkObject, h.id, rec.id))) free.push(h.id);
       if (free.length > 1) {
         // Dos empresas nuestras con ese dominio: no se adivina. Se fusionan acá y la vuelta siguiente la vincula.
         note(ctx, 'ambiguous_match');
@@ -749,7 +776,7 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
   let outcome: Outcome;
   let shadow: Values;
   if (!row) {
-    const created = await insertRecord(ctx, object, rec.id, remote, mapped.skip);
+    const created = await insertRecord(ctx, object, rec.id, remote, mapped.skip, Boolean((rec.properties.dealstage ?? '').trim()));
     if (!created) return 'skipped';
     recordId = created.id;
     shadow = created.shadow;
@@ -778,7 +805,7 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
   return outcome;
 }
 
-async function insertRecord(ctx: PageCtx, object: SyncObject, hubspotId: string, remote: Values, skip: Set<string>): Promise<{ id: string; shadow: Values } | null> {
+async function insertRecord(ctx: PageCtx, object: SyncObject, hubspotId: string, remote: Values, skip: Set<string>, hasStage = false): Promise<{ id: string; shadow: Values } | null> {
   const { db, ws } = ctx;
   const id = crypto.randomUUID();
   const shadow: Values = {};
@@ -797,14 +824,15 @@ async function insertRecord(ctx: PageCtx, object: SyncObject, hubspotId: string,
   cols.push(['custom', JSON.stringify(custom)]);
   if (object === 'deals') {
     const stage = remote.stage_id && !skip.has('stage_id') ? Object.values(ctx.plan.stages).find((s) => s.id === remote.stage_id) : undefined;
+    // Una etapa de HubSpot sin equivalente (un pipeline archivado allá): no se crea en otro lugar ni como abierto; se anota.
+    if (!stage && hasStage) {
+      note(ctx, 'stage_unmapped');
+      return null;
+    }
     const target = stage ?? (ctx.plan.defaultStage ? { ...ctx.plan.defaultStage, won: false, lost: false } : null);
     if (!target) {
       note(ctx, 'no_pipeline');
       return null;
-    }
-    if (!stage) {
-      note(ctx, 'stage_unmapped');
-      delete shadow.stage_id;
     }
     const pos = ((await db.prepare('SELECT COALESCE(MAX(position), 0) AS m FROM crm_deals WHERE stage_id = ?').get(target.id)) as { m: number }).m;
     const closedAt = target.won || target.lost ? (remote.close_date ? `${remote.close_date} 00:00:00` : nowDb()) : null;
@@ -824,6 +852,7 @@ async function insertRecord(ctx: PageCtx, object: SyncObject, hubspotId: string,
     await db.prepare(`INSERT INTO crm_contacts (${names}) VALUES (${marks})`).run(...withoutEmail.map(([, v]) => v));
     delete shadow.email;
     note(ctx, 'email_taken');
+    ctx.counts.conflicts++;
     await noteConflict(ctx, 'contact', id, hubspotId, 'fields', ['email']);
     return { id, shadow };
   }
@@ -930,21 +959,31 @@ async function applyActivity(ctx: PageCtx, object: ActivityObject, rec: HsRecord
   const link = await linkByHubspot(ctx, 'activity', key);
   if (link && link.state === 'linked' && link.hubspot_modified_at && rec.modifiedMs && Date.parse(link.hubspot_modified_at) >= rec.modifiedMs) return 'seen';
   if (link?.state === 'deleted_here') return 'skipped';
-  const first = (list: Array<{ id: string }> | undefined, m: Map<string, string>) => (list ?? []).map((x) => m.get(x.id)).find(Boolean) ?? '';
+  // Una asociación que no se leyó (objeto apagado) o que no apunta a nada vinculado acá no borra la que hay: se saltea.
+  const skip = new Set<string>(mapped.skip);
+  const pick = (field: string, to: SyncObject, m: Map<string, string>): string => {
+    const read = assoc[to];
+    if (!read) {
+      skip.add(field);
+      return '';
+    }
+    const list = read.get(rec.id) ?? [];
+    const hit = list.map((x) => m.get(x.id)).find(Boolean);
+    if (!hit && list.length) skip.add(field);
+    return hit ?? '';
+  };
   const remote: Values = {
     ...mapped.values,
-    contact_id: first(assoc.contacts?.get(rec.id), maps.contacts),
-    company_id: first(assoc.companies?.get(rec.id), maps.companies),
-    deal_id: first(assoc.deals?.get(rec.id), maps.deals),
+    contact_id: pick('contact_id', 'contacts', maps.contacts),
+    company_id: pick('company_id', 'companies', maps.companies),
+    deal_id: pick('deal_id', 'deals', maps.deals),
   };
   let recordId = link?.record_id ?? '';
   let trusted = false;
   if (!link) {
     const fromImport = await importerRecord(ctx, 'activity', 'crm_activities', key);
-    if (fromImport) {
-      recordId = fromImport;
-      trusted = !(await editedAfterImport(ctx, 'activity', key));
-    }
+    // Sin clave para confirmar que es la misma (crm_external_ids no guarda la cuenta): se vincula, pero solo se completa lo vacío.
+    if (fromImport) recordId = fromImport.id;
   }
   const row = recordId ? ((await db.prepare('SELECT * FROM crm_activities WHERE id = ? AND user_id = ?').get(recordId, ws)) as Record<string, unknown> | undefined) : undefined;
   if (link && !row) {
@@ -970,7 +1009,7 @@ async function applyActivity(ctx: PageCtx, object: ActivityObject, rec: HsRecord
     await putLink(ctx, 'activity', id, key, rec.modifiedMs, remote);
     return 'created';
   }
-  const res = resolve(remote, localValues(object, row), link ? parseJson<Values>(link.shadow, {}) : {}, { trusted });
+  const res = resolve(remote, localValues(object, row), link ? parseJson<Values>(link.shadow, {}) : {}, { trusted, skip });
   const cols: Array<[string, string | number | null]> = [];
   for (const field of res.apply) {
     if (field === 'at') cols.push(['created_at', remote.at]);
@@ -997,7 +1036,7 @@ async function writePage(
   assoc: Assoc,
   counts: InboundCounts,
   save: (db: Db) => Promise<void>,
-): Promise<{ stale: boolean; codes: Map<string, number> }> {
+): Promise<{ stale: boolean; codes: Map<string, number>; failedFrom: number }> {
   const tx = await getClient().transaction('write');
   const db = txDb(tx);
   const ctx: PageCtx = { db, ws, portalId, plan, counts: { ...counts }, codes: new Map(), stale: false, planFresh };
@@ -1010,15 +1049,22 @@ async function writePage(
     };
     // Una página puede traer el mismo registro dos veces (el borde de fecha se relee): cuenta una.
     const seen = new Set<string>();
+    let failedFrom = 0;
     for (const rec of records) {
       if (seen.has(rec.id)) continue;
       seen.add(rec.id);
       let outcome: Outcome;
+      // Cada registro en su savepoint: uno que falla a mitad no deja nada a medias (ni un alta sin vínculo).
+      await db.prepare('SAVEPOINT hs_rec').run();
       try {
         outcome = isActivityObject(object) ? await applyActivity(ctx, object, rec, assoc, maps) : await applyRecord(ctx, object, rec, assoc, maps);
+        await db.prepare('RELEASE hs_rec').run();
       } catch {
+        await db.prepare('ROLLBACK TO hs_rec').run();
+        await db.prepare('RELEASE hs_rec').run();
         ctx.counts.failed++;
         note(ctx, 'write_failed');
+        failedFrom = failedFrom ? Math.min(failedFrom, rec.modifiedMs || 1) : rec.modifiedMs || 1;
         continue;
       }
       if (ctx.stale) break;
@@ -1033,12 +1079,12 @@ async function writePage(
     }
     if (ctx.stale) {
       await tx.rollback();
-      return { stale: true, codes: new Map() };
+      return { stale: true, codes: new Map(), failedFrom: 0 };
     }
     Object.assign(counts, ctx.counts);
     await save(db);
     await tx.commit();
-    return { stale: false, codes: ctx.codes };
+    return { stale: false, codes: ctx.codes, failedFrom };
   } catch (e) {
     await tx.rollback().catch(() => {});
     throw e;
@@ -1086,11 +1132,13 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
   const budgetMs = opts.budgetMs ?? 20_000;
   const start = clock();
   const deadline = start + budgetMs;
-  const row = await claim(ws, budgetMs + 60_000, start);
+  const row = await claim(ws, budgetMs + 120_000, start);
   if (!row) return 'not_claimed';
+  // Lo que escribe este tramo (estado, esperas, liberar) solo vale mientras el turno siga siendo suyo.
+  const mine = row.locked_until ?? '';
   const db = getDb();
   const conn = await openSyncConnection(ws);
-  if (!conn) return release(ws, 'blocked');
+  if (!conn) return release(ws, mine, 'blocked');
   let plan = parseJson<InboundPlan>(row.plan, emptyPlan());
   let planAt = row.plan_at;
   let cursors = parseJson<Cursors>(row.cursors, { objects: {}, sweep: null });
@@ -1120,13 +1168,15 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
   const persist = async (target: Db, extra: { done?: boolean; progress?: boolean } = {}) => {
     const now = iso(new Date(clock()));
     const ok = extra.progress === false ? 0 : 1;
-    await target
+    const res = await target
       .prepare(
         `UPDATE crm_hubspot_inbound SET portal_id = ?, status = ?, cursors = ?, plan = ?, plan_at = ?, counts = ?, errors = ?,
            failure = CASE WHEN ? THEN '' ELSE failure END, attempts = CASE WHEN ? THEN 0 ELSE attempts END,
-           sweep_at = ?, initial_done_at = ?, last_run_at = ?, last_success_at = CASE WHEN ? THEN ? ELSE last_success_at END, updated_at = ? WHERE user_id = ?`,
+           sweep_at = ?, initial_done_at = ?, last_run_at = ?, last_success_at = CASE WHEN ? THEN ? ELSE last_success_at END, updated_at = ? WHERE user_id = ? AND locked_until = ?`,
       )
-      .run(conn.portalId, status, JSON.stringify(cursors), JSON.stringify(plan), planAt, JSON.stringify(counts), JSON.stringify(errors), ok, ok, sweepAt, initialDone, now, extra.done ? 1 : 0, now, now, ws);
+      .run(conn.portalId, status, JSON.stringify(cursors), JSON.stringify(plan), planAt, JSON.stringify(counts), JSON.stringify(errors), ok, ok, sweepAt, initialDone, now, extra.done ? 1 : 0, now, now, ws, mine);
+    // Otro tramo tomó el turno (este se pasó de tiempo): no se pisa lo suyo; la página en curso se descarta.
+    if (!res.changes) throw new LockLost();
   };
   const stillOn = async () => {
     const s = await getSyncSettings(ws);
@@ -1138,7 +1188,7 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
     if (planStale) {
       if (!(await samePortal(client, conn.portalId))) {
         await markConnectionError(ws, 'portal_changed');
-        return fail(ws, 'portal_changed', errors, clock());
+        return fail(ws, mine, 'portal_changed', errors, clock());
       }
       plan = await buildInboundPlan(ws, client, objects);
       planAt = iso(new Date(clock()));
@@ -1166,12 +1216,15 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
           const c = cursors.objects[o];
           if (!c) continue;
           c.done = false;
-          c.read = { since: Math.max(0, c.hw - OVERLAP_MS), tieAfter: '', tie: false };
+          const from = c.retryFrom ? Math.min(c.hw - OVERLAP_MS, c.retryFrom - 1) : c.hw - OVERLAP_MS;
+          c.retries = c.retryFrom ? (c.retries ?? 0) + 1 : 0;
+          c.retryFrom = 0;
+          c.read = { since: Math.max(0, from), tieAfter: '', tie: false };
         }
         if (!initialDone) initialDone = iso(new Date(clock()));
         status = 'live';
         await persist(db, { done: true });
-        await db.prepare('UPDATE crm_hubspot_inbound SET next_run_at = ?, locked_until = NULL WHERE user_id = ?').run(iso(new Date(clock() + LIVE_INTERVAL_MS)), ws);
+        await db.prepare('UPDATE crm_hubspot_inbound SET next_run_at = ?, locked_until = NULL WHERE user_id = ? AND locked_until = ?').run(iso(new Date(clock() + LIVE_INTERVAL_MS)), ws, mine);
         return 'idle';
       }
       const cur = (cursors.objects[object] ??= freshCursor());
@@ -1182,9 +1235,10 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
       } catch (e) {
         // Sin permiso para este objeto (los emails piden uno aparte): se saltea en esta vuelta y se sigue con los demás.
         if (e instanceof HubspotApiError && e.code === 'scope') {
+          // Se anota una vez, no en cada vuelta.
+          if (cur.error !== 'missing_scope') errors = pushErrors(errors, object, new Map([['missing_scope', 1]]), iso(new Date(clock())));
           cur.error = 'missing_scope';
           cur.done = true;
-          errors = pushErrors(errors, object, new Map([['missing_scope', 1]]), iso(new Date(clock())));
           await persist(db);
           pages++;
           continue;
@@ -1220,48 +1274,52 @@ export async function runInboundStep(ws: string, opts: RunStepOptions = {}): Pro
         pages++;
         continue;
       }
-      if (out.codes.size) {
+      if (out.failedFrom && (cur.retries ?? 0) < 3) cur.retryFrom = cur.retryFrom ? Math.min(cur.retryFrom, out.failedFrom) : out.failedFrom;
+      if (out.codes.size || out.failedFrom) {
         errors = pushErrors(errors, object, out.codes, iso(new Date(clock())));
         await persist(db);
       }
       pages++;
     }
-    return release(ws, 'progress');
+    return release(ws, mine, 'progress');
   } catch (err) {
+    if (err instanceof LockLost) return 'not_claimed';
     const api = err instanceof HubspotApiError ? err : null;
     const now = clock();
     if (api?.code === 'auth') {
       await markConnectionError(ws, 'invalid_token');
-      return fail(ws, 'invalid_token', errors, now);
+      return fail(ws, mine, 'invalid_token', errors, now);
     }
     if (api?.code === 'rate_limited' && api.policy === 'daily') {
-      await setFailure(ws, 'daily_limit', errors, now, now + DAILY_WAIT_MS, false);
+      await setFailure(ws, mine, 'daily_limit', errors, now, now + DAILY_WAIT_MS, false);
       return 'waiting';
     }
     const code = api ? (api.code === 'rate_limited' || api.code === 'locked' ? 'hubspot_busy' : api.code === 'network' ? 'network' : api.code === 'scope' ? 'missing_scope' : 'provider_error') : 'internal_error';
     const attempts = Number(row.attempts) + 1;
-    await setFailure(ws, code, errors, now, now + backoffMs(attempts), true);
+    await setFailure(ws, mine, code, errors, now, now + backoffMs(attempts), true);
     return 'retrying';
   }
 }
 
-async function release(ws: string, result: RunStepResult): Promise<RunStepResult> {
-  await getDb().prepare('UPDATE crm_hubspot_inbound SET locked_until = NULL WHERE user_id = ?').run(ws);
+class LockLost extends Error {}
+
+async function release(ws: string, mine: string, result: RunStepResult): Promise<RunStepResult> {
+  await getDb().prepare('UPDATE crm_hubspot_inbound SET locked_until = NULL WHERE user_id = ? AND locked_until = ?').run(ws, mine);
   return result;
 }
 
-async function setFailure(ws: string, code: string, errors: InboundErrorEntry[], now: number, nextRun: number, countAttempt: boolean): Promise<void> {
+async function setFailure(ws: string, mine: string, code: string, errors: InboundErrorEntry[], now: number, nextRun: number, countAttempt: boolean): Promise<void> {
   const list = pushErrors(errors, '', new Map([[code, 1]]), iso(new Date(now)));
   await getDb()
     .prepare(
-      `UPDATE crm_hubspot_inbound SET failure = ?, errors = ?, attempts = attempts + ?, next_run_at = ?, last_run_at = ?, locked_until = NULL, updated_at = ? WHERE user_id = ?`,
+      `UPDATE crm_hubspot_inbound SET failure = ?, errors = ?, attempts = attempts + ?, next_run_at = ?, last_run_at = ?, locked_until = NULL, updated_at = ? WHERE user_id = ? AND locked_until = ?`,
     )
-    .run(code, JSON.stringify(list), countAttempt ? 1 : 0, iso(new Date(nextRun)), iso(new Date(now)), iso(new Date(now)), ws);
+    .run(code, JSON.stringify(list), countAttempt ? 1 : 0, iso(new Date(nextRun)), iso(new Date(now)), iso(new Date(now)), ws, mine);
 }
 
 /** La clave ya no sirve: no se reintenta hasta que un admin reconecte (syncGate frena por la conexión). */
-async function fail(ws: string, code: 'invalid_token' | 'portal_changed', errors: InboundErrorEntry[], now: number): Promise<RunStepResult> {
-  await setFailure(ws, code, errors, now, now, false);
+async function fail(ws: string, mine: string, code: 'invalid_token' | 'portal_changed', errors: InboundErrorEntry[], now: number): Promise<RunStepResult> {
+  await setFailure(ws, mine, code, errors, now, now, false);
   return 'blocked';
 }
 

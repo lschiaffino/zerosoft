@@ -140,6 +140,8 @@ export function mapRecord(object: SyncObject, p: HsProps, plan: InboundPlan): Ma
   const owner = hs(p, 'hubspot_owner_id');
   const stale = Boolean(owner) && !plan.knownOwners.includes(owner);
   v.owner_id = (owner && plan.owners[owner]) || '';
+  // Un dueño de HubSpot sin persona acá (o que dejó el workspace) no le saca el dueño al registro: no se toca.
+  if (owner && !plan.owners[owner]) skip.add('owner_id');
   if (object === 'contacts') {
     const email = hs(p, 'email').toLowerCase();
     v.first_name = hs(p, 'firstname').slice(0, 120);
@@ -207,9 +209,14 @@ export function localValues(object: InboundObject, row: Record<string, unknown>)
   return out;
 }
 
-/** Campos propios: valor de HubSpot → valor nuestro (texto JSON, '' si está vacío). */
-export function mapCustom(fields: PlanField[], p: HsProps): Values {
+/**
+ * Campos propios: valor de HubSpot → valor nuestro (texto JSON, '' si está
+ * vacío). Un valor que viene pero no se puede convertir (una opción oculta, un
+ * tipo distinto) va a `skip`: no se toca lo nuestro.
+ */
+export function mapCustom(fields: PlanField[], p: HsProps): { values: Values; skip: string[] } {
   const out: Values = {};
+  const skip: string[] = [];
   for (const f of fields) {
     let v = hs(p, f.key);
     if (v && f.type === 'select') v = f.optionMap?.[v] ?? v;
@@ -222,9 +229,10 @@ export function mapCustom(fields: PlanField[], p: HsProps): Values {
     } else if (v && f.type === 'date' && /^\d{11,}$/.test(v)) v = new Date(Number(v)).toISOString().slice(0, 10);
     if (f.type === 'user') continue;
     const coerced = v ? coerceCustom([{ name: f.name, type: f.type, options: JSON.stringify(f.options) }], { [f.name]: v }, 0, [])[f.name] : undefined;
+    if (v && coerced === undefined) skip.push(`custom.${f.name}`);
     out[`custom.${f.name}`] = coerced === undefined ? '' : JSON.stringify(coerced);
   }
-  return out;
+  return { values: out, skip };
 }
 
 export function localCustom(fields: PlanField[], custom: Record<string, unknown>): Values {
@@ -241,6 +249,7 @@ export function localCustom(fields: PlanField[], custom: Record<string, unknown>
 export interface MappedActivity {
   type: 'note' | 'call' | 'meeting' | 'task' | 'email';
   values: Values;
+  skip: Set<string>;
   stale: boolean;
 }
 
@@ -287,7 +296,8 @@ export function mapActivity(object: ActivityObject, p: HsProps, plan: InboundPla
   v.subject = v.subject.slice(0, 300);
   v.body = v.body.slice(0, 20_000);
   v.outcome = v.outcome.slice(0, 60);
-  return { type, values: v, stale: Boolean(owner) && !plan.knownOwners.includes(owner) };
+  const skip = new Set<string>(owner && !plan.owners[owner] ? ['owner_id'] : []);
+  return { type, values: v, skip, stale: Boolean(owner) && !plan.knownOwners.includes(owner) };
 }
 
 // ---------- Regla de qué queda ----------

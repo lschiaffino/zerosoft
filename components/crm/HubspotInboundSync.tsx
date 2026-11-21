@@ -75,8 +75,13 @@ export default function HubspotInboundSync({ locale }: { locale: string }) {
         if (stop) return;
         const data = res && res.ok ? ((await res.json().catch(() => null)) as { inbound: InboundView } | null) : null;
         if (stop) return;
-        if (data) setView(data.inbound);
-        if (!data || data.inbound.state !== state) return;
+        // Un pedido que falla no corta el seguimiento: se espera un poco y se sigue.
+        if (!data) {
+          await wait(5_000);
+          continue;
+        }
+        setView(data.inbound);
+        if (data.inbound.state !== state) return;
         await wait(push ? 400 : 20_000);
       }
     })();
@@ -198,7 +203,7 @@ export default function HubspotInboundSync({ locale }: { locale: string }) {
               <tr>
                 <th scope="col">{t('col.object')}</th>
                 {COLUMNS.map((c) => (
-                  <th scope="col" key={c}>
+                  <th scope="col" key={c} data-col={c}>
                     {t(`col.${c}`)}
                   </th>
                 ))}
@@ -209,7 +214,7 @@ export default function HubspotInboundSync({ locale }: { locale: string }) {
                 <tr key={row}>
                   <th scope="row">{t(`rows.${row}`)}</th>
                   {COLUMNS.map((c) => (
-                    <td key={c} className="mono" data-testid={`hubspot-sync-inbound-${row}-${c}`} data-warn={c === 'conflicts' && counts.conflicts > 0}>
+                    <td key={c} className="mono" data-col={c} data-testid={`hubspot-sync-inbound-${row}-${c}`} data-warn={c === 'conflicts' && counts.conflicts > 0}>
                       {nf.format(c === 'linked' ? view.linked[row] : counts[c])}
                     </td>
                   ))}

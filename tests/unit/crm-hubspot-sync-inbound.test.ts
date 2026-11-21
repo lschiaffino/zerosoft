@@ -462,3 +462,66 @@ describe('nada sensible en logs ni en el estado', () => {
     expect(row.failure).toBe('invalid_token');
   });
 });
+
+describe('lo que HubSpot no puede decir no borra lo de acá (revisión)', () => {
+  it('un valor que no se puede convertir, un dueño que dejó el workspace y una asociación sin leer no vacían nada', async () => {
+    const w = await makeUser('hsin-keep');
+    const mate = await makeUser('hsin-keep-mate');
+    const team = await createTeam(w.id, 'Sales');
+    await addMember(team.id, mate.id, 'member');
+    expect((await connectSync(w.id, w.id, KEY)).ok).toBe(true);
+    portal.owners.get('81')!.email = mate.email;
+    const note = portal.add('notes', { hs_note_body: 'Follow up', hs_timestamp: '2026-11-01T10:00:00.000Z' });
+    portal.associate('notes', note, 'contacts', '4001');
+    await startInbound(w.id, w.id);
+    await pass(w.id);
+    const mara = (await contactsOf(w.id)).find((c) => c.email.startsWith('mara'))!;
+    expect(mara.owner_id).toBe(mate.id);
+    expect(JSON.parse(mara.custom)).toEqual({ preferred_language: 'Spanish' });
+    // Una opción que nuestro campo no tiene, la persona deja de estar en el plan y los contactos se apagan.
+    portal.edit('contacts', '4001', { preferred_language: 'xx-unknown', jobtitle: 'CFO' });
+    portal.owners.get('81')!.email = 'someone-else@fake-portal.example';
+    await db().prepare('UPDATE crm_hubspot_inbound SET plan_at = NULL WHERE user_id = ?').run(w.id);
+    await setInboundObjects(w.id, { contacts: false });
+    portal.edit('notes', note, { hs_note_body: 'Follow up again' });
+    await pass(w.id);
+    await setInboundObjects(w.id, { contacts: true });
+    await pass(w.id);
+    const after = (await one<{ owner_id: string; custom: string; job_title: string }>('SELECT owner_id, custom, job_title FROM crm_contacts WHERE id = ?', mara.id))!;
+    expect(after.job_title).toBe('CFO');
+    expect(after.owner_id).toBe(mate.id);
+    expect(JSON.parse(after.custom)).toEqual({ preferred_language: 'Spanish' });
+    expect(await one(`SELECT body, contact_id FROM crm_activities WHERE user_id = ? AND type = 'note'`, w.id)).toEqual({ body: 'Follow up again', contact_id: mara.id });
+  });
+
+  it('un deal en una etapa sin equivalente no se crea en otro pipeline', async () => {
+    const w = await started('hsin-stage');
+    portal.add('deals', { dealname: 'Old pipeline deal', pipeline: 'gone', dealstage: 'gone_won', amount: '10' });
+    await pass(w.id);
+    expect(await count('crm_deals', 'user_id = ?', w.id)).toBe(2);
+    expect((await getInbound(w.id)).errors.map((e) => e.code)).toContain('stage_unmapped');
+  });
+
+  it('un tramo que perdió el turno no pisa el estado del que lo tomó', async () => {
+    const w = await started('hsin-lock');
+    await due(w.id);
+    // Otro proceso toma la fila mientras este lee de HubSpot (se pasó de su turno).
+    const fake = portal as unknown as { handle: (url: string, init?: RequestInit) => Promise<Response> };
+    const original = fake.handle.bind(portal);
+    let stolen = false;
+    fake.handle = async (url, init) => {
+      if (!stolen && String(url).includes('/objects/companies/search')) {
+        stolen = true;
+        await db().prepare(`UPDATE crm_hubspot_inbound SET locked_until = '2999-01-01T00:00:00.000Z' WHERE user_id = ?`).run(w.id);
+      }
+      return original(url, init);
+    };
+    const r = await runInboundStep(w.id, { budgetMs: 30_000 });
+    fake.handle = original;
+    expect(stolen).toBe(true);
+    // Nada de esta página quedó: ni registros ni el cursor.
+    expect(await count('crm_companies', 'user_id = ?', w.id)).toBe(0);
+    expect(['not_claimed', 'progress']).toContain(r);
+    expect(await one('SELECT locked_until FROM crm_hubspot_inbound WHERE user_id = ?', w.id)).toEqual({ locked_until: '2999-01-01T00:00:00.000Z' });
+  });
+});
