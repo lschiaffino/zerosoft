@@ -9,6 +9,7 @@ import TitleInput from '@/components/ui/TitleInput';
 import type { LinkDto } from '@/lib/send/core';
 import type { SpaceAccessDto, SpaceAnalytics, SpaceItemDto } from '@/lib/send/spaces';
 import LinksPanel from './LinksPanel';
+import { downloadIndexCsv } from './index-csv';
 import { api, formatSeconds, SendDialog, useDate, useErrorText, useToast } from './ui';
 
 type Tab = 'documents' | 'links' | 'access' | 'activity';
@@ -24,7 +25,7 @@ export default function SpaceDetail({
   analytics,
   admin,
 }: {
-  space: { id: string; title: string; description: string; sharing: string; canEdit: boolean };
+  space: { id: string; title: string; description: string; sharing: string; numbered: boolean; canEdit: boolean };
   initialItems: SpaceItemDto[];
   initialAccess: SpaceAccessDto[];
   links: LinkDto[];
@@ -88,6 +89,20 @@ export default function SpaceDetail({
     router.push('/app/send/spaces');
     router.refresh();
   };
+
+  const setNumbered = async (numbered: boolean) => {
+    setSpace((x) => ({ ...x, numbered }));
+    const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { numbered } });
+    if (!r.ok) {
+      setSpace((x) => ({ ...x, numbered: !numbered }));
+      toast(errorText(r.data.error), 'bad');
+    }
+  };
+  const downloadIndex = () =>
+    downloadIndexCsv(
+      space.title,
+      items.map((i) => ({ index: i.index, folder: i.folder, title: i.title, kind: i.kind ?? '', pages: i.kind === 'video' ? '' : i.pageCount })),
+    );
 
   const openCopy = () => {
     setCopyTitle(t('copyName', { title: space.title }).slice(0, 200));
@@ -200,6 +215,24 @@ export default function SpaceDetail({
               </button>
             </div>
           )}
+          {items.length > 0 && (space.canEdit || space.numbered) && (
+            <div className="sd-filters sd-index-bar">
+              {space.canEdit && (
+                <label className="sd-check">
+                  <input type="checkbox" checked={space.numbered} onChange={(e) => void setNumbered(e.target.checked)} data-testid="send-space-numbered" />
+                  <span>
+                    {t('numbered')}
+                    <small>{t('numberedHelp')}</small>
+                  </span>
+                </label>
+              )}
+              {space.numbered && (
+                <button type="button" className="btn btn-secondary btn-sm sd-push" onClick={downloadIndex} data-testid="send-space-index-download">
+                  {t('downloadIndex')}
+                </button>
+              )}
+            </div>
+          )}
           {items.length === 0 ? (
             <EmptyState compact body={documents.length ? t('docsEmpty') : t('docsEmptyNoDocs')} />
           ) : (
@@ -208,6 +241,11 @@ export default function SpaceDetail({
                 <li key={it.documentId} data-testid="send-space-item">
                   <div className="sd-link-main">
                     <Link className="sd-rowtitle" href={`/app/send/documents/${it.documentId}`}>
+                      {space.numbered && it.index && (
+                        <span className="sd-index" data-testid="send-space-index">
+                          {it.index}
+                        </span>
+                      )}
                       {it.title}
                     </Link>
                     <input

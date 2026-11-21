@@ -284,7 +284,10 @@
     "duplicateTitle": "Duplicar este espacio",
     "duplicateConfirm": "Duplicar",
     "copyName": "{title} (copia)",
-    "duplicateHelp": "La copia mantiene la descripción y los documentos con su orden y carpetas. Los links, la lista de acceso y las visitas no se copian: la copia arranca sin compartir."
+    "duplicateHelp": "La copia mantiene la descripción y los documentos con su orden y carpetas. Los links, la lista de acceso y las visitas no se copian: la copia arranca sin compartir.",
+    "numbered": "Numerar carpetas y documentos",
+    "numberedHelp": "Muestra 1, 2, 2.1 antes de cada carpeta y documento, acá y a quien abre un link, para que puedan nombrarlos por número. Quien visita puede bajar el índice.",
+    "downloadIndex": "Bajar índice"
   },
   "settings": {
     "title": "Ajustes de Send",
@@ -349,7 +352,8 @@
     "unavailableTitle": "Este link ya no está disponible",
     "linkTo": "Abrir {url}",
     "linkToPage": "Ir a la página {page}",
-    "buttonTitle": "Abre {host} en otra pestaña"
+    "buttonTitle": "Abre {host} en otra pestaña",
+    "downloadIndex": "Bajar índice"
   },
   "errors": {
     "generic": "Algo salió mal. Probá de nuevo.",
