@@ -70,7 +70,16 @@ export function parseQueueScope(v: unknown): QueueScope {
  */
 export async function listQueueTasks(
   workspaceId: string,
-  opts: { ownerId?: string | null; scope?: QueueScope; timeZone?: string; ownerScope?: OwnerScope; now?: Date; limit?: number } = {},
+  opts: {
+    ownerId?: string | null;
+    scope?: QueueScope;
+    timeZone?: string;
+    ownerScope?: OwnerScope;
+    now?: Date;
+    limit?: number;
+    /** Quien lee: las tareas de chats de Lines que no ve, sin su texto (lib/crm-chat-privacy.ts). */
+    chatReader?: import('./crm-chat-privacy').ChatReader | null;
+  } = {},
 ): Promise<QueueTask[]> {
   const { start, end } = dayRangeUtc(opts.timeZone ?? 'UTC', opts.now ?? new Date());
   const scope = opts.scope ?? 'due';
@@ -115,7 +124,8 @@ export async function listQueueTasks(
        LIMIT ?`,
     )
     .all(...args)) as QueueRow[];
-  return rows.map((r) => toQueueTask(r, start));
+  const { redactChatTasks } = await import('./crm-chat-privacy');
+  return (await redactChatTasks(workspaceId, rows, opts.chatReader)).map((r) => toQueueTask(r, start));
 }
 
 function toQueueTask(r: QueueRow, todayStart: string): QueueTask {

@@ -347,7 +347,7 @@ export default function MeetingsHome(props: Props) {
   const listTitle = view === 'shared' ? t('sharedWithMe') : current ? current.name : t('listTitle');
 
   const newButton = (
-    <button type="button" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === 'new' || undefined} onClick={() => void newMeeting()}>
+    <button type="button" className="btn btn-primary" disabled={busy !== null} aria-busy={busy === 'new' || undefined} onClick={() => void newMeeting()} data-tour="voice-new">
       {busy === 'new' ? t('creating') : t('new')}
     </button>
   );
@@ -384,7 +384,14 @@ export default function MeetingsHome(props: Props) {
         description={t('subtitle')}
         actions={
           <>
-            <button type="button" className="btn btn-ghost" disabled={busy !== null} aria-busy={busy === 'import' || undefined} onClick={() => fileRef.current?.click()}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy !== null}
+              aria-busy={busy === 'import' || undefined}
+              onClick={() => fileRef.current?.click()}
+              data-tour="voice-import"
+            >
               {busy === 'import' ? t('importing') : t('import')}
             </button>
             <input
@@ -418,7 +425,8 @@ export default function MeetingsHome(props: Props) {
         </p>
       )}
 
-      <section className="vc-block" aria-labelledby="vc-upcoming">
+      {/* Anclajes del tour de Voice (lib/tours/voice.ts): próximas, preguntas, la lista y las carpetas. */}
+      <section className="vc-block" aria-labelledby="vc-upcoming" data-tour="voice-upcoming">
         <h2 id="vc-upcoming" className="ui-section-title">
           {t('upcoming')}
         </h2>
@@ -465,7 +473,7 @@ export default function MeetingsHome(props: Props) {
         )}
       </section>
 
-      <section className="vc-block" aria-labelledby="vc-ask">
+      <section className="vc-block" aria-labelledby="vc-ask" data-tour="voice-ask">
         <h2 id="vc-ask" className="ui-section-title">
           {t('askTitle')}
         </h2>
@@ -534,7 +542,7 @@ export default function MeetingsHome(props: Props) {
       </section>
 
       <div className="vc-library">
-        <nav className="vc-folders" aria-label={t('foldersLabel')}>
+        <nav className="vc-folders" aria-label={t('foldersLabel')} data-tour="voice-folders">
           <ul>
             <li className="vc-folder">
               <button type="button" className="vc-folder-btn" aria-current={view === 'all' && !folder ? 'page' : undefined} onClick={() => pick({ folder: null })}>
@@ -575,7 +583,7 @@ export default function MeetingsHome(props: Props) {
           </button>
         </nav>
 
-        <section className="vc-block vc-library-main" aria-labelledby="vc-list">
+        <section className="vc-block vc-library-main" aria-labelledby="vc-list" data-tour="voice-meetings">
           <div className="vc-block-head">
             <h2 id="vc-list" className="ui-section-title">
               {currentParent && <span className="vc-muted">{currentParent.name} / </span>}

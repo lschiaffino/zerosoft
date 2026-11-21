@@ -235,11 +235,11 @@ const parity: ProductParity = {
     }),
     row('read-receipts', 'inbox', ['Mark chats as read on WhatsApp when the team reads them (optional)', 'Marcar leído en WhatsApp cuando el equipo lee (opcional)', 'Marcar como lida no WhatsApp quando a equipe lê (opcional)'], 'have'),
     row('send-contact', 'inbox', ['Send contact cards', 'Mandar tarjetas de contacto', 'Enviar cartões de contato'], 'have'),
-    row('wa-image-editor', 'inbox', ['Edit a photo before sending (crop, draw, text, sticker, HD)', 'Editar una foto antes de mandarla (recortar, dibujar, texto, sticker, HD)', 'Editar uma foto antes de enviar (cortar, desenhar, texto, figurinha, HD)'], 'partial', {
+    row('wa-image-editor', 'inbox', ['Edit a photo before sending (crop, draw, text, sticker, blur, filters, HD)', 'Editar una foto antes de mandarla (recortar, dibujar, texto, sticker, desenfocar, filtros, HD)', 'Editar uma foto antes de enviar (cortar, desenhar, texto, figurinha, desfoque, filtros, HD)'], 'have', {
       detail: [
-        'Same editor as Inbox: crop and rotate, emoji or sticker, colored text, pencil, undo, caption emoji and HD. Missing: blur and filters. Tested with the fake provider',
-        'El mismo editor que Inbox: recortar y rotar, emoji o sticker, texto de color, lápiz, deshacer, emoji en el comentario y HD. Faltan desenfocar y filtros. Probado con el proveedor falso',
-        'O mesmo editor do Inbox: cortar e girar, emoji ou figurinha, texto colorido, lápis, desfazer, emoji na legenda e HD. Faltam desfoque e filtros. Testado com o provedor falso',
+        'Same editor as Inbox: crop and rotate, emoji or sticker, colored text, pencil, blur brush, color filters (Pop, B&W, Cool, Chrome, Film), undo, caption emoji and HD. Tested with the fake provider',
+        'El mismo editor que Inbox: recortar y rotar, emoji o sticker, texto de color, lápiz, pincel para desenfocar, filtros de color (Pop, B&N, Frío, Cromo, Película), deshacer, emoji en el comentario y HD. Probado con el proveedor falso',
+        'O mesmo editor do Inbox: cortar e girar, emoji ou figurinha, texto colorido, lápis, pincel de desfoque, filtros de cor (Pop, P&B, Frio, Cromo, Filme), desfazer, emoji na legenda e HD. Testado com o provedor falso',
       ],
     }),
     row('wa-attach-menu', 'inbox', ['Attach menu like WhatsApp (camera, poll, new sticker)', 'Menú de adjuntar como WhatsApp (cámara, encuesta, sticker nuevo)', 'Menu de anexar como o WhatsApp (câmera, enquete, nova figurinha)'], 'partial', {

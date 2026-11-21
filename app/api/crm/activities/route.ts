@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { canSeeActivityRefs, canSeeOwnedRow, sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import {
   ACTIVITY_TYPES,
   createActivity,
@@ -25,11 +26,14 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const bucket = sp.get('bucket');
+  // Tareas de chats de Lines que la persona no ve: sin su texto (lib/crm-chat-privacy.ts).
+  const chatReader = await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')));
   if (bucket) {
     if (!BUCKETS.includes(bucket as TaskBucket)) return crmError(400, 'invalid_input');
     return NextResponse.json({
       rows: await listTasks(user.id, {
         ownerScope: await sessionScope(user),
+        chatReader,
         bucket: bucket as TaskBucket,
         projectId: sp.get('projectId') ?? undefined,
         ownerId: sp.get('ownerId') ?? undefined,
@@ -43,6 +47,7 @@ export async function GET(req: NextRequest) {
   }
   const rows = await listTimeline(user.id, {
     ownerScope: await sessionScope(user),
+    chatReader,
     contactId: sp.get('contactId') ?? undefined,
     companyId: sp.get('companyId') ?? undefined,
     dealId: sp.get('dealId') ?? undefined,

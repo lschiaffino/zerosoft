@@ -94,6 +94,42 @@ describe('WAHA: sendImage / sendFile con menciones en el pie', () => {
     expect(waha.calls[1].url).toBe('https://waha.example.com/api/sendFile');
     expect(waha.calls[1].body).not.toHaveProperty('mentions');
   });
+
+  it('un WAHA que rechaza el campo (400 o 422): el archivo sale igual, sin la mención', async () => {
+    for (const status of [400, 422]) {
+      const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+      const f: FetchLike = async (url, init = {}) => {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        calls.push({ url, body });
+        if ('mentions' in body) return new Response(JSON.stringify({ message: ['property mentions should not exist'] }), { status, headers: { 'content-type': 'application/json' } });
+        return new Response(JSON.stringify({ id: 'true_123@g.us_ABC' }), { status: 200, headers: { 'content-type': 'application/json' } });
+      };
+      const p = wahaProvider({ baseUrl: 'https://waha.example.com', apiKey: 'k', session: 'acme' }, { fetch: f });
+      const r = await p.sendMedia('123@g.us', { url: 'https://cdn.example.com/v.mp4', mimetype: 'video/mp4', filename: 'v.mp4', caption: `hola @${ANA.phone}`, mentions: [ANA.phone] });
+      expect(r.id).toBe('true_123@g.us_ABC');
+      expect(calls).toHaveLength(2);
+      expect(calls[0].body).toHaveProperty('mentions');
+      expect(calls[1]).toMatchObject({ url: 'https://waha.example.com/api/sendVideo', body: { caption: `hola @${ANA.phone}`, chatId: '123@g.us' } });
+      expect(calls[1].body).not.toHaveProperty('mentions');
+    }
+  });
+
+  it('otros errores no se reintentan (pudo haber salido) y sin menciones no hay segundo intento', async () => {
+    for (const [status, mentions] of [
+      [500, [ANA.phone]],
+      [401, [ANA.phone]],
+      [400, []],
+    ] as const) {
+      let n = 0;
+      const f: FetchLike = async () => {
+        n++;
+        return new Response('{}', { status, headers: { 'content-type': 'application/json' } });
+      };
+      const p = wahaProvider({ baseUrl: 'https://waha.example.com', apiKey: 'k', session: 'acme' }, { fetch: f });
+      await expect(p.sendMedia('123@g.us', { url: 'https://cdn.example.com/f.jpg', mimetype: 'image/jpeg', filename: 'f.jpg', caption: `hola @${ANA.phone}`, mentions: [...mentions] })).rejects.toThrow();
+      expect(n).toBe(1);
+    }
+  });
 });
 
 describe('Inbox: qué menciones del pie valen', () => {

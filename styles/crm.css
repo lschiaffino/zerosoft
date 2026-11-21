@@ -390,6 +390,8 @@
 .tl-source { color: var(--dim); max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-source:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .tl-done .tl-subject { text-decoration: line-through; color: var(--dim); }
+/* Tarea de un chat de Lines que quien mira no ve: el marcador, apagado y en cursiva (no es un título real). */
+.crm-private-task { color: var(--dim); font-style: italic; font-weight: 400; }
 
 .tl-composer {
   border: 1px solid var(--line);
@@ -1180,6 +1182,17 @@ tr:hover .cell-quick { opacity: 0.8; }
 .cf-row:last-child { border-bottom: none; }
 .cf-row .input { padding: 8px 12px; font-size: 12px; }
 .cf-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Grupo, descripción y valor único de cada propiedad: segunda línea de la fila. */
+.cf-item { border-bottom: 1px solid var(--line); }
+.cf-item:last-child { border-bottom: none; }
+.cf-item .cf-row { border-bottom: none; }
+.cf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 0 0 8px; min-width: 0; }
+.cf-meta-field { display: flex; align-items: center; gap: 6px; flex: 1 1 160px; min-width: 0; }
+.cf-meta-field.cf-desc { flex: 2 1 240px; }
+.cf-meta-label { flex: 0 0 auto; font-size: 11px; color: var(--dim); }
+.cf-meta .input { flex: 1 1 auto; width: 100%; min-width: 0; padding: 6px 10px; font-size: 12px; }
+.cf-unique { flex: 0 0 auto; font-size: 12px; white-space: nowrap; }
 
 /* ---------- Settings: import ---------- */
 
@@ -2181,6 +2194,7 @@ dialog.crm-af { width: min(460px, 100vw); }
 
 .crm-settings .stage-row .input,
 .crm-settings .cf-row .input,
+.crm-settings .cf-meta .input,
 .crm-settings .pl-name {
   padding: 5px 8px;
   border-color: transparent;
@@ -2189,12 +2203,14 @@ dialog.crm-af { width: min(460px, 100vw); }
 
 .crm-settings .stage-row .input:hover,
 .crm-settings .cf-row .input:hover,
+.crm-settings .cf-meta .input:hover,
 .crm-settings .pl-name:hover {
   border-color: var(--line);
 }
 
 .crm-settings .stage-row .input:focus,
 .crm-settings .cf-row .input:focus,
+.crm-settings .cf-meta .input:focus,
 .crm-settings .pl-name:focus {
   border-color: var(--accent);
   background: var(--bg);
@@ -2204,6 +2220,9 @@ dialog.crm-af { width: min(460px, 100vw); }
 .crm-settings .stage-add { margin-top: 6px; }
 .crm-settings .cf-group { padding-top: 10px; }
 .crm-settings .cf-row { padding: 2px 0; border-bottom: none; }
+.crm-settings .cf-item { border-bottom: none; }
+.crm-settings .cf-item + .cf-item { border-top: 1px solid var(--line); padding-top: 4px; }
+.crm-settings .cf-meta { padding: 0 0 6px; }
 
 /* ============================================================
    Detalle de registro: hairlines en vez de tarjetas apiladas.

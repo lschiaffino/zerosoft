@@ -802,3 +802,9 @@ body:has(.has-brand) .powered-by { display: none; }
 .rec-trash-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rec-trash-title { overflow-wrap: anywhere; }
 .rec-trash-item .btn { flex: 0 0 auto; }
+
+/* Opciones del código para insertar: segundo de inicio y autoplay. */
+.rec-embed-opts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; }
+.rec-embed-start { flex: 0 0 auto; }
+.rec-embed-start .input { width: 112px; }
+.rec-embed-opts .ui-check { min-height: 36px; }

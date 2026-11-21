@@ -3,6 +3,7 @@ import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { countQueueTasks } from '@/lib/crm-work-queue';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { listTasks, listTaskProjects, type TaskBucket } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
 import { relDate, parseDbUtc } from '@/lib/utils';
@@ -45,7 +46,7 @@ export default async function TasksPage(props: TasksPageProps) {
     : [{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }];
 
   const projects = await listTaskProjects(user.id, true);
-  const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope });
+  const tasks = await listTasks(user.id, { bucket, ownerId, projectId, ownerScope: scope, chatReader: await sessionChatReader(user, locale) });
 
   const timeZone = await getUserTimeZone();
   const queueCount = await countQueueTasks(user.id, { ownerId: realUserId(user), timeZone, ownerScope: scope });
@@ -70,6 +71,7 @@ export default async function TasksPage(props: TasksPageProps) {
     return {
       id: a.id,
       subject: a.subject,
+      chatPrivate: a.chat_private === 1 || undefined,
       // Tarea de llamada o email: se muestra con su tipo (sigue siendo tarea).
       type: a.type === 'task' && a.task_kind ? a.task_kind : a.type,
       due: a.due_at ? fmtDue(a.due_at) : null,

@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -824,7 +824,7 @@ export default function ChatThread(props: ThreadProps) {
       setMode,
       openTicket,
       openTask: setTaskFor,
-      openLater,
+      openLater: () => openLater(),
       attach: () => attachRef.current?.pickFiles(),
       openPoll: () => setPollOpen(true),
       openContact: () => setContactOpen(true),
@@ -1409,6 +1409,10 @@ export default function ChatThread(props: ThreadProps) {
     await sendSticker(r.sticker.id);
   }
 
+  // La bandeja de ahora (para lo que espera una subida dentro de una función async).
+  const trayNow = useRef(tray.items);
+  trayNow.current = tray.items;
+
   function scheduledMedia() {
     const f = tray.items.find((x) => x.status === 'ready');
     return f ? { url: f.url, mimetype: f.type, filename: f.name } : null;
@@ -1418,19 +1422,26 @@ export default function ChatThread(props: ThreadProps) {
    * Lo que saldría si se programa ahora: el texto (o el pie del archivo) y
    * hasta un archivo. Si no se puede programar, el motivo, para decirlo.
    */
-  function laterDraft(): { body: string; media: { url: string; mimetype: string; filename: string } | null } | { reason: string } {
-    if (tray.items.some((f) => f.status === 'uploading')) return { reason: t('wa.waitUploads') };
-    const files = tray.items.filter((f) => f.status === 'ready');
+  function laterDraft(items = tray.items): { body: string; media: { url: string; mimetype: string; filename: string } | null; mentions: WaMentionPick[] } | { reason: string } {
+    if (items.some((f) => f.status === 'uploading')) return { reason: t('wa.waitUploads') };
+    const files = items.filter((f) => f.status === 'ready');
     if (files.length > 1) return { reason: t('later.oneFile') };
     const f = files[0];
-    const body = ((f?.caption ?? '').trim() || text.trim()).slice(0, 4096);
+    const caption = (f?.caption ?? '').trim();
+    const body = (caption || text.trim()).slice(0, 4096);
     if (!body && !f?.url) return { reason: t('later.needsText') };
-    return { body, media: f?.url ? { url: f.url, mimetype: f.type, filename: f.name } : null };
+    // En un grupo, las menciones van con el programado (al salir "@Nombre" pasa a "@<teléfono>"): las del pie del
+    // archivo (a quién se eligió en su lista) o, sin pie, las del campo del chat.
+    const mentions = chat.kind !== 'group' ? [] : caption && f?.captionOut?.picks ? f.captionOut.picks : waMentionPicks(body, waPeople);
+    return { body, media: f?.url ? { url: f.url, mimetype: f.type, filename: f.name } : null, mentions };
   }
 
   /** Abre el selector de "cuándo" (reloj junto a Enviar, clic derecho en Enviar, ⌘⇧Enter o el menú +). */
-  function openLater() {
+  function openLater(fromPreview = false) {
     if (mode !== 'reply' || editing || later) return;
+    // Desde la vista previa de un archivo el selector se abre aunque la foto editada se esté subiendo todavía: se
+    // vuelve a mirar al elegir la hora.
+    if (fromPreview && tray.items.length === 1) return setLater(true);
     const d = laterDraft();
     if ('reason' in d) return showToast(d.reason, true);
     setLater(true);
@@ -1439,11 +1450,12 @@ export default function ChatThread(props: ThreadProps) {
   /** Programa lo del composer para `iso`. Queda en la tira del chat; el aviso trae Deshacer. */
   async function scheduleLater(iso: string) {
     setLater(false);
-    const d = laterDraft();
+    // El archivo (la foto editada en la vista previa) puede estar terminando de subir: se espera un poco.
+    for (let i = 0; i < 300 && trayNow.current.some((f) => f.status === 'uploading'); i++) await new Promise((r) => setTimeout(r, 200));
+    const d = laterDraft(trayNow.current);
     if ('reason' in d) return showToast(d.reason, true);
     const quote = replyTo;
-    // En un grupo, las menciones van con el programado: al salir "@Nombre" pasa a "@<teléfono>", como al mandar ya.
-    const mentions = chat.kind === 'group' && !d.media ? waMentionPicks(d.body, waPeople) : [];
+    const mentions = d.mentions;
     const res = await api<{ id: string }>('/api/groups/broadcasts', {
       body: { chatIds: [chat.id], body: d.body, media: d.media, scheduledAt: iso, kind: 'scheduled', replyToId: quote?.id ?? null, ...(mentions.length ? { mentions } : {}) },
     });
@@ -1481,7 +1493,8 @@ export default function ChatThread(props: ThreadProps) {
       if (bad) return setSchedule((s) => ({ ...s, error: errText(bad) }));
       setSchedule((s) => ({ ...s, busy: true, error: '' }));
       const media = scheduledMedia();
-      const mentions = chat.kind === 'group' && !media ? waMentionPicks(text, waPeople) : [];
+      // El texto sale como pie del archivo (si hay uno), con sus menciones.
+      const mentions = chat.kind === 'group' ? waMentionPicks(text, waPeople) : [];
       const res = await api<{ nextRunAt: string | null }>('/api/groups/recurring', {
         body: { chatIds: [chat.id], body: text, media, rule, timezone, endsAt: endsIso(endsAt), ...(mentions.length ? { mentions } : {}) },
       });
@@ -1500,7 +1513,7 @@ export default function ChatThread(props: ThreadProps) {
     }
     setSchedule((s) => ({ ...s, busy: true, error: '' }));
     const media = scheduledMedia();
-    const mentions = chat.kind === 'group' && !media ? waMentionPicks(text, waPeople) : [];
+    const mentions = chat.kind === 'group' ? waMentionPicks(text, waPeople) : [];
     const res = await api('/api/groups/broadcasts', {
       body: { chatIds: [chat.id], body: text, media, scheduledAt: new Date(when).toISOString(), kind: 'scheduled', ...(mentions.length ? { mentions } : {}) },
     });
@@ -2824,7 +2837,7 @@ export default function ChatThread(props: ThreadProps) {
                   extra={[
                     ...(aiAllowed ? [{ key: 'ai', glyph: <PencilSparkle size={18} />, label: tc('open'), onSelect: ai.openBar }] : []),
                     { key: 'dictate', glyph: <Mic size={18} />, label: t('wa.dictate'), onSelect: dictate },
-                    { key: 'schedule', glyph: <ClockIcon size={18} />, label: t('later.title'), onSelect: openLater },
+                    { key: 'schedule', glyph: <ClockIcon size={18} />, label: t('later.title'), onSelect: () => openLater() },
                     { key: 'commands', glyph: <SlashIcon size={18} />, label: ts('menuItem'), onSelect: slash.openFromButton },
                   ]}
                 />
@@ -2863,7 +2876,7 @@ export default function ChatThread(props: ThreadProps) {
               />
               {aiAllowed && <AiComposeButton ai={ai} className="wa-icon-btn wa-ai-btn" />}
               {mode === 'reply' && !editing && canSend && (
-                <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={openLater} aria-label={t('later.button')} title={t('later.hint')}>
+                <button type="button" className="wa-icon-btn wa-later-btn" data-testid="lines-send-later" onClick={() => openLater()} aria-label={t('later.button')} title={t('later.hint')}>
                   <ClockIcon size={20} />
                 </button>
               )}
@@ -2929,6 +2942,7 @@ export default function ChatThread(props: ThreadProps) {
             stickerLine={stickerLine}
             sending={sending}
             mentionables={captionMentionables}
+            onLater={!editing ? () => openLater(true) : undefined}
           />
         )}
       </section>

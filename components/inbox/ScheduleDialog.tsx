@@ -33,6 +33,10 @@ export interface ScheduleTarget {
   mentions?: Array<{ phone: string; label: string }>;
   /** Editar lo que falta de una secuencia programada. */
   edit?: ScheduledDto[];
+  /** Un archivo de la vista previa de adjuntos: va con el primer mensaje (el texto es su pie). */
+  file?: File;
+  /** Se programó (para cerrar la vista previa de donde vino el archivo). */
+  onScheduled?: () => void;
 }
 
 /** Esperas que se ofrecen entre un mensaje y el siguiente, en segundos. */
@@ -90,6 +94,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
   const [busy, setBusy] = useState(false);
   const key = useRef(newKey() + newKey());
   const files = useRef<Record<string, HTMLInputElement | null>>({});
+  const attachRef = useRef<(k: string, file: File | undefined) => Promise<void>>(async () => undefined);
   // A quién es cada "@Nombre" del texto (las del campo, o las de la secuencia que se edita): van con cada parte.
   const mentions = useMemo(() => {
     const all = [...(target?.mentions ?? []), ...(target?.edit ?? []).flatMap((s) => s.mentions ?? [])];
@@ -108,8 +113,11 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
       setParts(open.map((s, i) => ({ key: newKey(), body: s.body, delaySec: i === 0 ? 0 : s.delaySec, media: s.mediaUrl ? { url: s.mediaUrl, name: s.mediaName, type: s.mediaType, ...(s.mediaVoice ? { voice: true, duration: s.mediaDuration } : {}) } : null, uploading: false })));
       setInitial(open[0].sendAt);
     } else {
-      setParts([blank(target.text ?? '')]);
+      const first = blank(target.text ?? '');
+      setParts([first]);
       setInitial(null);
+      // El archivo de la vista previa se sube ya, como si se lo hubiera adjuntado acá.
+      if (target.file) void attachRef.current(first.key, target.file);
     }
   }, [target]);
 
@@ -134,7 +142,8 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
       body: p.body.trim(),
       delaySec: i === 0 ? 0 : p.delaySec,
       media: p.media,
-      ...(whatsapp && !p.media && mentions.length ? { mentions } : {}),
+      // El pie de un archivo también menciona (una nota de voz no lleva texto).
+      ...(whatsapp && !p.media?.voice && mentions.length ? { mentions } : {}),
     }));
     const sendAt = at.toISOString();
     const r = editing
@@ -161,6 +170,7 @@ export default function ScheduleDialog({ target, onClose, onDone }: { target: Sc
       setErr(te.has(code) ? te(code) : t('uploadFailed'));
     }
   };
+  attachRef.current = attach;
 
   return (
     <Modal open={!!target} title={editing ? t('editTitle') : t('title')} onClose={onClose} wide>

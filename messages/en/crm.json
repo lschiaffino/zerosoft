@@ -159,6 +159,10 @@
       "champion": "Champion",
       "influencer": "Influencer",
       "former_employee": "Former employee"
+    },
+    "dealType": {
+      "newbusiness": "New business",
+      "existingbusiness": "Existing business"
     }
   },
   "overview": {
@@ -482,7 +486,10 @@
       "description": "Description",
       "contacts": "Contacts",
       "stage": "Stage",
-      "owner": "Owner"
+      "owner": "Owner",
+      "dealType": "Deal type",
+      "nextStep": "Next step",
+      "wonReason": "Closed won reason"
     },
     "detail": {
       "back": "← Pipeline",
@@ -530,6 +537,8 @@
   "tasks": {
     "title": "Tasks",
     "newTask": "+ New task",
+    "privateChat": "Task from a Lines chat",
+    "privateChatHint": "It was created from a Lines chat you don't have access to, so its title and notes are hidden.",
     "overdue": "Overdue",
     "today": "Today",
     "upcoming": "Upcoming",
@@ -1084,7 +1093,14 @@
     "probabilityShort": "Prob. %",
     "rottingShort": "Rotting after (days)",
     "migrateTitle": "Import from another CRM",
-    "migrateDesc": "Bring everything from HubSpot or Pipedrive with an API token. Running it again updates what was imported."
+    "migrateDesc": "Bring everything from HubSpot or Pipedrive with an API token. Running it again updates what was imported.",
+    "fieldGroup": "Group",
+    "fieldDescription": "Description",
+    "fieldUnique": "Unique value",
+    "fieldUniqueHelp": "Two records of this object cannot have the same value. Whoever can edit the property learns when a value is already used, even on records they cannot see",
+    "fieldUniqueAdmin": "Only workspace owners and admins can change this",
+    "fieldDescriptionHint": "Shown under the name on the record",
+    "fieldGroupHint": "None"
   },
   "importP": {
     "title": "Import {entity}",
@@ -1229,7 +1245,10 @@
     "invalid_record": "That record doesn't exist.",
     "invalid_pipeline": "Pick a deal pipeline.",
     "approval_required": "This stage needs approval.",
-    "invalid_filter": "These filters are not valid. Check them and try again."
+    "invalid_filter": "These filters are not valid. Check them and try again.",
+    "value_taken": "Another record already has this value, and this property only allows unique values.",
+    "not_unique": "Some records already share a value in this property. Fix the duplicates first.",
+    "invalid_unique": "Only text, number, URL and phone properties of contacts, companies and deals can require unique values."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -3898,7 +3917,7 @@
     "retry": "Try again",
     "off": {
       "title": "Sync is off",
-      "body": "Nothing is written to HubSpot or to your CRM from here yet. Turning the sync on comes in a next update. For now you can connect the account and run the preview."
+      "body": "Connect HubSpot to bring its companies, contacts, deals and activity into the CRM. Nothing is written to HubSpot."
     },
     "connect": {
       "title": "HubSpot account",
@@ -4160,6 +4179,205 @@
       "associations": "Which contacts belong to which company or deal.",
       "archived": "Records deleted in HubSpot.",
       "moment": "It is a picture of the moment it ran. Run it again after you change things."
+    },
+    "inbound": {
+      "title": "From HubSpot to the CRM",
+      "desc": "Brings companies, contacts, deals with their pipelines and stages, and notes, calls, meetings, tasks and emails into this CRM, then checks HubSpot for changes every minute. Nothing is written to HubSpot and nothing is deleted here.",
+      "loading": "Loading the sync…",
+      "loadError": "We could not load the sync status.",
+      "retry": "Try again",
+      "off": {
+        "title": "Sync is off",
+        "body": "Nothing comes from HubSpot until an admin starts it. You can run the preview below first to see what would match.",
+        "again": "The sync is stopped. Starting it again continues where it left off: records already linked are not created twice."
+      },
+      "state": {
+        "initial": "Bringing everything from HubSpot…",
+        "live": "In sync. We check HubSpot for changes every minute.",
+        "paused": "Paused. Nothing is read from HubSpot until you resume.",
+        "waiting": "HubSpot reached its daily request limit. The sync continues by itself later.",
+        "retrying": "The last run failed. The sync tries again by itself, waiting longer each time.",
+        "blocked": "The sync stopped because of the HubSpot key.",
+        "off": "Sync is off"
+      },
+      "failures": {
+        "hubspot_busy": "HubSpot kept limiting requests.",
+        "network": "We could not reach HubSpot.",
+        "provider_error": "HubSpot returned an error.",
+        "internal_error": "Something failed on our side.",
+        "missing_scope": "The key is missing a read permission.",
+        "invalid_token": "HubSpot no longer accepts the key. Replace it above and resume.",
+        "portal_changed": "The key now opens a different HubSpot account. Connect the right one above.",
+        "daily_limit": "HubSpot reached its daily request limit."
+      },
+      "nextTry": "Next try",
+      "lastSync": "Last sync",
+      "neverSynced": "Not finished a run yet",
+      "startedAt": "Started",
+      "progress": "Sync progress",
+      "read": "{n} read",
+      "readOf": "{n} of {total} read",
+      "caughtUp": "Done, {n} read",
+      "leave": "You can leave this page. The sync keeps running in the background.",
+      "countsCaption": "Records brought from HubSpot, by object",
+      "col": {
+        "object": "Object",
+        "linked": "In sync",
+        "created": "Created",
+        "updated": "Updated",
+        "conflicts": "Conflicts",
+        "skipped": "Skipped"
+      },
+      "rows": {
+        "companies": "Companies",
+        "contacts": "Contacts",
+        "deals": "Deals",
+        "activities": "Activity"
+      },
+      "conflicts": "{n} records changed on both sides since the last sync. We kept the value in zerosoft. Choosing which side wins comes with writing back to HubSpot.",
+      "archived": "{n} records were archived in HubSpot. They stay in the CRM.",
+      "objectsTitle": "What to bring",
+      "objects": {
+        "companies": "Companies",
+        "contacts": "Contacts",
+        "deals": "Deals",
+        "notes": "Notes",
+        "calls": "Calls",
+        "meetings": "Meetings",
+        "tasks": "Tasks",
+        "emails": "Emails"
+      },
+      "objectNoScope": "The key cannot read these",
+      "emailScope": "Logged emails need the sales-email-read permission on the key.",
+      "objectsSave": "Save",
+      "objectsCancel": "Cancel",
+      "startNote": "Starting creates or updates records in this workspace. Contacts are matched by email and companies by domain, so existing ones are completed instead of duplicated.",
+      "start": "Start sync",
+      "restart": "Start again",
+      "starting": "Starting…",
+      "pause": "Pause",
+      "resume": "Resume",
+      "errorsTitle": "Recent problems",
+      "codes": {
+        "hubspot_busy": "HubSpot limited requests",
+        "network": "Could not reach HubSpot",
+        "provider_error": "HubSpot returned an error",
+        "internal_error": "Something failed on our side",
+        "missing_scope": "The key is missing a permission",
+        "invalid_token": "HubSpot rejected the key",
+        "portal_changed": "The key opens a different account",
+        "daily_limit": "Daily request limit reached",
+        "write_failed": "A record could not be saved",
+        "ambiguous_match": "More than one company here has that domain: merge them and it links on the next run",
+        "email_taken": "Another contact here already uses that email",
+        "merged_in_hubspot": "Records merged in HubSpot are still separate here",
+        "no_pipeline": "A deal had no pipeline to go to",
+        "stage_unmapped": "A deal stage had no equivalent, the first stage was used",
+        "parent_skipped": "A parent company could not be set",
+        "incomplete": "HubSpot sent a record without a modified date",
+        "other": "Other problem"
+      },
+      "errors": {
+        "generic": "That did not work. Try again in a moment.",
+        "not_connected": "Connect HubSpot first.",
+        "missing_scope": "The key is missing a read permission. Check the key above.",
+        "portal_changed": "The key now opens a different HubSpot account. Connect the right one above.",
+        "key_invalid": "HubSpot no longer accepts the key. Replace it above.",
+        "not_started": "The sync has not been started.",
+        "rate_limited": "Too many changes in a short time. Try again later.",
+        "forbidden": "Only workspace admins can do this."
+      },
+      "rules": {
+        "title": "How the sync decides",
+        "match": "A HubSpot record already imported or synced stays linked to the same record here. Otherwise contacts match by email and companies by domain. Deals only match through a link.",
+        "wins": "If a field was not changed here since the last sync, the HubSpot value is used.",
+        "conflict": "If a field changed on both sides, the value here stays and the record is counted as a conflict.",
+        "deletes": "Records archived in HubSpot stay here. A record you delete here is not brought back.",
+        "owners": "Owners match people in this workspace by email. A HubSpot owner who is not in the workspace leaves the record unassigned.",
+        "fields": "HubSpot properties of your own become custom fields here, created when missing. Missing pipelines and stages are created too.",
+        "hubspot": "Nothing is written to HubSpot yet."
+      }
+    }
+  },
+  "timeline": {
+    "tabs": {
+      "all": "Activity",
+      "note": "Notes",
+      "email": "Emails",
+      "call": "Calls",
+      "task": "Tasks",
+      "meeting": "Meetings",
+      "whatsapp": "WhatsApp"
+    },
+    "tabsLabel": "Activity timeline",
+    "search": "Search activities",
+    "filterActivity": "Filter activity",
+    "filterActive": "Filter activity ({count})",
+    "types": "Activity types",
+    "selectAll": "Select all",
+    "associated": "Activity from associated records",
+    "associatedHint": "Contacts and deals of this company.",
+    "associatedHintDeal": "Contacts of this deal and its company.",
+    "allUsers": "All users",
+    "usersCount": "{count, plural, one {# user} other {# users}}",
+    "users": "Users",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "create": {
+      "note": "Create note",
+      "email": "Create email",
+      "logEmail": "Log email",
+      "call": "Log call",
+      "task": "Create task",
+      "meeting": "Log meeting"
+    },
+    "createMenu": "Create activity",
+    "closeComposer": "Close",
+    "occurredAt": "Date and time",
+    "outcome": "Outcome",
+    "noOutcome": "No outcome",
+    "direction": "Direction",
+    "noDirection": "No direction",
+    "taskType": "Task type",
+    "todo": "To-do",
+    "assignedTo": "Assigned to",
+    "title": "Title",
+    "description": "Description",
+    "notePlaceholder": "Start typing to leave a note. Type @ to mention a teammate",
+    "saveNote": "Save note",
+    "createTask": "Create",
+    "logActivity": "Log activity",
+    "groups": {
+      "pinned": "Pinned",
+      "upcoming": "Upcoming",
+      "thisMonth": "This month"
+    },
+    "by": "{type} by {name}",
+    "fromRecord": "From {name}",
+    "fromAssociated": "From an associated record",
+    "actions": "Actions for this activity",
+    "associations": "Associations",
+    "saveAssociations": "Save associations",
+    "searchRecords": "Type to search",
+    "noRecord": "None",
+    "deleteConfirm": "Delete this activity?",
+    "loadMore": "Load more activity",
+    "loading": "Loading…",
+    "loadError": "Could not load more activity. Try again.",
+    "noMatch": "No activities match these filters.",
+    "clearFilters": "Clear filters",
+    "openInLines": "Open in Lines",
+    "waChat": "WhatsApp chat",
+    "waGroup": "WhatsApp group",
+    "team": "Team",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "meetingOutcomes": {
+      "scheduled": "Scheduled",
+      "completed": "Completed",
+      "rescheduled": "Rescheduled",
+      "no_show": "No show",
+      "canceled": "Canceled"
     }
   }
 }

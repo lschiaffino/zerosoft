@@ -38,7 +38,7 @@ export const BOARD_TOUR = {
     { id: 'workshop', targets: ['board-workshop', 'board-more'], audience: 'team' },
     { id: 'share', targets: ['board-share'], audience: 'solo' },
     { id: 'shareTeam', targets: ['board-share'], audience: 'team' },
-    { id: 'shortcuts' },
+    { id: 'shortcuts', keyboard: true },
     { id: 'done' },
   ],
 } as const satisfies TourDef;

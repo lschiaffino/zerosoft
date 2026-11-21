@@ -415,7 +415,10 @@
     "linkOptions": "Link options",
     "invitedSkip": "People you invite by email don’t need the password and keep access after the link expires.",
     "embedAndLink": "Embed and reset link",
-    "embedHelp": "The embed only plays for people who can open the link."
+    "embedHelp": "The embed only plays for people who can open the link.",
+    "embedStart": "Start at",
+    "embedAutoplay": "Play on load, muted",
+    "embedStartInvalid": "Use a time like 1:30 or 90."
   },
   "detail": {
     "library": "Videos",

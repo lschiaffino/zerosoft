@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { canSeeOwner, scopeAnd, sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
 import { ensureLeadStages, getLead } from '@/lib/crm-leads';
 import { listPipelinesWithStages, listTimeline, parseCustom } from '@/lib/crm';
@@ -118,7 +119,7 @@ export default async function LeadPage(props: {
   );
 
   if (tab === 'activity') {
-    const timeline = await listTimeline(user.id, { leadId: lead.id, limit: 100 });
+    const timeline = await listTimeline(user.id, { leadId: lead.id, limit: 100, chatReader: await sessionChatReader(user, locale) });
     const items = await withActivityFiles(timeline);
     const open = timeline
       .filter((a) => a.type === 'task' && !a.done)
@@ -137,6 +138,7 @@ export default async function LeadPage(props: {
                 emptyLabel={t('leads.emptyTimeline')}
                 mentionables={owners.map((o) => ({ id: o.value, name: o.label, email: '' }))}
                 locale={locale}
+                currentPersonId={user.actingUser?.id ?? user.id}
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>

@@ -132,6 +132,12 @@ export async function notifyActivityMentions(opts: {
     if (opts.workspaceId) {
       const scope = await ownerScopeFor({ workspaceId: opts.workspaceId, personId: id, role: person.role ?? 'member' });
       if (!(await canSeeActivity(opts.workspaceId, activity.id, scope))) continue;
+      // Una tarea de un chat de Lines que esa persona no ve: el aviso traería su texto (lib/crm-chat-privacy.ts).
+      // Si no se puede saber qué ve, no se avisa con el texto: cuenta como que no ve el chat.
+      const { isChatHidden, noChatReader, personChatReader } = await import('./crm-chat-privacy');
+      const ws = opts.workspaceId;
+      const reader = await personChatReader(ws, id, opts.locale).catch(() => noChatReader(ws, opts.locale));
+      if (await isChatHidden(opts.workspaceId, activity.id, reader)) continue;
     }
     notified.push(id);
     await createNotification({

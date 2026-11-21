@@ -402,7 +402,13 @@ const crm: AssistantTool[] = [
     description: 'CRM tasks: overdue, due today or upcoming.',
     input: z.object({ bucket: z.enum(['overdue', 'today', 'upcoming']), mine: z.boolean().optional() }),
     run: async (ctx, { bucket, mine }) => {
-      const rows = await listTasks(ctx.workspaceId, { bucket, ownerScope: await crmScope(ctx), ownerId: mine ? ctx.personId : undefined });
+      const { sessionChatReader } = await import('../crm-chat-privacy');
+      const rows = await listTasks(ctx.workspaceId, {
+        bucket,
+        ownerScope: await crmScope(ctx),
+        ownerId: mine ? ctx.personId : undefined,
+        chatReader: await sessionChatReader(ctx.user, ctx.locale),
+      });
       return { total: rows.length, tasks: rows.slice(0, 20).map((t) => ({ subject: t.subject, due: t.due_at?.slice(0, 10) ?? null, related: t.contact_name || t.company_name || t.deal_name || null })) };
     },
   }),
