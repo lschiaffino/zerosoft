@@ -6,6 +6,7 @@
 import { getDb, type Db } from './db';
 import { blockedApps, EMPTY_RULE, isDefaultRule, isRuleKey, parseRule, type WorkspaceAppRule, type WorkspaceAppRules } from './app-access';
 import { isAdminEmail } from './feedback';
+import { isE2eTestEnv } from './e2e-env';
 import { isComingSoon, type ProductKey } from './products';
 import { cleanFeaturedApps } from './featured-apps';
 
@@ -109,12 +110,13 @@ export const E2E_NOT_STAFF_DOMAIN = '@soon-e2e.io';
  * Solo en los e2e: con E2E_COMING_SOON_OPEN=1 todas las cuentas de prueba abren
  * las apps "Próximamente" (para que las suites de esas apps sigan probándolas),
  * menos las de @soon-e2e.io, que prueban el corte. Falla cerrado, como la
- * identidad de prueba de lib/session.ts: además de la variable, solo en CI o
- * tests y nunca en Vercel, así que en producción no hace nada.
+ * identidad de prueba de lib/session.ts: además de la variable, solo en CI,
+ * tests o el next dev de E2E_DEV=1 (lib/e2e-env.ts) y nunca en Vercel, así que
+ * en producción no hace nada.
  */
 function e2eOpensComingSoon(email: string | null | undefined): boolean {
   if (process.env.E2E_COMING_SOON_OPEN !== '1') return false;
-  if (!(Boolean(process.env.CI) || process.env.NODE_ENV === 'test') || process.env.VERCEL_ENV || process.env.VERCEL) return false;
+  if (!isE2eTestEnv()) return false;
   return !(email ?? '').toLowerCase().endsWith(E2E_NOT_STAFF_DOMAIN);
 }
 
