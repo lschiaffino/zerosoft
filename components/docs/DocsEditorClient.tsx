@@ -979,6 +979,7 @@ export default function DocsEditorClient({
         type="button"
         className="btn btn-ghost btn-sm docs-top-btn"
         onClick={() => toggle('comments')}
+        data-tour="docs-comments"
         aria-pressed={side === 'comments'}
       >
         {t('comments.title')}
@@ -990,6 +991,7 @@ export default function DocsEditorClient({
           type="button"
           className="btn btn-secondary btn-sm docs-top-btn"
           onClick={() => setShareOpen(true)}
+          data-tour="docs-share"
           aria-haspopup="dialog"
           aria-expanded={shareOpen}
         >

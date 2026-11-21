@@ -167,8 +167,17 @@ export function sendLinesMedia(input: {
   upload?: Promise<UploadedFile> | null;
   /** "Responder desde": el chat de otra línea por el que sale. */
   via?: string;
+  /** Grupos: teléfonos mencionados en el pie ("@<teléfono>" en `body`). */
+  mentions?: string[];
 }): string {
-  const entry = unsentLines.add({ chatId: input.chatId, body: input.body, replyToId: input.replyToId, media: input.media, ...(input.via ? { via: input.via } : {}) });
+  const entry = unsentLines.add({
+    chatId: input.chatId,
+    body: input.body,
+    replyToId: input.replyToId,
+    media: input.media,
+    ...(input.via ? { via: input.via } : {}),
+    ...(input.mentions?.length ? { mentions: input.mentions } : {}),
+  });
   const cid = entry.clientId;
   const preview = input.preview || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(input.file) : '');
   if (preview) localPreviews.set(cid, preview, `lines:${input.chatId}`, input.media.kind);

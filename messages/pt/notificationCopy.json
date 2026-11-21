@@ -95,5 +95,8 @@
   "sendLinksTransferred": "{count} links do Send de {who} passaram para você",
   "sendLinksStopped": "{count} pararam porque os documentos são privados. Cada link diz o que fazer.",
   "callsComment": "{who} comentou a chamada {title}",
-  "callsReady": "A chamada {title} está pronta: transcrição e análise"
+  "callsReady": "A chamada {title} está pronta: transcrição e análise",
+  "timeSubmitted": "{who} enviou a semana de {week} para aprovação",
+  "timeApproved": "{who} aprovou sua semana de {week}",
+  "timeReturned": "{who} devolveu sua semana de {week}"
 }

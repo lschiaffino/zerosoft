@@ -47,3 +47,20 @@ las del workspace, o solo las elegidas, cada una facturable o no en ese proyecto
 sus proyectos; un admin ve todos y carga, como en Harvest, solo donde está en el equipo. Diferencias: no hay
 manager de proyecto, ni tarifa ni presupuesto por persona o tarea, ni asignación en lote desde la ficha de la
 persona. Los proyectos que ya existían quedan abiertos a todos con todas las tareas.
+
+## Cuarto corte (2026-11-20): aprobación de horas
+
+Fuentes (por el buscador):
+
+- Enviar y aprobar hojas de horas ("Submit week for approval", aprobar desde la lista, aprobar traba toda la semana): https://support.getharvest.com/hc/en-us/articles/360048181832
+- Lo que ve un miembro al enviar (botón en Time > Timesheet, confirmación, rango a elección): https://support.getharvest.com/hc/en-us/articles/360048687011
+- Aprobación flexible (retirar la aprobación desde la vista Día o Semana destraba la semana entera): https://support.getharvest.com/hc/articles/39974542812429-Flexible-timesheet-approval
+- Sección de ayuda: https://support.getharvest.com/hc/en-us/sections/360010207831-Approving-time-expenses
+
+Lo que hicimos: la persona envía su semana desde la hoja (con horas y sin cronómetro corriendo) y sus entradas
+quedan trabadas; mientras está pendiente la puede retirar (en Harvest la tiene que destrabar un admin). Dueños y
+admins reciben un aviso, la ven en Aprobaciones (pendientes, aprobadas, devueltas), miran sus entradas y la
+aprueban o la devuelven con una nota; una aprobada se reabre (queda devuelta). La persona ve la nota en su hoja y
+en Aprobaciones ve sus semanas. Diferencias: aprueban solo dueños y admins (Harvest suma managers de proyecto),
+se envía de a una semana (Harvest deja elegir un rango), no hay gastos que aprobar y quien administra todavía no
+edita las horas de otra persona.

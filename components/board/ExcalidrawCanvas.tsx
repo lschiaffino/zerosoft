@@ -132,6 +132,34 @@ function usePanelLimit(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+/**
+ * Anclajes del tour de Board (lib/tours/board.ts) en partes de Excalidraw que
+ * no aceptan props: se marcan desde el DOM, y de nuevo si Excalidraw las
+ * vuelve a crear (pasar de escritorio a teléfono cambia la barra).
+ */
+const TOUR_ANCHORS = [
+  { selector: '.App-toolbar', tour: 'board-toolbar' },
+  { selector: '.layer-ui__wrapper__footer-left', tour: 'board-zoom' },
+] as const;
+
+function useTourAnchors(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+    const mark = () => {
+      for (const a of TOUR_ANCHORS) {
+        for (const el of host.querySelectorAll<HTMLElement>(a.selector)) {
+          if (el.dataset.tour !== a.tour) el.dataset.tour = a.tour;
+        }
+      }
+    };
+    const mo = new MutationObserver(mark);
+    mo.observe(host, { childList: true, subtree: true });
+    mark();
+    return () => mo.disconnect();
+  }, [ref]);
+}
+
 /** Textos del diálogo de texto a diagrama de Excalidraw (vienen en inglés fijo). */
 export interface TtdTexts {
   tabAi: string;
@@ -328,6 +356,7 @@ function ExcalidrawCanvas({
   }, [api]);
   const hostRef = useRef<HTMLDivElement>(null);
   usePanelLimit(hostRef);
+  useTourAnchors(hostRef);
   useTranslateTtd(ttdTexts);
   useLockGeneratedIframes(hostRef);
   // La biblioteca solo en el editor con sesión (la vista pública y el invitado no la tienen).

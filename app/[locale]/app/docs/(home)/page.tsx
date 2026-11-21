@@ -81,7 +81,7 @@ export default async function DocsLandingPage(props: {
         workspaceTemplates={workspaceTemplates}
       />
     <form action={createAction.bind(null, null)}>
-      <button type="submit" className="btn btn-primary" aria-keyshortcuts="C">
+      <button type="submit" className="btn btn-primary" aria-keyshortcuts="C" data-tour="docs-new">
         <Icon name="plus" size={15} />
         {t('landing.newPage')}
         <kbd className="kbd">C</kbd>
@@ -182,7 +182,7 @@ export default async function DocsLandingPage(props: {
                   key: 'title',
                   header: t('landing.colPage'),
                   cell: (p) => (
-                    <span className="docs-cell-page">
+                    <span className="docs-cell-page" data-tour="docs-item">
                       <DocsPageIcon icon={p.icon} pageId={p.id} size={16} />
                       {p.title || t('untitled')}
                     </span>

@@ -70,6 +70,19 @@ CI=1 npx playwright test tests/e2e/<area>*.spec.ts
 
 Use `E2E_PORT` to avoid port clashes when several suites run at once.
 
+Without a build (low-memory machines, maintainer agents), `E2E_DEV=1` runs the
+specs against `next dev` with what `CI=1` turns on: the test-persona login
+(the `zs_e2e_as` cookie) and the "coming soon" apps open to test accounts
+(`lib/e2e-env.ts`). It sets `NODE_OPTIONS=--max-old-space-size=3072` on the
+server and longer timeouts, since dev compiles each route on first request.
+CI keeps `next start`. On the zerosoft Mac mini, wrap it in `heavy.sh`:
+
+```bash
+/Users/lautamacmini1/.zerosoft-watcher/heavy.sh sh -c 'cd <worktree> && E2E_DEV=1 E2E_PORT=<port> npx playwright test tests/e2e/<spec>'
+```
+
+A few specs behave differently under `next dev`; CI is the reference.
+
 **Flaky e2e tests.** Fix the cause first: wait for the signal the user
 waits for (a response, an aria state, the element being there), never a
 blind sleep or a retry. A flaky test you can't fix in your change goes to

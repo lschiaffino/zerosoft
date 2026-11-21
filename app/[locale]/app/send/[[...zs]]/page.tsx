@@ -76,7 +76,7 @@ export default async function SendPage(props: Props) {
       const s = await orNotFound(() => getSpace(actor, id));
       return (
         <SpaceDetail
-          space={{ id: s.id, title: s.title, description: s.description, sharing: s.sharing, canEdit: canEditSpace(actor, s) }}
+          space={{ id: s.id, title: s.title, description: s.description, sharing: s.sharing, numbered: !!Number(s.numbered), canEdit: canEditSpace(actor, s) }}
           initialItems={await spaceItems(actor, s.id)}
           initialAccess={await listSpaceAccess(actor, s.id)}
           links={await listLinks(actor, { spaceId: s.id })}

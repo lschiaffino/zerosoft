@@ -69,12 +69,12 @@ export default function LinksPanel({
     ].filter(Boolean) as string[];
 
   return (
-    <section data-testid="send-links">
+    <section data-testid="send-links" data-tour="send-links">
       {toasts}
       <div className="sd-section-head">
         <h2>{t('title')}</h2>
         {canCreate && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing('new')} data-testid="send-link-new">
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing('new')} data-testid="send-link-new" data-tour="send-link-new">
             {t('new')}
           </button>
         )}

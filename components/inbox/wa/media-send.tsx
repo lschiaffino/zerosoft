@@ -30,7 +30,7 @@ type Sent = { messages: MessageDto[] };
  */
 async function sendOne(
   threadId: string,
-  f: { file: Blob; name: string; caption?: string; kind?: string; duration?: number; replyTo?: string; clientId?: string },
+  f: { file: Blob; name: string; caption?: string; mentions?: string[]; kind?: string; duration?: number; replyTo?: string; clientId?: string },
   onProgress: (p: number) => void,
 ): Promise<Sent> {
   if (f.file.size <= INLINE_MAX) {
@@ -38,6 +38,7 @@ async function sendOne(
       const form = new FormData();
       form.append('file', f.file, f.name);
       if (f.caption) form.append('caption', f.caption);
+      if (f.caption && f.mentions?.length) form.append('mentions', JSON.stringify(f.mentions));
       if (f.kind) form.append('kind', f.kind);
       if (f.duration) form.append('duration', String(f.duration));
       if (f.replyTo) form.append('replyTo', f.replyTo);
@@ -74,7 +75,7 @@ async function sendOne(
     fetch(`/api/inbox/threads/${threadId}/media`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, kind: f.kind, duration: f.duration, replyTo: f.replyTo, clientId: f.clientId }),
+      body: JSON.stringify({ url, mimetype: f.file.type, filename: f.name, size: f.file.size, caption: f.caption, ...(f.caption && f.mentions?.length ? { mentions: f.mentions } : {}), kind: f.kind, duration: f.duration, replyTo: f.replyTo, clientId: f.clientId }),
       signal: withTimeout(undefined, MEDIA_SEND_TIMEOUT_MS),
     }).catch(() => null),
   );
@@ -90,6 +91,7 @@ interface OutgoingMedia {
   via?: string;
   file: Blob;
   caption: string;
+  mentions?: string[];
   media: UnsentMedia;
   replyTo?: string;
   sentAt: string;
@@ -115,6 +117,8 @@ export function sendInboxMedia(input: {
   width?: number;
   height?: number;
   replyTo?: string;
+  /** Grupos: teléfonos mencionados en el pie ("@<teléfono>" en `caption`). */
+  mentions?: string[];
   /** Vista previa local que ya existe (la de la bandeja); si no, se crea una. */
   preview?: string;
   onError?: (code: string) => void;
@@ -124,7 +128,18 @@ export function sendInboxMedia(input: {
   const media: UnsentMedia = { kind: input.kind ?? mediaKindOf(type), name: input.name, type, size: input.file.size, width: input.width, height: input.height, duration: input.duration };
   const preview = input.preview || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(input.file) : '');
   if (preview) localPreviews.set(clientId, preview, `inbox:${input.threadId}`, media.kind);
-  outbox.set(clientId, { threadId: input.threadId, ...(input.via ? { via: input.via } : {}), file: input.file, caption: input.caption ?? '', media, replyTo: input.replyTo, sentAt: new Date().toISOString(), running: false, onError: input.onError });
+  outbox.set(clientId, {
+    threadId: input.threadId,
+    ...(input.via ? { via: input.via } : {}),
+    file: input.file,
+    caption: input.caption ?? '',
+    ...(input.mentions?.length ? { mentions: input.mentions } : {}),
+    media,
+    replyTo: input.replyTo,
+    sentAt: new Date().toISOString(),
+    running: false,
+    onError: input.onError,
+  });
   run(clientId);
   return clientId;
 }
@@ -137,7 +152,7 @@ function run(clientId: string): void {
   const temp = tempInboxMedia(clientId, job.media, job.caption, 'pending', job.sentAt);
   pendingSends.emit({ type: 'add', threadId, message: temp });
   const kind = job.media.kind === 'voice' || job.media.kind === 'sticker' ? job.media.kind : undefined;
-  sendOne(job.via || threadId, { file: job.file, name: job.media.name, caption: job.caption || undefined, kind, duration: job.media.duration, replyTo: job.replyTo, clientId }, (p) => uploadProgress.set(clientId, p)).then(
+  sendOne(job.via || threadId, { file: job.file, name: job.media.name, caption: job.caption || undefined, mentions: job.mentions, kind, duration: job.media.duration, replyTo: job.replyTo, clientId }, (p) => uploadProgress.set(clientId, p)).then(
     (r) => {
       outbox.delete(clientId);
       uploadProgress.clear(clientId);
@@ -229,9 +244,23 @@ export function useSendTray(threadId: string, onError?: (code: string) => void, 
         onError?.('offline_files');
         return false;
       }
-      list.forEach((it, i) =>
-        sendInboxMedia({ threadId, ...(via ? { via } : {}), file: it.file, name: it.name, caption: it.caption?.trim(), width: it.width, height: it.height, replyTo: i === 0 ? replyTo : undefined, preview: it.preview, onError }),
-      );
+      list.forEach((it, i) => {
+        // En un grupo, "@Ana" del pie sale como "@<teléfono>" con la lista de mencionados (como un texto).
+        const out = it.captionOut?.mentions.length ? it.captionOut : null;
+        sendInboxMedia({
+          threadId,
+          ...(via ? { via } : {}),
+          file: it.file,
+          name: it.name,
+          caption: (out ? out.body : it.caption)?.trim(),
+          ...(out ? { mentions: out.mentions } : {}),
+          width: it.width,
+          height: it.height,
+          replyTo: i === 0 ? replyTo : undefined,
+          preview: it.preview,
+          onError,
+        });
+      });
       // Las vistas previas pasaron a las burbujas: salen de la bandeja sin soltarlas.
       itemsRef.current = [];
       setItems([]);
@@ -251,7 +280,7 @@ export function useSendTray(threadId: string, onError?: (code: string) => void, 
     );
   }, []);
 
-  const setCaption = useCallback((key: string, caption: string) => patch(key, { caption }), []);
+  const setCaption = useCallback((key: string, caption: string, out?: TrayItem['captionOut']) => patch(key, { caption, captionOut: out }), []);
   const retry = useCallback((key: string) => patch(key, { status: 'ready', error: undefined }), []);
 
   useEffect(() => () => itemsRef.current.forEach((it) => it.preview && URL.revokeObjectURL(it.preview)), []);

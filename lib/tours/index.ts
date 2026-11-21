@@ -11,12 +11,18 @@
  *
  * Puro: lo usan el servidor, el cliente y los tests.
  */
+import { BOARD_TOUR } from './board';
+import { CAL_TOUR } from './cal';
+import { DOCS_TOUR } from './docs';
+import { FORMS_TOUR } from './forms';
 import { INBOX_TOUR } from './inbox';
 import { LINES_TOUR } from './lines';
 import { NOTES_TOUR } from './notes';
+import { SEND_TOUR } from './send';
+import { TALK_TOUR } from './talk';
 import { TRACK_TOUR } from './track';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -43,6 +49,11 @@ export interface TourDef {
   key: TourKey;
   /** Dónde arranca (ruta sin locale): solo ahí se abre solo, y adonde lleva reiniciarlo. */
   startPath: string;
+  /**
+   * Rutas (sin locale) que también cuentan como arranque, para una app que al
+   * entrar cambia sola la ruta (Talk pasa de /app/talk al último canal).
+   */
+  startPattern?: RegExp;
   /** Prefijos de ruta donde el tour existe (el menú de la cuenta ofrece reiniciarlo). */
   paths: readonly string[];
   steps: readonly TourStep[];
@@ -53,6 +64,12 @@ export const TOURS: Record<TourKey, TourDef> = {
   inbox: INBOX_TOUR,
   notes: NOTES_TOUR,
   track: TRACK_TOUR,
+  docs: DOCS_TOUR,
+  board: BOARD_TOUR,
+  forms: FORMS_TOUR,
+  cal: CAL_TOUR,
+  talk: TALK_TOUR,
+  send: SEND_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */
@@ -84,7 +101,9 @@ export function tourForPath(pathname: string | null | undefined): TourDef | null
 
 /** La ruta es la de arranque del tour (con o sin locale). */
 export function atTourStart(def: TourDef, pathname: string | null | undefined): boolean {
-  return Boolean(pathname) && stripLocale(pathname!) === def.startPath;
+  if (!pathname) return false;
+  const p = stripLocale(pathname);
+  return p === def.startPath || Boolean(def.startPattern?.test(p));
 }
 
 /**

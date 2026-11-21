@@ -8,7 +8,7 @@ import CsvImportDialog from '@/components/ui/CsvImportDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import type { JobDetail } from '@/lib/hiring/core';
 import type { ApplicationListItem } from '@/lib/hiring/candidates';
-import { HrDialog, JobStatusBadge, api, useDate, useErrorText, useToast } from './ui';
+import { HrDialog, JobStatusBadge, api, useDate, useErrorText, useToast, type RejectConfig } from './ui';
 import BulkBar from './BulkBar';
 
 export default function JobPipeline({
@@ -17,12 +17,14 @@ export default function JobPipeline({
   view,
   status,
   careersUrl,
+  reject,
 }: {
   detail: JobDetail;
   initial: ApplicationListItem[];
   view: 'board' | 'list';
   status: string;
   careersUrl: string;
+  reject: RejectConfig;
 }) {
   const t = useTranslations('hiring');
   const router = useRouter();
@@ -65,6 +67,10 @@ export default function JobPipeline({
     e.preventDefault();
     setAdding(true);
     const form = new FormData(e.currentTarget);
+    if (!String(form.get('name') ?? '').trim() && !String(form.get('email') ?? '').trim()) {
+      setAdding(false);
+      return push(errText('name_or_email'), 'bad');
+    }
     form.set('jobId', job.id);
     const res = await api<{ candidateId: string; duplicate: boolean }>('/api/hiring/applications', { method: 'POST', body: form });
     setAdding(false);
@@ -103,7 +109,7 @@ export default function JobPipeline({
             <button type="button" className="btn btn-secondary" onClick={() => setImportOpen(true)}>
               {t('import.button')}
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => setAddOpen(true)}>
+            <button type="button" className="btn btn-primary" data-testid="hr-add-candidate" onClick={() => setAddOpen(true)}>
               {t('pipeline.addCandidate')}
             </button>
           </>
@@ -238,7 +244,7 @@ export default function JobPipeline({
         </div>
       ) : (
         <>
-          <BulkBar selected={[...selected]} stages={stages} onDone={() => { setSelected(new Set()); router.refresh(); void api<{ applications: ApplicationListItem[] }>(`/api/hiring/applications?jobId=${job.id}&status=${status}`).then((r) => r.ok && setApps(r.data.applications)); }} push={push} />
+          <BulkBar selected={[...selected]} stages={stages} reject={reject} onDone={() => { setSelected(new Set()); router.refresh(); void api<{ applications: ApplicationListItem[] }>(`/api/hiring/applications?jobId=${job.id}&status=${status}`).then((r) => r.ok && setApps(r.data.applications)); }} push={push} />
           <div className="table-wrap">
             <table className="table hr-table">
               <thead>
@@ -299,15 +305,16 @@ export default function JobPipeline({
       )}
 
       <HrDialog open={addOpen} title={t('pipeline.addCandidate')} onClose={() => setAddOpen(false)}>
-        <form onSubmit={add}>
+        <form onSubmit={add} data-testid="hr-add-form">
           <div className="ui-modal-body ui-fields">
             <label className="ui-field">
               <span className="label">{t('apply.name')}</span>
-              <input className="input" name="name" required maxLength={160} autoFocus />
+              <input className="input" name="name" maxLength={160} autoFocus />
             </label>
             <label className="ui-field">
               <span className="label">{t('apply.email')}</span>
-              <input className="input" name="email" type="email" required maxLength={254} />
+              <input className="input" name="email" type="email" maxLength={254} />
+              <span className="ui-help">{t('pipeline.nameOrEmail')}</span>
             </label>
             <label className="ui-field">
               <span className="label">{t('candidates.colSource')}</span>

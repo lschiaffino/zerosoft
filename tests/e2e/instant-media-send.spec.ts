@@ -200,14 +200,14 @@ test('Lines: pegar imágenes con la vista previa abierta las suma, sin repetir',
   await pasteImages(page, '.wa-composer textarea', ['#c0392b']);
   await expect(page.locator('.wa-attach-pane')).toBeVisible();
   // Otra distinta y la misma de antes (las capturas se llaman todas image.png): entra una sola.
-  await pasteImages(page, '.wa-attach-caption input', ['#2980b9', '#c0392b']);
+  await pasteImages(page, '.wa-attach-caption textarea', ['#2980b9', '#c0392b']);
   await expect(page.locator('.wa-attach-thumb:not(.is-add)')).toHaveCount(2);
   // La que se sumó queda elegida.
   await expect(page.locator('.wa-attach-thumb.is-on')).toHaveCount(1);
   await expect(page.locator('.wa-attach-thumb:not(.is-add)').nth(1)).toHaveClass(/is-on/);
   // Pegar texto en el comentario sigue pegando texto.
-  await page.locator('.wa-attach-caption input').fill('dos fotos');
-  await expect(page.locator('.wa-attach-caption input')).toHaveValue('dos fotos');
+  await page.locator('.wa-attach-caption textarea').fill('dos fotos');
+  await expect(page.locator('.wa-attach-caption textarea')).toHaveValue('dos fotos');
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -274,7 +274,7 @@ test('Inbox: pegar imágenes con la vista previa abierta las suma, sin repetir',
   await inboxChat(page, request, title);
   await pasteImages(page, '.ib-wa-thread .wa-composer textarea', ['#16a085']);
   await expect(page.locator('.wa-attach-pane')).toBeVisible();
-  await pasteImages(page, '.wa-attach-caption input', ['#8e44ad', '#16a085']);
+  await pasteImages(page, '.wa-attach-caption textarea', ['#8e44ad', '#16a085']);
   await expect(page.locator('.wa-attach-thumb:not(.is-add)')).toHaveCount(2);
   await expect(page.locator('.wa-attach-thumb:not(.is-add)').nth(1)).toHaveClass(/is-on/);
   expect(errors, errors.join('\n')).toEqual([]);

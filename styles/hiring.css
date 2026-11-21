@@ -74,7 +74,7 @@
 a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 .hr-list-button { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; text-align: left; cursor: pointer; }
 .hr-list-main { font-weight: 600; overflow-wrap: anywhere; }
-.hr-list-meta { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+.hr-list-meta { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; margin-left: auto; text-align: right; }
 
 /* Puesto nuevo */
 .hr-templates { display: grid; gap: 8px; border: 0; padding: 0; margin: 0; grid-template-columns: minmax(0, 1fr); }
@@ -125,11 +125,15 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(240px, 280px);
+  /* En escritorio las etapas reparten el ancho; con muchas, el tablero scrollea. */
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 12px;
   max-width: 100%;
   overscroll-behavior-x: contain;
+}
+@media (min-width: 900px) {
+  .hr-board { grid-auto-columns: minmax(180px, 1fr); }
 }
 .hr-col {
   background: var(--brand-enamel);
@@ -214,6 +218,10 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
 .hr-letter { white-space: pre-wrap; font-family: inherit; font-size: 0.9375rem; margin: 8px 0; overflow-wrap: anywhere; }
 .hr-tags { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .hr-tag-x { border: 0; background: none; padding: 0 0 0 2px; cursor: pointer; color: inherit; font-size: 0.875rem; }
+@media (pointer: coarse) {
+  .hr-tags { gap: 8px 14px; }
+  .hr-tag-x { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; margin: -12px -12px -12px -6px; }
+}
 .hr-inline-form { display: flex; gap: 6px; }
 .hr-inline-form .input { min-width: 0; flex: 1; }
 .hr-answers { margin: 0; display: grid; gap: 8px; }
@@ -335,6 +343,12 @@ a.hr-list-row:hover .hr-list-main { text-decoration: underline; }
     grid-column: auto;
   }
 }
+
+/* Motivos de rechazo (Ajustes) */
+.hr-reason-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hr-reason-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hr-reason-row .input { flex: 1 1 auto; min-width: 0; width: auto; }
+.hr-reason-row .btn { flex: 0 0 auto; }
 
 /* Papelera de la retención (Ajustes) */
 .hr-trash { display: flex; flex-direction: column; gap: 6px; min-width: 0; }

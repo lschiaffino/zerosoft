@@ -41,12 +41,12 @@ export default function FormsList({ forms, q, status, serverNow }: { forms: Form
         title={t('nav.forms')}
         description={t('list.desc')}
         actions={
-          <Link className="btn btn-primary" href="/app/forms/new">
+          <Link className="btn btn-primary" href="/app/forms/new" data-tour="forms-new">
             {t('list.new')}
           </Link>
         }
       />
-      <div className="fm-toolbar">
+      <div className="fm-toolbar" data-tour="forms-filters">
         <form onSubmit={search} role="search" className="fm-search">
           <input className="input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('list.search')} aria-label={t('list.search')} />
         </form>
@@ -83,7 +83,7 @@ export default function FormsList({ forms, q, status, serverNow }: { forms: Form
               {forms.map((f) => (
                 <tr key={f.id}>
                   <th scope="row">
-                    <Link href={`/app/forms/${f.id}`} className="fm-rowlink">
+                    <Link href={`/app/forms/${f.id}`} className="fm-rowlink" data-tour="forms-item">
                       <span className="fm-rowtitle">{f.name}</span>
                       <span className="fm-rowmeta">/f/{f.slug}</span>
                     </Link>

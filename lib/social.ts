@@ -926,6 +926,36 @@ export async function createPost(actor: SocialActor, input: PostInput): Promise<
   return savePost(actor, input, null);
 }
 
+/**
+ * Duplicar: una copia en borrador, sin fecha, con el mismo texto, medios,
+ * primer comentario, link y textos por red. Quedan las cuentas que la persona
+ * todavía puede usar; el original no se toca.
+ */
+export async function duplicatePost(actor: SocialActor, id: string): Promise<PostDto> {
+  const source = await getPost(actor, id);
+  const visible = new Set((await visibleAccountRows(actor)).map((a) => a.id));
+  const targets = source.targets.filter((tg) => tg.account && visible.has(tg.accountId));
+  const overrides: Record<string, string | null> = {};
+  for (const tg of targets) overrides[tg.accountId] = tg.textOverride;
+  const copy = await savePost(
+    actor,
+    {
+      text: source.text,
+      accountIds: targets.map((tg) => tg.accountId),
+      overrides,
+      media: source.media,
+      firstComment: source.firstComment,
+      linkUrl: source.linkUrl,
+      shortUrl: source.shortUrl,
+      action: 'draft',
+      scheduledAt: null,
+    },
+    null,
+  );
+  await addEvent(copy.id, actor.personId, 'duplicated', source.id);
+  return copy;
+}
+
 // ---------- Programación masiva (CSV) ----------
 
 export interface BulkPostInput {

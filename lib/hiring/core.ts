@@ -20,6 +20,9 @@ import {
   STAGE_KINDS,
   TEAM_ROLES,
   MAX_CANDIDATE_FIELDS,
+  MAX_REJECT_REASON,
+  MAX_REJECT_REASONS,
+  oneLine,
   candidateFieldSchema,
   canManageJob,
   canSeeApplication,
@@ -69,6 +72,9 @@ export interface SettingsRow {
   job_approvers: string;
   candidate_fields: string;
   offer_approvers: string;
+  /** JSON con los motivos de rechazo propios; NULL = los de fábrica. */
+  reject_reasons: string | null;
+  require_reject_reason: number;
   created_at: string;
   updated_at: string;
 }
@@ -119,7 +125,23 @@ export const settingsSchema = z.object({
   jobApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
   offerApprovers: z.array(z.string().min(1).max(80)).max(6).optional(),
   candidateFields: z.array(candidateFieldSchema).max(MAX_CANDIDATE_FIELDS).optional(),
+  /** null vuelve a los motivos de fábrica. */
+  rejectReasons: z.array(z.string().transform(oneLine).pipe(z.string().min(1).max(MAX_REJECT_REASON))).max(MAX_REJECT_REASONS).nullable().optional(),
+  requireRejectReason: z.boolean().optional(),
 });
+
+/** Motivos sin repetir (sin distinguir mayúsculas), en el orden en que se cargaron. */
+export function cleanRejectReasons(list: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of list) {
+    const key = r.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+  }
+  return out;
+}
 
 function checkFields(fields: CandidateField[]): CandidateField[] {
   const ids = new Set<string>();
@@ -156,7 +178,7 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
   }
   await db
     .prepare(
-      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, job_approvers = ?, offer_approvers = ?, candidate_fields = ?, updated_at = ? WHERE workspace_id = ?`,
+      `UPDATE hiring_settings SET handle = ?, company = ?, intro = ?, color = ?, locale = ?, published = ?, retention_months = ?, consent_text = ?, auto_ack = ?, members_create_jobs = ?, job_approvers = ?, offer_approvers = ?, candidate_fields = ?, reject_reasons = ?, require_reject_reason = ?, updated_at = ? WHERE workspace_id = ?`,
     )
     .run(
       input.handle ?? cur.handle,
@@ -172,6 +194,8 @@ export async function updateSettings(actor: HiringActor, input: z.infer<typeof s
       input.jobApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.jobApprovers)) : cur.job_approvers,
       input.offerApprovers ? JSON.stringify(await checkApprovers(actor.ws, input.offerApprovers)) : cur.offer_approvers,
       input.candidateFields ? JSON.stringify(checkFields(input.candidateFields)) : cur.candidate_fields,
+      input.rejectReasons === undefined ? cur.reject_reasons : input.rejectReasons === null ? null : JSON.stringify(cleanRejectReasons(input.rejectReasons)),
+      input.requireRejectReason === undefined ? (cur.require_reject_reason ?? 0) : input.requireRejectReason ? 1 : 0,
       nowIso(),
       actor.ws,
     );
@@ -193,6 +217,9 @@ export function settingsDto(s: SettingsRow) {
     jobApprovers: parseJson<string[]>(s.job_approvers, []),
     offerApprovers: parseJson<string[]>(s.offer_approvers, []),
     candidateFields: parseJson<CandidateField[]>(s.candidate_fields, []),
+    /** null: los motivos de fábrica (REJECT_REASONS, en el idioma del equipo). */
+    rejectReasons: s.reject_reasons == null ? null : parseJson<string[]>(s.reject_reasons, []),
+    requireRejectReason: Number(s.require_reject_reason ?? 0) === 1,
   };
 }
 export type SettingsDto = ReturnType<typeof settingsDto>;

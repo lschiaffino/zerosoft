@@ -154,6 +154,9 @@ export function autoRejected(questions: Question[], failed: string[]): boolean {
 
 /** Motivos de rechazo de fábrica (texto en messages: reject.reasons.<clave>). También se puede escribir otro. */
 export const REJECT_REASONS = ['experience', 'skills', 'salary', 'location', 'culture', 'position_filled', 'withdrew', 'no_response'] as const;
+/** Tope de motivos propios (Ajustes) y de largo de cada uno (el mismo que el motivo al rechazar). */
+export const MAX_REJECT_REASONS = 30;
+export const MAX_REJECT_REASON = 120;
 
 /** Preguntas knock-out que la respuesta no cumple (ids). Sin respuesta en una knock-out = no cumple. */
 export function failedKnockouts(questions: Question[], answers: Answers): string[] {

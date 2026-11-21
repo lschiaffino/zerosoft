@@ -156,3 +156,15 @@
 .tm-choice { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .tm-assign-list { margin: 0; max-height: 320px; overflow-y: auto; }
 .tm-assign-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+/* Aprobación de horas */
+.tm-sheetbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 12px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: var(--radius-1, 3px); }
+.tm-sheetbar.is-submitted, .tm-sheetbar.is-approved { background: var(--bg-soft); }
+.tm-sheetbar-text { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; flex: 1 1 260px; font-size: 0.9375rem; }
+.tm-sheetbar-msg { color: var(--muted); overflow-wrap: anywhere; }
+.tm-sheetbar-note { flex-basis: 100%; overflow-wrap: anywhere; white-space: pre-wrap; }
+.tm-entry-main.is-locked { cursor: default; }
+.tm-entry-main.is-locked:hover .tm-entry-title strong { text-decoration: none; }
+.tm-row-actions { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.tm-detail-list { border-top: 0; }
+.tm-detail-entry { grid-template-columns: minmax(0, 1fr) auto; }

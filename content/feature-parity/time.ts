@@ -23,7 +23,7 @@ function row(id: string, area: string, label: L, status: ParityStatus, opts: { d
 const parity: ProductParity = {
   competitor: 'Harvest',
   alsoCompared: ['Toggl Track', 'Clockify'],
-  lastReviewed: '2026-11-19',
+  lastReviewed: '2026-11-20',
   areas: [
     { id: 'tracking', label: loc(['Tracking time', 'Registrar horas', 'Registrar horas']) },
     { id: 'projects', label: loc(['Projects, clients and tasks', 'Proyectos, clientes y tareas', 'Projetos, clientes e tarefas']) },
@@ -105,7 +105,13 @@ const parity: ProductParity = {
         'Os admins gerenciam projetos e veem as horas de todos; os membros, as próprias. Sem papel de gerente',
       ],
     }),
-    row('approvals', 'team', ['Timesheet approvals', 'Aprobación de horas', 'Aprovação de horas'], 'missing'),
+    row('approvals', 'team', ['Timesheet approvals', 'Aprobación de horas', 'Aprovação de horas'], 'partial', {
+      detail: [
+        'Submit a week, withdraw it while pending, approve, return with a note or reopen, with a notice in the inbox. Submitted and approved weeks are locked. Admins approve; no project manager role or custom date ranges yet',
+        'Enviar una semana, retirarla mientras está pendiente, aprobar, devolver con una nota o reabrir, con aviso en la bandeja. Las semanas enviadas y aprobadas quedan trabadas. Aprueban los admins; todavía sin rol de manager de proyecto ni rangos de fechas a elección',
+        'Enviar uma semana, retirá-la enquanto está pendente, aprovar, devolver com uma nota ou reabrir, com aviso na caixa de entrada. As semanas enviadas e aprovadas ficam travadas. Os admins aprovam; ainda sem papel de gerente de projeto nem intervalos de datas à escolha',
+      ],
+    }),
     row('edit-others', 'team', ["Edit a teammate's time", 'Editar las horas de otra persona', 'Editar as horas de outra pessoa'], 'missing'),
     row('reminders', 'team', ['Reminders to track time', 'Recordatorios para cargar horas', 'Lembretes para registrar horas'], 'missing'),
     row('capacity', 'team', ['Capacity per person', 'Capacidad por persona', 'Capacidade por pessoa'], 'missing'),

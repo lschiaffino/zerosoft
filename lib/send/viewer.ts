@@ -22,6 +22,7 @@ import { deleteSendFiles, readSendFile, storeSendFile } from './files';
 import { getBranding, pagesOf, readRange, storeRefsOf, type DocumentRow, type LinkRow, type VersionRow } from './core';
 import { activeRecipients, creatorAccess, creatorSees, linkProblem } from './access';
 import { linkContact } from './crm';
+import { spaceIndexOf } from './spaces';
 import { sendCopy, type SendLocale } from './i18n';
 import {
   acceptedSeconds,
@@ -147,6 +148,8 @@ export interface ViewerDoc {
   bucketSec: number | null;
   downloadable: boolean;
   folder: string;
+  /** Número en el índice del espacio ("2.1"); vacío si el espacio no está numerado. */
+  index: string;
 }
 
 export interface ViewerBrand {
@@ -178,7 +181,8 @@ export type ViewerState =
       email: string | null;
       emailVerified: boolean;
       watermark: boolean;
-      space: { title: string; description: string } | null;
+      /** folders: número de cada carpeta cuando el espacio está numerado. */
+      space: { title: string; description: string; folders: Record<string, string> } | null;
       documents: ViewerDoc[];
     };
 
@@ -271,12 +275,19 @@ export async function viewerState(link: LinkRow, session: SessionRow | null): Pr
       // Un video no se puede marcar en el servidor: con watermark no se descarga.
       downloadable: d.downloadable && !(link.watermark && d.version.kind === 'video'),
       folder: d.folder,
+      index: '',
     });
   }
-  let space: { title: string; description: string } | null = null;
+  let space: { title: string; description: string; folders: Record<string, string> } | null = null;
   if (link.space_id) {
-    const s = (await getDb().prepare('SELECT title, description FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string; description: string } | undefined;
-    if (s) space = s;
+    const s = (await getDb().prepare('SELECT title, description, numbered FROM send_spaces WHERE id = ?').get(link.space_id)) as { title: string; description: string; numbered: number } | undefined;
+    if (s) {
+      // Los números salen de todo el espacio: cada persona ve los mismos, aunque vea menos documentos.
+      const idx = Number(s.numbered) ? await spaceIndexOf(link.space_id) : null;
+      if (idx) for (const d of documents) d.index = idx.documents[d.id] ?? '';
+      const shown = new Set(documents.map((d) => d.folder));
+      space = { title: s.title, description: s.description, folders: idx ? Object.fromEntries(Object.entries(idx.folders).filter(([f]) => shown.has(f))) : {} };
+    }
   }
   const button = link.button_label && link.button_url ? { label: link.button_label, url: link.button_url } : null;
   return { state: 'open', brand, message: link.message, button, email: session.email, emailVerified: !!session.email_verified, watermark: !!link.watermark, space, documents };

@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-20',
+  lastReviewed: '2026-11-21',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -173,11 +173,11 @@ const parity: ProductParity = {
         '@menções com autocompletar e aviso, editar e apagar, marcadas como internas no fio',
       ],
     }),
-    row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'partial', {
+    row('whatsapp-look', 'inbox', ['Looks and works like WhatsApp Web (bubbles, ticks, media, voice notes, drag and drop)', 'Se ve y se usa como WhatsApp Web (burbujas, tildes, media, notas de voz, arrastrar y soltar)', 'Parece e funciona como o WhatsApp Web (balões, tiques, mídia, mensagens de voz, arrastar e soltar)'], 'have', {
       detail: [
-        'Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews) with a live preview, opened from the chat menu. No message search inside a chat yet',
-        'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas) con vista previa en vivo, desde el menú del chat. Todavía sin búsqueda dentro de un chat',
-        'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias) com prévia ao vivo, pelo menu da conversa. Ainda sem busca dentro de uma conversa',
+        'Photos and videos sent together show as one album. Voice notes and files show in the chat as soon as you send them and upload in the background. Link previews like WhatsApp (large image, compact, while typing) and a personal Display setting (text size, list density, media size, previews) with a live preview, opened from the chat menu. Search messages inside a chat from the magnifier in the header (or Ctrl+Shift+F), on every line the chat is on: the results show the date, who wrote it and the text with the match marked, and a click takes you to the message even when it is older than what is loaded',
+        'Las fotos y videos mandados juntos se ven en un álbum. Las notas de voz y los archivos aparecen en el chat al mandarlos y se suben por detrás. Vista previa de links como WhatsApp (imagen grande, compacta, al escribir) y una Visualización por persona (tamaño del texto, densidad de la lista, tamaño de la media, vistas previas) con vista previa en vivo, desde el menú del chat. Búsqueda de mensajes dentro de un chat con la lupa de la cabecera (o Ctrl+Mayús+F), en todas las líneas donde está el chat: los resultados muestran la fecha, quién lo escribió y el texto con lo encontrado marcado, y un clic lleva al mensaje aunque sea más viejo que lo cargado',
+        'Fotos e vídeos enviados juntos aparecem num álbum. Notas de voz e arquivos aparecem na conversa assim que são enviados e sobem em segundo plano. Prévia de links como no WhatsApp (imagem grande, compacta, ao digitar) e uma Visualização por pessoa (tamanho do texto, densidade da lista, tamanho da mídia, prévias) com prévia ao vivo, pelo menu da conversa. Pesquisa de mensagens dentro de uma conversa pela lupa do cabeçalho (ou Ctrl+Shift+F), em todas as linhas onde a conversa está: os resultados mostram a data, quem escreveu e o texto com o trecho encontrado marcado, e um clique leva à mensagem mesmo quando é mais antiga do que o que está carregado',
       ],
     }),
     row('wa-stickers', 'inbox', ['Stickers and GIFs: see, send, favorites', 'Stickers y GIF: verlos, mandarlos, favoritos', 'Figurinhas e GIFs: ver, enviar, favoritas'], 'partial', {
@@ -210,9 +210,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
       detail: [
-        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Not in file captions or scheduled messages yet. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Todavía no en los comentarios de archivos ni en los mensajes programados. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. Ainda não nas legendas de arquivos nem nas mensagens agendadas. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Messages sent later and recurring messages to one group keep their mentions, and so do the captions of photos, videos and documents. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Los mensajes programados y los recurrentes a un solo grupo mantienen sus menciones, y también el pie de fotos, videos y documentos. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções, e também a legenda de fotos, vídeos e documentos. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list and restore it from Deleted', 'Archivar chats con la sección Archivados, eliminar un chat de la lista y recuperarlo desde Eliminados', 'Arquivar conversas com a seção Arquivadas, apagar uma conversa da lista e recuperá-la em Apagadas'], 'have', {

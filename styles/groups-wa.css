@@ -1128,7 +1128,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 
 /* Teléfono: el encabezado deja solo el nombre; lo demás va al menú ⋯. */
 @media (max-width: 720px) {
-  .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle { display: none; }
+  .gr-inbox .wa-head .wa-pick, .gr-inbox .wa-head .wa-close-icon, .gr-inbox .wa-head .gr-details-toggle, .gr-inbox .wa-head .wa-search-btn { display: none; }
   .gr-inbox .gr-msg.has-avatar { padding-left: 30px; }
 }
 .gr-reimport-label { font-size: 0.8125rem; color: var(--ink-2); }
@@ -1530,23 +1530,27 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 
 /* ---------- Foto o video con texto, como WhatsApp: la foto define el ancho de la burbuja ----------
    El texto, el nombre y la cita no ensanchan la burbuja (contain: inline-size): ocupan el ancho de la
-   foto y se acomodan debajo. La foto va al ras de los bordes, con las esquinas de la burbuja. */
-.gr-inbox .gr-bubble.is-media { padding: 0; }
+   foto y se acomodan debajo. La burbuja deja un marquito de 3px alrededor de la foto (como WhatsApp Web):
+   sin él, el globito de reacciones quedaba colgando de la esquina de la foto, sin borde de burbuja donde apoyarse. */
+.gr-inbox .gr-bubble.is-media { padding: 3px; }
 .gr-inbox .gr-bubble.is-media > :is(.gr-msg-author, .gr-forwarded, .gr-quote, .wa-text, .gr-translation, .wa-tags, .wa-deleted) { contain: inline-size; }
-.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 5px 28px 3px 8px; overflow: hidden; }
+.gr-inbox .gr-bubble.is-media > .gr-msg-author { margin: 0; padding: 2px 25px 3px 5px; overflow: hidden; }
 .gr-inbox .gr-bubble.is-media > .gr-msg-author .wa-author-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 4px 7px 2px 8px; }
+.gr-inbox .gr-bubble.is-media > .gr-forwarded { margin: 0; padding: 1px 4px 2px 5px; }
 /* La cita es un <button>: con width:auto se achica a su contenido, y con contain: inline-size ese ancho es 0
-   (el nombre salía letra por letra). Ocupa el ancho de la foto menos el margen. */
-.gr-inbox .gr-bubble.is-media > .gr-quote { display: flex; box-sizing: border-box; margin: 3px; width: calc(100% - 6px); }
-.gr-inbox .gr-bubble.is-media > .wa-text { padding: 5px 7px 7px 8px; }
-.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 7px 6px 8px; }
-.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: inherit; overflow: hidden; }
-.gr-inbox .gr-bubble.is-media > .gr-media:not(:first-child) { border-top-left-radius: 0; border-top-right-radius: 0; }
-.gr-inbox .gr-bubble.is-media > .gr-media:has(~ :is(.wa-text, .gr-translation, .wa-tags)) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+   (el nombre salía letra por letra). Ocupa el ancho de la foto. */
+.gr-inbox .gr-bubble.is-media > .gr-quote { display: flex; box-sizing: border-box; margin: 0 0 3px; width: 100%; }
+.gr-inbox .gr-bubble.is-media > .wa-text { padding: 2px 4px 4px 5px; }
+.gr-inbox .gr-bubble.is-media > .gr-translation, .gr-inbox .gr-bubble.is-media > .wa-tags { padding: 0 4px 3px 5px; }
+.gr-inbox .gr-bubble.is-media > .gr-media { border-radius: 6px; overflow: hidden; }
+.gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media > .gr-media { border-radius: var(--radius-1); }
 .gr-inbox .gr-bubble.is-media > .gr-media :is(.wa-image, .wa-video-thumb, .wa-album, .wa-media-ph) { border-radius: 0; }
-.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { right: 0; bottom: 0; left: 0; border-radius: 0 0 7.5px 7.5px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0 0 var(--radius-1) var(--radius-1); }
+/* Reacción sobre una foto o un video sin texto: el globito se monta sobre el borde de abajo de la burbuja, mitad
+   adentro y mitad afuera, con el anillo del color del fondo del chat (como WhatsApp Web). Va después de la burbuja.
+   La hora y los tildes suben un poco para que el globito (a la derecha en los mensajes propios) no los tape. */
+.gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) ~ .gr-reactions { margin-top: -11px; }
+.gr-inbox .gr-msg.has-reactions .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { box-sizing: border-box; height: 34px; padding-bottom: 8px; }
 
 /* Archivo que se está mandando (components/groups/wa/UploadRing.tsx): sobre una foto o un video, un anillo fino con el
    avance de la subida; en una nota de voz o un documento, una línea fina abajo. */
@@ -1917,3 +1921,33 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .wa-gm-pick-row:has(input:disabled) { cursor: default; opacity: 0.7; }
 .wa-gm-empty { padding: 8px 6px; white-space: normal; }
 @media (pointer: coarse) { .wa-gm .wa-gm-more { width: 44px; height: 44px; } }
+
+/* ---------- Buscar en el chat (components/groups/wa/ChatSearch.tsx), Lines e Inbox ---------- */
+.wa-chat-search {
+  position: absolute; top: var(--wa-head-h); right: 0; bottom: 0; z-index: 45;
+  display: flex; flex-direction: column; width: min(380px, 100%); min-width: 0;
+  background: var(--wa-panel); color: var(--wa-text); font-family: var(--wa-font);
+  border-left: 1px solid var(--wa-border); box-shadow: -4px 0 16px rgba(11, 20, 26, 0.08);
+}
+.wa-chat-search-head { display: flex; align-items: center; gap: 12px; min-height: var(--wa-head-h); padding: 6px 12px; background: var(--wa-panel-header); border-bottom: 1px solid var(--wa-border); }
+.wa-chat-search-head h3 { margin: 0; font-size: 1rem; font-weight: 500; color: var(--wa-text); }
+.wa-chat-search-field { padding: 8px 12px; border-bottom: 1px solid var(--wa-border); }
+.wa-chat-search .gr-search { width: 100%; height: var(--wa-search-h, 36px); padding-left: 40px; font-size: var(--wa-fs-ui); color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
+.wa-chat-search .gr-search::placeholder { color: var(--wa-text-2); }
+.wa-chat-search .gr-search:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 0; }
+.wa-chat-search-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.wa-chat-search-note { margin: 0; padding: 32px 24px; font-size: var(--wa-fs-preview); color: var(--wa-text-2); text-align: center; overflow-wrap: anywhere; }
+.wa-chat-search-count { margin: 0; padding: 10px 16px 6px; font-size: 0.75rem; color: var(--wa-text-2); }
+.wa-chat-search-list { margin: 0; padding: 0; list-style: none; }
+.wa-chat-search-hit { display: grid; gap: 3px; width: 100%; min-width: 0; padding: 10px 16px; background: none; border: 0; border-bottom: 1px solid var(--wa-border); font: inherit; text-align: left; color: inherit; cursor: pointer; }
+.wa-chat-search-hit:hover { background: var(--wa-row-hover); }
+.wa-chat-search-hit.is-on { background: var(--wa-row-active); }
+.wa-chat-search-hit:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-chat-search-when { font-size: 0.75rem; color: var(--wa-text-2); }
+.wa-chat-search-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--wa-fs-preview); line-height: 1.35; color: var(--wa-text-2); overflow-wrap: anywhere; }
+.wa-chat-search-who { color: var(--wa-text); }
+.wa-chat-search-text mark { background: none; color: var(--wa-primary-ink); font-weight: 600; }
+.wa-chat-search-more { margin: 0; padding: 10px; text-align: center; }
+@media (max-width: 720px) {
+  .wa-chat-search { top: 0; z-index: 80; width: 100%; border-left: 0; box-shadow: none; }
+}
