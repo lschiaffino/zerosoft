@@ -46,6 +46,6 @@ export async function POST(req: NextRequest) {
   const scope = await sessionScope(user);
   if (!(await canSeeRecord(user.id, TABLES[kind as TimelineRecordKind], id, scope))) return notFound();
   if (!(await canSeeActivity(user.id, activityId, scope))) return notFound();
-  if (!(await pinOnRecord(user.id, activityId, { kind, id }, pinned, scope))) return notFound();
+  if (!(await pinOnRecord(user.id, activityId, { kind, id }, pinned))) return notFound();
   return NextResponse.json({ ok: true });
 }

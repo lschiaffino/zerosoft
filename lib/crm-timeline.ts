@@ -214,29 +214,31 @@ export async function listRecordChats(
 }
 
 /**
- * Fija una actividad en el timeline de un registro: como en HubSpot, una sola por registro. Desfija las
- * otras propias del registro que la persona ve. false si la actividad no es propia del registro.
+ * Deja una sola actividad fijada en cada registro de esta actividad (contacto, empresa y deal), como en
+ * HubSpot: desfija las otras de esos registros. Desfijar no muestra nada, así que no depende de la
+ * visibilidad (si no, quedarían dos fijadas para quien ve más).
  */
-export async function pinOnRecord(
-  ws: string,
-  activityId: string,
-  rec: TimelineRecordRef,
-  pinned: boolean,
-  scope: OwnerScope | undefined,
-): Promise<boolean> {
+export async function unpinSiblings(ws: string, activityId: string): Promise<void> {
+  const db = getDb();
+  const row = (await db
+    .prepare('SELECT contact_id, company_id, deal_id FROM crm_activities WHERE id = ? AND user_id = ?')
+    .get(activityId, ws)) as { contact_id: string | null; company_id: string | null; deal_id: string | null } | undefined;
+  if (!row) return;
+  for (const [col, val] of [['contact_id', row.contact_id], ['company_id', row.company_id], ['deal_id', row.deal_id]] as const) {
+    if (!val) continue;
+    await db
+      .prepare(`UPDATE crm_activities SET pinned = 0, updated_at = datetime('now') WHERE user_id = ? AND ${col} = ? AND pinned = 1 AND id <> ?`)
+      .run(ws, val, activityId);
+  }
+}
+
+/** Fija (o desfija) una actividad propia del registro. false si la actividad no es propia del registro. */
+export async function pinOnRecord(ws: string, activityId: string, rec: TimelineRecordRef, pinned: boolean): Promise<boolean> {
   const db = getDb();
   const col = rec.kind === 'contact' ? 'contact_id' : rec.kind === 'company' ? 'company_id' : 'deal_id';
   const own = await db.prepare(`SELECT 1 FROM crm_activities WHERE id = ? AND user_id = ? AND ${col} = ?`).get(activityId, ws, rec.id);
   if (!own) return false;
-  if (pinned) {
-    const s = activityScopeSql('crm_activities', scope);
-    await db
-      .prepare(
-        `UPDATE crm_activities SET pinned = 0, updated_at = datetime('now')
-         WHERE user_id = ? AND ${col} = ? AND pinned = 1 AND id <> ?${s.sql ? ` AND ${s.sql}` : ''}`,
-      )
-      .run(ws, rec.id, activityId, ...s.args);
-  }
+  if (pinned) await unpinSiblings(ws, activityId);
   await db
     .prepare(`UPDATE crm_activities SET pinned = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?`)
     .run(pinned ? 1 : 0, activityId, ws);
@@ -262,17 +264,17 @@ export async function buildRecordTimeline(
   const first = offset === 0;
   const [acts, threads, chats] = await Promise.all([
     listRecordActivities(user.id, rec, { ownerScope: opts.ownerScope, chatReader: opts.chatReader, offset }),
-    first
-      ? visibleEmailContacts(user.id, rec, opts.ownerScope).then((contactIds) => listEmailThreads(user.id, { contactIds, limit: 100 }))
-      : Promise.resolve({ threads: [], activityIds: [] }),
+    // Los threads van en la primera página; en las siguientes solo se usan sus ids para no repetir como
+    // tarjeta suelta un email que ya está dentro de un thread.
+    visibleEmailContacts(user.id, rec, opts.ownerScope)
+      .then((contactIds) => listEmailThreads(user.id, { contactIds, limit: 100 }))
+      .then((t) => (first ? t : { threads: [], activityIds: t.activityIds })),
     first
       ? listRecordChats(user.id, rec, { personId: user.actingUser?.id ?? user.id, role: user.role }, opts.chatReader).catch(() => [])
       : Promise.resolve([] as WhatsappTimelineItem[]),
   ]);
-  // Los emails de una empresa o un deal vienen siempre de sus contactos: cuentan como asociados.
-  const merged = mergeTimelineWithThreads(acts.rows, threads).map((i) =>
-    'thread' in i && i.thread ? { ...i, rollup: (rec.kind === 'contact' ? 0 : 1) as 0 | 1 } : i,
-  );
+  // Los emails de los contactos cuentan como propios de su empresa y su deal (HubSpot los asocia solo).
+  const merged = mergeTimelineWithThreads(acts.rows, threads).map((i) => ('thread' in i && i.thread ? { ...i, rollup: 0 as const } : i));
   const withChats = chats.length ? mergeTimelineWithThreads([...merged, ...chats], { threads: [], activityIds: [] }) : merged;
   const items = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(withChats))));
   return { items, hasMore: acts.hasMore, nextOffset: offset + TIMELINE_PAGE };

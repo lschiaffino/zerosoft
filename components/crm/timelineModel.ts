@@ -92,11 +92,14 @@ export function when(i: ModelItem): Date {
   return parseDbUtc(i.due_at ?? i.created_at);
 }
 
-/** Tarea abierta o reunión con fecha por venir: va en "Próximas", arriba, como en HubSpot. */
+/**
+ * Va en "Próximas", arriba, como en HubSpot: toda tarea abierta con vencimiento (también las vencidas, que
+ * así no se hunden en su mes) y las reuniones por venir.
+ */
 export function isUpcoming(i: ModelItem, now: Date): boolean {
   if (!i.due_at) return false;
-  if (i.type === 'task' && i.done) return false;
-  if (i.type !== 'task' && i.type !== 'meeting') return false;
+  if (i.type === 'task') return !i.done;
+  if (i.type !== 'meeting') return false;
   return parseDbUtc(i.due_at).getTime() > now.getTime();
 }
 

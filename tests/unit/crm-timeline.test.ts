@@ -97,18 +97,23 @@ describe('crm record timeline', () => {
   it('pin: one per record, only own activities, and a contact pin does not float on the company', async () => {
     const w = await crmWorld('tl-pin');
     const second = await createActivity(w.ws, { type: 'note', body: 'zq second', companyId: w.company.id });
-    expect(await pinOnRecord(w.ws, w.onCompany.id, { kind: 'company', id: w.company.id }, true, null)).toBe(true);
-    expect(await pinOnRecord(w.ws, second.id, { kind: 'company', id: w.company.id }, true, null)).toBe(true);
+    expect(await pinOnRecord(w.ws, w.onCompany.id, { kind: 'company', id: w.company.id }, true)).toBe(true);
+    expect(await pinOnRecord(w.ws, second.id, { kind: 'company', id: w.company.id }, true)).toBe(true);
     const rows = (await listRecordActivities(w.ws, { kind: 'company', id: w.company.id })).rows;
     expect(rows[0].id).toBe(second.id);
     expect(rows.filter((r) => r.pinned).map((r) => r.id)).toEqual([second.id]);
     // Una actividad de un contacto no se fija desde la empresa.
-    expect(await pinOnRecord(w.ws, w.onA.id, { kind: 'company', id: w.company.id }, true, null)).toBe(false);
+    expect(await pinOnRecord(w.ws, w.onA.id, { kind: 'company', id: w.company.id }, true)).toBe(false);
     // Fijada en el contacto: en la empresa queda sin fijar.
-    await pinOnRecord(w.ws, w.onA.id, { kind: 'contact', id: w.a.id }, true, null);
+    await pinOnRecord(w.ws, w.onA.id, { kind: 'contact', id: w.a.id }, true);
     const again = (await listRecordActivities(w.ws, { kind: 'company', id: w.company.id })).rows;
     expect(again.find((r) => r.id === w.onA.id)?.pinned).toBe(0);
     expect((await listRecordActivities(w.ws, { kind: 'contact', id: w.a.id })).rows[0].pinned).toBe(1);
+    // Una actividad del contacto que también es de la empresa, fijada desde el contacto: la empresa sigue con una sola.
+    const both = await createActivity(w.ws, { type: 'note', body: 'zq both', contactId: w.a.id, companyId: w.company.id });
+    await pinOnRecord(w.ws, both.id, { kind: 'contact', id: w.a.id }, true);
+    const company = (await listRecordActivities(w.ws, { kind: 'company', id: w.company.id })).rows;
+    expect(company.filter((r) => r.pinned).map((r) => r.id)).toEqual([both.id]);
   });
 
   it('author: the owner of the activity, or the workspace owner when it has none', async () => {

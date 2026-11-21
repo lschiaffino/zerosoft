@@ -64,13 +64,15 @@ describe('timeline model', () => {
         item({ id: 'soon', type: 'meeting', due_at: '2026-11-22 10:00:00' }),
         item({ id: 'doneFuture', type: 'task', done: 1, due_at: '2026-11-30 10:00:00' }),
         item({ id: 'now1', type: 'note', created_at: '2026-11-05 10:00:00' }),
+        item({ id: 'overdue', type: 'task', due_at: '2026-11-10 10:00:00' }),
         item({ id: 'oct', type: 'call', created_at: '2026-10-15 10:00:00' }),
         item({ id: 'aug', type: 'call', created_at: '2026-08-15 10:00:00' }),
       ],
       NOW,
     );
     expect(g.map((x) => x.kind)).toEqual(['pinned', 'upcoming', 'thisMonth', 'month', 'month']);
-    expect(g[1].items.map((i) => i.id)).toEqual(['soon', 'later']);
+    // Las vencidas también, primero (de la más vieja a la más lejana).
+    expect(g[1].items.map((i) => i.id)).toEqual(['overdue', 'soon', 'later']);
     // Una tarea ya hecha con fecha futura no es "próxima".
     expect(g[2].items.map((i) => i.id)).toEqual(['doneFuture', 'now1']);
     expect(g[3].month?.getMonth()).toBe(9);

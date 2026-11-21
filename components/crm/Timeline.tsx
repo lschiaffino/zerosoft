@@ -234,6 +234,15 @@ export default function Timeline({
     // La primera página volvió del server (router.refresh): lo cargado aparte sigue, sin repetir.
     setMoreState((s) => (s.offset === 100 ? { hasMore, offset: 100 } : s));
   }, [hasMore]);
+  /**
+   * Después de un cambio: la primera página vuelve del server y lo cargado con "Cargar más" se descarta
+   * (se vuelve a pedir), así nada queda viejo, repetido o salteado por un offset corrido.
+   */
+  function refresh() {
+    setMore([]);
+    setMoreState({ hasMore, offset: 100 });
+    router.refresh();
+  }
   const all = useMemo(() => {
     const ids = new Set(items.map((i) => i.id));
     return [...items, ...more.filter((i) => !ids.has(i.id))];
@@ -308,7 +317,10 @@ export default function Timeline({
       setMoreError(true);
       return;
     }
-    setMore((m) => [...m, ...data.items!]);
+    setMore((m) => {
+      const seen = new Set(m.map((x) => x.id));
+      return [...m, ...data.items!.filter((x) => !seen.has(x.id))];
+    });
     setMoreState({ hasMore: !!data.hasMore, offset: data.nextOffset ?? moreState.offset + 100 });
   }
 
@@ -405,7 +417,7 @@ export default function Timeline({
     setNotice(null);
     const res = await fetch(`/api/crm/activities/${id}/zoom`, { method: 'POST' }).catch(() => null);
     setZoomBusy(null);
-    if (res?.ok) router.refresh();
+    if (res?.ok) refresh();
     else setNotice(t('apps.zoom.error'));
   }
 
@@ -519,7 +531,7 @@ export default function Timeline({
         setReplyTo(null);
         setComposing(null);
         setNotice(data?.via === 'system' ? t('email.sentSystem') : data?.via === 'outlook' ? t('email.sentOutlook') : t('email.sentGmail'));
-        router.refresh();
+        refresh();
       } else {
         setEmailError(errorText(data?.error));
       }
@@ -553,20 +565,22 @@ export default function Timeline({
       body: JSON.stringify(payload),
     }).catch(() => null);
     setPosting(false);
-    resetComposer();
     // Sin red: quedó en la cola del service worker; aparece al sincronizar.
     if (isQueuedResponse(res)) {
+      resetComposer();
       setNotice(t('offline.savedOffline'));
       announceQueued('/api/crm/activities');
       return;
     }
-    if (res && !res.ok) {
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+    // Si no se guardó, lo escrito queda en el composer.
+    if (!res || !res.ok) {
+      const data = (await res?.json().catch(() => null)) as { error?: string } | null;
       setEmailError(errorText(data?.error));
       return;
     }
+    resetComposer();
     setComposing(null);
-    router.refresh();
+    refresh();
   }
 
   // Cmd/Ctrl+Enter guarda desde cualquier campo del composer (como HubSpot); Esc lo cierra.
@@ -605,7 +619,7 @@ export default function Timeline({
 
   async function toggleDone(item: TimelineItem) {
     await patch(item.id, { done: !item.done });
-    router.refresh();
+    refresh();
   }
 
   async function togglePin(item: TimelineItem) {
@@ -617,11 +631,10 @@ export default function Timeline({
         body: JSON.stringify({ activityId: item.id, kind: recordKind, id: recordId, pinned: !item.pinned }),
       }).catch(() => null);
       setBusyId(null);
-      setMore((m) => m.map((x) => (x.id === item.id ? { ...x, pinned: item.pinned ? 0 : 1 } : { ...x, pinned: item.pinned ? x.pinned : 0 })));
     } else {
       await patch(item.id, { pinned: !item.pinned });
     }
-    router.refresh();
+    refresh();
   }
 
   function startEdit(item: TimelineItem) {
@@ -635,8 +648,7 @@ export default function Timeline({
     const res = await patch(item.id, { subject: editSubject.trim(), body: editBody.trim() });
     if (res && res.ok) {
       setEditingId(null);
-      setMore((m) => m.map((x) => (x.id === item.id ? { ...x, subject: editSubject.trim(), body: editBody.trim() } : x)));
-      router.refresh();
+      refresh();
     }
   }
 
@@ -655,8 +667,7 @@ export default function Timeline({
     });
     if (res && res.ok) {
       setAssocId(null);
-      setMore((m) => m.filter((x) => x.id !== item.id));
-      router.refresh();
+      refresh();
     } else {
       const data = (await res?.json().catch(() => null)) as { error?: string } | null;
       setAssocError(errorText(data?.error));
@@ -668,8 +679,7 @@ export default function Timeline({
     await fetch(`/api/crm/activities/${id}`, { method: 'DELETE' }).catch(() => null);
     setBusyId(null);
     setConfirmId(null);
-    setMore((m) => m.filter((x) => x.id !== id));
-    router.refresh();
+    refresh();
   }
 
   async function searchRecords(kind: 'contacts' | 'companies' | 'deals', q: string): Promise<ComboOption[]> {
