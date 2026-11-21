@@ -1155,7 +1155,10 @@
       "priority": "Prioridad",
       "description": "Descripción",
       "contactEmail": "Email(s) de contacto",
-      "fullName": "Nombre completo"
+      "fullName": "Nombre completo",
+      "dealType": "Tipo de deal",
+      "nextStep": "Próximo paso",
+      "wonReason": "Motivo de ganado"
     },
     "preset": "Mapeo guardado",
     "presetAuto": "Detección automática",
@@ -4398,5 +4401,22 @@
       "contact_company": "Por ejemplo, Contacto de facturación",
       "deal_contact": "Por ejemplo, Decisor"
     }
+  },
+  "createForm": {
+    "title": "Formulario de alta",
+    "desc": "Elegí qué propiedades se completan al crear un contacto, una empresa o un deal, en qué orden y cuáles son obligatorias. Vale para la ventana de alta rápida y los formularios completos. Las importaciones, los formularios públicos, la API y la sincronización con HubSpot no las piden.",
+    "object": "Objeto",
+    "always": "Siempre visible",
+    "custom": "Personalizada",
+    "required": "Obligatoria",
+    "remove": "Sacar del formulario",
+    "add": "Agregar",
+    "addLabel": "Propiedad para agregar",
+    "pick": "Elegí una propiedad",
+    "none": "Todas las propiedades ya están en el formulario",
+    "reset": "Volver al formulario por defecto",
+    "help": "Los miembros solo ven las propiedades personalizadas que pueden editar, y solo esas les resultan obligatorias.",
+    "saved": "Guardado",
+    "missing": "Completá los campos obligatorios: {fields}"
   }
 }

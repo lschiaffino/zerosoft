@@ -1155,7 +1155,10 @@
       "priority": "Priority",
       "description": "Description",
       "contactEmail": "Contact email(s)",
-      "fullName": "Full name"
+      "fullName": "Full name",
+      "dealType": "Deal type",
+      "nextStep": "Next step",
+      "wonReason": "Closed won reason"
     },
     "preset": "Mapping preset",
     "presetAuto": "Auto-detect",
@@ -4398,5 +4401,22 @@
       "contact_company": "For example, Billing contact",
       "deal_contact": "For example, Decision maker"
     }
+  },
+  "createForm": {
+    "title": "Create form",
+    "desc": "Choose which properties people fill in when they create a contact, company or deal, in what order, and which are required. It applies to the quick create window and the full forms. Imports, public forms, the API and the HubSpot sync don't ask for them.",
+    "object": "Object",
+    "always": "Always shown",
+    "custom": "Custom",
+    "required": "Required",
+    "remove": "Remove from the form",
+    "add": "Add",
+    "addLabel": "Property to add",
+    "pick": "Pick a property",
+    "none": "Every property is already in the form",
+    "reset": "Reset to default",
+    "help": "Members only see the custom properties they are allowed to edit, and only those are required for them.",
+    "saved": "Saved",
+    "missing": "Fill in the required fields: {fields}"
   }
 }

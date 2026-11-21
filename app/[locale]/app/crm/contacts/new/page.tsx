@@ -1,29 +1,13 @@
 import { redirect } from 'next/navigation';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import { requireUser } from '@/lib/session';
-import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
-import {
-  LEAD_STATUSES,
-  LIFECYCLE_STAGES,
-  SOURCES,
-  listCompanies,
-} from '@/lib/crm';
-import ContactForm, { type CustomFieldDef } from '@/components/crm/ContactForm';
-import { listMembers } from '@/lib/teams';
+import { listCompanies } from '@/lib/crm';
+import { createFormData } from '@/lib/crm-create-form';
+import ContactForm from '@/components/crm/ContactForm';
 
 export const dynamic = 'force-dynamic';
-
-function parseOptions(json: string): string[] {
-  try {
-    const value: unknown = JSON.parse(json);
-    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
-  } catch {
-    return [];
-  }
-}
 
 export default async function NewContactPage(
   props: {
@@ -50,17 +34,7 @@ export default async function NewContactPage(
     name: c.name,
   }));
 
-  const members = workspaceTeamId(user)
-    ? await listMembers(workspaceTeamId(user)!)
-    : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
-  const people = members.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
-  const customFields: CustomFieldDef[] = (await fieldAccessFor(sessionFieldViewer(user), 'contacts')).visible.filter((f) => f.access === 'edit').map((f) => ({
-    name: f.name,
-    label: f.label,
-    type: f.type,
-    options: parseOptions(f.options),
-    ...(f.type === 'user' ? { choices: people } : {}),
-  }));
+  const createForm = await createFormData(user, 'contacts', { more: true });
 
   const defaultCompanyId =
     searchParams.companyId && companies.some((c) => c.id === searchParams.companyId)
@@ -72,10 +46,10 @@ export default async function NewContactPage(
       <PageHeader back={{ href: '/app/crm/contacts', label: t('record.back.contacts') }} title={t('contacts.newTitle')} />
       <ContactForm
         companies={companies}
-        customFields={customFields}
-        lifecycles={[...LIFECYCLE_STAGES]}
-        leadStatuses={[...LEAD_STATUSES]}
-        sources={[...SOURCES]}
+        form={createForm.fields}
+        more={createForm.more}
+        people={createForm.people}
+        me={createForm.me}
         defaultCompanyId={defaultCompanyId}
       />
     </div>

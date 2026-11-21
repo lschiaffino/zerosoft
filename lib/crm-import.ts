@@ -19,7 +19,7 @@ import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { assertUniqueCustom, CrmUniqueValueError } from './crm-unique';
 import { setParentCompany } from './crm-assoc';
 import { getCrmSettings } from './crm-currency';
-import { PRIORITIES, SOURCES } from './crm-constants';
+import { DEAL_TYPES, PRIORITIES, SOURCES, type DealType } from './crm-constants';
 import {
   createCompany,
   createContact,
@@ -41,6 +41,19 @@ import {
   type CrmImportPresetRow,
   type Db,
 } from './db';
+
+/**
+ * Tipo de deal de un CSV: "New Business", "newbusiness", "Negocio nuevo"…
+ * → DEAL_TYPES. undefined si no se reconoce.
+ */
+export function importDealType(raw: string | undefined): DealType | undefined {
+  const v = (raw ?? '').toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
+  if (!v) return undefined;
+  if ((DEAL_TYPES as readonly string[]).includes(v)) return v as DealType;
+  if (['new', 'nuevo', 'novo', 'negocionuevo', 'novonegocio', 'novonegocios', 'nuevonegocio'].includes(v)) return 'newbusiness';
+  if (['existing', 'existente', 'negocioexistente', 'clienteexistente', 'upsell', 'renewal'].includes(v)) return 'existingbusiness';
+  return undefined;
+}
 
 /** Un valor único que ya tiene otro registro: esa fila no se importa (el resto sí). */
 async function catchUnique<T>(p: Promise<T>): Promise<T | CrmUniqueValueError> {
@@ -104,6 +117,9 @@ export interface MappedDealRow {
   priority?: string;
   source?: string;
   description?: string;
+  dealType?: string;
+  nextStep?: string;
+  wonReason?: string;
   companyName?: string;
   companyDomain?: string;
   contactEmail?: string;
@@ -686,6 +702,8 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
         ? raw.priority.toLowerCase()
         : undefined;
       const source = raw.source ? normalizeImportValue('source', raw.source) : undefined;
+      const dealType = importDealType(raw.dealType);
+      if (raw.dealType?.trim() && !dealType) result.errors.push(`Row ${rowNo}: unknown deal type "${raw.dealType}", left empty`);
       const ownerId = resolveOwner(people, raw.ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, raw.custom, rowNo, result.errors);
 
@@ -743,6 +761,9 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
         ...(priority ? { priority } : {}),
         ...(source && (SOURCES as readonly string[]).includes(source) ? { source } : {}),
         ...(raw.description ? { description: raw.description } : {}),
+        ...(dealType ? { dealType } : {}),
+        ...(raw.nextStep?.trim() ? { nextStep: raw.nextStep.trim() } : {}),
+        ...(raw.wonReason?.trim() ? { wonReason: raw.wonReason.trim() } : {}),
         ...(ownerId ? { ownerId } : {}),
         ...(company ? { companyId: company.id } : {}),
       };

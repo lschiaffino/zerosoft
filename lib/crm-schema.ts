@@ -188,6 +188,11 @@ export const dealCreateSchema = z.object({
   custom: custom.optional(),
 });
 
+/** Alta desde la app: suma el motivo de ganado (la API v1 sigue con dealCreateSchema). */
+export const dealSessionCreateSchema = dealCreateSchema.extend({
+  wonReason: shortText.optional(),
+});
+
 export const dealUpdateSchema = dealCreateSchema
   .partial()
   .omit({ pipelineId: true, stageId: true })
@@ -534,6 +539,10 @@ export const importDealRowSchema = z.object({
   priority: priority.optional(),
   source: source.optional(),
   description: longText.optional(),
+  /** Tipo de deal tal como viene ("New Business"); lib/crm-import.ts lo normaliza. */
+  dealType: shortText.optional(),
+  nextStep: shortText.optional(),
+  wonReason: shortText.optional(),
   companyName: shortText.optional(),
   companyDomain: shortText.optional(),
   /** Uno o más emails ("Jane (jane@x.com); bob@y.com"). */
