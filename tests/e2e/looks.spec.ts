@@ -131,11 +131,13 @@ test('el vacío compacto y el quieto van sin caja en los cinco aspectos (el file
         box.className = cls;
         box.innerHTML = '<p class="ui-empty-body">No links yet</p>';
         main.appendChild(box);
-        const shadow = getComputedStyle(box).boxShadow;
+        const { boxShadow, backgroundColor } = getComputedStyle(box);
         box.remove();
-        return shadow;
+        return { boxShadow, backgroundColor };
       });
     });
-    expect(shadows, look).toEqual(['none', 'none']);
+    expect(shadows.map((s) => s.boxShadow), look).toEqual(['none', 'none']);
+    // Sobre el vidrio de Liquid, sin el recuadro de fondo.
+    if (look === 'liquid') expect(shadows.map((s) => s.backgroundColor)).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
   }
 });

@@ -388,6 +388,9 @@
   background-color: var(--glass-strong);
   border-color: var(--glass-line);
 }
+/* El vacío compacto y el quieto son texto dentro de una sección: sin el fondo de la caja (sobre el vidrio
+   quedaba un recuadro blanco con el texto pegado al borde). */
+:root[data-look='liquid'] :is(.ui-empty-compact, .ui-empty-quiet) { background: transparent; }
 :root[data-look='liquid'] .table th { background: transparent; }
 :root[data-look='liquid'] .ui-section-foot { background: transparent; }
 
