@@ -3303,5 +3303,41 @@
     "description": "DocuSign lets accounts set their own brand on the signing experience and emails (https://www.docusign.com/en-gb/features-and-benefits/features). Our signing room (components/sign/SigningRoom.tsx) and emails (lib/sign/i18n.ts, deliver in lib/sign/core.ts) use the Zerosoft look, and the parity row branding is missing. A clinic or studio wants its client to see its own name. First scope: a workspace logo and accent color shown in the signing header and the email.",
     "product": "sign",
     "kind": "idea"
+  },
+  {
+    "title": "Social: Suspend all scheduled posts with one switch and a reason",
+    "description": "Hootsuite lets an organization suspend every scheduled post from the Planner and resume later, asking for a reason (https://blog.hootsuite.com/hootsuite-tips/). Today we only pause one author's posts when their account access is removed (pauseAuthorPosts in lib/social.ts); there is no workspace-wide pause. When something sensitive happens in the news or a launch slips, a small team needs to stop everything fast and not delete posts one by one. First scope: a Pause publishing switch in Social settings that makes the publish cron skip due posts, a banner on the calendar, and a Resume button that keeps the original dates.",
+    "product": "social",
+    "kind": "idea"
+  },
+  {
+    "title": "Social: Add internal notes to a post for the team",
+    "description": "Buffer lets teammates leave notes on scheduled posts, published posts and drafts (https://support.buffer.com/article/675-collaborating-on-content-with-notes), and Hootsuite shows internal comments on scheduled posts. Our post page (components/social/PostDetail.tsx) has only the approval comment and the history list, so feedback on wording happens in chat. For a team of three that reviews posts, a thread on the post that notifies the author keeps the feedback next to the text. First scope: a notes list on the post page with a text box, stored per post with author and time, and a notification to the post's creator.",
+    "product": "social",
+    "kind": "idea"
+  },
+  {
+    "title": "Social: Select several posts in the list to delete, move or send to approval",
+    "description": "Hootsuite lets you select several posts in the Planner and act on them together (https://help.hootsuite.com/hc/en-us/articles/1260804306069-Schedule-a-post). Our posts list (app/[locale]/app/social/posts) shows one row per post with filters, but no checkboxes, so cleaning up after a CSV import of 40 posts means opening each one. First scope: checkboxes in the list with a bar that appears on selection, offering delete, shift the date by N days, and submit for approval, all through one API call scoped to the workspace.",
+    "product": "social",
+    "kind": "idea"
+  },
+  {
+    "title": "Social: Subscribe to the calendar as an iCal feed",
+    "description": "Buffer and Hootsuite both let you see scheduled content next to your other plans, and Hootsuite documents calendar views in its mobile and web planner (https://help.hootsuite.com/hc/en-us/articles/1260804251130-Manage-your-content-calendar-in-the-Hootsuite-mobile-app). Our calendar (components/social/CalendarView.tsx) only lives inside Social; there is no feed for Google Calendar or Apple Calendar. A founder who plans the week in their own calendar wants to see launches and posts there. First scope: a private tokenized .ics URL under Social settings with scheduled and published posts, the network and the first line of text, and a button to rotate the token.",
+    "product": "social",
+    "kind": "idea"
+  },
+  {
+    "title": "Social: Save a post as an idea and turn it into a post later",
+    "description": "Buffer keeps an Ideas space where you save a thought with a title, tags and media, and later press Create Post to send it to the composer (https://support.buffer.com/article/589-creating-ideas-in-buffer). We have drafts, which already need accounts and a shape, and saved texts in the library (components/social/LibraryView.tsx), but nothing that holds half a thought with a note on where it came from. First scope: an Ideas tab in the library with title, text, optional image and tags, and an Open in composer button that prefills the composer and keeps the idea until the post is scheduled.",
+    "product": "social",
+    "kind": "idea"
+  },
+  {
+    "title": "Social: Warn when a post is nearly identical to one already scheduled or published",
+    "description": "Hootsuite warns that networks often flag identical content as spam and tells users to edit duplicates so each post is unique (https://help.hootsuite.com/hc/en-us/articles/1260804306069-Schedule-a-post); duplicate posts are also a common reason for failures in its bulk composer (https://help.hootsuite.com/hc/en-us/articles/1260804249930-Bulk-schedule-your-posts). Now that a post can be duplicated (components/social/PostDetail.tsx) and CSV import can repeat text (lib/social-bulk.ts), nothing checks for repeats on the same account in a short window. First scope: when scheduling, compare the normalized text with posts for the same account in the last and next 7 days and show a dismissible warning in the composer and in the CSV preview, without blocking.",
+    "product": "social",
+    "kind": "idea"
   }
 ]

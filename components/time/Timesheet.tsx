@@ -6,9 +6,11 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { EntryDto, ProjectDto, TaskDto } from '@/lib/time/core';
-import { addDays, canTrackOn, formatMinutes, isIsoDate, liveMinutes, parseDuration, tasksForProject, weekDays } from '@/lib/time/types';
+import type { SheetInfo } from '@/lib/time/approvals';
+import { addDays, canTrackOn, formatMinutes, isIsoDate, liveMinutes, parseDuration, sheetLocked, tasksForProject, weekDays } from '@/lib/time/types';
 import { api, groupByClient, localToday, TimeDialog, useDayFormat, useErrorText, useToast } from './ui';
 import WeekGrid from './WeekGrid';
+import SheetStatus from './SheetStatus';
 
 export type SheetView = 'day' | 'week';
 
@@ -53,6 +55,7 @@ export default function Timesheet({
   const [date, setDate] = useState<string | null>(initialDate && isIsoDate(initialDate) ? initialDate : null);
   const [view, setView] = useState<SheetView>(initialView);
   const [entries, setEntries] = useState<EntryDto[] | null>(null);
+  const [sheet, setSheet] = useState<SheetInfo | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -88,20 +91,24 @@ export default function Timesheet({
   const load = useCallback(async () => {
     if (!weekKey) return;
     setLoadFailed(false);
-    const r = await api<{ entries: EntryDto[] }>(`/api/time/entries?from=${weekKey}&to=${addDays(weekKey, 6)}`);
+    const r = await api<{ entries: EntryDto[]; sheet: SheetInfo | null }>(`/api/time/entries?from=${weekKey}&to=${addDays(weekKey, 6)}`);
     if (!r.ok) {
       setLoadFailed(true);
       return;
     }
     setEntries(r.data.entries);
+    setSheet(r.data.sheet);
   }, [weekKey]);
 
   useEffect(() => {
     setEntries(null);
+    setSheet(null);
     void load();
   }, [load]);
 
   const running = entries?.some((e) => e.timerStartedAt) ?? false;
+  // Semana enviada o aprobada: se ve y no se edita (la API también lo rechaza).
+  const locked = sheetLocked(sheet?.status);
   useEffect(() => {
     if (!running) return;
     setNow(Date.now());
@@ -138,11 +145,11 @@ export default function Timesheet({
 
   // /app/time?new=1 (menú "+ Nuevo" y Cmd+K) abre el diálogo una vez que hay fecha.
   useEffect(() => {
-    if (openNew && !openedNew.current && date && entries && activeProjects.length) {
+    if (openNew && !openedNew.current && date && entries && activeProjects.length && !sheetLocked(sheet?.status)) {
       openedNew.current = true;
       openNewDraft();
     }
-  }, [openNew, date, entries, activeProjects.length, openNewDraft]);
+  }, [openNew, date, entries, sheet, activeProjects.length, openNewDraft]);
 
   const openEdit = (e: EntryDto) => {
     const d = formatMinutes(minutesOf(e));
@@ -241,7 +248,7 @@ export default function Timesheet({
   // Hay proyectos activos pero ninguno con la persona en el equipo.
   const adminNotAssigned = admin && noProjects && projects.some((p) => !p.archived);
   const trackButton = (
-    <button type="button" className="btn btn-primary" onClick={openNewDraft} disabled={!date || noProjects} data-testid="time-track">
+    <button type="button" className="btn btn-primary" onClick={openNewDraft} disabled={!date || noProjects || locked} data-testid="time-track">
       {t('nav.track')}
     </button>
   );
@@ -297,6 +304,8 @@ export default function Timesheet({
             </div>
           </div>
 
+          {sheet && entries && <SheetStatus sheet={sheet} hasEntries={entries.length > 0} onChanged={setSheet} push={push} />}
+
           {view === 'week' ? (
             <WeekGrid
               key={weekKey}
@@ -315,6 +324,7 @@ export default function Timesheet({
                 setDate(d);
                 setView('day');
               }}
+              readOnly={locked}
             />
           ) : (
             <>
@@ -367,24 +377,38 @@ export default function Timesheet({
                     const mins = minutesOf(e);
                     return (
                       <li key={e.id} className={`tm-entry${e.timerStartedAt ? ' is-running' : ''}`} data-testid="time-entry" data-running={e.timerStartedAt ? 'true' : 'false'}>
+                        {(() => {
+                          const body = (
+                            <>
+                              <span className="tm-entry-title">
+                                <strong>{e.projectName}</strong>
+                                {e.clientName ? <span className="tm-muted"> · {e.clientName}</span> : null}
+                              </span>
+                              <span className="tm-entry-meta">
+                                {e.taskName}
+                                {e.notes ? <span className="tm-entry-notes"> · {e.notes}</span> : null}
+                              </span>
+                            </>
+                          );
+                          return locked ? (
+                            <div className="tm-entry-main is-locked">{body}</div>
+                          ) : (
                         <button
                           type="button"
                           className="tm-entry-main"
                           onClick={() => openEdit(e)}
                           aria-label={`${t('common.edit')}: ${t('sheet.entryLabel', { project: e.projectName, task: e.taskName, duration: formatMinutes(mins) })}`}
                         >
-                          <span className="tm-entry-title">
-                            <strong>{e.projectName}</strong>
-                            {e.clientName ? <span className="tm-muted"> · {e.clientName}</span> : null}
-                          </span>
-                          <span className="tm-entry-meta">
-                            {e.taskName}
-                            {e.notes ? <span className="tm-entry-notes"> · {e.notes}</span> : null}
-                          </span>
+                          {body}
                         </button>
+                          );
+                        })()}
                         <span className="tm-entry-time num" data-testid="time-entry-duration">
                           {formatMinutes(mins)}
                         </span>
+                        {locked ? (
+                          <span className="tm-timer-btn" aria-hidden="true" />
+                        ) : (
                         <button
                           type="button"
                           className={`btn btn-sm ${e.timerStartedAt ? 'btn-primary' : 'btn-secondary'} tm-timer-btn`}
@@ -394,6 +418,7 @@ export default function Timesheet({
                         >
                           {e.timerStartedAt ? t('sheet.stop') : t('sheet.start')}
                         </button>
+                        )}
                       </li>
                     );
                   })}

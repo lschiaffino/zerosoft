@@ -9,6 +9,7 @@ import TitleInput from '@/components/ui/TitleInput';
 import type { LinkDto } from '@/lib/send/core';
 import type { SpaceAccessDto, SpaceAnalytics, SpaceItemDto } from '@/lib/send/spaces';
 import LinksPanel from './LinksPanel';
+import { downloadIndexCsv } from './index-csv';
 import { api, formatSeconds, SendDialog, useDate, useErrorText, useToast } from './ui';
 
 type Tab = 'documents' | 'links' | 'access' | 'activity';
@@ -24,7 +25,7 @@ export default function SpaceDetail({
   analytics,
   admin,
 }: {
-  space: { id: string; title: string; description: string; sharing: string; canEdit: boolean };
+  space: { id: string; title: string; description: string; sharing: string; numbered: boolean; canEdit: boolean };
   initialItems: SpaceItemDto[];
   initialAccess: SpaceAccessDto[];
   links: LinkDto[];
@@ -52,6 +53,9 @@ export default function SpaceDetail({
   const [grantEmail, setGrantEmail] = useState('');
   const [grantDocs, setGrantDocs] = useState<string[]>([]);
   const [granting, setGranting] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyTitle, setCopyTitle] = useState('');
+  const [copyError, setCopyError] = useState('');
 
   const available = documents.filter((d) => !items.some((i) => i.documentId === d.id));
 
@@ -84,6 +88,36 @@ export default function SpaceDetail({
     if (!r.ok) return toast(errorText(r.data.error), 'bad');
     router.push('/app/send/spaces');
     router.refresh();
+  };
+
+  const setNumbered = async (numbered: boolean) => {
+    setSpace((x) => ({ ...x, numbered }));
+    const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { numbered } });
+    if (!r.ok) {
+      setSpace((x) => ({ ...x, numbered: !numbered }));
+      toast(errorText(r.data.error), 'bad');
+    }
+  };
+  const downloadIndex = () =>
+    downloadIndexCsv(
+      space.title,
+      items.map((i) => ({ index: i.index, folder: i.folder, title: i.title, kind: i.kind ?? '', pages: i.kind === 'video' ? '' : i.pageCount })),
+    );
+
+  const openCopy = () => {
+    setCopyTitle(t('copyName', { title: space.title }).slice(0, 200));
+    setCopyError('');
+    setCopying(true);
+  };
+  const duplicate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!copyTitle.trim() || busy) return;
+    setBusy(true);
+    const r = await api<{ space: { id: string } }>('/api/send/spaces', { method: 'POST', json: { title: copyTitle, duplicateOf: space.id } });
+    setBusy(false);
+    if (!r.ok) return setCopyError(errorText(r.data.error));
+    setCopying(false);
+    router.push(`/app/send/spaces/${r.data.space.id}`);
   };
 
   const grant = async (e: FormEvent) => {
@@ -119,28 +153,33 @@ export default function SpaceDetail({
         <div className="sd-doc-title">
           {space.canEdit ? <TitleInput className="ui-title-input sd-title-input" value={title} maxLength={200} aria-label={t('colTitle')} onValueChange={setTitle} onBlur={saveTitle} data-testid="send-space-title-input" /> : <h1 className="sd-title-static">{space.title}</h1>}
         </div>
-        {space.canEdit && (
-          <div className="sd-doc-actions">
-            <select
-              className="input sd-sharing"
-              value={space.sharing}
-              aria-label={t('sharing')}
-              data-testid="send-space-sharing"
-              onChange={async (e) => {
-                const sharing = e.target.value;
-                const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { sharing } });
-                if (r.ok) setSpace((x) => ({ ...x, sharing }));
-                else toast(errorText(r.data.error), 'bad');
-              }}
-            >
-              <option value="private">{t('sharingPrivate')}</option>
-              <option value="workspace">{t('sharingWorkspace')}</option>
-            </select>
-            <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setDeleting(true)} data-testid="send-space-delete">
-              {tc('delete')}
-            </button>
-          </div>
-        )}
+        <div className="sd-doc-actions">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={openCopy} data-testid="send-space-duplicate">
+            {t('duplicate')}
+          </button>
+          {space.canEdit && (
+            <>
+              <select
+                className="input sd-sharing"
+                value={space.sharing}
+                aria-label={t('sharing')}
+                data-testid="send-space-sharing"
+                onChange={async (e) => {
+                  const sharing = e.target.value;
+                  const r = await api(`/api/send/spaces/${space.id}`, { method: 'PATCH', json: { sharing } });
+                  if (r.ok) setSpace((x) => ({ ...x, sharing }));
+                  else toast(errorText(r.data.error), 'bad');
+                }}
+              >
+                <option value="private">{t('sharingPrivate')}</option>
+                <option value="workspace">{t('sharingWorkspace')}</option>
+              </select>
+              <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => setDeleting(true)} data-testid="send-space-delete">
+                {tc('delete')}
+              </button>
+            </>
+          )}
+        </div>
       </div>
       <div className="ui-tabs sd-tabs" role="tablist" aria-label={t('title')}>
         {tabs.map((x) => (
@@ -176,6 +215,24 @@ export default function SpaceDetail({
               </button>
             </div>
           )}
+          {items.length > 0 && (space.canEdit || space.numbered) && (
+            <div className="sd-filters sd-index-bar">
+              {space.canEdit && (
+                <label className="sd-check">
+                  <input type="checkbox" checked={space.numbered} onChange={(e) => void setNumbered(e.target.checked)} data-testid="send-space-numbered" />
+                  <span>
+                    {t('numbered')}
+                    <small>{t('numberedHelp')}</small>
+                  </span>
+                </label>
+              )}
+              {space.numbered && (
+                <button type="button" className="btn btn-secondary btn-sm sd-push" onClick={downloadIndex} data-testid="send-space-index-download">
+                  {t('downloadIndex')}
+                </button>
+              )}
+            </div>
+          )}
           {items.length === 0 ? (
             <EmptyState compact body={documents.length ? t('docsEmpty') : t('docsEmptyNoDocs')} />
           ) : (
@@ -184,6 +241,11 @@ export default function SpaceDetail({
                 <li key={it.documentId} data-testid="send-space-item">
                   <div className="sd-link-main">
                     <Link className="sd-rowtitle" href={`/app/send/documents/${it.documentId}`}>
+                      {space.numbered && it.index && (
+                        <span className="sd-index" data-testid="send-space-index">
+                          {it.index}
+                        </span>
+                      )}
                       {it.title}
                     </Link>
                     <input
@@ -412,6 +474,30 @@ export default function SpaceDetail({
         }}
         onCancel={() => setLastRevoke(null)}
       />
+      <SendDialog open={copying} title={t('duplicateTitle')} onClose={() => setCopying(false)}>
+        <form onSubmit={duplicate} data-testid="send-space-duplicate-dialog">
+          <div className="ui-modal-body">
+            <div className="sd-field">
+              <label htmlFor="sp-copy-title">{t('colTitle')}</label>
+              <input id="sp-copy-title" className="input" value={copyTitle} maxLength={200} onChange={(e) => setCopyTitle(e.target.value)} required autoFocus data-testid="send-space-duplicate-title" />
+            </div>
+            <p className="sd-help">{t('duplicateHelp')}</p>
+            {copyError && (
+              <p className="sd-error" role="alert">
+                {copyError}
+              </p>
+            )}
+          </div>
+          <div className="ui-modal-foot">
+            <button type="button" className="btn btn-ghost" onClick={() => setCopying(false)}>
+              {tc('cancel')}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !copyTitle.trim()} data-testid="send-space-duplicate-confirm">
+              {t('duplicateConfirm')}
+            </button>
+          </div>
+        </form>
+      </SendDialog>
       <ConfirmDialog open={deleting} title={t('deleteTitle')} body={t('deleteBody')} confirmLabel={tc('delete')} cancelLabel={tc('cancel')} danger busy={busy} onConfirm={remove} onCancel={() => setDeleting(false)} />
     </div>
   );

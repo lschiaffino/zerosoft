@@ -7,6 +7,7 @@ describe('cita en burbuja con foto', () => {
   it('tiene ancho explícito', () => {
     const css = readFileSync('styles/groups-wa.css', 'utf8');
     const rule = css.match(/\.gr-inbox \.gr-bubble\.is-media > \.gr-quote \{([^}]*)\}/);
-    expect(rule?.[1]).toMatch(/width:\s*calc\(100% - 6px\)/);
+    // El marco de 3px lo pone la burbuja: la cita ocupa todo su ancho.
+    expect(rule?.[1]).toMatch(/width:\s*100%/);
   });
 });

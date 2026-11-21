@@ -16,6 +16,7 @@ import { touchActivity } from './workspace-admin';
 import { blockedAppsFor } from './workspace-apps';
 import { isComingSoon } from './products';
 import { getSessionRow, mfaEnabled, sessionState, touchSession, type SessionState } from './account-security';
+import { isE2eTestEnv } from './e2e-env';
 
 /**
  * DEMO_MODE convierte a todo visitante en el usuario demo compartido. En
@@ -34,13 +35,8 @@ export const DEMO_EMAIL = 'demo@zerosoft.ai';
  * o ninguna). Nunca se prende en un deploy: la variable no existe fuera de los tests.
  */
 export const E2E_IDENTITY_COOKIE = 'zs_e2e_as';
-// Falla cerrado: además de la variable, solo en CI o tests y nunca en Vercel.
-const E2E_IDENTITY =
-  DEMO_MODE &&
-  process.env.E2E_IDENTITY_COOKIE === '1' &&
-  (Boolean(process.env.CI) || process.env.NODE_ENV === 'test') &&
-  !process.env.VERCEL_ENV &&
-  !process.env.VERCEL;
+// Falla cerrado: además de la variable, solo en CI, tests o el next dev de E2E_DEV=1, y nunca en Vercel.
+const E2E_IDENTITY = DEMO_MODE && process.env.E2E_IDENTITY_COOKIE === '1' && isE2eTestEnv();
 
 /**
  * Usuario efectivo de la request: el dueño del workspace activo.

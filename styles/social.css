@@ -18,6 +18,13 @@
 .sc-wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .sc-item-side .select { max-width: 100%; }
 .sc-reply-tools .select { width: auto; max-width: 100%; }
+/* Título de panel con acciones al lado (Texto + biblioteca + IA): el margen va en la fila, así quedan centrados. */
+.sc-panel-head { margin-bottom: 12px; }
+.sc-panel .sc-panel-head > h2 { margin: 0; }
+/* Compositor: escribir con IA, una caja debajo del título del texto. */
+.sc-ai { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius-1); background: var(--bg-soft); }
+.sc-ai .ui-field { margin: 0; }
+.sc-ai .sc-row > .input { min-width: 12rem; }
 /* Publicaciones: filtros por red y cuenta, y la búsqueda, en una barra debajo de las pestañas. */
 .sc-toolbar { margin-top: -8px; }
 .sc-toolbar > form[role='search'] .input { flex: 1 1 auto; max-width: 360px; }
@@ -83,6 +90,10 @@
 .sc-item:hover { background: var(--ui-hover); }
 .sc-item[aria-current='true'] { background: var(--ui-selected); }
 .sc-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* Cuentas: "Quién publica acá" y "Horarios de cola" como desplegables chicos, no como texto del tamaño del nombre. */
+.sc-item-main details > summary { cursor: pointer; width: fit-content; font-size: 0.8125rem; color: var(--ink-2); }
+.sc-item-main details > summary:hover { color: var(--ink); }
+.sc-item-main details[open] > summary { margin-bottom: 6px; }
 .sc-item-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: break-word; }
 .sc-item-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; text-align: right; }
 
@@ -96,6 +107,15 @@
 .sc-account[data-expired='true'] { opacity: 0.6; }
 .sc-account-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-textarea { width: 100%; min-height: 160px; resize: vertical; }
+/* Sugerencias de #hashtags y @menciones: lista pegada debajo del texto, encima de lo que sigue. */
+.sc-suggest-wrap { position: relative; min-width: 0; }
+.sc-suggest { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-dropdown); width: min(320px, 100%); max-height: 240px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--ink-3); border-radius: var(--radius-1); }
+.sc-suggest-opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-0); cursor: pointer; font-size: 0.875rem; overflow-wrap: anywhere; }
+.sc-suggest-opt[aria-selected='true'] { background: var(--ui-selected); }
+/* Sobre la opción elegida (en Retro es azul oscuro), el conteo toma el color del texto en vez del gris. */
+.sc-suggest-opt[aria-selected='true'] .sc-muted { color: inherit; }
+/* "Insertar de la biblioteca" al lado del título del texto, no en una fila entera. */
+.sc-compose .sc-row > select.select { width: auto; max-width: min(240px, 100%); }
 .sc-counters { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; }
 .sc-counter { font-family: var(--font-data); color: var(--ink-3); }
 .sc-counter[data-over='true'] { color: var(--bad-ink); font-weight: 700; }

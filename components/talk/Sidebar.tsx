@@ -265,13 +265,18 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
     );
   }
 
-  function section(key: string, title: string, list: TalkChannelDto[], opts: { add?: { label: string; onClick: () => void }; custom?: { s: TalkSectionDto; first: boolean; last: boolean } } = {}) {
+  function section(
+    key: string,
+    title: string,
+    list: TalkChannelDto[],
+    opts: { add?: { label: string; onClick: () => void }; custom?: { s: TalkSectionDto; first: boolean; last: boolean }; tour?: string; after?: React.ReactNode } = {},
+  ) {
     const isCollapsed = collapsed[key];
     const { add, custom } = opts;
     // Colapsado se siguen viendo los que tienen algo nuevo o el abierto (como Slack).
     const shown = isCollapsed ? list.filter((c) => c.unread || c.id === activeId) : list;
     return (
-      <div className="talk-side-section" key={key} data-section={custom ? custom.s.id : key}>
+      <div className="talk-side-section" key={key} data-section={custom ? custom.s.id : key} data-tour={opts.tour}>
         <div className="talk-side-section-head">
           <button type="button" className="talk-side-toggle" aria-expanded={!isCollapsed} onClick={() => setCollapsed((s) => ({ ...s, [key]: !s[key] }))}>
             <span aria-hidden="true">{isCollapsed ? '▸' : '▾'}</span> {title}
@@ -290,13 +295,14 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
           </button>
         )}
         {!isCollapsed && custom && list.length === 0 && <p className="talk-side-empty is-static">{t('sections.empty')}</p>}
+        {opts.after}
       </div>
     );
   }
 
-  function navBtn(v: TalkView, label: string, badge?: number) {
+  function navBtn(v: TalkView, label: string, badge?: number, extra: { tour?: string } = {}) {
     return (
-      <button type="button" className="talk-side-item talk-side-view" aria-current={view === v ? 'page' : undefined} onClick={() => go({ view: v })}>
+      <button type="button" className="talk-side-item talk-side-view" aria-current={view === v ? 'page' : undefined} onClick={() => go({ view: v })} data-tour={extra.tour}>
         <span className="talk-side-name">{label}</span>
         {badge ? <span className="talk-badge talk-badge-quiet">{badge}</span> : null}
       </button>
@@ -311,6 +317,7 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
           {t('guests.youAreGuest')}
         </p>
       )}
+      {/* Anclajes del tour de Talk (lib/tours/talk.ts): buscador, Hilos, Canales y Mensajes directos. */}
       <form
         className="talk-side-search"
         role="search"
@@ -327,11 +334,12 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
           placeholder={t('search.placeholder')}
           aria-label={t('search.label')}
           data-testid="talk-search-input"
+          data-tour="talk-search"
         />
       </form>
       <div className="talk-side-scroll">
         <div className="talk-side-views">
-          {navBtn('threads', t('nav.threads'), boot.unreadThreads)}
+          {navBtn('threads', t('nav.threads'), boot.unreadThreads, { tour: 'talk-threads' })}
           {navBtn('activity', t('nav.activity'))}
           {navBtn('later', t('nav.later'), boot.counts.later)}
           {navBtn('drafts', t('nav.drafts'), boot.counts.drafts + boot.counts.scheduled)}
@@ -348,14 +356,25 @@ export default function Sidebar({ activeId, view, onNavigate }: { activeId: stri
             { custom: { s, first: i === 0, last: i === sections.length - 1 } },
           ),
         )}
-        {section('channels', t('nav.channels'), chans, boot.guest ? {} : { add: { label: t('nav.addChannel'), onClick: () => dialog({ kind: 'create-channel' }) } })}
-        {/* Los archivados no ocupan el sidebar: se ven desde el directorio. */}
-        {!boot.guest && (
-          <button type="button" className="talk-side-archived" onClick={() => go({ view: 'browse', query: 'archived' })}>
-            {t('nav.archived')}
-          </button>
+        {section(
+          'channels',
+          t('nav.channels'),
+          chans,
+          boot.guest
+            ? { tour: 'talk-channels' }
+            : {
+                add: { label: t('nav.addChannel'), onClick: () => dialog({ kind: 'create-channel' }) },
+                tour: 'talk-channels',
+                // Los archivados no ocupan el sidebar: se ven desde el directorio. Van dentro de la
+                // sección para que el resaltado del tour no corte el link al medio.
+                after: (
+                  <button type="button" className="talk-side-archived" onClick={() => go({ view: 'browse', query: 'archived' })}>
+                    {t('nav.archived')}
+                  </button>
+                ),
+              },
         )}
-        {section('dms', t('nav.dms'), dms, { add: { label: t('nav.newMessage'), onClick: () => dialog({ kind: 'new-dm' }) } })}
+        {section('dms', t('nav.dms'), dms, { add: { label: t('nav.newMessage'), onClick: () => dialog({ kind: 'new-dm' }) }, tour: 'talk-dms' })}
         <button type="button" className="talk-side-archived" onClick={() => dialog({ kind: 'section' })} data-testid="talk-new-section">
           {t('sections.new')}
         </button>

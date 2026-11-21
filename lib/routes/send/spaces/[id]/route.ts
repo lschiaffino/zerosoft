@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if ('res' in a) return a.res;
   try {
     const s = await getSpace(a.actor, (await ctx.params).id);
-    return sJson({ space: { id: s.id, title: s.title, description: s.description, sharing: s.sharing, canEdit: canEditSpace(a.actor, s) }, items: await spaceItems(a.actor, s.id), access: await listSpaceAccess(a.actor, s.id) });
+    return sJson({ space: { id: s.id, title: s.title, description: s.description, sharing: s.sharing, numbered: !!Number(s.numbered), canEdit: canEditSpace(a.actor, s) }, items: await spaceItems(a.actor, s.id), access: await listSpaceAccess(a.actor, s.id) });
   } catch (err) {
     return sFail(err);
   }
@@ -23,6 +23,7 @@ const schema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
   sharing: z.enum(['private', 'workspace']).optional(),
+  numbered: z.boolean().optional(),
   items: z.array(z.object({ documentId: z.string().max(40), folder: z.string().max(80).optional() })).max(2000).optional(),
 });
 
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const { items, ...patch } = await parseBody(req, schema);
     const s = await updateSpace(a.actor, id, patch);
     const list = items ? await setSpaceItems(a.actor, id, items) : await spaceItems(a.actor, id);
-    return sJson({ space: { id: s.id, title: s.title, description: s.description, sharing: s.sharing }, items: list });
+    return sJson({ space: { id: s.id, title: s.title, description: s.description, sharing: s.sharing, numbered: !!Number(s.numbered) }, items: list });
   } catch (err) {
     return sFail(err);
   }

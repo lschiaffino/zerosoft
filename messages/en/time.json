@@ -4,7 +4,8 @@
     "projects": "Projects",
     "reports": "Reports",
     "track": "Track time",
-    "settings": "Settings"
+    "settings": "Settings",
+    "approvals": "Approvals"
   },
   "common": {
     "cancel": "Cancel",
@@ -198,7 +199,11 @@
     "unauthorized": "Your session ended. Sign in again.",
     "rate_limited": "Too many changes in a row. Wait a minute.",
     "not_assigned": "You're not on this project's team. Ask an owner or admin to add you.",
-    "task_not_in_project": "That task isn't on this project. Pick another one."
+    "task_not_in_project": "That task isn't on this project. Pick another one.",
+    "locked": "This week was submitted for approval. Withdraw it, or ask an admin to return it, to change its hours.",
+    "timer_running": "Stop the running timer of this week before you submit it.",
+    "empty_week": "There are no hours this week to submit.",
+    "bad_state": "Someone changed this week a moment ago. Reload the page."
   },
   "csv": {
     "date": "Date",
@@ -230,5 +235,61 @@
     "billable": "Billable",
     "tasksSaved": "Tasks saved",
     "save": "Save"
+  },
+  "approval": {
+    "submit": "Submit week for approval",
+    "submitAgain": "Submit again",
+    "withdraw": "Withdraw",
+    "submitTitle": "Submit this week for approval?",
+    "submitBody": "Its hours lock until an owner or admin approves the week or returns it to you. While it's pending you can withdraw it.",
+    "submittedToast": "Week submitted for approval",
+    "withdrawnToast": "Week withdrawn",
+    "approveToast": "Week approved",
+    "returnToast": "Week returned",
+    "reopenToast": "Week reopened",
+    "submitToast": "Week submitted",
+    "withdrawToast": "Week withdrawn",
+    "openHint": "When the week is complete, submit it for approval.",
+    "submittedHint": "Pending approval. The hours are locked.",
+    "approvedHint": "Approved by {who} on {date}. The hours are locked.",
+    "returnedHint": "Returned by {who} on {date}. Fix the hours and submit it again.",
+    "status": {
+      "open": "Not submitted",
+      "submitted": "Pending",
+      "approved": "Approved",
+      "returned": "Returned"
+    },
+    "statusLabel": "Status",
+    "tab": {
+      "submitted": "Pending",
+      "approved": "Approved",
+      "returned": "Returned"
+    },
+    "descAdmin": "Weeks your team submitted. Approve them to lock the hours, or return them with a note.",
+    "descMember": "The weeks you submitted and what happened to each one.",
+    "approve": "Approve",
+    "approveAll": "Approve all",
+    "return": "Return",
+    "reopen": "Reopen",
+    "view": "View",
+    "returnTitle": "Return this week?",
+    "reopenTitle": "Reopen this approved week?",
+    "returnBody": "{who} can edit {week} again and submit it once more.",
+    "note": "Note for the person (optional)",
+    "person": "Person",
+    "week": "Week",
+    "actions": "Actions",
+    "approvedBy": "Approved by {who} on {date}",
+    "returnedBy": "Returned by {who} on {date}",
+    "empty": {
+      "submitted": "Nothing to approve",
+      "approved": "No approved weeks yet",
+      "returned": "No returned weeks"
+    },
+    "emptyPendingBody": "When someone submits a week from the timesheet, it shows up here.",
+    "emptyMember": "You haven't submitted a week yet",
+    "emptyMemberBody": "Open the timesheet and submit the week when it is complete.",
+    "noEntries": "This week has no hours.",
+    "loadError": "The approvals didn't load."
   }
 }

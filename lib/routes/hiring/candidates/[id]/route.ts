@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if ('res' in a) return a.res;
   try {
     const parsed = candidatePatchSchema.safeParse(await readJson(req));
-    if (!parsed.success) throw new HiringError('invalid_input');
+    if (!parsed.success) throw new HiringError(parsed.error.issues.some((i) => i.path[0] === 'links') ? 'invalid_link' : parsed.error.issues.some((i) => i.path[0] === 'email') ? 'invalid_email' : 'invalid_input');
     return hJson({ candidate: await updateCandidate(a.actor, (await params).id, parsed.data) });
   } catch (err) {
     return hFail(err);

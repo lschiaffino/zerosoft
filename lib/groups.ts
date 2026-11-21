@@ -2508,7 +2508,9 @@ async function sendMediaMessage(
   }
   const captioned = CAPTIONED.has(kind);
   const caption = captioned ? body : '';
-  const visual = kind === 'image' || kind === 'video' || kind === 'sticker';
+  // Menciones en el pie (grupos), como en un texto: WhatsApp avisa a esas personas y el hilo muestra "@Nombre".
+  const mentions = caption ? cleanMentions(input.mentions, caption, chat.kind) : [];
+  const visual =kind === 'image' || kind === 'video' || kind === 'sticker';
   const info = compactInfo<MediaInfo>({
     kind,
     size,
@@ -2540,7 +2542,7 @@ async function sendMediaMessage(
     createdAt: at,
     forwarded: input.forwarded,
     clientId: input.clientId || null,
-    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}), ...(forward ? { fwd: forward.score } : {}) },
+    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}), ...(forward ? { fwd: forward.score } : {}), ...(mentions.length ? { mentions } : {}) },
   });
   if (!reserved) {
     const already = input.clientId ? await messageByClientId(chat.id, input.clientId) : null;
@@ -2566,6 +2568,7 @@ async function sendMediaMessage(
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
       ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
       ...(forward ? { forward } : {}),
+      ...(mentions.length ? { mentions } : {}),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2632,7 +2635,10 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
     else if (cards.length && provider.sendContact) {
       providerId = (await provider.sendContact(chat.provider_chat_id, cards.map((c) => ({ name: c.name, phone: c.phones[0] ?? '' })))).id || null;
     } else if (row.media_url) {
-      const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
+      const storedMeta = parseJson<StoredMeta>(row.meta ?? '', {});
+      const stored = storedMeta.media;
+      // El pie vuelve a mencionar a las mismas personas.
+      const mentions = row.body ? cleanMentions(storedMeta.mentions, row.body, chat.kind) : [];
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
       const source = await outgoingMedia(ws, row.media_url, bridged);
       const kind = stored?.kind ?? planOutboundKind(row.media_type, source.size ?? stored?.size, null);
@@ -2651,6 +2657,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
             ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
             ...(forward ? { forward } : {}),
+            ...(mentions.length ? { mentions } : {}),
           })
         ).id || null;
     } else {

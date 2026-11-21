@@ -95,5 +95,8 @@
   "sendLinksTransferred": "{count} Send links by {who} passed to you",
   "sendLinksStopped": "{count} stopped because their documents are private. Each link says what to do.",
   "callsComment": "{who} commented on the call {title}",
-  "callsReady": "The call {title} is ready: transcript and insights"
+  "callsReady": "The call {title} is ready: transcript and insights",
+  "timeSubmitted": "{who} submitted the week of {week} for approval",
+  "timeApproved": "{who} approved your week of {week}",
+  "timeReturned": "{who} returned your week of {week}"
 }

@@ -1726,6 +1726,23 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "chatSearch": {
+      "open": "Buscar mensajes",
+      "shortcut": "Ctrl+Mayús+F",
+      "title": "Buscar mensajes",
+      "close": "Cerrar búsqueda",
+      "placeholder": "Buscar en este chat",
+      "hint": "Buscar mensajes con {name}",
+      "searching": "Buscando…",
+      "error": "No se pudo buscar.",
+      "retry": "Reintentar",
+      "none": "No se encontraron mensajes",
+      "count": "{n, plural, one {# mensaje} other {# mensajes}}",
+      "countMore": "{n} mensajes o más",
+      "more": "Ver resultados anteriores",
+      "you": "Vos",
+      "note": "Nota"
+    },
     "info": {"title": "Info del mensaje", "close": "Cerrar", "readBy": "Leído por", "deliveredTo": "Entregado a", "playedBy": "Escuchado por", "read": "Leído", "delivered": "Entregado", "played": "Escuchado", "sent": "Enviado", "by": "Enviado por", "notYet": "Todavía no", "noTime": "Sin hora informada", "more": "{count} más", "less": "Ver menos", "nobody": "Todavía no se entregó a nadie.", "unavailable": "Esta línea todavía no informa quién recibió o leyó los mensajes del grupo.", "loading": "Cargando la info del mensaje", "error": "No se pudo cargar la info del mensaje.", "retry": "Reintentar", "today": "Hoy", "yesterday": "Ayer", "at": "{day}, {time}"},
     "events": {"someone": "Alguien", "createdMe": "Creaste el grupo «{subject}»", "created": "{by} creó el grupo «{subject}»", "createdUnknown": "Se creó el grupo «{subject}»", "createdMeNoName": "Creaste este grupo", "createdNoName": "{by} creó este grupo", "createdUnknownNoName": "Se creó este grupo", "addedYou": "{by} te agregó", "addedYouUnknown": "Te agregaron", "addedMe": "Agregaste a {who}", "added": "{by} agregó a {who}", "addedUnknown": "Se agregó a {who}", "removedYou": "{by} te sacó", "removedYouUnknown": "Te sacaron del grupo", "removedMe": "Sacaste a {who}", "removed": "{by} sacó a {who}", "removedUnknown": "Sacaron a {who}", "leftMe": "Saliste", "left": "{who} salió", "joinedMe": "Te uniste con el link de invitación", "joined": "{who} se unió con el link de invitación", "promotedYou": "Ahora sos admin", "promoted": "{who} ahora es admin", "demotedYou": "Ya no sos admin", "demoted": "{who} ya no es admin", "subjectMe": "Cambiaste el nombre del grupo a «{subject}»", "subject": "{by} cambió el nombre del grupo a «{subject}»", "subjectUnknown": "El grupo ahora se llama «{subject}»", "descriptionMe": "Cambiaste la descripción del grupo", "description": "{by} cambió la descripción del grupo", "descriptionUnknown": "Cambió la descripción del grupo", "iconMe": "Cambiaste la foto del grupo", "icon": "{by} cambió la foto del grupo", "iconUnknown": "Cambió la foto del grupo"},
     "newGroup": {"label": "Grupo nuevo", "members": "Grupo · {n, plural, one {# miembro} other {# miembros}}", "groupOnly": "Grupo", "addMembers": "Agregar miembros", "invite": "Invitar con link", "inviteCopied": "Link de invitación copiado", "description": "Agregar descripción", "info": "Info del grupo", "hint": "Saludá para arrancar la conversación."},

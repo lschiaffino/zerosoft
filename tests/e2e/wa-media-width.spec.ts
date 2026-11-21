@@ -92,8 +92,8 @@ async function checkBubbles(thread: Locator, minWidth: number) {
   const bub = (await bubble.boundingBox())!;
   const ph = (await photo.getByTestId('wa-media-unavailable').boundingBox())!;
   expect(bub.width).toBeGreaterThanOrEqual(minWidth);
-  // El lugar de la foto ocupa la burbuja de borde a borde; sin miniatura no pasa de 4:3 de alto.
-  expect(Math.abs(ph.width - bub.width)).toBeLessThan(2);
+  // El lugar de la foto ocupa la burbuja menos el marquito de 3px; sin miniatura no pasa de 4:3 de alto.
+  expect(Math.abs(ph.width + 6 - bub.width)).toBeLessThan(2);
   expect(ph.height).toBeLessThanOrEqual(ph.width * 0.76);
   expect(ph.height).toBeGreaterThan(120);
   // El texto: renglones normales (ninguno de una o dos palabras salvo el último).

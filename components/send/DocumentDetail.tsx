@@ -193,7 +193,7 @@ export default function DocumentDetail({ document: initial, versions: initialVer
             <button type="button" className="btn btn-secondary btn-sm" disabled={!!replacing} onClick={() => fileInput.current?.click()} data-testid="send-replace">
               {t('detail.replace')}
             </button>
-            <select className="input sd-sharing" value={doc.sharing} onChange={(e) => setSharing(e.target.value)} aria-label={t('detail.sharing')} data-testid="send-sharing">
+            <select className="input sd-sharing" value={doc.sharing} onChange={(e) => setSharing(e.target.value)} aria-label={t('detail.sharing')} data-testid="send-sharing" data-tour="send-sharing">
               <option value="private">{t('detail.sharingPrivate')}</option>
               <option value="workspace">{t('detail.sharingWorkspace')}</option>
             </select>
@@ -246,7 +246,7 @@ export default function DocumentDetail({ document: initial, versions: initialVer
 
       <div className="ui-tabs sd-tabs" role="tablist" aria-label={t('detail.tabs')}>
         {tabs.map((x) => (
-          <button key={x} type="button" role="tab" className="ui-tab" aria-selected={tab === x} onClick={() => setTab(x)} data-testid={`send-tab-${x}`}>
+          <button key={x} type="button" role="tab" className="ui-tab" aria-selected={tab === x} onClick={() => setTab(x)} data-testid={`send-tab-${x}`} data-tour={x === 'activity' ? 'send-activity' : undefined}>
             {t(`detail.tab_${x}`)}
           </button>
         ))}
