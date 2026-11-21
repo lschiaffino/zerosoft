@@ -580,7 +580,7 @@ export default function BoardCanvasTools({
   if (!api) return null;
   return (
     <>
-      <div className="board-canvas-tools" role="toolbar" aria-label={t('label')}>
+      <div className="board-canvas-tools" role="toolbar" aria-label={t('label')} data-tour="board-canvas-tools">
         {canEdit && (
           <>
             <button type="button" className="board-canvas-tool" onClick={() => {

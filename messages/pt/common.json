@@ -1406,6 +1406,60 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "board": {
+      "intro": {
+        "title": "Boas-vindas ao Board",
+        "body": "O Board é um quadro branco para esboços, diagramas e notas adesivas. Este tour mostra as partes principais."
+      },
+      "newBoard": {
+        "title": "Crie um quadro",
+        "body": "Comece um quadro em branco aqui. Importar, ao lado, abre arquivos .excalidraw."
+      },
+      "templates": {
+        "title": "Comece com um modelo",
+        "body": "Retrospectiva, kanban, mapa mental, fluxo de usuário e mais. Escolha um e o quadro já vem montado."
+      },
+      "organize": {
+        "title": "Encontre e organize",
+        "body": "Busque quadros pelo nome ou pelo que têm dentro, e agrupe em pastas. Os apagados ficam na Lixeira."
+      },
+      "openBoard": {
+        "title": "Abra um quadro",
+        "body": "Abra qualquer quadro da lista para começar a desenhar."
+      },
+      "toolbar": {
+        "title": "Formas e desenho",
+        "body": "Escolha uma forma, uma seta, texto ou o lápis. Cada ferramenta tem uma tecla: R para um retângulo, A para uma seta, T para texto."
+      },
+      "canvasTools": {
+        "title": "Notas adesivas e mais",
+        "body": "Adicione uma nota adesiva (N), destaque, insira uma tabela, anexe um arquivo ou mostre o minimapa (M). Com uma nota selecionada, Tab adiciona a próxima."
+      },
+      "zoom": {
+        "title": "Zoom e desfazer",
+        "body": "Aproxime, afaste ou desfaça por aqui. Role para se mover pelo quadro, ou segure Espaço e arraste."
+      },
+      "workshop": {
+        "title": "Faça um workshop",
+        "body": "Inicie um cronômetro que todos veem, abra uma votação por pontos nas notas ou ligue o modo privado para que as ideias fiquem ocultas até você revelar. Com a barra estreita, Workshop fica no menu Mais."
+      },
+      "share": {
+        "title": "Compartilhar",
+        "body": "Ligue um link para que qualquer pessoa veja o quadro, ou crie um link de convidado para alguém editar sem conta."
+      },
+      "shareTeam": {
+        "title": "Compartilhe com sua equipe",
+        "body": "Todos no workspace podem abrir um quadro, e vocês veem os cursores uns dos outros. Aqui dá para limitar a quem você convidar ou compartilhar um link."
+      },
+      "shortcuts": {
+        "title": "Atalhos de teclado",
+        "body": "N adiciona uma nota adesiva, M mostra o minimapa e Shift+1 enquadra tudo. Ctrl ou Cmd e a rolagem dão zoom. Cmd+K encontra qualquer quadro."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Boas-vindas ao Lines",
