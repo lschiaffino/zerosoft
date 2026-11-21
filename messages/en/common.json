@@ -1539,6 +1539,56 @@
         "title": "That's the tour",
         "body": "You can take it again from your account menu."
       }
+    },
+    "docs": {
+      "intro": {
+        "title": "Welcome to Docs",
+        "body": "Docs holds your pages and wikis, with text, tables, databases and embeds, and saves as you type. This tour points out the main parts."
+      },
+      "newPage": {
+        "title": "Start a page",
+        "body": "Create a blank page here. Press C on this screen to do the same."
+      },
+      "templates": {
+        "title": "Templates",
+        "body": "Start from a ready-made page, like meeting notes or a project plan, or from one your workspace saved."
+      },
+      "pages": {
+        "title": "Your pages",
+        "body": "Every page shows up in this tree. Drag to reorder them, or nest one inside another as a subpage."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find any page by its title or its text. Press Cmd+P to search from anywhere in Docs."
+      },
+      "openPage": {
+        "title": "Open a page",
+        "body": "Open any page in the list to read and edit it."
+      },
+      "write": {
+        "title": "Write",
+        "body": "Click the title to rename the page. In the body, type / to add headings, lists, tables, images and more."
+      },
+      "comments": {
+        "title": "Comments",
+        "body": "Comment on the page or on one block, reply, and resolve the thread when it's settled."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Invite people to read, comment or edit, or publish the page with a link."
+      },
+      "pageMenu": {
+        "title": "More for this page",
+        "body": "Version history, export, lock the page, save it as a template or move it to the trash."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "C creates a page from the Docs home, Cmd+P searches pages and / adds a block. Cmd+K finds anything."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
     }
   }
 }
