@@ -118,7 +118,10 @@ test('Lines: una foto programada desde la vista previa guarda y manda la menció
     if (shots) await page.screenshot({ path: `${shots}/lines-later-1280.png` });
     await when.locator('[data-preset="tomorrow"]').click();
     await expect(when).toBeHidden();
-    await expect(pane).toBeHidden({ timeout: 30_000 });
+    await expect(page.locator('.ui-toast', { hasText: 'Scheduled for' })).toBeVisible({ timeout: 30_000 }).catch(async (e) => {
+      throw new Error(`${(e as Error).message}\ntoasts: ${(await page.locator('.ui-toast').allTextContents()).join(' | ')}`);
+    });
+    await expect(pane).toBeHidden();
     const item = page.getByTestId('lines-scheduled-strip').getByTestId('lines-scheduled-item');
     await expect(item).toHaveCount(1);
 
