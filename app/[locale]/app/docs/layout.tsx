@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import DocsAskPanel from '@/components/docs/DocsAskPanel';
 import DocsPwa from '@/components/docs/DocsPwa';
+import AppTour from '@/components/tour/AppTour';
 import { requireUser } from '@/lib/session';
 import '@/styles/docs.css';
 import '@/styles/docs-platform.css';
@@ -17,6 +18,10 @@ export default async function DocsLayout(props: { children: ReactNode; params: P
       {/* "Ask AI": preguntas sobre todo el workspace (banda, sidebar ?ask=1 y ⌘K). */}
       <Suspense fallback={null}>
         <DocsAskPanel />
+      </Suspense>
+      {/* Tour guiado de Docs (lib/tours/docs.ts): la primera vez, y desde el menú de la cuenta. */}
+      <Suspense fallback={null}>
+        <AppTour tour="docs" />
       </Suspense>
     </ClientMessages>
   );
