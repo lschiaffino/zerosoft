@@ -39,3 +39,12 @@
 /* Carpeta abierta, arriba de la lista de chats; y el selector cuando el sidebar no está a la vista. */
 .gr-folder-current { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-width: 0; font-weight: 600; }
 .gr-folder-select { max-width: 160px; }
+/* Secciones "Equipo" y "Mías" del árbol de carpetas (y en el diálogo para mover chats). */
+.grf-sec { margin: 0; }
+.grf-sec-head { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; padding: 0 8px 0 10px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.grf-sec-head svg { flex: none; }
+.grf-swatch { background: var(--c-groups); }
+/* Las del equipo: el mismo cuadrado, hueco (se distinguen de las propias sin depender del color). */
+.grf-swatch.grf-swatch-team { background: transparent; box-shadow: inset 0 0 0 2px var(--c-groups); }
+.gr-folder-sec { margin: 10px 0 4px; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-2); }
+.gr-folder-sec:first-child { margin-top: 0; }

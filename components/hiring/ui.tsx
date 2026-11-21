@@ -1,7 +1,6 @@
 'use client';
 
 import { useMounted } from '@/components/ui/useMounted';
-import { REJECT_REASONS } from '@/lib/hiring/types';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -132,14 +131,54 @@ export function money(amount: number | null | undefined, currency: string, local
   }
 }
 
-/** Motivos de fábrica para el campo de rechazo (se puede escribir otro). */
-export function RejectReasonOptions() {
-  const t = useTranslations('hiring.reject.reasons');
+/** Motivos de rechazo del workspace (los de Ajustes o los de fábrica) y si hace falta uno para rechazar. */
+export interface RejectConfig {
+  reasons: string[];
+  required: boolean;
+}
+
+const OTHER = '__other';
+
+/**
+ * Motivo de rechazo: una lista con los motivos del workspace y "Otro" para
+ * escribir uno. Con "pedir motivo" en Ajustes la lista es obligatoria (el
+ * servidor también lo pide).
+ */
+export function RejectReasonField({ config, value, onChange, autoFocus }: { config: RejectConfig; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+  const t = useTranslations('hiring.reject');
+  const [other, setOther] = useState(false);
+  const choice = other ? OTHER : config.reasons.includes(value) ? value : '';
   return (
-    <datalist id="hr-reject-reasons">
-      {REJECT_REASONS.map((r) => (
-        <option key={r} value={t(r)} />
-      ))}
-    </datalist>
+    <>
+      <label className="ui-field">
+        <span className="label">{t('reason')}</span>
+        <select
+          className="select"
+          data-testid="hr-reject-reason"
+          required={config.required}
+          autoFocus={autoFocus}
+          value={choice}
+          onChange={(e) => {
+            const v = e.target.value;
+            setOther(v === OTHER);
+            onChange(v === OTHER ? '' : v);
+          }}
+        >
+          <option value="">{config.required ? t('pickReason') : t('noReason')}</option>
+          {config.reasons.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+          <option value={OTHER}>{t('otherReason')}</option>
+        </select>
+      </label>
+      {other && (
+        <label className="ui-field">
+          <span className="label">{t('otherLabel')}</span>
+          <input className="input" data-testid="hr-reject-reason-other" required={config.required} maxLength={300} value={value} onChange={(e) => onChange(e.target.value)} autoFocus />
+        </label>
+      )}
+    </>
   );
 }

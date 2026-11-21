@@ -29,7 +29,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Workable',
-  lastReviewed: '2026-11-18',
+  lastReviewed: '2026-11-20',
   percentHidden: { note: loc(['This table lists everything Workable documents, feature by feature, including its AI agent, sourcing and integrations, so a percentage would not compare with other apps. Rows count as done only after being used end to end in a browser.', 'Esta tabla lista todo lo que Workable documenta, función por función, con su agente de IA, búsqueda de candidatos e integraciones, así que un porcentaje no se compara con otras apps. Una fila cuenta como hecha solo después de usarla de punta a punta en el navegador.', 'Esta tabela lista tudo o que o Workable documenta, função por função, com seu agente de IA, busca de candidatos e integrações, então uma porcentagem não se compara com outros apps. Uma linha conta como pronta só depois de usada de ponta a ponta no navegador.']) },
   areas: [
     { id: 'jobs', label: loc(['Jobs', 'Puestos', 'Vagas']) },
@@ -225,9 +225,9 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['For those who manage both jobs', 'Para quien gestiona los dos puestos', 'Para quem gerencia as duas vagas'],
     }),
-    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'partial', {
+    row('disqualification-reasons', 'pipeline', ['Rejection reasons with a report', 'Motivos de rechazo con reporte', 'Motivos de recusa com relatório'], 'have', {
       weight: 2,
-      detail: ['A suggested list or your own text, and a report per reason. The reason is optional and the list cannot be edited', 'Una lista sugerida o tu propio texto, y un reporte por motivo. El motivo es opcional y la lista no se edita', 'Uma lista sugerida ou seu próprio texto, e um relatório por motivo. O motivo é opcional e a lista não se edita'],
+      detail: ['An admin edits the list in Settings and can make a reason required; people pick one or write another, and Reports counts rejections per reason', 'Un admin edita la lista en Ajustes y puede hacer obligatorio el motivo; se elige uno o se escribe otro, e Informes cuenta los rechazos por motivo', 'Um admin edita a lista em Ajustes e pode tornar o motivo obrigatório; escolhe-se um ou escreve-se outro, e Relatórios conta as recusas por motivo'],
     }),
     row('interview-kits', 'evaluation', ['Interview guides per stage', 'Guías de entrevista por etapa', 'Guias de entrevista por etapa'], 'have', {
       weight: 2,
@@ -284,8 +284,8 @@ const parity: ProductParity = {
     row('jobs-by-workable', 'careers', ['Own job board', 'Jobs by Workable', 'Portal de vagas próprio'], 'missing'),
     row('social-promotion', 'careers', ['Automated social promotion', 'Promoción en redes', 'Promoção automática em redes sociais'], 'missing'),
     row('linkedin-rsc', 'careers', ['LinkedIn Recruiter System Connect', 'LinkedIn Recruiter System Connect', 'LinkedIn Recruiter System Connect'], 'missing'),
-    row('candidate-edit', 'candidates', ['Edit candidate profile', 'Editar el perfil', 'Editar perfil do candidato'], 'partial', {
-      detail: ['Name, phone, location and headline. Built; not yet walked end to end in a browser for each role', 'Nombre, teléfono, ubicación y título. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Nome, telefone, localização e título. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('candidate-edit', 'candidates', ['Edit candidate profile', 'Editar el perfil', 'Editar perfil do candidato'], 'have', {
+      detail: ['Name, email, phone, location, headline, links, tags and your own fields, by the recruiter, hiring manager or an admin; an interviewer cannot', 'Nombre, email, teléfono, ubicación, título, links, etiquetas y campos propios, por el recruiter, el hiring manager o un admin; un interviewer no', 'Nome, email, telefone, localização, título, links, tags e campos próprios, pelo recrutador, o hiring manager ou um admin; um entrevistador não'],
     }),
     row('utm-sources', 'candidates', ['Custom sources with UTM links', 'Orígenes propios con UTM', 'Origens próprias com UTM'], 'partial', {
       detail: ['Fixed sources plus UTM on share links, no custom sources. Built; not yet walked end to end in a browser for each role', 'Fuentes fijas y UTM en links, sin fuentes propias. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Origens fixas e UTM em links, sem origens próprias. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
@@ -296,8 +296,8 @@ const parity: ProductParity = {
     }),
     row('boolean-search', 'candidates', ['Boolean candidate search', 'Búsqueda booleana', 'Busca booleana de candidatos'], 'missing'),
     row('resume-bulk-upload', 'candidates', ['Bulk resume upload', 'Subir CV en lote', 'Envio de currículos em lote'], 'missing'),
-    row('add-candidate-minimal', 'candidates', ['Add a candidate with name or email', 'Alta con nombre o email', 'Adicionar candidato com nome ou email'], 'partial', {
-      detail: ['Name and email are both required. Built; not yet walked end to end in a browser for each role', 'Nombre y email son obligatorios. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Nome e email são obrigatórios. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('add-candidate-minimal', 'candidates', ['Add a candidate with name or email', 'Alta con nombre o email', 'Adicionar candidato com nome ou email'], 'have', {
+      detail: ['By hand or by CSV, a name or an email is enough. Without an email nothing is sent and the profile says so until someone adds one', 'A mano o por CSV, alcanza con nombre o email. Sin email no sale nada y el perfil lo avisa hasta que alguien agrega uno', 'À mão ou por CSV, basta nome ou email. Sem email nada é enviado e o perfil avisa até alguém adicionar um'],
     }),
     row('job-mailbox', 'candidates', ['Job mailbox', 'Casilla de la vacante', 'Caixa de email da vaga'], 'missing'),
     row('candidate-attachments', 'candidates', ['Candidate attachments', 'Adjuntos en el perfil', 'Anexos do candidato'], 'partial', {
@@ -363,8 +363,8 @@ const parity: ProductParity = {
     }),
     row('saved-reports', 'reports', ['Saved reports', 'Reportes guardados', 'Relatórios salvos'], 'missing'),
     row('custom-dashboards', 'reports', ['Custom dashboards', 'Dashboards a medida', 'Painéis personalizados'], 'missing'),
-    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'partial', {
-      detail: ['A CSV of candidates, not of each report. Built; not yet walked end to end in a browser for each role', 'Un CSV de candidatos, no de cada reporte. Construido; falta recorrerlo de punta a punta en el navegador con cada rol', 'Um CSV de candidatos, não de cada relatório. Construído; falta percorrer de ponta a ponta no navegador com cada papel'],
+    row('report-exports', 'reports', ['Report exports', 'Exportar reportes', 'Exportar relatórios'], 'have', {
+      detail: ['Each report (funnel, sources, rejection reasons, open jobs) in CSV with the period and job you chose, plus a CSV of candidates. No PDF', 'Cada reporte (embudo, fuentes, motivos de rechazo, puestos abiertos) en CSV con el período y el puesto elegidos, más un CSV de candidatos. Sin PDF', 'Cada relatório (funil, origens, motivos de recusa, vagas abertas) em CSV com o período e a vaga escolhidos, mais um CSV de candidatos. Sem PDF'],
     }),
     row('report-sharing', 'reports', ['Report sharing', 'Compartir reportes', 'Compartilhar relatórios'], 'missing'),
     row('governed-sharing', 'reports', ['Governed report sharing', 'Compartir gobernado', 'Compartilhamento governado'], 'missing'),

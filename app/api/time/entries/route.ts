@@ -1,14 +1,16 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createEntry, listMyEntries, recentWeekRows } from '@/lib/time/core';
+import { sheetOf } from '@/lib/time/approvals';
 import { parseBody, tFail, timeActor, timeLimit, tJson } from '@/lib/time/http';
-import { MAX_ENTRY_MINUTES, MAX_NOTES } from '@/lib/time/types';
+import { MAX_ENTRY_MINUTES, MAX_NOTES, addDays, weekStart } from '@/lib/time/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET ?from=YYYY-MM-DD&to=YYYY-MM-DD: las entradas de la persona en ese rango.
+ * GET ?from=YYYY-MM-DD&to=YYYY-MM-DD: las entradas de la persona en ese rango y, si el
+ * rango es una semana (lunes a domingo), el estado de aprobación de esa semana (`sheet`).
  * GET ?rowsBefore=YYYY-MM-DD: las filas (proyecto y tarea) de su última semana con horas antes de esa.
  */
 export async function GET(req: NextRequest) {
@@ -18,7 +20,11 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const before = sp.get('rowsBefore');
     if (before !== null) return tJson(await recentWeekRows(a.actor, before));
-    return tJson({ entries: await listMyEntries(a.actor, sp.get('from') ?? '', sp.get('to') ?? '') });
+    const from = sp.get('from') ?? '';
+    const to = sp.get('to') ?? '';
+    const entries = await listMyEntries(a.actor, from, to);
+    const isWeek = weekStart(from) === from && addDays(from, 6) === to;
+    return tJson({ entries, sheet: isWeek ? await sheetOf(a.actor.ws, a.actor.person, from) : null });
   } catch (err) {
     return tFail(err);
   }

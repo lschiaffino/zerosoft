@@ -48,6 +48,17 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
     }
   }
 
+  async function duplicate() {
+    setBusy('duplicate');
+    try {
+      const copy = await api<PostDto>(`/posts/${post.id}`, { method: 'POST', json: { action: 'duplicate' } });
+      router.push(`/app/social/posts/${copy.id}?edit=1`);
+    } catch (err) {
+      showToast(errorText(err), true);
+      setBusy(null);
+    }
+  }
+
   async function act(action: 'approve' | 'reject' | 'retry', extra: Record<string, string> = {}) {
     setBusy(action + (extra.targetId ?? ''));
     try {
@@ -94,23 +105,6 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
               </Link>
             )}
           </div>
-          {movable && (
-            <form
-              className="sc-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void reschedule();
-              }}
-            >
-              <label className="ui-field sc-grow">
-                <span className="label">{t('rescheduleLabel')}</span>
-                <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} data-testid="post-reschedule-at" />
-              </label>
-              <button type="submit" className="btn btn-sm" disabled={!when || busy === 'reschedule'} aria-busy={busy === 'reschedule'} data-testid="post-reschedule">
-                {t('reschedule')}
-              </button>
-            </form>
-          )}
           <p className="sc-preview-text" data-testid="post-text">
             {post.text || t('mediaOnly')}
           </p>
@@ -130,6 +124,27 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
           )}
           {post.firstComment && <p className="sc-muted sc-small">{t('firstComment', { text: post.firstComment })}</p>}
           <p className="sc-muted sc-small">{t('by', { name: post.createdByName ?? '' })}</p>
+          {/* Reprogramar va después del texto: primero se lee qué sale, después cuándo. */}
+          {movable && (
+            <>
+              <hr className="sc-sep" />
+              <form
+                className="sc-row"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void reschedule();
+                }}
+              >
+                <label className="ui-field sc-grow">
+                  <span className="label">{t('rescheduleLabel')}</span>
+                  <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} data-testid="post-reschedule-at" />
+                </label>
+                <button type="submit" className="btn btn-sm" disabled={!when || busy === 'reschedule'} aria-busy={busy === 'reschedule'} data-testid="post-reschedule">
+                  {t('reschedule')}
+                </button>
+              </form>
+            </>
+          )}
         </section>
 
         {post.canApprove && (
@@ -241,6 +256,9 @@ export default function PostDetail({ post, events }: { post: PostDto; events: Po
             ))}
           </ol>
         </section>
+        <button type="button" className="btn btn-sm" disabled={Boolean(busy)} aria-busy={busy === 'duplicate'} onClick={() => void duplicate()} data-testid="post-duplicate">
+          {t('duplicate')}
+        </button>
         {(post.canEdit || post.status === 'published' || post.status === 'failed' || post.status === 'partial') && (
           <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} data-testid="post-delete">
             {t('delete')}

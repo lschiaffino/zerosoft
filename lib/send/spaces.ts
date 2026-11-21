@@ -10,6 +10,7 @@ import { getDb } from '../db';
 import { normalizeEmail, newId, nowIso, LIVE_WINDOW_MS, SendError, completionPct, type SendActor } from './types';
 import { csvLine } from '../form-engine';
 import { getDocument } from './core';
+import { spaceIndex, type SpaceIndex } from './space-index';
 
 export interface SpaceRow {
   id: string;
@@ -18,6 +19,8 @@ export interface SpaceRow {
   title: string;
   description: string;
   sharing: string;
+  /** 1: muestra el índice numerado (lib/send/space-index.ts). */
+  numbered: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -27,6 +30,8 @@ export interface SpaceItemDto {
   documentId: string;
   title: string;
   folder: string;
+  /** Número en el índice del espacio ("2.1"), calculado sobre todos sus documentos. */
+  index: string;
   kind: string | null;
   pageCount: number;
   ready: boolean;
@@ -88,11 +93,45 @@ export async function createSpace(actor: SendActor, title: string): Promise<Spac
   return (await getDb().prepare('SELECT * FROM send_spaces WHERE id = ?').get(id)) as SpaceRow;
 }
 
-export async function updateSpace(actor: SendActor, id: string, patch: { title?: string; description?: string; sharing?: 'private' | 'workspace' }): Promise<SpaceRow> {
+export async function updateSpace(actor: SendActor, id: string, patch: { title?: string; description?: string; sharing?: 'private' | 'workspace'; numbered?: boolean }): Promise<SpaceRow> {
   const s = await requireEdit(actor, id);
-  const next = { title: patch.title?.trim().slice(0, 200) || s.title, description: patch.description !== undefined ? patch.description.slice(0, 2000) : s.description, sharing: patch.sharing ?? s.sharing };
-  await getDb().prepare('UPDATE send_spaces SET title = ?, description = ?, sharing = ?, updated_at = ? WHERE id = ?').run(next.title, next.description, next.sharing, nowIso(), id);
+  const next = {
+    title: patch.title?.trim().slice(0, 200) || s.title,
+    description: patch.description !== undefined ? patch.description.slice(0, 2000) : s.description,
+    sharing: patch.sharing ?? s.sharing,
+    numbered: patch.numbered !== undefined ? (patch.numbered ? 1 : 0) : Number(s.numbered ?? 0),
+  };
+  await getDb().prepare('UPDATE send_spaces SET title = ?, description = ?, sharing = ?, numbered = ?, updated_at = ? WHERE id = ?').run(next.title, next.description, next.sharing, next.numbered, nowIso(), id);
   return { ...s, ...next };
+}
+
+/**
+ * Duplica un espacio como hace DocSend: título, descripción, a quién se muestra y sus
+ * documentos con orden y carpetas. Solo copia los documentos que quien duplica ve. Los
+ * links, la lista de acceso por persona y las visitas no se copian: la copia arranca
+ * sin compartir. Quien duplica queda como dueño.
+ */
+export async function duplicateSpace(actor: SendActor, sourceId: string, title?: string): Promise<SpaceRow> {
+  const src = await getSpace(actor, sourceId);
+  const items = (await getDb()
+    .prepare(
+      `SELECT i.document_id, i.folder FROM send_space_items i
+       JOIN send_documents d ON d.id = i.document_id AND d.deleted_at IS NULL
+       WHERE i.space_id = ? AND ${docVisibleSql} ORDER BY i.position, i.added_at`,
+    )
+    .all(src.id, actor.admin ? 1 : 0, actor.person)) as Array<{ document_id: string; folder: string }>;
+  const id = newId('sp');
+  const ts = nowIso();
+  const db = getDb();
+  const name = title?.trim().slice(0, 200) || src.title;
+  await db
+    .prepare('INSERT INTO send_spaces (id, workspace_id, owner_id, title, description, sharing, numbered, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, actor.ws, actor.person, name, src.description, src.sharing, Number(src.numbered ?? 0), ts, ts);
+  let pos = 0;
+  for (const it of items) {
+    await db.prepare('INSERT INTO send_space_items (space_id, document_id, position, folder, added_at) VALUES (?, ?, ?, ?, ?)').run(id, it.document_id, pos++, it.folder, ts);
+  }
+  return (await db.prepare('SELECT * FROM send_spaces WHERE id = ?').get(id)) as SpaceRow;
 }
 
 /** Borra el espacio y sus links; los documentos siguen en Send. */
@@ -117,7 +156,16 @@ export async function spaceItems(actor: SendActor, spaceId: string): Promise<Spa
        WHERE i.space_id = ? AND ${docVisibleSql} ORDER BY i.position, i.added_at`,
     )
     .all(spaceId, actor.admin ? 1 : 0, actor.person)) as Array<{ document_id: string; folder: string; title: string; kind: string | null; page_count: number | null; status: string | null }>;
-  return rows.map((r) => ({ documentId: r.document_id, title: r.title, folder: r.folder, kind: r.kind, pageCount: Number(r.page_count ?? 0), ready: r.status === 'ready' }));
+  const idx = await spaceIndexOf(spaceId);
+  return rows.map((r) => ({ documentId: r.document_id, title: r.title, folder: r.folder, index: idx.documents[r.document_id] ?? '', kind: r.kind, pageCount: Number(r.page_count ?? 0), ready: r.status === 'ready' }));
+}
+
+/** Índice del espacio sobre todos sus documentos vivos, los vea o no quien pregunta. */
+export async function spaceIndexOf(spaceId: string): Promise<SpaceIndex> {
+  const all = (await getDb()
+    .prepare('SELECT i.document_id, i.folder FROM send_space_items i JOIN send_documents d ON d.id = i.document_id AND d.deleted_at IS NULL WHERE i.space_id = ? ORDER BY i.position, i.added_at')
+    .all(spaceId)) as Array<{ document_id: string; folder: string }>;
+  return spaceIndex(all.map((r) => ({ documentId: r.document_id, folder: r.folder })));
 }
 
 /**

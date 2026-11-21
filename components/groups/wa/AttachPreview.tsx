@@ -1,12 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { filesFrom, type TrayItem } from './attachments';
 import { extensionOf, fileSize, posterFrame } from './format';
 import { Close, DocIcon, Plus, SendIcon, Smiley } from './icons';
 import ImageEditor from './ImageEditor';
 import EmojiPicker from './EmojiPicker';
+import MentionTextarea from './MentionTextarea';
+import Avatar from './Avatar';
+import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
 import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
 import '@/styles/wa-editor.css';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
@@ -110,10 +114,12 @@ export default function AttachPreview({
   stickerApi,
   stickerLine,
   sending,
+  mentionables,
 }: {
   items: TrayItem[];
   errText: (code?: string) => string;
-  onCaption: (key: string, caption: string) => void;
+  /** `out`: en un grupo, el pie como sale a WhatsApp y a quiénes menciona (sin menciones, undefined). */
+  onCaption: (key: string, caption: string, out?: TrayItem['captionOut']) => void;
   onRemove: (key: string) => void;
   onRetry: (key: string) => void;
   onAdd: () => void;
@@ -131,14 +137,74 @@ export default function AttachPreview({
   /** La línea del chat abierto (los stickers son por línea). */
   stickerLine?: string;
   sending: boolean;
+  /**
+   * Grupos: los participantes que se pueden mencionar en el pie, como en el campo del chat ("@" abre la lista; la
+   * mención se ve en verde y sale como mención de WhatsApp). Sin esto (o vacío), el pie no menciona.
+   */
+  mentionables?: ReadonlyArray<{ phone: string; name: string; avatar?: string }>;
 }) {
   const t = useTranslations('groups');
   const te = useTranslations('groups.wa.editor');
   const locale = useLocale();
   const [current, setCurrent] = useState(items[0]?.key ?? '');
-  const captionRef = useRef<HTMLInputElement>(null);
+  const captionRef = useRef<HTMLTextAreaElement>(null);
   const it = items.find((x) => x.key === current) ?? items[0];
   const [captionEmoji, setCaptionEmoji] = useState(false);
+
+  // Menciones en el pie (grupos): las mismas reglas que el campo del chat (lib/wa-compose-mentions.ts).
+  const picked = useRef(new Map<string, string>());
+  const [pickedVersion, setPickedVersion] = useState(0);
+  const pool = useMemo<Mentionable[] | null>(
+    () => (mentionables?.length ? waMentionables(mentionables, picked.current) : null),
+    [mentionables, pickedVersion], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const pics = useMemo(() => new Map((mentionables ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar!])), [mentionables]);
+  const caption = it?.caption ?? '';
+  const [caret, setCaret] = useState(0);
+  const [captionFocus, setCaptionFocus] = useState(false);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const [closedAt, setClosedAt] = useState<number | null>(null);
+  const hits = useMemo(() => (pool ? findMentionHits(caption, pool) : []), [caption, pool]);
+  const query = pool && captionFocus ? mentionQueryAt(caption, caret) : null;
+  const mentionOpen = !!query && closedAt !== query.start && !mentionAlreadyDone(query.start, caret, hits);
+  const people = mentionOpen && pool ? mentionSuggestions(query.query, pool, 50) : [];
+
+  /** El pie de un archivo y, en un grupo con menciones, cómo sale a WhatsApp. */
+  const setCaptionOf = (key: string, text: string, list: Mentionable[] | null = pool) => {
+    const out = list ? serializeWaMentions(text, list) : null;
+    onCaption(key, text, out?.mentions.length ? out : undefined);
+  };
+  /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
+  const pickMention = (p: Mentionable) => {
+    if (!it || !query) return;
+    if (p.name) {
+      picked.current.set(p.name, p.id);
+      setPickedVersion((v) => v + 1);
+    }
+    const ins = `${mentionText(p)} `;
+    const next = (caption.slice(0, query.start) + ins + caption.slice(caret)).slice(0, 1024);
+    const pos = Math.min(next.length, query.start + ins.length);
+    setCaptionOf(it.key, next, mentionables?.length ? waMentionables(mentionables, picked.current) : null);
+    setCaret(pos);
+    setMentionIdx(0);
+    pendingCaret.current = pos;
+  };
+  // El cursor después de una mención elegida o borrada: en el mismo render que el texto nuevo (con un
+  // requestAnimationFrame, lo que se tipeaba rápido justo después caía antes del cursor).
+  const pendingCaret = useRef<number | null>(null);
+  // El pie crece con el texto (hasta unos renglones), como el campo del chat.
+  useLayoutEffect(() => {
+    const el = captionRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    const at = pendingCaret.current;
+    if (at !== null) {
+      pendingCaret.current = null;
+      el.focus();
+      el.setSelectionRange(at, at);
+    }
+  }, [caption, current]);
 
   // La foto original de cada ítem (para editar siempre sobre ella) y lo que se le cambió.
   const origs = useRef(new Map<string, Orig>());
@@ -257,6 +323,7 @@ export default function AttachPreview({
     <div
       className={`wa-attach-pane${editable ? ' is-editing' : ''}`}
       data-voice-off
+      data-testid="attach-preview"
       role="dialog"
       aria-label={t('wa.attachments')}
       onKeyDown={(e) => {
@@ -353,7 +420,7 @@ export default function AttachPreview({
                 const v = it.caption ?? '';
                 const a = el?.selectionStart ?? v.length;
                 const b = el?.selectionEnd ?? v.length;
-                onCaption(it.key, (v.slice(0, a) + emoji + v.slice(b)).slice(0, 1024));
+                setCaptionOf(it.key, (v.slice(0, a) + emoji + v.slice(b)).slice(0, 1024));
                 requestAnimationFrame(() => {
                   el?.focus();
                   el?.setSelectionRange(a + emoji.length, a + emoji.length);
@@ -366,23 +433,93 @@ export default function AttachPreview({
             />
           )}
         </span>
-        <input
-          ref={captionRef}
-          className="input"
-          value={it.caption ?? ''}
-          onChange={(e) => onCaption(it.key, e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              e.stopPropagation();
-              void send();
-            }
-          }}
-          placeholder={t('wa.addCaption')}
-          aria-label={t('wa.addCaption')}
-          maxLength={1024}
-          disabled={it.type.startsWith('audio/')}
-        />
+        <div className="wa-attach-field">
+          {people.length > 0 && (
+            <ul className="wa-mention-pop wa-attach-mentions" role="listbox" aria-label={t('thread.mentionPeople')} data-testid="caption-mentions">
+              {people.map((p, i) => (
+                <li key={`${p.id}:${p.name}`} role="option" aria-selected={i === mentionIdx}>
+                  <button
+                    type="button"
+                    title={`+${p.id}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                    onClick={() => pickMention(p)}
+                  >
+                    <Avatar name={p.name || p.id} kind="dm" size={32} src={pics.get(p.id) || undefined} seed={p.id} />
+                    <span className="wa-mention-who">
+                      <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
+                      {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <MentionTextarea
+            ref={captionRef}
+            className="input wa-attach-input"
+            data-testid="attach-caption"
+            rows={1}
+            highlights={hits}
+            value={caption}
+            onChange={(e) => {
+              setCaptionOf(it.key, e.target.value);
+              setCaret(e.target.selectionStart ?? e.target.value.length);
+              setMentionIdx(0);
+              if (closedAt !== null && !e.target.value.slice(closedAt).startsWith('@')) setClosedAt(null);
+            }}
+            onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+            onFocus={(e) => {
+              setCaptionFocus(true);
+              setCaret(e.target.selectionStart ?? caption.length);
+            }}
+            onBlur={() => setCaptionFocus(false)}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (people.length > 0) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setMentionIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + people.length) % people.length);
+                  return;
+                }
+                if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  pickMention(people[Math.min(mentionIdx, people.length - 1)]);
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  // Cierra la lista; la vista previa sigue abierta.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (query) setClosedAt(query.start);
+                  return;
+                }
+              }
+              // Borrar contra una mención la saca entera, como en el campo del chat.
+              if ((e.key === 'Backspace' || e.key === 'Delete') && hits.length && !e.altKey && !e.metaKey && !e.ctrlKey) {
+                const el = e.currentTarget;
+                const cut = deleteMentionToken(caption, el.selectionStart, el.selectionEnd, e.key, hits);
+                if (cut) {
+                  e.preventDefault();
+                  setCaptionOf(it.key, cut.text);
+                  setCaret(cut.caret);
+                  pendingCaret.current = cut.caret;
+                  return;
+                }
+              }
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                void send();
+              }
+            }}
+            placeholder={t('wa.addCaption')}
+            aria-label={t('wa.addCaption')}
+            maxLength={1024}
+            disabled={it.type.startsWith('audio/')}
+          />
+        </div>
       </div>
       <div className="wa-attach-foot">
         <ul className="wa-attach-strip" aria-label={t('wa.attachments')}>

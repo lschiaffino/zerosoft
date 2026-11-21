@@ -502,6 +502,8 @@ export function wahaProvider(
         chatId,
         file: { mimetype: media.mimetype, filename: media.filename, url: media.url },
         caption: media.caption ?? '',
+        // Menciones en el pie, como en sendText ("<teléfono>@c.us" o "<lid>@lid").
+        ...(media.caption && media.mentions?.length ? { mentions: media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
       })) as Json;
       return { id: idString(r.id) };
     },
@@ -1740,6 +1742,9 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         r = (await mediaApi(`/message/sendSticker/${instance}`, { ...evolutionStickerBody(chatId, source, media.mimetype), ...extra })) as Json;
       } else {
         const fileName = evolutionFileName(media.filename, media.mimetype, kind);
+        // Menciones en el pie: igual que en sendText (el pie y `mentioned` con el mismo id por persona).
+        const caption = media.caption ?? '';
+        const m = kind !== 'audio' && caption && media.mentions?.length ? waMentionPayload(caption, media.mentions, isGroupJid(chatId) ? await mentionGroup(chatId) : null) : null;
         r = (await mediaApi(`/message/sendMedia/${instance}`, {
           number: chatId,
           mediatype: kind,
@@ -1747,7 +1752,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           media: source,
           fileName,
           // WhatsApp no muestra texto en un audio: lo manda aparte quien llama.
-          ...(kind === 'audio' ? {} : { caption: media.caption ?? '' }),
+          ...(kind === 'audio' ? {} : { caption: m ? m.text : caption }),
+          ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
           // Un GIF (lib/wa-gifs.ts). Evolution lo lee desde la rama develop (después de 2.3.7); las versiones
           // anteriores ignoran el campo y fijan gifPlayback en false, así que llega como un video común.
           ...(kind === 'video' && media.gifPlayback ? { gifPlayback: true } : {}),

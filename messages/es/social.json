@@ -81,7 +81,11 @@
     "publishing": "Esta publicación se está publicando ahora mismo.",
     "conflict": "Alguien cambió esto al mismo tiempo. Recargá y probá de nuevo.",
     "server_error": "Algo falló de nuestro lado.",
-    "too_many_rows": "Demasiadas filas en un solo pedido."
+    "too_many_rows": "Demasiadas filas en un solo pedido.",
+    "ai_disabled": "La IA no está configurada en este servidor.",
+    "ai_quota": "Tu workspace usó la IA incluida de este mes.",
+    "ai_failed": "La IA no respondió. Probá de nuevo.",
+    "empty_result": "La IA volvió sin texto. Probá con más detalle."
   },
   "issues": {
     "empty": "Escribí algo o sumá una foto o un video.",
@@ -132,9 +136,14 @@
     "tab_published": "Publicadas",
     "tab_failed": "Con errores",
     "search": "Buscar publicaciones",
-    "noResults": "Ninguna publicación coincide con la búsqueda.",
+    "noResults": "Ninguna publicación coincide con la búsqueda o los filtros.",
     "emptyTitle": "Todavía no hay publicaciones acá",
-    "emptyBody": "Escribí una publicación y mandala a varias cuentas, con su propio texto por red."
+    "emptyBody": "Escribí una publicación y mandala a varias cuentas, con su propio texto por red.",
+    "filterNetwork": "Filtrar por red",
+    "filterAccount": "Filtrar por cuenta",
+    "allNetworks": "Todas las redes",
+    "allAccounts": "Todas las cuentas",
+    "clearFilters": "Quitar filtros"
   },
   "compose": {
     "title": "Nueva publicación",
@@ -181,10 +190,26 @@
     "addToQueue": "Sumar a la cola",
     "schedule": "Programar",
     "previews": "Vistas previas",
-    "previewEmpty": "Elegí cuentas para ver cómo queda en cada red."
+    "previewEmpty": "Elegí cuentas para ver cómo queda en cada red.",
+    "aiOpen": "Escribir con IA",
+    "aiIdea": "¿De qué se trata la publicación?",
+    "aiIdeaHint": "Nuevo horario desde el lunes, de 8 a 18",
+    "aiWrite": "Escribir publicación",
+    "aiChanges": "Cambiar el texto",
+    "ai_shorter": "Más corto",
+    "ai_longer": "Más largo",
+    "ai_casual": "Más informal",
+    "ai_formal": "Más formal",
+    "ai_fix": "Corregir ortografía",
+    "aiUndo": "Deshacer",
+    "aiDone": "La IA cambió el texto. Revisalo antes de publicar.",
+    "aiLimit": "La IA deja la publicación por debajo de {limit, number} caracteres, el límite más chico de las redes elegidas.",
+    "tagSuggestions": "Hashtags y menciones que ya usaron",
+    "tagUses": "{n, plural, one {# uso} other {# usos}}"
   },
   "post": {
     "title": "Publicación",
+    "duplicate": "Duplicar",
     "edit": "Editar",
     "publishedAt": "Publicada el {when}",
     "scheduledFor": "Planeada para el {when}",
@@ -234,6 +259,7 @@
     "rescheduled": "{name} cambió la fecha",
     "approved": "{name} la aprobó",
     "rejected": "{name} la rechazó",
+    "duplicated": "{name} la duplicó",
     "retry": "{name} la reintentó",
     "published": "Publicada",
     "failed": "Falló",

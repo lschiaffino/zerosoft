@@ -66,6 +66,15 @@ describe('Búsqueda en Inbox: mensajes', () => {
     expect((await searchMessages(owner, 'contrato after:2026-02-01')).hits).toHaveLength(1);
   });
 
+  it('buscar dentro de un chat: solo los mensajes de ese chat (y nunca los de otra persona)', async () => {
+    const { owner, ana, fam } = await setup();
+    const inAna = await searchMessages(owner, 'contrato', { threads: [ana.id] });
+    expect(inAna.hits.map((h) => h.threadId)).toEqual([ana.id]);
+    expect((await searchMessages(owner, 'contrato', { threads: [fam.id, ana.id] })).hits).toHaveLength(2);
+    const other = await setup();
+    expect((await searchMessages(other.owner, 'contrato', { threads: [ana.id] })).hits).toHaveLength(0);
+  });
+
   it('nunca muestra mensajes de otra persona, ni en Cmd+K ni en la lista de chats', async () => {
     const a = await setup();
     const b = await setup();

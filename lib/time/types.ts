@@ -20,7 +20,7 @@ export const MAX_NOTES = 2000;
 export const CURRENCIES = ['USD', 'EUR', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'UYU', 'PEN', 'GBP', 'CAD', 'AUD'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
-export type TimeErrorCode = 'invalid_input' | 'not_found' | 'forbidden' | 'project_archived' | 'task_archived' | 'too_long' | 'in_use' | 'duplicate' | 'not_assigned' | 'task_not_in_project';
+export type TimeErrorCode = 'invalid_input' | 'not_found' | 'forbidden' | 'project_archived' | 'task_archived' | 'too_long' | 'in_use' | 'duplicate' | 'not_assigned' | 'task_not_in_project' | 'locked' | 'timer_running' | 'empty_week' | 'bad_state';
 
 export class TimeError extends Error {
   constructor(
@@ -309,4 +309,41 @@ export function tasksForProject<T extends { id: string; billable: boolean; archi
   if (!p || p.allTasks) return active;
   const chosen = new Map(p.tasks.map((x) => [x.taskId, x.billable]));
   return active.filter((x) => chosen.has(x.id)).map((x) => ({ ...x, billable: chosen.get(x.id)! }));
+}
+
+/* ---------- Aprobación de horas (por semana) ---------- */
+
+/** Estado de la semana de una persona. `open`: nunca se envió (no tiene fila). */
+export type SheetStatus = 'open' | 'submitted' | 'approved' | 'returned';
+export const SHEET_STATUSES: readonly SheetStatus[] = ['open', 'submitted', 'approved', 'returned'];
+
+/** Acciones sobre una semana: la persona envía y retira; quien administra aprueba, devuelve y reabre. */
+export type SheetAction = 'submit' | 'withdraw' | 'approve' | 'return' | 'reopen';
+export const SHEET_ACTIONS: readonly SheetAction[] = ['submit', 'withdraw', 'approve', 'return', 'reopen'];
+export const MAX_SHEET_NOTE = 1000;
+
+/** Las entradas de una semana pendiente o aprobada no se crean, editan ni borran. */
+export function sheetLocked(status: SheetStatus | null | undefined): boolean {
+  return status === 'submitted' || status === 'approved';
+}
+
+/** Quién puede hacer qué desde cada estado, y a qué estado lleva (`open` = se borra la fila). */
+const TRANSITIONS: Record<SheetAction, { from: readonly SheetStatus[]; to: SheetStatus; admin: boolean }> = {
+  submit: { from: ['open', 'returned'], to: 'submitted', admin: false },
+  withdraw: { from: ['submitted'], to: 'open', admin: false },
+  approve: { from: ['submitted'], to: 'approved', admin: true },
+  return: { from: ['submitted'], to: 'returned', admin: true },
+  reopen: { from: ['approved'], to: 'returned', admin: true },
+};
+
+/**
+ * Siguiente estado de una semana, o el error: `forbidden` si la acción es de
+ * quien administra, `bad_state` si no se puede desde el estado actual.
+ * Enviar y retirar son siempre de la propia semana.
+ */
+export function nextSheetStatus(action: SheetAction, current: SheetStatus, opts: { admin: boolean; own: boolean }): SheetStatus | TimeErrorCode {
+  const rule = TRANSITIONS[action];
+  if (rule.admin ? !opts.admin : !opts.own) return 'forbidden';
+  if (!rule.from.includes(current)) return 'bad_state';
+  return rule.to;
 }

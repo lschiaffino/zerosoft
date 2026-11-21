@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ViewerDoc, ViewerState } from '@/lib/send/viewer';
+import { downloadIndexCsv } from './index-csv';
 
 const PING_EVERY_MS = 5000;
 const IDLE_MS = 120_000;
@@ -345,12 +346,25 @@ function Reader({ api, state, refresh }: { api: string; state: Extract<ViewerSta
 
   if (!doc) {
     const folders = [...new Set(state.documents.map((d) => d.folder))];
+    const numbered = state.documents.some((d) => d.index);
+    const downloadIndex = () =>
+      downloadIndexCsv(
+        state.space?.title ?? '',
+        state.documents.map((d) => ({ index: d.index, folder: d.folder, title: d.title, kind: d.kind, pages: d.kind === 'video' ? '' : d.pageCount })),
+      );
     return (
       <main className="sv-space" data-testid="sv-space">
         <header className="sv-space-head">
           <Brand state={state} />
           <h1>{state.space?.title}</h1>
           {state.space?.description && <p>{state.space.description}</p>}
+          {numbered && (
+            <div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={downloadIndex} data-testid="sv-index-download">
+                {t('downloadIndex')}
+              </button>
+            </div>
+          )}
           {state.message && <p className="sv-message">{state.message}</p>}
           {state.button && (
             <div>
@@ -360,14 +374,26 @@ function Reader({ api, state, refresh }: { api: string; state: Extract<ViewerSta
         </header>
         {folders.map((f) => (
           <section key={f} className="sv-space-group">
-            {f && <h2>{f}</h2>}
+            {f && (
+              <h2>
+                {numbered && state.space?.folders[f] && <span className="sv-index">{state.space.folders[f]}</span>}
+                {f}
+              </h2>
+            )}
             <ul>
               {state.documents
                 .filter((d) => d.folder === f)
                 .map((d) => (
                   <li key={d.id}>
                     <button type="button" onClick={() => setActiveId(d.id)} data-testid="sv-space-doc">
-                      <strong>{d.title}</strong>
+                      <strong>
+                        {d.index && (
+                          <span className="sv-index" data-testid="sv-space-index">
+                            {d.index}
+                          </span>
+                        )}
+                        {d.title}
+                      </strong>
                       <span>{d.kind === 'video' ? t('videoLabel') : t('pagesLabel', { count: d.pageCount })}</span>
                     </button>
                   </li>

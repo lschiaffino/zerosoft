@@ -1406,6 +1406,208 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "cal": {
+      "intro": {
+        "title": "Te damos la bienvenida a Cal",
+        "body": "Cal te da links de reserva para que la gente elija un horario que te sirva. Este tour te muestra las partes principales."
+      },
+      "newEventType": {
+        "title": "Creá un tipo de evento",
+        "body": "Cada tipo de evento es un link de reserva con su duración, sus horarios y sus preguntas. En esta página, la tecla C también crea uno."
+      },
+      "eventType": {
+        "title": "Compartí tu link",
+        "body": "Copiá el link para mandarlo, abrí la página que ve la gente o apagá el interruptor para dejar de recibir reservas. Abrí la fila para editarlo."
+      },
+      "upcoming": {
+        "title": "Próximas reservas",
+        "body": "Acá aparecen las próximas reuniones que la gente reservó con vos, con quién reservó y para qué."
+      },
+      "bookings": {
+        "title": "Reservas",
+        "body": "Todas las reservas, las próximas y las pasadas. Desde ahí podés reprogramar, cancelar o marcar que alguien no vino."
+      },
+      "availability": {
+        "title": "Disponibilidad",
+        "body": "Elegí tus horarios de la semana y bloqueá los días libres. Tus tipos de evento solo ofrecen horarios dentro de esos."
+      },
+      "routing": {
+        "title": "Formularios de ruteo",
+        "body": "Hacé unas preguntas antes de reservar y mandá a cada persona al tipo de evento que corresponde, como ventas o soporte."
+      },
+      "settings": {
+        "title": "Ajustes de Cal",
+        "body": "Tu link público, tu marca, las conexiones con tus calendarios y cómo cobrás las reservas."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
+    "send": {
+      "intro": {
+        "title": "Te damos la bienvenida a Send",
+        "body": "Send comparte un documento por link y te muestra quién lo abrió y qué leyó. Este tour te muestra las partes principales."
+      },
+      "newDocument": {
+        "title": "Subí un documento",
+        "body": "Subí un PDF, un Word, una presentación o un video. El archivo queda privado: la gente lo ve solo desde un link que armes vos."
+      },
+      "openDocument": {
+        "title": "Abrí un documento",
+        "body": "Hacé clic en un documento para armarle links y ver quién lo leyó. El tour sigue ahí."
+      },
+      "links": {
+        "title": "Armá un link",
+        "body": "Armá un link por persona para saber quién leyó qué. Cada link puede pedir un mail o una clave, vencer en una fecha y dejar descargar o no. Se copia al crearlo."
+      },
+      "activity": {
+        "title": "Mirá quién lo leyó",
+        "body": "Cada visita muestra quién abrió el documento, desde qué link, cuántas páginas leyó y cuánto tiempo pasó en cada una."
+      },
+      "sharing": {
+        "title": "Quién de tu equipo lo ve",
+        "body": "Dejá el documento para vos y los admins, o que lo vea todo el workspace con sus links y sus números."
+      },
+      "spaces": {
+        "title": "Espacios",
+        "body": "Juntá varios documentos detrás de un solo link, como un data room, con números por documento."
+      },
+      "analytics": {
+        "title": "Analítica",
+        "body": "Visitas, lectores y tiempo de lectura de todos tus documentos, comparados con el período anterior."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
+    "talk": {
+      "intro": {
+        "title": "Te damos la bienvenida a Talk",
+        "body": "Talk es donde tu equipo conversa: canales por tema, mensajes directos e hilos. Este tour te muestra las partes principales."
+      },
+      "channels": {
+        "title": "Canales",
+        "body": "Cada canal junta la conversación de un tema, un proyecto o un área. Todo espacio arranca con #general. Con el + creás uno nuevo."
+      },
+      "dms": {
+        "title": "Mensajes directos",
+        "body": "Para hablar con una persona o con un grupo chico fuera de los canales. Con el + empezás uno."
+      },
+      "composer": {
+        "title": "Escribí un mensaje",
+        "body": "Enter manda y Shift+Enter baja de línea. Mencioná con @, adjuntá archivos o programá el envío. Con / tenés comandos como /remind."
+      },
+      "threads": {
+        "title": "Hilos",
+        "body": "Respondé un mensaje en un hilo (↩ en sus acciones) para no llenar el canal. Las respuestas de los hilos que seguís llegan acá."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "Encontrá mensajes de todos tus canales. Filtrá con in:#canal, from:@persona o has:link. Cmd+G te trae acá."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
+    "board": {
+      "intro": {
+        "title": "Te damos la bienvenida a Board",
+        "body": "Board es una pizarra para bocetos, diagramas y stickies. Este tour te muestra las partes principales."
+      },
+      "newBoard": {
+        "title": "Creá una pizarra",
+        "body": "Empezá una pizarra en blanco acá. Importar, al lado, abre archivos .excalidraw."
+      },
+      "templates": {
+        "title": "Empezá con una plantilla",
+        "body": "Retrospectiva, kanban, mapa mental, flujo de usuario y más. Elegí una y la pizarra ya viene armada."
+      },
+      "organize": {
+        "title": "Buscá y ordená",
+        "body": "Buscá pizarras por nombre o por lo que tienen adentro, y agrupalas en carpetas. Las borradas esperan en la Papelera."
+      },
+      "openBoard": {
+        "title": "Abrí una pizarra",
+        "body": "Abrí cualquier pizarra de la lista para empezar a dibujar."
+      },
+      "toolbar": {
+        "title": "Formas y dibujo",
+        "body": "Elegí una forma, una flecha, texto o el lápiz. Cada herramienta tiene su tecla: R para un rectángulo, A para una flecha, T para texto."
+      },
+      "canvasTools": {
+        "title": "Stickies y más",
+        "body": "Agregá un sticky (N), resaltá, insertá una tabla, adjuntá un archivo o mostrá el minimapa (M). Con un sticky elegido, Tab agrega el siguiente."
+      },
+      "zoom": {
+        "title": "Zoom y deshacer",
+        "body": "Acercá, alejá o deshacé desde acá. Con la rueda te movés por la pizarra, o mantené Espacio y arrastrá."
+      },
+      "workshop": {
+        "title": "Hacé un taller",
+        "body": "Poné un temporizador que ven todos, abrí una votación con puntos sobre los stickies o prendé el modo privado para que las ideas no se vean hasta revelarlas. Con la barra angosta, Taller está en el menú Más."
+      },
+      "share": {
+        "title": "Compartir",
+        "body": "Prendé un link para que cualquiera vea la pizarra, o creá un link de invitado para que alguien la edite sin cuenta."
+      },
+      "shareTeam": {
+        "title": "Compartir con tu equipo",
+        "body": "Todos en el workspace pueden abrir una pizarra, y se ven los cursores de los demás. Acá podés limitarla a quienes invites o compartir un link."
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "body": "N agrega un sticky, M muestra el minimapa y Shift+1 encuadra todo. Ctrl o Cmd y la rueda hacen zoom. Cmd+K encuentra cualquier pizarra."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
+    "forms": {
+      "intro": {
+        "title": "Te damos la bienvenida a Forms",
+        "body": "Forms arma encuestas, quizzes y formularios de contacto, de a una pregunta o todo en una página. Este tour te muestra las partes principales."
+      },
+      "newForm": {
+        "title": "Creá un formulario",
+        "body": "Empezá con una plantilla (contacto, NPS, confirmación de asistencia, quiz y más) o con un formulario en blanco."
+      },
+      "filters": {
+        "title": "Buscá y filtrá",
+        "body": "Buscá formularios por nombre y filtrá por estado: publicados, borradores o cerrados."
+      },
+      "openForm": {
+        "title": "Abrí un formulario",
+        "body": "Abrí cualquier formulario de la lista para editar sus preguntas."
+      },
+      "questions": {
+        "title": "Las preguntas",
+        "body": "Elegí una pregunta para editarla. Debajo de la lista elegís el tipo y agregás otra. Lógica, Diseño e Idiomas están en las pestañas de arriba."
+      },
+      "publish": {
+        "title": "Publicar",
+        "body": "Publicar guarda los cambios y abre el formulario a respuestas. Cuando ya no querés recibir más, lo cerrás desde acá."
+      },
+      "share": {
+        "title": "Compartir",
+        "body": "Copiá el link, cambiá la dirección, insertalo en tu sitio o como botón emergente, o bajá un código QR."
+      },
+      "responses": {
+        "title": "Respuestas",
+        "body": "Cada respuesta en una tabla, con búsqueda, filtros y exportación a CSV. Resumen, al lado, muestra los totales por pregunta."
+      },
+      "access": {
+        "title": "Quién lo ve",
+        "body": "En Ajustes elegís si el formulario y sus respuestas los ve todo el workspace o solo las personas que elijas."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Te damos la bienvenida a Lines",
@@ -1534,6 +1736,56 @@
       "shortcuts": {
         "title": "Atajos de teclado",
         "body": "N crea una nota y / busca. Con las flechas recorrés la lista. Cmd+K encuentra cualquier nota."
+      },
+      "done": {
+        "title": "Eso es todo",
+        "body": "Podés volver a hacer este tour desde el menú de tu cuenta."
+      }
+    },
+    "docs": {
+      "intro": {
+        "title": "Te damos la bienvenida a Docs",
+        "body": "Docs junta tus páginas y wikis, con texto, tablas, bases de datos y contenido embebido, y se guarda mientras escribís. Este tour te muestra las partes principales."
+      },
+      "newPage": {
+        "title": "Empezá una página",
+        "body": "Creá una página en blanco acá. En esta pantalla, C hace lo mismo."
+      },
+      "templates": {
+        "title": "Plantillas",
+        "body": "Empezá desde una página armada, como notas de reunión o un plan de proyecto, o desde una que guardó tu workspace."
+      },
+      "pages": {
+        "title": "Tus páginas",
+        "body": "Todas tus páginas aparecen en este árbol. Arrastralas para ordenarlas, o poné una dentro de otra como subpágina."
+      },
+      "search": {
+        "title": "Buscar",
+        "body": "Encontrá cualquier página por el título o por el texto. Con Cmd+P buscás desde cualquier parte de Docs."
+      },
+      "openPage": {
+        "title": "Abrí una página",
+        "body": "Abrí cualquier página de la lista para leerla y editarla."
+      },
+      "write": {
+        "title": "Escribí",
+        "body": "Hacé clic en el título para cambiarle el nombre. En el cuerpo, escribí / para sumar títulos, listas, tablas, imágenes y más."
+      },
+      "comments": {
+        "title": "Comentarios",
+        "body": "Comentá la página o un bloque, respondé y resolvé la conversación cuando quede cerrada."
+      },
+      "share": {
+        "title": "Compartir",
+        "body": "Invitá personas a leer, comentar o editar, o publicá la página con un link."
+      },
+      "pageMenu": {
+        "title": "Más opciones de la página",
+        "body": "Historial de versiones, exportar, bloquear la página, guardarla como plantilla o mandarla a la papelera."
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "body": "C crea una página desde el inicio de Docs, Cmd+P busca páginas y / suma un bloque. Cmd+K encuentra cualquier cosa."
       },
       "done": {
         "title": "Eso es todo",

@@ -12,11 +12,25 @@ export const maxDuration = 60;
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Menciones del pie: lista de teléfonos (JSON en el multipart). Lo demás lo filtra sendWhatsappMedia. */
+function mentionsOf(raw: unknown): string[] | undefined {
+  let list = raw;
+  if (typeof raw === 'string') {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  }
+  return Array.isArray(list) ? list.filter((p): p is string => typeof p === 'string').slice(0, 50) : undefined;
+}
+
 /**
  * Manda un archivo al chat de WhatsApp. Multipart (`file`, `caption`,
- * `kind`, `duration`, `replyTo`) hasta 4 MB; más grande, JSON con la `url` de
- * Blob que subió el navegador ({ url, mimetype, filename, size, caption,
- * kind, duration, replyTo }). Devuelve los mensajes del chat.
+ * `kind`, `duration`, `replyTo`, `mentions` en JSON) hasta 4 MB; más grande,
+ * JSON con la `url` de Blob que subió el navegador ({ url, mimetype,
+ * filename, size, caption, kind, duration, replyTo, mentions }). Devuelve los
+ * mensajes del chat.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const limited = await limitByIp(req, 'inbox-send', 120, 60).catch(() => null);
@@ -40,6 +54,7 @@ export async function POST(req: Request, ctx: Ctx) {
         duration: Number(form.get('duration') ?? 0) || undefined,
         replyTo: String(form.get('replyTo') ?? '') || undefined,
         clientId: cleanClientId(form.get('clientId')),
+        mentions: mentionsOf(form.get('mentions')),
       });
     } else {
       const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
@@ -54,6 +69,7 @@ export async function POST(req: Request, ctx: Ctx) {
         duration: Number(b.duration) || undefined,
         replyTo: typeof b.replyTo === 'string' && b.replyTo ? b.replyTo : undefined,
         clientId: cleanClientId(b.clientId),
+        mentions: mentionsOf(b.mentions),
       });
     }
     const page = await listMessages(owner, id);

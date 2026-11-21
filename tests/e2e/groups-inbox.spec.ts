@@ -274,7 +274,7 @@ test('round-robin: equipo y regla en Ajustes, el chat nuevo llega asignado', asy
   const n = await fakeNumber(request);
   const tag = uid();
   await page.goto('/en/app/lines/settings?tab=assignment', { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'New team' }).click();
+  await page.getByRole('button', { name: 'New team', exact: true }).click();
   const teamDialog = page.getByRole('dialog', { name: 'New team' });
   await teamDialog.getByLabel('Team name').fill(`Support ${tag}`);
   await teamDialog.getByLabel('Demo User').check();

@@ -57,6 +57,76 @@ function CandidateFieldsEditor({ value, onChange }: { value: CandidateField[]; o
   );
 }
 
+/** Motivos de rechazo del workspace: editar, sacar, sumar y volver a los de fábrica. */
+function RejectReasonsEditor({ value, defaults, required, onChange, onRequired }: { value: string[] | null; defaults: string[]; required: boolean; onChange: (v: string[] | null) => void; onRequired: (v: boolean) => void }) {
+  const t = useTranslations('hiring');
+  const list = value ?? defaults;
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const v = draft.trim();
+    if (!v || list.some((r) => r.toLocaleLowerCase() === v.toLocaleLowerCase())) return setDraft('');
+    onChange([...list, v]);
+    setDraft('');
+  };
+  return (
+    <section className="ui-fields" data-testid="hiring-reject-reasons-settings">
+      <h2 className="hr-panel-title">{t('settings.rejectReasons')}</h2>
+      <p className="ui-help">{t('settings.rejectReasonsHelp')}</p>
+      <ul className="hr-reason-list">
+        {list.map((r, i) => (
+          <li key={i} className="hr-reason-row">
+            <input
+              className="input"
+              required
+              maxLength={120}
+              aria-label={t('settings.reasonN', { n: i + 1 })}
+              value={r}
+              onChange={(e) => onChange(list.map((x, j) => (j === i ? e.target.value : x)))}
+            />
+            <button type="button" className="btn btn-ghost btn-sm" aria-label={t('settings.removeReason', { name: r })} onClick={() => onChange(list.filter((_, j) => j !== i))}>
+              {t('common.remove')}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {list.length === 0 && <p className="ui-help">{t('settings.noReasons')}</p>}
+      {list.length < 30 && (
+        <div className="hr-reason-row">
+          <input
+            className="input"
+            maxLength={120}
+            data-testid="hr-reason-new"
+            aria-label={t('settings.newReason')}
+            placeholder={t('settings.newReason')}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button type="button" className="btn btn-secondary btn-sm" data-testid="hr-reason-add" disabled={!draft.trim()} onClick={add}>
+            {t('settings.addReason')}
+          </button>
+        </div>
+      )}
+      {value !== null && (
+        <div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(null)}>
+            {t('settings.resetReasons')}
+          </button>
+        </div>
+      )}
+      <label className="ui-check">
+        <input type="checkbox" data-testid="hr-reason-required" checked={required} onChange={(e) => onRequired(e.target.checked)} />
+        {t('settings.requireReason')}
+      </label>
+    </section>
+  );
+}
+
 /** Cadena de aprobadores, en orden. Vacía = no hace falta aprobación de este tipo. */
 function ApproverChain({ label, people, value, onChange, addLabel, removeLabel }: { label: string; people: Array<{ id: string; name: string }>; value: string[]; onChange: (v: string[]) => void; addLabel: string; removeLabel: string }) {
   const free = people.filter((p) => !value.includes(p.id));
@@ -96,7 +166,7 @@ function ApproverChain({ label, people, value, onChange, addLabel, removeLabel }
   );
 }
 
-export default function HiringSettings({ initial, canAdmin, careersUrl, repliesEnabled, people = [] }: { initial: SettingsDto; canAdmin: boolean; careersUrl: string; repliesEnabled: boolean; people?: Array<{ id: string; name: string }> }) {
+export default function HiringSettings({ initial, defaultRejectReasons, canAdmin, careersUrl, repliesEnabled, people = [] }: { initial: SettingsDto; defaultRejectReasons: string[]; canAdmin: boolean; careersUrl: string; repliesEnabled: boolean; people?: Array<{ id: string; name: string }> }) {
   const t = useTranslations('hiring');
   const errText = useErrorText();
   const [toast, push] = useToast();
@@ -185,6 +255,15 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
               <ApproverChain label={t('settings.offerApprovers')} people={people} value={s.offerApprovers} onChange={(offerApprovers) => setS({ ...s, offerApprovers })} addLabel={t('settings.addApprover')} removeLabel={t('common.remove')} />
             </section>
           )}
+          {canAdmin && (
+            <RejectReasonsEditor
+              value={s.rejectReasons}
+              defaults={defaultRejectReasons}
+              required={s.requireRejectReason}
+              onChange={(rejectReasons) => setS({ ...s, rejectReasons })}
+              onRequired={(requireRejectReason) => setS({ ...s, requireRejectReason })}
+            />
+          )}
           {canAdmin && <CandidateFieldsEditor value={s.candidateFields} onChange={(candidateFields) => setS({ ...s, candidateFields })} />}
           <section className="ui-fields">
             <h2 className="hr-panel-title">{t('settings.privacy')}</h2>
@@ -206,7 +285,7 @@ export default function HiringSettings({ initial, canAdmin, careersUrl, repliesE
             </label>
           </section>
           <div className="hr-actions-row">
-            <button type="submit" className="btn btn-primary" disabled={busy}>
+            <button type="submit" className="btn btn-primary" data-testid="hiring-settings-save" disabled={busy}>
               {t('common.save')}
             </button>
           </div>

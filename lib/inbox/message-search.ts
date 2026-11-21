@@ -131,13 +131,22 @@ export function markSnippet(text: string, needles: string[], width = 70): string
  * Mensajes que coinciden, del más nuevo al más viejo. `before` pagina (fecha
  * del último resultado de la página anterior).
  */
-export async function searchMessages(owner: string, raw: string, opts: { limit?: number; before?: string } = {}): Promise<{ hits: MessageHit[]; more: boolean }> {
+export async function searchMessages(
+  owner: string,
+  raw: string,
+  opts: { limit?: number; before?: string; /** Solo en estos chats (buscar dentro de un chat y sus otras cuentas). */ threads?: string[] } = {},
+): Promise<{ hits: MessageHit[]; more: boolean }> {
   const p = parseSearch(raw);
   const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
   const text = p.terms.length > 0 || p.phrases.length > 0;
   if (!text && !p.from && !p.in && !p.has && !p.before && !p.after) return { hits: [], more: false };
   const where: string[] = ['m.owner_id = ?', 'm.hidden_at IS NULL', 't.removed_at IS NULL'];
   const args: Array<string | number> = [owner];
+  const threads = [...new Set((opts.threads ?? []).filter(Boolean))].slice(0, 20);
+  if (threads.length) {
+    where.push(`m.thread_id IN (${threads.map(() => '?').join(',')})`);
+    args.push(...threads);
+  }
   if (p.from) {
     if (/^(me|yo|eu)$/i.test(p.from)) where.push('m.from_me = 1');
     else {

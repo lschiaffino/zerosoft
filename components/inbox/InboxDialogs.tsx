@@ -10,6 +10,7 @@ import { splitSubject } from '@/lib/ai-compose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from './ai-compose';
 import { canMoveFolder, depthOf, flattenTree, MAX_FOLDER_DEPTH } from '@/lib/inbox/folder-tree';
 import { TOUCH_QUERY, useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
+import FolderPickerDialog from '@/components/ui/FolderPickerDialog';
 
 /** Modal (<dialog>): Esc y el telón cierran, el foco queda adentro. */
 export function Modal({ open, title, onClose, children, wide = false }: { open: boolean; title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -47,79 +48,63 @@ export function Modal({ open, title, onClose, children, wide = false }: { open: 
   );
 }
 
-/** Mover a carpeta (V): filtrar escribiendo, Enter elige la primera. Las marcadas se sacan. */
+/**
+ * Mover a carpeta (V): el diálogo compartido con Lines (components/ui/FolderPickerDialog). Filtrar escribiendo,
+ * flechas y Enter; las carpetas donde ya está se marcan y elegirlas lo saca. "Sin carpeta" lo saca de todas y
+ * "+ Carpeta nueva" la crea ahí mismo y lo pone adentro.
+ */
 export function MoveDialog({
   open,
   folders,
   current,
   onClose,
   onPick,
-  onNewFolder,
+  onClear,
+  onCreate,
 }: {
   open: boolean;
   folders: FolderDto[];
   current: string[];
   onClose: () => void;
   onPick: (folderId: string, add: boolean) => void;
-  onNewFolder: () => void;
+  /** "Sin carpeta": lo saca de las que tiene. */
+  onClear?: () => void;
+  onCreate?: (name: string) => Promise<string | void>;
 }) {
   const t = useTranslations('inbox.move');
-  const [q, setQ] = useState('');
-  useEffect(() => {
-    if (open) setQ('');
-  }, [open]);
-  const needle = q.trim().toLowerCase();
-  const tree = flattenTree(folders);
-  const list = tree.filter(({ folder: f }) => f.name.toLowerCase().includes(needle)).map((r) => r.folder);
-  const depthById = new Map(tree.map((r) => [r.folder.id, needle ? 0 : r.depth]));
   return (
-    <Modal open={open} title={t('title')} onClose={onClose}>
-      <div className="ui-modal-body">
-        <label className="sr-only" htmlFor="ib-move-q">
-          {t('filter')}
-        </label>
-        <input
-          id="ib-move-q"
-          className="input"
-          autoFocus
-          placeholder={t('filter')}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && list[0]) {
-              e.preventDefault();
-              onPick(list[0].id, !current.includes(list[0].id));
-            }
-          }}
-        />
-        {folders.length === 0 ? (
-          <p className="ib-help">{t('none')}</p>
-        ) : (
-          <ul className="ib-pick-list">
-            {list.map((f) => {
-              const inIt = current.includes(f.id);
-              return (
-                <li key={f.id}>
-                  <button type="button" className="ib-pick" style={{ paddingLeft: 10 + (depthById.get(f.id) ?? 0) * 16 }} onClick={() => onPick(f.id, !inIt)} aria-pressed={inIt}>
-                    <span className="ib-swatch" style={{ background: f.color || 'var(--c-inbox)' }} aria-hidden />
-                    <span className="ib-pick-name">{f.name}</span>
-                    {inIt && <span className="ib-dim">{t('remove')}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-      <div className="ui-modal-foot">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onNewFolder}>
-          {t('newFolder')}
-        </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
-          {t('close')}
-        </button>
-      </div>
-    </Modal>
+    <FolderPickerDialog
+      open={open}
+      title={t('title')}
+      testIdPrefix="ib-move"
+      toggle
+      sections={[
+        {
+          key: 'inbox',
+          folders: folders.map((f) => ({ id: f.id, parentId: f.parentId, position: f.position, name: f.name, color: f.color || 'var(--c-inbox)' })),
+          current,
+          none: onClear && current.length > 0 ? { label: t('noFolder'), testId: 'ib-move-none' } : null,
+          testId: 'ib-move-list',
+        },
+      ]}
+      labels={{
+        filter: t('filter'),
+        empty: t('none'),
+        noMatch: t('noMatch'),
+        current: t('current'),
+        remove: t('remove'),
+        newFolder: t('newFolder'),
+        folderName: t('folderName'),
+        create: t('create'),
+        close: t('close'),
+      }}
+      onClose={onClose}
+      onPick={(_, id) => {
+        if (id === null) onClear?.();
+        else onPick(id, !current.includes(id));
+      }}
+      onCreate={onCreate}
+    />
   );
 }
 

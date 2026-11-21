@@ -612,8 +612,10 @@ export interface LabelDto {
 export interface ChatDto {
   id: string;
   numberId: string;
-  /** Carpeta compartida del workspace (null = sin carpeta). */
+  /** Carpeta personal de quien pide (null = en ninguna suya). */
   folderId: string | null;
+  /** Carpeta del equipo (la misma para todos; null o ausente = en ninguna). */
+  teamFolderId?: string | null;
   kind: 'dm' | 'group';
   name: string;
   phone: string;
@@ -868,7 +870,7 @@ export interface ChatQuery {
   numberId?: string;
   /** Solo las líneas de este grupo (lib/groups-line-groups.ts). El acceso de quien mira se aplica aparte. */
   lineGroupId?: string;
-  /** Carpeta (incluye sus subcarpetas) o 'none' para los que no están en ninguna. */
+  /** Carpeta suya o del equipo (incluye sus subcarpetas), o 'none' para los que no están en ninguna (ni suya ni del equipo). */
   folderId?: string;
   /** Líneas de las que esta persona es dueña. */
   ownerId?: string;
@@ -1021,18 +1023,23 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     where.push('c.number_id IN (SELECT zo.id FROM groups_numbers zo WHERE zo.user_id = c.user_id AND zo.owner_id = ?)');
     args.push(query.ownerId === 'me' ? me : query.ownerId);
   }
-  // Carpetas: las de quien pide (`me`) y lo que esa persona puso en ellas. Una carpeta de otra persona es como una
-  // que no existe: no trae nada.
+  // Carpetas: las de quien pide (`me`) y lo que esa persona puso en ellas, o las del equipo (lo mismo para todos).
+  // Una carpeta de otra persona es como una que no existe: no trae nada. El acceso por línea se aplica igual: una
+  // carpeta del equipo nunca trae chats de una línea que la persona no ve.
   if (query.folderId === 'none') {
     where.push('NOT EXISTS (SELECT 1 FROM groups_chat_folders zcf WHERE zcf.chat_id = c.id AND zcf.person_id = ?)');
+    where.push('NOT EXISTS (SELECT 1 FROM groups_chat_team_folders ztf WHERE ztf.chat_id = c.id)');
     args.push(me);
   } else if (query.folderId) {
-    const { folderScope } = await import('./groups-lines');
-    const ids = await folderScope(ws, me, query.folderId);
-    if (ids.length === 0) where.push('0 = 1');
-    else {
-      where.push(`c.id IN (SELECT zcf.chat_id FROM groups_chat_folders zcf WHERE zcf.user_id = ? AND zcf.person_id = ? AND zcf.folder_id IN (${ids.map(() => '?').join(',')}))`);
-      args.push(ws, me, ...ids);
+    const { resolveFolderScope } = await import('./groups-lines');
+    const scope = await resolveFolderScope(ws, me, query.folderId);
+    if (!scope) where.push('0 = 1');
+    else if (scope.kind === 'team') {
+      where.push(`c.id IN (SELECT ztf.chat_id FROM groups_chat_team_folders ztf WHERE ztf.user_id = ? AND ztf.folder_id IN (${scope.ids.map(() => '?').join(',')}))`);
+      args.push(ws, ...scope.ids);
+    } else {
+      where.push(`c.id IN (SELECT zcf.chat_id FROM groups_chat_folders zcf WHERE zcf.user_id = ? AND zcf.person_id = ? AND zcf.folder_id IN (${scope.ids.map(() => '?').join(',')}))`);
+      args.push(ws, me, ...scope.ids);
     }
   }
   if (query.teamId) {
@@ -1230,8 +1237,11 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     texts.map((text, i) => ({ accountId: text.includes('@') ? rows[Math.floor(i / 2)].number_id : '', text })),
     { someone: () => someoneWord(ws), self: mentionSelf('lines', ws) },
   ).catch(() => texts);
-  // En qué carpeta tiene cada chat quien pide (nunca la de otra persona).
-  const myFolders = rows.length ? await (await import('./groups-lines')).chatFoldersFor(ws, me, rows.map((r) => r.id)) : new Map<string, string>();
+  // En qué carpeta tiene cada chat quien pide (nunca la de otra persona) y en cuál del equipo está.
+  const { chatFoldersFor, teamFoldersFor } = await import('./groups-lines');
+  const [myFolders, teamFolders] = rows.length
+    ? await Promise.all([chatFoldersFor(ws, me, rows.map((r) => r.id)), teamFoldersFor(ws, rows.map((r) => r.id))])
+    : [new Map<string, string>(), new Map<string, string>()];
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
@@ -1241,6 +1251,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       return maskChat(query.viewer, {
         ...toChatDto(r, labels.get(r.id) ?? []),
         folderId: myFolders.get(r.id) ?? null,
+        teamFolderId: teamFolders.get(r.id) ?? null,
         lastDirection: dir || null,
         lastStatus: st || null,
         ...(r.kind === 'dm' && receiptsOff.has(r.number_id) ? { readHidden: true } : {}),
@@ -2497,7 +2508,9 @@ async function sendMediaMessage(
   }
   const captioned = CAPTIONED.has(kind);
   const caption = captioned ? body : '';
-  const visual = kind === 'image' || kind === 'video' || kind === 'sticker';
+  // Menciones en el pie (grupos), como en un texto: WhatsApp avisa a esas personas y el hilo muestra "@Nombre".
+  const mentions = caption ? cleanMentions(input.mentions, caption, chat.kind) : [];
+  const visual =kind === 'image' || kind === 'video' || kind === 'sticker';
   const info = compactInfo<MediaInfo>({
     kind,
     size,
@@ -2529,7 +2542,7 @@ async function sendMediaMessage(
     createdAt: at,
     forwarded: input.forwarded,
     clientId: input.clientId || null,
-    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}), ...(forward ? { fwd: forward.score } : {}) },
+    meta: { media: info, ...(input.clientId ? { cid: input.clientId } : {}), ...(forward ? { fwd: forward.score } : {}), ...(mentions.length ? { mentions } : {}) },
   });
   if (!reserved) {
     const already = input.clientId ? await messageByClientId(chat.id, input.clientId) : null;
@@ -2555,6 +2568,7 @@ async function sendMediaMessage(
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
       ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
       ...(forward ? { forward } : {}),
+      ...(mentions.length ? { mentions } : {}),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2621,7 +2635,10 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
     else if (cards.length && provider.sendContact) {
       providerId = (await provider.sendContact(chat.provider_chat_id, cards.map((c) => ({ name: c.name, phone: c.phones[0] ?? '' })))).id || null;
     } else if (row.media_url) {
-      const stored = parseJson<StoredMeta>(row.meta ?? '', {}).media;
+      const storedMeta = parseJson<StoredMeta>(row.meta ?? '', {});
+      const stored = storedMeta.media;
+      // El pie vuelve a mencionar a las mismas personas.
+      const mentions = row.body ? cleanMentions(storedMeta.mentions, row.body, chat.kind) : [];
       const bridged = provider.kind === 'evolution' || provider.kind === 'managed';
       const source = await outgoingMedia(ws, row.media_url, bridged);
       const kind = stored?.kind ?? planOutboundKind(row.media_type, source.size ?? stored?.size, null);
@@ -2640,6 +2657,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
             ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
             ...(forward ? { forward } : {}),
+            ...(mentions.length ? { mentions } : {}),
           })
         ).id || null;
     } else {

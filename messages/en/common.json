@@ -1406,6 +1406,208 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "cal": {
+      "intro": {
+        "title": "Welcome to Cal",
+        "body": "Cal gives you booking links so people pick a time that works for you. This tour points out the main parts."
+      },
+      "newEventType": {
+        "title": "Create an event type",
+        "body": "Each event type is a booking link with its own length, hours and questions. On this page, C creates one too."
+      },
+      "eventType": {
+        "title": "Share your link",
+        "body": "Copy the link to send it, open the page people see, or turn the switch off to stop taking bookings. Open the row to edit it."
+      },
+      "upcoming": {
+        "title": "Upcoming bookings",
+        "body": "The next meetings people booked with you show up here, with who booked and for what."
+      },
+      "bookings": {
+        "title": "Bookings",
+        "body": "Every booking, upcoming and past. From there you can reschedule, cancel or mark a no-show."
+      },
+      "availability": {
+        "title": "Availability",
+        "body": "Set your weekly hours and block days off. Your event types only offer times inside them."
+      },
+      "routing": {
+        "title": "Routing forms",
+        "body": "Ask a few questions before booking and send each person to the right event type, like sales or support."
+      },
+      "settings": {
+        "title": "Cal settings",
+        "body": "Your public link, your brand, your calendar connections and how you charge for bookings."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "send": {
+      "intro": {
+        "title": "Welcome to Send",
+        "body": "Send shares a document through a link and shows you who opened it and what they read. This tour points out the main parts."
+      },
+      "newDocument": {
+        "title": "Upload a document",
+        "body": "Upload a PDF, a Word file, slides or a video. The file stays private: people only see it through a link you make."
+      },
+      "openDocument": {
+        "title": "Open a document",
+        "body": "Click a document to make links for it and see who read it. The tour continues there."
+      },
+      "links": {
+        "title": "Make a link",
+        "body": "Make one link per person to know who read what. Each link can ask for an email or a passcode, expire on a date and allow downloads or not. It is copied when you create it."
+      },
+      "activity": {
+        "title": "See who read it",
+        "body": "Each visit shows who opened the document, from which link, how many pages they read and how long they spent on each one."
+      },
+      "sharing": {
+        "title": "Who in your team sees it",
+        "body": "Keep the document for you and the admins, or let the whole workspace see it with its links and numbers."
+      },
+      "spaces": {
+        "title": "Spaces",
+        "body": "Put several documents behind one link, like a data room, with numbers for each document."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "body": "Visits, readers and reading time across all your documents, compared with the previous period."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "talk": {
+      "intro": {
+        "title": "Welcome to Talk",
+        "body": "Talk is where your team chats: channels by topic, direct messages and threads. This tour points out the main parts."
+      },
+      "channels": {
+        "title": "Channels",
+        "body": "Each channel holds the conversation about a topic, a project or a team. Every workspace starts with #general. Use + to create one."
+      },
+      "dms": {
+        "title": "Direct messages",
+        "body": "Talk with one person or a small group outside the channels. Use + to start one."
+      },
+      "composer": {
+        "title": "Write a message",
+        "body": "Enter sends and Shift+Enter adds a line. Mention people with @, attach files or schedule the message. Type / for commands like /remind."
+      },
+      "threads": {
+        "title": "Threads",
+        "body": "Reply to a message in a thread (↩ in its actions) to keep the channel tidy. Replies in the threads you follow land here."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find messages across your channels. Narrow it with in:#channel, from:@person or has:link. Cmd+G brings you here."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "board": {
+      "intro": {
+        "title": "Welcome to Board",
+        "body": "Board is a whiteboard for sketches, diagrams and sticky notes. This tour points out the main parts."
+      },
+      "newBoard": {
+        "title": "Create a board",
+        "body": "Start a blank board here. Import, next to it, opens .excalidraw files."
+      },
+      "templates": {
+        "title": "Start from a template",
+        "body": "Retrospective, kanban, mind map, user flow and more. Pick one to get a board that is already laid out."
+      },
+      "organize": {
+        "title": "Find and organize",
+        "body": "Search boards by name or by what is on them, and group them in folders. Deleted boards wait in Trash."
+      },
+      "openBoard": {
+        "title": "Open a board",
+        "body": "Open any board in the list to start drawing."
+      },
+      "toolbar": {
+        "title": "Shapes and drawing",
+        "body": "Pick a shape, an arrow, text or the pen. Each tool has a key: R for a rectangle, A for an arrow, T for text."
+      },
+      "canvasTools": {
+        "title": "Stickies and more",
+        "body": "Add a sticky (N), highlight, insert a table, attach a file or show the minimap (M). With a sticky selected, Tab adds the next one."
+      },
+      "zoom": {
+        "title": "Zoom and undo",
+        "body": "Zoom in and out or undo from here. Scroll to move around the board, or hold Space and drag."
+      },
+      "workshop": {
+        "title": "Run a workshop",
+        "body": "Start a timer everyone sees, open a dot voting round on the stickies, or turn on private mode so ideas stay hidden until you reveal them. When the bar is narrow, Workshop is in the More menu."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Turn on a link so anyone can view the board, or create a guest link so someone can edit it without an account."
+      },
+      "shareTeam": {
+        "title": "Share with your team",
+        "body": "Everyone in the workspace can open a board, and you see each other's cursors. Here you can limit it to people you invite or share a link."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "N adds a sticky, M shows the minimap and Shift+1 fits everything on screen. Ctrl or Cmd and scroll zooms. Cmd+K finds any board."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "forms": {
+      "intro": {
+        "title": "Welcome to Forms",
+        "body": "Forms builds surveys, quizzes and contact forms, one question at a time or all on one page. This tour points out the main parts."
+      },
+      "newForm": {
+        "title": "Create a form",
+        "body": "Start from a template (contact, NPS, RSVP, quiz and more) or a blank form."
+      },
+      "filters": {
+        "title": "Search and filter",
+        "body": "Search forms by name and filter by status: published, draft or closed."
+      },
+      "openForm": {
+        "title": "Open a form",
+        "body": "Open any form in the list to edit its questions."
+      },
+      "questions": {
+        "title": "Questions",
+        "body": "Pick a question to edit it. Below the list you choose a type and add another one. Logic, Design and Languages are in the tabs above."
+      },
+      "publish": {
+        "title": "Publish",
+        "body": "Publish saves your changes and opens the form to responses. When you don't want more, close it from here."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Copy the link, change its address, embed the form on your site or as a popup button, or download a QR code."
+      },
+      "responses": {
+        "title": "Responses",
+        "body": "Every response in a table, with search, filters and CSV export. Summary, next to it, shows the totals for each question."
+      },
+      "access": {
+        "title": "Who can see it",
+        "body": "In Settings you choose whether everyone in the workspace sees the form and its responses, or only the people you pick."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Welcome to Lines",
@@ -1534,6 +1736,56 @@
       "shortcuts": {
         "title": "Keyboard shortcuts",
         "body": "N creates a note and / searches. Arrow keys move through the list. Cmd+K finds any note."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "docs": {
+      "intro": {
+        "title": "Welcome to Docs",
+        "body": "Docs holds your pages and wikis, with text, tables, databases and embeds, and saves as you type. This tour points out the main parts."
+      },
+      "newPage": {
+        "title": "Start a page",
+        "body": "Create a blank page here. Press C on this screen to do the same."
+      },
+      "templates": {
+        "title": "Templates",
+        "body": "Start from a ready-made page, like meeting notes or a project plan, or from one your workspace saved."
+      },
+      "pages": {
+        "title": "Your pages",
+        "body": "Every page shows up in this tree. Drag to reorder them, or nest one inside another as a subpage."
+      },
+      "search": {
+        "title": "Search",
+        "body": "Find any page by its title or its text. Press Cmd+P to search from anywhere in Docs."
+      },
+      "openPage": {
+        "title": "Open a page",
+        "body": "Open any page in the list to read and edit it."
+      },
+      "write": {
+        "title": "Write",
+        "body": "Click the title to rename the page. In the body, type / to add headings, lists, tables, images and more."
+      },
+      "comments": {
+        "title": "Comments",
+        "body": "Comment on the page or on one block, reply, and resolve the thread when it's settled."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Invite people to read, comment or edit, or publish the page with a link."
+      },
+      "pageMenu": {
+        "title": "More for this page",
+        "body": "Version history, export, lock the page, save it as a template or move it to the trash."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "C creates a page from the Docs home, Cmd+P searches pages and / adds a block. Cmd+K finds anything."
       },
       "done": {
         "title": "That's the tour",

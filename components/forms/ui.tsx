@@ -22,7 +22,14 @@ export function FormTabs({ id, active }: { id: string; active: 'build' | 'respon
   return (
     <nav className="ui-tabs fm-tabs" aria-label={t('tabs.label')}>
       {tabs.map((x) => (
-        <Link key={x.key} href={x.href} className="ui-tab" aria-current={active === x.key ? 'page' : undefined}>
+        <Link
+          key={x.key}
+          href={x.href}
+          className="ui-tab"
+          aria-current={active === x.key ? 'page' : undefined}
+          // Anclajes del tour de Forms (lib/tours/forms.ts).
+          data-tour={x.key === 'share' ? 'forms-share' : x.key === 'responses' ? 'forms-responses' : undefined}
+        >
           {t(`tabs.${x.key}`)}
         </Link>
       ))}

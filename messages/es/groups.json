@@ -877,6 +877,9 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "periskope_auth": "Periskope no aceptó la clave de API. Revisala y probá de nuevo.",
+    "periskope_rate_limited": "Periskope está limitando los pedidos. Esperá un minuto y probá de nuevo.",
+    "periskope_unavailable": "No se pudo llegar a Periskope. Probá de nuevo en un momento.",
     "too_many_stages": "Este tablero ya tiene el máximo de etapas (30).",
     "not_group_admin": "Solo los admins del grupo pueden hacer eso, y este número de WhatsApp no es admin del grupo.", "no_targets": "Elegí al menos una persona.",
     "pageTitle": "Esta página no cargó",
@@ -1721,6 +1724,23 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "chatSearch": {
+      "open": "Buscar mensajes",
+      "shortcut": "Ctrl+Mayús+F",
+      "title": "Buscar mensajes",
+      "close": "Cerrar búsqueda",
+      "placeholder": "Buscar en este chat",
+      "hint": "Buscar mensajes con {name}",
+      "searching": "Buscando…",
+      "error": "No se pudo buscar.",
+      "retry": "Reintentar",
+      "none": "No se encontraron mensajes",
+      "count": "{n, plural, one {# mensaje} other {# mensajes}}",
+      "countMore": "{n} mensajes o más",
+      "more": "Ver resultados anteriores",
+      "you": "Vos",
+      "note": "Nota"
+    },
     "info": {"title": "Info del mensaje", "close": "Cerrar", "readBy": "Leído por", "deliveredTo": "Entregado a", "playedBy": "Escuchado por", "read": "Leído", "delivered": "Entregado", "played": "Escuchado", "sent": "Enviado", "by": "Enviado por", "notYet": "Todavía no", "noTime": "Sin hora informada", "more": "{count} más", "less": "Ver menos", "nobody": "Todavía no se entregó a nadie.", "unavailable": "Esta línea todavía no informa quién recibió o leyó los mensajes del grupo.", "loading": "Cargando la info del mensaje", "error": "No se pudo cargar la info del mensaje.", "retry": "Reintentar", "today": "Hoy", "yesterday": "Ayer", "at": "{day}, {time}"},
     "events": {"someone": "Alguien", "createdMe": "Creaste el grupo «{subject}»", "created": "{by} creó el grupo «{subject}»", "createdUnknown": "Se creó el grupo «{subject}»", "createdMeNoName": "Creaste este grupo", "createdNoName": "{by} creó este grupo", "createdUnknownNoName": "Se creó este grupo", "addedYou": "{by} te agregó", "addedYouUnknown": "Te agregaron", "addedMe": "Agregaste a {who}", "added": "{by} agregó a {who}", "addedUnknown": "Se agregó a {who}", "removedYou": "{by} te sacó", "removedYouUnknown": "Te sacaron del grupo", "removedMe": "Sacaste a {who}", "removed": "{by} sacó a {who}", "removedUnknown": "Sacaron a {who}", "leftMe": "Saliste", "left": "{who} salió", "joinedMe": "Te uniste con el link de invitación", "joined": "{who} se unió con el link de invitación", "promotedYou": "Ahora sos admin", "promoted": "{who} ahora es admin", "demotedYou": "Ya no sos admin", "demoted": "{who} ya no es admin", "subjectMe": "Cambiaste el nombre del grupo a «{subject}»", "subject": "{by} cambió el nombre del grupo a «{subject}»", "subjectUnknown": "El grupo ahora se llama «{subject}»", "descriptionMe": "Cambiaste la descripción del grupo", "description": "{by} cambió la descripción del grupo", "descriptionUnknown": "Cambió la descripción del grupo", "iconMe": "Cambiaste la foto del grupo", "icon": "{by} cambió la foto del grupo", "iconUnknown": "Cambió la foto del grupo"},
     "newGroup": {"label": "Grupo nuevo", "members": "Grupo · {n, plural, one {# miembro} other {# miembros}}", "groupOnly": "Grupo", "addMembers": "Agregar miembros", "invite": "Invitar con link", "inviteCopied": "Link de invitación copiado", "description": "Agregar descripción", "info": "Info del grupo", "hint": "Saludá para arrancar la conversación."},
@@ -2156,6 +2176,20 @@
     "foldersEmpty": "Todavía no tenés carpetas. Creá una para ordenar tus chats. Tus carpetas son tuyas: nadie más las ve.",
     "createAndMove": "Crear y mover acá",
     "unfiled": "Sin carpeta",
+    "unfiledHint": "Chats que no están en ninguna carpeta tuya ni en ninguna del equipo: nadie los ordenó todavía.",
+    "unfiledShort": "Sin ordenar",
+    "unfileTeamTitle": "¿Sacarlo también de la carpeta del equipo “{name}” para todos?",
+    "unfileTeamBody": "Las carpetas del equipo son compartidas: todo el workspace deja de ver {n, plural, one {este chat} other {estos chats}} ahí. Tus carpetas cambian igual.",
+    "unfileTeamOnlyBody": "Las carpetas del equipo son compartidas: todo el workspace deja de ver {n, plural, one {este chat} other {estos chats}} ahí.",
+    "unfileTeamYes": "Sacar para todos",
+    "unfileTeamNo": "No, dejarlo ahí",
+    "teamFolders": "Equipo",
+    "myFolders": "Mías",
+    "newTeamFolder": "Nueva carpeta del equipo",
+    "newTeamSubfolder": "Nueva subcarpeta del equipo",
+    "deleteTeamFolderBody": "Sus subcarpetas también se borran. Los chats no se borran: salen de esta carpeta para todos. Las carpetas personales no cambian.",
+    "teamFoldersHelp": "Todo el workspace ve las carpetas del equipo y lo que hay en ellas.",
+    "teamFolderTag": "Carpeta del equipo",
     "unfiledEmpty": "Todos los chats están en una carpeta",
     "folderUnread": "{n, plural, one {# chat sin leer} other {# chats sin leer}}",
     "folderOptions": "Opciones de la carpeta {name}",
@@ -2165,6 +2199,11 @@
     "deleteFolderBody": "Sus subcarpetas también se borran. Los chats no se borran: vuelven a quedar sin carpeta.",
     "moveToFolder": "Mover a carpeta",
     "moveTitle": "Mover a carpeta",
+    "moveFilter": "Buscar carpetas",
+    "moveNoMatch": "Ninguna carpeta coincide.",
+    "moveCurrent": "Está acá",
+    "moveTeamHeading": "Carpetas del equipo",
+    "moveMineHeading": "Mis carpetas",
     "movedTo": "{n, plural, one {# chat movido a {name}} other {# chats movidos a {name}}}",
     "removedFromFolder": "{n, plural, one {# chat sacado de su carpeta} other {# chats sacados de su carpeta}}",
     "accessTitle": "Quién ve {name}",
@@ -2193,6 +2232,10 @@
     "allOwners": "Todos los dueños",
     "branch": {
       "branchEmpty": "Todavía no tenés carpetas. Las que crees las ves solo vos.",
+      "newTeam": "Carpeta del equipo nueva",
+      "teamEmpty": "Todavía no hay carpetas del equipo. Las que crees acá las ve todo el workspace.",
+      "teamLabel": "Carpetas del equipo",
+      "mineLabel": "Mis carpetas",
       "new": "Carpeta nueva",
       "collapse": "Plegar {name}",
       "expand": "Desplegar {name}",
@@ -2758,7 +2801,9 @@
     "until": "Pospuesto hasta {when}"
   },
   "migrate": {
-    "intro": "Traé de Periskope las etiquetas, las respuestas rápidas y el orden de tus chats. Los mensajes vienen de WhatsApp al conectar cada línea por QR, no del archivo. Esta importación es parcial: Periskope no publica las columnas de sus exports, así que leemos los nombres comunes y te decimos qué quedó afuera.",
+    "intro": "Traé tu trabajo de Periskope a Lines. Los mensajes vienen de WhatsApp al conectar cada línea por QR; esta importación suma lo que Periskope guarda encima de ellos.",
+    "csvTitle": "Importar archivos CSV",
+    "api": {"title": "Importar con la API de Periskope", "step2": "En Periskope, abrí Settings › Integrations › API y generá una clave de API.", "step3": "Pegá la clave acá, revisá la vista previa e importá. Podés volver a importar después: lo que ya está no se duplica.", "key": "Clave de la API de Periskope", "keyHelp": "Se usa solo para esta importación. No se guarda.", "working": "Leyendo tu cuenta de Periskope. Puede tardar hasta un minuto.", "previewTitle": "Esto es lo que se importaría:", "doneTitle": "Importado:", "chats": "Chats: {applied} de {rows} con etiquetas, asignado o propiedades", "contacts": "Contactos: {applied} de {rows} con etiquetas", "tickets": "Tickets: {applied} de {found} ({existing} ya estaban)", "notes": "Notas privadas: {applied} de {found} ({existing} ya estaban)", "created": "Etiquetas nuevas: {labels}. Propiedades nuevas: {properties}.", "truncated": "Tu cuenta tiene más de lo que entra en una corrida. Importá de nuevo para seguir.", "issue": "{n} × {reason}"},
     "step1": "Conectá tus líneas por QR en la pestaña Números y esperá a que se importen los chats.",
     "step2": "En Periskope, exportá la lista de chats o un CSV de Analytics › Data Exports. Para etiquetas y respuestas rápidas, usá una planilla con Nombre y Color, o Comando y Mensaje.",
     "step3": "Subí cada archivo acá, revisá la vista previa e importá.",
@@ -2797,7 +2842,8 @@
       "invalid_phone": "teléfono inválido",
       "chat_not_found": "el chat todavía no está en Lines",
       "unknown_assignee": "la persona asignada no está en el workspace",
-      "not_applied": "no se pudo aplicar (revisá el acceso por línea)"
+      "not_applied": "no se pudo aplicar (revisá el acceso por línea)",
+      "invalid_value": "un valor de propiedad no coincide con sus opciones"
     }
   },
   "kanban": {

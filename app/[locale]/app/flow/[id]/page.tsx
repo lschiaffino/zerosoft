@@ -9,6 +9,7 @@ import { listTables } from '@/lib/flow-tables';
 import { listFolders } from '@/lib/flow-folders';
 import { listVariables } from '@/lib/flow-variables';
 import { listRobots } from '@/lib/robots';
+import { listProjects } from '@/lib/track-data';
 import { canEditFlows, runViewer } from '@/lib/flow-http';
 import FlowEditor from '@/components/flow/FlowEditor';
 
@@ -26,7 +27,7 @@ export default async function FlowEditorPage(props: {
   const flow = await getFlow(user.id, id, user.actingUser?.id ?? user.id);
   if (!flow) notFound();
   const canEdit = canEditFlows(user);
-  const [credentials, flows, agents, robots, tables, folders, variables] = await Promise.all([
+  const [credentials, flows, agents, robots, tables, folders, variables, trackProjects] = await Promise.all([
     listCredentials(user.id),
     listFlows(user.id),
     listAgentOptions(user.id),
@@ -34,6 +35,8 @@ export default async function FlowEditorPage(props: {
     listTables(user.id),
     listFolders(user.id),
     listVariables(user.id, user.actingUser?.id ?? user.id),
+    // Los mismos teams que ve la persona en Track (el paso igual valida el acceso al correr).
+    listProjects(user.team?.id ?? null, user.id, { pageSize: 100 }).then((r) => r.rows),
   ]);
   return (
     <FlowEditor
@@ -55,6 +58,7 @@ export default async function FlowEditorPage(props: {
           inputs: r.inputs.map((d) => ({ name: d.name, label: d.label, required: d.required, default: d.default })),
         })),
         tables: tables.map((x) => ({ id: x.id, name: x.name, columns: x.columns })),
+        trackProjects: trackProjects.map((x) => ({ id: x.id, name: x.name, slug: x.slug })),
         codeAvailable: flowCodeAvailable(),
       }}
     />

@@ -286,7 +286,7 @@ export interface SidebarLabels {
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Time (Harvest): hoja de horas, proyectos y reportes. */
-  time: { timesheet: string; projects: string; reports: string; track: string };
+  time: { timesheet: string; projects: string; approvals: string; reports: string; track: string };
   /** Fleet: tablero de agentes, chats, PRs y deploys. */
   fleet: { now: string; chats: string; prs: string; deploys: string; connect: string };
   /** Sign (DocuSign): sobres, plantillas. */
@@ -678,12 +678,18 @@ export function buildNav(
           section: labels.records,
           items: [
             { href: '/app/calendar/event-types', label: labels.calendar.eventTypes, active: at('/app/calendar/event-types'), icon: 'tasks' },
-            { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists' },
+            { href: '/app/calendar/routing', label: labels.calendar.routing, active: at('/app/calendar/routing'), icon: 'lists', tour: 'cal-routing' },
             ...(labels.calendar.polls
               ? [{ href: '/app/calendar/polls', label: labels.calendar.polls, active: at('/app/calendar/polls'), icon: 'insights' as const }]
               : []),
-            { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts' },
-            { href: '/app/calendar/availability', label: labels.calendar.availability, active: at('/app/calendar/availability'), icon: 'myTasks' },
+            { href: '/app/calendar/bookings', label: labels.calendar.bookings, active: at('/app/calendar/bookings'), icon: 'contacts', tour: 'cal-bookings' },
+            {
+              href: '/app/calendar/availability',
+              label: labels.calendar.availability,
+              active: at('/app/calendar/availability'),
+              icon: 'myTasks',
+              tour: 'cal-availability',
+            },
           ],
         },
         {
@@ -694,7 +700,7 @@ export function buildNav(
         },
         {
           items: [
-            { href: '/app/calendar/settings', label: labels.calendar.settings, active: at('/app/calendar/settings'), icon: 'settings' },
+            { href: '/app/calendar/settings', label: labels.calendar.settings, active: at('/app/calendar/settings'), icon: 'settings', tour: 'cal-settings' },
           ],
         },
       ];
@@ -1058,6 +1064,7 @@ export function buildNav(
           items: [
             { href: '/app/time', label: labels.time.timesheet, active: pathname === '/app/time', icon: 'clock' },
             { href: '/app/time/projects', label: labels.time.projects, active: at('/app/time/projects'), icon: 'folder' },
+            { href: '/app/time/approvals', label: labels.time.approvals, active: at('/app/time/approvals'), icon: 'check' },
             { href: '/app/time/reports', label: labels.time.reports, active: at('/app/time/reports'), icon: 'reports' },
           ],
         },
@@ -1069,12 +1076,13 @@ export function buildNav(
         {
           items: [
             { href: '/app/send', label: labels.send.documents, active: pathname === '/app/send' || at('/app/send/documents') || at('/app/send/new'), icon: 'send' },
-            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder' },
+            // Anclajes del tour de Send (lib/tours/send.ts).
+            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder', tour: 'send-spaces' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/send/analytics', label: labels.send.analytics, active: at('/app/send/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/send/analytics', label: labels.send.analytics, active: at('/app/send/analytics'), icon: 'reports', tour: 'send-analytics' }],
         },
         appSettingsGroup('/app/send/settings'),
       ];
