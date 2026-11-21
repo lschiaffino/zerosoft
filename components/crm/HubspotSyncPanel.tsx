@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import HubspotInboundSync from './HubspotInboundSync';
+import HubspotOutboundSync from './HubspotOutboundSync';
 import { HubspotKeyHelp, HubspotKeySummary, HubspotMissingScopes, HubspotScopeList } from '@/components/hubspot/HubspotKeyHelp';
 import type { HubspotSyncStatus } from '@/lib/crm-hubspot-sync/connection';
 import {
@@ -22,11 +23,10 @@ import {
 
 /**
  * CRM › Ajustes › Integraciones › Sync con HubSpot: conectar la cuenta (S1),
- * traer HubSpot al CRM y mantenerlo al día (S2, HubspotInboundSync) y ver qué
+ * traer HubSpot al CRM y mantenerlo al día (S2, HubspotInboundSync), escribir
+ * lo de acá en HubSpot (S3, HubspotOutboundSync, apagado por defecto) y ver qué
  * haría un sync antes de escribir nada (la vista previa). Solo admins: el
  * informe muestra registros de todo el workspace.
- *
- * Todavía no se escribe nada en HubSpot: eso llega en el bloque siguiente.
  */
 
 const API = '/api/crm/hubspot-sync';
@@ -121,7 +121,10 @@ export default function HubspotSyncPanel({ canAdmin, locale }: { canAdmin: boole
         }}
       />
       {status.connected ? (
-        <HubspotInboundSync key={`${status.portalId}:${status.checkedAt ?? ''}`} locale={locale} />
+        <>
+          <HubspotInboundSync key={`${status.portalId}:${status.checkedAt ?? ''}`} locale={locale} />
+          <HubspotOutboundSync key={`out:${status.portalId}:${status.checkedAt ?? ''}`} locale={locale} />
+        </>
       ) : (
         <div className="hsync-state" data-testid="hubspot-sync-off">
           <p className="hsync-state-title">{t('off.title')}</p>
