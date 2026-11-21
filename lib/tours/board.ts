@@ -14,10 +14,12 @@ import type { TourDef } from './index';
  *   board-zoom          components/board/ExcalidrawCanvas.tsx (zoom y deshacer de Excalidraw, marcados desde el DOM)
  *   board-canvas-tools  components/board/BoardCanvasTools.tsx (sticky, resaltador, tabla, archivo, minimapa)
  *   board-workshop      components/board/BoardWorkshop.tsx (temporizador y votación)
+ *   board-more          components/board/BoardEditor.tsx (menú "Más" de la barra, vía RowMenu tour=)
  *   board-share         components/board/BoardEditor.tsx (Compartir)
  * Equipo: el taller y compartir con el workspace; sola: compartir por link.
- * En el teléfono el taller pasa al menú "Más": su paso se saltea. Sin
- * pizarras, abrir una y los pasos del lienzo se saltean.
+ * En el teléfono Excalidraw no muestra zoom ni nuestras herramientas del
+ * lienzo: esos pasos se saltean. Sin pizarras, abrir una y los pasos del
+ * lienzo se saltean.
  */
 export const BOARD_TOUR = {
   key: 'board',
@@ -32,7 +34,8 @@ export const BOARD_TOUR = {
     { id: 'toolbar', targets: ['board-toolbar'] },
     { id: 'canvasTools', targets: ['board-canvas-tools'] },
     { id: 'zoom', targets: ['board-zoom'] },
-    { id: 'workshop', targets: ['board-workshop'], audience: 'team' },
+    // Con la barra angosta (casi siempre con el lateral abierto, y en el teléfono) el taller está en "Más".
+    { id: 'workshop', targets: ['board-workshop', 'board-more'], audience: 'team' },
     { id: 'share', targets: ['board-share'], audience: 'solo' },
     { id: 'shareTeam', targets: ['board-share'], audience: 'team' },
     { id: 'shortcuts' },

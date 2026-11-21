@@ -1441,7 +1441,7 @@
       },
       "workshop": {
         "title": "Run a workshop",
-        "body": "Start a timer everyone sees, open a dot voting round on the stickies, or turn on private mode so ideas stay hidden until you reveal them."
+        "body": "Start a timer everyone sees, open a dot voting round on the stickies, or turn on private mode so ideas stay hidden until you reveal them. When the bar is narrow, Workshop is in the More menu."
       },
       "share": {
         "title": "Share",

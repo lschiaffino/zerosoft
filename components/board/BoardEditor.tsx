@@ -1316,6 +1316,7 @@ export default function BoardEditor({
           // (CSS por ancho del editor); el título y el estado no se achican.
           <RowMenu
             className="board-bar-more"
+            tour="board-more"
             open={moreOpen}
             label={t('editor.more')}
             onToggle={setMoreOpen}

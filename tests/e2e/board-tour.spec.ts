@@ -212,7 +212,9 @@ test('equipo: suma el taller y compartir con el workspace; "No mostrar más tour
     }
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'workshop');
-    await cardBesideTarget(p, 'board-workshop', 'workshop');
+    // El botón Taller, o el menú "Más" cuando la barra es angosta (con el lateral abierto).
+    const workshopAnchor = (await p.locator('[data-tour="board-workshop"]').filter({ visible: true }).count()) ? 'board-workshop' : 'board-more';
+    await cardBesideTarget(p, workshopAnchor, 'workshop');
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'shareTeam');
     await cardBesideTarget(p, 'board-share', 'shareTeam');
@@ -293,10 +295,7 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en
       await stepIs(p, 'toolbar');
       await cardBesideTarget(p, 'board-toolbar', `${look} toolbar`);
       await noHorizontalScroll(p, `${look} toolbar`);
-      await p.getByTestId('tour-next').click();
-      await stepIs(p, 'canvasTools');
-      await cardBesideTarget(p, 'board-canvas-tools', `${look} canvasTools`);
-      // En el teléfono Excalidraw no muestra la barra de zoom: sigue compartir.
+      // En el teléfono Excalidraw usa la franja de abajo: sin herramientas propias ni barra de zoom, sigue compartir.
       await p.getByTestId('tour-next').click();
       await stepIs(p, 'share');
       await cardBesideTarget(p, 'board-share', `${look} share`);

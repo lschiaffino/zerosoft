@@ -14,12 +14,15 @@ export default function RowMenu({
   onToggle,
   items,
   className = '',
+  tour,
 }: {
   open: boolean;
   label: string;
   onToggle: (open: boolean) => void;
   items: Array<{ label: string; onSelect: () => void; danger?: boolean; className?: string }>;
   className?: string;
+  /** Anclaje de un tour guiado (data-tour, ver lib/tours). */
+  tour?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +60,7 @@ export default function RowMenu({
   }
 
   return (
-    <div className={`row-menu-wrap ${className}`.trim()} ref={wrapRef}>
+    <div className={`row-menu-wrap ${className}`.trim()} ref={wrapRef} data-tour={tour}>
       <button
         ref={buttonRef}
         type="button"
