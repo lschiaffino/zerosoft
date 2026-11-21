@@ -37,6 +37,21 @@ export interface OutgoingFile {
   gif?: boolean;
   width?: number;
   height?: number;
+  /** Grupos: teléfonos mencionados como "@<teléfono>" en el pie (foto, video o documento). */
+  mentions?: string[];
+}
+
+/** Menciones del pie que valen: solo en grupos, en un tipo con pie, y cada teléfono escrito como "@<teléfono>". */
+export function captionMentions(raw: unknown, caption: string, group: boolean, kind: MediaKind): string[] {
+  if (!group || !caption.includes('@') || !(kind === 'image' || kind === 'video' || kind === 'document') || !Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const p of raw) {
+    if (typeof p !== 'string' || !/^\d{6,16}$/.test(p) || out.includes(p)) continue;
+    if (!new RegExp(`(^|[^\\w@])@${p}(?!\\d)`).test(caption)) continue;
+    out.push(p);
+    if (out.length >= 50) break;
+  }
+  return out;
 }
 
 /**
@@ -127,6 +142,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     replyExternal = q.external_id;
   }
   const gif = kind === 'video' && f.gif === true;
+  const mentions = captionMentions(f.mentions, caption, thread.kind === 'group', kind);
   let id = '';
   try {
     const p = waProviderFor(account);
@@ -140,6 +156,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
         ...(f.data ? { base64: f.data.toString('base64') } : {}),
         ...(replyExternal ? { replyTo: replyExternal } : {}),
         ...(gif ? { gifPlayback: true } : {}),
+        ...(mentions.length ? { mentions } : {}),
       })
     ).id;
   } catch (err) {
@@ -153,6 +170,8 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
   if (kind === 'voice') meta.ptt = true;
   if (f.duration && Number.isFinite(f.duration)) meta.duration = Math.round(f.duration);
   if (gif) meta.animated = true;
+  // Como las que llegan (contextInfo.mentionedJid): el hilo muestra "@Nombre".
+  if (mentions.length) meta.mentions = mentions;
   if ((kind === 'video' || kind === 'image') && f.width && f.height) Object.assign(meta, { width: Math.round(f.width), height: Math.round(f.height) });
   const externalId = id || `local-${Date.now()}`;
   await addMessage(thread, {

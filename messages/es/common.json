@@ -1498,6 +1498,48 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "forms": {
+      "intro": {
+        "title": "Te damos la bienvenida a Forms",
+        "body": "Forms arma encuestas, quizzes y formularios de contacto, de a una pregunta o todo en una página. Este tour te muestra las partes principales."
+      },
+      "newForm": {
+        "title": "Creá un formulario",
+        "body": "Empezá con una plantilla (contacto, NPS, confirmación de asistencia, quiz y más) o con un formulario en blanco."
+      },
+      "filters": {
+        "title": "Buscá y filtrá",
+        "body": "Buscá formularios por nombre y filtrá por estado: publicados, borradores o cerrados."
+      },
+      "openForm": {
+        "title": "Abrí un formulario",
+        "body": "Abrí cualquier formulario de la lista para editar sus preguntas."
+      },
+      "questions": {
+        "title": "Las preguntas",
+        "body": "Elegí una pregunta para editarla. Debajo de la lista elegís el tipo y agregás otra. Lógica, Diseño e Idiomas están en las pestañas de arriba."
+      },
+      "publish": {
+        "title": "Publicar",
+        "body": "Publicar guarda los cambios y abre el formulario a respuestas. Cuando ya no querés recibir más, lo cerrás desde acá."
+      },
+      "share": {
+        "title": "Compartir",
+        "body": "Copiá el link, cambiá la dirección, insertalo en tu sitio o como botón emergente, o bajá un código QR."
+      },
+      "responses": {
+        "title": "Respuestas",
+        "body": "Cada respuesta en una tabla, con búsqueda, filtros y exportación a CSV. Resumen, al lado, muestra los totales por pregunta."
+      },
+      "access": {
+        "title": "Quién lo ve",
+        "body": "En Ajustes elegís si el formulario y sus respuestas los ve todo el workspace o solo las personas que elijas."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Te damos la bienvenida a Lines",

@@ -520,6 +520,17 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     s.sent.push({ chatId, text, kind, at: Date.now(), ...(media ? { media } : {}) });
     return { id: `fake-out-${randomUUID()}` };
   };
+  /** Lo que mandaría Evolution con menciones (texto o pie, y los JIDs), según cómo direcciona el grupo (lib/wa-mention-jids.ts). */
+  const fakeMentionWire = (chatId: string, text: string, mentions: string[]) => {
+    const g = chatId.endsWith('@g.us') ? s.groups.get(chatId) : undefined;
+    const members = g
+      ? [
+          ...g.participants.map((p) => ({ phone: p.phone, lid: findContact(s, { phone: p.phone })?.lid })),
+          ...(g.lids ?? []).map((lid) => ({ phone: findContact(s, { lid })?.phone ?? '', lid })),
+        ]
+      : [];
+    return waMentionPayload(text, mentions, g ? { addressing: g.addressing ?? 'pn', members } : null);
+  };
 
   async function state(): Promise<ConnectState> {
     if (s.connectedAt === null) return { status: 'disconnected' };
@@ -581,14 +592,7 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       const r = send(chatId, text, 'text');
       if (o?.forward) s.sent[s.sent.length - 1].forward = evolutionForward(o.forward).forward;
       if (o?.mentions?.length) {
-        const g = chatId.endsWith('@g.us') ? s.groups.get(chatId) : undefined;
-        const members = g
-          ? [
-              ...g.participants.map((p) => ({ phone: p.phone, lid: findContact(s, { phone: p.phone })?.lid })),
-              ...(g.lids ?? []).map((lid) => ({ phone: findContact(s, { lid })?.phone ?? '', lid })),
-            ]
-          : [];
-        const wire = waMentionPayload(text, o.mentions, g ? { addressing: g.addressing ?? 'pn', members } : null);
+        const wire = fakeMentionWire(chatId, text, o.mentions);
         Object.assign(s.sent[s.sent.length - 1], { mentions: [...o.mentions], mentioned: wire.mentioned, mentionText: wire.text });
         // El id del mensaje lleva los JIDs mencionados: así un e2e (otro proceso) los ve en la base, en provider_message_id.
         return { id: `${r.id}~${wire.mentioned.join(',')}` };
@@ -598,6 +602,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
       if (media.forward) s.sent[s.sent.length - 1].forward = evolutionForward(media.forward).forward;
+      if (media.caption && media.mentions?.length && media.kind !== 'sticker' && media.kind !== 'voice' && media.kind !== 'audio') {
+        // Menciones en el pie, como Evolution (sendMedia con `mentioned`): el id lleva los JIDs, igual que en sendText.
+        const wire = fakeMentionWire(chatId, media.caption, media.mentions);
+        Object.assign(s.sent[s.sent.length - 1], { mentions: [...media.mentions], mentioned: wire.mentioned, mentionText: wire.text });
+        return { id: `${r.id}~${wire.mentioned.join(',')}` };
+      }
       return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
     },
     react: async (chatId, _id, emoji) => {

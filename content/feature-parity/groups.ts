@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-20',
+  lastReviewed: '2026-11-21',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -210,9 +210,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
       detail: [
-        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Messages sent later and recurring messages to one group keep their mentions. Not in file captions yet. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Los mensajes programados y los recurrentes a un solo grupo mantienen sus menciones. Todavía no en los comentarios de archivos. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções. Ainda não nas legendas de arquivos. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Messages sent later and recurring messages to one group keep their mentions, and so do the captions of photos, videos and documents. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Los mensajes programados y los recurrentes a un solo grupo mantienen sus menciones, y también el pie de fotos, videos y documentos. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções, e também a legenda de fotos, vídeos e documentos. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list and restore it from Deleted', 'Archivar chats con la sección Archivados, eliminar un chat de la lista y recuperarlo desde Eliminados', 'Arquivar conversas com a seção Arquivadas, apagar uma conversa da lista e recuperá-la em Apagadas'], 'have', {

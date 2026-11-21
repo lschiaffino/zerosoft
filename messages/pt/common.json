@@ -1498,6 +1498,48 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "forms": {
+      "intro": {
+        "title": "Boas-vindas ao Forms",
+        "body": "O Forms monta pesquisas, quizzes e formulários de contato, uma pergunta por vez ou tudo em uma página. Este tour mostra as partes principais."
+      },
+      "newForm": {
+        "title": "Crie um formulário",
+        "body": "Comece com um modelo (contato, NPS, confirmação de presença, quiz e mais) ou com um formulário em branco."
+      },
+      "filters": {
+        "title": "Busque e filtre",
+        "body": "Busque formulários pelo nome e filtre por status: publicados, rascunhos ou encerrados."
+      },
+      "openForm": {
+        "title": "Abra um formulário",
+        "body": "Abra qualquer formulário da lista para editar as perguntas."
+      },
+      "questions": {
+        "title": "As perguntas",
+        "body": "Escolha uma pergunta para editá-la. Abaixo da lista você escolhe o tipo e adiciona outra. Lógica, Design e Idiomas ficam nas abas de cima."
+      },
+      "publish": {
+        "title": "Publicar",
+        "body": "Publicar salva as alterações e abre o formulário para respostas. Quando não quiser receber mais, encerre por aqui."
+      },
+      "share": {
+        "title": "Compartilhar",
+        "body": "Copie o link, mude o endereço, incorpore o formulário no seu site ou como botão pop-up, ou baixe um código QR."
+      },
+      "responses": {
+        "title": "Respostas",
+        "body": "Cada resposta numa tabela, com busca, filtros e exportação para CSV. Resumo, ao lado, mostra os totais de cada pergunta."
+      },
+      "access": {
+        "title": "Quem pode ver",
+        "body": "Em Configurações você escolhe se todo o workspace vê o formulário e as respostas, ou só as pessoas que você escolher."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Boas-vindas ao Lines",
