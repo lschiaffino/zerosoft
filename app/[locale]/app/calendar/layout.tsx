@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import CalOffline from '@/components/calendar/CalOffline';
+import AppTour from '@/components/tour/AppTour';
 import '@/styles/calendar.css';
 
 /**
@@ -15,6 +16,10 @@ export default async function CalendarLayout(props: { children: ReactNode; param
       <div className="cal-app">
         <CalOffline>{props.children}</CalOffline>
       </div>
+      {/* Tour guiado de Cal (lib/tours/cal.ts): la primera vez, y desde el menú de la cuenta. */}
+      <Suspense fallback={null}>
+        <AppTour tour="cal" />
+      </Suspense>
     </ClientMessages>
   );
 }

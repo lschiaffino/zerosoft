@@ -1406,6 +1406,44 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "cal": {
+      "intro": {
+        "title": "Te damos la bienvenida a Cal",
+        "body": "Cal te da links de reserva para que la gente elija un horario que te sirva. Este tour te muestra las partes principales."
+      },
+      "newEventType": {
+        "title": "Creá un tipo de evento",
+        "body": "Cada tipo de evento es un link de reserva con su duración, sus horarios y sus preguntas. En esta página, la tecla C también crea uno."
+      },
+      "eventType": {
+        "title": "Compartí tu link",
+        "body": "Copiá el link para mandarlo, abrí la página que ve la gente o apagá el interruptor para dejar de recibir reservas. Abrí la fila para editarlo."
+      },
+      "upcoming": {
+        "title": "Próximas reservas",
+        "body": "Acá aparecen las próximas reuniones que la gente reservó con vos, con quién reservó y para qué."
+      },
+      "bookings": {
+        "title": "Reservas",
+        "body": "Todas las reservas, las próximas y las pasadas. Desde ahí podés reprogramar, cancelar o marcar que alguien no vino."
+      },
+      "availability": {
+        "title": "Disponibilidad",
+        "body": "Elegí tus horarios de la semana y bloqueá los días libres. Tus tipos de evento solo ofrecen horarios dentro de esos."
+      },
+      "routing": {
+        "title": "Formularios de ruteo",
+        "body": "Hacé unas preguntas antes de reservar y mandá a cada persona al tipo de evento que corresponde, como ventas o soporte."
+      },
+      "settings": {
+        "title": "Ajustes de Cal",
+        "body": "Tu link público, tu marca, las conexiones con tus calendarios y cómo cobrás las reservas."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "board": {
       "intro": {
         "title": "Te damos la bienvenida a Board",
