@@ -59,7 +59,8 @@ test('Ajustes › Datos: grupo, descripción y valor único de una propiedad (12
     const item = page.locator(`[data-testid="cf-item"][data-field="${field.name}"]`);
     await expect(item).toBeVisible();
     await expect(item.getByTestId('cf-group')).toHaveValue(`Billing ${tag}`);
-    await expect(item.getByTestId('cf-description')).toHaveValue(`Purchase order ${tag}`);
+    // A 390 ya tiene la descripción que se cambió a 1280.
+    await expect(item.getByTestId('cf-description')).toHaveValue(width === 1280 ? `Purchase order ${tag}` : `PO number from the buyer ${tag}`);
 
     if (width === 1280) {
       // Cambiar la descripción guarda al salir del campo.

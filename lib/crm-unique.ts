@@ -53,6 +53,19 @@ export function uniqueKey(type: string, value: unknown): number | string | null 
   return s ? s : null;
 }
 
+/**
+ * Valor numérico del campo (6 parámetros: el path). Un número guardado como
+ * texto ("123", p. ej. desde la API) cuenta igual que 123; un texto que no es
+ * número da NULL.
+ */
+function numberKeySql(): string {
+  return `(CASE
+    WHEN json_type(custom, ?) IN ('integer', 'real') THEN json_extract(custom, ?)
+    WHEN json_type(custom, ?) = 'text' AND trim(json_extract(custom, ?)) GLOB '*[0-9]*'
+      AND NOT trim(json_extract(custom, ?)) GLOB '*[^-+0-9.eE]*' THEN CAST(trim(json_extract(custom, ?)) AS REAL)
+  END)`;
+}
+
 /** Path JSON del campo dentro de `custom` (los nombres son [a-z][a-z0-9_]*). */
 function jsonPath(name: string): string {
   return `$."${name.replace(/"/g, '')}"`;
@@ -87,10 +100,9 @@ export async function assertUniqueCustom(
       typeof key === 'number'
         ? await db
             .prepare(
-              `SELECT 1 FROM ${table} WHERE user_id = ? AND id != ?
-                 AND json_type(custom, ?) IN ('integer', 'real') AND json_extract(custom, ?) = ? LIMIT 1`,
+              `SELECT 1 FROM ${table} WHERE user_id = ? AND id != ? AND ${numberKeySql()} = ? LIMIT 1`,
             )
-            .get(userId, recordId ?? '', path, path, key)
+            .get(userId, recordId ?? '', path, path, path, path, path, path, key)
         : await db
             .prepare(
               `SELECT 1 FROM ${table} WHERE user_id = ? AND id != ?
@@ -135,15 +147,15 @@ export async function hasDuplicateValues(
   db: Db = getDb(),
 ): Promise<boolean> {
   const path = jsonPath(field.name);
-  const keyExpr =
-    field.type === 'number'
-      ? `CASE WHEN json_type(custom, ?) IN ('integer', 'real') THEN json_extract(custom, ?) END`
-      : `CASE WHEN json_type(custom, ?) IN ('text', 'integer', 'real') THEN NULLIF(lower(trim(json_extract(custom, ?))), '') END`;
+  const number = field.type === 'number';
+  const keyExpr = number
+    ? numberKeySql()
+    : `CASE WHEN json_type(custom, ?) IN ('text', 'integer', 'real') THEN NULLIF(lower(trim(json_extract(custom, ?))), '') END`;
   const row = await db
     .prepare(
       `SELECT k FROM (SELECT ${keyExpr} AS k FROM ${TABLE[entity]} WHERE user_id = ?)
        WHERE k IS NOT NULL GROUP BY k HAVING COUNT(*) > 1 LIMIT 1`,
     )
-    .get(path, path, userId);
+    .get(...(number ? [path, path, path, path, path, path] : [path, path]), userId);
   return !!row;
 }

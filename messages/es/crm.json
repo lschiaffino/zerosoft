@@ -1097,7 +1097,7 @@
     "fieldGroup": "Grupo",
     "fieldDescription": "Descripción",
     "fieldUnique": "Valor único",
-    "fieldUniqueHelp": "Dos registros de este objeto no pueden tener el mismo valor",
+    "fieldUniqueHelp": "Dos registros de este objeto no pueden tener el mismo valor. Quien puede editar la propiedad se entera de que un valor ya está usado, aunque sea en registros que no ve",
     "fieldUniqueAdmin": "Solo los dueños y admins del workspace pueden cambiarlo",
     "fieldDescriptionHint": "Se ve debajo del nombre en la ficha",
     "fieldGroupHint": "Ninguno"

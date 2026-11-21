@@ -3,7 +3,7 @@ import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } fr
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getDeal, updateDeal, deleteDeal } from '@/lib/crm';
 import { dealUpdateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fp = await guardRecordCustomWrite(fieldViewer, 'deal', params.id, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
   const deal = await catchRef(updateDeal(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, auth.user.email));
-  if (deal instanceof CrmRefError) return apiError(400, deal.code, 'A referenced record does not exist.');
+  if (deal instanceof CrmRefError) return apiError(400, deal.code, refErrorMessage(deal.code));
   if (!deal) return apiError(404, 'not_found', 'Deal not found.');
   return NextResponse.json(cleanRow(redactRow(deal, await hiddenFieldsFor(fieldViewer, 'deals'))));
 }

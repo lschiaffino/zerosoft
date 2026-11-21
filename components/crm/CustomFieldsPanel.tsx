@@ -137,7 +137,7 @@ export default function CustomFieldsPanel({ initialFields, entities, canEditUniq
     id: string,
     patch: { label?: string; options?: string[]; group?: string; description?: string; isUnique?: boolean },
   ) {
-    if (busy) return;
+    // Sin cortar por `busy`: un blur mientras otro guardado está en vuelo no se pierde.
     setBusy(true);
     const { status, data } = await api(`/api/crm/custom-fields/${id}`, {
       method: 'PATCH',

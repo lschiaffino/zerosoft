@@ -1097,7 +1097,7 @@
     "fieldGroup": "Group",
     "fieldDescription": "Description",
     "fieldUnique": "Unique value",
-    "fieldUniqueHelp": "Two records of this object cannot have the same value",
+    "fieldUniqueHelp": "Two records of this object cannot have the same value. Whoever can edit the property learns when a value is already used, even on records they cannot see",
     "fieldUniqueAdmin": "Only workspace owners and admins can change this",
     "fieldDescriptionHint": "Shown under the name on the record",
     "fieldGroupHint": "None"

@@ -372,3 +372,26 @@ describe('historial de propiedades con los permisos de la ficha', () => {
     expect((await get('contact', mine.id)).status).toBe(401);
   });
 });
+
+describe('valor único: revisión', () => {
+  it('un número guardado como texto cuenta igual que el número', async () => {
+    const ws = (await makeUser('d2-numtext')).id;
+    await createCustomField(ws, { entity: 'contacts', name: 'ext', label: 'Ext', type: 'number', isUnique: true });
+    await createContact(ws, { firstName: 'A', custom: { ext: '123' } });
+    expect(await rejection(createContact(ws, { firstName: 'B', custom: { ext: 123 } }))).toBeInstanceOf(CrmUniqueValueError);
+    expect(await rejection(createContact(ws, { firstName: 'C', custom: { ext: ' 123 ' } }))).toBeInstanceOf(CrmUniqueValueError);
+    expect(await createContact(ws, { firstName: 'D', custom: { ext: 0 } })).toMatchObject({ first_name: 'D' });
+  });
+
+  it('import: la fila con valor repetido no deja creada su empresa', async () => {
+    const ws = (await makeUser('d2-import-co')).id;
+    await createCustomField(ws, { entity: 'contacts', name: 'vat', label: 'VAT', type: 'text', isUnique: true });
+    await createContact(ws, { firstName: 'X', custom: { vat: 'CO-1' } });
+    const res = await importContacts(ws, [{ email: 'fila@import.test', companyName: 'Empresa Fantasma', custom: { vat: 'co-1' } }], 'skip');
+    expect(res.errors).toHaveLength(1);
+    const co = (await getDb()
+      .prepare("SELECT COUNT(*) AS c FROM crm_companies WHERE user_id = ? AND name = 'Empresa Fantasma'")
+      .get(ws)) as { c: number };
+    expect(co.c).toBe(0);
+  });
+});
