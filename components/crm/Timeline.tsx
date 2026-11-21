@@ -982,7 +982,7 @@ export default function Timeline({
             }
           }}
         >
-          {item.type !== 'note' && (
+          {(item.type !== 'note' || item.subject) && (
             <input className="input" value={editSubject} onChange={(e) => setEditSubject(e.target.value)} placeholder={tl('title')} aria-label={tl('title')} maxLength={500} />
           )}
           {MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
@@ -1009,14 +1009,13 @@ export default function Timeline({
             {item.subject}
           </p>
         ) : (
-          item.subject && item.type !== 'note' && <p className="tl-subject atl-subject">{item.subject}</p>
+          item.subject && <p className="tl-subject atl-subject">{item.subject}</p>
         )}
         {item.body && (
           <p className="tl-body">
             <MentionText text={item.body} people={mentionables} />
           </p>
         )}
-        {item.type === 'note' && !item.body && item.subject && <p className="tl-body">{item.subject}</p>}
         {item.voice && <CallDetails voice={item.voice} />}
         <div className="tl-meta">
           {item.type === 'task' && item.due_at && (
