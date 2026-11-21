@@ -30,7 +30,7 @@ import { useNearEnd } from '@/components/app/useNearEnd';
 import DebouncedInput from '@/components/app/DebouncedInput';
 import { inboxUrl, parseInboxPath, type InboxRoute } from './nav';
 import Avatar from '@/components/groups/wa/Avatar';
-import { chatName } from './wa/util';
+import { chatName, nameOrPhone } from './wa/util';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
 import { ContextMenu, openInNewWindow, useRowContextMenu, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import { dragIds, rowSwipeLayout, swipeActionKey, type RowSwipeKey } from '@/lib/chat-gestures';
@@ -1592,7 +1592,7 @@ export default function InboxApp(props: {
                           <span className="ib-row-when">{shortWhen(h.sentAt, locale)}</span>
                         </span>
                         <span className="ib-hit-text">
-                          <span className="ib-dim">{h.fromMe ? t('list.you') : h.kind === 'group' && h.senderName ? `${h.senderName}: ` : ''} </span>
+                          <span className="ib-dim">{h.fromMe ? t('list.you') : h.kind === 'group' && h.senderName ? `${nameOrPhone(h.senderName)}: ` : ''} </span>
                           {h.mediaName && !h.snippet.includes(HIT_MARK_START) && <span className="ib-tag">{h.mediaName}</span>}
                           <Highlighted text={h.snippet} />
                         </span>

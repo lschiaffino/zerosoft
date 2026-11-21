@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { FolderDto, MessageDto, ScheduledDto, SnippetDto, ThreadDto } from '@/lib/inbox/types';
 import { avatarHue, longWhen, api } from './api';
 import Avatar from '@/components/groups/wa/Avatar';
-import { chatName } from './wa/util';
+import { chatName, phoneLabel } from './wa/util';
 import ScheduledList from './ScheduledList';
 import Composer, { type ComposerHandle } from './Composer';
 import { useInboxThreadCommands } from './slash-commands';
@@ -277,7 +277,7 @@ const Conversation = forwardRef<
           )}
           <p className="ib-sub">
             <span className="ib-chan">{thread.channel === 'gmail' ? 'Gmail' : group ? t('list.group') : 'WhatsApp'}</span>
-            {thread.handle && <span className="ib-dim"> {thread.channel === 'whatsapp' ? `+${thread.handle}` : thread.handle}</span>}
+            {thread.handle && !(thread.channel === 'whatsapp' && group) && <span className="ib-dim"> {thread.channel === 'whatsapp' ? phoneLabel(thread.handle) : thread.handle}</span>}
             {folderNames.map((n) => (
               <span key={n} className="ib-tag">
                 {n}

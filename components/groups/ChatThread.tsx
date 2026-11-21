@@ -61,6 +61,7 @@ import type { GifItem } from './wa/GifPanel';
 import { MAX_TRAY, filesFrom, hasFiles, uploadWithProgress, useAttachTray } from './wa/attachments';
 import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa/voice-later';
 import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji, previewUrl } from './wa/format';
+import { phoneLabel } from '@/components/inbox/wa/util';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
 
 /** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
@@ -1806,7 +1807,7 @@ export default function ChatThread(props: ThreadProps) {
   }
 
   function inName(m: MessageDto): string {
-    return m.senderName || memberNames.get(m.senderPhone) || (m.senderPhone ? `+${m.senderPhone}` : t('wa.someone'));
+    return m.senderName || memberNames.get(m.senderPhone) || phoneLabel(m.senderPhone) || t('wa.someone');
   }
 
   // Las menciones se nombran antes de cortar: un corte en medio de "@<dígitos>" dejaría el número a la vista.
@@ -1831,7 +1832,7 @@ export default function ChatThread(props: ThreadProps) {
   const memberList = [...props.members]
     .sort((a, b) => Number(!a.name) - Number(!b.name))
     .slice(0, 12)
-    .map((mb) => mb.name || `+${mb.phone}`)
+    .map((mb) => mb.name || phoneLabel(mb.phone))
     .filter(Boolean);
   // Como WhatsApp: "escribiendo…" o "grabando audio…" reemplaza la línea de abajo del nombre; "en línea" solo en un 1 a 1.
   const presenceText = presence
@@ -1848,9 +1849,7 @@ export default function ChatThread(props: ThreadProps) {
       ? memberList.length
         ? `${memberList.join(', ')}${chat.memberCount > memberList.length ? '…' : ''}`
         : t('thread.groupMeta', { n: chat.memberCount })
-      : chat.phone
-        ? `+${chat.phone}`
-        : t('wa.whatsappContact');
+      : phoneLabel(chat.phone) || t('wa.whatsappContact');
 
   // "Responder desde": por defecto, la línea del último mensaje que entró o salió (si puede mandar), si no la del chat
   // abierto. Elegir otra queda hasta cambiar de chat.
@@ -2050,7 +2049,7 @@ export default function ChatThread(props: ThreadProps) {
                   ) : (
                     <span className="wa-author-name">{author}</span>
                   )}
-                  {m.direction === 'in' && chat.kind === 'group' && m.senderName && m.senderPhone && <span className="wa-phone">+{m.senderPhone}</span>}
+                  {m.direction === 'in' && chat.kind === 'group' && m.senderName && m.senderPhone && <span className="wa-phone">{phoneLabel(m.senderPhone)}</span>}
                 </>
               )}
             </p>
@@ -2068,7 +2067,7 @@ export default function ChatThread(props: ThreadProps) {
               data-testid="wa-private-quote"
             >
               <strong>
-                {privateQuote.direction === 'in' ? privateQuote.senderName || (privateQuote.senderPhone ? `+${privateQuote.senderPhone}` : chat.name) : t('wa.you')}
+                {privateQuote.direction === 'in' ? privateQuote.senderName || phoneLabel(privateQuote.senderPhone) || chat.name : t('wa.you')}
                 <span className="wa-quote-chat"> · {privateQuote.chatName}</span>
               </strong>
               <span>{privateQuote.deleted ? t('wa.deletedMessage') : privateQuote.body.slice(0, 160) || mediaText({ media: privateQuote.mediaType ? { type: privateQuote.mediaType, name: '' } : null })}</span>
