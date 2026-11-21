@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fromView, hasEdits, isLight, needsRender, NO_EDITS, outputName, rectFromView, renderEdits, rotateLeft, sendScale, toView, viewSize, type Ctx2D, type Edits, type Rotation } from '@/lib/wa-image-edit';
+import { applyColorMatrix, compose, contrast, FILTER_MATRIX, FILTERS, isFilter, saturate, type FilterId } from '@/lib/wa-image-filters';
+import { blurDabs, fromView, hasBlur, hasEdits, isLight, needsRender, NO_EDITS, outputName, rectFromView, renderEdits, rotateLeft, sendScale, toView, viewSize, type Ctx2D, type Edits, type Rotation } from '@/lib/wa-image-edit';
 
 const natural = { w: 400, h: 300 };
 const edits = (p: Partial<Edits> = {}): Edits => ({ ...NO_EDITS, ...p });
@@ -106,5 +107,76 @@ describe('wa-image-edit: renderEdits', () => {
     const { ctx, calls } = fakeCtx();
     renderEdits(ctx, {}, natural, edits({ overlays: [{ id: 't', kind: 'text', x: 1, y: 1, size: 12, text: 'x' }] }), 1, { skipOverlay: 't' });
     expect(calls.some((c) => c.startsWith('fillText'))).toBe(false);
+  });
+
+  it('desenfoque: la copia desenfocada recortada a círculos a lo largo del trazo, sin pintar con el lápiz', () => {
+    const { ctx, calls } = fakeCtx();
+    const blurred = { blurred: true };
+    const e = edits({ strokes: [{ color: '', width: 20, points: [10, 10, 40, 10], blur: true }, { color: '#f00', width: 5, points: [1, 1, 2, 2] }] });
+    renderEdits(ctx, {}, natural, e, 1, { blurred });
+    const arcs = calls.filter((c) => c.startsWith('arc('));
+    // De 10 a 40 con un paso de un tercio del ancho: los dos puntos y los intermedios.
+    expect(arcs.length).toBe(blurDabs(e.strokes[0]).length);
+    expect(arcs[0]).toBe('arc(10,10,10,0,6.28)');
+    expect(calls.filter((c) => c === 'drawImage(object,0,0,400,300)')).toHaveLength(2);
+    // El lápiz no dibuja la pasada de desenfoque: un solo trazo de color.
+    expect(calls.filter((c) => c === 'stroke()')).toHaveLength(1);
+    // Sin la copia desenfocada (todavía cargando) no se recorta nada.
+    const plain = fakeCtx();
+    renderEdits(plain.ctx, {}, natural, e, 1);
+    expect(plain.calls.some((c) => c.startsWith('arc('))).toBe(false);
+  });
+});
+
+describe('wa-image-edit: desenfoque y filtros', () => {
+  it('cuentan como cambios (la foto se vuelve a dibujar al mandar)', () => {
+    expect(hasEdits(edits({ filter: 'bw' }))).toBe(true);
+    expect(hasEdits(edits({ filter: 'none' }))).toBe(false);
+    expect(hasEdits(edits({ strokes: [{ color: '', width: 9, points: [1, 1], blur: true }] }))).toBe(true);
+    expect(hasBlur(edits({ strokes: [{ color: '', width: 9, points: [1, 1, 2, 2], blur: true }] }))).toBe(true);
+    expect(hasBlur(edits({ strokes: [{ color: '#fff', width: 9, points: [1, 1, 2, 2] }] }))).toBe(false);
+  });
+
+  it('el pincel cubre el trazo sin huecos aunque se mueva rápido', () => {
+    const dabs = blurDabs({ color: '', width: 30, points: [0, 0, 100, 0] });
+    const xs = dabs.map((d) => d.x);
+    expect(xs[0]).toBe(0);
+    expect(xs[xs.length - 1]).toBe(100);
+    for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeLessThanOrEqual(10.0001);
+  });
+
+  it('B&N deja gris, Original no cambia nada, la transparencia queda', () => {
+    expect(FILTER_MATRIX.none).toBeNull();
+    const px = new Uint8ClampedArray([200, 40, 90, 128, 10, 220, 30, 255]);
+    applyColorMatrix(px, FILTER_MATRIX.bw!);
+    expect(px[0]).toBe(px[1]);
+    expect(px[1]).toBe(px[2]);
+    expect(px[4]).toBe(px[5]);
+    expect(px[3]).toBe(128);
+    expect(px[7]).toBe(255);
+  });
+
+  it('Pop da más color, Frío tira al azul y Película levanta los negros', () => {
+    const run = (f: FilterId, rgb: number[]) => {
+      const px = new Uint8ClampedArray([...rgb, 255]);
+      applyColorMatrix(px, FILTER_MATRIX[f]!);
+      return [px[0], px[1], px[2]];
+    };
+    const [r, g, b] = run('pop', [180, 120, 100]);
+    expect(r - b).toBeGreaterThan(80);
+    expect(g).toBeLessThan(140);
+    const cool = run('cool', [128, 128, 128]);
+    expect(cool[2]).toBeGreaterThan(cool[0]);
+    expect(run('film', [0, 0, 0])[0]).toBeGreaterThan(0);
+    expect(FILTERS.every((f) => isFilter(f))).toBe(true);
+    expect(isFilter('sepia')).toBe(false);
+  });
+
+  it('compose aplica primero la de la derecha', () => {
+    const m = compose(contrast(2), saturate(0));
+    const px = new Uint8ClampedArray([255, 0, 0, 255]);
+    applyColorMatrix(px, m);
+    // Gris de un rojo puro (54) y después el contraste alrededor del medio: 2 × 54 − 127,5 ≈ −19 → 0.
+    expect(px[0]).toBe(0);
   });
 });
