@@ -688,7 +688,7 @@ function TypeFields({
       return (
         <div className="robots-fields">
           {text('selector', t('fields.selector'), 'input[name="terms"]')}
-          {choice('state', t('fields.checkState'), ['checked', 'unchecked'], 'checkState')}
+          {choice('state', t('fields.checkState'), ['checked', 'unchecked', 'toggle'], 'checkState')}
         </div>
       );
     case 'press':

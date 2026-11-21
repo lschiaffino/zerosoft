@@ -782,13 +782,19 @@ export interface EmailThreadView {
  */
 export async function listEmailThreads(
   userId: string,
-  f: { contactId?: string; companyId?: string; dealId?: string; limit?: number },
+  f: { contactId?: string; companyId?: string; dealId?: string; limit?: number; contactIds?: string[] },
 ): Promise<{ threads: EmailThreadView[]; activityIds: string[] }> {
   const db = getDb();
   const limit = Math.min(Math.max(f.limit ?? 100, 1), 300);
   let where: string;
-  let arg: string;
-  if (f.contactId) {
+  let arg: string | string[];
+  if (f.contactIds) {
+    // Contactos ya filtrados por quien mira (lib/crm-timeline.ts visibleEmailContacts).
+    if (!f.contactIds.length) return { threads: [], activityIds: [] };
+    const ids = f.contactIds.slice(0, 2000);
+    where = `ec.contact_id IN (${ids.map(() => '?').join(',')})`;
+    arg = ids;
+  } else if (f.contactId) {
     where = 'ec.contact_id = ?';
     arg = f.contactId;
   } else if (f.companyId) {
@@ -807,7 +813,7 @@ export async function listEmailThreads(
        WHERE ec.user_id = ? AND ${where}
        ORDER BY e.sent_at DESC LIMIT ?`,
     )
-    .all(userId, arg, limit)) as CrmEmailRow[];
+    .all(userId, ...(Array.isArray(arg) ? arg : [arg]), limit)) as CrmEmailRow[];
   if (!rows.length) return { threads: [], activityIds: [] };
 
   const clickRows = (await db

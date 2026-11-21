@@ -1485,6 +1485,48 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "voice": {
+      "intro": {
+        "title": "Te damos la bienvenida a Voice",
+        "body": "Voice graba tus reuniones y arma tus notas con la transcripción. También te deja dictar en vez de escribir. Este tour te muestra las partes principales."
+      },
+      "newMeeting": {
+        "title": "Empezá una reunión",
+        "body": "Empezala cuando arranca la llamada. Voice graba tu micrófono, o tu micrófono y una pestaña del navegador, y escribe la transcripción mientras hablan. No entra ningún bot a la llamada."
+      },
+      "import": {
+        "title": "Importá una grabación",
+        "body": "Subí un archivo de audio o video de una llamada y Voice lo transcribe como cualquier otra reunión."
+      },
+      "upcoming": {
+        "title": "Próximas reuniones",
+        "body": "Las próximas reuniones de tu calendario. Tomá notas de una cuando empieza, o leé un resumen de quiénes vienen."
+      },
+      "ask": {
+        "title": "Preguntale a tus reuniones",
+        "body": "Hacé una pregunta sobre todas tus reuniones y recibí la respuesta con links a las reuniones de donde salió. Con / corrés un recipe."
+      },
+      "meetings": {
+        "title": "Tus reuniones",
+        "body": "Cada reunión queda acá con sus notas y su transcripción. La búsqueda encuentra palabras en títulos, notas y transcripciones. Desde su fila la renombrás o la borrás."
+      },
+      "folders": {
+        "title": "Carpetas",
+        "body": "Ordená las reuniones en carpetas, con un nivel de subcarpetas. En Compartidas conmigo están las reuniones que otras personas te compartieron."
+      },
+      "dictation": {
+        "title": "Dictado",
+        "body": "Hablá en vez de escribir en cualquier campo de zerosoft. Acá queda el historial de lo que dictaste, listo para copiarlo de nuevo."
+      },
+      "settings": {
+        "title": "Ajustes de Voice",
+        "body": "Tu atajo y estilo de dictado, tu diccionario y tus plantillas de reunión. Valen solo para vos."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "talk": {
       "intro": {
         "title": "Te damos la bienvenida a Talk",

@@ -138,6 +138,7 @@ export default async function LeadPage(props: {
                 emptyLabel={t('leads.emptyTimeline')}
                 mentionables={owners.map((o) => ({ id: o.value, name: o.label, email: '' }))}
                 locale={locale}
+                currentPersonId={user.actingUser?.id ?? user.id}
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>

@@ -4,13 +4,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocale, useTranslations } from 'next-intl';
 import { filesFrom, type TrayItem } from './attachments';
 import { extensionOf, fileSize, posterFrame } from './format';
-import { Close, DocIcon, Plus, SendIcon, Smiley } from './icons';
+import { ClockIcon, Close, DocIcon, Plus, SendIcon, Smiley } from './icons';
 import ImageEditor from './ImageEditor';
 import EmojiPicker from './EmojiPicker';
 import MentionTextarea from './MentionTextarea';
 import Avatar from './Avatar';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables } from '@/lib/wa-compose-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
 import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
 import '@/styles/wa-editor.css';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
@@ -115,6 +115,7 @@ export default function AttachPreview({
   stickerLine,
   sending,
   mentionables,
+  onLater,
 }: {
   items: TrayItem[];
   errText: (code?: string) => string;
@@ -142,6 +143,11 @@ export default function AttachPreview({
    * mención se ve en verde y sale como mención de WhatsApp). Sin esto (o vacío), el pie no menciona.
    */
   mentionables?: ReadonlyArray<{ phone: string; name: string; avatar?: string }>;
+  /**
+   * Enviar más tarde (un solo archivo): el reloj junto a Enviar, clic derecho en Enviar o ⌘⇧Enter en el pie, como en
+   * el campo del chat. La foto sale con sus cambios (se arma antes, igual que al mandar).
+   */
+  onLater?: () => void;
 }) {
   const t = useTranslations('groups');
   const te = useTranslations('groups.wa.editor');
@@ -172,7 +178,8 @@ export default function AttachPreview({
   /** El pie de un archivo y, en un grupo con menciones, cómo sale a WhatsApp. */
   const setCaptionOf = (key: string, text: string, list: Mentionable[] | null = pool) => {
     const out = list ? serializeWaMentions(text, list) : null;
-    onCaption(key, text, out?.mentions.length ? out : undefined);
+    // `picks` (etiqueta → teléfono): lo que guarda un programado para mencionar al salir.
+    onCaption(key, text, list && out?.mentions.length ? { ...out, picks: waMentionPicks(text, list) } : undefined);
   };
   /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
   const pickMention = (p: Mentionable) => {
@@ -216,6 +223,11 @@ export default function AttachPreview({
   const waiting = useRef<Map<string, File> | null>(null);
   const onSendRef = useRef(onSend);
   onSendRef.current = onSend;
+  const onLaterRef = useRef(onLater);
+  onLaterRef.current = onLater;
+  // Qué hacer cuando las fotos editadas lleguen a la bandeja: mandar o programar.
+  const thenRef = useRef<'send' | 'later'>('send');
+  const finish = () => (thenRef.current === 'later' ? onLaterRef.current?.() : onSendRef.current());
 
   useEffect(() => {
     let changed = false;
@@ -243,9 +255,9 @@ export default function AttachPreview({
     if (w && [...w].every(([key, file]) => !items.some((x) => x.key === key) || items.find((x) => x.key === key)?.file === file)) {
       waiting.current = null;
       setPreparing(false);
-      onSendRef.current();
+      finish();
     }
-  }, [items]);
+  }, [items]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(
     () => () => {
       origs.current.forEach((o) => URL.revokeObjectURL(o.url));
@@ -280,9 +292,11 @@ export default function AttachPreview({
       return { ...m, [key]: { ...cur, edits: cur.history[cur.history.length - 1], history: cur.history.slice(0, -1) } };
     });
 
-  async function send() {
+  async function send(then: 'send' | 'later' = 'send') {
     if (preparing || sending) return;
-    if (!onReplace) return onSend();
+    if (then === 'later' && !onLater) return;
+    thenRef.current = then;
+    if (!onReplace) return finish();
     setPreparing(true);
     const replaced = new Map<string, File>();
     for (const x of items) {
@@ -304,7 +318,7 @@ export default function AttachPreview({
     }
     if (!replaced.size) {
       setPreparing(false);
-      onSend();
+      finish();
       return;
     }
     // La bandeja se actualiza en el próximo render; el efecto de arriba manda cuando ya tiene las fotos nuevas.
@@ -319,6 +333,8 @@ export default function AttachPreview({
   // HD solo cuando cambia algo: una foto grande (como WhatsApp, que no lo muestra en las chicas).
   const big = !!orig?.natural && (Math.max(orig.natural.w, orig.natural.h) > SD_MAX_SIDE || orig.file.size > SD_MAX_BYTES);
   const busy = sending || preparing;
+  // Más tarde: un archivo (un programado lleva uno solo).
+  const laterOk = !!onLater && items.length === 1 && broken === 0;
   return (
     <div
       className={`wa-attach-pane${editable ? ' is-editing' : ''}`}
@@ -508,6 +524,13 @@ export default function AttachPreview({
                   return;
                 }
               }
+              // ⌘⇧Enter (Ctrl+Shift+Enter): enviar más tarde, como en el campo del chat.
+              if (e.key === 'Enter' && e.shiftKey && (e.metaKey || e.ctrlKey) && laterOk) {
+                e.preventDefault();
+                e.stopPropagation();
+                void send('later');
+                return;
+              }
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -554,10 +577,29 @@ export default function AttachPreview({
             </button>
           </li>
         </ul>
+        {laterOk && (
+          <button
+            type="button"
+            className="wa-icon-btn wa-later-btn"
+            data-testid="attach-send-later"
+            onClick={() => void send('later')}
+            disabled={busy}
+            aria-label={t('later.button')}
+            title={t('later.hint')}
+          >
+            <ClockIcon size={20} />
+          </button>
+        )}
         <button
           type="button"
           className="wa-send wa-attach-send"
           onClick={() => void send()}
+          onContextMenu={(e) => {
+            // Clic derecho en Enviar: programar (como en el campo del chat).
+            if (!laterOk) return;
+            e.preventDefault();
+            void send('later');
+          }}
           disabled={busy || broken === items.length}
           aria-busy={busy || undefined}
           aria-label={t('wa.sendFiles', { n: items.length - broken })}

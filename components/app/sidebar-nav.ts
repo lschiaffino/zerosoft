@@ -582,8 +582,8 @@ export function buildNav(
   const unread = counts.unread ?? 0;
 
   // Último grupo de las apps sin "Ajustes" propio en otro lado: lleva a /app/<app>/settings.
-  const appSettingsGroup = (href: string, tour?: string): NavGroup => ({
-    items: [{ href, label: labels.appSettings, active: at(href), icon: 'settings', ...(tour ? { tour } : {}) }],
+  const appSettingsGroup = (href: string, extra: { tour?: string } = {}): NavGroup => ({
+    items: [{ href, label: labels.appSettings, active: at(href), icon: 'settings', tour: extra.tour }],
   });
 
   switch (product) {
@@ -923,13 +923,14 @@ export function buildNav(
               active: at('/app/voice') && !at('/app/voice/dictation') && !at('/app/voice/settings') && !at('/app/voice/analytics'),
               icon: 'notes',
             },
-            { href: '/app/voice/dictation', label: labels.voice.dictation, active: at('/app/voice/dictation'), icon: 'voice' },
+            // Anclajes del tour de Voice (lib/tours/voice.ts): Dictado y Ajustes.
+            { href: '/app/voice/dictation', label: labels.voice.dictation, active: at('/app/voice/dictation'), icon: 'voice', tour: 'voice-dictation' },
           ],
         },
         ...(labels.voice.analytics
           ? [{ section: labels.insights, items: [{ href: '/app/voice/analytics', label: labels.voice.analytics, active: at('/app/voice/analytics'), icon: 'reports' as const }] }]
           : []),
-        appSettingsGroup('/app/voice/settings'),
+        appSettingsGroup('/app/voice/settings', { tour: 'voice-settings' }),
       ];
 
     case 'rec':
@@ -1288,7 +1289,7 @@ export function buildNav(
           ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const, tour: 'talk-analytics' }] }]
           : []),
         // Anclajes del tour de Talk (lib/tours/talk.ts).
-        appSettingsGroup(`${base}/settings`, 'talk-settings'),
+        appSettingsGroup(`${base}/settings`, { tour: 'talk-settings' }),
       ];
     }
 

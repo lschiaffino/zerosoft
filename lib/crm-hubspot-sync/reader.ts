@@ -27,9 +27,22 @@ import { hubspotStatusError, type HubspotClient } from '../hubspot/client';
 
 export type SyncObject = 'contacts' | 'companies' | 'deals';
 export const SYNC_OBJECTS: readonly SyncObject[] = ['contacts', 'companies', 'deals'];
+/** Actividades del timeline (engagements) que el sync trae de HubSpot. */
+export type ActivityObject = 'notes' | 'calls' | 'meetings' | 'tasks' | 'emails';
+export const ACTIVITY_OBJECTS: readonly ActivityObject[] = ['notes', 'calls', 'meetings', 'tasks', 'emails'];
+export type ReadableObject = SyncObject | ActivityObject;
 
 /** La propiedad de fecha de modificación de cada objeto (la de contactos tiene otro nombre). */
-export const MODIFIED_PROP: Record<SyncObject, string> = { contacts: 'lastmodifieddate', companies: 'hs_lastmodifieddate', deals: 'hs_lastmodifieddate' };
+export const MODIFIED_PROP: Record<ReadableObject, string> = {
+  contacts: 'lastmodifieddate',
+  companies: 'hs_lastmodifieddate',
+  deals: 'hs_lastmodifieddate',
+  notes: 'hs_lastmodifieddate',
+  calls: 'hs_lastmodifieddate',
+  meetings: 'hs_lastmodifieddate',
+  tasks: 'hs_lastmodifieddate',
+  emails: 'hs_lastmodifieddate',
+};
 
 /** Tope de resultados por página de la búsqueda de HubSpot. */
 export const SEARCH_PAGE_MAX = 200;
@@ -83,7 +96,7 @@ function ms(raw: string | null | undefined): number {
  */
 export async function readModifiedPage(
   client: HubspotClient,
-  object: SyncObject,
+  object: ReadableObject,
   cursor: ModifiedCursor,
   properties: readonly string[],
   opts: { limit?: number; retries?: number; maxWaitMs?: number } = {},

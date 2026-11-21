@@ -412,8 +412,9 @@ test('CRM: el timeline tiene una sola fila de tabs y el tab elige el tipo', asyn
   await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`);
   await expect(page.getByRole('tablist')).toHaveCount(1);
   await page.getByRole('tab', { name: /Call/ }).click();
-  await page.getByPlaceholder(/Subject/).first().fill('Intro call');
-  await page.getByRole('button', { name: /Log call/i }).click();
+  await page.getByTestId('timeline-create-call').click();
+  await page.getByTestId('timeline-composer').getByRole('textbox', { name: 'Title' }).fill('Intro call');
+  await page.getByTestId('timeline-composer').getByRole('button', { name: /Log activity/i }).click();
   await expect(page.getByText('Intro call')).toBeVisible();
   await expect(page.getByRole('tab', { name: /Call/ })).toContainText('1');
 });
@@ -1015,10 +1016,10 @@ test('CRM: el detalle del contacto abre en el Resumen, con propiedades y asociac
   await expect(page.getByTestId('contact-score-card')).toBeVisible();
   await expect(page.getByTestId('record-right').locator('[data-card="contact.lists"]')).toBeVisible();
 
-  // Actividad se abre en el navegador: cambia la URL y aparece el composer.
+  // Actividad se abre en el navegador: cambia la URL y aparece el timeline con su barra.
   await page.getByTestId('record-tab-activity').click();
   await expect(page).toHaveURL(/tab=activity/);
-  await expect(page.locator('form.tl-composer')).toBeVisible();
+  await expect(page.getByTestId('timeline-search')).toBeVisible();
 
   // Los links de antes (?tab=properties, ?tab=related) abren la misma ficha.
   await page.goto(`/en/app/crm/contacts/${contact.id}?tab=related`);

@@ -1,21 +1,34 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
-import { useEffect, useRef, useState } from 'react';
+import { useMounted } from '@/components/ui/useMounted';
+import { DEFAULT_CALL_OUTCOMES, formatCallDuration, isDefaultOutcome } from '@/lib/crm-calls';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { COMPOSE_EVENT, type ComposeType } from './recordLayout';
 import { useTranslations } from 'next-intl';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
-import CrmIcon from './CrmIcon';
+import CrmIcon, { type CrmIconName } from './CrmIcon';
 import FilesPanel, { type FileItem } from './FilesPanel';
 import CallDetails from './CallDetails';
 import type { CallView } from '@/lib/crm-voice';
 import MentionTextarea, { MentionText } from './MentionTextarea';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
+import TimelineMenu from './TimelineMenu';
+import RecordCombobox, { type ComboOption } from './RecordCombobox';
+import {
+  applyFilters,
+  groupTimeline,
+  relativeTime,
+  tabCounts,
+  timelineAuthors,
+  TIMELINE_TYPES,
+  type TimelineTab,
+  type TimelineType,
+} from './timelineModel';
 import { parseDbUtc } from '@/lib/utils';
 
 /** lead y objectRecord: leads y registros de objetos propios (sin emails). */
@@ -23,7 +36,7 @@ export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'obje
 
 export interface TimelineItem {
   id: string;
-  type: 'note' | 'task' | 'call' | 'meeting' | 'email';
+  type: 'note' | 'task' | 'call' | 'meeting' | 'email' | 'whatsapp';
   /** Tarea de llamada o email (077). */
   task_kind?: '' | 'call' | 'email';
   subject: string;
@@ -40,13 +53,13 @@ export interface TimelineItem {
   company_name?: string | null;
   deal_name?: string | null;
   created_at: string;
-  /** Thread de emails (Gmail o enviados desde el CRM): read-only, se muestra agrupado. */
+  /** Thread de emails (Gmail o enviados desde el CRM) o chat de Lines: read-only. */
   external?: boolean;
   from_email?: string;
   thread?: EmailThreadView;
   /** Adjuntos de la actividad. */
   files?: FileItem[];
-  /** Registros de la actividad (para las tareas de los próximos pasos). */
+  /** Registros de la actividad. */
   contact_id?: string | null;
   company_id?: string | null;
   deal_id?: string | null;
@@ -58,6 +71,13 @@ export interface TimelineItem {
   source?: { href: string; app: 'groups' | 'chat' | 'docs' | 'track'; label: string };
   /** Tarea de un chat de Lines que quien mira no ve: el título es el marcador, sin notas y sin editar el texto. */
   chat_private?: 1;
+  /** 1 = viene de un registro asociado (lib/crm-timeline.ts). */
+  rollup?: 0 | 1;
+  /** Quién la registró (owner; sin owner, el dueño del workspace). */
+  author_id?: string;
+  author_name?: string | null;
+  /** Chat de Lines vinculado (lib/crm-timeline.ts listRecordChats). */
+  wa?: { chatId: string; group: boolean; messages: Array<{ id: string; at: string; out: boolean; who: string; text: string }> };
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -79,27 +99,66 @@ interface TimelineProps {
   /** Email precargado en el composer cuando type === email. */
   defaultEmail?: string;
   emailTools?: EmailTools;
-  /** Personas del workspace que se pueden @mencionar en notas y tareas. */
+  /** Personas del workspace que se pueden @mencionar en notas y tareas (y asignar). */
   mentionables?: Mentionable[];
   /** Acción rápida de la ficha (`?compose=`): abre el composer en ese tipo y le da el foco. */
   compose?: ComposeType | null;
+  /** Persona que mira: queda como dueña de lo que registra. */
+  currentPersonId?: string;
+  /** Hay más actividad que la primera página (GET /api/crm/timeline). */
+  hasMore?: boolean;
 }
 
 /** Tipos donde el texto acepta @menciones (y avisan). */
 const MENTION_TYPES = new Set(['note', 'task']);
 
-const ALL_TYPES = ['note', 'task', 'call', 'meeting', 'email'] as const;
-type ActivityType = (typeof ALL_TYPES)[number];
-/** Leads y objetos propios no mandan emails desde el timeline (no tienen dirección propia). */
-const NO_EMAIL_TYPES = ALL_TYPES.filter((v) => v !== 'email');
-
-const SUBMIT_KEYS: Record<ActivityType, string> = {
-  note: 'common.addNote',
-  task: 'common.addTask',
-  call: 'common.logCall',
-  meeting: 'common.logMeeting',
-  email: 'common.sendEmail',
+type ComposerKind = 'note' | 'email' | 'logEmail' | 'call' | 'task' | 'meeting';
+const ACTIVITY_OF: Record<ComposerKind, 'note' | 'email' | 'call' | 'task' | 'meeting'> = {
+  note: 'note',
+  email: 'email',
+  logEmail: 'email',
+  call: 'call',
+  task: 'task',
+  meeting: 'meeting',
 };
+/** Botones de creación por pestaña, con los nombres de HubSpot. */
+const CREATE_BY_TAB: Record<TimelineTab, ComposerKind[]> = {
+  all: ['note', 'email', 'logEmail', 'call', 'task', 'meeting'],
+  note: ['note'],
+  email: ['email', 'logEmail'],
+  call: ['call'],
+  task: ['task'],
+  meeting: ['meeting'],
+  whatsapp: [],
+};
+const MEETING_OUTCOMES = ['scheduled', 'completed', 'rescheduled', 'no_show', 'canceled'] as const;
+
+const TYPE_ICON: Record<string, CrmIconName> = {
+  note: 'note',
+  email: 'mail',
+  call: 'phone',
+  task: 'task',
+  meeting: 'calendar',
+  whatsapp: 'message',
+};
+
+const STORE_TYPES = 'zs:crm:timeline:types';
+const STORE_ASSOC = 'zs:crm:timeline:associated';
+
+function readStore(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeStore(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* sin storage: el filtro vale hasta recargar */
+  }
+}
 
 /** Cmd+Enter (Mac) o Ctrl+Enter, sin una sugerencia de @mención abierta que ya lo usó. */
 function isModEnter(e: { key: string; metaKey: boolean; ctrlKey: boolean; defaultPrevented: boolean; nativeEvent: { isComposing?: boolean } }): boolean {
@@ -107,27 +166,42 @@ function isModEnter(e: { key: string; metaKey: boolean; ctrlKey: boolean; defaul
 }
 
 function formatWhen(iso: string, locale: string): string {
-  const d = parseDbUtc(iso);
-  return new Intl.DateTimeFormat(locale, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(parseDbUtc(iso));
 }
 
 function formatDay(iso: string, locale: string): string {
-  const d = parseDbUtc(iso);
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
-    d,
-  );
+  // Una fecha sola (vencimiento de tarea) es un día de calendario, no un instante: sin correrla de zona.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric', ...(dateOnly ? { timeZone: 'UTC' } : {}) }).format(parseDbUtc(iso));
+}
+
+/** Casilla de los ítems de tilde de los menús. */
+function Check({ on }: { on: boolean }) {
+  return <span className="atl-box" aria-hidden>{on && <CrmIcon name="check" size={12} />}</span>;
+}
+
+/** Ahora, como valor de un input datetime-local en la hora de quien mira. */
+function nowLocalInput(): string {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+/** Valor de un datetime-local (hora local) → instante UTC ISO. */
+function localInputToIso(v: string): string | undefined {
+  if (!v) return undefined;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
 /**
- * Timeline reutilizable (contacts / companies / deals): composer con
- * selector de tipo + lista filtrable con done toggle y delete.
- * El padre (server) pasa los items; tras cada mutación router.refresh().
+ * Timeline de la ficha, como el de HubSpot: pestañas por tipo con contador (Actividad, Notas, Emails,
+ * Llamadas, Tareas, Reuniones y WhatsApp de Lines), filtro de tipos y de personas, búsqueda, actividad de
+ * los registros asociados (empresas y deals), agrupado (Fijada, Próximas, Este mes, por mes), expandir o
+ * contraer todo, y los botones de HubSpot para crear o registrar cada tipo. Cada tarjeta lleva ícono,
+ * autor, fecha relativa (la absoluta al pasar el mouse), registros asociados y un menú con fijar,
+ * editar, asociaciones y eliminar. El padre (server) pasa la primera página; tras cada cambio,
+ * router.refresh(). "Cargar más" pide las siguientes (GET /api/crm/timeline).
  */
 export default function Timeline({
   recordType,
@@ -139,21 +213,130 @@ export default function Timeline({
   emailTools,
   mentionables = [],
   compose = null,
+  currentPersonId,
+  hasMore = false,
 }: TimelineProps) {
   const t = useTranslations('crm');
+  const tl = useTranslations('crm.timeline');
   const router = useRouter();
-  const TYPES = recordType === 'lead' || recordType === 'objectRecord' ? NO_EMAIL_TYPES : ALL_TYPES;
+  const mounted = useMounted();
+  const canEmail = recordType !== 'lead' && recordType !== 'objectRecord';
+  const recordKind = recordType === 'contact' || recordType === 'company' || recordType === 'deal' ? recordType : null;
+  const hasAssociated = recordType === 'company' || recordType === 'deal';
+  const tabs: TimelineTab[] = ['all', 'note', ...(canEmail ? (['email'] as const) : []), 'call', 'task', 'meeting'];
 
-  // Composer. El tipo sale de la pestaña activa; solo en "All" se elige con
-  // el select del composer (allType). Una sola fuente: lo que se ve es lo que
-  // se guarda.
-  const [allType, setAllType] = useState<ActivityType>('note');
+  // ---------- Lista y filtros ----------
+  const [more, setMore] = useState<TimelineItem[]>([]);
+  const [moreState, setMoreState] = useState<{ hasMore: boolean; offset: number }>({ hasMore, offset: 100 });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  useEffect(() => {
+    // La primera página volvió del server (router.refresh): lo cargado aparte sigue, sin repetir.
+    setMoreState((s) => (s.offset === 100 ? { hasMore, offset: 100 } : s));
+  }, [hasMore]);
+  /**
+   * Después de un cambio: la primera página vuelve del server y lo cargado con "Cargar más" se descarta
+   * (se vuelve a pedir), así nada queda viejo, repetido o salteado por un offset corrido.
+   */
+  function refresh() {
+    setMore([]);
+    setMoreState({ hasMore, offset: 100 });
+    router.refresh();
+  }
+  const all = useMemo(() => {
+    const ids = new Set(items.map((i) => i.id));
+    return [...items, ...more.filter((i) => !ids.has(i.id))];
+  }, [items, more]);
+
+  const [tab, setTab] = useState<TimelineTab>('all');
+  const [types, setTypes] = useState<TimelineType[]>([...TIMELINE_TYPES]);
+  const [users, setUsers] = useState<string[] | null>(null);
+  const [query, setQuery] = useState('');
+  const [associated, setAssociated] = useState(true);
+  useEffect(() => {
+    const ty = readStore(STORE_TYPES);
+    if (ty) {
+      const list = ty.split(',').filter((x): x is TimelineType => (TIMELINE_TYPES as readonly string[]).includes(x));
+      if (list.length) setTypes(list);
+    }
+    if (readStore(STORE_ASSOC) === '0') setAssociated(false);
+  }, []);
+  function chooseTypes(next: TimelineType[]) {
+    setTypes(next);
+    writeStore(STORE_TYPES, next.join(','));
+  }
+  function chooseAssociated(v: boolean) {
+    setAssociated(v);
+    writeStore(STORE_ASSOC, v ? '1' : '0');
+  }
+
+  const showAssociated = hasAssociated ? associated : true;
+  const counts = tabCounts(all, showAssociated);
+  const hasWhatsapp = all.some((i) => i.type === 'whatsapp');
+  const visibleTabs = hasWhatsapp ? [...tabs, 'whatsapp' as const] : tabs;
+  const filtered = applyFilters(all, { tab, types, users, query, associated: showAssociated });
+  const authors = timelineAuthors(all.filter((i) => showAssociated || !i.rollup));
+  const typeOptions = TIMELINE_TYPES.filter((v) => (v !== 'email' || canEmail) && (v !== 'whatsapp' || hasWhatsapp));
+  const allTypesOn = typeOptions.every((v) => types.includes(v));
+  const typesFiltered = tab === 'all' && !allTypesOn;
+  const anyFilter = query.trim() !== '' || users !== null || typesFiltered;
+  const now = useMemo(() => new Date(), [all]); // eslint-disable-line react-hooks/exhaustive-deps
+  const groups = mounted ? groupTimeline(filtered, now) : [{ key: 'all', kind: 'month' as const, items: filtered }];
+
+  // Expandir y contraer: por defecto abiertas; "Contraer todo" invierte el default y cada una alterna.
+  const [collapsedAll, setCollapsedAll] = useState(false);
+  const [toggled, setToggled] = useState<Set<string>>(new Set());
+  const isOpen = (id: string) => !collapsedAll !== toggled.has(id);
+  function toggleOne(id: string) {
+    setToggled((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function setAllOpen(open: boolean) {
+    setCollapsedAll(!open);
+    setToggled(new Set());
+  }
+
+  function clearFilters() {
+    setQuery('');
+    setUsers(null);
+    chooseTypes([...TIMELINE_TYPES]);
+  }
+
+  async function loadMore() {
+    if (!recordKind || loadingMore) return;
+    setLoadingMore(true);
+    setMoreError(false);
+    const res = await fetch(`/api/crm/timeline?kind=${recordKind}&id=${encodeURIComponent(recordId)}&offset=${moreState.offset}`).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as { items?: TimelineItem[]; hasMore?: boolean; nextOffset?: number } | null;
+    setLoadingMore(false);
+    if (!res?.ok || !data?.items) {
+      setMoreError(true);
+      return;
+    }
+    setMore((m) => {
+      const seen = new Set(m.map((x) => x.id));
+      return [...m, ...data.items!.filter((x) => !seen.has(x.id))];
+    });
+    setMoreState({ hasMore: !!data.hasMore, offset: data.nextOffset ?? moreState.offset + 100 });
+  }
+
+  // ---------- Composer ----------
+  const [composing, setComposing] = useState<ComposerKind | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [emailTo, setEmailTo] = useState(defaultEmail);
   const [dueAt, setDueAt] = useState('');
+  const [occurredAt, setOccurredAt] = useState('');
   const [direction, setDirection] = useState('');
+  const [outcome, setOutcome] = useState('');
   const [durationMin, setDurationMin] = useState('');
+  const [taskKind, setTaskKind] = useState<'' | 'call' | 'email'>('');
+  const [priority, setPriority] = useState<'' | 'low' | 'medium' | 'high'>('');
+  const [assignee, setAssignee] = useState(currentPersonId ?? '');
   const [posting, setPosting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<EmailThreadView | null>(null);
@@ -163,8 +346,56 @@ export default function Timeline({
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const type = composing ? ACTIVITY_OF[composing] : 'note';
+
+  function focusComposer() {
+    window.setTimeout(() => {
+      const form = wrapRef.current?.querySelector<HTMLFormElement>('.tl-composer');
+      if (!form || form.offsetParent === null) return;
+      form.scrollIntoView({ block: 'nearest' });
+      form.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea')?.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  function openComposer(kind: ComposerKind) {
+    if ((kind === 'email' || kind === 'logEmail') && !canEmail) return;
+    if (composing !== kind) {
+      setOutcome('');
+      setDirection(kind === 'email' ? '' : direction);
+      if (kind === 'call' || kind === 'meeting' || kind === 'logEmail') setOccurredAt(nowLocalInput());
+    }
+    setComposing(kind);
+    setNotice(null);
+    setEmailError(null);
+    focusComposer();
+  }
+
+  function closeComposer() {
+    setComposing(null);
+    setReplyTo(null);
+    setEmailError(null);
+  }
+
+  // Acciones rápidas de la ficha (Nota, Email, Llamada, Tarea, Reunión): abren el composer de ese tipo
+  // con el foco adentro. Llegan por `?compose=` o por evento si el timeline ya está a la vista.
+  const openRef = useRef(openComposer);
+  openRef.current = openComposer;
+  useEffect(() => {
+    function open(kind: string | null | undefined) {
+      if (!kind || !['note', 'email', 'call', 'task', 'meeting'].includes(kind)) return;
+      if (kind === 'email' && !canEmail) return;
+      // La lista queda como está: la acción elige qué se va a escribir, no esconde el resto.
+      openRef.current(kind as ComposerKind);
+    }
+    open(compose);
+    const onCompose = (e: Event) => open((e as CustomEvent<{ type?: string }>).detail?.type);
+    window.addEventListener(COMPOSE_EVENT, onCompose);
+    return () => window.removeEventListener(COMPOSE_EVENT, onCompose);
+  }, [compose, canEmail]);
+
   // Zoom (CRM › Ajustes › Integraciones): botón "Link de Zoom" en las reuniones.
-  const hasMeetings = items.some((i) => i.type === 'meeting' && !i.external);
+  const hasMeetings = all.some((i) => i.type === 'meeting' && !i.external);
   const [zoomOn, setZoomOn] = useState(false);
   const [zoomBusy, setZoomBusy] = useState<string | null>(null);
   useEffect(() => {
@@ -186,48 +417,10 @@ export default function Timeline({
     setNotice(null);
     const res = await fetch(`/api/crm/activities/${id}/zoom`, { method: 'POST' }).catch(() => null);
     setZoomBusy(null);
-    if (res?.ok) router.refresh();
+    if (res?.ok) refresh();
     else setNotice(t('apps.zoom.error'));
   }
 
-  // Lista
-  const [filter, setFilter] = useState<ActivityType | 'all'>('all');
-  const type: ActivityType = filter === 'all' ? allType : filter;
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-
-  // Acciones rápidas de la ficha (Nota, Email, Llamada, Tarea, Reunión): eligen
-  // el tipo del composer y le dejan el foco. Llegan por `?compose=` cuando la
-  // ficha estaba en otra pestaña, o por evento si el timeline ya está a la vista.
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const canEmail = recordType !== 'lead' && recordType !== 'objectRecord';
-  useEffect(() => {
-    function open(kind: string | null | undefined) {
-      if (!kind || !(ALL_TYPES as readonly string[]).includes(kind)) return;
-      if (kind === 'email' && !canEmail) return;
-      // La lista queda en "Todas": la acción elige qué se va a escribir, no esconde el resto del timeline.
-      setFilter('all');
-      setAllType(kind as ActivityType);
-      // El foco va después del render que cambia los campos del composer.
-      window.setTimeout(() => {
-        const form = wrapRef.current?.querySelector<HTMLFormElement>('.tl-composer');
-        if (!form || form.offsetParent === null) return;
-        form.scrollIntoView({ block: 'nearest' });
-        form.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea')?.focus({ preventScroll: true });
-      }, 0);
-    }
-    open(compose);
-    const onCompose = (e: Event) => open((e as CustomEvent<{ type?: string }>).detail?.type);
-    window.addEventListener(COMPOSE_EVENT, onCompose);
-    return () => window.removeEventListener(COMPOSE_EVENT, onCompose);
-  }, [compose, canEmail]);
-
-  // Edición inline (subject + body)
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editSubject, setEditSubject] = useState('');
-  const [editBody, setEditBody] = useState('');
-
-  const filtered = filter === 'all' ? items : items.filter((i) => i.type === filter);
   const templates = emailTools?.templates.filter((x) => x.kind === 'template') ?? [];
   const snippets = emailTools?.templates.filter((x) => x.kind === 'snippet') ?? [];
 
@@ -241,12 +434,7 @@ export default function Timeline({
     const res = await fetch('/api/crm/email-templates/preview', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        subject: subjectTpl,
-        body: bodyTpl,
-        contactId: emailTools?.contactId,
-        dealId: emailTools?.dealId,
-      }),
+      body: JSON.stringify({ subject: subjectTpl, body: bodyTpl, contactId: emailTools?.contactId, dealId: emailTools?.dealId }),
     }).catch(() => null);
     if (!res?.ok) return null;
     const data = (await res.json()) as { subject: string; body: string; missing: string[] };
@@ -278,11 +466,7 @@ export default function Timeline({
     const res = await fetch('/api/crm/emails/draft', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        contactId: emailTools.contactId,
-        instructions: aiPrompt.trim() || undefined,
-        subject: subject.trim() || undefined,
-      }),
+      body: JSON.stringify({ contactId: emailTools.contactId, instructions: aiPrompt.trim() || undefined, subject: subject.trim() || undefined }),
     }).catch(() => null);
     setAiBusy(false);
     const data = (await res?.json().catch(() => null)) as { body?: string; error?: string } | null;
@@ -297,130 +481,196 @@ export default function Timeline({
 
   function startReply(thread: EmailThreadView) {
     setReplyTo(thread);
-    setFilter('email');
-    setAllType('email');
+    setTab('email');
+    setComposing('email');
     const base = thread.subject || thread.messages[thread.messages.length - 1]?.subject || '';
     setSubject(/^re:/i.test(base) ? base : `Re: ${base}`);
     const lastIn = [...thread.messages].reverse().find((m) => m.direction === 'in');
     const addr = lastIn ? /[^\s<>"]+@[^\s<>"]+/.exec(lastIn.from)?.[0] : null;
     if (addr) setEmailTo(addr);
+    focusComposer();
+  }
+
+  const canSubmit =
+    !posting &&
+    (composing === 'note'
+      ? body.trim() !== ''
+      : composing === 'email'
+        ? emailTo.trim() !== '' && (subject.trim() !== '' || body.trim() !== '')
+        : subject.trim() !== '' || body.trim() !== '' || (composing === 'call' && outcome !== ''));
+
+  function resetComposer() {
+    setSubject('');
+    setBody('');
+    setDueAt('');
+    setDirection('');
+    setOutcome('');
+    setDurationMin('');
+    setTaskKind('');
+    setPriority('');
+    setAssignee(currentPersonId ?? '');
+    setMissing([]);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!composing || !canSubmit) return;
     setEmailError(null);
-    if (type === 'email') {
-      if (!emailTo.trim() || (!subject.trim() && !body.trim())) return;
+    if (composing === 'email') {
       setPosting(true);
       const res = await fetch('/api/crm/emails', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          recordType,
-          recordId,
-          to: emailTo.trim(),
-          subject: subject.trim(),
-          body: body.trim(),
-          tracking,
-          threadId: replyTo?.threadId,
-        }),
+        body: JSON.stringify({ recordType, recordId, to: emailTo.trim(), subject: subject.trim(), body: body.trim(), tracking, threadId: replyTo?.threadId }),
       }).catch(() => null);
       setPosting(false);
       const data = (await res?.json().catch(() => ({}))) as { error?: string; via?: 'gmail' | 'outlook' | 'system' } | undefined;
       if (res && res.ok) {
-        setSubject('');
-        setBody('');
+        resetComposer();
         setEmailTo(defaultEmail);
         setReplyTo(null);
-        setMissing([]);
-        setNotice(
-          data?.via === 'system' ? t('email.sentSystem') : data?.via === 'outlook' ? t('email.sentOutlook') : t('email.sentGmail'),
-        );
-        router.refresh();
+        setComposing(null);
+        setNotice(data?.via === 'system' ? t('email.sentSystem') : data?.via === 'outlook' ? t('email.sentOutlook') : t('email.sentGmail'));
+        refresh();
       } else {
         setEmailError(errorText(data?.error));
       }
       return;
     }
 
-    if (!subject.trim() && !body.trim()) return;
     setPosting(true);
     const payload: Record<string, unknown> = {
       type,
-      subject: subject.trim() || undefined,
+      subject: composing === 'note' ? undefined : subject.trim() || undefined,
       body: body.trim() || undefined,
       [`${recordType}Id`]: recordId,
     };
-    if (type === 'task' && dueAt) payload.dueAt = dueAt;
-    if (type === 'call' && direction) payload.direction = direction;
-    if (type === 'meeting' && durationMin) payload.durationMin = Number(durationMin);
+    const owner = composing === 'task' ? assignee : currentPersonId;
+    if (owner) payload.ownerId = owner;
+    if (composing === 'task') {
+      if (dueAt) payload.dueAt = dueAt;
+      if (taskKind) payload.taskKind = taskKind;
+      if (priority) payload.priority = priority;
+    }
+    if (composing === 'call' || composing === 'meeting' || composing === 'logEmail') {
+      const at = localInputToIso(occurredAt);
+      if (at) payload.dueAt = at;
+    }
+    if ((composing === 'call' || composing === 'logEmail') && direction) payload.direction = direction;
+    if ((composing === 'call' || composing === 'meeting') && outcome) payload.outcome = outcome;
+    if ((composing === 'call' || composing === 'meeting') && durationMin) payload.durationMin = Number(durationMin);
     const res = await fetch('/api/crm/activities', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     }).catch(() => null);
     setPosting(false);
-    setSubject('');
-    setBody('');
-    setDueAt('');
-    setDirection('');
-    setDurationMin('');
     // Sin red: quedó en la cola del service worker; aparece al sincronizar.
     if (isQueuedResponse(res)) {
+      resetComposer();
       setNotice(t('offline.savedOffline'));
       announceQueued('/api/crm/activities');
       return;
     }
-    router.refresh();
+    // Si no se guardó, lo escrito queda en el composer.
+    if (!res || !res.ok) {
+      const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+      setEmailError(errorText(data?.error));
+      return;
+    }
+    resetComposer();
+    setComposing(null);
+    refresh();
   }
 
-  // Cmd/Ctrl+Enter guarda desde cualquier campo del composer (como HubSpot).
-  function submitOnModEnter(e: React.KeyboardEvent<HTMLFormElement>) {
+  // Cmd/Ctrl+Enter guarda desde cualquier campo del composer (como HubSpot); Esc lo cierra.
+  function composerKeys(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === 'Escape' && !e.defaultPrevented) {
+      e.preventDefault();
+      closeComposer();
+      return;
+    }
     if (!isModEnter(e)) return;
     e.preventDefault();
     if (posting) return;
     e.currentTarget.requestSubmit();
   }
 
-  async function toggleDone(item: TimelineItem) {
-    setBusyId(item.id);
-    await fetch(`/api/crm/activities/${item.id}`, {
+  // ---------- Acciones de cada tarjeta ----------
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editBody, setEditBody] = useState('');
+  const [assocId, setAssocId] = useState<string | null>(null);
+  const [assoc, setAssoc] = useState<{ contactId: string; companyId: string; dealId: string }>({ contactId: '', companyId: '', dealId: '' });
+  const [assocError, setAssocError] = useState<string | null>(null);
+
+  async function patch(id: string, data: Record<string, unknown>): Promise<Response | null> {
+    setBusyId(id);
+    const res = await fetch(`/api/crm/activities/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ done: !item.done }),
+      body: JSON.stringify(data),
     }).catch(() => null);
     setBusyId(null);
-    router.refresh();
+    return res;
+  }
+
+  async function toggleDone(item: TimelineItem) {
+    await patch(item.id, { done: !item.done });
+    refresh();
   }
 
   async function togglePin(item: TimelineItem) {
-    setBusyId(item.id);
-    await fetch(`/api/crm/activities/${item.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ pinned: !item.pinned }),
-    }).catch(() => null);
-    setBusyId(null);
-    router.refresh();
+    if (recordKind) {
+      setBusyId(item.id);
+      await fetch('/api/crm/timeline', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ activityId: item.id, kind: recordKind, id: recordId, pinned: !item.pinned }),
+      }).catch(() => null);
+      setBusyId(null);
+    } else {
+      await patch(item.id, { pinned: !item.pinned });
+    }
+    refresh();
   }
 
   function startEdit(item: TimelineItem) {
+    setAssocId(null);
     setEditingId(item.id);
     setEditSubject(item.subject);
     setEditBody(item.body);
   }
 
   async function saveEdit(item: TimelineItem) {
-    setBusyId(item.id);
-    const res = await fetch(`/api/crm/activities/${item.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ subject: editSubject.trim(), body: editBody.trim() }),
-    }).catch(() => null);
-    setBusyId(null);
+    const res = await patch(item.id, { subject: editSubject.trim(), body: editBody.trim() });
     if (res && res.ok) {
       setEditingId(null);
-      router.refresh();
+      refresh();
+    }
+  }
+
+  function startAssoc(item: TimelineItem) {
+    setEditingId(null);
+    setAssocError(null);
+    setAssocId(item.id);
+    setAssoc({ contactId: item.contact_id ?? '', companyId: item.company_id ?? '', dealId: item.deal_id ?? '' });
+  }
+
+  async function saveAssoc(item: TimelineItem) {
+    const res = await patch(item.id, {
+      contactId: assoc.contactId || null,
+      companyId: assoc.companyId || null,
+      dealId: assoc.dealId || null,
+    });
+    if (res && res.ok) {
+      setAssocId(null);
+      refresh();
+    } else {
+      const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+      setAssocError(errorText(data?.error));
     }
   }
 
@@ -429,48 +679,85 @@ export default function Timeline({
     await fetch(`/api/crm/activities/${id}`, { method: 'DELETE' }).catch(() => null);
     setBusyId(null);
     setConfirmId(null);
-    router.refresh();
+    refresh();
   }
 
-  return (
-    <div className="timeline-wrap" ref={wrapRef}>
-      {/* Una sola fila de tabs (como HubSpot): filtra la lista y define qué
-          tipo de actividad crea el composer. En "All" el tipo se elige con
-          un select compacto dentro del composer. */}
-      <div className="btn-group tl-filters" role="tablist" aria-label={t('common.activityType')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === 'all'}
-          className="btn btn-secondary btn-sm"
-          onClick={() => setFilter('all')}
-        >
-          {t('common.all')}
-          {items.length > 0 && <span className="tl-count">{items.length}</span>}
-        </button>
-        {TYPES.map((v) => {
-          const n = items.filter((i) => i.type === v).length;
-          return (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={filter === v}
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                setFilter(v);
-                setAllType(v);
-              }}
-            >
-              {t(`enums.activityType.${v}`)}
-              {n > 0 && <span className="tl-count">{n}</span>}
-            </button>
-          );
-        })}
-      </div>
+  async function searchRecords(kind: 'contacts' | 'companies' | 'deals', q: string): Promise<ComboOption[]> {
+    const res = await fetch(`/api/crm/search?q=${encodeURIComponent(q)}`).catch(() => null);
+    if (!res?.ok) return [];
+    const data = (await res.json().catch(() => null)) as Record<string, Array<{ id: string; name?: string; first_name?: string; last_name?: string; email?: string }>> | null;
+    return (data?.[kind] ?? []).map((r) => ({
+      value: r.id,
+      label: kind === 'contacts' ? [r.first_name, r.last_name].filter(Boolean).join(' ') || r.email || r.id : r.name || r.id,
+    }));
+  }
 
-      <form className="tl-composer" onSubmit={submit} onKeyDown={submitOnModEnter}>
-        {type === 'email' && replyTo && (
+  // ---------- Textos ----------
+  function typeLabel(item: TimelineItem): string {
+    if (item.type === 'whatsapp') return item.wa?.group ? tl('waGroup') : tl('waChat');
+    if (item.type === 'call' && item.channel === 'whatsapp') return t('calls.whatsapp');
+    if (item.type === 'call' && item.channel === 'browser') return t('voice.timelineType');
+    if (item.type === 'task' && item.task_kind) return `${t('enums.activityType.task')} · ${t(`enums.activityType.${item.task_kind}`)}`;
+    return t(`enums.activityType.${item.type as 'note'}`);
+  }
+
+  function outcomeLabel(item: TimelineItem): string {
+    if (!item.outcome) return '';
+    if (item.type === 'meeting' && (MEETING_OUTCOMES as readonly string[]).includes(item.outcome)) {
+      return tl(`meetingOutcomes.${item.outcome as (typeof MEETING_OUTCOMES)[number]}`);
+    }
+    return isDefaultOutcome(item.outcome) ? t(`calls.outcomes.${item.outcome}`) : item.outcome;
+  }
+
+  function rollupFrom(item: TimelineItem): string {
+    const name = item.contact_name || item.deal_name || item.company_name;
+    return name ? tl('fromRecord', { name }) : tl('fromAssociated');
+  }
+
+  function groupLabel(g: { kind: string; month?: Date }): string {
+    if (g.kind === 'pinned') return tl('groups.pinned');
+    if (g.kind === 'upcoming') return tl('groups.upcoming');
+    if (g.kind === 'thisMonth') return tl('groups.thisMonth');
+    return g.month ? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(g.month) : '';
+  }
+
+  /** Registros de la actividad (sin el de la ficha): links como en las tarjetas de HubSpot. */
+  function assocLinks(item: TimelineItem) {
+    const out: Array<{ key: string; href: string; label: string }> = [];
+    if (item.contact_id && item.contact_name && !(recordType === 'contact' && item.contact_id === recordId)) {
+      out.push({ key: 'c', href: `/app/crm/contacts/${item.contact_id}`, label: item.contact_name });
+    }
+    if (item.company_id && item.company_name && !(recordType === 'company' && item.company_id === recordId)) {
+      out.push({ key: 'co', href: `/app/crm/companies/${item.company_id}`, label: item.company_name });
+    }
+    if (item.deal_id && item.deal_name && !(recordType === 'deal' && item.deal_id === recordId)) {
+      out.push({ key: 'd', href: `/app/crm/deals/${item.deal_id}`, label: item.deal_name });
+    }
+    return out;
+  }
+
+  // ---------- Render ----------
+  const createKinds = CREATE_BY_TAB[tab].filter((k) => canEmail || (k !== 'email' && k !== 'logEmail'));
+
+  function renderComposer() {
+    if (!composing) return null;
+    const people = mentionables.length ? mentionables : [];
+    return (
+      <form
+        className="tl-composer atl-composer"
+        data-kind={composing}
+        data-testid="timeline-composer"
+        onSubmit={submit}
+        onKeyDown={composerKeys}
+        aria-label={tl(`create.${composing}`)}
+      >
+        <div className="atl-composer-head">
+          <strong>{tl(`create.${composing}`)}</strong>
+          <button type="button" className="icon-btn" onClick={closeComposer} aria-label={tl('closeComposer')} title={tl('closeComposer')}>
+            <CrmIcon name="x" />
+          </button>
+        </div>
+        {composing === 'email' && replyTo && (
           <div className="em-replying">
             <span className="muted">{t('email.replyingTo', { subject: replyTo.subject || '—' })}</span>
             <button type="button" className="link-btn" onClick={() => { setReplyTo(null); setSubject(''); }}>
@@ -478,73 +765,56 @@ export default function Timeline({
             </button>
           </div>
         )}
-        {type === 'email' && (
+        {composing === 'email' && (
+          <input className="input" type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder={t('common.to')} aria-label={t('common.to')} required />
+        )}
+        {composing !== 'note' && (
           <input
             className="input"
-            type="email"
-            value={emailTo}
-            onChange={(e) => setEmailTo(e.target.value)}
-            placeholder={t('common.to')}
-            required
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder={composing === 'email' || composing === 'logEmail' ? t('common.subject') : tl('title')}
+            aria-label={composing === 'email' || composing === 'logEmail' ? t('common.subject') : tl('title')}
+            maxLength={500}
           />
         )}
-        <input
-          className="input"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder={type === 'email' ? t('common.subject') : t('tasks.form.subject')}
-          maxLength={500}
-        />
-        {MENTION_TYPES.has(type) && mentionables.length > 1 ? (
+        {MENTION_TYPES.has(type) && people.length > 1 ? (
           <MentionTextarea
             className="textarea"
             rows={3}
             value={body}
             onChange={setBody}
-            people={mentionables}
-            placeholder={t('mentions.placeholder')}
+            people={people}
+            placeholder={composing === 'note' ? tl('notePlaceholder') : t('mentions.placeholder')}
             maxLength={5000}
-            aria-label={t('tasks.form.body')}
+            aria-label={composing === 'note' ? t('enums.activityType.note') : t('tasks.form.body')}
           />
         ) : (
           <textarea
             className="textarea"
-            rows={type === 'email' ? 6 : 3}
+            rows={composing === 'email' ? 6 : 3}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={type === 'email' ? t('common.body') : t('tasks.form.body')}
-            maxLength={type === 'email' ? 20000 : 5000}
+            placeholder={composing === 'email' ? t('common.body') : composing === 'note' ? tl('notePlaceholder') : tl('description')}
+            aria-label={composing === 'email' ? t('common.body') : composing === 'note' ? t('enums.activityType.note') : tl('description')}
+            maxLength={composing === 'email' ? 20000 : 5000}
           />
         )}
-        {type === 'email' && emailTools && (
+        {composing === 'email' && emailTools && (
           <div className="em-tools">
             {templates.length > 0 && (
-              <select
-                className="filter-select"
-                value=""
-                onChange={(e) => insertTemplate(e.target.value)}
-                aria-label={t('email.insertTemplate')}
-              >
+              <select className="filter-select" value="" onChange={(e) => insertTemplate(e.target.value)} aria-label={t('email.insertTemplate')}>
                 <option value="">{t('email.insertTemplate')}</option>
                 {templates.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
+                  <option key={x.id} value={x.id}>{x.name}</option>
                 ))}
               </select>
             )}
             {snippets.length > 0 && (
-              <select
-                className="filter-select"
-                value=""
-                onChange={(e) => insertSnippet(e.target.value)}
-                aria-label={t('email.insertSnippet')}
-              >
+              <select className="filter-select" value="" onChange={(e) => insertSnippet(e.target.value)} aria-label={t('email.insertSnippet')}>
                 <option value="">{t('email.insertSnippet')}</option>
                 {snippets.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
+                  <option key={x.id} value={x.id}>{x.name}</option>
                 ))}
               </select>
             )}
@@ -559,7 +829,7 @@ export default function Timeline({
             </label>
           </div>
         )}
-        {type === 'email' && aiOpen && (
+        {composing === 'email' && aiOpen && (
           <div className="em-ai">
             <input
               className="input"
@@ -579,285 +849,560 @@ export default function Timeline({
             </button>
           </div>
         )}
-        {type === 'email' && missing.length > 0 && (
-          <p className="em-warn mono">{t('email.missingVars', { vars: missing.join(', ') })}</p>
-        )}
+        {composing === 'email' && missing.length > 0 && <p className="em-warn mono">{t('email.missingVars', { vars: missing.join(', ') })}</p>}
         <div className="tl-composer-actions">
-          <div className="tl-composer-extras">
-            {filter === 'all' && (
-              <select
-                className="filter-select tl-type-select"
-                value={type}
-                onChange={(e) => setAllType(e.target.value as ActivityType)}
-                aria-label={t('common.activityType')}
-              >
-                {TYPES.map((v) => (
-                  <option key={v} value={v}>
-                    {t(`enums.activityType.${v}`)}
-                  </option>
-                ))}
-              </select>
+          <div className="tl-composer-extras atl-fields">
+            {(composing === 'call' || composing === 'meeting' || composing === 'logEmail') && (
+              <label className="atl-field">
+                <span>{tl('occurredAt')}</span>
+                <input className="input" type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
+              </label>
             )}
-            {type === 'task' && (
-              <input
-                className="input"
-                type="date"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                aria-label={t('tasks.form.dueAt')}
-              />
+            {composing === 'call' && (
+              <label className="atl-field">
+                <span>{tl('outcome')}</span>
+                <select className="filter-select" value={outcome} onChange={(e) => setOutcome(e.target.value)} data-testid="timeline-outcome">
+                  <option value="">{tl('noOutcome')}</option>
+                  {DEFAULT_CALL_OUTCOMES.map((o) => (
+                    <option key={o} value={o}>{t(`calls.outcomes.${o}`)}</option>
+                  ))}
+                </select>
+              </label>
             )}
-            {type === 'call' && (
-              <select
-                className="filter-select"
-                value={direction}
-                onChange={(e) => setDirection(e.target.value)}
-                aria-label={t('common.optional')}
-              >
-                <option value="">—</option>
-                <option value="inbound">{t('enums.direction.inbound')}</option>
-                <option value="outbound">{t('enums.direction.outbound')}</option>
-              </select>
+            {composing === 'meeting' && (
+              <label className="atl-field">
+                <span>{tl('outcome')}</span>
+                <select className="filter-select" value={outcome} onChange={(e) => setOutcome(e.target.value)} data-testid="timeline-outcome">
+                  <option value="">{tl('noOutcome')}</option>
+                  {MEETING_OUTCOMES.map((o) => (
+                    <option key={o} value={o}>{tl(`meetingOutcomes.${o}`)}</option>
+                  ))}
+                </select>
+              </label>
             )}
-            {type === 'meeting' && (
-              <input
-                className="input tl-duration"
-                type="number"
-                min={0}
-                value={durationMin}
-                onChange={(e) => setDurationMin(e.target.value)}
-                placeholder={t('common.durationMin')}
-                aria-label={t('common.durationMin')}
-              />
+            {(composing === 'call' || composing === 'logEmail') && (
+              <label className="atl-field">
+                <span>{tl('direction')}</span>
+                <select className="filter-select" value={direction} onChange={(e) => setDirection(e.target.value)}>
+                  <option value="">{tl('noDirection')}</option>
+                  <option value="inbound">{t('enums.direction.inbound')}</option>
+                  <option value="outbound">{t('enums.direction.outbound')}</option>
+                </select>
+              </label>
+            )}
+            {(composing === 'call' || composing === 'meeting') && (
+              <label className="atl-field">
+                <span>{t('common.durationMin')}</span>
+                <input className="input tl-duration" type="number" min={0} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} />
+              </label>
+            )}
+            {composing === 'task' && (
+              <>
+                <label className="atl-field">
+                  <span>{t('tasks.form.dueAt')}</span>
+                  <input className="input" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+                </label>
+                <label className="atl-field">
+                  <span>{tl('taskType')}</span>
+                  <select className="filter-select" value={taskKind} onChange={(e) => setTaskKind(e.target.value as '' | 'call' | 'email')}>
+                    <option value="">{tl('todo')}</option>
+                    <option value="call">{t('enums.activityType.call')}</option>
+                    <option value="email">{t('enums.activityType.email')}</option>
+                  </select>
+                </label>
+                <label className="atl-field">
+                  <span>{t('tasks.form.priority')}</span>
+                  <select className="filter-select" value={priority} onChange={(e) => setPriority(e.target.value as '' | 'low' | 'medium' | 'high')}>
+                    <option value="">{t('tasks.priority.none')}</option>
+                    <option value="low">{t('tasks.priority.low')}</option>
+                    <option value="medium">{t('tasks.priority.medium')}</option>
+                    <option value="high">{t('tasks.priority.high')}</option>
+                  </select>
+                </label>
+                {people.length > 0 && (
+                  <label className="atl-field">
+                    <span>{tl('assignedTo')}</span>
+                    <select className="filter-select" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+                      {!people.some((p) => p.id === assignee) && <option value={assignee}>{t('common.none')}</option>}
+                      {people.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name || p.email}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
             )}
           </div>
-          <button
-            type="submit"
-            aria-keyshortcuts="Meta+Enter Control+Enter"
-            className="btn btn-solid btn-small"
-            disabled={posting || (!subject.trim() && !body.trim()) || (type === 'email' && !emailTo.trim())}
-          >
-            {posting ? t('common.creating') : t(SUBMIT_KEYS[type])}
+          <button type="submit" aria-keyshortcuts="Meta+Enter Control+Enter" className="btn btn-solid btn-small" disabled={!canSubmit}>
+            {posting
+              ? t('common.creating')
+              : composing === 'note'
+                ? tl('saveNote')
+                : composing === 'task'
+                  ? tl('createTask')
+                  : composing === 'email'
+                    ? t('common.sendEmail')
+                    : tl('logActivity')}
           </button>
         </div>
         {emailError && <p className="form-error">{emailError}</p>}
-        {notice && !emailError && <p className="muted em-notice">{notice}</p>}
       </form>
+    );
+  }
 
-      {filtered.length === 0 ? (
-        <p className="muted">{emptyLabel}</p>
-      ) : (
-        <div className="timeline">
-          {filtered.map((item) => (
-            <div
-              key={item.id}
-              className={`tl-item${item.done ? ' tl-done' : ''}${item.pinned ? ' tl-pinned' : ''}${busyId === item.id ? ' row-busy' : ''}`}
-              data-testid="crm-timeline-item"
-              data-chat-private={item.chat_private ? 'true' : undefined}
+  function renderBody(item: TimelineItem) {
+    if (item.wa) {
+      return (
+        <div className="atl-wa">
+          <ol className="atl-wa-messages">
+            {item.wa.messages.map((m) => (
+              <li key={m.id} data-out={m.out ? 'true' : undefined}>
+                <strong>{m.out ? tl('team') : m.who}</strong> <span>{m.text}</span>
+              </li>
+            ))}
+          </ol>
+          <Link className="atl-link" href={`/app/lines/inbox/${item.wa.chatId}`}>
+            {tl('openInLines')}
+          </Link>
+        </div>
+      );
+    }
+    if (item.thread) return <EmailThread thread={item.thread} locale={locale} onReply={emailTools ? startReply : undefined} />;
+    if (editingId === item.id) {
+      return (
+        <div
+          className="tl-edit"
+          onKeyDown={(e) => {
+            if (isModEnter(e)) {
+              e.preventDefault();
+              void saveEdit(item);
+            } else if (e.key === 'Escape' && !e.defaultPrevented) {
+              e.preventDefault();
+              setEditingId(null);
+            }
+          }}
+        >
+          {(item.type !== 'note' || item.subject) && (
+            <input className="input" value={editSubject} onChange={(e) => setEditSubject(e.target.value)} placeholder={tl('title')} aria-label={tl('title')} maxLength={500} />
+          )}
+          {MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
+            <MentionTextarea className="textarea" rows={3} value={editBody} onChange={setEditBody} people={mentionables} placeholder={t('tasks.form.body')} maxLength={5000} aria-label={t('tasks.form.body')} />
+          ) : (
+            <textarea className="textarea" rows={3} value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder={t('tasks.form.body')} aria-label={t('tasks.form.body')} maxLength={5000} />
+          )}
+          <div className="form-actions">
+            <button type="button" className="btn btn-solid btn-small" disabled={busyId === item.id} onClick={() => saveEdit(item)}>
+              {t('common.save')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditingId(null)}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    const links = assocLinks(item);
+    return (
+      <>
+        {item.chat_private ? (
+          <p className="tl-subject crm-private-task" title={t('tasks.privateChatHint')} data-testid="crm-private-chat-task">
+            {item.subject}
+          </p>
+        ) : (
+          item.subject && <p className="tl-subject atl-subject">{item.subject}</p>
+        )}
+        {item.body && (
+          <p className="tl-body">
+            <MentionText text={item.body} people={mentionables} />
+          </p>
+        )}
+        {item.voice && <CallDetails voice={item.voice} />}
+        <div className="tl-meta">
+          {item.type === 'task' && item.due_at && (
+            <span>
+              {t('tasks.dueLabel')} <LocalText>{formatDay(item.due_at, locale)}</LocalText>
+            </span>
+          )}
+          {item.type === 'task' && item.source && (
+            <Link href={item.source.href} className="tl-source">
+              {t(`tasks.links.app.${item.source.app}`)}
+              {item.source.label ? ` · ${item.source.label}` : ''}
+            </Link>
+          )}
+          {item.direction && item.type !== 'whatsapp' && <span>{t(`enums.direction.${item.direction as 'inbound'}`)}</span>}
+          {item.voice?.durationSec != null ? (
+            <span>{formatCallDuration(item.voice.durationSec)}</span>
+          ) : (
+            item.duration_min != null && <span>{item.duration_min} min</span>
+          )}
+          {item.outcome && <span data-testid="timeline-item-outcome">{outcomeLabel(item)}</span>}
+          {item.external && item.from_email && <span className="tl-from">{item.from_email}</span>}
+          {!item.external && item.type === 'meeting' && zoomOn && !/zoom\.us\//.test(item.body) && (
+            <button type="button" className="icon-btn" onClick={() => createZoom(item.id)} disabled={zoomBusy !== null} aria-busy={zoomBusy === item.id || undefined}>
+              {t('apps.zoom.createLink')}
+            </button>
+          )}
+        </div>
+        {links.length > 0 && (
+          <p className="atl-assoc" data-testid="timeline-item-assoc">
+            {links.map((l) => (
+              <Link key={l.key} href={l.href} className="atl-link">
+                {l.label}
+              </Link>
+            ))}
+          </p>
+        )}
+        {assocId === item.id && (
+          <div className="atl-assoc-edit" data-testid="timeline-assoc-edit">
+            <RecordCombobox
+              options={item.contact_id && item.contact_name ? [{ value: item.contact_id, label: item.contact_name }] : []}
+              value={assoc.contactId}
+              onChange={(v) => setAssoc((a) => ({ ...a, contactId: v }))}
+              noneLabel={tl('noRecord')}
+              placeholder={tl('searchRecords')}
+              ariaLabel={t('tasks.form.contact')}
+              search={(q) => searchRecords('contacts', q)}
+            />
+            <RecordCombobox
+              options={item.company_id && item.company_name ? [{ value: item.company_id, label: item.company_name }] : []}
+              value={assoc.companyId}
+              onChange={(v) => setAssoc((a) => ({ ...a, companyId: v }))}
+              noneLabel={tl('noRecord')}
+              placeholder={tl('searchRecords')}
+              ariaLabel={t('tasks.form.company')}
+              search={(q) => searchRecords('companies', q)}
+            />
+            <RecordCombobox
+              options={item.deal_id && item.deal_name ? [{ value: item.deal_id, label: item.deal_name }] : []}
+              value={assoc.dealId}
+              onChange={(v) => setAssoc((a) => ({ ...a, dealId: v }))}
+              noneLabel={tl('noRecord')}
+              placeholder={tl('searchRecords')}
+              ariaLabel={t('tasks.form.deal')}
+              search={(q) => searchRecords('deals', q)}
+            />
+            <div className="form-actions">
+              <button type="button" className="btn btn-solid btn-small" disabled={busyId === item.id} onClick={() => saveAssoc(item)}>
+                {tl('saveAssociations')}
+              </button>
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => setAssocId(null)}>
+                {t('common.cancel')}
+              </button>
+            </div>
+            {assocError && <p className="form-error">{assocError}</p>}
+          </div>
+        )}
+        {!item.external && (item.type === 'call' || item.type === 'meeting') && (!item.voice?.transcript.length || item.ai_summary) && (
+          <CallSummaryBlock
+            activityId={item.id}
+            locale={locale}
+            initial={item.ai_summary ?? null}
+            links={{ contactId: item.contact_id, companyId: item.company_id, dealId: item.deal_id }}
+          />
+        )}
+        {!item.external && <FilesPanel compact endpoint={`/api/crm/activities/${item.id}/files`} files={item.files ?? []} />}
+      </>
+    );
+  }
+
+  function renderItem(item: TimelineItem) {
+    const open = isOpen(item.id);
+    const date = item.due_at ?? item.created_at;
+    const preview = item.chat_private ? item.subject : item.subject || item.body.split('\n')[0] || item.wa?.messages[item.wa.messages.length - 1]?.text || '';
+    const canPin = !item.external && !item.rollup;
+    return (
+      <article
+        key={item.id}
+        className={`tl-item atl-card${item.done ? ' tl-done' : ''}${item.pinned ? ' tl-pinned' : ''}${busyId === item.id ? ' row-busy' : ''}`}
+        data-testid="crm-timeline-item"
+        data-type={item.type}
+        data-rollup={item.rollup ? 'true' : undefined}
+        data-chat-private={item.chat_private ? 'true' : undefined}
+      >
+        <div className="atl-card-head">
+          <span className="atl-icon" data-type={item.type} aria-hidden>
+            <CrmIcon name={item.type === 'call' && item.channel === 'whatsapp' ? 'message' : (TYPE_ICON[item.type] ?? 'note')} />
+          </span>
+          <button
+            type="button"
+            className="atl-title"
+            aria-expanded={open}
+            onClick={() => toggleOne(item.id)}
+            title={open ? tl('collapse') : tl('expand')}
+            data-testid="timeline-item-toggle"
+          >
+            <span className="tl-type">
+              {item.author_name && !item.external ? tl('by', { type: typeLabel(item), name: item.author_name }) : typeLabel(item)}
+            </span>
+            {!open && preview && <span className="atl-preview">{preview}</span>}
+          </button>
+          {item.external && item.thread ? <span className="badge">{item.thread.messages[0]?.source === 'outlook' ? 'Outlook' : 'Gmail'}</span> : null}
+          {!item.external && item.type === 'email' && item.direction === 'outbound' ? <span className="badge">{t('common.sent')}</span> : null}
+          {item.pinned ? <span className="badge" data-testid="timeline-item-pinned">{t('common.pinned')}</span> : null}
+          {item.rollup ? <span className="atl-from" data-testid="timeline-item-from">{rollupFrom(item)}</span> : null}
+          <time className="tl-date atl-when" dateTime={date} title={mounted ? formatWhen(date, locale) : undefined}>
+            <LocalText>{mounted ? relativeTime(parseDbUtc(date), now, locale) : formatWhen(date, locale)}</LocalText>
+          </time>
+          {!item.external && item.type === 'task' && (
+            <button
+              type="button"
+              className={`icon-btn atl-done${item.done ? ' is-done' : ''}`}
+              onClick={() => toggleDone(item)}
+              aria-pressed={!!item.done}
+              aria-label={item.done ? t('tasks.reopen') : t('tasks.complete')}
+              title={item.done ? t('tasks.reopen') : t('tasks.complete')}
             >
-              <span className={`tl-dot ${item.type}`} aria-hidden />
-              {item.thread ? (
-                <EmailThread thread={item.thread} locale={locale} onReply={emailTools ? startReply : undefined} />
-              ) : editingId === item.id ? (
-                <div
-                  className="tl-edit"
-                  onKeyDown={(e) => {
-                    if (isModEnter(e)) {
-                      e.preventDefault();
-                      void saveEdit(item);
-                    }
-                  }}
-                >
-                  <input
-                    className="input"
-                    value={editSubject}
-                    onChange={(e) => setEditSubject(e.target.value)}
-                    placeholder={t('tasks.form.subject')}
-                    maxLength={500}
-                  />
-                  {MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
-                    <MentionTextarea
-                      className="textarea"
-                      rows={3}
-                      value={editBody}
-                      onChange={setEditBody}
-                      people={mentionables}
-                      placeholder={t('tasks.form.body')}
-                      maxLength={5000}
-                      aria-label={t('tasks.form.body')}
-                    />
-                  ) : (
-                    <textarea
-                      className="textarea"
-                      rows={3}
-                      value={editBody}
-                      onChange={(e) => setEditBody(e.target.value)}
-                      placeholder={t('tasks.form.body')}
-                      maxLength={5000}
-                    />
-                  )}
-                  <div className="form-actions">
-                    <button
-                      type="button"
-                      className="btn btn-solid btn-small"
-                      disabled={busyId === item.id}
-                      onClick={() => saveEdit(item)}
-                    >
-                      {t('common.save')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-small"
-                      onClick={() => setEditingId(null)}
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
+              <CrmIcon name="check" />
+            </button>
+          )}
+          {!item.external && (
+            <TimelineMenu label={tl('actions')} button={<CrmIcon name="more" />} buttonClassName="icon-btn atl-more" align="end" testId="timeline-item-menu">
+              {(close) => (
                 <>
-                  <div className="tl-head">
-                    <span className="tl-type">
-                      {item.type === 'call' && item.channel === 'whatsapp'
-                        ? t('calls.whatsapp')
-                        : item.type === 'call' && item.channel === 'browser'
-                          ? t('voice.timelineType')
-                          : item.type === 'task' && item.task_kind
-                            ? `${t('enums.activityType.task')} · ${t(`enums.activityType.${item.task_kind}`)}`
-                            : t(`enums.activityType.${item.type}`)}
-                    </span>
-                    {item.external ? <span className="badge">Gmail</span> : null}
-                    {!item.external && item.type === 'email' && item.direction === 'outbound' ? (
-                      <span className="badge">{t('common.sent')}</span>
-                    ) : null}
-                    {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
-                    {item.chat_private ? (
-                      <span className="tl-subject crm-private-task" title={t('tasks.privateChatHint')} data-testid="crm-private-chat-task">
-                        {item.subject}
-                      </span>
-                    ) : (
-                      <span className="tl-subject">{item.subject || '—'}</span>
-                    )}
-                    <span className="tl-date">
-                      <LocalText>{formatWhen(item.due_at ?? item.created_at, locale)}</LocalText>
-                    </span>
-                  </div>
-                  {item.body && (
-                    <p className="tl-body">
-                      <MentionText text={item.body} people={mentionables} />
-                    </p>
+                  {(canPin || (!recordKind && !item.external)) && (
+                    <button type="button" role="menuitem" className="atl-menu-item" onClick={() => { close(); void togglePin(item); }}>
+                      {item.pinned ? t('common.unpin') : t('common.pin')}
+                    </button>
                   )}
-                  {item.voice && <CallDetails voice={item.voice} />}
-                  <div className="tl-meta">
-                    {item.type === 'task' && item.due_at && (
-                      <span>
-                        {t('tasks.dueLabel')} <LocalText>{formatDay(item.due_at, locale)}</LocalText>
-                      </span>
-                    )}
-                    {item.type === 'task' && item.source && (
-                      <Link href={item.source.href} className="tl-source">
-                        {t(`tasks.links.app.${item.source.app}`)}
-                        {item.source.label ? ` · ${item.source.label}` : ''}
-                      </Link>
-                    )}
-                    {item.direction && <span>{t(`enums.direction.${item.direction}`)}</span>}
-                    {/* Llamada desde el navegador: la duración exacta (45 s); el resto, en minutos. */}
-                    {item.voice?.durationSec != null ? (
-                      <span>{formatCallDuration(item.voice.durationSec)}</span>
-                    ) : (
-                      item.duration_min != null && <span>{item.duration_min} min</span>
-                    )}
-                    {item.outcome && <span>{isDefaultOutcome(item.outcome) ? t(`calls.outcomes.${item.outcome}`) : item.outcome}</span>}
-                    {item.external && item.from_email && (
-                      <span className="tl-from">{item.from_email}</span>
-                    )}
-                    {!item.external && item.type === 'meeting' && zoomOn && !/zoom\.us\//.test(item.body) && (
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        onClick={() => createZoom(item.id)}
-                        disabled={zoomBusy !== null}
-                        aria-busy={zoomBusy === item.id || undefined}
-                      >
-                        {t('apps.zoom.createLink')}
-                      </button>
-                    )}
-                    {!item.external && item.type === 'task' && (
-                      <button type="button" className="icon-btn" onClick={() => toggleDone(item)}>
-                        {item.done ? t('tasks.reopen') : t('tasks.complete')}
-                      </button>
-                    )}
-                    {!item.external && (
-                      <>
-                        <button
-                          type="button"
-                          className={`icon-btn tl-pin${item.pinned ? ' is-pinned' : ''}`}
-                          onClick={() => togglePin(item)}
-                          title={item.pinned ? t('common.unpin') : t('common.pin')}
-                          aria-label={item.pinned ? t('common.unpin') : t('common.pin')}
-                          aria-pressed={!!item.pinned}
-                        >
-                          <CrmIcon name="pin" />
-                        </button>
-                        {!item.chat_private && (
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            onClick={() => startEdit(item)}
-                            title={t('common.edit')}
-                            aria-label={t('common.edit')}
-                          >
-                            <CrmIcon name="edit" />
-                          </button>
-                        )}
-                        {confirmId === item.id ? (
-                          <>
-                            <button
-                              type="button"
-                              className="icon-btn danger"
-                              onClick={() => remove(item.id)}
-                            >
-                              {t('common.yes')}
-                            </button>
-                            <button type="button" className="icon-btn" onClick={() => setConfirmId(null)}>
-                              {t('common.no')}
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="icon-btn danger"
-                            onClick={() => setConfirmId(item.id)}
-                            title={t('common.delete')}
-                            aria-label={t('common.delete')}
-                          >
-                            <CrmIcon name="x" />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {/* Llamada desde el navegador con transcripción: su resumen lo maneja CallDetails
-                      (un solo "Resumir con IA" por llamada); el bloque queda si ya había uno guardado. */}
-                  {!item.external &&
-                    (item.type === 'call' || item.type === 'meeting') &&
-                    (!item.voice?.transcript.length || item.ai_summary) && (
-                    <CallSummaryBlock
-                      activityId={item.id}
-                      locale={locale}
-                      initial={item.ai_summary ?? null}
-                      links={{ contactId: item.contact_id, companyId: item.company_id, dealId: item.deal_id }}
-                    />
+                  {!item.chat_private && (
+                    <button type="button" role="menuitem" className="atl-menu-item" onClick={() => { close(); if (!open) toggleOne(item.id); startEdit(item); }}>
+                      {t('common.edit')}
+                    </button>
                   )}
-                  {!item.external && (
-                    <FilesPanel compact endpoint={`/api/crm/activities/${item.id}/files`} files={item.files ?? []} />
+                  {canEmail && (
+                    <button type="button" role="menuitem" className="atl-menu-item" onClick={() => { close(); if (!open) toggleOne(item.id); startAssoc(item); }}>
+                      {tl('associations')}
+                    </button>
                   )}
+                  <button type="button" role="menuitem" className="atl-menu-item danger" onClick={() => { close(); setConfirmId(item.id); }}>
+                    {t('common.delete')}
+                  </button>
                 </>
               )}
-            </div>
+            </TimelineMenu>
+          )}
+        </div>
+        {confirmId === item.id && (
+          <div className="atl-confirm" role="alertdialog" aria-label={tl('deleteConfirm')}>
+            <span>{tl('deleteConfirm')}</span>
+            <button type="button" className="btn btn-danger btn-small" onClick={() => remove(item.id)} autoFocus>
+              {t('common.delete')}
+            </button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setConfirmId(null)}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        )}
+        {open && <div className="atl-card-body">{renderBody(item)}</div>}
+      </article>
+    );
+  }
+
+  return (
+    <div className="timeline-wrap atl" ref={wrapRef}>
+      <div className="atl-tabs" role="tablist" aria-label={tl('tabsLabel')}>
+        {visibleTabs.map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={tab === v}
+            className="atl-tab"
+            data-testid={`timeline-tab-${v}`}
+            onClick={() => setTab(v)}
+          >
+            {tl(`tabs.${v}`)}
+            {counts[v] > 0 && <span className="tl-count">{counts[v]}</span>}
+          </button>
+        ))}
+      </div>
+
+      <div className="atl-toolbar">
+        <label className="atl-search">
+          <CrmIcon name="search" />
+          <input type="search" className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tl('search')} aria-label={tl('search')} data-testid="timeline-search" />
+        </label>
+        {tab === 'all' || hasAssociated ? (
+          <TimelineMenu
+            label={tl('filterActivity')}
+            button={
+              <>
+                <CrmIcon name="filter" />
+                <span>{typesFiltered ? tl('filterActive', { count: typeOptions.filter((v) => types.includes(v)).length }) : tl('filterActivity')}</span>
+              </>
+            }
+            buttonClassName={`btn btn-secondary btn-sm atl-tool${typesFiltered || (hasAssociated && !associated) ? ' is-active' : ''}`}
+            testId="timeline-filter"
+          >
+            {() => (
+              <>
+                {tab === 'all' && (
+                  <>
+                    <p className="atl-menu-label">{tl('types')}</p>
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={allTypesOn}
+                      className="atl-menu-item atl-check"
+                      onClick={() => chooseTypes(allTypesOn ? [] : [...TIMELINE_TYPES])}
+                    >
+                      <Check on={allTypesOn} />
+                      {tl('selectAll')}
+                    </button>
+                    {typeOptions.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={types.includes(v)}
+                        className="atl-menu-item atl-check"
+                        data-testid={`timeline-filter-${v}`}
+                        onClick={() => chooseTypes(types.includes(v) ? types.filter((x) => x !== v) : [...types, v])}
+                      >
+                        <Check on={types.includes(v)} />
+                        {tl(`tabs.${v}`)}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {hasAssociated && (
+                  <>
+                    {tab === 'all' && <hr className="atl-menu-rule" />}
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={associated}
+                      className="atl-menu-item atl-check"
+                      data-testid="timeline-associated"
+                      onClick={() => chooseAssociated(!associated)}
+                    >
+                      <Check on={associated} />
+                      <span>
+                        {tl('associated')}
+                        <small className="atl-menu-hint">{recordType === 'deal' ? tl('associatedHintDeal') : tl('associatedHint')}</small>
+                      </span>
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </TimelineMenu>
+        ) : null}
+        {authors.length > 0 && (
+          <TimelineMenu
+            label={tl('users')}
+            button={
+              <>
+                <CrmIcon name="user" />
+                <span>{users ? tl('usersCount', { count: users.length }) : tl('allUsers')}</span>
+              </>
+            }
+            buttonClassName={`btn btn-secondary btn-sm atl-tool${users ? ' is-active' : ''}`}
+            testId="timeline-users"
+          >
+            {() => (
+              <>
+                <button type="button" role="menuitemcheckbox" aria-checked={users === null} className="atl-menu-item atl-check" onClick={() => setUsers(null)}>
+                  <Check on={users === null} />
+                  {tl('allUsers')}
+                </button>
+                {authors.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={!!users?.includes(a.id)}
+                    className="atl-menu-item atl-check"
+                    data-testid={`timeline-user-${a.id}`}
+                    onClick={() => {
+                      const cur = users ?? [];
+                      const next = cur.includes(a.id) ? cur.filter((x) => x !== a.id) : [...cur, a.id];
+                      setUsers(next.length ? next : null);
+                    }}
+                  >
+                    <Check on={!!users?.includes(a.id)} />
+                    {a.name || '—'}
+                  </button>
+                ))}
+              </>
+            )}
+          </TimelineMenu>
+        )}
+        <button type="button" className="btn btn-ghost btn-sm atl-tool" onClick={() => setAllOpen(collapsedAll)} data-testid="timeline-collapse-all">
+          {collapsedAll ? tl('expandAll') : tl('collapseAll')}
+        </button>
+        <div className="atl-create">
+          {tab === 'all' ? (
+            <TimelineMenu
+              label={tl('createMenu')}
+              button={
+                <>
+                  <CrmIcon name="plus" />
+                  <span>{tl('createMenu')}</span>
+                </>
+              }
+              buttonClassName="btn btn-solid btn-sm atl-tool"
+              align="end"
+              testId="timeline-create"
+            >
+              {(close) =>
+                createKinds.map((k) => (
+                  <button key={k} type="button" role="menuitem" className="atl-menu-item" data-testid={`timeline-create-${k}`} onClick={() => { close(); openComposer(k); }}>
+                    {tl(`create.${k}`)}
+                  </button>
+                ))
+              }
+            </TimelineMenu>
+          ) : (
+            createKinds.map((k, i) => (
+              <button
+                key={k}
+                type="button"
+                className={`btn ${i === 0 ? 'btn-solid' : 'btn-secondary'} btn-sm`}
+                data-testid={`timeline-create-${k}`}
+                onClick={() => openComposer(k)}
+              >
+                {tl(`create.${k}`)}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {renderComposer()}
+      {notice && !emailError && <p className="muted em-notice">{notice}</p>}
+
+      {all.length === 0 ? (
+        <p className="muted">{emptyLabel}</p>
+      ) : filtered.length === 0 ? (
+        <div className="atl-empty" data-testid="timeline-no-match">
+          <p className="muted">{tl('noMatch')}</p>
+          {anyFilter && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={clearFilters}>
+              {tl('clearFilters')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="timeline atl-list">
+          {groups.map((g) => (
+            <section key={g.key} className="atl-group" data-group={g.kind} aria-label={mounted ? groupLabel(g) : undefined}>
+              {mounted && g.key !== 'all' && <h3 className="atl-group-title">{groupLabel(g)}</h3>}
+              {g.items.map((item) => renderItem(item))}
+            </section>
           ))}
+        </div>
+      )}
+
+      {recordKind && moreState.hasMore && (
+        <div className="atl-more-row">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={loadMore} disabled={loadingMore} data-testid="timeline-load-more">
+            {loadingMore ? tl('loading') : tl('loadMore')}
+          </button>
+          {moreError && <p className="form-error">{tl('loadError')}</p>}
         </div>
       )}
     </div>
   );
 }
+
