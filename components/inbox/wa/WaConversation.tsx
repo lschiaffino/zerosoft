@@ -24,7 +24,9 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Search as SearchIcon, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ChatSearchPanel, useChatSearchShortcut, type ChatSearchFn } from '@/components/groups/wa/ChatSearch';
+import type { MessageHit } from '@/lib/inbox/message-search';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
 import PinnedBar from '@/components/groups/wa/PinnedBar';
@@ -712,6 +714,24 @@ const WaConversation = forwardRef<
     attach: connected ? () => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click() : undefined,
   });
 
+  // Buscar en el chat (la lupa de la cabecera): components/groups/wa/ChatSearch.tsx. Busca en este chat y en el mismo
+  // chat de las otras cuentas; un resultado viejo abre la conversación alrededor de él (jumpTo).
+  const [searchOpen, setSearchOpen] = useState(false);
+  useChatSearchShortcut(() => setSearchOpen(true));
+  useEffect(() => setSearchOpen(false), [thread.id]);
+  const searchThreads = [thread.id, ...sameLines.map((l) => l.chatId).filter((id) => id !== thread.id)].join(',');
+  const searchChat = useCallback<ChatSearchFn>(
+    async (q, before) => {
+      const sp = new URLSearchParams({ q, limit: '30' });
+      if (before) sp.set('before', before);
+      for (const id of searchThreads.split(',')) sp.append('thread', id);
+      const r = await api<{ messages: MessageHit[]; more: boolean }>(`/api/inbox/search?${sp}`);
+      if (!r.ok) return null;
+      return { hits: r.data.messages.map((h) => ({ id: h.id, sentAt: h.sentAt, fromMe: h.fromMe, senderName: h.senderName, snippet: h.snippet })), more: r.data.more };
+    },
+    [searchThreads],
+  );
+
   const mo = useTranslations('inbox.more');
   const headMenu: MenuItem[] = [
     { key: 'info', label: group ? w('groupInfo') : w('contactInfo'), onSelect: props.onToggleInfo },
@@ -1191,9 +1211,33 @@ const WaConversation = forwardRef<
             <Note size={20} />
           </button>
           {thread.pinned && <PinIcon size={16} label={t('list.pinned')} />}
+          <button
+            type="button"
+            className={`wa-icon-btn${searchOpen ? ' is-on' : ''}`}
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-expanded={searchOpen}
+            aria-label={gw('chatSearch.open')}
+            title={`${gw('chatSearch.open')} (${gw('chatSearch.shortcut')})`}
+            data-testid="chat-search-open"
+          >
+            <SearchIcon size={20} />
+          </button>
           <MessageMenu label={t('actions.more')} items={headMenu} className="wa-icon-btn" />
         </div>
       </header>
+      {searchOpen && (
+        <ChatSearchPanel
+          chatKey={thread.id}
+          chatName={name}
+          group={group}
+          search={searchChat}
+          onPick={(h, covering) => {
+            if (covering) setSearchOpen(false);
+            window.setTimeout(() => jumpTo(h.id), covering ? 60 : 0);
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
       <PinnedBar
         pinned={pinned}
         onJump={(m) => jumpTo(m.id)}

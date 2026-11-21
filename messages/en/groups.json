@@ -1724,6 +1724,23 @@
     "action": "Go to inbox"
   },
   "wa": {
+    "chatSearch": {
+      "open": "Search messages",
+      "shortcut": "Ctrl+Shift+F",
+      "title": "Search messages",
+      "close": "Close search",
+      "placeholder": "Search in this chat",
+      "hint": "Search for messages with {name}",
+      "searching": "Searching…",
+      "error": "Search failed.",
+      "retry": "Try again",
+      "none": "No messages found",
+      "count": "{n, plural, one {# message} other {# messages}}",
+      "countMore": "{n} messages or more",
+      "more": "Show older results",
+      "you": "You",
+      "note": "Note"
+    },
     "info": {"title": "Message info", "close": "Close", "readBy": "Read by", "deliveredTo": "Delivered to", "playedBy": "Played by", "read": "Read", "delivered": "Delivered", "played": "Played", "sent": "Sent", "by": "Sent by", "notYet": "Not yet", "noTime": "Time not reported", "more": "{count} more", "less": "Show less", "nobody": "Not delivered to anyone yet.", "unavailable": "This line doesn't report who received or read group messages yet.", "loading": "Loading message info", "error": "Couldn't load message info.", "retry": "Try again", "today": "Today", "yesterday": "Yesterday", "at": "{day}, {time}"},
     "events": {"someone": "Someone", "createdMe": "You created group “{subject}”", "created": "{by} created group “{subject}”", "createdUnknown": "Group “{subject}” was created", "createdMeNoName": "You created this group", "createdNoName": "{by} created this group", "createdUnknownNoName": "This group was created", "addedYou": "{by} added you", "addedYouUnknown": "You were added", "addedMe": "You added {who}", "added": "{by} added {who}", "addedUnknown": "{who} was added", "removedYou": "{by} removed you", "removedYouUnknown": "You were removed", "removedMe": "You removed {who}", "removed": "{by} removed {who}", "removedUnknown": "{who} was removed", "leftMe": "You left", "left": "{who} left", "joinedMe": "You joined using this group's invite link", "joined": "{who} joined using this group's invite link", "promotedYou": "You're now an admin", "promoted": "{who} is now an admin", "demotedYou": "You're no longer an admin", "demoted": "{who} is no longer an admin", "subjectMe": "You changed the group name to “{subject}”", "subject": "{by} changed the group name to “{subject}”", "subjectUnknown": "The group name changed to “{subject}”", "descriptionMe": "You changed the group description", "description": "{by} changed the group description", "descriptionUnknown": "The group description changed", "iconMe": "You changed this group's icon", "icon": "{by} changed this group's icon", "iconUnknown": "This group's icon changed"},
     "newGroup": {"label": "New group", "members": "Group · {n, plural, one {# member} other {# members}}", "groupOnly": "Group", "addMembers": "Add members", "invite": "Invite via link", "inviteCopied": "Invite link copied", "description": "Add description", "info": "Group info", "hint": "Say hi to start the conversation."},
