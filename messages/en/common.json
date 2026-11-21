@@ -1460,6 +1460,48 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "forms": {
+      "intro": {
+        "title": "Welcome to Forms",
+        "body": "Forms builds surveys, quizzes and contact forms, one question at a time or all on one page. This tour points out the main parts."
+      },
+      "newForm": {
+        "title": "Create a form",
+        "body": "Start from a template (contact, NPS, RSVP, quiz and more) or a blank form."
+      },
+      "filters": {
+        "title": "Search and filter",
+        "body": "Search forms by name and filter by status: published, draft or closed."
+      },
+      "openForm": {
+        "title": "Open a form",
+        "body": "Open any form in the list to edit its questions."
+      },
+      "questions": {
+        "title": "Questions",
+        "body": "Pick a question to edit it. Below the list you choose a type and add another one. Logic, Design and Languages are in the tabs above."
+      },
+      "publish": {
+        "title": "Publish",
+        "body": "Publish saves your changes and opens the form to responses. When you don't want more, close it from here."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Copy the link, change its address, embed the form on your site or as a popup button, or download a QR code."
+      },
+      "responses": {
+        "title": "Responses",
+        "body": "Every response in a table, with search, filters and CSV export. Summary, next to it, shows the totals for each question."
+      },
+      "access": {
+        "title": "Who can see it",
+        "body": "In Settings you choose whether everyone in the workspace sees the form and its responses, or only the people you pick."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Welcome to Lines",

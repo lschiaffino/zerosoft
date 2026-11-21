@@ -140,11 +140,11 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
             {t('builder.save')}
           </button>
           {form.status !== 'published' ? (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void save({ status: 'published' })} disabled={busy}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void save({ status: 'published' })} disabled={busy} data-tour="forms-publish">
               {t('builder.publish')}
             </button>
           ) : (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void save({ status: 'closed' })} disabled={busy}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void save({ status: 'closed' })} disabled={busy} data-tour="forms-publish">
               {t('builder.close')}
             </button>
           )}
@@ -176,7 +176,7 @@ export default function FormBuilder({ initial, tab, me, admin, crmApp, brandColo
         <>
           <div className="ui-tabs fm-subtabs" role="tablist" aria-label={t('builder.sections')}>
             {PANELS.map((p) => (
-              <button key={p} type="button" role="tab" id={`fm-tab-${p}`} aria-selected={panel === p} aria-controls={`fm-panel-${p}`} className="ui-tab" onClick={() => setPanel(p)}>
+              <button key={p} type="button" role="tab" id={`fm-tab-${p}`} aria-selected={panel === p} aria-controls={`fm-panel-${p}`} className="ui-tab" onClick={() => setPanel(p)} data-tour={p === 'settings' ? 'forms-access' : undefined}>
                 {t(`builder.tab.${p}`)}
               </button>
             ))}
