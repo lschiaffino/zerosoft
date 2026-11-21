@@ -638,11 +638,12 @@ async function importerRecord(ctx: PageCtx, linkObject: string, table: string, h
 }
 
 /** ¿El registro nuestro ya vino del importador desde otro registro de HubSpot? Entonces no es de este. */
-async function importedFromOther(ctx: PageCtx, linkObject: string, recordId: string, hubspotId: string): Promise<boolean> {
-  const row = (await ctx.db
-    .prepare(`SELECT 1 AS one FROM crm_external_ids WHERE user_id = ? AND provider = 'hubspot' AND object = ? AND record_id = ? AND external_id != ? LIMIT 1`)
-    .get(ctx.ws, linkObject, recordId, hubspotId)) as { one: number } | undefined;
-  return Boolean(row);
+async function importedFromOther(ctx: PageCtx, linkObject: string, recordId: string, hubspotIds: string[]): Promise<boolean> {
+  const rows = (await ctx.db
+    .prepare(`SELECT external_id FROM crm_external_ids WHERE user_id = ? AND provider = 'hubspot' AND object = ? AND record_id = ?`)
+    .all(ctx.ws, linkObject, recordId)) as Array<{ external_id: string }>;
+  // Un id que HubSpot fusionó en este registro cuenta como el mismo.
+  return rows.some((r) => !hubspotIds.includes(r.external_id));
 }
 
 /** `seen`: ya estaba al día con esta versión de HubSpot (la relectura del margen); no se cuenta. */
@@ -725,7 +726,16 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
   let trusted = false;
   let recordId = link?.record_id ?? '';
   if (!link) {
-    const fromImport = await importerRecord(ctx, linkObject, table, rec.id);
+    const sameIds = [rec.id, ...mergedIds(rec.properties)];
+    let fromImport: Awaited<ReturnType<typeof importerRecord>> = null;
+    let importedAs = rec.id;
+    for (const id of sameIds) {
+      fromImport = await importerRecord(ctx, linkObject, table, id);
+      if (fromImport) {
+        importedAs = id;
+        break;
+      }
+    }
     // crm_external_ids no guarda de qué cuenta de HubSpot vino: el vínculo del importador vale si la clave coincide
     // (email o dominio, o vacía acá); solo así HubSpot pisa lo que nadie tocó desde el import. Los deals nunca son "de confianza".
     const importKeyOk = (r: Record<string, unknown>) => {
@@ -741,11 +751,11 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
     };
     if (fromImport) {
       recordId = fromImport.id;
-      trusted = importKeyOk(fromImport.row) && !(await editedAfterImport(ctx, object, rec.id));
+      trusted = importKeyOk(fromImport.row) && !(await editedAfterImport(ctx, object, importedAs));
     } else if (object === 'contacts') {
       for (const email of contactEmails(rec.properties)) {
         const hit = await findContactByEmail(ws, email, db);
-        if (hit && !(await linkOfRecord(ctx, linkObject, hit.id)) && !(await importedFromOther(ctx, linkObject, hit.id, rec.id))) {
+        if (hit && !(await linkOfRecord(ctx, linkObject, hit.id)) && !(await importedFromOther(ctx, linkObject, hit.id, sameIds))) {
           recordId = hit.id;
           break;
         }
@@ -756,7 +766,7 @@ async function applyRecord(ctx: PageCtx, object: SyncObject, rec: HsRecord, asso
         .all(ws, remote.domain)) as Array<{ id: string; domain: string }>;
       const same = hits.filter((h) => normalizeCompanyDomain(h.domain) === remote.domain);
       const free: string[] = [];
-      for (const h of same) if (!(await linkOfRecord(ctx, linkObject, h.id)) && !(await importedFromOther(ctx, linkObject, h.id, rec.id))) free.push(h.id);
+      for (const h of same) if (!(await linkOfRecord(ctx, linkObject, h.id)) && !(await importedFromOther(ctx, linkObject, h.id, sameIds))) free.push(h.id);
       if (free.length > 1) {
         // Dos empresas nuestras con ese dominio: no se adivina. Se fusionan acá y la vuelta siguiente la vincula.
         note(ctx, 'ambiguous_match');
@@ -1064,7 +1074,8 @@ async function writePage(
         await db.prepare('RELEASE hs_rec').run();
         ctx.counts.failed++;
         note(ctx, 'write_failed');
-        failedFrom = failedFrom ? Math.min(failedFrom, rec.modifiedMs || 1) : rec.modifiedMs || 1;
+        // Sin fecha no hay desde dónde releer: queda en los errores.
+        if (rec.modifiedMs) failedFrom = failedFrom ? Math.min(failedFrom, rec.modifiedMs) : rec.modifiedMs;
         continue;
       }
       if (ctx.stale) break;

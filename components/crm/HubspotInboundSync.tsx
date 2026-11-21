@@ -75,7 +75,8 @@ export default function HubspotInboundSync({ locale }: { locale: string }) {
         if (stop) return;
         const data = res && res.ok ? ((await res.json().catch(() => null)) as { inbound: InboundView } | null) : null;
         if (stop) return;
-        // Un pedido que falla no corta el seguimiento: se espera un poco y se sigue.
+        // Sin sesión o sin permiso ya no tiene sentido seguir; otro fallo no corta el seguimiento: se espera y se sigue.
+        if (res && (res.status === 401 || res.status === 403)) return;
         if (!data) {
           await wait(5_000);
           continue;

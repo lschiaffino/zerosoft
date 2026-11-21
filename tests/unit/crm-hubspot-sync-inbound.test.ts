@@ -525,3 +525,17 @@ describe('lo que HubSpot no puede decir no borra lo de acá (revisión)', () => 
     expect(await one('SELECT locked_until FROM crm_hubspot_inbound WHERE user_id = ?', w.id)).toEqual({ locked_until: '2999-01-01T00:00:00.000Z' });
   });
 });
+
+describe('fusión después del import (revisión)', () => {
+  it('un contacto importado desde un registro que HubSpot fusionó en otro se vincula al que quedó, sin duplicar', async () => {
+    const w = await connected('hsin-merged-import');
+    const x = await createContact(w.id, { firstName: 'Bia', lastName: 'Nunes', email: 'bia@merge.example' });
+    await db().prepare(`INSERT INTO crm_external_ids (user_id, provider, object, external_id, record_id, imported_at) VALUES (?, 'hubspot', 'contact', '4003', ?, datetime('now'))`).run(w.id, x.id);
+    portal.edit('contacts', '4002', { email: 'bia@merge.example' });
+    portal.merge('contacts', '4003', '4002');
+    await startInbound(w.id, w.id);
+    await pass(w.id);
+    expect(await count('crm_contacts', 'user_id = ?', w.id)).toBe(2);
+    expect(await one(`SELECT record_id FROM crm_hubspot_links WHERE user_id = ? AND hubspot_id = '4002'`, w.id)).toEqual({ record_id: x.id });
+  });
+});
