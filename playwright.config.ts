@@ -13,6 +13,9 @@ const dbFile = process.env.E2E_DB_FILE;
 // Emails "enviados" sin Resend (lib/email.ts): una línea JSON por email, para leer códigos y links.
 process.env.E2E_MAIL_FILE ??= path.join(os.tmpdir(), `zerosoft-e2e-mail-${Date.now()}.jsonl`);
 const mailFile = process.env.E2E_MAIL_FILE;
+// E2E_DEV=1: local con `next dev` (sin build) pero con lo que en CI da CI=1: la identidad de prueba
+// (cookie zs_e2e_as) y las Próximamente abiertas (lib/e2e-env.ts). CI sigue con next start.
+const E2E_DEV = process.env.E2E_DEV === '1' && !process.env.CI;
 
 /**
  * E2E contra la app real en DEMO_MODE (todo request es el usuario demo) y una
@@ -20,7 +23,9 @@ const mailFile = process.env.E2E_MAIL_FILE;
  */
 export default defineConfig({
   testDir: 'tests/e2e',
-  timeout: 60_000,
+  // next dev compila cada ruta y cada componente diferido la primera vez que se pide: más margen con E2E_DEV.
+  timeout: E2E_DEV ? 180_000 : 60_000,
+  expect: { timeout: E2E_DEV ? 30_000 : 5_000 },
   retries: process.env.CI ? 1 : 0,
   // En CI, además del resumen, la duración de cada test (artifact e2e-results-*; scripts/e2e-timings.mjs la usa
   // para repartir las partes por tiempo con scripts/e2e-shard.mjs).
@@ -32,11 +37,13 @@ export default defineConfig({
   webServer: {
     // Keep-alive largo: con el de 5 s (más 1 s de margen de Node) un pedido de un contexto de Playwright
     // que estuvo ~6 s quieto caía justo cuando el servidor cerraba el socket (ECONNRESET, sin caída del servidor).
-    command: process.env.CI ? `npx next start -p ${PORT} --keepAliveTimeout 120000` : `npx next dev -p ${PORT}`,
+    command: process.env.CI ?`npx next start -p ${PORT} --keepAliveTimeout 120000` : `npx next dev -p ${PORT}`,
     url: `http://localhost:${PORT}/en`,
     timeout: 180_000,
     reuseExistingServer: false,
     env: {
+      // Solo vale con next dev (NODE_ENV=development): un build de producción la ignora (lib/e2e-env.ts).
+      ...(E2E_DEV ? { E2E_DEV_SERVER: '1', NODE_OPTIONS: '--max-old-space-size=3072' } : {}),
       DEMO_MODE: 'true',
       DEMO_MODE_ALLOW_PRODUCTION: 'true',
       // Otra sesión para los e2e de invitaciones (lib/session.ts): la cookie zs_e2e_as=<email>. Solo acá.
