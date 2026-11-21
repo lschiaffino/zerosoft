@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'DocSend',
-  lastReviewed: '2026-11-15',
+  lastReviewed: '2026-11-21',
   areas: [
     { id: 'content', label: loc(['Content', 'Contenido', 'Conteúdo']) },
     { id: 'links', label: loc(['Links', 'Links', 'Links']) },
@@ -198,8 +198,8 @@ const parity: ProductParity = {
     }),
     row('enrichment', 'analytics', ['Enrich contacts with public data', 'Completar contactos con datos públicos', 'Completar contatos com dados públicos'], 'missing'),
     row('accounts', 'analytics', ['Accounts and company visits', 'Cuentas y visitas de empresa', 'Contas e visitas de empresa'], 'missing'),
-    row('dashboard', 'analytics', ['Dashboard across all content', 'Tablero de todo el contenido', 'Painel de todo o conteúdo'], 'partial', {
-      detail: ['The document list shows visits, last visit and who is reading now', 'La lista de documentos muestra visitas, última visita y quién lee ahora', 'A lista de documentos mostra visitas, última visita e quem está lendo agora'],
+    row('dashboard', 'analytics', ['Dashboard across all content', 'Tablero de todo el contenido', 'Painel de todo o conteúdo'], 'have', {
+      detail: ['An Analytics page across all documents: visits, people, average time, percentage read and downloads against the previous period, per day, top documents, countries, devices and a day-and-hour heatmap, filterable by document', 'Una página de Analítica de todos los documentos: visitas, personas, tiempo promedio, porcentaje leído y descargas contra el período anterior, por día, documentos más vistos, países, dispositivos y un mapa de día y hora, filtrable por documento', 'Uma página de Análises de todos os documentos: visitas, pessoas, tempo médio, percentual lido e downloads contra o período anterior, por dia, documentos mais vistos, países, dispositivos e um mapa de dia e hora, filtrável por documento'],
     }),
 
     // Avisos
@@ -299,10 +299,10 @@ const parity: ProductParity = {
     row('zapier', 'platform', ['Zapier and IFTTT', 'Zapier e IFTTT', 'Zapier e IFTTT'], 'missing'),
     row('browser-email-addins', 'platform', ['Chrome, Gmail and Outlook add-ins', 'Complementos de Chrome, Gmail y Outlook', 'Complementos de Chrome, Gmail e Outlook'], 'missing'),
     row('mcp', 'platform', ['MCP server', 'Servidor MCP', 'Servidor MCP'], 'partial', {
-      detail: ['Reads documents, spaces, links and numbers (CSV too), shares a Docs page, creates a space, and renames or deletes documents, links and spaces. Making or changing a link, what a space shows or who sees it, replacing a file and the brand stay on the web', 'Lee documentos, espacios, links y números (también en CSV), comparte una página de Docs, crea un espacio, y renombra o borra documentos, links y espacios. Crear o cambiar un link, qué muestra un espacio o quién lo ve, reemplazar un archivo y la marca quedan en la web', 'Lê documentos, espaços, links e números (também em CSV), compartilha uma página do Docs, cria um espaço, e renomeia ou apaga documentos, links e espaços. Criar ou mudar um link, o que um espaço mostra ou quem o vê, substituir um arquivo e a marca ficam na web'],
+      detail: ['Reads documents, spaces, links and numbers (CSV too), shares a Docs page, creates a space, renames documents, and deletes documents, links and spaces. Making, renaming or changing a link, editing a space, replacing a file and the brand stay on the web', 'Lee documentos, espacios, links y números (también en CSV), comparte una página de Docs, crea un espacio, renombra documentos, y borra documentos, links y espacios. Crear, renombrar o cambiar un link, editar un espacio, reemplazar un archivo y la marca quedan en la web', 'Lê documentos, espaços, links e números (também em CSV), compartilha uma página do Docs, cria um espaço, renomeia documentos, e apaga documentos, links e espaços. Criar, renomear ou mudar um link, editar um espaço, substituir um arquivo e a marca ficam na web'],
     }),
     row('subteams', 'platform', ['Sub-teams and folder access', 'Subequipos y acceso por carpeta', 'Subequipes e acesso por pasta'], 'missing'),
-    row('transfer', 'platform', ['Transfer someone\'s content', 'Transferir el contenido de alguien', 'Transferir o conteúdo de alguém'], 'missing', {
+    row('transfer', 'platform', ['Transfer someone\'s content', 'Transferir el contenido de alguien', 'Transferir o conteúdo de alguém'], 'partial', {
       detail: [
         'When someone leaves, their links pass to the owner. Documents can\'t be handed to another person',
         'Cuando alguien se va, sus links pasan al owner. Los documentos no se pueden pasar a otra persona',
