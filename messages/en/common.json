@@ -1520,6 +1520,48 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "voice": {
+      "intro": {
+        "title": "Welcome to Voice",
+        "body": "Voice records your meetings and writes up your notes with the transcript. It also lets you dictate instead of typing. This tour points out the main parts."
+      },
+      "newMeeting": {
+        "title": "Start a meeting",
+        "body": "Start one when a call begins. Voice records your microphone, or your microphone and a browser tab, and writes the transcript as you talk. No bot joins the call."
+      },
+      "import": {
+        "title": "Import a recording",
+        "body": "Bring in an audio or video file of a call and Voice transcribes it like any other meeting."
+      },
+      "upcoming": {
+        "title": "Coming up",
+        "body": "The next meetings from your calendar. Take notes for one when it starts, or read a brief on who is coming."
+      },
+      "ask": {
+        "title": "Ask your meetings",
+        "body": "Ask a question across all your meetings and get an answer with links to the meetings it came from. Type / to run a recipe."
+      },
+      "meetings": {
+        "title": "Your meetings",
+        "body": "Every meeting lands here with its notes and transcript. Search finds words in titles, notes and transcripts. Rename or delete a meeting from its row."
+      },
+      "folders": {
+        "title": "Folders",
+        "body": "Sort meetings into folders, with subfolders one level deep. Shared with me holds the meetings other people shared with you."
+      },
+      "dictation": {
+        "title": "Dictation",
+        "body": "Talk instead of typing in any zerosoft field. Your dictation history lives here, ready to copy again."
+      },
+      "settings": {
+        "title": "Voice settings",
+        "body": "Your dictation shortcut and style, your dictionary and your meeting templates. They only apply to you."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "talk": {
       "intro": {
         "title": "Welcome to Talk",

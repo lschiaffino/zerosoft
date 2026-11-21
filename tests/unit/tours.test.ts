@@ -118,6 +118,23 @@ describe('tours: registro y rutas', () => {
     expect(ids([...TOURS.talk.steps])).toEqual(['intro', 'channels', 'dms', 'composer', 'threads', 'search', 'done']);
   });
 
+  it('el tour de Voice arranca en Reuniones, no en una reunión ni en dictado, y es igual para todos', () => {
+    expect(tourForPath('/app/voice')?.key).toBe('voice');
+    expect(tourForPath('/es/app/voice/meetings/abc123')?.key).toBe('voice');
+    expect(tourForPath('/app/voice/dictation')?.key).toBe('voice');
+    expect(tourForPath('/app/voicex')).toBeNull();
+    expect(atTourStart(TOURS.voice, '/pt/app/voice')).toBe(true);
+    expect(atTourStart(TOURS.voice, '/app/voice/meetings/abc123')).toBe(false);
+    expect(atTourStart(TOURS.voice, '/app/voice/dictation')).toBe(false);
+    expect(atTourStart(TOURS.voice, '/app/voice/settings')).toBe(false);
+    // Voice es de cada persona: los mismos pasos para todos.
+    expect(ids(stepsFor(TOURS.voice, { audience: 'team', admin: false }))).toEqual(ids([...TOURS.voice.steps]));
+    expect(ids(stepsFor(TOURS.voice, { audience: 'solo', admin: true }))).toEqual(ids([...TOURS.voice.steps]));
+    // La página de Reuniones primero; el lateral (en el teléfono, un cajón que se saltea) al final.
+    const steps = ids([...TOURS.voice.steps]);
+    expect(steps).toEqual(['intro', 'newMeeting', 'import', 'upcoming', 'ask', 'folders', 'meetings', 'dictation', 'settings', 'done']);
+  });
+
   it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
     expect(tourForPath('/app/forms')?.key).toBe('forms');
     expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');
@@ -257,9 +274,8 @@ describe('tours: textos y anclajes', () => {
     for (const key of TOUR_KEYS) {
       for (const step of TOURS[key].steps) {
         for (const target of step.targets ?? []) {
-          // data-tour="x", data-tour={cond ? 'x' : …}, tour="x" (MenuSelect), tour: 'x' (ítems del lateral)
-          // o appSettingsGroup('/app/x/settings', 'x') (Ajustes de la app en el lateral).
-          const re = new RegExp(`(?:data-tour=\\{?[^}\\n]*|tour=|tour: |appSettingsGroup\\([^)\\n]*, )["']${target}["']`);
+          // data-tour="x", data-tour={cond ? 'x' : …}, tour="x" (MenuSelect) o tour: 'x' (ítems del lateral).
+          const re = new RegExp(`(?:data-tour=\\{?[^}\\n]*|tour=|tour: )["']${target}["']`);
           expect(re.test(source), target).toBe(true);
         }
       }

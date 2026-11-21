@@ -1,11 +1,17 @@
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { recShareUrl, resolvePublicPage } from '@/lib/rec-page';
+import { parseAutoplayParam, parseStartParam } from '@/lib/rec-schema';
 import RecEmbed from '@/components/rec/RecEmbed';
 
 export const dynamic = 'force-dynamic';
 
-type Props = { params: Promise<{ locale: string; share: string }> };
+type Props = {
+  params: Promise<{ locale: string; share: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export async function generateMetadata(props: Props) {
   const { locale, share } = await props.params;
@@ -15,9 +21,13 @@ export async function generateMetadata(props: Props) {
   return { title: page.state === 'ok' && page.brand ? { absolute: name } : name, robots: { index: false, follow: false } };
 }
 
-/** Reproductor solo, para insertar en un iframe (Notion, Docs, una web). Con contraseña o privado, manda a la página. */
+/**
+ * Reproductor solo, para insertar en un iframe (Notion, Docs, una web). Con contraseña o privado, manda a la página.
+ * Como Loom: `?t=90` (o 1m30s) arranca en ese segundo y `?autoplay=1` reproduce sin sonido al cargar.
+ */
 export default async function RecEmbedPage(props: Props) {
   const { locale, share } = await props.params;
+  const sp = await props.searchParams;
   setRequestLocale(locale);
   const page = await resolvePublicPage(share);
   if (page.state === 'not_found') notFound();
@@ -32,5 +42,5 @@ export default async function RecEmbedPage(props: Props) {
       </main>
     );
   }
-  return <RecEmbed video={page.video} shareUrl={url} brand={page.brand} />;
+  return <RecEmbed video={page.video} shareUrl={url} brand={page.brand} startAt={parseStartParam(one(sp.t))} autoPlay={parseAutoplayParam(one(sp.autoplay))} />;
 }

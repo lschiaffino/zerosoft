@@ -22,8 +22,9 @@ import { REC_TOUR } from './rec';
 import { SEND_TOUR } from './send';
 import { TALK_TOUR } from './talk';
 import { TRACK_TOUR } from './track';
+import { VOICE_TOUR } from './voice';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'rec'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -71,6 +72,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   cal: CAL_TOUR,
   talk: TALK_TOUR,
   send: SEND_TOUR,
+  voice: VOICE_TOUR,
   rec: REC_TOUR,
 };
 

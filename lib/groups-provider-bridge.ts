@@ -497,14 +497,23 @@ export function wahaProvider(
     },
     async sendMedia(chatId, media) {
       const path = media.mimetype.startsWith('image/') ? '/api/sendImage' : media.mimetype.startsWith('video/') ? '/api/sendVideo' : '/api/sendFile';
-      const r = (await api(path, 'POST', {
+      const body = {
         session: cfg.session || 'default',
         chatId,
         file: { mimetype: media.mimetype, filename: media.filename, url: media.url },
         caption: media.caption ?? '',
-        // Menciones en el pie, como en sendText ("<teléfono>@c.us" o "<lid>@lid").
-        ...(media.caption && media.mentions?.length ? { mentions: media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
-      })) as Json;
+      };
+      // Menciones en el pie, como en sendText ("<teléfono>@c.us" o "<lid>@lid"). WAHA las acepta en sendImage,
+      // sendVideo y sendFile desde la 2025.11; las anteriores ignoran el campo (sale el pie sin mención). Si un
+      // WAHA rechaza el pedido por el campo (400 o 422: no salió nada), se vuelve a mandar sin menciones.
+      const mentions = media.caption && media.mentions?.length ? media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) : [];
+      let r: Json;
+      try {
+        r = (await api(path, 'POST', mentions.length ? { ...body, mentions } : body)) as Json;
+      } catch (err) {
+        if (!mentions.length || !(err instanceof ProviderError) || (err.httpStatus !== 400 && err.httpStatus !== 422)) throw err;
+        r = (await api(path, 'POST', body)) as Json;
+      }
       return { id: idString(r.id) };
     },
     async react(_chatId, messageId, emoji) {

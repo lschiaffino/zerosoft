@@ -158,6 +158,8 @@ test.describe('CRM instalable y offline', () => {
     await expect(page.getByTestId('offline-status')).toBeVisible();
 
     const note = `Nota sin señal ${tag}`;
+    await page.getByTestId('timeline-create').click();
+    await page.getByTestId('timeline-create-note').click();
     await page.locator('.tl-composer textarea').first().fill(note);
     await page.locator('.tl-composer button[type="submit"]').click();
     await expect(page.getByText('Saved offline. It syncs when the connection is back.').first()).toBeVisible();

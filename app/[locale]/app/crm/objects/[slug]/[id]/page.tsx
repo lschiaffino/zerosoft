@@ -112,6 +112,7 @@ export default async function ObjectRecordPage(props: {
                 emptyLabel={t('objects.emptyTimeline')}
                 mentionables={owners.map((o) => ({ id: o.value, name: o.label, email: '' }))}
                 locale={locale}
+                currentPersonId={user.actingUser?.id ?? user.id}
               />
             </div>
             <aside className="record-summary" aria-label={t('record.summary')}>

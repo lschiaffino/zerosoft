@@ -21,6 +21,16 @@ const PATHS = {
   mic: 'M9 3h6v10H9zM5 11a7 7 0 0014 0M12 18v3',
   micOff: 'M9 3h6v10H9zM5 11a7 7 0 0014 0M12 18v3M4 4l16 16',
   hangup: 'M3 14c5-5 13-5 18 0l-2 3-4-1v-3a10 10 0 00-6 0v3l-4 1z',
+  /** Timeline: tipos de actividad y herramientas. */
+  note: 'M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5',
+  task: 'M4 4h16v16H4zM8 12l3 3 5-6',
+  calendar: 'M4 6h16v14H4zM4 10h16M8 3v5M16 3v5',
+  search: 'M10.5 17a6.5 6.5 0 110-13 6.5 6.5 0 010 13zM15.5 15.5L20 20',
+  filter: 'M4 5h16l-6 8v6l-4-2v-4z',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  plus: 'M12 5v14M5 12h14',
+  chevronRight: 'M9 6l6 6-6 6',
+  user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
   keypad: 'M6 4h2M11 4h2M16 4h2M6 9h2M11 9h2M16 9h2M6 14h2M11 14h2M16 14h2M11 19h2',
 } as const;
 

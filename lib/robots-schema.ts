@@ -181,8 +181,12 @@ const selectStep = z.object({ type: z.literal('select'), selector: selector.min(
 const checkStep = z.object({
   type: z.literal('check'),
   selector: selector.min(1),
-  /** Estado final de la casilla o el radio: marcado (default) o desmarcado. */
-  state: z.enum(['checked', 'unchecked']).optional().default('checked'),
+  /**
+   * Estado final de la casilla o el radio: marcado (default) o desmarcado. Con
+   * `toggle` hace un clic y anota cómo quedó (switches propios de un sitio,
+   * donde el estado actual no se puede leer antes).
+   */
+  state: z.enum(['checked', 'unchecked', 'toggle']).optional().default('checked'),
   ...heal,
   ...retry,
 });

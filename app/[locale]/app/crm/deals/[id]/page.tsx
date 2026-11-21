@@ -13,7 +13,7 @@ import DealSplitsPanel from '@/components/crm/DealSplitsPanel';
 import { canSeeActivity, canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb, type CrmStageRow } from '@/lib/db';
-import { getDeal, listTimeline, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
+import { getDeal, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
 import DangerDelete from '@/components/crm/DangerDelete';
 import CloneDeal from '@/components/crm/CloneDeal';
 import { buildDealCloneBody } from '@/lib/crm-deal-clone';
@@ -35,14 +35,13 @@ import { listEventTypes } from '@/lib/calendar';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
-import { withTaskSources } from '@/lib/tasks';
-import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
-import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
+import { listRecordFiles, toView } from '@/lib/crm-files';
 import AiSummaryCard from '@/components/crm/AiSummaryCard';
-import { crmAiAvailable, getRecordSummary, withCallSummaries, getDealScore } from '@/lib/crm-ai';
+import { crmAiAvailable, getRecordSummary, getDealScore } from '@/lib/crm-ai';
 import DealInsightCard from '@/components/crm/DealInsightCard';
-import { getEmailSettings, listEmailTemplates, listEmailThreads, mergeTimelineWithThreads } from '@/lib/crm-email';
+import { getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
+import { buildRecordTimeline } from '@/lib/crm-timeline';
 import { aiEnabled } from '@/lib/ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import HistoryPanel from '@/components/crm/HistoryPanel';
@@ -307,8 +306,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   // Tareas de chats de Lines que la persona no ve: sin su texto.
   const chatReader = await sessionChatReader(user, locale);
   const [
-    activities,
-    threadsRaw,
+    timelinePage,
     emailTemplates,
     emailSettings,
     nextTaskRaw,
@@ -323,8 +321,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
     contactRows,
     allCompanies,
   ] = await Promise.all([
-    listTimeline(user.id, { dealId: id, limit: 100, ownerScope: scope, chatReader }),
-    listEmailThreads(user.id, { dealId: id, limit: 100 }),
+    buildRecordTimeline(user, { kind: 'deal', id }, { ownerScope: scope, chatReader }),
     listEmailTemplates(user.id),
     getEmailSettings(user.id),
     nextTaskFor(user.id, { dealId: id, chatReader }),
@@ -351,13 +348,12 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       .all(user.id, ...companyScope.args) as Promise<Array<{ id: string; name: string; domain: string }>>,
   ]);
   // Con alcance restringido (ver la ficha de contacto): próxima tarea, resumen y score de IA
-  // solo si corresponden a lo que la persona ve; los hilos de email, que se buscan por los
-  // contactos del deal, solo si todos esos contactos se le muestran.
+  // solo si corresponden a lo que la persona ve. Los emails salen solo de los contactos del deal que
+  // la persona ve (lib/crm-timeline.ts visibleEmailContacts).
   const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
   const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
   const aiScore = scope && aiScoreRaw?.stale ? null : aiScoreRaw;
-  const threads = scope && rawDetail.contacts.length !== contacts.length ? { threads: [], activityIds: [] } : threadsRaw;
-  const timeline = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(activities, threads)))));
+  const timeline = timelinePage.items;
   const recordFiles = recordFilesRaw.map(toView);
   const realPerson = user.actingUser ?? user;
   const associatedContactIds = new Set(contacts.map((c) => c.id));
@@ -574,6 +570,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         recordType="deal"
         recordId={deal.id}
         items={timeline}
+        hasMore={timelinePage.hasMore}
+        currentPersonId={user.actingUser?.id ?? user.id}
         emptyLabel={t('deals.detail.emptyTimeline')}
         mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
         locale={locale}
