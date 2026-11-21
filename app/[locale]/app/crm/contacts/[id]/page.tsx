@@ -21,19 +21,16 @@ import {
   getContact,
   listCompanies,
   listPipelinesWithStages,
-  listTimeline,
   nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
 import { customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
-import { withTaskSources } from '@/lib/tasks';
-import { withCallDetails } from '@/lib/crm-voice';
 import FilesPanel from '@/components/crm/FilesPanel';
-import { listRecordFiles, toView, withActivityFiles } from '@/lib/crm-files';
+import { listRecordFiles, toView } from '@/lib/crm-files';
 import AiSummaryCard from '@/components/crm/AiSummaryCard';
-import { crmAiAvailable, getRecordSummary, withCallSummaries } from '@/lib/crm-ai';
+import { crmAiAvailable, getRecordSummary } from '@/lib/crm-ai';
 import NextTaskBanner from '@/components/crm/NextTaskBanner';
 import ContactAddDeal from '@/components/crm/ContactAddDeal';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -55,7 +52,8 @@ import { listEventTypes } from '@/lib/calendar';
 import { listMembers } from '@/lib/teams';
 import HistoryPanel from '@/components/crm/HistoryPanel';
 import SequencePanel from '@/components/crm/SequencePanel';
-import { listEmailThreads, mergeTimelineWithThreads, getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
+import { getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
+import { buildRecordTimeline } from '@/lib/crm-timeline';
 import { listEnrollments, listSequences } from '@/lib/crm-sequences';
 import { aiEnabled } from '@/lib/ai';
 import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
@@ -225,8 +223,7 @@ export default async function ContactDetailPage(props: {
   const chatReader = await sessionChatReader(user, locale);
   const [
     scores,
-    timeline,
-    threads,
+    timelinePage,
     emailTemplates,
     emailSettings,
     nextTaskRaw,
@@ -242,8 +239,7 @@ export default async function ContactDetailPage(props: {
     recordFilesRaw,
   ] = await Promise.all([
     listScores(user.id),
-    listTimeline(user.id, { contactId: id, limit: 100, ownerScope: scope, chatReader }),
-    listEmailThreads(user.id, { contactId: id, limit: 100 }),
+    buildRecordTimeline(user, { kind: 'contact', id }, { ownerScope: scope, chatReader }),
     listEmailTemplates(user.id),
     getEmailSettings(user.id),
     nextTaskFor(user.id, { contactId: id, chatReader }),
@@ -270,7 +266,7 @@ export default async function ContactDetailPage(props: {
   const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
   const primaryScore = scores.find((x) => x.isPrimary);
   const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
-  const timelineItems = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(mergeTimelineWithThreads(timeline, threads)))));
+  const timelineItems = timelinePage.items;
   const recordFiles = recordFilesRaw.map(toView);
   const companies = companiesPage.rows;
 
@@ -475,6 +471,8 @@ export default async function ContactDetailPage(props: {
         recordType="contact"
         recordId={contact.id}
         items={timelineItems}
+        hasMore={timelinePage.hasMore}
+        currentPersonId={user.actingUser?.id ?? user.id}
         emptyLabel={t('contacts.detail.emptyTimeline')}
         mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
         locale={locale}
