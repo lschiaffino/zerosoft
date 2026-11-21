@@ -1371,7 +1371,8 @@
       },
       "newIssue": {
         "title": "Creá un issue",
-        "body": "Nuevo crea un issue, un proyecto o un equipo. En cualquier parte de Track, apretá C para un issue nuevo."
+        "body": "Nuevo crea un issue, un proyecto o un equipo. En cualquier parte de Track, apretá C para un issue nuevo.",
+        "bodyTouch": "Nuevo crea un issue, un proyecto o un equipo."
       },
       "inbox": {
         "title": "Bandeja",
@@ -1387,7 +1388,8 @@
       },
       "filters": {
         "title": "Filtrar",
-        "body": "Filtrá por estado, prioridad, responsable, ciclo, etiquetas o vencimiento. Apretá F para sumar un filtro y / para buscar."
+        "body": "Filtrá por estado, prioridad, responsable, ciclo, etiquetas o vencimiento. Apretá F para sumar un filtro y / para buscar.",
+        "bodyTouch": "Filtrá por estado, prioridad, responsable, ciclo, etiquetas o vencimiento."
       },
       "display": {
         "title": "Visualización",
@@ -1413,7 +1415,8 @@
       },
       "newEventType": {
         "title": "Creá un tipo de evento",
-        "body": "Cada tipo de evento es un link de reserva con su duración, sus horarios y sus preguntas. En esta página, la tecla C también crea uno."
+        "body": "Cada tipo de evento es un link de reserva con su duración, sus horarios y sus preguntas. En esta página, la tecla C también crea uno.",
+        "bodyTouch": "Cada tipo de evento es un link de reserva con su duración, sus horarios y sus preguntas."
       },
       "eventType": {
         "title": "Compartí tu link",
@@ -1497,7 +1500,8 @@
       },
       "composer": {
         "title": "Escribí un mensaje",
-        "body": "Enter manda y Shift+Enter baja de línea. Mencioná con @, adjuntá archivos o programá el envío. Con / tenés comandos como /remind."
+        "body": "Enter manda y Shift+Enter baja de línea. Mencioná con @, adjuntá archivos o programá el envío. Con / tenés comandos como /remind.",
+        "bodyTouch": "Escribí tu mensaje y mandalo. Mencioná con @, adjuntá archivos o programá el envío. Con / tenés comandos como /remind."
       },
       "threads": {
         "title": "Hilos",
@@ -1505,7 +1509,16 @@
       },
       "search": {
         "title": "Buscar",
-        "body": "Encontrá mensajes de todos tus canales. Filtrá con in:#canal, from:@persona o has:link. Cmd+G te trae acá."
+        "body": "Encontrá mensajes de todos tus canales. Filtrá con in:#canal, from:@persona o has:link. Cmd+G te trae acá.",
+        "bodyTouch": "Encontrá mensajes de todos tus canales. Filtrá con in:#canal, from:@persona o has:link."
+      },
+      "analytics": {
+        "title": "Analítica",
+        "body": "Mensajes, respuestas en hilos, quién escribe y cuándo, reacciones y huddles de las conversaciones que podés leer, contra el período anterior."
+      },
+      "settings": {
+        "title": "Ajustes de Talk",
+        "body": "Los ajustes de Talk, con un atajo a los miembros del workspace para invitar a tu equipo."
       },
       "done": {
         "title": "Listo el tour",
@@ -1535,11 +1548,13 @@
       },
       "toolbar": {
         "title": "Formas y dibujo",
-        "body": "Elegí una forma, una flecha, texto o el lápiz. Cada herramienta tiene su tecla: R para un rectángulo, A para una flecha, T para texto."
+        "body": "Elegí una forma, una flecha, texto o el lápiz. Cada herramienta tiene su tecla: R para un rectángulo, A para una flecha, T para texto.",
+        "bodyTouch": "Elegí una forma, una flecha, texto o el lápiz."
       },
       "canvasTools": {
         "title": "Stickies y más",
-        "body": "Agregá un sticky (N), resaltá, insertá una tabla, adjuntá un archivo o mostrá el minimapa (M). Con un sticky elegido, Tab agrega el siguiente."
+        "body": "Agregá un sticky (N), resaltá, insertá una tabla, adjuntá un archivo o mostrá el minimapa (M). Con un sticky elegido, Tab agrega el siguiente.",
+        "bodyTouch": "Agregá un sticky, resaltá, insertá una tabla, adjuntá un archivo o mostrá el minimapa."
       },
       "zoom": {
         "title": "Zoom y deshacer",
@@ -1631,7 +1646,8 @@
       },
       "search": {
         "title": "Buscá",
-        "body": "Encontrá un chat por su nombre o por algo que se dijo en él. Apretá / para saltar acá."
+        "body": "Encontrá un chat por su nombre o por algo que se dijo en él. Apretá / para saltar acá.",
+        "bodyTouch": "Encontrá un chat por su nombre o por algo que se dijo en él."
       },
       "openChat": {
         "title": "Abrí un chat",
@@ -1639,11 +1655,13 @@
       },
       "composer": {
         "title": "Respondé",
-        "body": "Escribí acá y apretá Enter para enviar. Con / ves los comandos de este chat."
+        "body": "Escribí acá y apretá Enter para enviar. Con / ves los comandos de este chat.",
+        "bodyTouch": "Escribí acá y mandalo. Con / ves los comandos de este chat."
       },
       "assign": {
         "title": "Asignale un responsable",
-        "body": "Asigná el chat a alguien del equipo para que quede claro quién responde. Con A lo tomás vos."
+        "body": "Asigná el chat a alguien del equipo para que quede claro quién responde. Con A lo tomás vos.",
+        "bodyTouch": "Asigná el chat a alguien del equipo para que quede claro quién responde, o tomalo vos."
       },
       "note": {
         "title": "Notas para tu equipo",
@@ -1673,7 +1691,8 @@
       },
       "chatList": {
         "title": "Tus chats",
-        "body": "Acá llegan los chats de WhatsApp y los correos, los más recientes primero. Te movés con J y K."
+        "body": "Acá llegan los chats de WhatsApp y los correos, los más recientes primero. Te movés con J y K.",
+        "bodyTouch": "Acá llegan los chats de WhatsApp y los correos, los más recientes primero."
       },
       "filters": {
         "title": "Filtrá la lista",
@@ -1681,7 +1700,8 @@
       },
       "search": {
         "title": "Buscá",
-        "body": "Encontrá un chat por nombre, número o algo que se dijo en él. Apretá / para saltar acá."
+        "body": "Encontrá un chat por nombre, número o algo que se dijo en él. Apretá / para saltar acá.",
+        "bodyTouch": "Encontrá un chat por nombre, número o algo que se dijo en él."
       },
       "openChat": {
         "title": "Abrí un chat",
@@ -1689,11 +1709,13 @@
       },
       "composer": {
         "title": "Respondé",
-        "body": "Escribí acá y apretá Enter para enviar. Con / ves los comandos de este chat."
+        "body": "Escribí acá y apretá Enter para enviar. Con / ves los comandos de este chat.",
+        "bodyTouch": "Escribí acá y mandalo. Con / ves los comandos de este chat."
       },
       "triage": {
         "title": "Dejá la bandeja en cero",
-        "body": "Archivá un chat cuando está resuelto (E), posponelo para después (H) o pedí un recordatorio por si nadie responde."
+        "body": "Archivá un chat cuando está resuelto (E), posponelo para después (H) o pedí un recordatorio por si nadie responde.",
+        "bodyTouch": "Archivá un chat cuando está resuelto, posponelo para después o pedí un recordatorio por si nadie responde."
       },
       "settings": {
         "title": "Ajustes de Inbox",
@@ -1711,7 +1733,8 @@
       },
       "newNote": {
         "title": "Escribí una nota",
-        "body": "Empezá una nota en blanco acá, o una desde una plantilla. En cualquier parte de Notes, N crea una nota nueva."
+        "body": "Empezá una nota en blanco acá, o una desde una plantilla. En cualquier parte de Notes, N crea una nota nueva.",
+        "bodyTouch": "Empezá una nota en blanco acá, o una desde una plantilla."
       },
       "notebooks": {
         "title": "Libretas",
@@ -1719,7 +1742,8 @@
       },
       "search": {
         "title": "Buscar",
-        "body": "La búsqueda mira títulos y texto. Operadores como tag: y notebook: la acotan, y el botón ? los muestra todos. Con / venís directo acá."
+        "body": "La búsqueda mira títulos y texto. Operadores como tag: y notebook: la acotan, y el botón ? los muestra todos. Con / venís directo acá.",
+        "bodyTouch": "La búsqueda mira títulos y texto. Operadores como tag: y notebook: la acotan, y el botón ? los muestra todos."
       },
       "openNote": {
         "title": "Abrí una nota",
@@ -1731,7 +1755,8 @@
       },
       "tags": {
         "title": "Etiquetas",
-        "body": "Escribí una etiqueta y apretá Enter. Las etiquetas se ven en la lista y en el lateral, en todas las libretas."
+        "body": "Escribí una etiqueta y apretá Enter. Las etiquetas se ven en la lista y en el lateral, en todas las libretas.",
+        "bodyTouch": "Escribí una etiqueta para sumarla. Las etiquetas se ven en la lista y en el lateral, en todas las libretas."
       },
       "shortcuts": {
         "title": "Atajos de teclado",
@@ -1749,7 +1774,8 @@
       },
       "newPage": {
         "title": "Empezá una página",
-        "body": "Creá una página en blanco acá. En esta pantalla, C hace lo mismo."
+        "body": "Creá una página en blanco acá. En esta pantalla, C hace lo mismo.",
+        "bodyTouch": "Creá una página en blanco acá."
       },
       "templates": {
         "title": "Plantillas",
@@ -1761,7 +1787,8 @@
       },
       "search": {
         "title": "Buscar",
-        "body": "Encontrá cualquier página por el título o por el texto. Con Cmd+P buscás desde cualquier parte de Docs."
+        "body": "Encontrá cualquier página por el título o por el texto. Con Cmd+P buscás desde cualquier parte de Docs.",
+        "bodyTouch": "Encontrá cualquier página por el título o por el texto."
       },
       "openPage": {
         "title": "Abrí una página",

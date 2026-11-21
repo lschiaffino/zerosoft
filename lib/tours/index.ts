@@ -9,6 +9,10 @@
  * El motor (components/tour/TourHost.tsx) y el estado por persona
  * (lib/tours/server.ts, users.profile.tours) son los mismos para todas.
  *
+ * En el teléfono o con pantalla táctil no se nombran atajos de teclado: un
+ * texto que los nombra lleva su versión `bodyTouch` sin ellos, y un paso que
+ * solo enseña atajos lleva `keyboard: true` y se saltea.
+ *
  * Puro: lo usan el servidor, el cliente y los tests.
  */
 import { BOARD_TOUR } from './board';
@@ -43,6 +47,8 @@ export interface TourStep {
   advanceOn?: 'click';
   /** Si no se sabe si es equipo o persona sola, este paso lo pregunta (una vez). */
   askAudience?: boolean;
+  /** Solo enseña atajos de teclado: en el teléfono o con pantalla táctil se saltea. */
+  keyboard?: boolean;
 }
 
 export interface TourDef {
@@ -107,13 +113,15 @@ export function atTourStart(def: TourDef, pathname: string | null | undefined): 
 }
 
 /**
- * Pasos que le tocan a esta persona. Sin saber si es equipo, los de equipo
+ * Pasos que le tocan a esta persona (`touch`: teléfono o pantalla táctil, sin
+ * los pasos de atajos de teclado). Sin saber si es equipo, los de equipo
  * quedan afuera hasta que conteste (la pregunta va en el primer paso).
  */
-export function stepsFor(def: TourDef, who: { audience: TourAudience | null; admin: boolean }): TourStep[] {
+export function stepsFor(def: TourDef, who: { audience: TourAudience | null; admin: boolean; touch?: boolean }): TourStep[] {
   return def.steps.filter((s) => {
     if (s.audience && s.audience !== (who.audience ?? 'solo')) return false;
     if (s.adminOnly && !who.admin) return false;
+    if (s.keyboard && who.touch) return false;
     return true;
   });
 }

@@ -582,8 +582,8 @@ export function buildNav(
   const unread = counts.unread ?? 0;
 
   // Último grupo de las apps sin "Ajustes" propio en otro lado: lleva a /app/<app>/settings.
-  const appSettingsGroup = (href: string): NavGroup => ({
-    items: [{ href, label: labels.appSettings, active: at(href), icon: 'settings' }],
+  const appSettingsGroup = (href: string, tour?: string): NavGroup => ({
+    items: [{ href, label: labels.appSettings, active: at(href), icon: 'settings', ...(tour ? { tour } : {}) }],
   });
 
   switch (product) {
@@ -1285,9 +1285,10 @@ export function buildNav(
       return [
         { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`) && !at(`${base}/analytics`), icon: product }] },
         ...(labels.talk.analytics
-          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const }] }]
+          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const, tour: 'talk-analytics' }] }]
           : []),
-        appSettingsGroup(`${base}/settings`),
+        // Anclajes del tour de Talk (lib/tours/talk.ts).
+        appSettingsGroup(`${base}/settings`, 'talk-settings'),
       ];
     }
 

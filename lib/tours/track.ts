@@ -33,7 +33,7 @@ export const TRACK_TOUR = {
     { id: 'filters', targets: ['track-filters'] },
     { id: 'display', targets: ['track-display'] },
     { id: 'views', targets: ['track-views'] },
-    { id: 'shortcuts' },
+    { id: 'shortcuts', keyboard: true },
     { id: 'done' },
   ],
 } as const satisfies TourDef;
