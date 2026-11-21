@@ -96,8 +96,8 @@ async function seed(request: APIRequestContext) {
   );
 }
 
-test('Ajustes › Datos: elegir propiedades, orden y obligatorias del alta (1280 y 390)', async ({ browser }, info) => {
-  for (const width of WIDTHS) {
+for (const width of WIDTHS) {
+  test(`Ajustes › Datos: elegir propiedades, orden y obligatorias del alta (${width})`, async ({ browser }, info) => {
     const { ctx, page, request, errors } = await person(browser, { width });
     try {
       await page.goto('/en/app/crm/settings?tab=data', { waitUntil: 'networkidle' });
@@ -139,11 +139,11 @@ test('Ajustes › Datos: elegir propiedades, orden y obligatorias del alta (1280
     } finally {
       await ctx.close();
     }
-  }
-});
+  });
+}
 
-test('el alta rápida y los formularios completos siguen la configuración (1280 y 390)', async ({ browser }, info) => {
-  for (const width of WIDTHS) {
+for (const width of WIDTHS) {
+  test(`el alta rápida y los formularios completos siguen la configuración (${width})`, async ({ browser }, info) => {
     const { ctx, page, request, errors } = await person(browser, { width });
     try {
       await seed(request);
@@ -210,8 +210,8 @@ test('el alta rápida y los formularios completos siguen la configuración (1280
     } finally {
       await ctx.close();
     }
-  }
-});
+  });
+}
 
 test('formulario de alta en los cinco aspectos, claro a 1280 y oscuro a 390', async ({ browser }, info) => {
   test.setTimeout(400_000);
