@@ -31,7 +31,7 @@ import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { formatMoney } from '@/lib/crm-money';
 import RecordTags from '@/components/crm/RecordTags';
-import { customPropFields } from '@/components/crm/customPropFields';
+import { customFieldSections, customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
@@ -354,9 +354,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     { id: 'socials', title: t('companiesEnrich.socials'), keys: ['linkedinUrl', 'twitterUrl', 'facebookUrl', 'instagramUrl'] },
     { id: 'lifecycle', title: t('companies.detail.lifecycleSection'), keys: ['lifecycleStage'] },
     { id: 'ownership', title: t('companies.detail.ownershipSection'), keys: ['ownerId'] },
-    ...(customFields.length
-      ? [{ id: 'custom', title: t('companies.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-      : []),
+    // Una tarjeta por grupo de propiedades (Ajustes › Datos); las sin grupo, en la de siempre.
+    ...customFieldSections(customFieldDefs, customFields, t('companies.detail.customFieldsSection')),
   ];
 
   const about = (

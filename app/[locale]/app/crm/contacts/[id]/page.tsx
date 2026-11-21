@@ -24,7 +24,7 @@ import {
   nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
-import { customPropFields } from '@/components/crm/customPropFields';
+import { customFieldSections, customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import FilesPanel from '@/components/crm/FilesPanel';
@@ -346,9 +346,8 @@ export default async function ContactDetailPage(props: {
     },
     { id: 'lifecycle', title: t('contacts.detail.lifecycleSection'), keys: ['lifecycleStage', 'leadStatus', 'source'] },
     { id: 'ownership', title: t('contacts.detail.ownershipSection'), keys: ['ownerId', 'companyId'] },
-    ...(customFields.length
-      ? [{ id: 'custom', title: t('contacts.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-      : []),
+    // Una tarjeta por grupo de propiedades (Ajustes › Datos); las sin grupo, en la de siempre.
+    ...customFieldSections(customFieldDefs, customFields, t('contacts.detail.customFieldsSection')),
   ];
 
   const about = (

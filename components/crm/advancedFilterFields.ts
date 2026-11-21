@@ -1,5 +1,6 @@
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
 import { fieldOptions, filterTypeFor } from '@/lib/crm-custom-fields';
+import { DEAL_TYPES } from '@/lib/crm-constants';
 import { OWNER_ME, OWNER_UNASSIGNED, type FilterFieldShape, type FilterFieldType } from '@/lib/crm-filter-model';
 
 /**
@@ -172,6 +173,15 @@ export function dealFilterFields(
     { key: 'forecastCategory', label: t('filters.field.forecastCategory'), type: 'select', group, options: opts.forecastCategories },
     { key: 'description', label: t('deals.form.description'), type: 'text', group },
     { key: 'lostReason', label: t('filters.field.lostReason'), type: 'text', group },
+    {
+      key: 'dealType',
+      label: t('deals.form.dealType'),
+      type: 'select',
+      group,
+      options: DEAL_TYPES.map((v) => ({ value: v, label: t(`enums.dealType.${v}`) })),
+    },
+    { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', group },
+    { key: 'wonReason', label: t('deals.form.wonReason'), type: 'text', group },
     ...tagField(t, opts.tags, group),
     { key: 'created', label: t('filters.field.created'), type: 'date', group },
     { key: 'updated', label: t('filters.field.updated'), type: 'date', group },

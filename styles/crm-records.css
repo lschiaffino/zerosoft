@@ -300,6 +300,8 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-bottom: 1px solid var(--line);
 }
 .prop-row .prop-label { font-family: var(--font-ui); font-size: 0.8125rem; letter-spacing: 0; text-transform: none; color: var(--brand-gray-2); }
+/* Descripción de la propiedad (Ajustes › Datos): ayuda debajo del nombre. */
+.prop-row .prop-help { display: block; margin-top: 2px; font-size: 0.75rem; line-height: 1.35; color: var(--dim); overflow-wrap: anywhere; }
 .prop-row .prop-value { margin: 0; min-width: 0; font-size: 0.875rem; }
 .prop-row .prop-value .input,
 .prop-row .prop-value .select,

@@ -1,5 +1,5 @@
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
-import { customFieldHref, fieldOptions, formatCustomFieldValue } from '@/lib/crm-custom-fields';
+import { customFieldHref, fieldOptions, formatCustomFieldValue, groupCustomFields } from '@/lib/crm-custom-fields';
 import type { PropField } from './PropertiesPanel';
 
 interface CustomFieldLabels {
@@ -42,6 +42,7 @@ function customPropFieldsAll(
     const base = {
       key: `custom.${def.name}`,
       label: def.label,
+      ...(def.description?.trim() ? { help: def.description.trim() } : {}),
     };
     if (def.type === 'boolean') {
       return {
@@ -96,4 +97,45 @@ function customPropFieldsAll(
       inputType: def.type === 'url' ? 'url' : def.type === 'phone' ? 'tel' : undefined,
     };
   });
+}
+
+/**
+ * Tarjetas de la ficha para las propiedades propias: una por grupo de
+ * propiedades (como HubSpot), y las que no tienen grupo bajo `fallbackTitle`.
+ * Solo con las claves que llegaron a `fields` (los campos ocultos no).
+ */
+export function customFieldSections(
+  defs: Array<Pick<CrmCustomFieldRow, 'name' | 'group_name'>>,
+  fields: PropField[],
+  fallbackTitle: string,
+): Array<{ id: string; title: string; keys: string[] }> {
+  const shown = new Set(fields.map((f) => f.key));
+  const used = new Set<string>();
+  return groupCustomFields(defs)
+    .map(({ group, defs: inGroup }) => {
+      const base = group ? `custom.${groupSlug(group)}` : 'custom';
+      let id = base;
+      // "Billing!" y "Billing?" dan el mismo slug: el segundo lleva sufijo.
+      for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+      used.add(id);
+      return {
+        id,
+        title: group || fallbackTitle,
+        keys: inGroup.map((d) => `custom.${d.name}`).filter((k) => shown.has(k)),
+      };
+    })
+    .filter((s) => s.keys.length > 0);
+}
+
+/** Id estable de un grupo (para recordar si su tarjeta está plegada). */
+function groupSlug(group: string): string {
+  return (
+    group
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'group'
+  );
 }
