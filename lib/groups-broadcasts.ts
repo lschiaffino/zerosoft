@@ -578,7 +578,8 @@ export async function processBroadcasts(
               ? await db.prepare('SELECT id FROM groups_messages WHERE id = ? AND user_id = ? AND chat_id = ?').get(b.reply_to_id, b.user_id, chat.id)
               : null;
             // Menciones guardadas: "@Nombre" sale como "@<teléfono>" con la lista, igual que al mandar en el momento.
-            const out = chat.kind === 'group' && !b.media_type ? applyWaMentionPicks(text, b.mentions) : { body: text, mentions: [] };
+            // También en el pie de un archivo (foto, video, documento); una nota de voz no tiene pie.
+            const out = chat.kind === 'group' && b.media_kind !== 'voice' ? applyWaMentionPicks(text, b.mentions) : { body: text, mentions: [] };
             const msg = await sendMessage(b.user_id, b.created_by, chat.id, {
               replyToId: quoted ? b.reply_to_id : null,
               poll: parsePoll(b.poll),

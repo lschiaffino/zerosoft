@@ -9,6 +9,10 @@
  * El motor (components/tour/TourHost.tsx) y el estado por persona
  * (lib/tours/server.ts, users.profile.tours) son los mismos para todas.
  *
+ * En el teléfono o con pantalla táctil no se nombran atajos de teclado: un
+ * texto que los nombra lleva su versión `bodyTouch` sin ellos, y un paso que
+ * solo enseña atajos lleva `keyboard: true` y se saltea.
+ *
  * Puro: lo usan el servidor, el cliente y los tests.
  */
 import { BOARD_TOUR } from './board';
@@ -18,12 +22,13 @@ import { FORMS_TOUR } from './forms';
 import { INBOX_TOUR } from './inbox';
 import { LINES_TOUR } from './lines';
 import { NOTES_TOUR } from './notes';
+import { REC_TOUR } from './rec';
 import { SEND_TOUR } from './send';
 import { TALK_TOUR } from './talk';
 import { TRACK_TOUR } from './track';
 import { VOICE_TOUR } from './voice';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -44,6 +49,8 @@ export interface TourStep {
   advanceOn?: 'click';
   /** Si no se sabe si es equipo o persona sola, este paso lo pregunta (una vez). */
   askAudience?: boolean;
+  /** Solo enseña atajos de teclado: en el teléfono o con pantalla táctil se saltea. */
+  keyboard?: boolean;
 }
 
 export interface TourDef {
@@ -72,6 +79,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   talk: TALK_TOUR,
   send: SEND_TOUR,
   voice: VOICE_TOUR,
+  rec: REC_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */
@@ -109,13 +117,15 @@ export function atTourStart(def: TourDef, pathname: string | null | undefined): 
 }
 
 /**
- * Pasos que le tocan a esta persona. Sin saber si es equipo, los de equipo
+ * Pasos que le tocan a esta persona (`touch`: teléfono o pantalla táctil, sin
+ * los pasos de atajos de teclado). Sin saber si es equipo, los de equipo
  * quedan afuera hasta que conteste (la pregunta va en el primer paso).
  */
-export function stepsFor(def: TourDef, who: { audience: TourAudience | null; admin: boolean }): TourStep[] {
+export function stepsFor(def: TourDef, who: { audience: TourAudience | null; admin: boolean; touch?: boolean }): TourStep[] {
   return def.steps.filter((s) => {
     if (s.audience && s.audience !== (who.audience ?? 'solo')) return false;
     if (s.adminOnly && !who.admin) return false;
+    if (s.keyboard && who.touch) return false;
     return true;
   });
 }

@@ -6,6 +6,8 @@
  * contexto falso.
  */
 
+import type { FilterId } from './wa-image-filters';
+
 export type Rotation = 0 | 90 | 180 | 270;
 
 export interface Rect {
@@ -15,11 +17,15 @@ export interface Rect {
   h: number;
 }
 
-/** Un trazo del lápiz: puntos x,y seguidos (px de la original) y el ancho en px de la original. */
+/**
+ * Un trazo del lápiz: puntos x,y seguidos (px de la original) y el ancho en px de la original. Con
+ * `blur`, es una pasada del pincel de desenfoque: lo que toca se ve desenfocado (sin color).
+ */
 export interface Stroke {
   color: string;
   width: number;
   points: number[];
+  blur?: boolean;
 }
 
 /** Texto, emoji o sticker encima de la foto: centro y tamaño en px de la original. */
@@ -43,12 +49,19 @@ export interface Edits {
   crop: Rect | null;
   strokes: Stroke[];
   overlays: Overlay[];
+  /** Filtro de color (lib/wa-image-filters.ts); sin esto, ninguno. */
+  filter?: FilterId;
 }
 
 export const NO_EDITS: Edits = { rotate: 0, crop: null, strokes: [], overlays: [] };
 
 export function hasEdits(e: Edits | null | undefined): boolean {
-  return !!e && (e.rotate !== 0 || !!e.crop || e.strokes.length > 0 || e.overlays.some((o) => o.kind !== 'text' || !!o.text?.trim()));
+  return !!e && (e.rotate !== 0 || !!e.crop || e.strokes.length > 0 || (!!e.filter && e.filter !== 'none') || e.overlays.some((o) => o.kind !== 'text' || !!o.text?.trim()));
+}
+
+/** ¿Tiene pasadas del pincel de desenfoque? (hace falta la copia desenfocada para dibujarlas). */
+export function hasBlur(e: Edits | null | undefined): boolean {
+  return !!e?.strokes.some((s) => s.blur && s.points.length >= 2);
 }
 
 /** El recorte efectivo (la foto entera si no hay), dentro de la foto. */
@@ -133,6 +146,8 @@ export interface Ctx2D {
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
   stroke(): void;
+  /** Para el pincel de desenfoque (círculos a lo largo del trazo). */
+  arc?(x: number, y: number, r: number, a0: number, a1: number): void;
   fillText(t: string, x: number, y: number): void;
   strokeText(t: string, x: number, y: number): void;
   drawImage(img: unknown, ...args: number[]): void;
@@ -150,9 +165,32 @@ export const TEXT_FONT = '600 {size}px system-ui, sans-serif';
 export const EMOJI_FONT = '{size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
 /**
- * Dibuja la foto con sus cambios. `scale`: px del canvas por px de la original (1 para mandar en
- * tamaño real, menos para la vista en pantalla o una versión más liviana). `images`: los stickers ya
- * cargados, por URL. `skipOverlay`: el que se está escribiendo (lo muestra el campo de texto).
+ * Centros de los círculos que cubren una pasada del pincel de desenfoque: los puntos del trazo y,
+ * entre dos lejanos, puntos intermedios cada un tercio del ancho (sin huecos al mover rápido).
+ */
+export function blurDabs(s: Stroke): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  const step = Math.max(1, s.width / 3);
+  for (let i = 0; i + 1 < s.points.length; i += 2) {
+    const x = s.points[i];
+    const y = s.points[i + 1];
+    if (i >= 2) {
+      const px = s.points[i - 2];
+      const py = s.points[i - 1];
+      const d = Math.hypot(x - px, y - py);
+      for (let k = 1; k * step < d && out.length < 20_000; k++) out.push({ x: px + ((x - px) * k * step) / d, y: py + ((y - py) * k * step) / d });
+    }
+    out.push({ x, y });
+  }
+  return out;
+}
+
+/**
+ * Dibuja la foto con sus cambios. `photo` ya viene con su filtro de color (components/groups/wa/photo-sources.ts;
+ * puede ser más chica que la original: se dibuja en su lugar). `scale`: px del canvas por px de la original (1
+ * para mandar en tamaño real, menos para la vista en pantalla o una versión más liviana). `images`: los stickers
+ * ya cargados, por URL. `blurred`: la copia desenfocada que muestran las pasadas del pincel de desenfoque.
+ * `skipOverlay`: el que se está escribiendo (lo muestra el campo de texto).
  */
 export function renderEdits(
   ctx: Ctx2D,
@@ -160,7 +198,7 @@ export function renderEdits(
   natural: { w: number; h: number },
   e: Edits,
   scale: number,
-  opts: { images?: Map<string, unknown>; skipOverlay?: string } = {},
+  opts: { images?: Map<string, unknown>; skipOverlay?: string; blurred?: unknown } = {},
 ): void {
   const c = cropOf(e, natural);
   ctx.save();
@@ -181,10 +219,26 @@ export function renderEdits(
   ctx.rect(c.x, c.y, c.w, c.h);
   ctx.clip();
   ctx.drawImage(photo, 0, 0, natural.w, natural.h);
+  // Desenfoque: la copia desenfocada, solo donde pasó el pincel (antes que el lápiz, que queda encima).
+  const blurs = e.strokes.filter((s) => s.blur && s.points.length >= 2);
+  if (blurs.length && opts.blurred && ctx.arc) {
+    ctx.save();
+    ctx.beginPath();
+    for (const s of blurs) {
+      const r = s.width / 2;
+      for (const d of blurDabs(s)) {
+        ctx.moveTo(d.x + r, d.y);
+        ctx.arc(d.x, d.y, r, 0, Math.PI * 2);
+      }
+    }
+    ctx.clip();
+    ctx.drawImage(opts.blurred, 0, 0, natural.w, natural.h);
+    ctx.restore();
+  }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const s of e.strokes) {
-    if (s.points.length < 2) continue;
+    if (s.blur || s.points.length < 2) continue;
     ctx.strokeStyle = s.color;
     ctx.lineWidth = s.width;
     ctx.beginPath();

@@ -6,11 +6,13 @@ import { e2eDb } from './helpers/db';
  * personas nuevas (cookie zs_e2e_as, un dominio de mail propio cada una): se
  * abre solo la primera vez después del onboarding aunque Talk pase enseguida
  * de /app/talk al canal, va y vuelve, Enter avanza (no manda un mensaje),
- * señala canales, mensajes directos, el redactor, hilos y la búsqueda. Esc
+ * señala canales, mensajes directos, el redactor, hilos, la búsqueda, y la
+ * analítica y los ajustes en el lateral de la app. Esc
  * sale, "No mostrar más tours" lo apaga (y Ajustes › Apariencia lo prende), el
  * menú de la cuenta lo reabre desde Ajustes de Talk, y en el teléfono (la
- * lista, sin la conversación) se saltea el redactor, va pegado abajo o arriba
- * sin tapar y sin scroll lateral en los cinco aspectos.
+ * lista, sin la conversación) se saltea el redactor y el lateral, los textos
+ * no nombran atajos de teclado, va pegado abajo o arriba sin tapar y sin
+ * scroll lateral en los cinco aspectos.
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -116,10 +118,15 @@ test('se abre solo en el canal, va y vuelve, recorre Talk, termina y se reabre d
       ['composer', 'talk-composer'],
       ['threads', 'talk-threads'],
       ['search', 'talk-search'],
+      // El lateral de la app: analítica y ajustes de Talk.
+      ['analytics', 'talk-analytics'],
+      ['settings', 'talk-settings'],
     ] as const) {
       await p.getByTestId('tour-next').click();
       await stepIs(p, id);
       await cardBesideTarget(p, target, id);
+      // En la compu los textos nombran los atajos (Cmd+G para buscar).
+      await expect(p.getByTestId('tour')).not.toHaveAttribute('data-tour-touch', /.*/);
     }
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'done');
@@ -198,7 +205,8 @@ test('teléfono: la lista sin el redactor, tarjeta pegada sin tapar y sin scroll
       await talkReady(p, false);
       await stepIs(p, 'intro');
       await noHorizontalScroll(p, `${look} intro`);
-      // En el teléfono se ve la lista (canales, mensajes directos, hilos, búsqueda): el redactor se saltea.
+      // En el teléfono se ve la lista (canales, mensajes directos, hilos, búsqueda): el redactor se saltea, y
+      // el lateral de la app es un cajón: analítica y ajustes también. Los textos van sin atajos de teclado.
       for (const [id, target] of [
         ['channels', 'talk-channels'],
         ['dms', 'talk-dms'],
@@ -213,6 +221,7 @@ test('teléfono: la lista sin el redactor, tarjeta pegada sin tapar y sin scroll
         expect(card!.y + card!.height >= 844 - 40 || card!.y <= 40, `${look} ${id}`).toBe(true);
         await cardBesideTarget(p, target, `${look} ${id}`);
         await noHorizontalScroll(p, `${look} ${id}`);
+        await expect(p.getByTestId('tour')).toHaveAttribute('data-tour-touch', 'true');
       }
       await p.getByTestId('tour-next').click();
       await stepIs(p, 'done');

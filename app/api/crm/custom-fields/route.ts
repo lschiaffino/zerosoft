@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
-import { createCustomField, listCustomFields } from '@/lib/crm';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { createCustomField } from '@/lib/crm';
 import { customFieldCreateSchema } from '@/lib/crm-schema';
-import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, invalidBody, unauthorized } from '@/lib/crm-http';
 import { getObject } from '@/lib/crm-objects';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, sessionFieldViewer, visibleFieldDefinitions } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
     const { visible } = await fieldAccessFor(sessionFieldViewer(user), entity);
     return NextResponse.json({ rows: visible });
   }
-  return NextResponse.json({ rows: await listCustomFields(user.id) });
+  // Sin entidad: todas las definiciones que la persona puede ver (owner/admin, todas).
+  return NextResponse.json({ rows: await visibleFieldDefinitions(sessionFieldViewer(user)) });
 }
 
 export async function POST(req: NextRequest) {
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return invalidBody(parsed.error);
 
   if (!(await entityExists(user.id, parsed.data.entity))) return crmError(400, 'invalid_input');
-  const field = await createCustomField(user.id, parsed.data);
+  // Valor único: regla de todo el workspace (y su error dice si hay duplicados): solo owner/admin.
+  if (parsed.data.isUnique && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
+  const field = await catchRef(createCustomField(user.id, parsed.data));
+  if (field instanceof CrmRefError) return crmError(400, field.code);
   return NextResponse.json(field, { status: 201 });
 }

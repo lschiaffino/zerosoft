@@ -3,7 +3,7 @@ import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } fr
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createDeal, listDeals } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
-import { catchRef, cleanRow, CrmRefError, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { catchRef, cleanRow, CrmRefError, refErrorMessage, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'deal', null, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
   const result = await catchRef(createDeal(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
-  if (result instanceof CrmRefError) return apiError(400, result.code, 'A referenced record does not exist.');
+  if (result instanceof CrmRefError) return apiError(400, result.code, refErrorMessage(result.code));
   if (!result.ok) {
     return result.reason === 'invalid_stage'
       ? apiError(400, 'invalid_stage', 'The stage does not belong to that pipeline.')

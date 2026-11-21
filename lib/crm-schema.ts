@@ -9,7 +9,7 @@ import { MAX_REQUIRED_FIELDS } from './crm-stage-rules';
 import { CALL_CHANNELS, MAX_CALL_OUTCOMES } from './crm-calls';
 import {
   ACTIVITY_TYPES,
-  CONTACT_COMPANY_LABELS,
+  DEAL_TYPES,
   LIFECYCLE_STAGES,
   LEAD_STATUSES,
   PRIORITIES,
@@ -72,6 +72,8 @@ const lifecycleStage = z.enum(LIFECYCLE_STAGES);
 const leadStatus = z.enum(LEAD_STATUSES);
 const source = z.enum(SOURCES);
 const priority = z.enum(PRIORITIES);
+/** Tipo de deal: '' lo deja sin elegir. */
+const dealType = z.union([z.enum(DEAL_TYPES), z.literal('')]);
 const activityType = z.enum(ACTIVITY_TYPES);
 const custom = z.record(z.unknown());
 
@@ -175,6 +177,8 @@ export const dealCreateSchema = z.object({
   priority: priority.optional(),
   source: source.optional(),
   description: longText.optional(),
+  dealType: dealType.optional(),
+  nextStep: shortText.optional(),
   contactIds: z.array(id).max(50).optional(),
   /** Empresa primaria del deal. */
   companyId: id.nullish(),
@@ -189,6 +193,7 @@ export const dealUpdateSchema = dealCreateSchema
   .omit({ pipelineId: true, stageId: true })
   .extend({
     lostReason: shortText.optional(),
+    wonReason: shortText.optional(),
     addContactIds: z.array(id).max(50).optional(),
     removeContactIds: z.array(id).max(50).optional(),
     /** true = amount manual aunque haya line items; false = recalcular desde line items. */
@@ -340,6 +345,12 @@ export const customFieldCreateSchema = z.object({
   /** select/multiselect: las opciones; currency: [código ISO de la moneda]. */
   options: z.array(shortText).max(100).optional(),
   position: z.number().int().min(0).optional(),
+  /** Grupo de la propiedad ('' = sin grupo). */
+  group: z.string().trim().max(80).optional(),
+  /** Ayuda que se muestra junto al campo. */
+  description: z.string().trim().max(500).optional(),
+  /** Valor único entre los registros del objeto (solo admins; lib/crm-unique.ts). */
+  isUnique: z.boolean().optional(),
 });
 
 export const customFieldUpdateSchema = customFieldCreateSchema.partial();
@@ -355,8 +366,11 @@ export const associationSchema = z.object({
   toId: id,
   /** Empresa primaria (contact ↔ company, deal ↔ company). */
   primary: z.boolean().optional(),
-  /** Label de contact ↔ company ('' o null = sin label). */
-  label: z.union([z.enum(CONTACT_COMPANY_LABELS), z.literal('')]).nullish(),
+  /**
+   * Label de contact ↔ company o deal ↔ contact ('' o null = sin label): una
+   * clave de fábrica o `custom:<id>` (lib/crm-assoc-labels.ts lo valida).
+   */
+  label: z.string().trim().max(80).nullish(),
 });
 
 export const associationRemoveSchema = associationSchema.omit({ primary: true, label: true });

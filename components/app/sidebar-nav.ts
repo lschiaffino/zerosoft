@@ -945,13 +945,14 @@ export function buildNav(
               // Carpetas (RecBranch en el hueco #side-branch).
               branch: true,
             },
-            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies' },
+            // Anclajes del tour de Rec (lib/tours/rec.ts).
+            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies', tour: 'rec-workspace' },
             { href: '/app/rec/later', label: labels.rec.later, active: at('/app/rec/later'), icon: 'clip' },
             { href: '/app/rec/archive', label: labels.rec.archive, active: at('/app/rec/archive'), icon: 'folder' },
             { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
           ],
         },
-        appSettingsGroup('/app/rec/settings'),
+        appSettingsGroup('/app/rec/settings', { tour: 'rec-settings' }),
       ];
 
     case 'design':
@@ -1286,9 +1287,10 @@ export function buildNav(
       return [
         { items: [{ href: base, label: labels[product].home, active: at(base) && !at(`${base}/settings`) && !at(`${base}/analytics`), icon: product }] },
         ...(labels.talk.analytics
-          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const }] }]
+          ? [{ section: labels.insights, items: [{ href: `${base}/analytics`, label: labels.talk.analytics, active: at(`${base}/analytics`), icon: 'reports' as const, tour: 'talk-analytics' }] }]
           : []),
-        appSettingsGroup(`${base}/settings`),
+        // Anclajes del tour de Talk (lib/tours/talk.ts).
+        appSettingsGroup(`${base}/settings`, { tour: 'talk-settings' }),
       ];
     }
 

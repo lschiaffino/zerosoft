@@ -32,6 +32,8 @@ export interface PropField {
   inputType?: 'url' | 'tel';
   /** Permisos por campo: la persona lo ve pero no lo edita. */
   readOnly?: boolean;
+  /** Descripción de la propiedad: ayuda debajo del nombre. */
+  help?: string;
 }
 
 function parseList(json: string): string[] {
@@ -70,6 +72,7 @@ const ERROR_CODES = [
   'invalid_owner',
   'forbidden',
   'field_readonly',
+  'value_taken',
 ] as const;
 
 /**
@@ -187,7 +190,14 @@ export default function PropertiesPanel({
         : field.value;
     return (
       <div key={field.key} className="prop-row" data-prop={field.key}>
-        <dt className="prop-label">{field.label}</dt>
+        <dt className="prop-label">
+          {field.label}
+          {field.help && (
+            <span className="prop-help" data-testid="prop-help">
+              {field.help}
+            </span>
+          )}
+        </dt>
         <dd className="prop-value">
           {editing ? (
             field.type === 'multiselect' ? (

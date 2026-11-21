@@ -45,7 +45,8 @@ import {
   type FilterModel,
   type FilterRule,
 } from './crm-filters';
-import { filterTypeFor } from './crm-custom-fields';
+import { filterTypeFor, UNIQUE_FIELD_TYPES } from './crm-custom-fields';
+import { assertUniqueCustom, hasDuplicateValues, isUniqueEntity } from './crm-unique';
 import { trashRecords } from './crm-trash';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
 import { cleanPriority, type TaskPriority } from './tasks-shared';
@@ -561,7 +562,8 @@ export async function listContacts(
   return { rows, total };
 }
 
-export type ContactDealRow = CrmDealRow & { stage_name: string; pipeline_name: string };
+/** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
+export type ContactDealRow = CrmDealRow & { stage_name: string; pipeline_name: string; assoc_label: string };
 
 export interface ContactDetail {
   contact: CrmContactRow;
@@ -588,7 +590,7 @@ export async function getContact(userId: string, id: string): Promise<ContactDet
     : null;
   const deals = (await db
     .prepare(
-      `SELECT d.*, s.name AS stage_name, p.name AS pipeline_name
+      `SELECT d.*, s.name AS stage_name, p.name AS pipeline_name, dc.label AS assoc_label
        FROM crm_deals d
        JOIN crm_deal_contacts dc ON dc.deal_id = d.id
        LEFT JOIN crm_stages s ON s.id = d.stage_id
@@ -686,6 +688,7 @@ export async function createContact(
   db: Db = getDb(),
 ): Promise<CrmContactRow> {
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'contacts', null, data.custom, {}, db);
   const id = crypto.randomUUID();
   const email = cleanContactEmail(data.email);
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
@@ -746,6 +749,7 @@ export async function updateContact(
     .get(id, userId)) as CrmContactRow | undefined;
   if (!existing) return null;
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'contacts', id, data.custom, parseCustom(existing.custom), db);
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   // El email es la identidad del contacto (lib/crm-contact-email.ts). Solo se
   // chequea cuando cambia: un duplicado de antes se puede seguir editando.
@@ -1234,6 +1238,7 @@ export async function createCompany(
   db: Db = getDb(),
 ): Promise<CrmCompanyRow> {
   await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'companies', null, data.custom, {}, db);
   const id = crypto.randomUUID();
   await db
     .prepare(
@@ -1280,6 +1285,7 @@ export async function updateCompany(
     .get(id, userId)) as CrmCompanyRow | undefined;
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId }, db);
+  await assertUniqueCustom(userId, 'companies', id, data.custom, parseCustom(existing.custom), db);
   // Primero la jerarquía: si hay ciclo lanza CrmRefError y no se guarda nada.
   if (data.parentCompanyId !== undefined) {
     await setParentCompany(userId, id, data.parentCompanyId, db);
@@ -1551,6 +1557,9 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   forecastCategory: { expr: 'd.forecast_category', type: 'select' },
   description: { expr: 'd.description', type: 'text' },
   lostReason: { expr: 'd.lost_reason', type: 'text' },
+  dealType: { expr: 'd.deal_type', type: 'select' },
+  nextStep: { expr: 'd.next_step', type: 'text' },
+  wonReason: { expr: 'd.won_reason', type: 'text' },
   // La empresa principal: la misma que ya muestra la fila del listado.
   companyName: {
     expr: `(SELECT xco.name FROM crm_deal_companies xpdc JOIN crm_companies xco ON xco.id = xpdc.company_id
@@ -1729,7 +1738,8 @@ export interface DealDetail {
   deal: CrmDealRow;
   stage: CrmStageRow | null;
   pipeline: CrmPipelineRow | null;
-  contacts: CrmContactRow[];
+  /** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
+  contacts: Array<CrmContactRow & { assoc_label: string }>;
   /** Empresa primaria del deal. */
   company: CrmCompanyRow | null;
   /** Todas las empresas asociadas (primaria primero). */
@@ -1752,12 +1762,12 @@ export async function getDeal(userId: string, id: string): Promise<DealDetail | 
       | undefined) ?? null;
   const contacts = (await db
     .prepare(
-      `SELECT c.* FROM crm_contacts c
+      `SELECT c.*, dc.label AS assoc_label FROM crm_contacts c
        JOIN crm_deal_contacts dc ON dc.contact_id = c.id
        WHERE dc.deal_id = ?
        ORDER BY dc.rowid ASC`,
     )
-    .all(id)) as CrmContactRow[];
+    .all(id)) as Array<CrmContactRow & { assoc_label: string }>;
   const companies = await listDealCompanies(userId, id, db);
   const primary = companies.find((c) => c.is_primary) ?? null;
   let company: CrmCompanyRow | null = null;
@@ -1779,6 +1789,10 @@ export interface DealInput {
   source?: string;
   description?: string;
   lostReason?: string;
+  /** '' | DEAL_TYPES. */
+  dealType?: string;
+  nextStep?: string;
+  wonReason?: string;
   ownerId?: string | null;
   custom?: Record<string, unknown>;
   contactIds?: string[];
@@ -1809,11 +1823,16 @@ async function setDealContacts(
   contactIds: string[],
   db: Db = getDb(),
 ): Promise<void> {
+  // Los contactos que siguen conservan el label de su asociación.
+  const labels = (await db
+    .prepare("SELECT contact_id, label FROM crm_deal_contacts WHERE deal_id = ? AND label != ''")
+    .all(dealId)) as Array<{ contact_id: string; label: string }>;
+  const keep = new Map(labels.map((r) => [r.contact_id, r.label]));
   await db.prepare('DELETE FROM crm_deal_contacts WHERE deal_id = ?').run(dealId);
   const insert = db.prepare(
-    'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
+    'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id, label) VALUES (?, ?, ?)',
   );
-  for (const contactId of contactIds) await insert.run(dealId, contactId);
+  for (const contactId of contactIds) await insert.run(dealId, contactId, keep.get(contactId) ?? '');
 }
 
 export async function createDeal(userId: string, data: DealInput): Promise<CreateDealResult> {
@@ -1826,6 +1845,7 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
   }
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
+  await assertUniqueCustom(userId, 'deals', null, data.custom, {}, db);
   const contactIds = await ownedContactIds(userId, data.contactIds ?? [], db);
   const currency = (data.currency || (await getCrmSettings(userId, db)).baseCurrency).toUpperCase();
   const id = crypto.randomUUID();
@@ -1843,8 +1863,8 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
       .prepare(
         `INSERT INTO crm_deals
          (id, user_id, owner_id, pipeline_id, stage_id, name, amount, currency, close_date, priority,
-          source, description, lost_reason, position, custom, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          source, description, lost_reason, deal_type, next_step, won_reason, position, custom, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -1860,6 +1880,9 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
         data.source ?? '',
         data.description ?? '',
         data.lostReason ?? '',
+        data.dealType ?? '',
+        data.nextStep ?? '',
+        data.wonReason ?? '',
         maxPos + 1024,
         JSON.stringify(data.custom ?? {}),
         ts,
@@ -1890,6 +1913,9 @@ const DEAL_COLS: Record<string, string> = {
   source: 'source',
   description: 'description',
   lostReason: 'lost_reason',
+  dealType: 'deal_type',
+  nextStep: 'next_step',
+  wonReason: 'won_reason',
   ownerId: 'owner_id',
   amountOverride: 'amount_override',
   custom: 'custom',
@@ -1908,6 +1934,7 @@ export async function updateDeal(
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
+  await assertUniqueCustom(userId, 'deals', id, data.custom, parseCustom(existing.custom), db);
   const setIds = data.contactIds ? await ownedContactIds(userId, data.contactIds, db) : undefined;
   const addIds = await ownedContactIds(userId, data.addContactIds ?? [], db);
   const patch: Record<string, unknown> = { ...data };
@@ -3068,6 +3095,26 @@ export interface CustomFieldInput {
   type?: CrmCustomFieldType;
   options?: string[];
   position?: number;
+  /** Grupo de la propiedad ('' = sin grupo). */
+  group?: string;
+  /** Ayuda junto al campo. */
+  description?: string;
+  /** Valor único (lib/crm-unique.ts). La ruta exige admin. */
+  isUnique?: boolean;
+}
+
+/**
+ * ¿Se puede pedir valor único para este campo? Solo contactos, empresas y
+ * deals, y tipos que identifican (texto, número, url, teléfono).
+ * Lanza CrmRefError('invalid_unique') si no; 'not_unique' si ya hay duplicados.
+ */
+async function assertCanBeUnique(
+  userId: string,
+  field: { entity: string; name: string; type: string },
+  checkValues = true,
+): Promise<void> {
+  if (!isUniqueEntity(field.entity) || !UNIQUE_FIELD_TYPES.has(field.type)) throw new CrmRefError('invalid_unique');
+  if (checkValues && (await hasDuplicateValues(userId, field.entity, field))) throw new CrmRefError('not_unique');
 }
 
 export async function createCustomField(
@@ -3076,20 +3123,26 @@ export async function createCustomField(
 ): Promise<CrmCustomFieldRow> {
   const db = getDb();
   const id = crypto.randomUUID();
+  const entity = data.entity ?? 'contacts';
+  const type = data.type ?? 'text';
+  if (data.isUnique) await assertCanBeUnique(userId, { entity, name: data.name ?? '', type });
   await db
     .prepare(
-      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO crm_custom_fields (id, user_id, entity, name, label, type, options, position, group_name, description, is_unique)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
       userId,
-      data.entity ?? 'contacts',
+      entity,
       data.name ?? '',
       data.label ?? '',
-      data.type ?? 'text',
+      type,
       JSON.stringify(data.options ?? []),
       data.position ?? 0,
+      data.group ?? '',
+      data.description ?? '',
+      data.isUnique ? 1 : 0,
     );
   return (await db
     .prepare('SELECT * FROM crm_custom_fields WHERE id = ?')
@@ -3102,10 +3155,17 @@ export async function updateCustomField(
   data: CustomFieldInput,
 ): Promise<CrmCustomFieldRow | null> {
   const db = getDb();
-  const existing = await db
-    .prepare('SELECT id FROM crm_custom_fields WHERE id = ? AND user_id = ?')
-    .get(id, userId);
+  const existing = (await db
+    .prepare('SELECT * FROM crm_custom_fields WHERE id = ? AND user_id = ?')
+    .get(id, userId)) as CrmCustomFieldRow | undefined;
   if (!existing) return null;
+  // Prender la regla valida el campo y que no haya duplicados (la ruta lo deja solo a admins).
+  // Cambiar el tipo de un campo que ya la tiene solo valida el tipo.
+  const turningOn = data.isUnique === true && !existing.is_unique;
+  const typeChanges = data.type !== undefined && data.type !== existing.type;
+  if (turningOn || (typeChanges && (data.isUnique ?? !!existing.is_unique))) {
+    await assertCanBeUnique(userId, { entity: existing.entity, name: existing.name, type: data.type ?? existing.type }, turningOn);
+  }
   const sets: Array<[string, string | number]> = [];
   if (data.entity !== undefined) sets.push(['entity', data.entity]);
   if (data.name !== undefined) sets.push(['name', data.name]);
@@ -3113,6 +3173,9 @@ export async function updateCustomField(
   if (data.type !== undefined) sets.push(['type', data.type]);
   if (data.options !== undefined) sets.push(['options', JSON.stringify(data.options)]);
   if (data.position !== undefined) sets.push(['position', data.position]);
+  if (data.group !== undefined) sets.push(['group_name', data.group]);
+  if (data.description !== undefined) sets.push(['description', data.description]);
+  if (data.isUnique !== undefined) sets.push(['is_unique', data.isUnique ? 1 : 0]);
   if (sets.length) {
     await db
       .prepare(

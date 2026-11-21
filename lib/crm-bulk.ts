@@ -19,6 +19,7 @@ import {
 } from './crm';
 import { getDb, type CrmCustomFieldRow } from './db';
 import { coerceCustomFieldValue } from './crm-custom-fields';
+import { CrmUniqueValueError } from './crm-unique';
 
 const TABLE: Record<BulkEntity, string> = { contact: 'crm_contacts', company: 'crm_companies', deal: 'crm_deals' };
 const FIELD_ENTITY: Record<BulkEntity, string> = { contact: 'contacts', company: 'companies', deal: 'deals' };
@@ -107,6 +108,11 @@ export async function bulkSetProperty(
       if (done) count++;
       else failed++;
     } catch (err) {
+      // Un valor único que ya tiene otro registro: falla ese registro, el resto sigue.
+      if (err instanceof CrmUniqueValueError) {
+        failed++;
+        continue;
+      }
       // Una referencia inválida (owner o empresa de otro workspace) invalida todo el lote.
       if (err instanceof CrmRefError) return { ok: false, code: err.code };
       failed++;

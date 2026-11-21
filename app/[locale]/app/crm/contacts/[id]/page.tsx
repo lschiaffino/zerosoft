@@ -24,7 +24,7 @@ import {
   nextTaskFor,
   parseCustom,
 } from '@/lib/crm';
-import { customPropFields } from '@/components/crm/customPropFields';
+import { customFieldSections, customPropFields } from '@/components/crm/customPropFields';
 import PropertiesPanel, { type PropField, type PropSection } from '@/components/crm/PropertiesPanel';
 import Timeline from '@/components/crm/Timeline';
 import FilesPanel from '@/components/crm/FilesPanel';
@@ -42,6 +42,7 @@ import {
   associateCompanyToContact,
   removeCompanyFromContact,
   setContactCompanyLabel,
+  setContactDealLabel,
   setContactCompanyPrimary,
   associateDealToContact,
   removeDealFromContact,
@@ -56,7 +57,7 @@ import { getEmailSettings, listEmailTemplates } from '@/lib/crm-email';
 import { buildRecordTimeline } from '@/lib/crm-timeline';
 import { listEnrollments, listSequences } from '@/lib/crm-sequences';
 import { aiEnabled } from '@/lib/ai';
-import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
+import { assocLabelOptions, listAssociationLabels } from '@/lib/crm-assoc-labels';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import RecordTags from '@/components/crm/RecordTags';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
@@ -97,14 +98,17 @@ export default async function ContactDetailPage(props: {
 
   const { contact, company, companies: contactCompanies, deals, lists } = detail;
   const base = `/app/crm/contacts/${contact.id}`;
-  const [allTags, recordTags, teamMembers, eventTypes] = await Promise.all([
+  const [allTags, recordTags, teamMembers, eventTypes, assocLabels] = await Promise.all([
     listTags(user.id),
     tagsForRecords(user.id, 'contact', [id]),
     workspaceTeamId(user)
       ? listMembers(workspaceTeamId(user)!)
       : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }]),
     listEventTypes(user.id, { activeOnly: true }),
+    listAssociationLabels(user.id),
   ]);
+  const companyLabelOptions = assocLabelOptions('contact_company', assocLabels, (k) => t(`enums.contactCompanyLabel.${k}`));
+  const dealLabelOptions = assocLabelOptions('deal_contact', assocLabels, (k) => k);
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const ownerLabel = ownerOptions.find((o) => o.value === (contact.owner_id ?? user.id))?.label ?? '—';
 
@@ -346,9 +350,8 @@ export default async function ContactDetailPage(props: {
     },
     { id: 'lifecycle', title: t('contacts.detail.lifecycleSection'), keys: ['lifecycleStage', 'leadStatus', 'source'] },
     { id: 'ownership', title: t('contacts.detail.ownershipSection'), keys: ['ownerId', 'companyId'] },
-    ...(customFields.length
-      ? [{ id: 'custom', title: t('contacts.detail.customFieldsSection'), keys: customFields.map((f) => f.key) }]
-      : []),
+    // Una tarjeta por grupo de propiedades (Ajustes › Datos); las sin grupo, en la de siempre.
+    ...customFieldSections(customFieldDefs, customFields, t('contacts.detail.customFieldsSection')),
   ];
 
   const about = (
@@ -530,10 +533,7 @@ export default async function ContactDetailPage(props: {
           onRemove={removeCompanyFromContact.bind(null, contact.id)}
           onSetPrimary={setContactCompanyPrimary.bind(null, contact.id)}
           onSetLabel={setContactCompanyLabel.bind(null, contact.id)}
-          labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({
-            value: v,
-            label: t(`enums.contactCompanyLabel.${v}`),
-          }))}
+          labelOptions={companyLabelOptions}
           addLabel={t('contacts.detail.associateCompany')}
           emptyLabel={t('contacts.detail.noCompany')}
           action={<CompanyQuickCreate contactId={contact.id} />}
@@ -552,12 +552,15 @@ export default async function ContactDetailPage(props: {
             name: d.name,
             href: `/app/crm/deals/${d.id}`,
             meta: [d.stage_name, money(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
+            label: d.assoc_label,
           }))}
           options={allDeals
             .filter((d) => !deals.some((dd) => dd.id === d.id))
             .map((d) => ({ id: d.id, value: d.name }))}
           onAssociate={associateDealToContact.bind(null, contact.id)}
           onRemove={removeDealFromContact.bind(null, contact.id)}
+          onSetLabel={dealLabelOptions.length ? setContactDealLabel.bind(null, contact.id) : undefined}
+          labelOptions={dealLabelOptions.length ? dealLabelOptions : undefined}
           addLabel={t('assoc.pickDeal')}
           emptyLabel={t('contacts.detail.noDeals')}
           action={

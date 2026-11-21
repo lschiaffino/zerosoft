@@ -159,6 +159,10 @@
       "champion": "Champion",
       "influencer": "Influenciador",
       "former_employee": "Ex empleado"
+    },
+    "dealType": {
+      "newbusiness": "Negocio nuevo",
+      "existingbusiness": "Negocio existente"
     }
   },
   "overview": {
@@ -482,7 +486,10 @@
       "description": "Descripción",
       "contacts": "Contactos",
       "stage": "Etapa",
-      "owner": "Responsable"
+      "owner": "Responsable",
+      "dealType": "Tipo de deal",
+      "nextStep": "Próximo paso",
+      "wonReason": "Motivo de ganado"
     },
     "detail": {
       "back": "← Pipeline",
@@ -1086,7 +1093,14 @@
     "probabilityShort": "Prob. %",
     "rottingShort": "Días sin actividad",
     "migrateTitle": "Importar desde otro CRM",
-    "migrateDesc": "Traé todo desde HubSpot o Pipedrive con un token de API. Si lo corrés de nuevo, actualiza lo que ya se importó."
+    "migrateDesc": "Traé todo desde HubSpot o Pipedrive con un token de API. Si lo corrés de nuevo, actualiza lo que ya se importó.",
+    "fieldGroup": "Grupo",
+    "fieldDescription": "Descripción",
+    "fieldUnique": "Valor único",
+    "fieldUniqueHelp": "Dos registros de este objeto no pueden tener el mismo valor. Quien puede editar la propiedad se entera de que un valor ya está usado, aunque sea en registros que no ve",
+    "fieldUniqueAdmin": "Solo los dueños y admins del workspace pueden cambiarlo",
+    "fieldDescriptionHint": "Se ve debajo del nombre en la ficha",
+    "fieldGroupHint": "Ninguno"
   },
   "importP": {
     "title": "Importar {entity}",
@@ -1231,7 +1245,12 @@
     "invalid_record": "Ese registro no existe.",
     "invalid_pipeline": "Elegí un pipeline de deals.",
     "approval_required": "Esta etapa pide aprobación.",
-    "invalid_filter": "Estos filtros no son válidos. Revisalos y probá de nuevo."
+    "invalid_filter": "Estos filtros no son válidos. Revisalos y probá de nuevo.",
+    "value_taken": "Otro registro ya tiene este valor, y esta propiedad solo admite valores únicos.",
+    "not_unique": "Hay registros que ya comparten un valor en esta propiedad. Corregí los duplicados primero.",
+    "invalid_unique": "Solo las propiedades de texto, número, URL y teléfono de contactos, empresas y deals pueden pedir valor único.",
+    "duplicate_label": "Ya hay un label con ese nombre.",
+    "too_many_labels": "Llegaste al límite de labels para esta asociación."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -4481,6 +4500,23 @@
       "rescheduled": "Reprogramada",
       "no_show": "No se presentó",
       "canceled": "Cancelada"
+    }
+  },
+  "assocLabels": {
+    "title": "Labels de asociación",
+    "desc": "Describen cómo se relacionan los registros, como el contacto de facturación de una empresa o quien decide en un deal. Se eligen en las tarjetas de asociaciones de la ficha.",
+    "pairs": {
+      "contact_company": "Contacto con empresa",
+      "deal_contact": "Deal con contacto"
+    },
+    "builtin": "De fábrica: {labels}.",
+    "empty": "Todavía no hay labels propios.",
+    "name": "Nombre del label",
+    "add": "Agregar label",
+    "delete": "Borrar label",
+    "placeholders": {
+      "contact_company": "Por ejemplo, Contacto de facturación",
+      "deal_contact": "Por ejemplo, Decisor"
     }
   }
 }

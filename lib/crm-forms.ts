@@ -11,6 +11,7 @@
  */
 import { localized } from './notification-copy';
 import { typedCustomValues } from './crm-custom-fields';
+import { dropTakenUniqueValues } from './crm-unique';
 import { createHash } from 'crypto';
 import { getDb, type CrmContactRow, type CrmFormRow, type CrmFormSubmissionRow, type Db } from './db';
 import {
@@ -473,8 +474,11 @@ export async function submitForm(
     crm.listCustomFields(workspaceId, 'contacts'),
     crm.listCustomFields(workspaceId, 'companies'),
   ]);
-  const contactCustom = typedCustomValues(contactDefs, mapped.contactCustom);
-  const companyCustom = typedCustomValues(companyDefs, mapped.companyCustom);
+  const contactCustomRaw = typedCustomValues(contactDefs, mapped.contactCustom);
+  const companyCustomRaw = typedCustomValues(companyDefs, mapped.companyCustom);
+  // Valores únicos que ya tiene otro registro: se descartan sin avisar (el
+  // formulario es público y un error diría que el valor existe en el CRM).
+  const companyCustom = await dropTakenUniqueValues(workspaceId, 'companies', null, companyCustomRaw, {}, db);
   const { findContactByEmail } = await import('./crm-integrations');
 
   // Empresa: por nombre o dominio (se crea si no existe).
@@ -514,6 +518,14 @@ export async function submitForm(
   // actualiza; sin eso, el envío se guarda suelto y el contacto no se toca
   // (el formulario es público: cualquiera puede escribir un email ajeno).
   let existing: CrmContactRow | null = email ? await findContactByEmail(workspaceId, email) : null;
+  const contactCustom = await dropTakenUniqueValues(
+    workspaceId,
+    'contacts',
+    existing?.id ?? null,
+    contactCustomRaw,
+    existing ? crm.parseCustom(existing.custom) : {},
+    db,
+  );
   let contact: CrmContactRow;
   let created = false;
   // Dueño: la primera regla que coincide; si no, el dueño fijo; si no, round-robin.

@@ -300,6 +300,8 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-bottom: 1px solid var(--line);
 }
 .prop-row .prop-label { font-family: var(--font-ui); font-size: 0.8125rem; letter-spacing: 0; text-transform: none; color: var(--brand-gray-2); }
+/* Descripción de la propiedad (Ajustes › Datos): ayuda debajo del nombre. */
+.prop-row .prop-help { display: block; margin-top: 2px; font-size: 0.75rem; line-height: 1.35; color: var(--dim); overflow-wrap: anywhere; }
 .prop-row .prop-value { margin: 0; min-width: 0; font-size: 0.875rem; }
 .prop-row .prop-value .input,
 .prop-row .prop-value .select,
@@ -662,6 +664,16 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .lead-stage-row { grid-template-columns: minmax(0, 1fr) auto; }
   .lead-stage-row .filter-select { grid-column: 1; }
 }
+
+/* Ajustes: labels de asociación. */
+.assoc-labels { display: flex; flex-direction: column; gap: 18px; }
+.assoc-labels-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.assoc-labels-title { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--brand-ink); }
+.assoc-labels-empty { margin: 0; }
+.assoc-labels-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.assoc-labels-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.assoc-labels-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.assoc-labels-add .input { flex: 1 1 200px; min-width: 0; }
 
 /* Ajustes: permisos por campo. */
 .field-perms-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
