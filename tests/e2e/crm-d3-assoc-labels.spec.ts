@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { expect as baseExpect, test, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /**
  * CRM, bloque D3: labels de asociación propios del workspace. Ajustes › Datos
@@ -41,6 +41,19 @@ async function openAssociations(page: Page, width: number) {
     await related.click();
     await expect(page).toHaveURL(/[?&]tab=related/);
   }
+}
+
+/**
+ * Elige un label y espera a que el servidor lo guarde. Si la página todavía no
+ * hidrató (en `next dev` compila al primer pedido), el cambio no llega: se
+ * reintenta pasando por otra opción para que el select vuelva a cambiar.
+ */
+async function pickLabel(select: Locator, value: string, other: string, saved: () => Promise<string | undefined>) {
+  await expect(async () => {
+    if ((await select.inputValue()) === value) await select.selectOption(other);
+    await select.selectOption(value);
+    await expect.poll(saved, { timeout: 5_000 }).toBe(value);
+  }).toPass({ timeout: 60_000 });
 }
 
 interface Seed {
@@ -144,15 +157,12 @@ test('la ficha pone labels propios en contacto ↔ empresa y deal ↔ contacto (
       const companies = card(page, 'contact.companies');
       const companySelect = companies.getByRole('combobox', { name: `Label ${s.companyName}` });
       const value = width === 1280 ? `custom:${s.labels.billing.id}` : 'decision_maker';
-      await companySelect.selectOption(value);
-      await expect
-        .poll(async () => {
-          const a = await ok<{ companies: Array<{ id: string; label: string }> }>(
-            request.get(`/api/crm/associations?type=contact&id=${s.ids.contact}`),
-          );
-          return a.companies.find((c) => c.id === s.ids.company)?.label;
-        })
-        .toBe(value);
+      await pickLabel(companySelect, value, 'employee', async () => {
+        const a = await ok<{ companies: Array<{ id: string; label: string }> }>(
+          request.get(`/api/crm/associations?type=contact&id=${s.ids.contact}`),
+        );
+        return a.companies.find((c) => c.id === s.ids.company)?.label;
+      });
       await expect(companySelect).toHaveValue(value);
       expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
       await companies.scrollIntoViewIfNeeded();
@@ -164,15 +174,12 @@ test('la ficha pone labels propios en contacto ↔ empresa y deal ↔ contacto (
       const contacts = card(page, 'deal.contacts');
       const contactSelect = contacts.getByRole('combobox', { name: `Label ${s.contactName}` });
       const dealValue = width === 1280 ? `custom:${s.labels.decider.id}` : '';
-      await contactSelect.selectOption(dealValue);
-      await expect
-        .poll(async () => {
-          const a = await ok<{ contacts: Array<{ id: string; label: string }> }>(
-            request.get(`/api/crm/associations?type=deal&id=${s.ids.deal}`),
-          );
-          return a.contacts.find((c) => c.id === s.ids.contact)?.label;
-        })
-        .toBe(dealValue);
+      await pickLabel(contactSelect, dealValue, dealValue ? '' : `custom:${s.labels.decider.id}`, async () => {
+        const a = await ok<{ contacts: Array<{ id: string; label: string }> }>(
+          request.get(`/api/crm/associations?type=deal&id=${s.ids.deal}`),
+        );
+        return a.contacts.find((c) => c.id === s.ids.contact)?.label;
+      });
       expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
       const box = (await contacts.boundingBox())!;
       expect(box.x + box.width).toBeLessThanOrEqual(width);
