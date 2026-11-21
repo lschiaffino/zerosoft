@@ -209,6 +209,7 @@
   },
   "post": {
     "title": "Publicación",
+    "duplicate": "Duplicar",
     "edit": "Editar",
     "publishedAt": "Publicada el {when}",
     "scheduledFor": "Planeada para el {when}",
@@ -258,6 +259,7 @@
     "rescheduled": "{name} cambió la fecha",
     "approved": "{name} la aprobó",
     "rejected": "{name} la rechazó",
+    "duplicated": "{name} la duplicó",
     "retry": "{name} la reintentó",
     "published": "Publicada",
     "failed": "Falló",
