@@ -187,17 +187,23 @@ export default function AttachPreview({
     setCaptionOf(it.key, next, mentionables?.length ? waMentionables(mentionables, picked.current) : null);
     setCaret(pos);
     setMentionIdx(0);
-    requestAnimationFrame(() => {
-      captionRef.current?.focus();
-      captionRef.current?.setSelectionRange(pos, pos);
-    });
+    pendingCaret.current = pos;
   };
+  // El cursor después de una mención elegida o borrada: en el mismo render que el texto nuevo (con un
+  // requestAnimationFrame, lo que se tipeaba rápido justo después caía antes del cursor).
+  const pendingCaret = useRef<number | null>(null);
   // El pie crece con el texto (hasta unos renglones), como el campo del chat.
   useLayoutEffect(() => {
     const el = captionRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    const at = pendingCaret.current;
+    if (at !== null) {
+      pendingCaret.current = null;
+      el.focus();
+      el.setSelectionRange(at, at);
+    }
   }, [caption, current]);
 
   // La foto original de cada ítem (para editar siempre sobre ella) y lo que se le cambió.
@@ -498,7 +504,7 @@ export default function AttachPreview({
                   e.preventDefault();
                   setCaptionOf(it.key, cut.text);
                   setCaret(cut.caret);
-                  requestAnimationFrame(() => captionRef.current?.setSelectionRange(cut.caret, cut.caret));
+                  pendingCaret.current = cut.caret;
                   return;
                 }
               }

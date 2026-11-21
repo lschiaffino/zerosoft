@@ -136,7 +136,9 @@ test('Lines: @ en el pie de una foto elige a la persona, se cierra con Esc y afu
     await expect(caption).toHaveValue(`Mirá @${name} `);
     const mark = pane.locator('.wa-input-mirror .wa-input-mention');
     await expect(mark).toHaveText(`@${name}`);
+    // Lo que se tipea enseguida va después de la mención (el cursor queda al final, no salta).
     await caption.pressSequentially('quedó así');
+    await expect(caption).toHaveValue(`Mirá @${name} quedó así`);
 
     // Sale como mención real: "@<teléfono>" en el pie y la lista de mencionados.
     const sent = page.waitForRequest((r) => r.method() === 'POST' && /\/api\/groups\/chats\/[^/]+\/messages$/.test(r.url()) && !!r.postDataJSON()?.media);
@@ -263,7 +265,7 @@ const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
 test('Capturas de la lista del pie en los cinco aspectos (solo con CAPTION_SHOTS)', async ({ page, request, context, baseURL }) => {
   const dir = process.env.CAPTION_SHOTS;
   test.skip(!dir, 'Solo para mirar a mano');
-  test.setTimeout(900_000);
+  test.setTimeout(3_600_000);
   const g = await linesGroup(request);
   try {
     for (const look of LOOKS) {
@@ -272,15 +274,20 @@ test('Capturas de la lista del pie en los cinco aspectos (solo con CAPTION_SHOTS
         await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
         for (const width of [1280, 390]) {
           await page.setViewportSize({ width, height: 860 });
-          await openLinesGroup(page, g.chatId, g.title, `Ezequiel Sculli ${g.tag}`);
-          await pastePhoto(page, '.wa-thread');
           const pane = page.getByTestId('attach-preview');
-          await expect(pane).toBeVisible();
-          const caption = pane.getByTestId('attach-caption');
-          await caption.pressSequentially('Mirá @Ezequiel');
-          await page.keyboard.press('Enter');
-          await caption.pressSequentially('y @');
-          await expect(pane.getByTestId('caption-mentions')).toBeVisible();
+          // Solo capturas a mano: con `next dev` en una máquina chica el servidor se reinicia a veces; se vuelve a abrir.
+          await expect(async () => {
+            await openLinesGroup(page, g.chatId, g.title, `Ezequiel Sculli ${g.tag}`);
+            await pastePhoto(page, '.wa-thread');
+            await expect(pane).toBeVisible();
+            const caption = pane.getByTestId('attach-caption');
+            await caption.pressSequentially('Mirá @Ezequiel');
+            await page.keyboard.press('Enter');
+            await caption.pressSequentially('y @');
+            await expect(caption).toHaveValue(/ y @$/);
+            await expect(pane.getByTestId('caption-mentions')).toBeVisible();
+          }).toPass({ timeout: 600_000 });
+          await pane.getByTestId('caption-mentions').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
           if (width === 390) expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
           await page.screenshot({ path: `${dir}/caption-${look}-${theme}-${width}.png` });
           await page.keyboard.press('Escape');
