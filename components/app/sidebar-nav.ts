@@ -1076,12 +1076,13 @@ export function buildNav(
         {
           items: [
             { href: '/app/send', label: labels.send.documents, active: pathname === '/app/send' || at('/app/send/documents') || at('/app/send/new'), icon: 'send' },
-            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder' },
+            // Anclajes del tour de Send (lib/tours/send.ts).
+            { href: '/app/send/spaces', label: labels.send.spaces, active: at('/app/send/spaces'), icon: 'folder', tour: 'send-spaces' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/send/analytics', label: labels.send.analytics, active: at('/app/send/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/send/analytics', label: labels.send.analytics, active: at('/app/send/analytics'), icon: 'reports', tour: 'send-analytics' }],
         },
         appSettingsGroup('/app/send/settings'),
       ];

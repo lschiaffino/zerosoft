@@ -1444,6 +1444,44 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "send": {
+      "intro": {
+        "title": "Welcome to Send",
+        "body": "Send shares a document through a link and shows you who opened it and what they read. This tour points out the main parts."
+      },
+      "newDocument": {
+        "title": "Upload a document",
+        "body": "Upload a PDF, a Word file, slides or a video. The file stays private: people only see it through a link you make."
+      },
+      "openDocument": {
+        "title": "Open a document",
+        "body": "Click a document to make links for it and see who read it. The tour continues there."
+      },
+      "links": {
+        "title": "Make a link",
+        "body": "Make one link per person to know who read what. Each link can ask for an email or a passcode, expire on a date and allow downloads or not. It is copied when you create it."
+      },
+      "activity": {
+        "title": "See who read it",
+        "body": "Each visit shows who opened the document, from which link, how many pages they read and how long they spent on each one."
+      },
+      "sharing": {
+        "title": "Who in your team sees it",
+        "body": "Keep the document for you and the admins, or let the whole workspace see it with its links and numbers."
+      },
+      "spaces": {
+        "title": "Spaces",
+        "body": "Put several documents behind one link, like a data room, with numbers for each document."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "body": "Visits, readers and reading time across all your documents, compared with the previous period."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "talk": {
       "intro": {
         "title": "Welcome to Talk",
