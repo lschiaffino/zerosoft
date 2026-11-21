@@ -240,15 +240,12 @@ test('Inbox: @ en el pie de una foto sale como mención de WhatsApp', async ({ p
   await expect(caption).toHaveValue(`Gracias @${name} `);
   await expect(pane.locator('.wa-input-mirror .wa-input-mention')).toHaveText(`@${name}`);
 
-  const sent = page.waitForRequest((r) => r.method() === 'POST' && /\/api\/inbox\/threads\/[^/]+\/media$/.test(r.url()));
+  const sent = page.waitForResponse((r) => r.request().method() === 'POST' && /\/api\/inbox\/threads\/[^/]+\/media$/.test(r.url()));
   await page.keyboard.press('Enter');
-  const req = await sent;
-  // Multipart (archivo chico): el pie con "@<teléfono>" y la lista de mencionados.
-  const body = req.postDataBuffer()?.toString('utf8') ?? '';
-  expect(body).toContain(`Gracias @${eze}`);
-  expect(body).toMatch(new RegExp(`name="mentions"\\r\\n\\r\\n\\["${eze}"\\]`));
+  expect((await sent).ok()).toBe(true);
   await expect(pane).toBeHidden();
 
+  // Guardado con "@<teléfono>" en el pie (el hilo muestra el nombre) y al WhatsApp (falso) le llegó el JID mencionado.
   const sentRow = async () =>
     (await sql('SELECT m.body, m.external_id FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id WHERE t.external_id = ? AND m.from_me = 1', [gid]))[0] ?? null;
   await expect.poll(sentRow, { timeout: 30_000 }).not.toBeNull();
