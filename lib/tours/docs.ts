@@ -9,7 +9,7 @@ import type { TourDef } from './index';
  * Anclajes `data-tour`:
  *   docs-new        app/[locale]/app/docs/(home)/page.tsx (Nueva página del inicio)
  *   docs-templates  components/docs/DocsTemplateGalleryButton.tsx (galería de plantillas)
- *   docs-pages      components/docs/DocsSidebar.tsx (árbol de páginas; en el teléfono, el botón Páginas)
+ *   docs-pages      components/docs/DocsSidebar.tsx (árbol de páginas sin Buscar, o el aviso sin páginas; en el teléfono, el botón Páginas)
  *   docs-search     components/docs/DocsSidebar.tsx (Buscar, Cmd+P)
  *   docs-item       app/[locale]/app/docs/(home)/page.tsx (cada página de Recientes; gana la primera)
  *   docs-title      components/docs/DocsEditor.tsx (título de la página)

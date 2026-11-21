@@ -636,7 +636,7 @@ export default function DocsSidebar({
         </p>
       )}
       {tree.length === 0 ? (
-        <div className="docs-sidebar-empty">
+        <div className="docs-sidebar-empty" data-tour={inShell ? 'docs-pages' : undefined}>
           <p>{labels.empty}</p>
           {canCreateRoot && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => create(null)} disabled={isPending}>
@@ -647,7 +647,8 @@ export default function DocsSidebar({
         </div>
       ) : inShell ? (
         // Ya está dentro del <nav> del sidebar: una lista, no otro landmark.
-        <ul className="docs-tree" aria-label={t('sidebar.pages')}>
+        // El tour de Docs resalta solo el árbol: Buscar tiene su propio paso y el marco no pisa la fila "Páginas".
+        <ul className="docs-tree" aria-label={t('sidebar.pages')} data-tour="docs-pages">
           {workspaceRoots.map((n) => renderNode(n, 0))}
         </ul>
       ) : (
@@ -695,7 +696,7 @@ export default function DocsSidebar({
   if (branch) {
     return (
       <>
-        {createPortal(<div className="docs-branch" data-tour="docs-pages">{body(true)}</div>, branch)}
+        {createPortal(<div className="docs-branch">{body(true)}</div>, branch)}
         {switcher}
       </>
     );
