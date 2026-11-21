@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canSeeActivity, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeActivityRefs, sessionScope } from '@/lib/crm-visibility';
 import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
@@ -15,11 +15,20 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!(await canSeeActivity(user.id, params.id, await sessionScope(user)))) return notFound();
+  const scope = await sessionScope(user);
+  if (!(await canSeeActivity(user.id, params.id, scope))) return notFound();
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  // Asociar a otro registro (timeline › Asociaciones): solo a registros que la persona ve.
+  const { contactId, companyId, dealId } = parsed.data;
+  if (
+    (contactId || companyId || dealId) &&
+    !(await canSeeActivityRefs(user.id, { contact_id: contactId ?? null, company_id: companyId ?? null, deal_id: dealId ?? null }, scope))
+  ) {
+    return notFound();
+  }
 
   // Tarea de un chat de Lines que la persona no ve: puede completarla, moverla o reasignarla, pero no
   // reescribir un texto que no ve, y la respuesta tampoco lo trae.
