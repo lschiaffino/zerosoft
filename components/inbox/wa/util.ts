@@ -3,7 +3,10 @@
  * previa de la lista. Puro (lo usan la interfaz y los tests).
  */
 
-/** "5491155550000" → "+54 9 11 5555-0000" (Argentina) o "+1 555 000 1001"; otros países: "+" y grupos de a 3/4. */
+/**
+ * Un teléfono como lo muestra WhatsApp Web (formato internacional): "5491155550000" → "+54 9 11 5555-0000".
+ * Los países más comunes de quienes usan zerosoft; el resto queda "+" y los dígitos.
+ */
 export function formatPhone(raw: string): string {
   const d = String(raw ?? '').replace(/\D/g, '');
   if (!d) return '';
@@ -13,7 +16,36 @@ export function formatPhone(raw: string): string {
   if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
   const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(d);
   if (br) return `+55 ${br[1]} ${br[2]}-${br[3]}`;
+  // México: Ciudad de México, Guadalajara y Monterrey tienen código de 2 dígitos; el resto, de 3.
+  const mx = /^52(1?)(55|33|81)(\d{4})(\d{4})$/.exec(d) ?? /^52(1?)(\d{3})(\d{3})(\d{4})$/.exec(d);
+  if (mx) return `+52 ${mx[1] ? '1 ' : ''}${mx[2]} ${mx[3]} ${mx[4]}`;
+  const cl = /^569(\d{4})(\d{4})$/.exec(d);
+  if (cl) return `+56 9 ${cl[1]} ${cl[2]}`;
+  const co = /^57(3\d{2})(\d{7})$/.exec(d);
+  if (co) return `+57 ${co[1]} ${co[2]}`;
+  const uy = /^598(9\d)(\d{3})(\d{3})$/.exec(d);
+  if (uy) return `+598 ${uy[1]} ${uy[2]} ${uy[3]}`;
+  const es = /^34([67]\d{2})(\d{2})(\d{2})(\d{2})$/.exec(d);
+  if (es) return `+34 ${es[1]} ${es[2]} ${es[3]} ${es[4]}`;
+  const uk = /^44(7\d{3})(\d{6})$/.exec(d);
+  if (uk) return `+44 ${uk[1]} ${uk[2]}`;
   return `+${d}`;
+}
+
+/**
+ * Un teléfono que viene del servidor: solo dígitos (con o sin "+") va con formato; uno enmascarado
+ * ("54 ••• 01", Lines sin permiso para ver números) queda como vino, con el "+" adelante.
+ */
+export function phoneLabel(raw: string | null | undefined): string {
+  const v = String(raw ?? '').trim();
+  if (!v) return '';
+  return /^\+?[\d\s-]+$/.test(v) ? formatPhone(v) : `+${v.replace(/^\+/, '')}`;
+}
+
+/** Un nombre que puede ser un teléfono suelto (quien escribió en un grupo sin nombre guardado): el número va con formato. */
+export function nameOrPhone(s: string | null | undefined): string {
+  const v = String(s ?? '').trim();
+  return /^\+?\d{8,15}$/.test(v) ? formatPhone(v) : v;
 }
 
 /** Nombre del chat como lo muestra WhatsApp: el nombre, o el teléfono con formato, o "Grupo". */
@@ -27,8 +59,7 @@ export function chatName(th: { title: string; handle: string; kind: string; chan
 
 /** Nombre de quien mandó un mensaje en un grupo: nombre, o teléfono con formato. */
 export function senderLabel(name: string, handle: string): string {
-  const n = (name ?? '').trim();
-  return n || formatPhone(handle) || '';
+  return nameOrPhone(name) || formatPhone(handle) || '';
 }
 
 /** La vista previa guarda "[image]" cuando no hay texto: eso no es texto para mostrar. */

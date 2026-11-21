@@ -3,6 +3,7 @@ import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteCustomField, updateCustomField } from '@/lib/crm';
 import { customFieldUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { fieldDefinitionAccess, sessionFieldViewer } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const { entity: _entity, ...patch } = parsed.data;
   // Valor único: regla de todo el workspace (y su error dice si hay duplicados): solo owner/admin.
   if (patch.isUnique !== undefined && !isWorkspaceAdmin(user)) return crmError(403, 'forbidden');
+  // Un campo oculto para la persona no existe para ella; uno de solo lectura no se edita.
+  const access = await fieldDefinitionAccess(sessionFieldViewer(user), params.id);
+  if (access === null || access === 'hidden') return notFound();
+  if (access === 'read') return crmError(403, 'forbidden');
   const field = await catchRef(updateCustomField(user.id, params.id, patch));
   if (field instanceof CrmRefError) return crmError(400, field.code);
   if (!field) return notFound();

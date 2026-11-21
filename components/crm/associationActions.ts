@@ -6,11 +6,13 @@ import { updateActivity, updateContact, updateDeal } from '@/lib/crm';
 import {
   associateContactCompany,
   associateDealCompany,
+  associateDealContact,
   removeContactCompany,
   removeDealCompany,
   setParentCompany,
 } from '@/lib/crm-assoc';
 import { CrmRefError } from '@/lib/crm-refs';
+import { getDb } from '@/lib/db';
 
 /**
  * Visibilidad por owner: no se asocia ni desasocia un registro (o tarea) que
@@ -28,6 +30,16 @@ async function guardVisible(
       entity === 'task' ? await canSeeActivity(user.id, id, scope) : await canSeeEntity(user.id, entity, id, scope);
     if (!ok) throw new Error('not_found');
   }
+}
+
+/** ¿El deal ya tiene al contacto? Cambiar el label no crea la asociación. */
+async function dealHasContact(workspaceId: string, dealId: string, contactId: string): Promise<boolean> {
+  return !!(await getDb()
+    .prepare(
+      `SELECT 1 FROM crm_deal_contacts dc JOIN crm_deals d ON d.id = dc.deal_id
+       WHERE dc.deal_id = ? AND dc.contact_id = ? AND d.user_id = ?`,
+    )
+    .get(dealId, contactId, workspaceId));
 }
 
 async function requireActor() {
@@ -142,6 +154,19 @@ export async function setContactCompanyLabel(contactId: string, companyId: strin
   const user = await requireActor();
   await guardVisible(user, [['contact', contactId], ['company', companyId]]);
   await associateContactCompany(user.id, contactId, companyId, { label });
+}
+
+/** Label de la asociación deal ↔ contacto ('' = sin label). */
+export async function setDealContactLabel(dealId: string, contactId: string, label: string) {
+  const user = await requireActor();
+  await guardVisible(user, [['deal', dealId], ['contact', contactId]]);
+  if (!(await dealHasContact(user.id, dealId, contactId))) throw new Error('not_found');
+  await associateDealContact(user.id, dealId, contactId, undefined, { label });
+}
+
+/** Desde la ficha del contacto: label de su asociación con el deal. */
+export async function setContactDealLabel(contactId: string, dealId: string, label: string) {
+  return setDealContactLabel(dealId, contactId, label);
 }
 
 export async function associateDealToContact(contactId: string, dealId: string) {

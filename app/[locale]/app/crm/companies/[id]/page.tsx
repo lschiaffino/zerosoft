@@ -27,7 +27,7 @@ import {
   addChildCompany,
   removeChildCompany,
 } from '@/components/crm/associationActions';
-import { CONTACT_COMPANY_LABELS } from '@/lib/crm-constants';
+import { assocLabelOptions, listAssociationLabels } from '@/lib/crm-assoc-labels';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { formatMoney } from '@/lib/crm-money';
 import RecordTags from '@/components/crm/RecordTags';
@@ -92,7 +92,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   // Con una madre que no se le muestra, tampoco se ofrece elegir otra (la pisaría sin verla).
   const parentHidden = !!detail.parent && !parent;
   const base = `/app/crm/companies/${company.id}`;
-  const [allTags, recordTags, teamMembers, stageRows] = await Promise.all([
+  const [allTags, recordTags, teamMembers, stageRows, assocLabels] = await Promise.all([
     listTags(user.id),
     tagsForRecords(user.id, 'company', [id]),
     workspaceTeamId(user)
@@ -100,6 +100,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null, role: 'owner', created_at: '' }]),
     // Nombres de stage para los deals relacionados.
     getDb().prepare('SELECT id, name FROM crm_stages').all() as Promise<Array<{ id: string; name: string }>>,
+    listAssociationLabels(user.id, 'contact_company'),
   ]);
   const ownerOptions = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
   const ownerLabel = ownerOptions.find((o) => o.value === (company.owner_id ?? user.id))?.label ?? '—';
@@ -536,7 +537,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
             label: c.label,
           }))}
           onSetLabel={setCompanyContactLabel.bind(null, company.id)}
-          labelOptions={CONTACT_COMPANY_LABELS.map((v) => ({ value: v, label: t(`enums.contactCompanyLabel.${v}`) }))}
+          labelOptions={assocLabelOptions('contact_company', assocLabels, (k) => t(`enums.contactCompanyLabel.${k}`))}
           options={allContacts
             .filter((c) => !contacts.some((cc) => cc.id === c.id))
             .map((c) => ({ id: c.id, value: c.name }))}

@@ -154,6 +154,7 @@
 .hsync-progress-title { font-size: 0.875rem; font-weight: 500; }
 .hsync-progress-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.8125rem; max-width: 420px; }
 .hsync-progress-list li { display: flex; justify-content: space-between; gap: 12px; }
+.hsync-preview-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; min-width: 0; }
 
 .hsync-report { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: 4px; }
 .hsync-object { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-top: 14px; border-top: 1px solid var(--line); }

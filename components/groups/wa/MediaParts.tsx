@@ -9,7 +9,7 @@ import Avatar from './Avatar';
 import VideoPoster from './VideoPoster';
 import { videoBox } from './video-poster';
 import { mediaBox, mediaBoxStyle, mediaFit, placeholderBox } from './media-box';
-import { formatPhone } from '@/components/inbox/wa/util';
+import { phoneLabel } from '@/components/inbox/wa/util';
 
 const SPEEDS = [1, 1.5, 2];
 const POS_KEY = 'wa-voice-pos:';
@@ -789,9 +789,7 @@ export interface SharedContact {
 
 /** El teléfono de una tarjeta como lo muestra WhatsApp; uno oculto (Lines, sin permiso) queda como vino. */
 export function cardPhoneLabel(raw: string): string {
-  const v = String(raw ?? '').trim();
-  if (!v) return '';
-  return /^\+?[\d\s-]+$/.test(v) ? formatPhone(v) : `+${v.replace(/^\+/, '')}`;
+  return phoneLabel(raw);
 }
 
 function ContactRow({ c }: { c: SharedContact }) {
