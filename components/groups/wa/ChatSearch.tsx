@@ -151,6 +151,8 @@ export function ChatSearchPanel(props: {
       className="wa-chat-search"
       aria-label={t('title')}
       data-testid="chat-search"
+      // Sin el micrófono flotante de dictado: caía encima del conteo de resultados (y en el teléfono lo tapaba).
+      data-voice-off
     >
       <div className="wa-chat-search-head">
         <button type="button" className="wa-icon-btn" onClick={onClose} aria-label={t('close')} title={t('close')} data-testid="chat-search-close">

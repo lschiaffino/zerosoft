@@ -88,6 +88,9 @@ async function searchFlow(page: Page, thread: Locator, tag: string, narrow: bool
   const hits = panel.getByTestId('chat-search-hit');
   await expect(hits).toHaveCount(2, { timeout: 30_000 });
   await expect(hits.first().locator('mark').first()).toBeVisible();
+  // Sin el micrófono flotante de dictado sobre el panel (tapaba el conteo de resultados).
+  await expect(input).toBeFocused();
+  await expect(page.locator('.vc-bar')).toHaveCount(0);
   if (narrow) expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
   // El viejo (el último resultado) no está cargado: se trae y queda a la vista.
   await hits.last().click();
@@ -203,19 +206,23 @@ const LOOKS = ['current', 'lines', 'classic', 'liquid', 'retro'] as const;
 test('Capturas del panel en los cinco aspectos (solo con CS_SHOTS)', async ({ page, request, context, baseURL }) => {
   const dir = process.env.CS_SHOTS;
   test.skip(!dir, 'Solo para mirar a mano');
+  test.setTimeout(3_600_000);
   const { numberId, chatId, tag } = await linesChat(request, 40);
   try {
     for (const look of LOOKS) {
-      expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true);
+      await expect(async () => expect((await request.put('/api/profile/look', { data: { look } })).ok()).toBe(true)).toPass({ timeout: 300_000 });
       for (const theme of ['light', 'dark'] as const) {
         await context.addCookies([{ name: 'zs_theme', value: theme, url: baseURL! }]);
         for (const width of [1280, 390]) {
           await page.setViewportSize({ width, height: 860 });
-          await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
-          const thread = page.locator('.wa-thread');
-          await openSearch(page, thread, width < 720);
-          await page.getByTestId('chat-search-input').fill(`presupuesto ${tag}`);
-          await expect(page.getByTestId('chat-search-hit')).toHaveCount(2, { timeout: 30_000 });
+          // Solo capturas a mano: con `next dev` en una máquina chica el servidor se reinicia a veces; se vuelve a abrir.
+          await expect(async () => {
+            await page.goto(`/en/app/lines/inbox/${chatId}`, { waitUntil: 'networkidle' });
+            const thread = page.locator('.wa-thread');
+            await openSearch(page, thread, width < 720);
+            await page.getByTestId('chat-search-input').fill(`presupuesto ${tag}`);
+            await expect(page.getByTestId('chat-search-hit')).toHaveCount(2, { timeout: 60_000 });
+          }).toPass({ timeout: 600_000 });
           if (width === 390) expect(await noSideScroll(page)).toBeLessThanOrEqual(0);
           await page.screenshot({ path: `${dir}/lines-${look}-${theme}-${width}.png` });
         }
