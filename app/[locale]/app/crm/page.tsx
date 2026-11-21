@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getCrmOverview, type ActivityListRow } from '@/lib/crm';
 import { getCrmSettings } from '@/lib/crm-currency';
 import { formatMoney } from '@/lib/crm-money';
@@ -57,7 +58,7 @@ export default async function CrmOverviewPage(
   const t = await getTranslations({ locale, namespace: 'crm' });
   // Independientes entre sí: van juntas (en Turso cada query es una ida y vuelta).
   const [o, settings, members] = await Promise.all([
-    getCrmOverview(user.id, scope),
+    sessionChatReader(user, locale).then((reader) => getCrmOverview(user.id, scope, reader)),
     // Totales en la moneda base (los deals en otras monedas se convierten).
     getCrmSettings(user.id),
     workspaceTeamId(user)
@@ -186,7 +187,9 @@ export default async function CrmOverviewPage(
               {o.upcomingTasks.map((task) => (
                 <li key={task.id}>
                   <Link href={recordHref(task)} className="recent-row crm-row">
-                    <span className="recent-name">{task.subject || t('enums.activityType.task')}</span>
+                    <span className={`recent-name${task.chat_private ? ' crm-private-task' : ''}`} data-testid={task.chat_private ? 'crm-private-chat-task' : undefined}>
+                      {task.subject || t('enums.activityType.task')}
+                    </span>
                     <span className="muted recent-meta">{recordName(task)}</span>
                     <span className="mono recent-date">
                       {task.due_at ? formatDate(task.due_at, locale) : t('tasks.noDue')}
@@ -211,7 +214,13 @@ export default async function CrmOverviewPage(
                       <span className="act-icon" aria-hidden>
                         {ACTIVITY_ICONS[a.type] ?? '·'}
                       </span>
-                      {a.subject || t(`enums.activityType.${a.type}`)}
+                      {a.chat_private ? (
+                        <span className="crm-private-task" data-testid="crm-private-chat-task">
+                          {a.subject}
+                        </span>
+                      ) : (
+                        a.subject || t(`enums.activityType.${a.type}`)
+                      )}
                     </span>
                     <span className="muted recent-meta">{recordName(a)}</span>
                     <span className="mono recent-date">{formatDate(a.created_at, locale)}</span>

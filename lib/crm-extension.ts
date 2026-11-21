@@ -16,6 +16,7 @@
  * Todas reciben el workspace (userId del dueño) y la persona del token.
  * Server-only.
  */
+import { personChatReader, redactChatTasks } from './crm-chat-privacy';
 import { getDb, type CrmActivityRow, type CrmCompanyRow, type CrmContactRow } from './db';
 import { createActivity, createContact } from './crm';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
@@ -157,8 +158,8 @@ export async function extensionSidebar(actor: ExtensionActor, email: string): Pr
         closed: Boolean(d.closed_at),
         url: `/app/crm/deals/${d.id}`,
       })),
-    tasks: tasks
-      .filter((t) => canSeeOwner(actor.scope, t.owner_id, t.user_id))
+    // Tareas de chats de Lines que la persona no ve: sin su texto (lib/crm-chat-privacy.ts).
+    tasks: (await redactChatTasks(actor.workspaceId, tasks.filter((t) => canSeeOwner(actor.scope, t.owner_id, t.user_id)), await personChatReader(actor.workspaceId, actor.personId, 'en')))
       .map((t) => ({ id: t.id, subject: t.subject, dueAt: t.due_at, url: `/app/crm/tasks/${t.id}` })),
     emailsLogged: Number(logged?.n ?? 0),
   };

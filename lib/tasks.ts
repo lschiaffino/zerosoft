@@ -308,6 +308,13 @@ export async function promoteTaskToTrack(
     return { error: 'not_found' };
   }
   try {
+    // De un chat de Lines que la persona no ve: el issue lleva el marcador y no copia un texto que ella no ve.
+    const { isChatHidden, personChatReader, privateChatMarker } = await import('./crm-chat-privacy');
+    const reader = await personChatReader(ws, person, 'en');
+    if (await isChatHidden(ws, task.id, reader)) {
+      task.subject = privateChatMarker(reader?.locale);
+      task.body = '';
+    }
     const priority = task.priority === 'high' || task.priority === 'low' ? task.priority : 'medium';
     const text = [task.body.trim(), `/app/crm/tasks/${task.id}`].filter(Boolean).join('\n\n');
     const issue = await createIssue(

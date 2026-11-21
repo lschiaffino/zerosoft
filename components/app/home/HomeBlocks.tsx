@@ -99,7 +99,7 @@ export async function CrmTasksBlock({
 }) {
   const t = await getTranslations({ locale, namespace: 'common.appHome' });
   const tl = await getTranslations({ locale, namespace: 'crm.tasks.links.app' });
-  const res = await attempt(() => homeCrmTasks(user, { scope }));
+  const res = await attempt(() => homeCrmTasks(user, { scope, locale }));
   if (hideWhenEmpty && scope === 'mine' && res.ok && res.data.total === 0) return null;
   // Las tareas son de toda la suite: sin CRM, las de los chats de Groups.
   const crm = homeCanUse(user, 'crm');

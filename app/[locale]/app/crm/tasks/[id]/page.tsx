@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, sessionScope, scopeAnd } from '@/lib/crm-visibility';
+import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
 import { getActivity, listCompanies, listContacts, listTaskFiles, listTaskProjects, type ActivityListRow } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
@@ -64,8 +65,10 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   const timeZone = await getUserTimeZone();
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const task = await getActivity(user.id, id);
+  // De un chat de Lines que la persona no ve: el marcador en lugar del título, sin notas y sin editar el texto.
+  const task = await getActivity(user.id, id, await sessionChatReader(user, locale));
   if (!task || task.type !== 'task') notFound();
+  const chatPrivate = task.chat_private === 1;
   if (!(await canSeeActivity(user.id, id, scope))) notFound();
 
   const files = await listTaskFiles(id);
@@ -93,7 +96,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
   }));
 
   const fields: PropField[] = [
-    { key: 'subject', label: t('tasks.form.subject'), type: 'text', value: task.subject },
+    { key: 'subject', label: t('tasks.form.subject'), type: 'text', value: task.subject, readOnly: chatPrivate || undefined },
     {
       key: 'type',
       label: t('tasks.form.type'),
@@ -106,6 +109,7 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
       label: t('tasks.form.body'),
       type: 'textarea',
       value: task.body,
+      readOnly: chatPrivate || undefined,
     },
     {
       key: 'dueAt',
@@ -162,9 +166,18 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
     <div className="ui-page record-page">
       <PageHeader
         back={{ href: '/app/crm/tasks', label: t('tasks.title') }}
-        title={task.subject || t('tasks.detail.untitled')}
+        title={
+          chatPrivate ? (
+            <span className="crm-private-task" title={t('tasks.privateChatHint')} data-testid="crm-private-chat-task">
+              {task.subject}
+            </span>
+          ) : (
+            task.subject || t('tasks.detail.untitled')
+          )
+        }
         description={
           <span className="record-meta">
+            {chatPrivate && <span className="muted">{t('tasks.privateChatHint')}</span>}
             {task.done === 1 && <span className="badge badge-ok">{t('tasks.done')}</span>}
             {task.pinned === 1 && <span className="badge badge-outline">{t('common.pinned')}</span>}
             {associatedRecord && (
