@@ -435,6 +435,11 @@ export default function ChatThread(props: ThreadProps) {
   const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
+  // "@" en el pie de un archivo (vista previa de adjuntos): los participantes del grupo, con su foto.
+  const captionMentionables = useMemo(
+    () => (props.chat.kind === 'group' ? props.members.filter((m) => !m.me).map((m) => ({ phone: m.phone, name: m.name, avatar: m.picture || undefined })) : undefined),
+    [props.chat.kind, props.members],
+  );
   // Menciones de WhatsApp ("@<dígitos>" → "@Nombre"): los miembros y, por mensaje, lo que resolvió el servidor (también lids).
   const { labelsFor: mentionsFor, textOf } = useLinesMentions(props.members);
   // Texto plano con las menciones nombradas (citas, fijados, copiar, tickets). Las notas internas no llevan menciones de WhatsApp.
@@ -895,7 +900,9 @@ export default function ChatThread(props: ThreadProps) {
       files.forEach((f, i) => {
         const taken = tray.take(f.key);
         if (!taken) return;
-        const caption = (f.caption ?? '').trim();
+        // En un grupo, "@Ana" del pie sale como "@<teléfono>" con la lista de mencionados (como un texto).
+        const out = chat.kind === 'group' && f.captionOut?.mentions.length ? f.captionOut : null;
+        const caption = ((out ? out.body : f.caption) ?? '').trim();
         const kind = mediaKindOf(f.type);
         // Audio no lleva pie: el texto va aparte, después.
         const withCaption = kind !== 'audio';
@@ -904,6 +911,7 @@ export default function ChatThread(props: ThreadProps) {
           ...(via ? { via } : {}),
           replyToId: i === 0 ? base.replyToId : null,
           body: withCaption ? caption : '',
+          ...(withCaption && out ? { mentions: out.mentions } : {}),
           file: f.file,
           preview: f.preview,
           upload: taken.done,
@@ -911,7 +919,7 @@ export default function ChatThread(props: ThreadProps) {
         });
         taken.onProgress((p) => uploadProgress.set(cid, p));
         if (f.progress) uploadProgress.set(cid, f.progress);
-        if (!withCaption && caption) sendTextNow(caption, null);
+        if (!withCaption && caption) sendTextNow(caption, null, out?.mentions ?? []);
       });
       if (text.trim() && !previewOpen) sendTextNow(text, null);
     } else if (mode === 'note') {
@@ -2920,6 +2928,7 @@ export default function ChatThread(props: ThreadProps) {
             stickerApi="/api/groups/stickers"
             stickerLine={stickerLine}
             sending={sending}
+            mentionables={captionMentionables}
           />
         )}
       </section>

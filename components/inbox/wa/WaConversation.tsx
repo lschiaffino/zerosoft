@@ -328,6 +328,11 @@ const WaConversation = forwardRef<
 
   // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
   const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
+  // "@" en un grupo (el campo del chat y el pie de los archivos): los participantes, sin la cuenta misma.
+  const groupMentionables = useMemo(
+    () => (group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined),
+    [group, wa],
+  );
 
   // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
@@ -1408,7 +1413,7 @@ const WaConversation = forwardRef<
           )}
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
-          mentionables={group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined}
+          mentionables={groupMentionables}
           onTyping={() => presence('composing')}
           commands={slashCommands}
           onCancelBanner={() => {
@@ -1438,6 +1443,7 @@ const WaConversation = forwardRef<
           onReplace={tray.replace}
           stickerApi="/api/inbox/stickers"
           stickerLine={stickerLine}
+          mentionables={groupMentionables}
         />
       )}
       {dragging && (

@@ -159,6 +159,11 @@ export interface MediaInput {
   /** Video que WhatsApp reproduce como GIF (mudo, en loop, con la marca GIF): videoMessage.gifPlayback. */
   gifPlayback?: boolean;  /** Reenvío: sale con la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Solo al reenviar. */
   forward?: ForwardFlag;
+  /**
+   * Grupos: mencionados en el pie ("@<teléfono>" en `caption`), como en sendText. Solo foto, video y documento
+   * (los tipos que WhatsApp muestra con texto abajo).
+   */
+  mentions?: string[];
 }
 
 /** El mensaje desde el que se le piden al teléfono los anteriores. `timestamp` en segundos. */
