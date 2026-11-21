@@ -18,9 +18,10 @@ import { FORMS_TOUR } from './forms';
 import { INBOX_TOUR } from './inbox';
 import { LINES_TOUR } from './lines';
 import { NOTES_TOUR } from './notes';
+import { SEND_TOUR } from './send';
 import { TRACK_TOUR } from './track';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'send'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -61,6 +62,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   board: BOARD_TOUR,
   forms: FORMS_TOUR,
   cal: CAL_TOUR,
+  send: SEND_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */

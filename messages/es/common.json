@@ -1444,6 +1444,44 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "send": {
+      "intro": {
+        "title": "Te damos la bienvenida a Send",
+        "body": "Send comparte un documento por link y te muestra quién lo abrió y qué leyó. Este tour te muestra las partes principales."
+      },
+      "newDocument": {
+        "title": "Subí un documento",
+        "body": "Subí un PDF, un Word, una presentación o un video. El archivo queda privado: la gente lo ve solo desde un link que armes vos."
+      },
+      "openDocument": {
+        "title": "Abrí un documento",
+        "body": "Hacé clic en un documento para armarle links y ver quién lo leyó. El tour sigue ahí."
+      },
+      "links": {
+        "title": "Armá un link",
+        "body": "Armá un link por persona para saber quién leyó qué. Cada link puede pedir un mail o una clave, vencer en una fecha y dejar descargar o no. Se copia al crearlo."
+      },
+      "activity": {
+        "title": "Mirá quién lo leyó",
+        "body": "Cada visita muestra quién abrió el documento, desde qué link, cuántas páginas leyó y cuánto tiempo pasó en cada una."
+      },
+      "sharing": {
+        "title": "Quién de tu equipo lo ve",
+        "body": "Dejá el documento para vos y los admins, o que lo vea todo el workspace con sus links y sus números."
+      },
+      "spaces": {
+        "title": "Espacios",
+        "body": "Juntá varios documentos detrás de un solo link, como un data room, con números por documento."
+      },
+      "analytics": {
+        "title": "Analítica",
+        "body": "Visitas, lectores y tiempo de lectura de todos tus documentos, comparados con el período anterior."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "board": {
       "intro": {
         "title": "Te damos la bienvenida a Board",

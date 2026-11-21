@@ -65,6 +65,22 @@ describe('tours: registro y rutas', () => {
     expect(solo).toEqual(expect.arrayContaining(['newEventType', 'eventType', 'upcoming', 'bookings', 'availability', 'settings']));
   });
 
+  it('el tour de Send arranca en la lista y sigue en el documento; equipo ve quién lo ve', () => {
+    expect(tourForPath('/app/send')?.key).toBe('send');
+    expect(tourForPath('/es/app/send/documents/abc')?.key).toBe('send');
+    expect(tourForPath('/app/sendx')).toBeNull();
+    expect(atTourStart(TOURS.send, '/pt/app/send')).toBe(true);
+    expect(atTourStart(TOURS.send, '/app/send/new')).toBe(false);
+    const steps = ids([...TOURS.send.steps]);
+    // Abrir un documento (clic en una fila) va antes de los pasos del documento.
+    for (const id of ['links', 'activity', 'sharing']) expect(steps.indexOf('openDocument')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.send.steps.find((s) => s.id === 'openDocument')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.send, { audience: 'team', admin: false }))).toContain('sharing');
+    const solo = ids(stepsFor(TOURS.send, { audience: 'solo', admin: false }));
+    expect(solo).not.toContain('sharing');
+    expect(solo).toEqual(expect.arrayContaining(['newDocument', 'openDocument', 'links', 'activity', 'spaces', 'analytics']));
+  });
+
   it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
     expect(tourForPath('/app/forms')?.key).toBe('forms');
     expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');

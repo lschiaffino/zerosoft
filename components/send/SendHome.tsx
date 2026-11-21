@@ -24,7 +24,7 @@ export default function SendHome({ items, q }: { items: DocumentListItem[]; q: s
         title={t('home.title')}
         description={t('home.desc')}
         actions={
-          <Link className="btn btn-primary" href="/app/send/new" data-testid="send-new">
+          <Link className="btn btn-primary" href="/app/send/new" data-testid="send-new" data-tour="send-new">
             {t('nav.new')}
           </Link>
         }
@@ -58,10 +58,11 @@ export default function SendHome({ items, q }: { items: DocumentListItem[]; q: s
               </tr>
             </thead>
             <tbody>
-              {items.map((d) => (
+              {items.map((d, i) => (
                 <tr key={d.id} data-testid="send-doc-row">
                   <th scope="row">
-                    <Link href={`/app/send/documents/${d.id}`} className="sd-rowlink">
+                    {/* El tour de Send (lib/tours/send.ts) señala el nombre de la primera fila: abrirlo sigue en el documento. */}
+                    <Link href={`/app/send/documents/${d.id}`} className="sd-rowlink" data-tour={i === 0 ? 'send-doc-item' : undefined}>
                       <span className="sd-rowtitle">{d.title}</span>
                       <span className="sd-rowmeta">
                         {d.kind ? t(`kind.${d.kind}`) : ''}
