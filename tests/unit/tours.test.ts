@@ -52,6 +52,20 @@ describe('tours: registro y rutas', () => {
     expect(solo).not.toContain('shareTeam');
   });
 
+  it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
+    expect(tourForPath('/app/forms')?.key).toBe('forms');
+    expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');
+    expect(tourForPath('/app/formsx')).toBeNull();
+    expect(atTourStart(TOURS.forms, '/pt/app/forms')).toBe(true);
+    expect(atTourStart(TOURS.forms, '/app/forms/new')).toBe(false);
+    const steps = ids([...TOURS.forms.steps]);
+    // Abrir un formulario (clic en una fila) va antes de los pasos del formulario.
+    for (const id of ['questions', 'publish', 'share', 'responses', 'access']) expect(steps.indexOf('openForm')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.forms.steps.find((s) => s.id === 'openForm')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.forms, { audience: 'team', admin: false }))).toContain('access');
+    expect(ids(stepsFor(TOURS.forms, { audience: 'solo', admin: false }))).not.toContain('access');
+  });
+
   it('el tour de Inbox vive en /app/inbox, arranca en la bandeja y no tiene pasos de equipo', () => {
     expect(tourForPath('/app/inbox')?.key).toBe('inbox');
     expect(tourForPath('/es/app/inbox/v/reply')?.key).toBe('inbox');
