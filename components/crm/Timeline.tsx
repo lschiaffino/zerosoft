@@ -56,6 +56,8 @@ export interface TimelineItem {
   voice?: CallView;
   /** Tareas: de dónde vienen fuera del CRM (lib/tasks.ts), con link de vuelta. */
   source?: { href: string; app: 'groups' | 'chat' | 'docs' | 'track'; label: string };
+  /** Tarea de un chat de Lines que quien mira no ve: el título es el marcador, sin notas y sin editar el texto. */
+  chat_private?: 1;
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -650,6 +652,8 @@ export default function Timeline({
             <div
               key={item.id}
               className={`tl-item${item.done ? ' tl-done' : ''}${item.pinned ? ' tl-pinned' : ''}${busyId === item.id ? ' row-busy' : ''}`}
+              data-testid="crm-timeline-item"
+              data-chat-private={item.chat_private ? 'true' : undefined}
             >
               <span className={`tl-dot ${item.type}`} aria-hidden />
               {item.thread ? (
@@ -727,7 +731,13 @@ export default function Timeline({
                       <span className="badge">{t('common.sent')}</span>
                     ) : null}
                     {item.pinned ? <span className="badge">{t('common.pinned')}</span> : null}
-                    <span className="tl-subject">{item.subject || '—'}</span>
+                    {item.chat_private ? (
+                      <span className="tl-subject crm-private-task" title={t('tasks.privateChatHint')} data-testid="crm-private-chat-task">
+                        {item.subject}
+                      </span>
+                    ) : (
+                      <span className="tl-subject">{item.subject || '—'}</span>
+                    )}
                     <span className="tl-date">
                       <LocalText>{formatWhen(item.due_at ?? item.created_at, locale)}</LocalText>
                     </span>
@@ -789,15 +799,17 @@ export default function Timeline({
                         >
                           <CrmIcon name="pin" />
                         </button>
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => startEdit(item)}
-                          title={t('common.edit')}
-                          aria-label={t('common.edit')}
-                        >
-                          <CrmIcon name="edit" />
-                        </button>
+                        {!item.chat_private && (
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            onClick={() => startEdit(item)}
+                            title={t('common.edit')}
+                            aria-label={t('common.edit')}
+                          >
+                            <CrmIcon name="edit" />
+                          </button>
+                        )}
                         {confirmId === item.id ? (
                           <>
                             <button

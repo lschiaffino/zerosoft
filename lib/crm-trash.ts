@@ -25,6 +25,7 @@ import { getDb, type Db } from './db';
 import { syncContactPrimary, syncDealPrimary } from './crm-assoc';
 import { activityDatesUpdateSql, type ActivityDateTable } from './crm-activity-dates';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { privateChatMarker } from './crm-chat-privacy';
 import { emailFreeSql, findContactByEmail } from './crm-contact-email';
 import type { CrmContactRow } from './db';
 import { deleteUploads } from './uploads';
@@ -380,8 +381,11 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
     where.push('t.entity = ?');
     args.push(f.entity);
   }
+  // Una tarea de un chat de Lines: la papelera la ven personas que no ven el chat, así que lleva el
+  // marcador y no su título, y no se encuentra por ese texto (lib/crm-chat-privacy.ts).
+  const label = `CASE WHEN t.entity = 'activity' AND EXISTS (SELECT 1 FROM groups_tasks zgt WHERE zgt.activity_id = t.record_id) THEN '${privateChatMarker('en').replace(/'/g, "''")}' ELSE t.label END`;
   if (f.q) {
-    where.push(`t.label LIKE ? ESCAPE '\\'`);
+    where.push(`${label} LIKE ? ESCAPE '\\'`);
     args.push(`%${f.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
   }
   const cond = ownerScopeSql('t', f.ownerScope);
@@ -391,7 +395,7 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
   }
   return (await db
     .prepare(
-      `SELECT t.id, t.user_id, t.entity, t.record_id, t.label, t.owner_id, t.deleted_by, t.deleted_at, t.merged_into,
+      `SELECT t.id, t.user_id, t.entity, t.record_id, ${label} AS label, t.owner_id, t.deleted_by, t.deleted_at, t.merged_into,
          u.name AS owner_name,
          (SELECT mc.name FROM crm_companies mc WHERE mc.id = t.merged_into AND mc.user_id = t.user_id) AS merged_into_name,
          datetime(t.deleted_at, '+${TRASH_RETENTION_DAYS} days') AS expires_at
