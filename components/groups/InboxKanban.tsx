@@ -22,6 +22,7 @@ import { LabelTag, Modal, api, markChatSwitch, useErrorText, useMediaText, useTo
 import Avatar from './wa/Avatar';
 import { useGroupEventText } from './wa/GroupEvent';
 import { listTime } from './wa/format';
+import { nameOrPhone } from '@/components/inbox/wa/util';
 import { plainWa } from './wa/rich';
 import { ClockIcon, Plus } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
@@ -276,7 +277,7 @@ export default function InboxKanban({
     if (c.lastKind === 'deleted' || c.lastMessagePreview === '[deleted]') return c.lastDirection === 'out' ? tc('wa.youDeleted') : tc('wa.deletedMessage');
     if (c.lastKind === 'voice' || c.lastMessagePreview === '[voice]') return tc('media.audio');
     const text = plainWa(mediaText({ preview: c.lastMessagePreview }));
-    return c.kind === 'group' && c.lastDirection === 'in' && c.lastSender ? `${c.lastSender}: ${text}` : text;
+    return c.kind === 'group' && c.lastDirection === 'in' && c.lastSender ? `${nameOrPhone(c.lastSender)}: ${text}` : text;
   }
 
   function moveItems(c: ChatDto, from: Column): MenuItem[] {

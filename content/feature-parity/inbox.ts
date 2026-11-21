@@ -239,9 +239,9 @@ const parity: ProductParity = {
     // WhatsApp Web (la lista, la conversación y la info del contacto, como en WhatsApp)
     row('wa-names', 'whatsapp', ['Real chat names', 'Nombres reales de los chats', 'Nomes reais das conversas'], 'partial', {
       detail: [
-        'Group subject and contact profile from the WhatsApp server, refreshed every three days; never the raw id. Tested with the fake provider and the real payload shapes',
-        'Asunto del grupo y perfil del contacto desde el servidor de WhatsApp, renovados cada tres días; nunca el id crudo. Probado con el proveedor falso y la forma real de los datos',
-        'Assunto do grupo e perfil do contato vindos do servidor do WhatsApp, renovados a cada três dias; nunca o id cru. Testado com o provedor falso e o formato real dos dados',
+        'Group subject and contact profile from the WhatsApp server, refreshed every three days; never the raw id. Without a saved name, the number in international format, as on WhatsApp Web. Tested with the fake provider and the real payload shapes',
+        'Asunto del grupo y perfil del contacto desde el servidor de WhatsApp, renovados cada tres días; nunca el id crudo. Sin nombre guardado, el número en formato internacional, como en WhatsApp Web. Probado con el proveedor falso y la forma real de los datos',
+        'Assunto do grupo e perfil do contato vindos do servidor do WhatsApp, renovados a cada três dias; nunca o id cru. Sem nome salvo, o número em formato internacional, como no WhatsApp Web. Testado com o provedor falso e o formato real dos dados',
       ],
     }),
     row('wa-photos', 'whatsapp', ['Profile photos', 'Fotos de perfil', 'Fotos de perfil'], 'partial', {

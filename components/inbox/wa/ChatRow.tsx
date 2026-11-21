@@ -7,7 +7,7 @@ import Avatar from '@/components/groups/wa/Avatar';
 import { listTime } from '@/components/groups/wa/format';
 import { plainWa } from '@/components/groups/wa/rich';
 import { ArchiveIcon, CameraIcon, DocIcon, MapPin, Mic, MusicIcon, MuteIcon, Person, PhotoIcon, PinIcon, PollIcon, Smiley, Ticks } from '@/components/groups/wa/icons';
-import { chatName, formatPhone, previewKind, previewText, type PreviewKind } from './util';
+import { chatName, formatPhone, nameOrPhone, previewKind, previewText, type PreviewKind } from './util';
 import { useDraft } from '@/components/ui/useDraft';
 import { useGroupEventText } from '@/components/groups/wa/GroupEvent';
 import { decodeSysPreview } from '@/lib/wa-group-events';
@@ -84,7 +84,7 @@ export default function ChatRow({ th, extra, timeLabel, archivedTag }: { th: Thr
               <>
                 {th.channel === 'whatsapp' && th.lastFromMe && th.lastStatus && <Ticks status={th.lastStatus} label={t(th.lastStatus === 'read' && th.readHidden ? 'message.status.readHidden' : `message.status.${['sent', 'delivered', 'read', 'failed'].includes(th.lastStatus) ? th.lastStatus : 'sent'}`)} />}
                 {th.channel === 'gmail' && th.lastFromMe && <span className="wa-row-sender">{t('list.you')}</span>}
-                {th.kind === 'group' && !th.lastFromMe && th.lastSender && <span className="wa-row-sender">{th.lastSender}:</span>}
+                {th.kind === 'group' && !th.lastFromMe && th.lastSender && <span className="wa-row-sender">{nameOrPhone(th.lastSender)}:</span>}
                 {(kind === 'image' || kind === 'video') && th.lastMediaId && <RowThumb id={th.lastMediaId} />}
                 {Icon && (
                   <span className="wa-row-kind">

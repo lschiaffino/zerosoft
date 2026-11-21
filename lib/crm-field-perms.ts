@@ -199,6 +199,45 @@ export async function fieldAccessFor(
   };
 }
 
+/**
+ * Definiciones de campos propios (de todas las entidades) que la persona puede
+ * ver: owner y admins, todas; el resto, sin las que tiene ocultas. Mismo orden
+ * que listCustomFields sin entidad. Es lo que listan GET /api/crm/custom-fields
+ * sin entidad y Ajustes › Datos.
+ */
+export async function visibleFieldDefinitions(viewer: FieldViewer, db: Db = getDb()): Promise<CrmCustomFieldRow[]> {
+  const defs = (await db
+    .prepare('SELECT * FROM crm_custom_fields WHERE user_id = ? ORDER BY entity ASC, position ASC')
+    .all(viewer.workspaceId)) as CrmCustomFieldRow[];
+  if (isUnrestricted(viewer) || !defs.length) return defs;
+  const [rules, subjects] = await Promise.all([
+    db
+      .prepare('SELECT field_id, subject, access FROM crm_field_permissions WHERE user_id = ?')
+      .all(viewer.workspaceId) as Promise<Array<Pick<CrmFieldPermissionRow, 'field_id' | 'subject' | 'access'>>>,
+    viewerSubjects(viewer, db),
+  ]);
+  const byField = new Map<string, Array<Pick<CrmFieldPermissionRow, 'subject' | 'access'>>>();
+  for (const r of rules) byField.set(r.field_id, [...(byField.get(r.field_id) ?? []), r]);
+  return defs.filter((d) => accessFor(byField.get(d.id) ?? [], subjects) !== 'hidden');
+}
+
+/** Acceso de la persona a un campo propio. null si el campo no es del workspace. */
+export async function fieldDefinitionAccess(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<FieldAccess | null> {
+  const row = (await db
+    .prepare('SELECT entity FROM crm_custom_fields WHERE id = ? AND user_id = ?')
+    .get(fieldId, viewer.workspaceId)) as { entity: string } | undefined;
+  if (!row) return null;
+  if (isUnrestricted(viewer)) return 'edit';
+  const { all } = await fieldAccessFor(viewer, row.entity, db);
+  return all.find((f) => f.id === fieldId)?.access ?? null;
+}
+
+/** ¿La persona puede ver la definición del campo? false si no es del workspace o lo tiene oculto. */
+export async function canSeeFieldDefinition(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<boolean> {
+  const access = await fieldDefinitionAccess(viewer, fieldId, db);
+  return access !== null && access !== 'hidden';
+}
+
 /** Campos ocultos para la persona en la entidad (para redactar filas). */
 export async function hiddenFieldsFor(viewer: FieldViewer, entity: string, db: Db = getDb()): Promise<Set<string>> {
   if (isUnrestricted(viewer)) return new Set();
