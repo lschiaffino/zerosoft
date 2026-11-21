@@ -86,3 +86,27 @@ test('robots: el nombre de una entrada sale de la etiqueta', async ({ page }) =>
   await last.getByLabel(/^Etiqueta/).fill('Email del cliente');
   await expect(last.getByLabel(/^Nombre en los pasos/)).toHaveValue('email_del_cliente');
 });
+
+test('robots: el paso Marcar o desmarcar puede cambiar el estado con un clic, y se guarda', async ({ page }) => {
+  await page.goto('/es/app/robots', { waitUntil: 'networkidle' });
+  const res = await page.request.post('/api/robots', {
+    data: { name: 'E2E toggle', steps: [{ type: 'goto', url: 'https://example.com' }, { type: 'check', selector: '#terms' }] },
+  });
+  expect(res.ok()).toBe(true);
+  const { id } = (await res.json()) as { id: string };
+  await page.goto(`/es/app/robots/${id}`, { waitUntil: 'networkidle' });
+  const state = page.getByRole('combobox', { name: 'Estado final' });
+  await expect(state).toHaveValue('checked');
+  await expect(state.locator('option')).toHaveCount(3);
+  await state.selectOption('toggle');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await expect
+    .poll(async () => {
+      const r = await page.request.get(`/api/robots/${id}`);
+      const { robot } = (await r.json()) as { robot: { steps: Array<{ type: string; state?: string }> } };
+      return robot.steps.find((s) => s.type === 'check')?.state;
+    })
+    .toBe('toggle');
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByRole('combobox', { name: 'Estado final' })).toHaveValue('toggle');
+});

@@ -3900,7 +3900,7 @@
     "retry": "Reintentar",
     "off": {
       "title": "El sync está apagado",
-      "body": "Desde acá todavía no se escribe nada en HubSpot ni en tu CRM. Prender el sync llega en una próxima actualización. Por ahora podés conectar la cuenta y correr la vista previa."
+      "body": "Conectá HubSpot para traer sus empresas, contactos, deals y actividad al CRM. No se escribe nada en HubSpot."
     },
     "connect": {
       "title": "Cuenta de HubSpot",
@@ -4162,6 +4162,124 @@
       "associations": "Qué contactos son de qué empresa o deal.",
       "archived": "Registros borrados en HubSpot.",
       "moment": "Es una foto del momento en que corrió. Correla de nuevo después de cambiar cosas."
+    },
+    "inbound": {
+      "title": "De HubSpot al CRM",
+      "desc": "Trae empresas, contactos, deals con sus pipelines y etapas, y notas, llamadas, reuniones, tareas y emails a este CRM, y después revisa los cambios en HubSpot cada minuto. No se escribe nada en HubSpot ni se borra nada acá.",
+      "loading": "Cargando el sync…",
+      "loadError": "No pudimos cargar el estado del sync.",
+      "retry": "Reintentar",
+      "off": {
+        "title": "El sync está apagado",
+        "body": "No llega nada de HubSpot hasta que un admin lo arranque. Podés correr antes la vista previa de abajo para ver qué coincidiría.",
+        "again": "El sync está frenado. Arrancarlo de nuevo sigue donde quedó: lo que ya está vinculado no se crea dos veces."
+      },
+      "state": {
+        "initial": "Trayendo todo de HubSpot…",
+        "live": "Al día. Revisamos los cambios en HubSpot cada minuto.",
+        "paused": "En pausa. No se lee nada de HubSpot hasta que lo retomes.",
+        "waiting": "HubSpot llegó a su límite diario de pedidos. El sync sigue solo más tarde.",
+        "retrying": "La última vuelta falló. El sync reintenta solo, esperando un poco más cada vez.",
+        "blocked": "El sync se frenó por la clave de HubSpot.",
+        "off": "El sync está apagado"
+      },
+      "failures": {
+        "hubspot_busy": "HubSpot siguió limitando los pedidos.",
+        "network": "No pudimos llegar a HubSpot.",
+        "provider_error": "HubSpot devolvió un error.",
+        "internal_error": "Algo falló de nuestro lado.",
+        "missing_scope": "A la clave le falta un permiso de lectura.",
+        "invalid_token": "HubSpot ya no acepta la clave. Reemplazala arriba y retomá.",
+        "portal_changed": "La clave ahora abre otra cuenta de HubSpot. Conectá la correcta arriba.",
+        "daily_limit": "HubSpot llegó a su límite diario de pedidos."
+      },
+      "nextTry": "Próximo intento",
+      "lastSync": "Último sync",
+      "neverSynced": "Todavía no terminó una vuelta",
+      "startedAt": "Arrancó",
+      "progress": "Avance del sync",
+      "read": "{n} leídos",
+      "readOf": "{n} de {total} leídos",
+      "caughtUp": "Listo, {n} leídos",
+      "leave": "Podés salir de esta página. El sync sigue corriendo en segundo plano.",
+      "countsCaption": "Registros traídos de HubSpot, por objeto",
+      "col": {
+        "object": "Objeto",
+        "linked": "Vinculados",
+        "created": "Creados",
+        "updated": "Actualizados",
+        "conflicts": "Conflictos",
+        "skipped": "Salteados"
+      },
+      "rows": {
+        "companies": "Empresas",
+        "contacts": "Contactos",
+        "deals": "Deals",
+        "activities": "Actividad"
+      },
+      "conflicts": "{n} registros cambiaron de los dos lados desde el último sync. Quedó el valor de zerosoft. Elegir qué lado gana llega con la escritura en HubSpot.",
+      "archived": "{n} registros se archivaron en HubSpot. Siguen en el CRM.",
+      "objectsTitle": "Qué traer",
+      "objects": {
+        "companies": "Empresas",
+        "contacts": "Contactos",
+        "deals": "Deals",
+        "notes": "Notas",
+        "calls": "Llamadas",
+        "meetings": "Reuniones",
+        "tasks": "Tareas",
+        "emails": "Emails"
+      },
+      "objectNoScope": "La clave no puede leerlos",
+      "emailScope": "Los emails registrados piden el permiso sales-email-read en la clave.",
+      "objectsSave": "Guardar",
+      "objectsCancel": "Cancelar",
+      "startNote": "Arrancar crea o actualiza registros en este workspace. Los contactos se emparejan por email y las empresas por dominio, así que los que ya existen se completan en vez de duplicarse.",
+      "start": "Arrancar sync",
+      "restart": "Arrancar de nuevo",
+      "starting": "Arrancando…",
+      "pause": "Pausar",
+      "resume": "Retomar",
+      "errorsTitle": "Problemas recientes",
+      "codes": {
+        "hubspot_busy": "HubSpot limitó los pedidos",
+        "network": "No pudimos llegar a HubSpot",
+        "provider_error": "HubSpot devolvió un error",
+        "internal_error": "Algo falló de nuestro lado",
+        "missing_scope": "A la clave le falta un permiso",
+        "invalid_token": "HubSpot rechazó la clave",
+        "portal_changed": "La clave abre otra cuenta",
+        "daily_limit": "Se llegó al límite diario de pedidos",
+        "write_failed": "No se pudo guardar un registro",
+        "ambiguous_match": "Hay más de una empresa acá con ese dominio: fusionalas y se vincula en la próxima vuelta",
+        "email_taken": "Otro contacto de acá ya usa ese email",
+        "merged_in_hubspot": "Registros fusionados en HubSpot siguen separados acá",
+        "no_pipeline": "Un deal no tenía pipeline donde ir",
+        "stage_unmapped": "Una etapa de un deal no tenía equivalente; se usó la primera",
+        "parent_skipped": "No se pudo poner una empresa madre",
+        "incomplete": "HubSpot mandó un registro sin fecha de modificación",
+        "other": "Otro problema"
+      },
+      "errors": {
+        "generic": "No funcionó. Probá de nuevo en un momento.",
+        "not_connected": "Primero conectá HubSpot.",
+        "missing_scope": "A la clave le falta un permiso de lectura. Revisá la clave arriba.",
+        "portal_changed": "La clave ahora abre otra cuenta de HubSpot. Conectá la correcta arriba.",
+        "key_invalid": "HubSpot ya no acepta la clave. Reemplazala arriba.",
+        "not_started": "El sync no está arrancado.",
+        "rate_limited": "Demasiados cambios en poco tiempo. Probá más tarde.",
+        "forbidden": "Solo los admins del workspace pueden hacer esto."
+      },
+      "rules": {
+        "title": "Cómo decide el sync",
+        "match": "Un registro de HubSpot ya importado o sincronizado sigue vinculado al mismo registro de acá. Si no, los contactos se emparejan por email y las empresas por dominio. Los deals solo por un vínculo.",
+        "wins": "Si un campo no se cambió acá desde el último sync, se usa el valor de HubSpot.",
+        "conflict": "Si un campo cambió de los dos lados, queda el valor de acá y el registro cuenta como conflicto.",
+        "deletes": "Los registros archivados en HubSpot quedan acá. Un registro que borrás acá no vuelve.",
+        "owners": "Los dueños se emparejan por email con las personas del workspace. Un dueño de HubSpot que no está en el workspace deja el registro sin asignar.",
+        "fields": "Las propiedades propias de HubSpot pasan a ser campos personalizados acá, y se crean si faltan. También se crean los pipelines y etapas que falten.",
+        "hubspot": "Todavía no se escribe nada en HubSpot."
+      }
     }
   },
   "timeline": {

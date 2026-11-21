@@ -12,6 +12,8 @@ import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { onceInFlight } from '../send-once';
 import { applyWaMentionPicks } from '../wa-compose-mentions';
+import { captionMentions } from './wa-media';
+import type { MediaKind } from '../groups-media';
 
 async function deliver(account: AccountRow, thread: ThreadRow, text: string, clientId?: string, mentions: string[] = []): Promise<void> {
   if (thread.channel === 'whatsapp') await sendWhatsappText(account, thread, text, { ...(clientId ? { clientId } : {}), ...(mentions.length ? { mentions } : {}) });
@@ -81,6 +83,11 @@ async function deliverMedia(account: AccountRow, thread: ThreadRow, row: Schedul
   const voice = row.media_kind === 'voice';
   const mimetype = (row.media_type || 'application/octet-stream').split(';')[0].trim().toLowerCase();
   const replyTo = await replyExternalId(row);
+  // Menciones guardadas en el pie (grupos): "@Nombre" sale como "@<teléfono>" con la lista, como al mandar ya.
+  const kind = mediaKindOf(row.media_type) as MediaKind;
+  const out = !voice && thread.kind === 'group' && row.body ? applyWaMentionPicks(row.body, row.mentions) : { body: row.body, mentions: [] };
+  const mentions = voice ? [] : captionMentions(out.mentions, out.body, thread.kind === 'group', kind);
+  const caption = mentions.length ? out.body : row.body;
   let id: string;
   try {
     id = (
@@ -88,9 +95,10 @@ async function deliverMedia(account: AccountRow, thread: ThreadRow, row: Schedul
         url: row.media_url.startsWith('https://') ? row.media_url : '',
         mimetype: voice ? mimetype : row.media_type || 'application/octet-stream',
         filename: row.media_name || 'archivo',
-        ...(voice ? { kind: 'voice' as const } : { caption: row.body || undefined }),
+        ...(voice ? { kind: 'voice' as const } : { caption: caption || undefined }),
         base64: data.toString('base64'),
         ...(replyTo ? { replyTo } : {}),
+        ...(mentions.length ? { mentions } : {}),
       })
     ).id;
   } catch (err) {
@@ -114,7 +122,17 @@ async function deliverMedia(account: AccountRow, thread: ThreadRow, row: Schedul
     });
     return;
   }
-  await addMessage(thread, { externalId: id || `local-${Date.now()}`, fromMe: true, body: row.body, mediaType: mediaKindOf(row.media_type), mediaName: row.media_name, replyTo, status: 'sent' });
+  await addMessage(thread, {
+    externalId: id || `local-${Date.now()}`,
+    fromMe: true,
+    body: caption,
+    mediaType: kind,
+    mediaName: row.media_name,
+    // Como un pie mandado en el momento: el hilo muestra "@Nombre".
+    ...(mentions.length ? { meta: JSON.stringify({ mentions } satisfies WaMessageMeta) } : {}),
+    replyTo,
+    status: 'sent',
+  });
 }
 
 /**

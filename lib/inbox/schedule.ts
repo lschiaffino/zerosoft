@@ -95,8 +95,8 @@ export function cleanParts(parts: PartInput[], channel: string): CleanPart[] {
       delaySec: delay,
       media: media ? { url: media.url, name: String(media.name || 'archivo').slice(0, 200), type, ...(voice ? { voice: true, duration: seconds } : {}) } : null,
       replyTo: typeof p.replyTo === 'string' ? p.replyTo.slice(0, 60) : '',
-      // Solo las de un texto de WhatsApp (un pie de archivo sale sin menciones, como al mandar ya).
-      mentions: channel === 'whatsapp' && !media ? cleanWaMentionPicks(p.mentions) : [],
+      // WhatsApp: las de un texto o del pie de un archivo (una nota de voz no tiene pie).
+      mentions: channel === 'whatsapp' && !voice ? cleanWaMentionPicks(p.mentions) : [],
     };
   });
 }

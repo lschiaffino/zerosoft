@@ -13,6 +13,7 @@ import { fireDocReminders } from '@/lib/docs-reminders';
 import { fireIssueReminders, sendImmediateTrackEmails } from '@/lib/track-notify';
 import { processImportJobs as processCrmImportJobs } from '@/lib/crm-import-jobs';
 import { processHubspotPreviews } from '@/lib/crm-hubspot-sync/preview';
+import { processHubspotInbound } from '@/lib/crm-hubspot-sync/inbound';
 import { processImportJobs } from '@/lib/import-runner';
 import { runGroupsCron } from '@/lib/groups-cron';
 import { processAiRuns } from '@/lib/crm-ai-agents';
@@ -154,6 +155,8 @@ export async function GET(req: NextRequest) {
   const crmImports = await processCrmImportJobs({ budgetMs: Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start)) }).catch(() => null);
   // CRM › sync con HubSpot: la vista previa que alguien arrancó y dejó corriendo (solo lee; claim por fila).
   const crmHubspotPreviews = await processHubspotPreviews({ budgetMs: Math.min(20_000, Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start))) }).catch(() => null);
+  // CRM › sync HubSpot → CRM: solo workspaces que un admin arrancó y no pausó (claim por fila, esperas por los límites de HubSpot).
+  const crmHubspotInbound = await processHubspotInbound({ budgetMs: Math.min(25_000, Math.max(0, CRM_IMPORT_BUDGET_MS - (Date.now() - start))) }).catch(() => null);
   // Talk: recaps diarios pedidos (claim por recap_next_at), al final y con tope: cada uno llama a la IA.
   const talkRecaps = await import('@/lib/talk-ai').then((m) => m.sendDailyRecaps({ budgetMs: 15_000 })).catch(() => null);
   // Notes: archivos para la búsqueda, al final y con tope de tiempo (no le saca el minuto a lo demás).
@@ -165,5 +168,5 @@ export async function GET(req: NextRequest) {
     .then((r) => r?.map(({ job, mode, status }) => ({ job, mode, status })) ?? null)
     .catch(() => null);
   const deployNotify = await deployNotifyRun;
-  return NextResponse.json({ status, deployNotify, maintenance, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports, crmHubspotPreviews });
+  return NextResponse.json({ status, deployNotify, maintenance, reminders: await reminders.json(), dueTasks, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports, crmHubspotPreviews, crmHubspotInbound });
 }

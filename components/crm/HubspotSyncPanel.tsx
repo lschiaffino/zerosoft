@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
+import HubspotInboundSync from './HubspotInboundSync';
 import { HubspotKeyHelp, HubspotKeySummary, HubspotMissingScopes, HubspotScopeList } from '@/components/hubspot/HubspotKeyHelp';
 import type { HubspotSyncStatus } from '@/lib/crm-hubspot-sync/connection';
 import {
@@ -20,11 +21,12 @@ import {
 } from '@/lib/crm-hubspot-sync/types';
 
 /**
- * CRM › Ajustes › Integraciones › Sync con HubSpot (bloque S1): conectar la
- * cuenta y ver qué haría un sync antes de que se escriba nada. Solo admins:
- * el informe muestra registros de todo el workspace.
+ * CRM › Ajustes › Integraciones › Sync con HubSpot: conectar la cuenta (S1),
+ * traer HubSpot al CRM y mantenerlo al día (S2, HubspotInboundSync) y ver qué
+ * haría un sync antes de escribir nada (la vista previa). Solo admins: el
+ * informe muestra registros de todo el workspace.
  *
- * El sync en sí todavía no se puede prender: la pantalla lo dice.
+ * Todavía no se escribe nada en HubSpot: eso llega en el bloque siguiente.
  */
 
 const API = '/api/crm/hubspot-sync';
@@ -118,10 +120,14 @@ export default function HubspotSyncPanel({ canAdmin, locale }: { canAdmin: boole
             .catch(() => null);
         }}
       />
-      <div className="hsync-state" data-testid="hubspot-sync-off">
-        <p className="hsync-state-title">{t('off.title')}</p>
-        <p className="ui-help">{t('off.body')}</p>
-      </div>
+      {status.connected ? (
+        <HubspotInboundSync key={`${status.portalId}:${status.checkedAt ?? ''}`} locale={locale} />
+      ) : (
+        <div className="hsync-state" data-testid="hubspot-sync-off">
+          <p className="hsync-state-title">{t('off.title')}</p>
+          <p className="ui-help">{t('off.body')}</p>
+        </div>
+      )}
       {status.connected && <PreviewSection status={status} preview={preview} locale={locale} onChange={setPreview} />}
     </div>
   );
