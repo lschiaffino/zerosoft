@@ -1447,6 +1447,44 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "rec": {
+      "intro": {
+        "title": "Boas-vindas ao Rec",
+        "body": "O Rec grava sua tela, sua câmera ou as duas e compartilha o vídeo com um link. Este tour mostra as partes principais."
+      },
+      "record": {
+        "title": "Grave um vídeo",
+        "body": "Escolha tela, câmera ou as duas e comece. O vídeo é enviado enquanto você grava, e o link fica copiado quando você termina."
+      },
+      "upload": {
+        "title": "Envie um vídeo",
+        "body": "Já tem uma gravação? Envie um arquivo WebM, MP4 ou MOV e compartilhe do mesmo jeito."
+      },
+      "workspace": {
+        "title": "Workspace",
+        "body": "Os vídeos que todo o workspace encontra. Mova um vídeo para cá, ou grave aqui, para compartilhar com sua equipe."
+      },
+      "settings": {
+        "title": "Ajustes do Rec",
+        "body": "Quem pode assistir aos vídeos novos, sua marca na página compartilhada e por quanto tempo os vídeos são guardados."
+      },
+      "openVideo": {
+        "title": "Abra um vídeo",
+        "body": "Seus vídeos aparecem aqui com quem assistiu e os comentários. Clique em um para compartilhar e ver quem assistiu. O tour continua lá."
+      },
+      "share": {
+        "title": "Compartilhar",
+        "body": "Escolha quem pode assistir: qualquer pessoa com o link, só o workspace ou pessoas específicas. Dá para pôr senha ou validade, desligar o download ou incorporar em outra página."
+      },
+      "insights": {
+        "title": "Análises",
+        "body": "Quem assistiu, por quanto tempo e quantas pessoas chegaram a cada momento do vídeo."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "send": {
       "intro": {
         "title": "Boas-vindas ao Send",

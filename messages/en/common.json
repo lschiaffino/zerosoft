@@ -1447,6 +1447,44 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "rec": {
+      "intro": {
+        "title": "Welcome to Rec",
+        "body": "Rec records your screen, your camera or both, and shares the video with a link. This tour points out the main parts."
+      },
+      "record": {
+        "title": "Record a video",
+        "body": "Pick screen, camera or both and start. The video uploads while you record, and the link is copied when you finish."
+      },
+      "upload": {
+        "title": "Upload a video",
+        "body": "Already have a recording? Upload a WebM, MP4 or MOV file and share it the same way."
+      },
+      "workspace": {
+        "title": "Workspace",
+        "body": "Videos everyone in the workspace can find. Move a video here, or record it here, to share it with your team."
+      },
+      "settings": {
+        "title": "Rec settings",
+        "body": "Who can watch new videos by default, your brand on the shared page and how long videos are kept."
+      },
+      "openVideo": {
+        "title": "Open a video",
+        "body": "Your videos show up here with their viewers and comments. Click one to share it and see who watched. The tour continues there."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Choose who can watch: anyone with the link, only the workspace or specific people. You can add a password, an expiry date, turn off downloads or embed it."
+      },
+      "insights": {
+        "title": "Insights",
+        "body": "Who watched, for how long, and how many viewers reached each moment of the video."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "send": {
       "intro": {
         "title": "Welcome to Send",

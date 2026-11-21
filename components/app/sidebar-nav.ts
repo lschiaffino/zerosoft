@@ -945,13 +945,14 @@ export function buildNav(
               // Carpetas (RecBranch en el hueco #side-branch).
               branch: true,
             },
-            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies' },
+            // Anclajes del tour de Rec (lib/tours/rec.ts).
+            { href: '/app/rec/workspace', label: labels.rec.workspace, active: at('/app/rec/workspace'), icon: 'companies', tour: 'rec-workspace' },
             { href: '/app/rec/later', label: labels.rec.later, active: at('/app/rec/later'), icon: 'clip' },
             { href: '/app/rec/archive', label: labels.rec.archive, active: at('/app/rec/archive'), icon: 'folder' },
             { href: '/app/rec/new', label: labels.rec.newVideo, active: at('/app/rec/new'), icon: 'recorder' },
           ],
         },
-        appSettingsGroup('/app/rec/settings'),
+        appSettingsGroup('/app/rec/settings', { tour: 'rec-settings' }),
       ];
 
     case 'design':

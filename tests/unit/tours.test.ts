@@ -81,6 +81,26 @@ describe('tours: registro y rutas', () => {
     expect(solo).toEqual(expect.arrayContaining(['newDocument', 'openDocument', 'links', 'activity', 'spaces', 'analytics']));
   });
 
+  it('el tour de Rec arranca en Mis videos y sigue en el video; equipo ve el workspace y ajustes es de quien administra', () => {
+    expect(tourForPath('/app/rec')?.key).toBe('rec');
+    expect(tourForPath('/es/app/rec/abc123')?.key).toBe('rec');
+    expect(tourForPath('/app/recx')).toBeNull();
+    expect(tourForPath('/app/recipes')).toBeNull();
+    expect(atTourStart(TOURS.rec, '/pt/app/rec')).toBe(true);
+    expect(atTourStart(TOURS.rec, '/app/rec/new')).toBe(false);
+    expect(atTourStart(TOURS.rec, '/app/rec/abc123')).toBe(false);
+    const steps = ids([...TOURS.rec.steps]);
+    // El lateral va antes de abrir un video, y abrirlo (clic en una tarjeta) antes de los pasos del video.
+    for (const id of ['workspace', 'settings']) expect(steps.indexOf(id)).toBeLessThan(steps.indexOf('openVideo'));
+    for (const id of ['share', 'insights']) expect(steps.indexOf('openVideo')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.rec.steps.find((s) => s.id === 'openVideo')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.rec, { audience: 'team', admin: true }))).toEqual(steps);
+    const solo = ids(stepsFor(TOURS.rec, { audience: 'solo', admin: true }));
+    expect(solo).not.toContain('workspace');
+    expect(solo).toContain('settings');
+    expect(ids(stepsFor(TOURS.rec, { audience: 'team', admin: false }))).not.toContain('settings');
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');
