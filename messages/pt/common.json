@@ -1482,6 +1482,48 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "voice": {
+      "intro": {
+        "title": "Boas-vindas ao Voice",
+        "body": "O Voice grava suas reuniões e monta suas notas com a transcrição. Também deixa você ditar em vez de digitar. Este tour mostra as partes principais."
+      },
+      "newMeeting": {
+        "title": "Comece uma reunião",
+        "body": "Comece quando a chamada começar. O Voice grava seu microfone, ou seu microfone e uma aba do navegador, e escreve a transcrição enquanto vocês falam. Nenhum bot entra na chamada."
+      },
+      "import": {
+        "title": "Importe uma gravação",
+        "body": "Envie um arquivo de áudio ou vídeo de uma chamada e o Voice transcreve como qualquer outra reunião."
+      },
+      "upcoming": {
+        "title": "Próximas reuniões",
+        "body": "As próximas reuniões da sua agenda. Faça notas de uma quando ela começar, ou leia um resumo de quem vai participar."
+      },
+      "ask": {
+        "title": "Pergunte às suas reuniões",
+        "body": "Faça uma pergunta sobre todas as suas reuniões e receba a resposta com links para as reuniões de onde ela veio. Com / você roda um recipe."
+      },
+      "meetings": {
+        "title": "Suas reuniões",
+        "body": "Cada reunião fica aqui com as notas e a transcrição. A busca encontra palavras em títulos, notas e transcrições. Pela linha você renomeia ou exclui a reunião."
+      },
+      "folders": {
+        "title": "Pastas",
+        "body": "Organize as reuniões em pastas, com um nível de subpastas. Em Compartilhadas comigo ficam as reuniões que outras pessoas compartilharam com você."
+      },
+      "dictation": {
+        "title": "Ditado",
+        "body": "Fale em vez de digitar em qualquer campo do zerosoft. Aqui fica o histórico do que você ditou, pronto para copiar de novo."
+      },
+      "settings": {
+        "title": "Configurações do Voice",
+        "body": "Seu atalho e estilo de ditado, seu dicionário e seus modelos de reunião. Valem só para você."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "talk": {
       "intro": {
         "title": "Boas-vindas ao Talk",
