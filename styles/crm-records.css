@@ -665,6 +665,16 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   .lead-stage-row .filter-select { grid-column: 1; }
 }
 
+/* Ajustes: labels de asociación. */
+.assoc-labels { display: flex; flex-direction: column; gap: 18px; }
+.assoc-labels-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.assoc-labels-title { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--brand-ink); }
+.assoc-labels-empty { margin: 0; }
+.assoc-labels-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.assoc-labels-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.assoc-labels-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.assoc-labels-add .input { flex: 1 1 200px; min-width: 0; }
+
 /* Ajustes: permisos por campo. */
 .field-perms-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .field-perms-row { border-bottom: 1px solid var(--line); padding: 8px 0; }

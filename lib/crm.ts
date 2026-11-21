@@ -562,7 +562,8 @@ export async function listContacts(
   return { rows, total };
 }
 
-export type ContactDealRow = CrmDealRow & { stage_name: string; pipeline_name: string };
+/** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
+export type ContactDealRow = CrmDealRow & { stage_name: string; pipeline_name: string; assoc_label: string };
 
 export interface ContactDetail {
   contact: CrmContactRow;
@@ -589,7 +590,7 @@ export async function getContact(userId: string, id: string): Promise<ContactDet
     : null;
   const deals = (await db
     .prepare(
-      `SELECT d.*, s.name AS stage_name, p.name AS pipeline_name
+      `SELECT d.*, s.name AS stage_name, p.name AS pipeline_name, dc.label AS assoc_label
        FROM crm_deals d
        JOIN crm_deal_contacts dc ON dc.deal_id = d.id
        LEFT JOIN crm_stages s ON s.id = d.stage_id
@@ -1737,7 +1738,8 @@ export interface DealDetail {
   deal: CrmDealRow;
   stage: CrmStageRow | null;
   pipeline: CrmPipelineRow | null;
-  contacts: CrmContactRow[];
+  /** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
+  contacts: Array<CrmContactRow & { assoc_label: string }>;
   /** Empresa primaria del deal. */
   company: CrmCompanyRow | null;
   /** Todas las empresas asociadas (primaria primero). */
@@ -1760,12 +1762,12 @@ export async function getDeal(userId: string, id: string): Promise<DealDetail | 
       | undefined) ?? null;
   const contacts = (await db
     .prepare(
-      `SELECT c.* FROM crm_contacts c
+      `SELECT c.*, dc.label AS assoc_label FROM crm_contacts c
        JOIN crm_deal_contacts dc ON dc.contact_id = c.id
        WHERE dc.deal_id = ?
        ORDER BY dc.rowid ASC`,
     )
-    .all(id)) as CrmContactRow[];
+    .all(id)) as Array<CrmContactRow & { assoc_label: string }>;
   const companies = await listDealCompanies(userId, id, db);
   const primary = companies.find((c) => c.is_primary) ?? null;
   let company: CrmCompanyRow | null = null;
@@ -1821,11 +1823,16 @@ async function setDealContacts(
   contactIds: string[],
   db: Db = getDb(),
 ): Promise<void> {
+  // Los contactos que siguen conservan el label de su asociación.
+  const labels = (await db
+    .prepare("SELECT contact_id, label FROM crm_deal_contacts WHERE deal_id = ? AND label != ''")
+    .all(dealId)) as Array<{ contact_id: string; label: string }>;
+  const keep = new Map(labels.map((r) => [r.contact_id, r.label]));
   await db.prepare('DELETE FROM crm_deal_contacts WHERE deal_id = ?').run(dealId);
   const insert = db.prepare(
-    'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id) VALUES (?, ?)',
+    'INSERT OR IGNORE INTO crm_deal_contacts (deal_id, contact_id, label) VALUES (?, ?, ?)',
   );
-  for (const contactId of contactIds) await insert.run(dealId, contactId);
+  for (const contactId of contactIds) await insert.run(dealId, contactId, keep.get(contactId) ?? '');
 }
 
 export async function createDeal(userId: string, data: DealInput): Promise<CreateDealResult> {

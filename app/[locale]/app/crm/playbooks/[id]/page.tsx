@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { getDb } from '@/lib/db';
-import { listCustomFields } from '@/lib/crm';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getPlaybook, listPlaybookRuns } from '@/lib/crm-playbooks';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
@@ -33,9 +33,9 @@ export default async function PlaybookPage(props: { params: Promise<{ locale: st
   const playbook = await getPlaybook(user.id, id);
   if (!playbook) notFound();
   const [contactFields, companyFields, dealFields, runs, members] = await Promise.all([
-    listCustomFields(user.id, 'contacts'),
-    listCustomFields(user.id, 'companies'),
-    listCustomFields(user.id, 'deals'),
+    fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
+    fieldAccessFor(sessionFieldViewer(user), 'companies').then((a) => a.visible),
+    fieldAccessFor(sessionFieldViewer(user), 'deals').then((a) => a.visible),
     listPlaybookRuns(user.id, { playbookId: id, limit: 20 }),
     workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
   ]);
