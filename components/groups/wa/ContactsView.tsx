@@ -9,6 +9,7 @@ import { parseDbUtc } from '@/lib/utils';
 import type { ContactHubspot, ContactRowDto, ContactsDto } from '@/lib/groups-contacts';
 import { Modal, api, useErrorText } from '../dialog-kit';
 import Avatar from './Avatar';
+import { formatPhone } from '@/components/inbox/wa/util';
 import PersonHubspot from './PersonHubspot';
 import { onGridKeyDown, useGridBox } from '../table-grid';
 import { useToast } from '../toast';
@@ -27,14 +28,7 @@ type HsFilter = '' | 'linked' | 'unlinked';
 /** "+54 9 11 5555-0000" (lo enmascarado queda como vino). */
 function phoneText(phone: string, masked?: boolean): string {
   if (!phone || masked) return phone;
-  // Como la ficha del contacto (ContactSheet): los formatos más comunes, el resto con "+".
-  const ar = /^549(11|\d{3})(\d{3,4})(\d{4})$/.exec(phone);
-  if (ar) return `+54 9 ${ar[1]} ${ar[2]}-${ar[3]}`;
-  const us = /^1(\d{3})(\d{3})(\d{4})$/.exec(phone);
-  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`;
-  const br = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(phone);
-  if (br) return `+55 ${br[1]} ${br[2]}-${br[3]}`;
-  return `+${phone}`;
+  return formatPhone(phone);
 }
 
 /** "hace 5 min" en el idioma de la página, recién en el navegador (la zona y el "ahora" son de quien mira). */
