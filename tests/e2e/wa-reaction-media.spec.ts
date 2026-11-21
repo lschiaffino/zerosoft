@@ -285,13 +285,16 @@ test.describe('Lines', () => {
     expect((await request.post(hook, { data: { events: reactions } })).ok()).toBe(true);
 
     await request.get('/api/groups/chats/warmup/members?reactions=x');
+    // El chat se abre por su dirección: con los mensajes de hace una hora, en una base con los chats de otras pruebas
+    // puede quedar fuera de la parte de la lista que se ve.
+    const [chat] = await sql('SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', [id, seed.gid]);
+    expect(chat?.id).toBeTruthy();
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
     await eachSize(
       page,
       request,
       async () => {
-        await goto(page, '/en/app/lines/inbox');
-        await page.locator('.gr-row', { hasText: seed.title }).click({ timeout: 120_000 });
+        await goto(page, `/en/app/lines/inbox/${String(chat.id)}`);
         await expect(page.getByRole('heading', { level: 2, name: seed.title })).toBeVisible({ timeout: 90_000 });
         return page.locator('.wa-messages');
       },
