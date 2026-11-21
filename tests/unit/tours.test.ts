@@ -32,6 +32,26 @@ describe('tours: registro y rutas', () => {
     expect(TOURS.track.steps.find((s) => s.id === 'issues')).toMatchObject({ advanceOn: 'click' });
   });
 
+  it('el tour de Board arranca en la lista y sigue en el lienzo; equipo ve el taller y compartir con el workspace', () => {
+    expect(tourForPath('/app/board')?.key).toBe('board');
+    expect(tourForPath('/es/app/board/abc')?.key).toBe('board');
+    expect(tourForPath('/app/boards')).toBeNull();
+    expect(atTourStart(TOURS.board, '/pt/app/board')).toBe(true);
+    expect(atTourStart(TOURS.board, '/app/board/abc')).toBe(false);
+    const steps = ids([...TOURS.board.steps]);
+    // Abrir una pizarra (clic en una tarjeta) va antes de los pasos del lienzo.
+    for (const id of ['toolbar', 'canvasTools', 'zoom', 'share']) expect(steps.indexOf('openBoard')).toBeLessThan(steps.indexOf(id));
+    expect(TOURS.board.steps.find((s) => s.id === 'openBoard')).toMatchObject({ advanceOn: 'click' });
+    const team = ids(stepsFor(TOURS.board, { audience: 'team', admin: false }));
+    const solo = ids(stepsFor(TOURS.board, { audience: 'solo', admin: false }));
+    expect(team).toContain('workshop');
+    expect(team).toContain('shareTeam');
+    expect(team).not.toContain('share');
+    expect(solo).not.toContain('workshop');
+    expect(solo).toContain('share');
+    expect(solo).not.toContain('shareTeam');
+  });
+
   it('el tour de Inbox vive en /app/inbox, arranca en la bandeja y no tiene pasos de equipo', () => {
     expect(tourForPath('/app/inbox')?.key).toBe('inbox');
     expect(tourForPath('/es/app/inbox/v/reply')?.key).toBe('inbox');

@@ -1342,6 +1342,7 @@ export default function BoardEditor({
           <div className="board-share-wrap" ref={share.wrapRef}>
             <button
               ref={share.buttonRef}
+              data-tour="board-share"
               type="button"
               className={`btn btn-sm${shareToken || accessMode === 'restricted' ? ' is-on' : ''}`}
               onClick={share.toggle}

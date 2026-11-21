@@ -501,7 +501,7 @@ export default function BoardList({
   }
 
   const newButton = (
-    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy} data-testid="board-new">
+    <button type="button" className="btn btn-primary" onClick={() => void create()} aria-busy={busy} data-testid="board-new" data-tour="board-new">
       {busy ? t('list.creating') : t('list.new')}
     </button>
   );
@@ -549,7 +549,7 @@ export default function BoardList({
   function card(b: BoardSummary) {
     return (
       // Al apuntar o enfocar una tarjeta se precarga el lienzo (ver preloadCanvas).
-      <li key={b.id} className="board-card" onPointerEnter={preloadCanvas} onFocus={preloadCanvas}>
+      <li key={b.id} className="board-card" onPointerEnter={preloadCanvas} onFocus={preloadCanvas} data-tour="board-item">
         <div className="board-thumb" aria-hidden="true">
           {b.thumbnail ? (
             // Miniatura SVG generada por el cliente (filtrada en el servidor); como <img> no ejecuta nada.
@@ -608,7 +608,7 @@ export default function BoardList({
     <div className="ui-page board-list">
       <PageHeader title={t('list.title')} description={t('list.subtitle')} actions={headerActions} />
 
-      <div className="board-list-tools">
+      <div className="board-list-tools" data-tour="board-organize">
         <label className="board-search">
           <span className="sr-only">{t('search.label')}</span>
           <NotesIcon name="search" size={14} />
@@ -757,7 +757,7 @@ export default function BoardList({
       )}
 
       {view.kind !== 'trash' && !searchingNow && (
-        <section className={`board-templates${boards.length > 0 ? ' is-compact' : ''}`} aria-labelledby="board-templates-title">
+        <section className={`board-templates${boards.length > 0 ? ' is-compact' : ''}`} aria-labelledby="board-templates-title" data-tour="board-templates">
           <details
             className="board-templates-details"
             // Sin pizarras, las plantillas son el camino principal: siempre abiertas.

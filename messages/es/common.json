@@ -1406,6 +1406,60 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "board": {
+      "intro": {
+        "title": "Te damos la bienvenida a Board",
+        "body": "Board es una pizarra para bocetos, diagramas y stickies. Este tour te muestra las partes principales."
+      },
+      "newBoard": {
+        "title": "Creá una pizarra",
+        "body": "Empezá una pizarra en blanco acá. Importar, al lado, abre archivos .excalidraw."
+      },
+      "templates": {
+        "title": "Empezá con una plantilla",
+        "body": "Retrospectiva, kanban, mapa mental, flujo de usuario y más. Elegí una y la pizarra ya viene armada."
+      },
+      "organize": {
+        "title": "Buscá y ordená",
+        "body": "Buscá pizarras por nombre o por lo que tienen adentro, y agrupalas en carpetas. Las borradas esperan en la Papelera."
+      },
+      "openBoard": {
+        "title": "Abrí una pizarra",
+        "body": "Abrí cualquier pizarra de la lista para empezar a dibujar."
+      },
+      "toolbar": {
+        "title": "Formas y dibujo",
+        "body": "Elegí una forma, una flecha, texto o el lápiz. Cada herramienta tiene su tecla: R para un rectángulo, A para una flecha, T para texto."
+      },
+      "canvasTools": {
+        "title": "Stickies y más",
+        "body": "Agregá un sticky (N), resaltá, insertá una tabla, adjuntá un archivo o mostrá el minimapa (M). Con un sticky elegido, Tab agrega el siguiente."
+      },
+      "zoom": {
+        "title": "Zoom y deshacer",
+        "body": "Acercá, alejá o deshacé desde acá. Con la rueda te movés por la pizarra, o mantené Espacio y arrastrá."
+      },
+      "workshop": {
+        "title": "Hacé un taller",
+        "body": "Poné un temporizador que ven todos, abrí una votación con puntos sobre los stickies o prendé el modo privado para que las ideas no se vean hasta revelarlas."
+      },
+      "share": {
+        "title": "Compartir",
+        "body": "Prendé un link para que cualquiera vea la pizarra, o creá un link de invitado para que alguien la edite sin cuenta."
+      },
+      "shareTeam": {
+        "title": "Compartir con tu equipo",
+        "body": "Todos en el workspace pueden abrir una pizarra, y se ven los cursores de los demás. Acá podés limitarla a quienes invites o compartir un link."
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "body": "N agrega un sticky, M muestra el minimapa y Shift+1 encuadra todo. Ctrl o Cmd y la rueda hacen zoom. Cmd+K encuentra cualquier pizarra."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Te damos la bienvenida a Lines",

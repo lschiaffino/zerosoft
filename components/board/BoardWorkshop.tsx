@@ -159,6 +159,7 @@ export default function BoardWorkshop({
     <div className={`board-share-wrap board-tool-wrap ${className}`.trim()} ref={pop.wrapRef}>
       <button
         ref={pop.buttonRef}
+        data-tour="board-workshop"
         type="button"
         className={`btn btn-sm${pop.open || active ? ' is-on' : ''}`}
         onClick={pop.toggle}

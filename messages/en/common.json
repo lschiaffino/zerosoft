@@ -1406,6 +1406,60 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "board": {
+      "intro": {
+        "title": "Welcome to Board",
+        "body": "Board is a whiteboard for sketches, diagrams and sticky notes. This tour points out the main parts."
+      },
+      "newBoard": {
+        "title": "Create a board",
+        "body": "Start a blank board here. Import, next to it, opens .excalidraw files."
+      },
+      "templates": {
+        "title": "Start from a template",
+        "body": "Retrospective, kanban, mind map, user flow and more. Pick one to get a board that is already laid out."
+      },
+      "organize": {
+        "title": "Find and organize",
+        "body": "Search boards by name or by what is on them, and group them in folders. Deleted boards wait in Trash."
+      },
+      "openBoard": {
+        "title": "Open a board",
+        "body": "Open any board in the list to start drawing."
+      },
+      "toolbar": {
+        "title": "Shapes and drawing",
+        "body": "Pick a shape, an arrow, text or the pen. Each tool has a key: R for a rectangle, A for an arrow, T for text."
+      },
+      "canvasTools": {
+        "title": "Stickies and more",
+        "body": "Add a sticky (N), highlight, insert a table, attach a file or show the minimap (M). With a sticky selected, Tab adds the next one."
+      },
+      "zoom": {
+        "title": "Zoom and undo",
+        "body": "Zoom in and out or undo from here. Scroll to move around the board, or hold Space and drag."
+      },
+      "workshop": {
+        "title": "Run a workshop",
+        "body": "Start a timer everyone sees, open a dot voting round on the stickies, or turn on private mode so ideas stay hidden until you reveal them."
+      },
+      "share": {
+        "title": "Share",
+        "body": "Turn on a link so anyone can view the board, or create a guest link so someone can edit it without an account."
+      },
+      "shareTeam": {
+        "title": "Share with your team",
+        "body": "Everyone in the workspace can open a board, and you see each other's cursors. Here you can limit it to people you invite or share a link."
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "body": "N adds a sticky, M shows the minimap and Shift+1 fits everything on screen. Ctrl or Cmd and scroll zooms. Cmd+K finds any board."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "lines": {
       "intro": {
         "title": "Welcome to Lines",
