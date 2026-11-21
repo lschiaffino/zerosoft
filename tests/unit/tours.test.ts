@@ -65,6 +65,23 @@ describe('tours: registro y rutas', () => {
     expect(solo).toEqual(expect.arrayContaining(['newEventType', 'eventType', 'upcoming', 'bookings', 'availability', 'settings']));
   });
 
+  it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
+    expect(tourForPath('/app/talk')?.key).toBe('talk');
+    expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');
+    expect(tourForPath('/app/talkx')).toBeNull();
+    expect(atTourStart(TOURS.talk, '/pt/app/talk')).toBe(true);
+    expect(atTourStart(TOURS.talk, '/en/app/talk/abc123')).toBe(true);
+    expect(atTourStart(TOURS.talk, '/app/talk/settings')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talk/analytics')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talk/abc123/extra')).toBe(false);
+    expect(atTourStart(TOURS.talk, '/app/talkx')).toBe(false);
+    // Los demás tours siguen arrancando solo en su ruta exacta.
+    expect(atTourStart(TOURS.cal, '/app/calendar/abc123')).toBe(false);
+    // Mismos pasos para todos; el redactor va antes que hilos (en el teléfono se saltea).
+    expect(ids(stepsFor(TOURS.talk, { audience: 'solo', admin: false }))).toEqual(ids([...TOURS.talk.steps]));
+    expect(ids([...TOURS.talk.steps])).toEqual(['intro', 'channels', 'dms', 'composer', 'threads', 'search', 'done']);
+  });
+
   it('el tour de Forms arranca en la lista y sigue en el formulario; equipo ve quién lo ve', () => {
     expect(tourForPath('/app/forms')?.key).toBe('forms');
     expect(tourForPath('/es/app/forms/abc/responses')?.key).toBe('forms');
