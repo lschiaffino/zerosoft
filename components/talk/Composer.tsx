@@ -52,6 +52,9 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
   const where = channel.kind === 'public' || channel.kind === 'private' ? `#${channel.name}` : channelTitle(channel);
 
   useEffect(() => {
+    // Con el tour guiado abierto (components/tour/TourHost.tsx), el foco se queda en su tarjeta:
+    // si no, Enter mandaba un mensaje en vez de pasar al paso siguiente.
+    if (document.activeElement?.closest('.zs-tour')) return;
     ref.current?.focus();
   }, [focusKey]);
 
@@ -425,6 +428,8 @@ export default function Composer({ channel, parentId, initialDraft = '', focusKe
   return (
     <div
       className={`talk-composer${compact ? ' is-compact' : ''}${dragOver ? ' is-drag' : ''}`}
+      // El tour de Talk (lib/tours/talk.ts) señala el redactor del canal, no el de un hilo.
+      data-tour={parentId ? undefined : 'talk-composer'}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('Files')) {
           e.preventDefault();
