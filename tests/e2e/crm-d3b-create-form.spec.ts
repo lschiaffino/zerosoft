@@ -198,7 +198,7 @@ for (const width of WIDTHS) {
 
       // Formulario completo de deal: deal type y next step arriba, won reason en "More fields".
       await page.goto('/en/app/crm/deals/new?full=1', { waitUntil: 'networkidle' });
-      await page.getByLabel('Name', { exact: true }).fill(`Full deal ${tag}`);
+      await page.locator('#df-name').fill(`Full deal ${tag}`);
       await page.getByLabel(/Deal type/).selectOption('existingbusiness');
       await page.getByRole('button', { name: /More fields/ }).click();
       await expect(page.getByLabel('Closed won reason')).toBeVisible();
