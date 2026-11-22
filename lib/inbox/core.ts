@@ -179,6 +179,8 @@ export interface ThreadRow {
   unread: number;
   pinned_at: string | null;
   favorite_at?: string | null;
+  /** Solo en la lista y en getThread: la persona del chat es VIP (inbox_vips). */
+  vip_hit?: number | null;
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
@@ -727,6 +729,11 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
         where.push(active, 't.favorite_at IS NOT NULL');
         args.push(nowS);
         break;
+      // División VIP (como el split de Superhuman): los chats 1:1 y correos de las personas VIP, en cualquier cuenta.
+      case 'vip':
+        where.push(active, `t.kind <> 'group'`, `t.handle <> ''`, 'EXISTS (SELECT 1 FROM inbox_vips v WHERE v.owner_id = t.owner_id AND v.handle = lower(t.handle))');
+        args.push(nowS);
+        break;
       case 'snoozed':
         where.push('t.snoozed_until > ?');
         args.push(nowS);
@@ -777,7 +784,8 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
          CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
-         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
+         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts,
+         CASE WHEN t.kind <> 'group' AND t.handle <> '' THEN EXISTS (SELECT 1 FROM inbox_vips v WHERE v.owner_id = t.owner_id AND v.handle = lower(t.handle)) END AS vip_hit
        FROM inbox_threads t`;
   type Row = ThreadRow & { folder_ids: string | null; scheduled_count: number; sort_key: string | null };
   const db = getDb();
@@ -890,6 +898,7 @@ export function threadDto(
     unread: Number(r.unread),
     pinned: !!r.pinned_at,
     ...(r.favorite_at ? { favorite: true } : {}),
+    ...(r.vip_hit ? { vip: true } : {}),
     done: !!r.done_at,
     archived: !!r.archived_at,
     keepArchived: r.keep_archived === 1,
@@ -926,7 +935,8 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
          (SELECT group_concat(folder_id) FROM inbox_thread_folders f WHERE f.thread_id = t.id) AS folder_ids,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.thread_id = t.id AND s.status IN ('pending','failed','missed')) AS scheduled_count,
          CASE WHEN t.last_kind IN ('image', 'video') THEN (SELECT m.id FROM inbox_messages m WHERE m.thread_id = t.id AND m.hidden_at IS NULL ORDER BY m.sent_at DESC LIMIT 1) END AS last_media_id,
-         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts
+         CASE WHEN t.channel = 'whatsapp' AND t.kind != 'group' THEN (SELECT a.read_receipts FROM inbox_accounts a WHERE a.id = t.account_id) END AS account_receipts,
+         CASE WHEN t.kind <> 'group' AND t.handle <> '' THEN EXISTS (SELECT 1 FROM inbox_vips v WHERE v.owner_id = t.owner_id AND v.handle = lower(t.handle)) END AS vip_hit
        FROM inbox_threads t WHERE t.id = ? AND t.owner_id = ? AND t.removed_at IS NULL`,
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
@@ -1281,6 +1291,9 @@ export type ThreadAction =
   /** Favoritos, como la lista de WhatsApp (queda en Inbox: el servidor de WhatsApp no la sincroniza). */
   | { action: 'favorite' }
   | { action: 'unfavorite' }
+  /** VIP: la persona del chat (1:1 o correo), no el chat; vale para todos sus chats (lib/inbox/vip.ts). */
+  | { action: 'vip' }
+  | { action: 'unvip' }
   | { action: 'archive' }
   | { action: 'unarchive' }
   /** Mantener archivado: prenderlo archiva el chat; apagarlo lo deja donde está. */
@@ -1317,6 +1330,10 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
     .all(owner, ...asked)) as Array<{ id: string }>;
   const unique = owned.map((r) => r.id);
   if (!unique.length) return [];
+  if (a.action === 'vip' || a.action === 'unvip') {
+    const { setThreadsVip } = await import('./vip');
+    return setThreadsVip(owner, unique, a.action === 'vip', now);
+  }
   let sql: string;
   let extra: Array<string | number | null> = [];
   switch (a.action) {

@@ -96,6 +96,7 @@ import {
   Panel,
   PinIcon,
   HeartIcon,
+  VipIcon,
   FlagIcon,
   Plus,
   SendIcon,
@@ -2573,6 +2574,19 @@ export default function ChatThread(props: ThreadProps) {
                     void patchChat({ favorite: on }).then((res) => res && showToast(on ? t('favorites.added') : t('favorites.removed')));
                   },
                 },
+                ...(chat.kind === 'dm' && chat.phone
+                  ? [
+                      {
+                        key: 'vip',
+                        glyph: <VipIcon size={18} />,
+                        label: chat.vip ? t('vip.remove') : t('vip.add'),
+                        onSelect: () => {
+                          const on = !chat.vip;
+                          void patchChat({ vip: on }).then((res) => res && showToast(on ? t('vip.added', { name: chat.name }) : t('vip.removed', { name: chat.name })));
+                        },
+                      },
+                    ]
+                  : []),
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 ...(chat.archived
                   ? [

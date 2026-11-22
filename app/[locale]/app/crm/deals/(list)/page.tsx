@@ -27,7 +27,7 @@ import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedF
 import { dealFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
 import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
 import { getUserTimeZone } from '@/lib/user-tz';
-import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
+import PipelineMenu from '@/components/crm/PipelineMenu';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import ViewTabs from '@/components/crm/ViewTabs';
@@ -211,6 +211,12 @@ export default async function DealsPage(props: DealsPageProps) {
   const owner = state.owner ?? '';
   const createdFrom = state.createdFrom ?? '';
   const createdTo = state.createdTo ?? '';
+  // Filtros rápidos de fecha (días YYYY-MM-DD; lo demás no se aplica).
+  const dayParam = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const closeFrom = dayParam(state.closeFrom);
+  const closeTo = dayParam(state.closeTo);
+  const activityFrom = dayParam(state.activityFrom);
+  const activityTo = dayParam(state.activityTo);
   const custom = customFromState(state);
   const tag = state.tag ?? '';
   const stalled = state.stalled === '1';
@@ -232,6 +238,10 @@ export default async function DealsPage(props: DealsPageProps) {
     owner: owner || undefined,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
+    closeFrom: closeFrom || undefined,
+    closeTo: closeTo || undefined,
+    activityFrom: activityFrom || undefined,
+    activityTo: activityTo || undefined,
     tag: tag || undefined,
     stalled: stalled || undefined,
     custom: Object.keys(custom).length
@@ -254,6 +264,10 @@ export default async function DealsPage(props: DealsPageProps) {
   if (stalled) viewState.stalled = '1';
   if (createdFrom) viewState.createdFrom = createdFrom;
   if (createdTo) viewState.createdTo = createdTo;
+  if (closeFrom) viewState.closeFrom = closeFrom;
+  if (closeTo) viewState.closeTo = closeTo;
+  if (activityFrom) viewState.activityFrom = activityFrom;
+  if (activityTo) viewState.activityTo = activityTo;
   Object.entries(custom).forEach(([k, v]) => {
     if (v) viewState[`custom_${k}`] = v;
   });
@@ -263,6 +277,49 @@ export default async function DealsPage(props: DealsPageProps) {
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
   const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze');
+
+  // Pasar de board a tabla, o de pipeline, mantiene la vista activa.
+  const activeViewQ: Record<string, string> = views.keep.sv ? { sv: views.keep.sv } : {};
+
+  // Como en HubSpot: el pipeline y el cambio board/tabla, a la derecha de la búsqueda.
+  const trailing = (
+    <>
+      <PipelineMenu
+        current={pipeline.name}
+        currentId={pipeline.id}
+        pipelines={pipelines.map((p) => ({
+          id: p.id,
+          name: p.name,
+          href: { pathname: '/app/crm/deals', query: { ...viewQuery(p.id, view), ...activeViewQ } },
+        }))}
+      />
+      <nav className="seg-toggle" aria-label={t('record.viewLabel')}>
+        <Link
+          href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'board'), ...activeViewQ } }}
+          className="seg-toggle-item"
+          aria-current={view === 'board' ? 'page' : undefined}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="4" width="5" height="16" rx="1" />
+            <rect x="10" y="4" width="5" height="10" rx="1" />
+            <rect x="17" y="4" width="4" height="13" rx="1" />
+          </svg>
+          <span>{t('deals.board')}</span>
+        </Link>
+        <Link
+          href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'table'), ...activeViewQ } }}
+          className="seg-toggle-item"
+          aria-current={view === 'table' ? 'page' : undefined}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="1" />
+            <path d="M3 10h18M3 15h18M9 4v16" />
+          </svg>
+          <span>{t('deals.tableView')}</span>
+        </Link>
+      </nav>
+    </>
+  );
 
   const filterBar = (
     <>
@@ -292,6 +349,12 @@ export default async function DealsPage(props: DealsPageProps) {
         tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
+        closeFrom={closeFrom}
+        closeTo={closeTo}
+        activityFrom={activityFrom}
+        activityTo={activityTo}
+        locale={locale}
+        trailing={trailing}
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
@@ -312,8 +375,6 @@ export default async function DealsPage(props: DealsPageProps) {
       <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
     </>
   );
-  // Pasar de board a tabla, o de pipeline, mantiene la vista activa.
-  const activeViewQ: Record<string, string> = views.keep.sv ? { sv: views.keep.sv } : {};
 
   // ---------- Vista tabla (server-side con searchParams) ----------
   let tableContent: React.ReactNode = null;
@@ -498,22 +559,6 @@ export default async function DealsPage(props: DealsPageProps) {
         title={t('deals.title')}
         actions={
           <>
-            <nav className="btn-group" aria-label={t('record.viewLabel')}>
-              <Link
-                href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'board'), ...activeViewQ } }}
-                className="btn btn-secondary btn-sm"
-                aria-current={view === 'board' ? 'page' : undefined}
-              >
-                {t('deals.board')}
-              </Link>
-              <Link
-                href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'table'), ...activeViewQ } }}
-                className="btn btn-secondary btn-sm"
-                aria-current={view === 'table' ? 'page' : undefined}
-              >
-                {t('deals.tableView')}
-              </Link>
-            </nav>
             <Link href="/app/crm/approvals" className="btn btn-secondary btn-sm" data-testid="deals-approvals">
               {pendingApprovals > 0 ? t('approvals.navCount', { count: pendingApprovals }) : t('approvals.nav')}
             </Link>
@@ -522,38 +567,25 @@ export default async function DealsPage(props: DealsPageProps) {
         }
       />
 
-      <div className="deals-pipelines">
-        <nav className="btn-group" aria-label={t('deals.pipelineLabel')}>
-          {pipelines.map((p) => (
-            <Link
-              key={p.id}
-              href={{ pathname: '/app/crm/deals', query: { ...viewQuery(p.id, view), ...activeViewQ } }}
-              className="btn btn-secondary btn-sm"
-              aria-current={p.id === pipeline.id ? 'page' : undefined}
-            >
-              {p.name}
-            </Link>
-          ))}
-        </nav>
-        <AddPipelineChip />
-      </div>
-
       {filterBar}
 
       {view === 'board' && boardStages && totals ? (
         <>
-          <div className="kb-totals">
-            <span>
-              {t('deals.totals.open')}: <strong>{totals.openCount}</strong>
-            </span>
-            <span>
-              {t('deals.totals.openAmount')}:{' '}
-              <strong>{formatMoney(totals.openAmount, currencyCtx.base, locale)}</strong>
-            </span>
-            <span>
-              {t('deals.totals.forecast')}:{' '}
-              <strong>{formatMoney(totals.forecast, currencyCtx.base, locale)}</strong>
-            </span>
+          <div className="kb-totals" data-testid="deals-summary">
+            <dl className="kb-totals-list">
+              <div>
+                <dt>{t('deals.totals.open')}</dt>
+                <dd className="num">{totals.openCount}</dd>
+              </div>
+              <div>
+                <dt>{t('deals.totals.openAmount')}</dt>
+                <dd className="num">{formatMoney(totals.openAmount, currencyCtx.base, locale)}</dd>
+              </div>
+              <div>
+                <dt>{t('deals.totals.forecast')}</dt>
+                <dd className="num">{formatMoney(totals.forecast, currencyCtx.base, locale)}</dd>
+              </div>
+            </dl>
             <ScoreDealsButton pipelineId={pipeline.id} locale={locale} />
           </div>
           <DealsBoard
@@ -564,6 +596,7 @@ export default async function DealsPage(props: DealsPageProps) {
             baseCurrency={currencyCtx.base}
             priorities={priorities}
             sources={sources}
+            owners={owners}
           />
         </>
       ) : (

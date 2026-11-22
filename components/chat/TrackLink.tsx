@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import ChatIcon from './icons';
+import { fetchAllTrackTeams } from '@/components/track/fetchAllTeams';
 
 interface LinkedIssue {
   requestId: string;
@@ -44,11 +45,11 @@ export default function TrackLink({ conversationId, defaultTitle }: { conversati
 
   useEffect(() => {
     if (mode !== 'create' || projects) return;
-    fetch('/api/track/projects?pageSize=100')
-      .then((r) => (r.ok ? (r.json() as Promise<{ rows: Array<{ id: string; name: string }> }>) : { rows: [] }))
-      .then((d) => {
-        setProjects(d.rows.map((p) => ({ id: p.id, name: p.name })));
-        setProjectId((cur) => cur || d.rows[0]?.id || '');
+    fetchAllTrackTeams<{ id: string; name: string }>()
+      .then((rows) => {
+        const list = rows ?? [];
+        setProjects(list.map((p) => ({ id: p.id, name: p.name })));
+        setProjectId((cur) => cur || list[0]?.id || '');
       })
       .catch(() => setProjects([]));
   }, [mode, projects]);

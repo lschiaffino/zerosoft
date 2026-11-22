@@ -62,6 +62,13 @@ interface PropertiesPanelProps {
   compactKeys?: string[];
   /** Label del botón "Ver todas las propiedades". Si se pasa, activa modo compacto. */
   viewAllLabel?: string;
+  /**
+   * Vista previa: el valor nuevo se ve al instante y vuelve al anterior si el
+   * guardado falla (con el error debajo del campo, no al pie del panel).
+   */
+  optimistic?: boolean;
+  /** Después de guardar bien (la vista previa vuelve a leer el registro). */
+  onSaved?: (key: string) => void;
 }
 
 const ERROR_CODES = [
@@ -88,6 +95,8 @@ export default function PropertiesPanel({
   sections,
   compactKeys,
   viewAllLabel,
+  optimistic = false,
+  onSaved,
 }: PropertiesPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -97,10 +106,22 @@ export default function PropertiesPanel({
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Campo del último error (modo optimista: el aviso va debajo de ese campo). */
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  /** Valores puestos en pantalla mientras se guardan (modo optimista). */
+  const [overrides, setOverrides] = useState<Record<string, { value: string; base: string }>>({});
   /** Ya hay un contacto con ese email (undefined = sin aviso). */
   const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
   const [expanded, setExpanded] = useState(!compactKeys || compactKeys.length === 0);
   const inputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Propiedades propias guardadas desde la última lectura: el PATCH manda el objeto
+   * `custom` entero y, sin esto, dos cambios seguidos antes de releer pisaban el primero.
+   */
+  const savedCustom = useRef<Record<string, unknown>>({});
+  useEffect(() => {
+    savedCustom.current = {};
+  }, [custom]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -110,6 +131,25 @@ export default function PropertiesPanel({
     else inputRef.current?.focus();
   }, [editingKey, fields]);
 
+  // Cuando el registro vuelve a leerse con el valor guardado, el valor puesto a mano sobra.
+  useEffect(() => {
+    setOverrides((cur) => {
+      const keys = Object.keys(cur);
+      if (!keys.length) return cur;
+      const next = { ...cur };
+      let changed = false;
+      for (const k of keys) {
+        const f = fields.find((x) => x.key === k);
+        // Llegó el valor leído de nuevo (igual al puesto, o normalizado por el servidor).
+        if (!f || f.value === cur[k].value || f.value !== cur[k].base) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : cur;
+    });
+  }, [fields]);
+
   useEffect(() => {
     if (!savedKey) return;
     const timer = setTimeout(() => setSavedKey(null), 1600);
@@ -118,9 +158,11 @@ export default function PropertiesPanel({
 
   function startEdit(field: PropField) {
     if (field.readOnly) return;
-    setDraft(field.type === 'datetime' ? utcToLocalInput(field.value) : field.value);
+    const current = overrides[field.key]?.value ?? field.value;
+    setDraft(field.type === 'datetime' ? utcToLocalInput(current) : current);
     setEditingKey(field.key);
     setError(null);
+    setErrorKey(null);
     setTaken(undefined);
   }
 
@@ -130,18 +172,30 @@ export default function PropertiesPanel({
 
   async function save(field: PropField, raw: string) {
     setEditingKey(null);
+    const current = overrides[field.key]?.value ?? field.value;
     if (field.type === 'datetime') {
-      if (raw === utcToLocalInput(field.value)) return;
+      if (raw === utcToLocalInput(current)) return;
       const d = raw ? new Date(raw) : null;
       if (d && Number.isNaN(d.getTime())) return;
       raw = d ? d.toISOString() : '';
     }
-    if (raw === field.value) return;
+    if (raw === current) return;
     // Los números no quedan vacíos: si borran el valor, no se guarda nada.
     if (field.type === 'number' && raw === '') return;
     setSavingKey(field.key);
     setError(null);
+    setErrorKey(null);
     setTaken(undefined);
+    // Optimista: el valor nuevo queda a la vista mientras se guarda.
+    if (optimistic) setOverrides((cur) => ({ ...cur, [field.key]: { value: raw, base: fields.find((f) => f.key === field.key)?.value ?? field.value } }));
+    const rollback = () => {
+      if (!optimistic) return;
+      setOverrides((cur) => {
+        const next = { ...cur };
+        delete next[field.key];
+        return next;
+      });
+    };
     let payload: Record<string, unknown>;
     if (field.key.startsWith('custom.')) {
       const name = field.key.slice(7);
@@ -151,7 +205,7 @@ export default function PropertiesPanel({
       else if (field.inputType === 'url') v = raw === '' ? null : normalizeFieldUrl(raw);
       else if (field.boolean) v = raw === '' ? null : raw === 'true';
       else if (raw === '' && field.nullOption) v = null;
-      payload = { custom: { ...(custom ?? {}), [name]: v } };
+      payload = { custom: { ...(custom ?? {}), ...savedCustom.current, [name]: v } };
     } else if (field.type === 'number') {
       payload = { [field.key]: Number(raw) };
     } else {
@@ -164,10 +218,14 @@ export default function PropertiesPanel({
     }).catch(() => null);
     setSavingKey(null);
     if (res && res.ok) {
+      if (field.key.startsWith('custom.')) savedCustom.current = { ...savedCustom.current, ...((payload.custom as Record<string, unknown>) ?? {}) };
       setSavedKey(field.key);
       router.refresh();
+      onSaved?.(field.key);
       return;
     }
+    rollback();
+    setErrorKey(field.key);
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
     // El email nuevo ya es de otro contacto: el aviso lo nombra y lo enlaza (si esta persona lo ve).
@@ -184,10 +242,18 @@ export default function PropertiesPanel({
   // Funciones de render (no componentes): si fueran componentes definidos acá
   // adentro, cada setDraft crearía un tipo nuevo y React remontaría el input
   // (pierde el foco al primer carácter).
-  function renderField(field: PropField) {
+  function renderField(original: PropField) {
+    // Modo optimista: el valor que se está guardando (o se acaba de guardar) reemplaza al leído.
+    const pending = overrides[original.key]?.value;
+    const field: PropField =
+      pending === undefined
+        ? original
+        : { ...original, value: pending, display: original.type === 'select' || original.type === 'multiselect' ? undefined : pending };
     const editing = editingKey === field.key;
     const display =
-      field.display ? field.display : field.type === 'select'
+      pending !== undefined && field.type === 'multiselect'
+        ? parseList(pending).map((v) => field.options?.find((o) => o.value === v)?.label ?? v).join(', ')
+        : field.display ? field.display : field.type === 'select'
         ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
         : field.value;
     // Buscador de propiedades de la ficha (PropertySearch): busca en lo que se ve; la que no coincide no se muestra.
@@ -246,6 +312,13 @@ export default function PropertiesPanel({
                 value={draft}
                 onChange={(e) => save(field, e.target.value)}
                 onBlur={cancel}
+                onKeyDown={(e) => {
+                  // Esc cancela la edición y nada más (no cierra la vista previa que contiene el panel).
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancel();
+                  }
+                }}
                 autoFocus
               >
                 {field.nullOption && <option value="">—</option>}
@@ -263,7 +336,10 @@ export default function PropertiesPanel({
                 rows={4}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') cancel();
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancel();
+                  }
                 }}
                 onBlur={() => save(field, draft.trim())}
               />
@@ -284,7 +360,10 @@ export default function PropertiesPanel({
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') save(field, draft.trim());
-                  if (e.key === 'Escape') cancel();
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancel();
+                  }
                 }}
                 onBlur={() => save(field, draft.trim())}
               />
@@ -320,6 +399,11 @@ export default function PropertiesPanel({
           )}
           {savedKey === field.key && <span className="saved-note" role="status"> {t('common.saved')}</span>}
           {savingKey === field.key && <span className="saved-note" role="status"> {t('common.saving')}</span>}
+          {optimistic && error && errorKey === field.key && (
+            <span className="prop-error" role="alert" data-testid="prop-error">
+              {error}
+            </span>
+          )}
         </dd>
         {!editing && field.readOnly && (
           <span className="prop-lock" title={t('fieldPerms.readOnlyNote')} aria-hidden="true">
@@ -382,7 +466,7 @@ export default function PropertiesPanel({
             {expanded ? t('common.close') : viewAllLabel}
           </button>
         )}
-        {error && <p className="ui-error" role="alert">{error}</p>}
+        {error && !(optimistic && errorKey) && <p className="ui-error" role="alert">{error}</p>}
         {taken !== undefined && <EmailTakenNotice existing={taken} />}
       </div>
     );
@@ -404,7 +488,7 @@ export default function PropertiesPanel({
           {expanded ? t('common.close') : viewAllLabel}
         </button>
       )}
-      {error && <p className="ui-error" role="alert">{error}</p>}
+      {error && !(optimistic && errorKey) && <p className="ui-error" role="alert">{error}</p>}
       {taken !== undefined && <EmailTakenNotice existing={taken} />}
     </div>
   );

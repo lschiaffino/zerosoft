@@ -1,136 +1,9 @@
 /* ============================================================
    CRM: listados de contactos y empresas con la estructura de HubSpot
-   (búsqueda y orden arriba, fila de filtros rápidos, primera columna con
-   avatar, acciones masivas a la vista) y el buscador de propiedades de la
+   (primera columna con avatar, acciones masivas a la vista; la barra de
+   filtros es la de los deals, en styles/crm.css) y el buscador de propiedades de la
    ficha. Solo tokens: se ve en los cinco aspectos, claro y oscuro.
    ============================================================ */
-
-/* ---------- Barra: búsqueda + orden + columnas ---------- */
-.hs-filters { gap: 10px; }
-.hs-toolbar { gap: 10px; }
-.hs-search { position: relative; flex: 0 1 320px; }
-.filter-toolbar .hs-search .input { padding-left: 30px; width: 100%; }
-.hs-search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--brand-gray-2);
-  pointer-events: none;
-}
-
-/* ---------- Fila de filtros rápidos ---------- */
-.hs-quick {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-}
-.hs-quick-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
-
-.qf { position: relative; }
-.qf-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  max-width: 280px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-1);
-  background: transparent;
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ink);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.qf-btn:hover, .qf.is-open .qf-btn { background: var(--brand-enamel); border-color: var(--line); }
-.qf-btn:focus-visible { outline: 2px solid var(--focus, var(--ink)); outline-offset: 1px; }
-.qf-btn.on { border-color: var(--ink); background: var(--bg); }
-.qf-value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 400;
-  color: var(--brand-gray-1);
-}
-.qf-btn.on .qf-label::after { content: ':'; }
-.qf-chev { flex: none; color: var(--brand-gray-2); transition: transform 120ms ease; }
-.qf.is-open .qf-chev { transform: rotate(180deg); }
-
-.qf-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 70;
-  width: 300px;
-  max-width: calc(100vw - 32px);
-  max-height: min(560px, 80vh);
-  overflow-y: auto;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--bg);
-  box-shadow: 0 12px 32px var(--ui-shadow-strong);
-}
-.qf-search { width: 100%; height: 32px; min-height: 32px; margin-bottom: 6px; }
-.qf-list { display: flex; flex-direction: column; }
-.qf-opt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--radius-1);
-  background: none;
-  font: inherit;
-  font-size: 0.8125rem;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-.qf-opt:hover, .qf-opt:focus-visible { background: var(--brand-enamel); outline: none; }
-.qf-opt[aria-selected='true'] { font-weight: 600; }
-.qf-check { flex: none; display: inline-flex; width: 14px; color: var(--ink); }
-.qf-opt-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qf-empty { margin: 6px 8px; font-size: 0.8125rem; color: var(--brand-gray-2); }
-.qf-custom {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 6px;
-  padding: 10px 8px 4px;
-  border-top: 1px solid var(--line);
-}
-.qf-custom-title { grid-column: 1 / -1; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-1); }
-.qf-date { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
-.qf-date .input { height: 32px; min-height: 32px; padding: 0 6px; min-width: 0; width: 100%; }
-.qf-foot {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 6px 2px 2px;
-}
-.qf-list + .qf-foot { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
-.qf-clear {
-  margin-right: auto;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 0.8125rem;
-  color: var(--brand-gray-1);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.qf-clear:hover { color: var(--ink); }
-.filter-more-empty { margin: 0; font-size: 0.8125rem; }
 
 /* ---------- Primera columna: avatar + nombre ---------- */
 .crm-table td.cell-record { max-width: 320px; }
@@ -230,18 +103,9 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   .bk-action { position: static; }
   .bk-pop { position: fixed; left: 16px; right: 16px; bottom: 96px; }
   .hs-bulk .bulk-btn, .hs-bulk .bk-clear { min-height: 40px; }
-  .qf-pop { position: fixed; left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; }
-  .qf-btn, .qf-opt, .filter-more, .bk-option, .qf-clear { min-height: 40px; }
-  /* La fila de filtros rápidos se desplaza de costado dentro de sí misma (sus menús son fijos). */
-  .hs-quick { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -2px; padding: 2px; }
-  .hs-quick::-webkit-scrollbar { display: none; }
-  .hs-quick > * { flex: none; }
+  .bk-option { min-height: 40px; }
   .crm-cards tbody tr.is-selected > td { background: none; }
   .crm-cards tbody tr.is-selected { background: color-mix(in srgb, var(--ink) 4%, var(--bg)); }
-  .qf-search, .qf-date .input { height: 40px; min-height: 40px; }
-  .hs-search { flex-basis: 100%; }
-  .hs-toolbar .filter-right { width: 100%; flex-wrap: nowrap; }
-  .hs-toolbar .filter-sort { flex: 1 1 auto; min-width: 0; }
 }
 
 /* ---------- Ficha: buscador de propiedades ---------- */
@@ -261,3 +125,5 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   /* En el teléfono el email queda en Propiedades y en la acción Email: dos links chicos juntos no se tocan bien. */
   [data-testid='record-email'] { display: none; }
 }
+
+.filter-more-empty { margin: 0; font-size: 0.8125rem; }

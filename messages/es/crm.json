@@ -533,7 +533,10 @@
       "moved": "{deal} pasó a {stage}",
       "edge": "No hay otra etapa de ese lado",
       "skipToBoard": "Ir al board"
-    }
+    },
+    "filterStalledLabel": "Actividad",
+    "colWeighted": "Ponderado {amount}",
+    "cardOwner": "Propietario: {name}"
   },
   "tasks": {
     "title": "Tareas",
@@ -4996,40 +4999,15 @@
     "partialFilters": "Algunos filtros de esta vista no se aplican para vos."
   },
   "listBar": {
-    "label": "Filtros rápidos",
     "contactOwner": "Responsable del contacto",
     "companyOwner": "Responsable de la empresa",
-    "createDate": "Fecha de creación",
-    "lastActivity": "Fecha de última actividad",
     "lifecycleStage": "Etapa del ciclo de vida",
     "noOwner": "Sin responsable",
     "export": "Exportar",
     "openRecord": "Abrir registro",
     "noMoreFilters": "Todavía no hay más filtros para empresas. Usá los filtros avanzados.",
-    "search": "Buscar",
-    "noMatch": "No hay coincidencias",
-    "clear": "Limpiar",
-    "apply": "Aplicar",
-    "custom": "Rango a medida",
-    "from": "Desde",
-    "to": "Hasta",
-    "range": "{from} a {to}",
-    "since": "Desde {date}",
-    "until": "Hasta {date}",
     "perPage": "{count} por página",
-    "perPageLabel": "Filas por página",
-    "presets": {
-      "today": "Hoy",
-      "yesterday": "Ayer",
-      "last7": "Últimos 7 días",
-      "last30": "Últimos 30 días",
-      "last90": "Últimos 90 días",
-      "thisMonth": "Este mes",
-      "lastMonth": "El mes pasado",
-      "thisQuarter": "Este trimestre",
-      "thisYear": "Este año",
-      "none": "Sin actividad"
-    }
+    "perPageLabel": "Filas por página"
   },
   "bulkBar": {
     "label": "Acciones en masa",
@@ -5048,5 +5026,38 @@
     "empty": "Ninguna propiedad coincide",
     "hideEmpty": "Ocultar propiedades vacías",
     "showEmpty": "Mostrar propiedades vacías"
+  },
+  "preview": {
+    "kind": {
+      "contact": "Contacto",
+      "company": "Empresa",
+      "deal": "Deal"
+    },
+    "openRecord": "Abrir registro",
+    "allProps": "Ver todas las propiedades",
+    "customProps": "Propiedades propias",
+    "loadError": "No pudimos cargar este registro.",
+    "retry": "Probá de nuevo"
+  },
+  "dateFilter": {
+    "quickFilters": "Filtros rápidos",
+    "created": "Fecha de creación",
+    "close": "Fecha de cierre",
+    "activity": "Última actividad",
+    "from": "Desde",
+    "to": "Hasta",
+    "apply": "Aplicar",
+    "clear": "Limpiar",
+    "presets": {
+      "today": "Hoy",
+      "last7": "Últimos 7 días",
+      "last30": "Últimos 30 días",
+      "thisMonth": "Este mes",
+      "lastMonth": "Mes pasado",
+      "nextMonth": "Mes que viene",
+      "thisQuarter": "Este trimestre",
+      "next30": "Próximos 30 días",
+      "overdue": "Antes de hoy"
+    }
   }
 }

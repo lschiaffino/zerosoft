@@ -14,6 +14,7 @@ import { StatusDot } from './glyphs';
 import { isTeamPath, projectPath, teamPath } from '@/lib/track-routes';
 import { setTopbarLabel } from '@/components/app/AppTopbar';
 import { TRACK_ISSUES_CHANGED, TRACK_VIEWS_CHANGED } from './trackEvents';
+import { fetchAllTrackTeams } from './fetchAllTeams';
 
 export { TRACK_ISSUES_CHANGED, TRACK_VIEWS_CHANGED };
 
@@ -112,10 +113,9 @@ export default function TrackBranch() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/track/projects?pageSize=100')
-      .then((r) => (r.ok ? (r.json() as Promise<{ rows: ProjectItem[] }>) : null))
-      .then((d) => {
-        if (alive && d) setProjects(d.rows.filter((p) => p.status === 'active'));
+    fetchAllTrackTeams<ProjectItem>()
+      .then((rows) => {
+        if (alive && rows) setProjects(rows.filter((p) => p.status === 'active'));
       })
       .catch(() => null);
     fetch('/api/track/views/favorites')

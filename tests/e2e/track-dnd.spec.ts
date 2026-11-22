@@ -124,3 +124,21 @@ test('arrastrar a un project del sidebar lo suma al project (con Deshacer)', asy
   await page.getByRole('button', { name: 'Undo' }).last().click();
   await expect.poll(planOf, { timeout: 30_000 }).toBeNull();
 });
+
+test('la lista del sidebar no salta al llegar al final (el arrastre suelta donde está el puntero)', async ({ page, request }) => {
+  // Con poco alto la lista de teams del sidebar tiene scroll aunque haya pocos teams.
+  await page.setViewportSize({ width: 1280, height: 420 });
+  const a = await team(request, 'Drag J');
+  await ok<Issue>(request.post(`/api/track/projects/${a.id}/issues`, { data: { title: `Scroll ${uid()}` } }));
+  await openTeam(page, a.slug);
+  const line = page.locator('.side-line');
+  await expect(page.locator(`[data-track-drop="team:${a.id}"]`)).toBeAttached({ timeout: 30_000 });
+  await expect.poll(() => line.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  // Al llegar abajo se va la flecha de "hay más": antes eso achicaba la lista 20px y el scroll saltaba.
+  const top = await line.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+    return el.scrollTop;
+  });
+  await expect(line).not.toHaveAttribute('data-more-below');
+  expect(await line.evaluate((el) => el.scrollTop)).toBe(top);
+});

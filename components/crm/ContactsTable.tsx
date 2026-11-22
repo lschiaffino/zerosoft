@@ -426,7 +426,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
       )}
 
       {previewId && (
-        <RecordPreview type="contact" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+        <RecordPreview type="contact" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
       )}
     </>
   );

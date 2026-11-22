@@ -52,6 +52,8 @@ export interface LinesFilters {
   pinned?: Tri;
   /** En Favoritos (la lista de WhatsApp). */
   favorite?: Tri;
+  /** La persona del chat 1:1 es VIP (división VIP). */
+  vip?: Tri;
   muted?: Tri;
   /** Tiene un ticket abierto o en curso. */
   ticket?: Tri;
@@ -68,7 +70,7 @@ export interface LinesFilters {
   hsProps?: HubspotPropFilter[];
 }
 
-const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'favorite', 'muted', 'ticket', 'agent', 'crm'] as const;
+const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'favorite', 'vip', 'muted', 'ticket', 'agent', 'crm'] as const;
 type TriKey = (typeof TRI_KEYS)[number];
 const MAX_IDS = 50;
 const PROP_KEY = /^[a-z0-9_]{1,40}$/;
@@ -213,7 +215,7 @@ export function countFilters(f: LinesFilters): number {
 // ---------- Pestañas: atajos de un campo ----------
 
 // Como WhatsApp: Todos, No leídos, Favoritos, Grupos; después lo del equipo.
-export const LINES_TABS = ['all', 'unread', 'favorites', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'] as const;
+export const LINES_TABS = ['all', 'unread', 'favorites', 'vip', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'] as const;
 export type LinesTab = (typeof LINES_TABS)[number];
 
 type TabKey = Exclude<LinesTab, 'all'>;
@@ -223,6 +225,7 @@ const only = (list: string[] | undefined, v: string) => list?.length === 1 && li
 const TAB_RULES: Record<TabKey, { on: (f: LinesFilters) => boolean; set: (f: LinesFilters) => void; clear: (f: LinesFilters) => void }> = {
   unread: { on: (f) => f.unread === 'yes', set: (f) => void (f.unread = 'yes'), clear: (f) => void delete f.unread },
   favorites: { on: (f) => f.favorite === 'yes', set: (f) => void (f.favorite = 'yes'), clear: (f) => void delete f.favorite },
+  vip: { on: (f) => f.vip === 'yes', set: (f) => void (f.vip = 'yes'), clear: (f) => void delete f.vip },
   groups: { on: (f) => only(f.kinds, 'group'), set: (f) => void (f.kinds = ['group']), clear: (f) => void delete f.kinds },
   unanswered: { on: (f) => f.waiting === 'yes', set: (f) => void (f.waiting = 'yes'), clear: (f) => void delete f.waiting },
   mine: { on: (f) => only(f.assignees, ME), set: (f) => void (f.assignees = [ME]), clear: (f) => void delete f.assignees },
@@ -353,6 +356,9 @@ function anyOf(column: string, picked: string[], out: { where: string[]; args: A
   if (parts.length) out.where.push(parts.length > 1 ? `(${parts.join(' OR ')})` : parts[0]);
 }
 
+/** La persona del chat 1:1 es VIP del workspace (groups_vips, por teléfono: vale en todas las líneas). */
+const VIP_SQL = "(c.kind = 'dm' AND c.phone <> '' AND EXISTS (SELECT 1 FROM groups_vips v WHERE v.user_id = c.user_id AND v.phone = c.phone))";
+
 function triSql(v: Tri | undefined, yes: string, no: string, out: { where: string[] }): void {
   if (v === 'yes') out.where.push(yes);
   else if (v === 'no') out.where.push(no);
@@ -401,6 +407,7 @@ export function linesFiltersSql(raw: LinesFilters, ctx: LinesSqlContext): { wher
   triSql(f.flagged, 'c.flagged_at IS NOT NULL', 'c.flagged_at IS NULL', out);
   triSql(f.pinned, 'c.pinned_at IS NOT NULL', 'c.pinned_at IS NULL', out);
   triSql(f.favorite, 'c.favorite_at IS NOT NULL', 'c.favorite_at IS NULL', out);
+  triSql(f.vip, VIP_SQL, `NOT ${VIP_SQL}`, out);
   if (f.muted) {
     out.where.push(f.muted === 'yes' ? '(c.muted_until IS NOT NULL AND c.muted_until > ?)' : '(c.muted_until IS NULL OR c.muted_until <= ?)');
     out.args.push(now.toISOString());

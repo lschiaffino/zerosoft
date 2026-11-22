@@ -34,7 +34,7 @@ export default function ProjectBar({ projects, currentId }: { projects: Array<{ 
           ))}
         </select>
       </label>
-      <Link href="/app/pulse/settings" className="an-link an-projectbar-setup">
+      <Link href="/app/pulse/settings" className="an-link an-projectbar-setup" data-tour="pulse-setup">
         {t('setup')}
       </Link>
     </div>

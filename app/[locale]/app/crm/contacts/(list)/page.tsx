@@ -4,8 +4,6 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listsForViewer } from '@/lib/crm-list-access';
-import { resolveDateFilter } from '@/lib/crm-date-presets';
-import { utcBounds } from '@/lib/crm-date-bounds';
 import { PAGE_SIZES, parsePageSize } from '@/lib/crm-page-size';
 import PageSizeSelect from '@/components/crm/PageSizeSelect';
 import { workspaceTeamId } from '@/lib/workspace';
@@ -107,8 +105,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const owner = state.owner ?? '';
   const createdFrom = state.createdFrom ?? '';
   const createdTo = state.createdTo ?? '';
-  const created = state.created ?? '';
-  const activity = state.activity ?? '';
   const activityFrom = state.activityFrom ?? '';
   const activityTo = state.activityTo ?? '';
   const tag = state.tag ?? '';
@@ -118,11 +114,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const page = Number(one(searchParams.page) ?? '1') || 1;
   const pageSize = parsePageSize(one(searchParams.per));
   const timeZone = await getUserTimeZone();
-  const now = new Date();
-  const createdRange = resolveDateFilter(created, createdFrom, createdTo, { now, timeZone });
-  const activityRange = resolveDateFilter(activity, activityFrom, activityTo, { now, timeZone, allowNone: true });
-  const createdUtc = utcBounds(createdRange, timeZone);
-  const activityUtc = utcBounds(activityRange, timeZone);
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -175,11 +166,11 @@ export default async function ContactsPage(props: ContactsPageProps) {
     leadStatus: leadStatus || undefined,
     source: source || undefined,
     owner: owner || undefined,
-    createdAfter: createdUtc.after,
-    createdBefore: createdUtc.before,
-    activityAfter: activityUtc.after,
-    activityBefore: activityUtc.before,
-    activityNone: activityRange.none,
+    // Días en la zona horaria de la persona (filterEnv.timeZone; lib/crm.ts appendDayRange).
+    createdFrom: createdFrom || undefined,
+    createdTo: createdTo || undefined,
+    activityFrom: activityFrom || undefined,
+    activityTo: activityTo || undefined,
     tag: tag || undefined,
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
@@ -266,10 +257,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (source) query.source = source;
   if (owner) query.owner = owner;
   if (tag) query.tag = tag;
-  if (created) query.created = created;
   if (createdFrom) query.createdFrom = createdFrom;
   if (createdTo) query.createdTo = createdTo;
-  if (activity) query.activity = activity;
   if (activityFrom) query.activityFrom = activityFrom;
   if (activityTo) query.activityTo = activityTo;
   Object.entries(custom).forEach(([k, v]) => {
@@ -293,10 +282,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     !!source ||
     !!owner ||
     !!tag ||
-    !!created ||
     !!createdFrom ||
     !!createdTo ||
-    !!activity ||
     !!activityFrom ||
     !!activityTo ||
     Object.keys(custom).length > 0;
@@ -338,8 +325,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
         tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
-        created={created}
-        activity={activity}
         activityFrom={activityFrom}
         activityTo={activityTo}
         custom={custom}

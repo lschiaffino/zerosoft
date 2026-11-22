@@ -43,7 +43,8 @@ async function seedContacts(request: APIRequestContext, tag: string) {
 
 const rows = (page: Page) => page.locator('.crm-table tbody tr');
 const row = (page: Page, name: string) => rows(page).filter({ hasText: name });
-const quick = (page: Page, id: string): Locator => page.getByTestId(`qf-${id}`);
+/** Filtro rápido de la fila (la misma barra que deals): `contacts-owner-filter`, `companies-created-filter`… */
+const quick = (page: Page, entity: 'contacts' | 'companies', id: string): Locator => page.getByTestId(`${entity}-${id}-filter`);
 
 test.describe('contacts index', () => {
   test('views tabs, quick filters with Esc / outside close, and clear', async ({ page, request }) => {
@@ -58,56 +59,48 @@ test.describe('contacts index', () => {
     await expect(tabs.locator('a, button').filter({ hasText: /^My contacts$/ }).first()).toBeVisible();
     await expect(tabs.locator('a, button').filter({ hasText: /^Unassigned contacts$/ }).first()).toBeVisible();
 
-    // La fila de filtros rápidos está a la vista.
+    // La fila de filtros rápidos está a la vista, como en deals.
     const bar = page.getByTestId('quick-filters');
-    for (const id of ['owner', 'created', 'activity', 'leadStatus', 'lifecycle']) await expect(quick(page, id)).toBeVisible();
+    for (const id of ['owner', 'created', 'activity', 'lead-status', 'lifecycle']) await expect(quick(page, 'contacts', id)).toBeVisible();
     await expect(bar.getByRole('button', { name: 'Advanced filters' })).toBeVisible();
 
-    // Menú: Esc cierra y devuelve el foco al botón.
-    const status = quick(page, 'leadStatus');
-    await status.getByRole('button').click();
-    await expect(status.getByRole('dialog')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(status.getByRole('dialog')).toHaveCount(0);
-    await expect(status.getByRole('button')).toBeFocused();
-    // Clic afuera cierra.
-    await status.getByRole('button').click();
-    await expect(status.getByRole('dialog')).toBeVisible();
-    await page.locator('h1').first().click();
-    await expect(status.getByRole('dialog')).toHaveCount(0);
-
-    // Elegir filtra en el server, cierra el menú y el botón muestra el valor.
-    await status.getByRole('button').click();
-    await status.getByRole('option', { name: 'Open', exact: true }).click();
+    // Estado del lead: filtra en el server.
+    await quick(page, 'contacts', 'lead-status').selectOption('open');
     await expect(page).toHaveURL(/leadStatus=open/);
     await expect(rows(page)).toHaveCount(1);
     await expect(row(page, s.nameB)).toBeVisible();
-    await expect(status.getByRole('dialog')).toHaveCount(0);
-    await expect(status.locator('.qf-btn')).toHaveClass(/\bon\b/);
 
-    // Fecha de creación "Hoy" sigue mostrando lo creado recién; "El mes pasado" no.
-    const created = quick(page, 'created');
-    await created.getByRole('button').click();
-    await created.getByRole('option', { name: 'Today' }).click();
-    await expect(page).toHaveURL(/created=today/);
+    // Fecha de creación: el menú cierra con Esc (foco al botón) y con un clic afuera.
+    const created = quick(page, 'contacts', 'created');
+    const menu = page.getByTestId('contacts-created-filter-menu');
+    await created.click();
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(created).toBeFocused();
+    await created.click();
+    await expect(menu).toBeVisible();
+    await page.locator('h1').first().click();
+    await expect(menu).toHaveCount(0);
+
+    // "Hoy" sigue mostrando lo creado recién (el día se lee en la zona de la persona); "El mes pasado" no.
+    await created.click();
+    await menu.getByRole('button', { name: 'Today' }).click();
+    await expect(page).toHaveURL(/createdFrom=/);
     await expect(rows(page)).toHaveCount(1);
-    await created.getByRole('button').click();
-    await created.getByRole('option', { name: 'Last month' }).click();
-    await expect(page).toHaveURL(/created=lastMonth/);
+    await expect(created).toHaveClass(/\bon\b/);
+    await created.click();
+    await menu.getByRole('button', { name: 'Last month' }).click();
     await expect(rows(page)).toHaveCount(0);
     await expect(page.locator('.ui-empty').first()).toBeVisible();
 
-    // "Sin actividad" en la última actividad, y Limpiar deja todo.
+    // Limpiar deja todo.
     await page.getByTestId('quick-clear').click();
-    await expect(page).not.toHaveURL(/created=|leadStatus=/);
-    await page.goto(`/en/app/crm/contacts?q=${tag}&activity=none`, { waitUntil: 'networkidle' });
+    await expect(page).not.toHaveURL(/createdFrom=|leadStatus=/);
     await expect(rows(page)).toHaveCount(2);
-    await expect(quick(page, 'activity').locator('.qf-value')).toHaveText('No activity');
 
     // Responsable: "Sin responsable" va a la URL.
-    await page.goto(`/en/app/crm/contacts?q=${tag}`, { waitUntil: 'networkidle' });
-    await quick(page, 'owner').getByRole('button').click();
-    await quick(page, 'owner').getByRole('option', { name: 'No owner' }).click();
+    await quick(page, 'contacts', 'owner').selectOption('unassigned');
     await expect(page).toHaveURL(/owner=unassigned/);
     await expect(rows(page)).toHaveCount(0);
   });
@@ -206,10 +199,11 @@ test.describe('contacts index', () => {
     for (const path of [`/en/app/crm/contacts?q=${tag}`, `/en/app/crm/companies?q=${tag}`]) {
       await page.goto(path, { waitUntil: 'networkidle' });
       await noSideScroll(page);
-      const btn = quick(page, 'owner').getByRole('button');
-      expect((await btn.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+      const entity = path.includes('companies') ? 'companies' : 'contacts';
+      expect((await quick(page, entity, 'owner').boundingBox())!.height).toBeGreaterThanOrEqual(40);
+      const btn = quick(page, entity, 'created');
       await btn.click();
-      const pop = quick(page, 'owner').getByRole('dialog');
+      const pop = page.getByTestId(`${entity}-created-filter-menu`);
       await expect(pop).toBeVisible();
       const box = (await pop.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
@@ -242,10 +236,9 @@ test.describe('companies index', () => {
     await page.goto(`/en/app/crm/companies?q=${tag}`, { waitUntil: 'networkidle' });
     await expect(rows(page)).toHaveCount(2);
     await expect(row(page, `Pear Co ${tag}`).locator('.co-logo')).toBeVisible();
-    for (const id of ['owner', 'created', 'activity', 'lifecycle', 'industry']) await expect(quick(page, id)).toBeVisible();
+    for (const id of ['owner', 'created', 'activity', 'lifecycle', 'industry']) await expect(quick(page, 'companies', id)).toBeVisible();
 
-    await quick(page, 'lifecycle').getByRole('button').click();
-    await quick(page, 'lifecycle').getByRole('option', { name: 'Customer' }).click();
+    await quick(page, 'companies', 'lifecycle').selectOption('customer');
     await expect(page).toHaveURL(/lifecycle=customer/);
     await expect(rows(page)).toHaveCount(1);
 

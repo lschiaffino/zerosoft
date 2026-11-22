@@ -17,6 +17,7 @@ import {
   type TriageSettings,
 } from '@/lib/track-triage-shared';
 import { call } from './api';
+import { fetchAllTrackTeams } from '../fetchAllTeams';
 
 type Settings = TriageSettings & { currentOwnerId: string | null; nextHandoffAt: string | null };
 interface Label {
@@ -582,13 +583,13 @@ function RulesSettings({
       call<{ rows: TriageRule[] }>(`/api/track/projects/${projectId}/triage-rules`),
       call<{ rows: Label[] }>('/api/track/labels'),
       call<{ rows: Cycle[] }>(`/api/track/projects/${projectId}/cycles`),
-      call<{ rows: Array<TeamOption & { status?: string }> }>('/api/track/projects?pageSize=100'),
+      fetchAllTrackTeams<TeamOption & { status?: string }>(),
     ]);
     if (r.ok) setRules(r.data.rows);
     else setLoadError(true);
     if (l.ok) setLabels(l.data.rows);
     if (c.ok) setCycles(c.data.rows);
-    if (tm.ok) setTeams(tm.data.rows.filter((x) => x.id !== projectId && x.status !== 'archived').map((x) => ({ id: x.id, name: x.name })));
+    if (tm) setTeams(tm.filter((x) => x.id !== projectId && x.status !== 'archived').map((x) => ({ id: x.id, name: x.name })));
   }, [projectId]);
 
   useEffect(() => {

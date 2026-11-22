@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
-import QuickFilters, { type QuickFilterDef } from './QuickFilters';
+import DateRangeFilter from './DateRangeFilter';
 import { OWNER_UNASSIGNED } from '@/lib/crm-filter-model';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 import type { ExtraSort } from '@/lib/crm-list-sort';
@@ -25,9 +25,7 @@ interface CompanyFiltersProps {
   tags?: Array<{ id: string; name: string }>;
   createdFrom: string;
   createdTo: string;
-  /** Rangos de los filtros rápidos (lib/crm-date-presets.ts): clave y, a medida, desde/hasta. */
-  created?: string;
-  activity?: string;
+  /** Fecha de última actividad (filtro rápido), días YYYY-MM-DD. */
   activityFrom?: string;
   activityTo?: string;
   custom: Record<string, string>;
@@ -61,8 +59,6 @@ export default function CompanyFilters({
   tags = [],
   createdFrom,
   createdTo,
-  created = '',
-  activity = '',
   activityFrom = '',
   activityTo = '',
   custom,
@@ -77,6 +73,7 @@ export default function CompanyFilters({
   keep = {},
 }: CompanyFiltersProps) {
   const t = useTranslations('crm');
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [search, setSearch] = useState(q);
@@ -89,10 +86,8 @@ export default function CompanyFilters({
       lifecycle: lifecycle || undefined,
       owner: owner || undefined,
       tag: tag || undefined,
-      created: created || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
-      activity: activity || undefined,
       activityFrom: activityFrom || undefined,
       activityTo: activityTo || undefined,
       filters: advanced || undefined,
@@ -124,10 +119,8 @@ export default function CompanyFilters({
     lifecycle,
     owner,
     tag,
-    created,
     createdFrom,
     createdTo,
-    activity,
     activityFrom,
     activityTo,
     ...Object.values(custom),
@@ -135,64 +128,18 @@ export default function CompanyFilters({
   const moreActive = [tag, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
-  const quick: QuickFilterDef[] = [
-    {
-      kind: 'select',
-      id: 'owner',
-      param: 'owner',
-      label: t('listBar.companyOwner'),
-      value: owner,
-      options: [{ value: OWNER_UNASSIGNED, label: t('listBar.noOwner') }, ...owners],
-    },
-    {
-      kind: 'date',
-      id: 'created',
-      param: 'created',
-      fromParam: 'createdFrom',
-      toParam: 'createdTo',
-      label: t('listBar.createDate'),
-      preset: created,
-      from: createdFrom,
-      to: createdTo,
-    },
-    {
-      kind: 'date',
-      id: 'activity',
-      param: 'activity',
-      fromParam: 'activityFrom',
-      toParam: 'activityTo',
-      label: t('listBar.lastActivity'),
-      preset: activity,
-      from: activityFrom,
-      to: activityTo,
-      allowNone: true,
-    },
-    { kind: 'select', id: 'lifecycle', param: 'lifecycle', label: t('listBar.lifecycleStage'), value: lifecycle, options: lifecycles },
-    {
-      kind: 'select',
-      id: 'industry',
-      param: 'industry',
-      label: t('companies.filterIndustry'),
-      value: industry,
-      options: industries.map((v) => ({ value: v, label: v })),
-    },
-  ];
-
   return (
-    <div className="filter-bar hs-filters">
-      <div className="filter-toolbar hs-toolbar">
+    // La misma barra que deals (styles/crm.css .deals-filter-bar): las tres listas se ven igual.
+    <div className="filter-bar deals-filter-bar">
+      <div className="filter-toolbar">
         <form
-          className="filter-search hs-search"
+          className="filter-search"
           role="search"
           onSubmit={(e) => {
             e.preventDefault();
             go({ q: search.trim() || undefined });
           }}
         >
-          <svg className="hs-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" />
-          </svg>
           <input
             className="input"
             type="search"
@@ -229,9 +176,68 @@ export default function CompanyFilters({
         </div>
       </div>
 
-      <div className="hs-quick" role="group" aria-label={t('listBar.label')} data-testid="quick-filters">
-        <QuickFilters filters={quick} onChange={go} />
-        <span className="hs-quick-sep" aria-hidden="true" />
+      <div className="filter-quick" role="group" aria-label={t('dateFilter.quickFilters')} data-testid="quick-filters">
+        <select
+          className={`filter-select${owner ? ' on' : ''}`}
+          value={owner}
+          onChange={(e) => go({ owner: e.target.value || undefined })}
+          aria-label={t('listBar.companyOwner')}
+          data-testid="companies-owner-filter"
+        >
+          <option value="">{t('listBar.companyOwner')}</option>
+          <option value={OWNER_UNASSIGNED}>{t('listBar.noOwner')}</option>
+          {owners.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <DateRangeFilter
+          label={t('dateFilter.created')}
+          kind="past"
+          from={createdFrom}
+          to={createdTo}
+          locale={locale}
+          testId="companies-created-filter"
+          onChange={(f, tt) => go({ createdFrom: f || undefined, createdTo: tt || undefined })}
+        />
+        <DateRangeFilter
+          label={t('dateFilter.activity')}
+          kind="past"
+          from={activityFrom}
+          to={activityTo}
+          locale={locale}
+          testId="companies-activity-filter"
+          onChange={(f, tt) => go({ activityFrom: f || undefined, activityTo: tt || undefined })}
+        />
+        <select
+          className={`filter-select${lifecycle ? ' on' : ''}`}
+          value={lifecycle}
+          onChange={(e) => go({ lifecycle: e.target.value || undefined })}
+          aria-label={t('listBar.lifecycleStage')}
+          data-testid="companies-lifecycle-filter"
+        >
+          <option value="">{t('listBar.lifecycleStage')}</option>
+          {lifecycles.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className={`filter-select${industry ? ' on' : ''}`}
+          value={industry}
+          onChange={(e) => go({ industry: e.target.value || undefined })}
+          aria-label={t('companies.filterIndustry')}
+          data-testid="companies-industry-filter"
+        >
+          <option value="">{t('companies.filterIndustry')}</option>
+          {industries.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
@@ -255,10 +261,8 @@ export default function CompanyFilters({
                 lifecycle: undefined,
                 owner: undefined,
                 tag: undefined,
-                created: undefined,
                 createdFrom: undefined,
                 createdTo: undefined,
-                activity: undefined,
                 activityFrom: undefined,
                 activityTo: undefined,
                 ...Object.fromEntries(Object.keys(custom).map((k) => [`custom_${k}`, undefined])),
