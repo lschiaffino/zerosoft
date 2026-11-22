@@ -42,6 +42,8 @@ final class RecBar {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.hidesOnDeactivate = false
+        // Hide zerosoft (Cmd+H) must not take a recording's mark off the screen (2.5.14).
+        panel.canHide = false
         panel.isExcludedFromWindowsMenu = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.isMovable = false
@@ -101,6 +103,7 @@ final class RecBar {
 
     /// The microphone level (0 to 1) from the recording page.
     func setLevel(_ level: Double) {
+        guard level.isFinite else { return }
         view.level = CGFloat(min(max(level, 0), 1))
     }
 

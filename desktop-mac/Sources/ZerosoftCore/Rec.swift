@@ -56,6 +56,9 @@ public struct RecView: Equatable, Sendable {
     public var cameraLabel: String
     /// The person can hide the bubble during a recording; it stays hidden for that recording.
     public var bubbleVisible: Bool
+    /// The bubble could not open the camera in this recording: the page draws the face itself,
+    /// and later states that still name the camera do not bring the bubble back.
+    public var cameraFailed = false
 
     public init(phase: RecPhase, elapsedMs: Double, at: Double, mic: RecMic, camera: Bool, cameraLabel: String = "", bubbleVisible: Bool = true) {
         self.phase = phase
@@ -91,6 +94,10 @@ public struct RecSessions: Equatable, Sendable {
     public private(set) var order: [Int] = []
     /// The bubble's size for this run of the app (rec_overlay.rs `PLACES.large`).
     public private(set) var bubbleLarge = false
+    /// Tabs whose recording was refused (not the tab in use when it started): no bar, bubble or
+    /// shortcuts for them, but their tab and the menu bar item still mark the recording
+    /// (guideline 2.5.14). A later state from that tab while it is in use starts it for real.
+    public private(set) var refused: Set<Int> = []
 
     public init() {}
 
@@ -118,20 +125,28 @@ public struct RecSessions: Equatable, Sendable {
     public mutating func page(tab: Int, active: Bool, phase: RecPhase?, elapsedMs: Double?, mic: String?, camera: String?,
                               nowMs: Double, startAllowed: Bool) -> Outcome {
         guard active else {
-            guard views.removeValue(forKey: tab) != nil else { return .ignored }
+            let wasRefused = refused.remove(tab) != nil
+            guard views.removeValue(forKey: tab) != nil else { return wasRefused ? .ended : .ignored }
             order.removeAll { $0 == tab }
             return .ended
         }
         guard let phase else { return .refused }
         let old = views[tab]
-        if old == nil, !startAllowed { return .refused }
+        if old == nil, !startAllowed {
+            refused.insert(tab)
+            return .refused
+        }
+        refused.remove(tab)
         let label = camera.map(Self.cleanLabel)
+        let failed = old?.cameraFailed ?? false
         // The bubble stays hidden if the person hid it in this recording.
-        let visible = old.map { $0.camera ? $0.bubbleVisible : true } ?? true
-        views[tab] = RecView(
+        let visible = old?.bubbleVisible ?? true
+        var view = RecView(
             phase: phase, elapsedMs: Self.cleanElapsed(elapsedMs), at: nowMs, mic: RecMic.parse(mic),
-            camera: label != nil, cameraLabel: label ?? "", bubbleVisible: visible
+            camera: label != nil && !failed, cameraLabel: label ?? "", bubbleVisible: visible
         )
+        view.cameraFailed = failed
+        views[tab] = view
         if old == nil {
             order.append(tab)
             return .started
@@ -142,7 +157,8 @@ public struct RecSessions: Equatable, Sendable {
     /// The tab closed, was suspended or loaded another document: its recording is over.
     @discardableResult
     public mutating func end(tab: Int) -> Bool {
-        guard views.removeValue(forKey: tab) != nil else { return false }
+        let wasRefused = refused.remove(tab) != nil
+        guard views.removeValue(forKey: tab) != nil else { return wasRefused }
         order.removeAll { $0 == tab }
         return true
     }
@@ -157,12 +173,17 @@ public struct RecSessions: Equatable, Sendable {
         bubbleLarge.toggle()
     }
 
-    /// The bubble could not open the camera: no bubble for this recording.
-    public mutating func cameraFailed() {
-        guard let owner, var v = views[owner] else { return }
+    /// The bubble could not open the camera (or another recording took it): no bubble for the
+    /// rest of that tab's recording.
+    public mutating func cameraFailed(tab: Int? = nil) {
+        guard let id = tab ?? owner, var v = views[id] else { return }
         v.camera = false
-        views[owner] = v
+        v.cameraFailed = true
+        views[id] = v
     }
+
+    /// Every tab that records with Rec, the refused ones included: they all get the red dot.
+    public var marked: Set<Int> { tabs.union(refused) }
 
     /// The level reaches the bar only from the recording tab.
     public func levelAccepted(from tab: Int) -> Bool { owner == tab }

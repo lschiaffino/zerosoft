@@ -208,6 +208,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tabs.configureTab = { [weak meetings, weak rec] id, web in
             meetings?.wire(web, tab: id)
             rec?.wire(web, tab: id)
+            web.mediaInUse = { [weak tabs] in
+                guard let tabs else { return false }
+                return tabs.tabInUse(id) || tabs.keepAlive(id)
+            }
             // A new document or an ended web process: its Rec recording is over too.
             let gone = web.onDocumentGone
             web.onDocumentGone = { [weak rec] in
@@ -228,8 +232,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             frontChange()
             rec?.frontChanged()
         }
-        meetings.recTabs = { [weak rec] in rec?.sessions.tabs ?? [] }
-        meetings.recBar = { [weak rec] in rec?.active == true }
+        meetings.recTabs = { [weak rec] in rec?.sessions.marked ?? [] }
+        // The bar marks the computer's audio only when its own recording captures it.
+        meetings.recBar = { [weak rec, weak systemAudio] in
+            guard let owner = systemAudio?.owner else { return false }
+            return rec?.hasBar(owner) == true
+        }
+        rec.onCameraAsked = { [weak model] in model?.refreshDictationAccess() }
         rec.onChange = { [weak meetings] in meetings?.recChanged() }
         meetings.indicator.saved = { [weak model] in model?.settings.indicatorPosition }
         meetings.onMoved = { [weak model] p in model?.update { $0.indicatorPosition = p } }
@@ -424,7 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dictation: dictation?.machine.phase == .recording,
             meeting: meetings?.recording != nil,
             systemAudio: meetings?.systemAudio.running ?? false,
-            rec: rec?.active ?? false
+            rec: rec?.marking ?? false
         )
         statusItem.setCapture(now)
         model?.captureChanged(now)

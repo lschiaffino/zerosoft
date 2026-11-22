@@ -36,6 +36,8 @@ final class RecController {
     var onChange: () -> Void = {}
     /// UI tests: what each message and action did.
     var onOutcome: ((String) -> Void)?
+    /// macOS answered the camera prompt of a first use (Settings shows the new state).
+    var onCameraAsked: () -> Void = {}
 
     init(lang: Lang, tabs: TabsController, camera: CameraPreview, cameraPermission: CameraPermission) {
         self.tabs = tabs
@@ -45,6 +47,12 @@ final class RecController {
         bubble = RecBubble(lang: lang)
         bar.onAction = { [weak self] action in self?.barAction(action) }
         bubble.onAction = { [weak self] action in self?.bubbleAction(action) }
+        // A camera that stops while it shows (unplugged, taken by another app): the page draws
+        // the face again.
+        camera.onFailure = { [weak self] in
+            guard let self, self.sessions.current?.cameraOpen == true else { return }
+            self.cameraFailed("runtime")
+        }
         keys.onKey = { [weak self] key, pressed in
             guard pressed, let self else { return }
             switch key {
@@ -95,19 +103,33 @@ final class RecController {
         }
     }
 
+    /// A recording shows the bar.
     var active: Bool { !sessions.isEmpty }
-    func records(_ id: Int) -> Bool { sessions.tabs.contains(id) }
+    /// Some tab records with Rec, also one whose start was refused (it is marked, without a bar).
+    var marking: Bool { !sessions.marked.isEmpty }
+    func records(_ id: Int) -> Bool { sessions.marked.contains(id) }
+    /// The tab has the bar (its recording was started from the tab in use).
+    func hasBar(_ id: Int) -> Bool { sessions.tabs.contains(id) }
 
     private func page(_ id: Int, active: Bool, phase: RecPhase?, elapsedMs: Double?, mic: String?, camera: String?) {
         observeInUse()
         let allowed = gate.allows(tab: id, inUse: tabs.tabInUseNow, nowMs: now)
+        let before = sessions.owner.flatMap { o in sessions.views[o].map { (o, $0) } }
         let result = sessions.page(tab: id, active: active, phase: phase, elapsedMs: elapsedMs, mic: mic, camera: camera,
                                    nowMs: now, startAllowed: allowed)
         Self.log.info("rec overlay \(result.rawValue, privacy: .public)")
         outcome("overlay \(result.rawValue)")
+        // A second recording takes the bubble: the first page draws its face again.
+        if result == .started, let (prev, view) = before, prev != id, view.cameraOpen {
+            tabs.sendRecControl(.bubbleFailed, to: prev)
+            sessions.cameraFailed(tab: prev)
+            self.camera.stop()
+        }
         switch result {
         case .started, .updated, .ended: render()
-        case .refused, .ignored: break
+        // Refused: no bar, but the tab and the menu bar item mark the recording.
+        case .refused: onChange()
+        case .ignored: break
         }
     }
 
@@ -170,6 +192,7 @@ final class RecController {
             Task { @MainActor in
                 let answer = await self.cameraPermission.request()
                 self.askingCamera = false
+                self.onCameraAsked()
                 guard self.sessions.current?.cameraOpen == true else { return }
                 if answer == .allowed {
                     self.render()
@@ -265,6 +288,7 @@ final class RecController {
     /// Finish (bar, shortcut, menu bar item): the page stops, uploads and shows the recording, so
     /// its tab comes to the front.
     func finish(from source: String = "menu") {
+        guard sessions.current?.live == true else { return }
         send(.stop, from: source)
         open()
     }
@@ -283,6 +307,6 @@ final class RecController {
     /// "rec=on phase=recording ... bar=shown bubble=shown sharing=none keys=Alt+Shift+P", for the
     /// UI tests.
     var summary: String {
-        "\(sessions.summary) bar=\(bar.isVisible ? "shown" : "hidden") bubble=\(bubble.isVisible ? "shown" : "hidden") sharing=\(bar.sharing) keys=\(shortcutLabels.map { $0.toggle.isEmpty ? "none" : "on" } ?? "off")"
+        "\(sessions.summary) marked=\(sessions.marked.count) bar=\(bar.isVisible ? "shown" : "hidden") bubble=\(bubble.isVisible ? "shown" : "hidden") sharing=\(bar.sharing) keys=\(shortcutLabels.map { $0.toggle.isEmpty ? "none" : "on" } ?? "off")"
     }
 }

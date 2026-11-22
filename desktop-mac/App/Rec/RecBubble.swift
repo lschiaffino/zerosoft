@@ -35,6 +35,8 @@ final class RecBubble {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.hidesOnDeactivate = false
+        // Hide zerosoft (Cmd+H) must not take a recording's mark off the screen (2.5.14).
+        panel.canHide = false
         panel.isExcludedFromWindowsMenu = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.isMovable = false

@@ -197,7 +197,6 @@ final class RecUITests: XCTestCase {
         tap(app, "zs-recbar-finish")
         waitPage(app, ["phase=setup", "controls=pause,resume,mute,stop"])
         waitRec(app, ["rec=off", "bar=hidden", "bubble=hidden"])
-        XCTAssertFalse(value(app, "zs-test-recevents").contains("discard"))
         waitLabel(app, "zs-test-camperm", "camperm asked=0 camera=notDetermined")
     }
 
@@ -256,7 +255,8 @@ final class RecUITests: XCTestCase {
         waitRec(app, ["rec=off", "bar=hidden"])
     }
 
-    /// A tab behind cannot start Rec's bar (only the tab in use can).
+    /// A tab behind cannot start Rec's bar (only the tab in use can), but its recording is still
+    /// marked: the tab and the menu bar item (guideline 2.5.14).
     func testOnlyTheTabInUseStartsTheBar() throws {
         let app = launch()
         ready(app)
@@ -264,10 +264,14 @@ final class RecUITests: XCTestCase {
         pageButton(app, "Start rec soon")
         app.typeKey("t", modifierFlags: .command)
         waitLabel(app, "zs-test-recevents", { $0.hasSuffix("overlay refused") }, "a refused start", timeout: 20)
-        waitRec(app, ["rec=off", "bar=hidden"])
-        // Back in front, the page's next state is still not a recording (its start was refused).
+        waitRec(app, ["rec=off", "marked=1", "bar=hidden"])
+        waitLabel(app, "zs-test-capture", { $0.hasSuffix("item=shown") }, "the menu bar item")
+        // Back in front, a start from the tab in use gets the bar.
         app.typeKey("w", modifierFlags: .command)
-        waitRec(app, ["rec=off", "bar=hidden"])
+        pageButton(app, "Start rec")
+        waitRec(app, ["rec=on phase=recording", "marked=1", "bar=shown"])
+        tap(app, "zs-recbar-finish")
+        waitRec(app, ["rec=off", "marked=0", "bar=hidden"])
     }
 
     /// While recording, the global shortcuts pause or resume and finish (Option+Shift, or

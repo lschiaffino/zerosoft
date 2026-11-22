@@ -784,23 +784,29 @@ from the table above or from the Tauri app:
   tab in use. Rec reports its first state after the screen picker closes, and macOS's picker can
   take the app out of the front, so the tab that was in use when the app lost the front may
   still start within 2 minutes, as long as no other tab came to the front since
-  (`RecStartGate`). After that only that tab updates or ends its recording, and only its level
+  (`RecStartGate`). A refused start gets no bar, bubble or shortcuts, but its tab and the menu bar
+  item still mark the recording (2.5.14), and a later state from that tab while it is in use
+  starts it for real. After that only that tab updates or ends its recording, and only its level
   reaches the bar. A tab that closes, is suspended or loads another document ends its recording,
   and a tab that records is never suspended. Two tabs recording at once both get the red dot;
-  the bar follows the last one that started (the Tauri app kept only the last).
+  the bar follows the last one that started (the Tauri app kept only the last); a second
+  recording takes the bubble, and the first page hears `bubble-failed` and draws its face again.
 - **Bar.** A non-activating `NSPanel` in AppKit (not SwiftUI: first-click buttons, drag and the
   confirmation row are simpler), `sharingType = .none`, `.floating` on every Space. Clock, state,
   microphone with its level (click mutes), camera show or hide, pause or resume, restart and
   discard (each asks in the bar), Finish (finishes and brings the recording's tab to the
-  front); a click on the bar opens that tab, a drag moves it. Whether ScreenCaptureKit on macOS 15
+  front); a click on the bar opens that tab, a drag moves it. Hide zerosoft (Cmd+H) does not hide
+  the bar, the bubble or the meeting indicator (`canHide = false`). Whether ScreenCaptureKit on macOS 15
   and later still honours `sharingType = .none` for what `getDisplayMedia` records is
   **(unconfirmed)**: it needs a run on a real Mac.
 - **Bubble.** A round, mirrored `NSPanel` (168 or 280 points, as Tauri), shared with screen
   captures; hover shows Bigger or Smaller and Hide; drag moves it. It opens the camera whose name
   the page sent, else the default one, only while it shows: hiding it releases the camera.
   macOS asks for the camera on that first use when nothing asked before (the page's own camera
-  usually asked already); a refusal or no camera sends `bubble-failed`, as the Tauri bubble did,
-  and the page draws the face in the video again. Where the bar and the bubble were left is
+  usually asked already); a refusal, no camera or a camera that stops (a session error or
+  interruption) sends `bubble-failed`, as the Tauri bubble did, and the page draws the face in
+  the video again; the bubble stays off for the rest of that recording. Every change to the
+  capture session runs on its own serial queue. Where the bar and the bubble were left is
   remembered while the app runs, not on disk, as in the Tauri app.
 - **Shortcuts.** Option+Shift+P and Option+Shift+S while a recording counts down, records or is
   paused (`RegisterEventHotKey`, a second `HotKeys` instance that passes other presses on).
@@ -809,16 +815,17 @@ from the table above or from the Tauri app:
   which. The UI test reports which pair the runner took.
 - **Camera for the page.** The camera entitlement (`com.apple.security.device.camera`) and
   `NSCameraUsageDescription` are the only additions; `scripts/check-signature.sh` checks both. The
-  web views now answer WebKit's media-capture question as tabs.rs `on_permission_request` did:
-  camera and microphone granted to the server's main frame, denied to every frame and every other
-  origin. macOS still asks the person the first time. `getDisplayMedia` is not part of that
+  web views now answer WebKit's media-capture question close to tabs.rs `on_permission_request`:
+  camera and microphone granted to the server's main frame of the tab in use or of a tab that
+  records; a server tab behind gets WebKit's own prompt (Tauri granted any server tab); every
+  frame and every other origin is denied. macOS still asks the person the first time. `getDisplayMedia` is not part of that
   question: WebKit asks the person itself each time.
 - **Marks and menus (guideline 2.5.14).** While Rec records, the bar shows (it cannot be hidden),
   the tab has the red dot, and the menu bar item shows its red dot even when Settings › General
   hides it, with "Rec is recording", Open the Rec recording and Finish the Rec recording (Finish
   also stops the computer's audio right away). `RecordingIndicatorRules.shouldShow` gets the real
-  bar state: the meeting indicator does not show for the computer's audio of a Rec recording,
-  which the bar already marks. Settings › Meetings' Stop also finishes Rec.
+  bar state: the meeting indicator does not show for the computer's audio when the tab that
+  captures it has the bar, which already marks it. Settings › Meetings' Stop also finishes Rec.
 - **Permissions.** Settings › Permissions gained Camera (state and "Turn on the camera", the only
   other place macOS asks) and shows Screen recording on every macOS, since Rec's page records the
   screen; it explains that and still asks only from its button.

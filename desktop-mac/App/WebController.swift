@@ -52,6 +52,9 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Rec (block 8): the bridge's `recOverlay` and `recLevel`.
     var onRecOverlay: ((Bool, RecPhase?, Double?, String?, String?) -> Void)?
     var onRecLevel: ((Double) -> Void)?
+    /// The page may use the camera and microphone without WebKit asking: this tab is the one in
+    /// use, or it records (set by the app delegate).
+    var mediaInUse: () -> Bool = { false }
     /// The web view with the native overlay on top: what a window shows for this tab.
     private(set) var content: TabContentView!
 
@@ -140,6 +143,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         onDocumentGone = nil
         onRecOverlay = nil
         onRecLevel = nil
+        mediaInUse = { false }
         content.removeFromSuperview()
     }
 
@@ -402,10 +406,11 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     /// Camera and microphone for the page (Talk, Rec, Voice meetings), as tabs.rs
-    /// `on_permission_request`: granted to the server's main frame only, denied to every frame
-    /// and every other origin. macOS still asks the person the first time the app uses either
-    /// (TCC); a page cannot open them without that answer. Screen sharing (getDisplayMedia)
-    /// does not come here: WebKit asks the person itself each time.
+    /// `on_permission_request`: granted to the server's main frame of the tab in use (or of a
+    /// tab that records), so the page opens them from the person's click without a second
+    /// prompt. A server tab behind gets WebKit's own prompt; every frame and every other origin
+    /// is denied. macOS still asks the person the first time the app uses either (TCC). Screen
+    /// sharing (getDisplayMedia) does not come here: WebKit asks the person itself each time.
     func webView(
         _ webView: WKWebView,
         requestMediaCapturePermissionFor origin: WKSecurityOrigin,
@@ -414,7 +419,11 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
     ) {
         let from = BridgeFrame(isMainFrame: frame.isMainFrame, scheme: origin.protocol, host: origin.host, port: origin.port)
-        decisionHandler(Bridge.originAllowed(from, server: server) ? .grant : .deny)
+        guard Bridge.originAllowed(from, server: server) else {
+            decisionHandler(.deny)
+            return
+        }
+        decisionHandler(mediaInUse() ? .grant : .prompt)
     }
 
     func webView(

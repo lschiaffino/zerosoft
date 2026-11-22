@@ -48,8 +48,10 @@ private func webControls() throws -> [String] {
 @Test func aRecordingStartsOnlyFromTheTabAllowedAndEndsOnlyFromItsTab() {
     var s = RecSessions()
     #expect(s.page(tab: 1, active: true, phase: .countdown, elapsedMs: 0, mic: "on", camera: nil, nowMs: 1000, startAllowed: false) == .refused)
-    #expect(s.isEmpty && s.current == nil)
+    // Refused: no bar, but the tab stays marked until it ends or starts for real.
+    #expect(s.isEmpty && s.current == nil && s.marked == [1])
     #expect(s.page(tab: 1, active: true, phase: .countdown, elapsedMs: 0, mic: "on", camera: nil, nowMs: 1000, startAllowed: true) == .started)
+    #expect(s.refused.isEmpty && s.marked == [1])
     #expect(s.owner == 1 && s.current?.phase == .countdown && s.current?.shortcuts == true)
     // Updates from its own tab need no front: the page is often behind while it records.
     #expect(s.page(tab: 1, active: true, phase: .recording, elapsedMs: 0, mic: "on", camera: nil, nowMs: 4000, startAllowed: false) == .updated)
@@ -57,7 +59,9 @@ private func webControls() throws -> [String] {
     // Another tab cannot end it, or start one without being in use.
     #expect(s.page(tab: 2, active: false, phase: nil, elapsedMs: nil, mic: nil, camera: nil, nowMs: 5000, startAllowed: true) == .ignored)
     #expect(s.page(tab: 2, active: true, phase: .recording, elapsedMs: 0, mic: nil, camera: nil, nowMs: 5000, startAllowed: false) == .refused)
-    #expect(s.tabs == [1])
+    #expect(s.tabs == [1] && s.marked == [1, 2])
+    #expect(s.page(tab: 2, active: false, phase: nil, elapsedMs: nil, mic: nil, camera: nil, nowMs: 5000, startAllowed: false) == .ended)
+    #expect(s.marked == [1])
     // Paused: the clock stops.
     #expect(s.page(tab: 1, active: true, phase: .paused, elapsedMs: 9000, mic: "muted", camera: nil, nowMs: 10_000, startAllowed: false) == .updated)
     #expect(s.current?.elapsed(nowMs: 60_000) == 9000 && s.current?.mic == .muted && s.current?.live == true)
@@ -100,11 +104,24 @@ private func webControls() throws -> [String] {
     #expect(s.current?.camera == false && s.current?.cameraOpen == false)
     s.setBubbleVisible(true)
     #expect(s.current?.cameraOpen == false)
+    // Later states that still name the camera do not bring the bubble back.
+    _ = s.page(tab: 1, active: true, phase: .paused, elapsedMs: 10, mic: "on", camera: "FaceTime HD Camera", nowMs: 4, startAllowed: false)
+    #expect(s.current?.camera == false && s.current?.cameraFailed == true)
     // A new recording starts with the bubble shown.
     _ = s.page(tab: 1, active: false, phase: nil, elapsedMs: nil, mic: nil, camera: nil, nowMs: 2, startAllowed: false)
     _ = s.page(tab: 1, active: true, phase: .countdown, elapsedMs: 0, mic: "none", camera: "", nowMs: 3, startAllowed: true)
     #expect(s.current?.cameraOpen == true && s.current?.cameraLabel == "" && s.current?.mic == RecMic.none)
     #expect(s.summary == "rec=on phase=countdown mic=none camera=true bubble=true large=true tabs=1")
+}
+
+@Test func aSecondRecordingTakesTheBubbleFromTheFirst() {
+    var s = RecSessions()
+    _ = s.page(tab: 1, active: true, phase: .recording, elapsedMs: 0, mic: "on", camera: "Cam", nowMs: 0, startAllowed: true)
+    _ = s.page(tab: 2, active: true, phase: .recording, elapsedMs: 0, mic: "on", camera: nil, nowMs: 1, startAllowed: true)
+    s.cameraFailed(tab: 1)
+    #expect(s.views[1]?.camera == false && s.views[1]?.cameraFailed == true && s.owner == 2)
+    let ended = s.end(tab: 2)
+    #expect(ended && s.current?.cameraOpen == false)
 }
 
 // MARK: Which tab may start

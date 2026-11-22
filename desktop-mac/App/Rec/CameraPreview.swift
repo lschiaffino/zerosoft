@@ -51,23 +51,58 @@ protocol CameraPreview: AnyObject {
     func start(label: String) -> Bool
     /// Releases the camera (its light goes off).
     func stop()
+    /// The camera stopped by itself while running (an error, another app took it).
+    var onFailure: () -> Void { get set }
 }
 
 /// AVCaptureSession is not Sendable; it is only touched on its own queue after configuration.
+/// The preview layer is configured on the session queue with its connection (AVFoundation
+/// allows that); nothing else touches it there.
+private final class PreviewBox: @unchecked Sendable {
+    let layer: AVCaptureVideoPreviewLayer
+    init(_ layer: AVCaptureVideoPreviewLayer) { self.layer = layer }
+}
+
+/// The new input, handed to the session queue once.
+private final class InputBox: @unchecked Sendable {
+    let input: AVCaptureDeviceInput
+    init(_ input: AVCaptureDeviceInput) { self.input = input }
+}
+
+/// A weak reference the session queue can carry back to the main thread.
+private final class WeakPreview: @unchecked Sendable {
+    weak var value: SystemCameraPreview?
+    init(_ value: SystemCameraPreview) { self.value = value }
+}
+
 private final class SessionBox: @unchecked Sendable {
     let session = AVCaptureSession()
     let queue = DispatchQueue(label: "ai.zerosoft.mac.camera")
 }
 
+/// Every change to the session (inputs, start, stop) runs on its own serial queue, so a quick
+/// hide and show never touches it from two threads or leaves it without its input.
 @MainActor
 final class SystemCameraPreview: CameraPreview {
     private let box = SessionBox()
     private let preview: AVCaptureVideoPreviewLayer
     private(set) var isRunning = false
+    var onFailure: () -> Void = {}
+    private var observers: [NSObjectProtocol] = []
 
     init() {
         preview = AVCaptureVideoPreviewLayer(session: box.session)
         preview.videoGravity = .resizeAspectFill
+        let center = NotificationCenter.default
+        for name in [Notification.Name.AVCaptureSessionRuntimeError, .AVCaptureSessionWasInterrupted] {
+            observers.append(center.addObserver(forName: name, object: box.session, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.isRunning else { return }
+                    self.stop()
+                    self.onFailure()
+                }
+            })
+        }
     }
 
     var layer: CALayer { preview }
@@ -75,7 +110,7 @@ final class SystemCameraPreview: CameraPreview {
     private static func cameras() -> [AVCaptureDevice] {
         let types: [AVCaptureDevice.DeviceType]
         if #available(macOS 14.0, *) {
-            types = [.builtInWideAngleCamera, .external, .continuityCamera]
+            types = [.builtInWideAngleCamera, .external]
         } else {
             types = [.builtInWideAngleCamera, .externalUnknown]
         }
@@ -88,26 +123,40 @@ final class SystemCameraPreview: CameraPreview {
         let named = label.isEmpty ? nil : devices.first { $0.localizedName == label }
         guard let device = named ?? AVCaptureDevice.default(for: .video) ?? devices.first,
               let input = try? AVCaptureDeviceInput(device: device) else { return false }
-        let session = box.session
-        session.beginConfiguration()
-        for old in session.inputs { session.removeInput(old) }
-        guard session.canAddInput(input) else {
-            session.commitConfiguration()
-            return false
-        }
-        session.addInput(input)
-        if session.canSetSessionPreset(.vga640x480) { session.sessionPreset = .vga640x480 }
-        session.commitConfiguration()
-        // A mirror, as people expect to see themselves (rec bubble of the Tauri app).
-        if let connection = preview.connection, connection.isVideoMirroringSupported {
-            connection.automaticallyAdjustsVideoMirroring = false
-            connection.isVideoMirrored = true
-        }
         isRunning = true
         let box = self.box
-        // startRunning blocks until the camera is on: never on the main thread.
-        box.queue.async { box.session.startRunning() }
+        let preview = PreviewBox(preview)
+        let me = WeakPreview(self)
+        let given = InputBox(input)
+        // Configuration and startRunning (which blocks until the camera is on) on the session's
+        // queue, after any stop queued before.
+        box.queue.async {
+            let session = box.session
+            session.beginConfiguration()
+            let input = given.input
+            for old in session.inputs { session.removeInput(old) }
+            guard session.canAddInput(input) else {
+                session.commitConfiguration()
+                DispatchQueue.main.async { MainActor.assumeIsolated { me.value?.failedToStart() } }
+                return
+            }
+            session.addInput(input)
+            if session.canSetSessionPreset(.vga640x480) { session.sessionPreset = .vga640x480 }
+            session.commitConfiguration()
+            // A mirror, as people expect to see themselves (rec bubble of the Tauri app).
+            if let connection = preview.layer.connection, connection.isVideoMirroringSupported {
+                connection.automaticallyAdjustsVideoMirroring = false
+                connection.isVideoMirrored = true
+            }
+            session.startRunning()
+        }
         return true
+    }
+
+    private func failedToStart() {
+        guard isRunning else { return }
+        isRunning = false
+        onFailure()
     }
 
     func stop() {
@@ -158,6 +207,7 @@ final class FakeCameraPreview: CameraPreview {
     private(set) var isRunning = false
     private(set) var opens = 0
     var onChange: (() -> Void)?
+    var onFailure: () -> Void = {}
 
     init(works: Bool) {
         self.works = works
