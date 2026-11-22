@@ -5,11 +5,13 @@ import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { bulkDeleteContacts, bulkUpdateContacts, LIFECYCLE_STAGES } from '@/lib/crm';
 import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
 import { bulkSetProperty } from '@/lib/crm-bulk';
-import { bulkCreateTasks, bulkTargetFields, bulkTargetIds, bulkTaskFields } from '@/lib/crm-bulk-target';
+import { BULK_TASKS_CAP, bulkCreateTasks, bulkTargetFields, bulkTargetIds, bulkTaskFields } from '@/lib/crm-bulk-target';
 import { getUserTimeZone } from '@/lib/user-tz';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Una acción sobre todos los que coinciden (hasta 1.000) puede tardar.
+export const maxDuration = 60;
 
 const bulkSchema = z.object({
   action: z.enum(['set_lifecycle', 'set_property', 'delete', 'create_tasks', 'count']),
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
   if (action === 'count') return NextResponse.json({ count: ids.length, total: target.total ?? ids.length });
   if (action === 'create_tasks') {
     if (!parsed.data.task) return crmError(400, 'invalid_input');
+    if (ids.length > BULK_TASKS_CAP) return crmError(400, 'too_many_tasks');
     return NextResponse.json(await bulkCreateTasks(user, 'contacts', ids, parsed.data.task, await getUserTimeZone()));
   }
   if (action === 'set_property') {

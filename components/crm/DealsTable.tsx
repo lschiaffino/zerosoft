@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
 import TableScroll from './TableScroll';
-import SelectAllMatching, { type MatchingSelection } from './SelectAllMatching';
+import SelectAllMatching, { useListQuery, type MatchingSelection } from './SelectAllMatching';
 import RecordNameCell from './RecordNameCell';
 import BulkActionsBar from './BulkActionsBar';
 import { customSortValue } from '@/lib/crm-list-sort';
@@ -133,6 +133,11 @@ export default function DealsTable({ viewCols, viewFreeze,
     const shown = new Set(rowIds.split(','));
     setSelected((prev) => (prev.size && [...prev].some((id) => !shown.has(id)) ? new Set([...prev].filter((id) => shown.has(id))) : prev));
   }, [rowIds]);
+
+  // Otro filtro u orden con las mismas filas en la página: "todos los que coinciden" tampoco sigue.
+  const listQuery = useListQuery();
+  useEffect(() => setMatching(null), [listQuery]);
+  const liveMatching = matching && matching.query === listQuery ? matching : null;
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
   function toggleAll() {
@@ -315,7 +320,7 @@ export default function DealsTable({ viewCols, viewFreeze,
           entity="deals"
           pageCount={rows.length}
           total={total}
-          matching={matching}
+          matching={liveMatching}
           onMatching={setMatching}
           onClear={() => {
             setMatching(null);
@@ -369,7 +374,7 @@ export default function DealsTable({ viewCols, viewFreeze,
         <BulkActionsBar
           entity="deal"
           ids={[...selected]}
-          matching={matching ? { query: matching.query, count: matching.count } : undefined}
+          matching={liveMatching ? { query: liveMatching.query, count: liveMatching.count } : undefined}
           owners={owners}
           bulkFields={bulkFields}
           allTags={allTags}

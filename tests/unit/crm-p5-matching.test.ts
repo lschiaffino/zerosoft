@@ -142,6 +142,10 @@ describe('bulk create tasks', () => {
     session.user = asOwner(w.owner);
     expect((await bulk({ action: 'create_tasks', ids: [a.id], task: { subject: '  ' } })).status).toBe(400);
     expect((await bulk({ action: 'create_tasks', ids: [a.id] })).status).toBe(400);
+    // Tope por acción: más de 200 registros no crea ninguna.
+    const many = [a.id, ...Array.from({ length: 200 }, (_, i) => `fake-${i}`)];
+    const capped = await bulk({ action: 'create_tasks', ids: many.slice(0, 500), task: { subject: 'Too many' } });
+    expect(capped.status).toBe(400);
   });
 
   it('deals: the matching query keeps the pipeline and a member only reaches their deals', async () => {

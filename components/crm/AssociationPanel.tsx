@@ -237,7 +237,9 @@ function AssocPicker({
   const pop = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const excludeKey = exclude.join(',');
+  // A lo sumo 200 en la URL (el registro propio va primero); los demás se sacan acá.
+  const excludeKey = exclude.slice(-200).join(',');
+  const excludeSet = new Set(exclude);
 
   function close(reason?: string) {
     setOpen(false);
@@ -293,7 +295,7 @@ function AssocPicker({
     .filter((o) => !needle || o.value.toLowerCase().includes(needle))
     .slice(0, 20)
     .map((o) => ({ id: o.id, name: o.value, meta: undefined as string | undefined }));
-  const items = searchType && needle ? (results ?? []) : local;
+  const items = searchType && needle ? (results ?? []).filter((r) => !excludeSet.has(r.id)) : local;
 
   function pick(id: string) {
     close();
@@ -307,6 +309,8 @@ function AssocPicker({
       setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      // Mientras busca, los resultados son de la búsqueda anterior.
+      if (loading) return;
       const it = items[active];
       if (it) pick(it.id);
     }

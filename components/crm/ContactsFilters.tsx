@@ -160,7 +160,10 @@ export default function ContactsFilters({
   ].filter(Boolean).length;
 
   // Los filtros rápidos de la vista, en su orden; "Más filtros" tiene lo que no está en la fila.
-  const shown = quickFiltersFor('contacts', qf);
+  const chosen = quickFiltersFor('contacts', qf);
+  // Un filtro con valor sigue a la vista aunque la vista no lo muestre (si no, quedaría aplicado sin control).
+  const activeById: Record<string, unknown> = { owner, created: createdFrom || createdTo, activity: activityFrom || activityTo || noActivity, leadStatus, lifecycle };
+  const shown = [...chosen, ...Object.keys(activeById).filter((id) => activeById[id] && !chosen.includes(id))];
   const inRow = (id: string) => shown.includes(id);
   const moreActive = [inRow('source') ? '' : source, inRow('tag') ? '' : tag, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
@@ -349,7 +352,7 @@ export default function ContactsFilters({
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
         {children}
-        <QuickFilterPicker entity="contacts" shown={shown} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
         {activeFilters > 0 && (
           <button
             type="button"

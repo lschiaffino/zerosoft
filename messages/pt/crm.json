@@ -1516,7 +1516,8 @@
     "duplicate_label": "Já existe um rótulo com esse nome.",
     "too_many_labels": "Você atingiu o limite de rótulos para esta associação.",
     "invalid_queue": "Essa fila não existe ou você não pode vê-la.",
-    "too_many": "Este workspace atingiu o limite."
+    "too_many": "Este workspace atingiu o limite.",
+    "too_many_tasks": "Dá para criar tarefas para até 200 registros por vez. Restrinja a visualização e tente de novo."
   },
   "filters": {
     "advanced": "Filtros avançados",

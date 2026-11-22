@@ -163,7 +163,10 @@ export default function DealsFilters({
     ...Object.values(custom),
   ].filter(Boolean).length;
   // Los filtros rápidos de la vista, en su orden (en el board no hay etapa: las columnas son las etapas).
-  const shown = quickFiltersFor('deals', qf).filter((id) => layout === 'table' || id !== 'stage');
+  const chosen = quickFiltersFor('deals', qf).filter((id) => layout === 'table' || id !== 'stage');
+  // Un filtro con valor sigue a la vista aunque la vista no lo muestre (si no, quedaría aplicado sin control).
+  const activeById: Record<string, unknown> = { owner, created: createdFrom || createdTo, close: closeFrom || closeTo, activity: activityFrom || activityTo || noActivity, stage: layout === 'table' ? stageId : '' };
+  const shown = [...chosen, ...Object.keys(activeById).filter((id) => activeById[id] && !chosen.includes(id))];
   const inRow = (id: string) => shown.includes(id);
   // Lo que vive en "Más filtros" (lo que no está en la fila).
   const moreActive = [
@@ -384,7 +387,7 @@ export default function DealsFilters({
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
         {children}
-        <QuickFilterPicker entity="deals" shown={shown} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        <QuickFilterPicker entity="deals" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
         {activeFilters > 0 && (
           <button
             type="button"

@@ -495,11 +495,12 @@ describe('W1: privacidad', () => {
       triggers: [{ type: 'contact_created' }],
       actions: [{ type: 'webhook', config: { url: 'https://hooks.example.test/in', headers: { 'zerosoft-signature': 'forged', 'x-token': 't' } } }],
     });
-    await createContact(w.owner.id, { email: 'hook@w1.test', custom: { salary: '777', tier: 'gold' } });
+    await createContact(w.owner.id, { email: 'hook@w1.test', custom: { salary: 'salary-hidden-777', tier: 'gold' } });
     expect(fetches.calls).toHaveLength(1);
     const { init } = fetches.calls[0];
     const body = String(init.body);
-    expect(body).not.toContain('777');
+    // Un valor que no aparece por casualidad en un id o una fecha del cuerpo.
+    expect(body).not.toContain('salary-hidden-777');
     expect(JSON.parse(body).contact.custom).toEqual({ tier: 'gold' });
     const headers = init.headers as Record<string, string>;
     expect(headers['x-token']).toBe('t');

@@ -22,6 +22,9 @@ export const bulkTargetFields = {
   matching: z.object({ query: z.string().max(20_000) }).optional(),
 };
 
+/** Tope de "Crear tareas" en una acción (cada tarea dispara sus eventos y workflows). */
+export const BULK_TASKS_CAP = 200;
+
 /** Datos de "Crear tareas" en masa. */
 export const bulkTaskFields = {
   task: z

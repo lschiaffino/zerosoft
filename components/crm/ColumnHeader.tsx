@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -72,11 +72,13 @@ function ColumnMenu({ id, label, asc, desc, sort, reset }: { id: string; label: 
 
   // Fijo en la pantalla (la tabla se desplaza de costado y recortaría un menú adentro).
   useLayoutEffect(() => {
-    if (!open || !btn.current) return;
+    if (!open || !btn.current) {
+      setPos(null);
+      return;
+    }
     const r = btn.current.getBoundingClientRect();
     const w = menu.current?.offsetWidth ?? 220;
     setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.right - w, window.innerWidth - 8 - w)) });
-    menu.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus({ preventScroll: true });
     const close = () => setOpen(false);
     window.addEventListener('resize', close);
     window.addEventListener('scroll', close, true);
@@ -85,6 +87,11 @@ function ColumnMenu({ id, label, asc, desc, sort, reset }: { id: string; label: 
       window.removeEventListener('scroll', close, true);
     };
   }, [open]);
+
+  // Ya ubicado (antes está oculto y no toma foco): el foco va al primer ítem.
+  useEffect(() => {
+    if (open && pos) menu.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus({ preventScroll: true });
+  }, [open, pos]);
 
   if (!api) return null;
   const idx = api.order.indexOf(id);

@@ -1516,7 +1516,8 @@
     "duplicate_label": "Ya hay un label con ese nombre.",
     "too_many_labels": "Llegaste al límite de labels para esta asociación.",
     "invalid_queue": "Esa cola no existe o no la podés ver.",
-    "too_many": "Este workspace llegó al límite."
+    "too_many": "Este workspace llegó al límite.",
+    "too_many_tasks": "Se pueden crear tareas para hasta 200 registros a la vez. Achicá la vista y probá de nuevo."
   },
   "filters": {
     "advanced": "Filtros avanzados",

@@ -1516,7 +1516,8 @@
     "duplicate_label": "There is already a label with that name.",
     "too_many_labels": "You reached the limit of labels for this association.",
     "invalid_queue": "That queue does not exist or you cannot see it.",
-    "too_many": "This workspace reached the limit."
+    "too_many": "This workspace reached the limit.",
+    "too_many_tasks": "Create tasks for up to 200 records at a time. Narrow the view and try again."
   },
   "filters": {
     "advanced": "Advanced filters",

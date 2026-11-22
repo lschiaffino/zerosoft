@@ -141,7 +141,10 @@ export default function CompanyFilters({
     ...Object.values(custom),
   ].filter(Boolean).length;
   // Los filtros rápidos de la vista, en su orden; "Más filtros" tiene lo que no está en la fila.
-  const shown = quickFiltersFor('companies', qf);
+  const chosen = quickFiltersFor('companies', qf);
+  // Un filtro con valor sigue a la vista aunque la vista no lo muestre (si no, quedaría aplicado sin control).
+  const activeById: Record<string, unknown> = { owner, created: createdFrom || createdTo, activity: activityFrom || activityTo || noActivity, lifecycle, industry };
+  const shown = [...chosen, ...Object.keys(activeById).filter((id) => activeById[id] && !chosen.includes(id))];
   const inRow = (id: string) => shown.includes(id);
   const moreActive = [inRow('tag') ? '' : tag, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
@@ -309,7 +312,7 @@ export default function CompanyFilters({
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
         {children}
-        <QuickFilterPicker entity="companies" shown={shown} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        <QuickFilterPicker entity="companies" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
         {activeFilters > 0 && (
           <button
             type="button"
