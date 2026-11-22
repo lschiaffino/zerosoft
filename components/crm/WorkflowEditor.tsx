@@ -322,7 +322,7 @@ export default function WorkflowEditor({
       )}
       {actions.map((a, i) => {
         // Si/si no, o una espera por evento (W2: Sí si pasó, No si se venció el tope): la más cercana arriba decide.
-        const splitter = [...actions.slice(0, i)].reverse().find((p) => p.type === 'branch' || (p.type === 'delay' && delayMode(p.config ?? {}) === 'event'));
+        const splitter = [...actions.slice(0, i)].reverse().find((p) => p.type === 'branch' || (p.type === 'delay' && delayMode(p.config ?? {}) === 'event' && !safeString(p.config?.when)));
         const afterBranch = a.type !== 'branch' && !!splitter;
         const afterWait = splitter?.type === 'delay';
         return (

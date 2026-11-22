@@ -399,6 +399,47 @@ describe('W2: privacidad', () => {
     expect(ownerCard.map((e) => e.workflow_name).sort()).toEqual(['Deal waits for contact form', 'Deal waits for win']);
   });
 
+  it('esperar hasta un campo propio: la hora de reanudar es solo para owner y admins', async () => {
+    const w = await workspaceWithMember('w2-resume');
+    await createCustomField(w.owner.id, { entity: 'contacts', name: 'renewal', label: 'Renewal', type: 'date' });
+    const wf = await createWorkflow(w.owner.id, {
+      name: 'Renewal',
+      triggers: [{ type: 'contact_created' }],
+      actions: [{ type: 'delay', config: { mode: 'date', field: 'custom.renewal', time: '09:00', tz: 'UTC' } }, task('Renew')],
+    });
+    const c = await createContact(w.owner.id, { email: 'res@w2.test', custom: { renewal: '2027-06-01' } });
+    const member = asMember(w.owner, w.member);
+    const [mv] = await listWorkflowRunViews(w.owner.id, wf.id, await sessionScope(member), 20, { log: false });
+    expect(mv.status).toBe('waiting');
+    expect(mv.resume_at).toBeNull();
+    const [card] = await listRecordEnrollments(w.owner.id, 'contact', c.id, 20, sessionFieldViewer(member));
+    expect(card.resume_at).toBeNull();
+    const [av] = await listWorkflowRunViews(w.owner.id, wf.id, undefined, 20, { log: true });
+    expect(av.resume_at).toBe('2027-06-01 09:00:00');
+    const [ac] = await listRecordEnrollments(w.owner.id, 'contact', c.id, 20, sessionFieldViewer(asOwner(w.owner)));
+    expect(ac.resume_at).toBe('2027-06-01 09:00:00');
+  });
+
+  it('el flag solo sube: si al retomar los criterios miran otro registro, queda marcado', async () => {
+    const w = await workspaceWithMember('w2-flagup');
+    await setMemberVisibility(w.owner.id, 'mine');
+    const cityRosario = { entity: 'contact' as const, field: 'city', op: 'equals' as const, value: 'Rosario' };
+    const wf = await createWorkflow(w.owner.id, {
+      name: 'Up',
+      settings: { filters: [cityRosario] },
+      triggers: [{ type: 'contact_created' }],
+      actions: [{ type: 'delay', config: { amount: 1, unit: 'days' } }, task('t')],
+    });
+    await createContact(w.owner.id, { email: 'up@w2.test', ownerId: w.member.id, city: 'Rosario' });
+    expect((await runs(w.owner.id, wf.id))[0].reaches_other).toBe(0);
+    await updateWorkflow(w.owner.id, wf.id, { settings: { filters: [{ entity: 'company', field: 'domain', op: 'is_set' }] } });
+    await expireAll(w.owner.id);
+    await resumeWaitingWorkflowRuns();
+    expect((await runs(w.owner.id, wf.id))[0].reaches_other).toBe(1);
+    await updateWorkflow(w.owner.id, wf.id, { settings: { filters: [cityRosario] } });
+    expect(await listWorkflowRunViews(w.owner.id, wf.id, await sessionScope(asMember(w.owner, w.member)))).toEqual([]);
+  });
+
   it('esperar hasta un campo oculto: el miembro no ve el workflow ni la inscripción (ni la fecha)', async () => {
     const w = await workspaceWithMember('w2-hidden');
     const field = await createCustomField(w.owner.id, { entity: 'contacts', name: 'contract_end', label: 'Contract end', type: 'date' });
