@@ -1191,7 +1191,6 @@ export default function InboxApp(props: {
         ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
       { key: 'pin', label: th.pinned ? t('rowMenu.unpin') : t('rowMenu.pin'), onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
-      { key: 'favorite', label: th.favorite ? t('rowMenu.unfavorite') : t('rowMenu.favorite'), onSelect: () => void runAction([id], { action: th.favorite ? 'unfavorite' : 'favorite' }) },
       th.mutedUntil
         ? { key: 'unmute', label: t('rowMenu.unmute'), onSelect: () => mute(null) }
         : {
@@ -1202,6 +1201,8 @@ export default function InboxApp(props: {
               { key: 'muteWeek', label: t('more.muteWeek'), onSelect: () => mute(hours(168)) },
             ],
           },
+      // Como WhatsApp: Favoritos al lado de las listas (acá, las carpetas).
+      { key: 'favorite', label: th.favorite ? t('rowMenu.unfavorite') : t('rowMenu.favorite'), onSelect: () => void runAction([id], { action: th.favorite ? 'unfavorite' : 'favorite' }) },
       { key: 'move', label: t('rowMenu.move'), onSelect: () => setMoveIds([id]) },
     ];
     if (th.channel === 'whatsapp') {
