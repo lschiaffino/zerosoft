@@ -963,6 +963,7 @@
     "edit_window": "WhatsApp solo deja editar un mensaje durante 15 minutos.",
     "delete_window": "WhatsApp solo deja borrar para todos en los primeros dos días.",
     "not_pinnable": "Ese mensaje no se puede fijar.",
+    "not_reportable": "Solo se pueden reportar mensajes recibidos.",
     "too_many_pins": "Hasta 3 mensajes fijados por chat. Desfijá uno antes.",
     "not_forwardable": "Ese mensaje no se puede reenviar.",
     "cannot_forward_media": "Este archivo vino de WhatsApp y no se puede copiar a otro número. Reenvialo desde el mismo número WAHA.",
@@ -1427,6 +1428,7 @@
       "ticket_created": "Ticket creado",
       "ticket_updated": "Ticket actualizado",
       "ticket_deleted": "Ticket borrado",
+      "reported": "Reportados",
       "hubspot_company": "Empresa de HubSpot"
     },
     "actions": {
@@ -1450,6 +1452,9 @@
       "labelsRemoved": "sacó etiquetas: {removed}",
       "assignedSelf": "se asignó el chat",
       "hubspot_company": "reemplazó la empresa de HubSpot {previous} por {company}, la que este grupo tiene en sus otras líneas",
+      "reported": "reportó un mensaje",
+      "reportedBlocked": "reportó un mensaje y bloqueó al contacto",
+      "reportedLeft": "reportó un mensaje y salió del grupo",
       "imported": "importó de Periskope: {kind}, {applied} filas"
     },
     "memberActions": {
@@ -1728,6 +1733,18 @@
   "wa": {
     "clearSearch": "Borrar búsqueda",
     "leftGroupBar": "No podés enviar mensajes a este grupo porque ya no sos miembro.",
+    "report": {
+      "action": "Reportar",
+      "title": "¿Reportar este mensaje?",
+      "body": "Queda marcado como reportado en este chat. Tu servidor de WhatsApp no puede mandarle reportes a WhatsApp: para que WhatsApp lo revise, reportalo también desde el teléfono.",
+      "block": "Bloquear también a {name}",
+      "leave": "Salir también del grupo",
+      "done": "Mensaje reportado",
+      "doneBlocked": "Mensaje reportado y {name} bloqueado",
+      "doneLeft": "Mensaje reportado y saliste del grupo",
+      "partial": "Mensaje reportado. {error}",
+      "reported": "Reportado"
+    },
     "chatSearch": {
       "open": "Buscar mensajes",
       "shortcut": "Ctrl+Mayús+F",

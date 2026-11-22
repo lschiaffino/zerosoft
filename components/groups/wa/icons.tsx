@@ -123,6 +123,12 @@ export const PinIcon = (p: P) => (
     <path d="M9 4h6l-1 6 4 4H6l4-4zM12 14v7" />
   </Svg>
 );
+/** Reportado: una banderita, como la de WhatsApp. */
+export const FlagIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+  </Svg>
+);
 export const MuteIcon = (p: P) => (
   <Svg {...p}>
     <path d="M11 5 6.5 9H3.5v6h3l4.5 4z" />
