@@ -7,13 +7,14 @@
 # The UI tests run twice (section 3.5): with WebKit's Lockdown Mode restrictions off and forced on
 # (`-ZSLockdown`, WKWebpagePreferences.isLockdownModeEnabled). The `on` run proves the restrictions
 # were active and that the app still shows the page or the native error view.
+#
+# On a pull request this runs from ci.yml (`workflow_call`), only when the PR touches the files in
+# the `mac` list of scripts/e2e-areas.json, and "CI result" waits for it. On main it runs on its own
+# when a push touches the app.
 name: desktop-mac
 
 on:
-  pull_request:
-    paths:
-      - 'desktop-mac/**'
-      - '.github/workflows/desktop-mac.yml'
+  workflow_call:
   push:
     branches: [main]
     paths:

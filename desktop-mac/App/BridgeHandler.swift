@@ -5,8 +5,8 @@ import WebKit
 /// The `zerosoft` script message handler (docs/desktop-swift.md, section 4.3). Every message goes
 /// through `Bridge.validate` (origin, allowlist, typed arguments, size) before anything native
 /// runs; refusals reject the page's promise with a closed reason and are logged with that reason
-/// only. Block 2 answers `info` and takes `ready`; the other commands answer `unavailable` until
-/// their blocks add the native side.
+/// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`. The
+/// other commands answer `unavailable` until their blocks add the native side.
 @MainActor
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "bridge")
@@ -18,6 +18,9 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     var onReady: ((ReadyReport) -> Void)?
     /// Every refusal, by reason (UI tests read the counts).
     var onReject: ((BridgeRejection) -> Void)?
+    /// `startLogin` and `notify` from the server's main frame.
+    var onStartLogin: (() -> Void)?
+    var onNotify: ((String, String?) -> Void)?
 
     init(server: String, info: BridgeInfo) {
         self.server = server
@@ -76,6 +79,12 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         case let .ready(report):
             Self.log.info("ready \(report.summary, privacy: .public)")
             onReady?(report)
+            reply(nil, nil)
+        case .startLogin:
+            onStartLogin?()
+            reply(nil, nil)
+        case let .notify(title, body):
+            onNotify?(title, body)
             reply(nil, nil)
         default:
             // Valid, but this build has no native side for it yet.

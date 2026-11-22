@@ -44,7 +44,7 @@ public enum BridgeCommand: String, CaseIterable, Sendable {
 
     /// Commands with a native side in this build. The others are valid messages that answer
     /// `unavailable` until their block lands.
-    public static let implemented: Set<BridgeCommand> = [.info, .ready]
+    public static let implemented: Set<BridgeCommand> = [.info, .ready, .startLogin, .notify]
 }
 
 /// Why a message was refused. The raw value is the error the page's promise rejects with and the
@@ -158,6 +158,14 @@ public struct BridgeInfo: Equatable, Sendable {
         lockdownSetting = lockdown.rawValue
     }
 
+    /// Capability fields of `lib/desktop-bridge.ts` that the Tauri app leaves out (meaning yes):
+    /// this build has no native settings window yet (block 5), does not update from the Tauri
+    /// feed `/api/desktop/update/latest.json` (the Store or Sparkle update it, block 10), and has
+    /// no tab strip yet (block 4). The web app reads these instead of asking which app it is in.
+    public static let settingsWindow = false
+    public static let updateFeed = false
+    public static let tabs = false
+
     /// The reply to `info`: plain JSON types only (what WKScriptMessageHandlerWithReply sends back).
     /// Features without a native side in this build report false.
     public var reply: [String: Any] {
@@ -167,6 +175,9 @@ public struct BridgeInfo: Equatable, Sendable {
             "systemAudio": false,
             "dictation": false,
             "recordingIndicator": false,
+            "settingsWindow": Self.settingsWindow,
+            "updateFeed": Self.updateFeed,
+            "tabs": Self.tabs,
             "store": store,
             "lockdown": lockdown,
             "lockdownSetting": lockdownSetting,

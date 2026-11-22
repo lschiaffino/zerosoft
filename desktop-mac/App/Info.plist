@@ -22,6 +22,18 @@
 	<string>zerosoft</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<!-- zerosoft:// links (DeepLink.swift): only zerosoft://open with an app path does anything. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>ai.zerosoft.mac</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>zerosoft</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>

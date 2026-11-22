@@ -195,7 +195,7 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
         let body: [String: Any] = ["cmd": command.rawValue, "args": minimal[command] ?? [:]]
         #expect(accepted(body)?.command == command, "\(command)")
     }
-    #expect(BridgeCommand.implemented == [.info, .ready])
+    #expect(BridgeCommand.implemented == [.info, .ready, .startLogin, .notify])
 }
 
 // MARK: info and the script
@@ -207,6 +207,8 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(info.reply["lockdownSetting"] as? String == "on")
     #expect(info.reply["store"] as? Bool == false)
     #expect(info.reply["platform"] as? String == "darwin")
+    // What this build does not have yet, so the web app hides it (lib/desktop-bridge.ts).
+    for key in ["settingsWindow", "updateFeed", "tabs"] { #expect(info.reply[key] as? Bool == false, "\(key)") }
     #expect(JSONSerialization.isValidJSONObject(info.reply))
     #expect(!BridgeInfo(version: "1", store: true, lockdown: .system).lockdown)
     #expect(BridgeInfo(version: "1", store: true, lockdown: .off).reply["store"] as? Bool == true)
@@ -219,5 +221,12 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(script.contains("lockdown: true"))
     #expect(script.contains("store: false"))
     #expect(script.contains("messageHandlers.zerosoft"))
+    // startLogin is how desktopBridge() finds the app; the shim replaces window.Notification
+    // after the features are measured.
+    #expect(script.contains("startLogin: function () { call('startLogin')"))
+    #expect(script.contains("settingsWindow: false") && script.contains("updateFeed: false") && script.contains("tabs: false"))
+    let measured = script.range(of: "notification: typeof Notification")
+    let shim = script.range(of: "Object.defineProperty(window, 'Notification'")
+    #expect(measured != nil && shim != nil && measured!.lowerBound < shim!.lowerBound)
     #expect(BridgeScript.js("a\u{2028}b") == "\"a\\u2028b\"")
 }

@@ -1,3 +1,4 @@
+import CryptoKit
 import Darwin
 import Foundation
 
@@ -25,6 +26,28 @@ final class FixtureServer {
         get { lock.lock(); defer { lock.unlock() }; return _mode }
         set { lock.lock(); _mode = newValue; lock.unlock() }
     }
+
+    /// What the sign-in start route sends back: the state it was given, or another one.
+    enum LoginState {
+        case echo
+        case wrong
+    }
+
+    private var _loginState: LoginState = .echo
+    var loginState: LoginState {
+        get { lock.lock(); defer { lock.unlock() }; return _loginState }
+        set { lock.lock(); _loginState = newValue; lock.unlock() }
+    }
+
+    /// Codes the sign-in route handed out, with their PKCE challenge (one use each).
+    private var codes: [String: String] = [:]
+    private var _tokenRequests: [String] = []
+    /// One entry per POST /api/desktop/token: "ok", "bad-verifier", "unknown-code" or "malformed".
+    var tokenRequests: [String] {
+        lock.lock(); defer { lock.unlock() }; return _tokenRequests
+    }
+
+    static let sessionToken = "fixture.session-token_value"
 
     private var listenFD: Int32 = -1
     private var held: [Int32] = []
@@ -136,7 +159,7 @@ final class FixtureServer {
         if mode != .blank, path.hasPrefix("/fonts/fixture.ttf") {
             (status, extra, bytes) = Self.font()
         } else {
-            let (s, body, e) = page(path: path, mode: mode)
+            let (s, body, e) = page(path: path, mode: mode, request: request)
             (status, extra, bytes) = (s, e, Array(body.utf8))
         }
         let type = extra.isEmpty ? "Content-Type: text/html; charset=utf-8\r\n" : ""
@@ -146,6 +169,7 @@ final class FixtureServer {
         close(client)
     }
 
+    /// The request head and, when it has a Content-Length, its body.
     private func readHead(_ client: Int32) -> String {
         var data = [UInt8]()
         var buf = [UInt8](repeating: 0, count: 4096)
@@ -153,14 +177,101 @@ final class FixtureServer {
             let n = read(client, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0 ..< n])
-            if String(decoding: data, as: UTF8.self).contains("\r\n\r\n") { break }
+            let text = String(decoding: data, as: UTF8.self)
+            guard let end = text.range(of: "\r\n\r\n") else { continue }
+            let length = Self.header(text, "Content-Length").flatMap { Int($0) } ?? 0
+            if text[end.upperBound...].utf8.count >= length { break }
         }
         return String(decoding: data, as: UTF8.self)
     }
 
+    private static func header(_ request: String, _ name: String) -> String? {
+        let head = request.components(separatedBy: "\r\n\r\n").first ?? ""
+        for line in head.components(separatedBy: "\r\n").dropFirst() {
+            let parts = line.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count == 2, parts[0].lowercased() == name.lowercased() { return parts[1] }
+        }
+        return nil
+    }
+
+    private static func body(_ request: String) -> String {
+        guard let end = request.range(of: "\r\n\r\n") else { return "" }
+        return String(request[end.upperBound...])
+    }
+
+    private static func query(_ path: String) -> [String: String] {
+        let items = URLComponents(string: "http://x" + path)?.queryItems ?? []
+        return Dictionary(items.map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { a, _ in a })
+    }
+
+    private static func signedIn(_ request: String) -> Bool {
+        (header(request, "Cookie") ?? "").contains("next-auth.session-token=\(sessionToken)")
+    }
+
+    private static func challenge(_ verifier: String) -> String {
+        Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+    }
+
+    /// The server side of the desktop sign-in (lib/desktop-auth.ts), reduced: the start route
+    /// redirects to the app's callback with a one-time code, the token route checks the verifier
+    /// against the challenge and answers with the session cookie.
+    private func signIn(path: String, request: String) -> (String, String, String)? {
+        if path.hasPrefix("/api/desktop/login") {
+            let q = Self.query(path)
+            guard let challenge = q["challenge"], challenge.count == 43, let state = q["state"], q["device"] == "darwin" else {
+                return ("400 Bad Request", "bad request", "Content-Type: text/plain\r\n")
+            }
+            let code = String(repeating: "c", count: 11) + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            lock.lock(); codes[code] = challenge; let wrong = _loginState == .wrong; lock.unlock()
+            let back = wrong ? String(repeating: "W", count: 32) : state
+            return ("302 Found", "", "Location: zerosoft://auth/callback?code=\(code)&state=\(back)\r\nContent-Type: text/html\r\n")
+        }
+        if path.hasPrefix("/api/desktop/token") {
+            let json = (try? JSONSerialization.jsonObject(with: Data(Self.body(request).utf8))) as? [String: String]
+            let outcome: String
+            lock.lock()
+            if let json, let code = json["code"], let verifier = json["verifier"] {
+                if let challenge = codes.removeValue(forKey: code) {
+                    outcome = Self.challenge(verifier) == challenge ? "ok" : "bad-verifier"
+                } else {
+                    outcome = "unknown-code"
+                }
+            } else {
+                outcome = "malformed"
+            }
+            _tokenRequests.append(outcome)
+            lock.unlock()
+            guard outcome == "ok" else { return ("400 Bad Request", #"{"error":"invalid_grant"}"#, "Content-Type: application/json\r\n") }
+            let body = #"{"token":"\#(Self.sessionToken)","cookie":{"name":"next-auth.session-token","domain":null,"secure":false,"maxAge":3600}}"#
+            return ("200 OK", body, "Content-Type: application/json\r\n")
+        }
+        if path.hasPrefix("/api/desktop/badge") {
+            guard Self.signedIn(request) else { return ("401 Unauthorized", #"{"error":"unauthorized"}"#, "Content-Type: application/json\r\n") }
+            let body = #"{"total":3,"talk":1,"bell":2,"notifications":[],"byPath":{},"now":"2026-11-22T10:00:00.000Z","disabledApps":[]}"#
+            return ("200 OK", body, "Content-Type: application/json\r\n")
+        }
+        if path.hasPrefix("/app") || path.hasPrefix("/es/app") {
+            let route = path.split(separator: "?").first.map(String.init) ?? path
+            let session = Self.signedIn(request) ? "yes" : "no"
+            return ("200 OK", """
+            <!doctype html><html><head><meta charset="utf-8"><title>app</title></head><body>
+            <h1>zs-fixture-app</h1>
+            <p id="state">app pending</p>
+            <script>
+            document.getElementById('state').textContent = 'app path=\(route) session=\(session) jscookie=' +
+              (document.cookie.indexOf('session-token') >= 0 ? 'yes' : 'no') + ' end';
+            </script>
+            </body></html>
+            """, "")
+        }
+        return nil
+    }
+
     /// (status line, body, extra headers; with extra headers the page sets its own type).
-    private func page(path: String, mode: Mode) -> (String, String, String) {
+    private func page(path: String, mode: Mode, request: String) -> (String, String, String) {
         if path.hasPrefix("/favicon") { return ("404 Not Found", "", "") }
+        if mode != .blank, let answer = signIn(path: path, request: request) { return answer }
         if mode == .blank {
             return ("200 OK", "<!doctype html><html><head><title>blank</title></head><body><script>void 0</script></body></html>", "")
         }
@@ -199,6 +310,9 @@ final class FixtureServer {
         <p><a href="/api/integrations/demo/start">Connect demo</a></p>
         <p><a href="/files/report.csv">Download report</a></p>
         <p><button onclick="window.open()">Open blank</button></p>
+        <p><button onclick="window.zerosoftDesktop.startLogin()">Sign in with Google</button></p>
+        <p><button onclick="new Notification('zs-note', { body: 'zs-body' })">Notify</button></p>
+        <p id="detect">detect pending</p>
         <p id="features">features</p>
         <script>
         document.getElementById('features').textContent = 'features wasm=' + typeof WebAssembly +
@@ -238,6 +352,10 @@ final class FixtureServer {
 
           // The bridge from the main frame: info works, everything malformed is refused.
           var b = window.zerosoftDesktop;
+          // What desktopBridge() in the web app checks, and the Notification shim.
+          show('detect', 'detect startLogin=' + (b ? typeof b.startLogin : 'none') + ' notification=' + typeof Notification +
+            ' permission=' + (typeof Notification !== 'undefined' ? Notification.permission : 'none') +
+            ' settingsWindow=' + (b ? b.settingsWindow : 'none') + ' end');
           var h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.zerosoft;
           var res = function (send) {
             if (!h) return Promise.resolve('nohandler');
@@ -258,7 +376,7 @@ final class FixtureServer {
             res(function () { return h.postMessage({ cmd: 'eval', args: { code: '1' } }); }),
             res(function () { return h.postMessage({ cmd: 'notify', args: { title: new Array(5001).join('x') } }); }),
             res(function () { return h.postMessage({ cmd: 'recLevel', args: { level: 'loud' } }); }),
-            res(function () { return h.postMessage({ cmd: 'startLogin', args: {} }); }),
+            res(function () { return h.postMessage({ cmd: 'systemAudioStop', args: {} }); }),
             res(function () { return h.postMessage('info'); })
           ]).then(function (r) {
             show('bridge', 'bridge info=' + r[0] + ' unknown=' + r[1] + ' oversize=' + r[2] + ' badargs=' + r[3] +

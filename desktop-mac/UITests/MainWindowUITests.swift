@@ -248,6 +248,94 @@ final class MainWindowUITests: XCTestCase {
         attach("bridge native", (native.value as? String) ?? "")
     }
 
+    // MARK: Block 3: sign-in, deep links, notifications, badge
+
+    /// A native test label's value once it matches.
+    private func waitForLabel(_ app: XCUIApplication, _ id: String, equals want: String, timeout: TimeInterval = 15) {
+        let label = element(app, id)
+        let done = expectation(for: NSPredicate { obj, _ in
+            ((obj as? XCUIElement)?.value as? String) == want
+        }, evaluatedWith: label)
+        wait(for: [done], timeout: timeout)
+        attach(id, (label.value as? String) ?? "")
+    }
+
+    private func openLink(_ app: XCUIApplication, _ raw: String) throws {
+        guard #available(macOS 13.3, *) else { throw XCTSkip("XCUIApplication.open needs macOS 13.3") }
+        app.open(URL(string: raw)!)
+    }
+
+    /// The page finds the app the way the web app does (`desktopBridge()` checks `startLogin`),
+    /// and the Notification shim is there in both Lockdown modes.
+    func testWebAppDetectsTheAppAndItsCapabilities() throws {
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        let detect = line(app, prefix: "detect ")
+        XCTAssertTrue(detect.contains("startLogin=function notification=function permission=granted settingsWindow=false end"), detect)
+    }
+
+    /// Google sign-in end to end against the fixture's copy of the server flow: PKCE challenge
+    /// and state out, the callback checked, code and verifier exchanged, the session cookie in
+    /// the web view (sent to the server, not readable by the page), then the app page and the
+    /// badge poll with that session.
+    func testGoogleSignInWithPKCE() throws {
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        app.buttons.matching(showing("Sign in with Google")).firstMatch.click()
+        waitForLabel(app, "zs-test-login", equals: "login 1 ok")
+        XCTAssertEqual(server.tokenRequests, ["ok"], "the verifier did not match the challenge")
+        let page = line(app, prefix: "app path=")
+        XCTAssertTrue(page.contains("app path=/app session=yes jscookie=no end"), page)
+        waitForLabel(app, "zs-test-badge", equals: "badge 3")
+    }
+
+    /// A callback whose state is not the one the app sent is refused before any token request.
+    func testSignInWithAnotherStateIsRefused() throws {
+        server.loginState = .wrong
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        app.buttons.matching(showing("Sign in with Google")).firstMatch.click()
+        waitForLabel(app, "zs-test-login", equals: "login 1 state")
+        XCTAssertEqual(server.tokenRequests, [])
+        XCTAssertTrue(text(app, "zs-fixture-ok").exists)
+    }
+
+    /// `zerosoft://open` shows an app page of the configured server and nothing else: a path
+    /// that would leave the server is refused, and a sign-in callback that the app did not ask
+    /// for through its sign-in window is ignored (no token request).
+    func testDeepLinksOpenOnlyAppPagesOfTheServer() throws {
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+
+        try openLink(app, "zerosoft://open?path=//localhost:\(server.port)/app")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 1 refused")
+        try openLink(app, "zerosoft://open?path=/blog")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 2 refused")
+        try openLink(app, "zerosoft://auth/callback?code=\(String(repeating: "c", count: 43))&state=\(String(repeating: "S", count: 32))")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 3 ignored auth")
+        XCTAssertEqual(server.tokenRequests, [])
+        XCTAssertTrue(text(app, "zs-fixture-ok").exists, "a refused link changed the page")
+
+        try openLink(app, "zerosoft://open?path=/app/deep")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 4 open /app/deep")
+        let page = line(app, prefix: "app path=")
+        XCTAssertTrue(page.contains("app path=/app/deep "), page)
+    }
+
+    /// `new Notification(...)` in the page reaches the native side through the shim, with the
+    /// page's own title and body; with the app in front it is not shown.
+    func testNotificationShimCallsNative() throws {
+        try server.start()
+        let app = launch()
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        app.buttons.matching(showing("Notify")).firstMatch.click()
+        waitForLabel(app, "zs-test-notify", equals: "notify zs-note|zs-body|app-active")
+    }
+
     /// The page's feature line ("features wasm=... idb=... end"), attached to the result.
     private func featureLine(_ app: XCUIApplication) -> String {
         line(app, prefix: "features ")

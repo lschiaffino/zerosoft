@@ -120,6 +120,30 @@ final class MainContentView: NSView {
         }
     }
 
+    /// UI tests only: the outcome of a sign-in (`zs-test-login`, a closed tag), the Dock badge
+    /// (`zs-test-badge`), the last page notification and whether it would show
+    /// (`zs-test-notify`). Returns the recorder of deep links (`zs-test-deeplink`).
+    func installBlock3Recorders(auth: AuthController, notifier: Notifier) -> (String) -> Void {
+        let login = testLabel("zs-test-login", "none")
+        let badge = testLabel("zs-test-badge", "none")
+        let note = testLabel("zs-test-notify", "none")
+        let link = testLabel("zs-test-deeplink", "none")
+        var logins = 0
+        auth.onOutcome = { [weak login] tag in
+            logins += 1
+            login?.stringValue = "login \(logins) \(tag)"
+        }
+        notifier.onBadge = { [weak badge] label in badge?.stringValue = "badge \(label)" }
+        notifier.onPageNotification = { [weak note] title, body, show in
+            note?.stringValue = "notify \(title)|\(body ?? "-")|\(show ? "shown" : "app-active")"
+        }
+        var links = 0
+        return { [weak link] what in
+            links += 1
+            link?.stringValue = "link \(links) \(what)"
+        }
+    }
+
     private func testLabel(_ id: String, _ initial: String) -> NSTextField {
         let label = NSTextField(labelWithString: initial)
         label.frame = NSRect(x: CGFloat(testLabels.count) * 5, y: 0, width: 4, height: 4)

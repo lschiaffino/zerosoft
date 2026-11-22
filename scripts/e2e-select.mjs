@@ -13,6 +13,10 @@
  * Si corre algo, se suma siempre el grupo 'core'. Fuera de un pull request (main, corrida nocturna, a
  * mano) corre todo.
  *
+ * Aparte, `mac`: si el PR toca la app de Mac en Swift (lista 'mac'), corre su job en macOS y "CI result"
+ * lo espera. Fuera de un PR no (desktop-mac.yml corre solo con cada push a main que la toca); sin la
+ * lista de archivos del PR, sí.
+ *
  * Uso en CI: node scripts/e2e-select.mjs --event <evento> [--files <lista, un archivo por línea>]
  * Imprime clave=valor para $GITHUB_OUTPUT y un resumen por stderr.
  */
@@ -75,6 +79,7 @@ export function compileAreas(config) {
     docker: matcher(config.docker),
     real: matcher(config.real),
     quarantine: matcher(config.quarantine),
+    mac: matcher(config.mac),
   };
 }
 
@@ -92,14 +97,15 @@ export function areasOfSpec(compiled, spec) {
 export function selectE2e(changed, { event = 'pull_request', specs, timings = {}, config, quarantined = [] }) {
   const c = compileAreas(config);
   const all = [...specs].sort();
-  const everything = (reason) => ({
-    mode: 'full', reason, specs: all, shards: FULL_SHARDS, areas: [], build: true, real: true, quarantine: true, docker: true,
+  const everything = (reason, mac) => ({
+    mode: 'full', reason, specs: all, shards: FULL_SHARDS, areas: [], build: true, real: true, quarantine: true, docker: true, mac,
   });
-  if (event !== 'pull_request') return everything(`evento ${event}: corre todo`);
+  if (event !== 'pull_request') return everything(`evento ${event}: corre todo`, false);
   const files = [...new Set(changed.map((f) => f.trim()).filter(Boolean))];
-  if (!files.length) return everything('no se pudo leer la lista de archivos del pull request');
-  if (files.length >= MAX_FILES) return everything('demasiados archivos para confiar en la lista');
+  if (!files.length) return everything('no se pudo leer la lista de archivos del pull request', true);
+  if (files.length >= MAX_FILES) return everything('demasiados archivos para confiar en la lista', true);
 
+  const mac = files.some(c.mac);
   const docker = files.some(c.docker);
   const real = files.some(c.real);
   const quarantine = files.some((f) => c.quarantine(f) || quarantined.some((q) => f === `tests/e2e/${q}`));
@@ -132,7 +138,7 @@ export function selectE2e(changed, { event = 'pull_request', specs, timings = {}
     for (const a of hits) areaNames.add(a.name);
   }
 
-  const flags = { real, quarantine, docker };
+  const flags = { real, quarantine, docker, mac };
   if (fullReason) return { mode: 'full', reason: fullReason, specs: all, shards: FULL_SHARDS, areas: [], build: true, ...flags };
 
   // Las áreas tocadas y, un solo nivel, las que dependen de ellas.
@@ -229,6 +235,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     real: p.real,
     quarantine: p.quarantine,
     docker: p.docker,
+    mac: p.mac,
     shard_total: p.shards || 1,
     // Siempre un JSON válido: la matriz se evalúa aunque el job quede salteado.
     shards: JSON.stringify(Array.from({ length: p.shards || 1 }, (_, i) => i + 1)),
@@ -239,7 +246,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const summary = [
     `e2e: ${p.mode} (${p.reason})`,
     e2e ? `specs: ${p.specs.length} en ${p.shards} parte(s)` : 'specs: ninguno',
-    `build=${p.build} e2e-real=${p.real} cuarentena=${p.quarantine} docker=${p.docker}`,
+    `build=${p.build} e2e-real=${p.real} cuarentena=${p.quarantine} docker=${p.docker} mac=${p.mac}`,
   ].join('\n');
   console.error(summary);
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Plan de CI\n\n\`\`\`\n${summary}\n\`\`\`\n`);

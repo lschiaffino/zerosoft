@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
-import { desktopBridge } from '@/lib/desktop-bridge';
+import { desktopBridge, desktopHasSettings, desktopUsesUpdateFeed } from '@/lib/desktop-bridge';
 import { desktopUpdateKind, type DesktopUpdateKind } from '@/lib/desktop-version';
 
 /**
@@ -14,19 +14,19 @@ import { desktopUpdateKind, type DesktopUpdateKind } from '@/lib/desktop-version
  */
 export default function DesktopAppSettings({ sections }: { sections: Array<{ key: string; label: string; help: string }> }) {
   const t = useTranslations('settings.desktopApp');
-  const [app, setApp] = useState<{ version: string; openSettings: () => void } | null>(null);
+  const [app, setApp] = useState<{ version: string; openSettings: (() => void) | null } | null>(null);
   const [latest, setLatest] = useState<{ version: string; kind: DesktopUpdateKind } | null>(null);
   const [feedFailed, setFeedFailed] = useState(false);
 
   useEffect(() => {
     const b = desktopBridge();
-    if (b) setApp({ version: b.version, openSettings: b.openSettings });
+    if (b) setApp({ version: b.version, openSettings: desktopHasSettings(b) ? b.openSettings : null });
     fetch('/api/desktop/update/latest.json', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((feed: { version?: unknown } | null) => {
         if (feed && typeof feed.version === 'string') {
           const v = feed.version.replace(/^v/, '');
-          setLatest({ version: v, kind: b ? desktopUpdateKind(b.version, v) : 'none' });
+          setLatest({ version: v, kind: desktopUsesUpdateFeed(b) ? desktopUpdateKind(b.version, v) : 'none' });
         } else setFeedFailed(true);
       })
       .catch(() => setFeedFailed(true));
@@ -51,8 +51,8 @@ export default function DesktopAppSettings({ sections }: { sections: Array<{ key
           <p className="st-callout">{t(latest.kind === 'manual' ? 'updateManual' : 'updateAuto', { v: latest.version })}</p>
         )}
         <div className="st-actions">
-          {app ? (
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => app.openSettings()}>
+          {app?.openSettings ? (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => app.openSettings?.()}>
               {t('openSettings')}
             </button>
           ) : null}
