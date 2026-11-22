@@ -296,8 +296,15 @@ async function applyChoice(ws: string, s: Session, c: Choice, remote: Values, su
     const row = await conflictRow(ws, c.object, c.recordId, db);
     const link = await linkOf(db, ws, s.portalId, c.object, c.recordId);
     const local = (await db.prepare(`SELECT * FROM ${TABLE[so]} WHERE id = ? AND user_id = ?`).get(c.recordId, ws)) as Record<string, unknown> | undefined;
-    if (!row || row.kind !== 'fields' || !link || !local) {
+    if (!row || row.kind !== 'fields') {
       await tx.rollback();
+      return;
+    }
+    if (!link || link.state !== 'linked' || !local) {
+      // El registro se borró acá o dejó de estar vinculado: no queda nada que resolver; se saca de la lista (sin tocar valores).
+      await db.prepare('DELETE FROM crm_hubspot_sync_conflicts WHERE user_id = ? AND object = ? AND record_id = ?').run(ws, c.object, c.recordId);
+      await tx.commit();
+      summary.orphans = (summary.orphans ?? 0) + 1;
       return;
     }
     const open = new Set(row.fields.split(',').filter(Boolean));
@@ -324,6 +331,11 @@ async function applyChoice(ws: string, s: Session, c: Choice, remote: Values, su
         takeHubspot.push(field);
         shadow[field] = r;
       } else {
+        // Un valor de HubSpot que acá no se puede leer: no se pisa a ciegas (el admin no lo vio); sigue en conflicto.
+        if (r === UNKNOWN_REMOTE) {
+          summary.kept.push({ field, code: 'hubspot_value_unmapped' });
+          continue;
+        }
         // Queda lo de acá: el shadow pasa a lo que HubSpot tiene ahora, así el cambio de acá es el único y sale por S3.
         shadow[field] = r;
         here = true;
@@ -358,13 +370,20 @@ async function resolveGroup(ws: string, s: Session, object: Choice['object'], ch
   for (const c of choices) {
     const link = await linkOf(db, ws, s.portalId, object, c.recordId);
     if (link && link.state === 'linked') withLink.push({ c, hubspotId: link.hubspot_id });
+    // Sin vínculo vivo (borrado acá, archivado o fusionado): applyChoice lo saca de la lista.
+    else await applyChoice(ws, s, c, {}, summary);
   }
   if (!withLink.length) return;
   const remote = await readRemote(s, so, [...new Set(withLink.map((x) => x.hubspotId))]);
   for (const { c, hubspotId } of withLink) {
     const r = remote.get(hubspotId);
-    // Ya no está en HubSpot (archivado o fusionado allá): el barrido de la entrada marca el vínculo; acá no se toca.
-    if (!r) continue;
+    // Ya no está en HubSpot (archivado o fusionado allá): el barrido de la entrada marca el vínculo; acá no se toca, pero
+    // pasa al final para que la tanda siguiente vea otros.
+    if (!r) {
+      await db.prepare('UPDATE crm_hubspot_sync_conflicts SET updated_at = ? WHERE user_id = ? AND object = ? AND record_id = ?').run(iso(), ws, object, c.recordId);
+      summary.missing = (summary.missing ?? 0) + 1;
+      continue;
+    }
     await applyChoice(ws, s, c, r, summary);
   }
 }
@@ -388,7 +407,10 @@ export async function resolveConflict(ws: string, object: ConflictObject, record
   const summary: ResolveSummary = { resolved: 0, kept: [] };
   const choice: Choice = { object, recordId, keep: new Map(Object.entries(keep).filter(([, v]) => v === 'here' || v === 'hubspot')) };
   const link = await linkOf(getDb(), ws, s.portalId, object, recordId);
-  if (!link || link.state !== 'linked') return { ok: false, code: 'not_found' };
+  if (!link || link.state !== 'linked') {
+    await applyChoice(ws, s, choice, {}, summary);
+    return { ok: false, code: 'not_found' };
+  }
   try {
     const remote = await readRemote(s, OBJECT_OF[object], [link.hubspot_id]);
     const r = remote.get(link.hubspot_id);
@@ -432,9 +454,24 @@ export async function resolveAllConflicts(ws: string, keep: ConflictKeep, object
 }
 
 /** Saca un conflicto de la lista sin tocar ningún valor (actividades y fusiones; también cualquier otro). */
-export async function dismissConflict(ws: string, object: ConflictObject, recordId: string): Promise<boolean> {
-  const res = await getDb().prepare('DELETE FROM crm_hubspot_sync_conflicts WHERE user_id = ? AND object = ? AND record_id = ?').run(ws, object, recordId);
-  return res.changes > 0;
+/**
+ * Saca de la lista, sin tocar ningún valor, un conflicto que no se resuelve
+ * campo por campo: fusiones, actividades, y uno de campos cuyo registro ya no
+ * está acá o ya no está vinculado. Un conflicto de campos vivo no se descarta
+ * (escondería que los dos lados quedaron distintos): se resuelve.
+ */
+export async function dismissConflict(ws: string, object: ConflictObject, recordId: string): Promise<'ok' | 'not_found' | 'not_resolvable'> {
+  const db = getDb();
+  const row = await conflictRow(ws, object, recordId, db);
+  if (!row) return 'not_found';
+  if (row.kind === 'fields' && object !== 'activity') {
+    const so = OBJECT_OF[object];
+    const link = (await db.prepare('SELECT state FROM crm_hubspot_links WHERE user_id = ? AND object = ? AND record_id = ?').get(ws, object, recordId)) as { state: string } | undefined;
+    const local = await db.prepare(`SELECT id FROM ${TABLE[so]} WHERE id = ? AND user_id = ?`).get(recordId, ws);
+    if (link?.state === 'linked' && local) return 'not_resolvable';
+  }
+  await db.prepare('DELETE FROM crm_hubspot_sync_conflicts WHERE user_id = ? AND object = ? AND record_id = ?').run(ws, object, recordId);
+  return 'ok';
 }
 
 // ---------- Cambios rechazados ----------

@@ -121,7 +121,7 @@ describe('listado y detalle', () => {
     expect((await listConflicts(other.id)).total).toBe(0);
     expect(await conflictDetail(other.id, 'contact', id)).toEqual({ ok: false, code: 'not_found' });
     expect(await resolveConflict(other.id, 'contact', id, { job_title: 'hubspot' })).toEqual({ ok: false, code: 'not_found' });
-    expect(await dismissConflict(other.id, 'contact', id)).toBe(false);
+    expect(await dismissConflict(other.id, 'contact', id)).toBe('not_found');
     expect(await resolveAllConflicts(other.id, 'hubspot')).toEqual({ ok: false, code: 'not_connected' });
     expect(await conflictOf(w.id, id)).toEqual({ fields: 'last_name,job_title', kind: 'fields' });
     expect(await one('SELECT job_title FROM crm_contacts WHERE id = ?', id)).toEqual({ job_title: 'Title here' });
@@ -250,9 +250,37 @@ describe('en tanda, descartar y reintentar', () => {
     expect(await resolveConflict(w.id, 'contact', c.record_id, { email: 'hubspot' })).toEqual({ ok: false, code: 'not_resolvable' });
     expect(await resolveConflict(w.id, 'activity', 'act-1', { body: 'hubspot' })).toEqual({ ok: false, code: 'not_resolvable' });
     expect(await resolveAllConflicts(w.id, 'hubspot')).toMatchObject({ ok: true, resolved: 0, remaining: 0 });
-    expect(await dismissConflict(w.id, 'contact', c.record_id)).toBe(true);
-    expect(await dismissConflict(w.id, 'activity', 'act-1')).toBe(true);
+    expect(await dismissConflict(w.id, 'contact', c.record_id)).toBe('ok');
+    expect(await dismissConflict(w.id, 'activity', 'act-1')).toBe('ok');
     expect((await listConflicts(w.id)).total).toBe(0);
+  });
+
+  it('un conflicto de campos vivo no se descarta; uno cuyo registro se borró acá sale en la tanda sin tocar nada', async () => {
+    const { w, id } = await withConflict('hsconf-orphan');
+    expect(await dismissConflict(w.id, 'contact', id)).toBe('not_resolvable');
+    const co = (await linkOf(w.id, '3001', 'company'))!;
+    await updateCompany(w.id, co.record_id, { city: 'Company city here' });
+    portal.edit('companies', '3001', { city: 'Company city there' });
+    await inboundPass(w.id);
+    // El contacto se borra acá: su vínculo queda 'deleted_here' y su conflicto ya no tiene nada que resolver.
+    await db().prepare('DELETE FROM crm_contacts WHERE id = ?').run(id);
+    expect((await linkOf(w.id, '4001'))!.state).toBe('deleted_here');
+    portal.calls.length = 0;
+    const res = await resolveAllConflicts(w.id, 'hubspot');
+    expect(res).toMatchObject({ ok: true, resolved: 1, orphans: 1, remaining: 0 });
+    expect(await count('crm_hubspot_sync_conflicts', 'user_id = ?', w.id)).toBe(0);
+    expect(writes()).toEqual([]);
+  });
+
+  it('dejar zerosoft contra un valor de HubSpot sin equivalente no lo pisa a ciegas', async () => {
+    const { w, mate, id } = await withConflict('hsconf-unmapped-here');
+    await updateContact(w.id, id, { ownerId: mate.id });
+    portal.edit('contacts', '4001', { hubspot_owner_id: '83' });
+    await db().prepare(`UPDATE crm_hubspot_sync_conflicts SET fields = 'owner_id' WHERE user_id = ? AND record_id = ?`).run(w.id, id);
+    const before = (await linkOf(w.id, '4001'))!.shadow;
+    expect(await resolveConflict(w.id, 'contact', id, { owner_id: 'here' })).toMatchObject({ ok: true, resolved: 0, kept: [{ field: 'owner_id', code: 'hubspot_value_unmapped' }] });
+    expect((await linkOf(w.id, '4001'))!.shadow).toBe(before);
+    expect(await conflictOf(w.id, id)).toEqual({ fields: 'owner_id', kind: 'fields' });
   });
 
   it('con la conexión rota o de otra cuenta no se lee ni se resuelve', async () => {

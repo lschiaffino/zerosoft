@@ -4767,7 +4767,8 @@
         "hubspot_missing": "El registro ya no está en HubSpot (se archivó o se fusionó allá).",
         "hubspot_busy": "HubSpot está limitando los pedidos. Probá de nuevo en un minuto.",
         "provider_error": "HubSpot devolvió un error. Probá de nuevo.",
-        "rate_limited": "Demasiados pedidos. Probá de nuevo en un rato."
+        "rate_limited": "Demasiados pedidos. Probá de nuevo en un rato.",
+        "resolve_first": "Este conflicto sigue abierto de los dos lados: elegí qué valor queda en vez de sacarlo."
       },
       "rules": {
         "title": "Cómo se resuelve",

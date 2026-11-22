@@ -4767,7 +4767,8 @@
         "hubspot_missing": "O registro não está mais no HubSpot (foi arquivado ou mesclado lá).",
         "hubspot_busy": "O HubSpot está limitando as requisições. Tente de novo em um minuto.",
         "provider_error": "O HubSpot retornou um erro. Tente de novo.",
-        "rate_limited": "Requisições demais. Tente de novo daqui a pouco."
+        "rate_limited": "Requisições demais. Tente de novo daqui a pouco.",
+        "resolve_first": "Este conflito continua aberto dos dois lados: escolha qual valor fica em vez de tirá-lo."
       },
       "rules": {
         "title": "Como a resolução funciona",

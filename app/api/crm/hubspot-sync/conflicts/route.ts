@@ -52,7 +52,8 @@ function respond(res: ResolveResult): NextResponse {
  * van solo en la respuesta, nunca se guardan). { action: 'resolve', keep:
  * { campo: 'here' | 'hubspot' } }: deja ese lado en cada campo. {
  * action: 'resolve_all', keep }: lo mismo para una tanda de registros. {
- * action: 'dismiss' }: saca el conflicto de la lista sin tocar valores.
+ * action: 'dismiss' }: saca de la lista, sin tocar valores, uno que no se
+ * resuelve por campo (fusión, actividad, registro que ya no está vinculado).
  * Nunca escribe en HubSpot: lo que queda de acá sale por la escritura (S3) si
  * está prendida. Solo admins.
  */
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
   }
   if (body.action === 'resolve') return respond(await resolveConflict(a.ws, body.object, body.recordId, body.keep));
   if (body.action === 'resolve_all') return respond(await resolveAllConflicts(a.ws, body.keep, body.object));
-  if (!(await dismissConflict(a.ws, body.object, body.recordId))) return crmError(404, 'not_found');
+  const dismissed = await dismissConflict(a.ws, body.object, body.recordId);
+  if (dismissed === 'not_found') return crmError(404, 'not_found');
+  if (dismissed === 'not_resolvable') return crmError(409, 'resolve_first');
   return NextResponse.json({ ok: true });
 }

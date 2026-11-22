@@ -47,6 +47,10 @@ export interface ResolveSummary {
   resolved: number;
   /** Campos que siguen en conflicto, con su código (sin valores). */
   kept: Array<{ field: string; code: 'hubspot_value_unmapped' | 'email_taken' }>;
+  /** Registros que ya no estaban acá o vinculados: se sacaron de la lista. */
+  orphans?: number;
+  /** Registros que HubSpot ya no tiene: quedan en la lista hasta que la entrada marque su vínculo. */
+  missing?: number;
 }
 
 export type ResolveResult = ({ ok: true } & ResolveSummary & { remaining: number }) | { ok: false; code: ConflictErrorCode };

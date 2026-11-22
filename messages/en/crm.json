@@ -4767,7 +4767,8 @@
         "hubspot_missing": "The record is no longer in HubSpot (archived or merged there).",
         "hubspot_busy": "HubSpot is limiting requests. Try again in a minute.",
         "provider_error": "HubSpot returned an error. Try again.",
-        "rate_limited": "Too many requests. Try again in a while."
+        "rate_limited": "Too many requests. Try again in a while.",
+        "resolve_first": "This conflict is still open on both sides: choose which value stays instead of removing it."
       },
       "rules": {
         "title": "How resolving works",

@@ -109,9 +109,12 @@ export default function HubspotSyncConflicts({ locale }: { locale: string }) {
       }
       const r = Number(data.resolved ?? 0);
       const k = Array.isArray(data.kept) ? data.kept.length : 0;
+      const cleared = Number(data.orphans ?? 0);
+      const moved = k + Number(data.missing ?? 0);
       resolved += r;
       kept += k;
-      if (!Number(data.remaining ?? 0) || (r === 0 && k === 0) || (r === 0 && round > 0)) break;
+      // Sigue mientras queden y la tanda haya hecho algo; lo que no se pudo pasa al final, así la siguiente ve otros.
+      if (!Number(data.remaining ?? 0) || (r === 0 && cleared === 0 && (moved === 0 || round > 0))) break;
     }
     setBusy(false);
     setBulk(null);
@@ -267,6 +270,8 @@ function ConflictRow({
   const [choice, setChoice] = useState<Record<string, ConflictKeep>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // El registro ya no está acá o dejó de estar vinculado: no hay nada que comparar; se puede sacar de la lista.
+  const [gone, setGone] = useState(false);
   const errorText = (code: unknown) => (typeof code === 'string' && t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic'));
   const k = keyOf(item);
 
@@ -279,7 +284,10 @@ function ConflictRow({
     void postJson({ action: 'detail', object: item.object, recordId: item.recordId }).then(({ status, data }) => {
       if (stop) return;
       if (status === 200 && data && Array.isArray(data.values)) setValues(data.values as ConflictValue[]);
-      else setError(errorText(data?.error));
+      else {
+        setError(errorText(data?.error));
+        setGone(status === 404);
+      }
     });
     return () => {
       stop = true;
@@ -415,6 +423,13 @@ function ConflictRow({
             <p className="form-error" role="alert">
               {error}
             </p>
+          )}
+          {gone && (
+            <div className="form-actions hsync-actions">
+              <button type="button" className="btn btn-small" onClick={() => void dismiss()} disabled={busy} data-testid="hubspot-sync-conflict-dismiss">
+                {t('dismiss')}
+              </button>
+            </div>
           )}
         </div>
       )}
