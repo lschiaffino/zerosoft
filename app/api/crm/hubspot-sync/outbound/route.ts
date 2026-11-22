@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { REQUEST_STEP_BUDGET_MS, getOutbound, previewOutbound, runOutboundStep, setOutboundMode, type OutboundActionResult } from '@/lib/crm-hubspot-sync/outbound';
+import { retryFailedOutbound } from '@/lib/crm-hubspot-sync/conflicts';
 import { syncAdmin } from '@/lib/crm-hubspot-sync/http';
 import { crmError, limitAction } from '@/lib/crm-http';
 
@@ -13,6 +14,7 @@ const bodySchema = z.union([
   z.object({ action: z.literal('enable') }).strict(),
   z.object({ action: z.literal('disable') }).strict(),
   z.object({ action: z.literal('run') }).strict(),
+  z.object({ action: z.literal('retry_failed') }).strict(),
 ]);
 
 /**
@@ -37,6 +39,8 @@ function respond(res: OutboundActionResult): NextResponse {
  * HubSpot). { action: 'enable' }: prende la escritura (pide una vista previa
  * de la última hora). { action: 'disable' }: la apaga. { action: 'run' }:
  * vacía un tramo de la cola ahora (la pantalla abierta; si no, el cron).
+ * { action: 'retry_failed' }: vuelve a encolar los cambios que HubSpot
+ * rechazó varias veces (salen por el camino normal, si sigue prendida).
  * Solo admins.
  */
 export async function POST(req: NextRequest) {
@@ -51,6 +55,10 @@ export async function POST(req: NextRequest) {
     if (limited) return limited;
   }
   if (action === 'preview') return respond(await previewOutbound(a.ws));
+  if (action === 'retry_failed') {
+    const retried = await retryFailedOutbound(a.ws);
+    return NextResponse.json({ outbound: await getOutbound(a.ws), retried });
+  }
   if (action === 'run') {
     await runOutboundStep(a.ws, { budgetMs: REQUEST_STEP_BUDGET_MS });
     return NextResponse.json({ outbound: await getOutbound(a.ws) });
