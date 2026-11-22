@@ -508,7 +508,14 @@
     "removeCohortBreakdown": "Parar de abrir por {name}",
     "breakdownBins": "Em faixas",
     "breakdownBinCount": "Quantidade de faixas",
-    "subscribe": "Inscrever"
+    "subscribe": "Inscrever",
+    "pathExclude": "Pular",
+    "pathExcludeHelp": "Páginas ou eventos que não contam como etapa. Use * como curinga (/admin/*).",
+    "pathGroups": "Agrupar",
+    "pathGroupsHelp": "As páginas que batem com um padrão contam como uma só etapa (/blog/* para todos os posts do blog).",
+    "pathAdd": "Adicionar",
+    "pathRemove": "Remover {value}",
+    "pathListFull": "Até 20."
   },
   "sql": {
     "title": "SQL",

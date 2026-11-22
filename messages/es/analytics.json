@@ -508,7 +508,14 @@
     "removeCohortBreakdown": "Dejar de abrir por {name}",
     "breakdownBins": "En rangos",
     "breakdownBinCount": "Cantidad de rangos",
-    "subscribe": "Suscribir"
+    "subscribe": "Suscribir",
+    "pathExclude": "Saltear",
+    "pathExcludeHelp": "Páginas o eventos que no cuentan como paso. Usá * como comodín (/admin/*).",
+    "pathGroups": "Agrupar",
+    "pathGroupsHelp": "Las páginas que coinciden con un patrón cuentan como un solo paso (/blog/* para todas las notas del blog).",
+    "pathAdd": "Sumar",
+    "pathRemove": "Sacar {value}",
+    "pathListFull": "Hasta 20."
   },
   "sql": {
     "title": "SQL",
