@@ -116,6 +116,10 @@ export async function listRecordActivities(
     rollup: (r.rollup ? 1 : 0) as 0 | 1,
     // En la ficha cuenta la fijación de este registro: la de un asociado no sube acá.
     pinned: (pinned_here ? 1 : 0) as 0 | 1,
+    // La cola y el recordatorio de una tarea no son del timeline (la cola puede ser privada de otra persona).
+    queue_id: null,
+    reminder_at: null,
+    reminder_sent_at: null,
   })) as RecordActivityRow[];
   return { rows: await redactChatTasks(ws, page, opts.chatReader), hasMore };
 }

@@ -9,8 +9,8 @@ import { activityScopeSql, type OwnerScope } from './crm-visibility';
 import { maskPrivateRefs } from './crm-record-scope';
 import { dayRangeUtc } from './user-tz';
 
-export type QueueScope = 'due' | 'overdue' | 'today';
-export const QUEUE_SCOPES: readonly QueueScope[] = ['due', 'overdue', 'today'];
+export type QueueScope = 'due' | 'overdue' | 'today' | 'upcoming' | 'all';
+export const QUEUE_SCOPES: readonly QueueScope[] = ['due', 'overdue', 'today', 'upcoming', 'all'];
 
 export interface QueueTask {
   id: string;
@@ -84,13 +84,28 @@ export async function listQueueTasks(
     limit?: number;
     /** Quien lee: las tareas de chats de Lines que no ve, sin su texto (lib/crm-chat-privacy.ts). */
     chatReader?: import('./crm-chat-privacy').ChatReader | null;
+    /**
+     * Cola desde una vista o una cola con nombre (A3): las condiciones de
+     * lib/crm-tasks-index.ts taskFilterWhere (workspace, vencimiento, filtros y
+     * alcance ya incluidos). Con esto no se usan scope, ownerId ni ownerScope.
+     */
+    filter?: { where: string[]; args: Array<string | number> };
   } = {},
 ): Promise<QueueTask[]> {
   const { start, end } = dayRangeUtc(opts.timeZone ?? 'UTC', opts.now ?? new Date());
   const scope = opts.scope ?? 'due';
-  const where: string[] = ["a.user_id = ?", "a.type = 'task'", 'a.done = 0', 'a.due_at IS NOT NULL'];
-  const args: Array<string | number> = [workspaceId];
-  if (scope === 'overdue') {
+  const where: string[] = opts.filter ? [...opts.filter.where, 'a.done = 0'] : ["a.user_id = ?", "a.type = 'task'", 'a.done = 0', 'a.due_at IS NOT NULL'];
+  const args: Array<string | number> = opts.filter ? [...opts.filter.args] : [workspaceId];
+  if (opts.filter) {
+    // Ya filtrado (vencimiento, owner, alcance): nada más que sumar.
+  } else if (scope === 'upcoming' || scope === 'all') {
+    // Sin fecha también entra (como en el listado).
+    where.pop();
+    if (scope === 'upcoming') {
+      where.push('(a.due_at IS NULL OR a.due_at > ?)');
+      args.push(end);
+    }
+  } else if (scope === 'overdue') {
     where.push('a.due_at < ?');
     args.push(start);
   } else if (scope === 'today') {
@@ -100,11 +115,11 @@ export async function listQueueTasks(
     where.push('a.due_at <= ?');
     args.push(end);
   }
-  if (opts.ownerId) {
+  if (opts.ownerId && !opts.filter) {
     where.push('COALESCE(a.owner_id, a.user_id) = ?');
     args.push(opts.ownerId);
   }
-  const vis = activityScopeSql('a', opts.ownerScope);
+  const vis = opts.filter ? { sql: '', args: [] as string[] } : activityScopeSql('a', opts.ownerScope);
   if (vis.sql) {
     where.push(vis.sql);
     args.push(...vis.args);
@@ -125,7 +140,7 @@ export async function listQueueTasks(
        LEFT JOIN crm_stages st ON st.id = d.stage_id
        LEFT JOIN crm_sequences sq ON sq.id = a.sequence_id
        WHERE ${where.join(' AND ')}
-       ORDER BY a.due_at ASC, a.created_at ASC
+       ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at ASC
        LIMIT ?`,
     )
     .all(...args)) as QueueRow[];

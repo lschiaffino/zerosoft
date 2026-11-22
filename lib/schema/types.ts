@@ -294,6 +294,24 @@ export interface CrmActivityRow {
   sequence_id?: string | null;
   /** Prioridad de la tarea (292): '' = sin prioridad, 'low', 'medium', 'high'. */
   priority?: string;
+  /** Cola de tareas con nombre (A3, lib/crm-task-queues.ts). */
+  queue_id?: string | null;
+  /** Recordatorio a quien tiene la tarea (A3, lib/crm-task-reminders.ts), en UTC. */
+  reminder_at?: string | null;
+  reminder_sent_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmTaskQueueRow {
+  id: string;
+  /** Workspace. */
+  user_id: string;
+  /** Quien la creó. */
+  person_id: string;
+  name: string;
+  /** 0 = solo quien la creó la ve, 1 = todo el workspace. */
+  shared: 0 | 1;
   created_at: string;
   updated_at: string;
 }

@@ -7,6 +7,7 @@ import { ACTIVITY_TYPES, type ActivityType } from '@/lib/crm-constants';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
 import { apiChatReader } from '@/lib/crm-chat-privacy';
+import { apiQueueViewer, getQueue, maskQueueRefs } from '@/lib/crm-task-queues';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   const type = (ACTIVITY_TYPES as readonly string[]).includes(typeParam ?? '') ? (typeParam as ActivityType) : undefined;
   const limit = Math.min(Math.max(Number(sp.get('limit') ?? '50') || 50, 1), 200);
   const rows = await listTimeline(auth.user.id, { contactId, companyId, dealId, type, limit, ownerScope: await apiScope(auth), chatReader: await apiChatReader(auth) });
-  return NextResponse.json({ activities: rows.map(cleanRow) });
+  return NextResponse.json({ activities: (await maskQueueRefs(apiQueueViewer(auth), rows)).map(cleanRow) });
 }
 
 /** Registrar una nota, llamada, reunión o email (las tareas van por /crm/tasks). */
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
   const { contactId, companyId, dealId } = parsed.data;
   if (!contactId && !companyId && !dealId) {
     return apiError(400, 'missing_record', 'Pass contactId, companyId or dealId.');
+  }
+  if (parsed.data.queueId && !(await getQueue(apiQueueViewer(auth), parsed.data.queueId))) {
+    return apiError(400, 'invalid_queue', 'The queue does not exist.');
   }
   const activity = await catchRef(createActivity(auth.user.id, parsed.data));
   if (activity instanceof CrmRefError) return apiError(400, activity.code, 'A referenced record does not exist.');

@@ -81,6 +81,8 @@ export async function GET(req: NextRequest) {
   const reminders = await remindersCron(req);
   if (!reminders.ok) return reminders;
   const dueTasks = await fireDueTasks().catch(() => null);
+  // CRM: recordatorios de tareas a quien las tiene (claim por tarea en reminder_sent_at).
+  const taskReminders = await import('@/lib/crm-task-reminders').then((m) => m.fireTaskReminders({ limit: 200 })).catch(() => null);
   // Workflows del CRM: inscripciones cuya espera venció (claim por fila; las de workflows apagados siguen esperando).
   const crmWorkflowWaits = await import('@/lib/crm-workflows')
     .then((m) => m.resumeWaitingWorkflowRuns({ limit: 100, budgetMs: 30_000 }))
@@ -175,5 +177,5 @@ export async function GET(req: NextRequest) {
     .then((r) => r?.map(({ job, mode, status }) => ({ job, mode, status })) ?? null)
     .catch(() => null);
   const deployNotify = await deployNotifyRun;
-  return NextResponse.json({ status, deployNotify, maintenance, reminders: await reminders.json(), dueTasks, crmWorkflowWaits, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports, crmHubspotPreviews, crmHubspotInbound, crmHubspotOutbound });
+  return NextResponse.json({ status, deployNotify, maintenance, reminders: await reminders.json(), dueTasks, crmWorkflowWaits, taskReminders, webhookRetries, chatEmails, chatCampaigns, waArchive, waHistory, waMedia, noteReminders, noteTasks, noteFiles, noteEmbeddings, docReminders, trackReminders, trackEmails, trackSla, trackAgents, trackIntegrations, linearSync, groups, inbox, fleet, voice, crmAiRuns, docsEvents, docsSync, notionSync, rec, shopExpired, talk, talkRecaps, social, agentSitemaps, agentPages, agentSources, agentEmbeddings, flow, imports, crmImports, crmHubspotPreviews, crmHubspotInbound, crmHubspotOutbound });
 }

@@ -563,7 +563,8 @@
       "project": "Proyecto",
       "owner": "Responsable",
       "repeat": "Repetir",
-      "priority": "Prioridad"
+      "priority": "Prioridad",
+      "reminder": "Recordatorio"
     },
     "detail": {
       "back": "← Todas las tareas",
@@ -629,7 +630,66 @@
       "error": "No se pudo crear el issue.",
       "created": "Issue {id} creado",
       "source": "Desde"
-    }
+    },
+    "searchPlaceholder": "Buscar tareas",
+    "filterType": "Tipo de tarea",
+    "filterPriority": "Prioridad",
+    "ownerMe": "Yo",
+    "ownerUnassigned": "Sin asignar",
+    "kind": {
+      "todo": "Por hacer"
+    },
+    "startView": "{count, plural, one {Empezar # tarea} other {Empezar # tareas}}",
+    "emptyFiltered": "Ninguna tarea coincide con estos filtros",
+    "emptyFilteredBody": "Cambiá o limpiá los filtros para ver más tareas.",
+    "table": {
+      "title": "Título",
+      "type": "Tipo",
+      "priority": "Prioridad",
+      "associated": "Asociada a",
+      "due": "Vencimiento",
+      "owner": "Asignada a",
+      "status": "Estado",
+      "created": "Creada"
+    },
+    "reminderNeedsDue": "Poné una fecha de vencimiento para sumar un recordatorio.",
+    "reminder": {
+      "none": "Sin recordatorio",
+      "at_due": "A la hora del vencimiento",
+      "15m": "15 minutos antes",
+      "1h": "1 hora antes",
+      "1d": "1 día antes",
+      "1w": "1 semana antes"
+    },
+    "reminderAt": "Recordatorio {when}",
+    "reminderSent": "enviado",
+    "reminderHelp": "A esta hora, la persona asignada recibe un aviso y un email.",
+    "bulkLabel": "Tareas elegidas",
+    "bulkSelected": "{count, plural, one {# tarea elegida} other {# tareas elegidas}}",
+    "bulkConfirmDelete": "{count, plural, one {¿Borrar # tarea?} other {¿Borrar # tareas?}}",
+    "queues": {
+      "label": "Cola",
+      "filter": "Cola",
+      "none": "Sin cola",
+      "manage": "Colas",
+      "help": "Juntá tareas en una cola y trabajalas una detrás de otra. Una cola privada es solo tuya; una compartida la ve todo el workspace.",
+      "namePlaceholder": "Nombre de la cola",
+      "shareWithAll": "Compartir con el workspace",
+      "shared": "Compartida",
+      "private": "Privada",
+      "share": "Compartir",
+      "makePrivate": "Hacer privada",
+      "rename": "Renombrar",
+      "start": "Empezar",
+      "deleteConfirm": "Sus tareas quedan, sin cola.",
+      "openCount": "{count, plural, one {# tarea abierta} other {# tareas abiertas}}",
+      "empty": "Todavía no hay colas."
+    },
+    "digest": {
+      "label": "Email diario",
+      "hint": "Cada mañana a las 8, un email con tus tareas abiertas vencidas o que vencen hoy."
+    },
+    "selectTask": "Elegir tarea"
   },
   "lists": {
     "title": "Listas",
@@ -1326,7 +1386,9 @@
     "not_unique": "Hay registros que ya comparten un valor en esta propiedad. Corregí los duplicados primero.",
     "invalid_unique": "Solo las propiedades de texto, número, URL y teléfono de contactos, empresas y deals pueden pedir valor único.",
     "duplicate_label": "Ya hay un label con ese nombre.",
-    "too_many_labels": "Llegaste al límite de labels para esta asociación."
+    "too_many_labels": "Llegaste al límite de labels para esta asociación.",
+    "invalid_queue": "Esa cola no existe o no la podés ver.",
+    "too_many": "Este workspace llegó al límite."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -2341,7 +2403,8 @@
         "overdue": "Nada vencido",
         "today": "Nada para hoy",
         "upcoming": "Nada en los próximos días",
-        "done": "Todavía no completaste tareas"
+        "done": "Todavía no completaste tareas",
+        "all": "No hay tareas abiertas"
       },
       "tasksBody": "Las tareas de contactos, empresas y deals aparecen acá según su fecha.",
       "bringFromHubspot": "Traé tus datos desde HubSpot"
@@ -3090,7 +3153,9 @@
     "scope": {
       "due": "Vencidas y de hoy",
       "overdue": "Vencidas",
-      "today": "Hoy"
+      "today": "Hoy",
+      "upcoming": "Próximas",
+      "all": "Todas las abiertas"
     },
     "counter": "Tarea {current} de {total}",
     "progress": "Avance de la cola",
@@ -3132,7 +3197,8 @@
     "emptyBody": "En esta cola no hay tareas vencidas ni que venzan hoy.",
     "finishedTitle": "Terminaste la cola",
     "finishedSummary": "{done} completadas, {snoozed} pospuestas y {skipped} para después.",
-    "reviewSkipped": "Repasar las {count} salteadas"
+    "reviewSkipped": "Repasar las {count} salteadas",
+    "namedDesc": "Las tareas abiertas de esta cola, de a una."
   },
   "playbooks": {
     "title": "Playbooks",
@@ -4670,7 +4736,12 @@
       "unassignedCompanies": "Empresas sin asignar",
       "allDeals": "Todos los deals",
       "myDeals": "Mis deals",
-      "openDeals": "Deals abiertos"
+      "openDeals": "Deals abiertos",
+      "allTasks": "Todas las tareas",
+      "dueToday": "Vencen hoy",
+      "overdueTasks": "Vencidas",
+      "upcomingTasks": "Próximas",
+      "completedTasks": "Completadas"
     },
     "columns": {
       "button": "Editar columnas",
@@ -4695,7 +4766,8 @@
       "entities": {
         "contacts": "Contactos",
         "companies": "Empresas",
-        "deals": "Deals"
+        "deals": "Deals",
+        "tasks": "Tareas"
       },
       "you": "Vos",
       "formerMember": "Ex miembro",

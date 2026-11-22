@@ -123,7 +123,13 @@ export default async function LeadPage(props: {
   );
 
   if (tab === 'activity') {
-    const timeline = await listTimeline(user.id, { leadId: lead.id, limit: 100, chatReader: await sessionChatReader(user, locale) });
+    // Sin la cola ni el recordatorio de las tareas (la cola puede ser privada de otra persona).
+    const timeline = (await listTimeline(user.id, { leadId: lead.id, limit: 100, chatReader: await sessionChatReader(user, locale) })).map((a) => ({
+      ...a,
+      queue_id: null,
+      reminder_at: null,
+      reminder_sent_at: null,
+    }));
     const items = await withActivityFiles(timeline);
     const open = timeline
       .filter((a) => a.type === 'task' && !a.done)
