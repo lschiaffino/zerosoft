@@ -22,7 +22,11 @@
 	<string>zerosoft</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<!-- zerosoft:// links (DeepLink.swift): only zerosoft://open with an app path does anything. -->
+	<!-- zerosoft:// links (DeepLink.swift): only zerosoft://open with an app path does anything.
+	     ZS_URL_SCHEME (project.yml) is zerosoft in Debug (UI tests) and zerosoft-mac in Release:
+	     the Tauri app also registers zerosoft and finishes its Google sign-in through it, so the
+	     Swift app takes the scheme only when it replaces the Tauri Mac build (decision 7.5).
+	     Its own sign-in does not need the scheme registered (ASWebAuthenticationSession). -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -30,7 +34,7 @@
 			<string>ai.zerosoft.mac</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>zerosoft</string>
+				<string>$(ZS_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>

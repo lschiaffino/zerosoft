@@ -311,10 +311,11 @@ final class MainWindowUITests: XCTestCase {
         let app = launch()
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
 
-        try openLink(app, "zerosoft://open?path=//localhost:\(server.port)/app")
-        waitForLabel(app, "zs-test-deeplink", equals: "link 1 refused")
+        let foreign = "zerosoft://open?path=//localhost:\(server.port)/app"
+        try openLink(app, foreign)
+        waitForLabel(app, "zs-test-deeplink", equals: "link 1 refused \(foreign)")
         try openLink(app, "zerosoft://open?path=/blog")
-        waitForLabel(app, "zs-test-deeplink", equals: "link 2 refused")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 2 refused zerosoft://open?path=/blog")
         try openLink(app, "zerosoft://auth/callback?code=\(String(repeating: "c", count: 43))&state=\(String(repeating: "S", count: 32))")
         waitForLabel(app, "zs-test-deeplink", equals: "link 3 ignored auth")
         XCTAssertEqual(server.tokenRequests, [])

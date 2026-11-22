@@ -38,7 +38,7 @@ public enum BridgeScript {
             notification: typeof Notification !== 'undefined'
           };
           var quiet = function () {};
-          var text = function (v, max) { return String(v).slice(0, max); };
+          var text = function (v, max) { return String(v == null ? '' : v).slice(0, max); };
           var bridge = Object.freeze({
             version: \(js(info.version)),
             platform: 'darwin',

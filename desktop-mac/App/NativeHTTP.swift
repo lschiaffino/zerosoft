@@ -54,12 +54,18 @@ final class NativeHTTP {
         }
     }
 
-    /// The web view store's session cookie after a sign-in.
-    static func setCookie(_ cookie: SessionCookie) async -> Bool {
+    /// The web view store's session cookie after a sign-in. Session cookies already stored for
+    /// this server go first, so exactly one is left; the write is checked by its value.
+    static func setCookie(_ cookie: SessionCookie, host: String) async -> Bool {
         guard let http = HTTPCookie(properties: cookie.properties()) else { return false }
         let store = WKWebsiteDataStore.default().httpCookieStore
+        for old in await store.allCookies() where LoginFlow.isSessionCookie(name: old.name, domain: old.domain, host: host) {
+            await store.deleteCookie(old)
+        }
         await store.setCookie(http)
-        return await store.allCookies().contains { $0.name == cookie.name && $0.domain.lowercased() == cookie.host }
+        return await store.allCookies().contains {
+            $0.name == cookie.name && $0.domain.lowercased() == cookie.domain && $0.value == cookie.value
+        }
     }
 }
 

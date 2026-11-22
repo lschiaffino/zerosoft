@@ -36,8 +36,9 @@ public enum PKCE {
     }
 }
 
-/// A sign-in in progress. Lives only in memory, for one attempt.
-public struct PendingLogin: Equatable, Sendable {
+/// A sign-in in progress. Lives only in memory, for one attempt. `description` never prints the
+/// verifier or the state.
+public struct PendingLogin: Equatable, Sendable, CustomStringConvertible {
     public let state: String
     public let verifier: String
     public let server: String
@@ -57,6 +58,8 @@ public struct PendingLogin: Equatable, Sendable {
     }
 
     public var challenge: String { PKCE.challenge(for: verifier) }
+
+    public var description: String { "PendingLogin(server: \(server), createdAt: \(createdAt))" }
 
     /// The page that starts the sign-in on the server. The verifier never leaves the app.
     public func startURL(lang: Lang) -> URL? {
@@ -95,18 +98,21 @@ public enum LoginRejection: String, Error, Equatable, Sendable {
 public struct SessionCookie: Equatable, Sendable, CustomStringConvertible {
     public let name: String
     public let value: String
-    public let host: String
+    /// The cookie's domain: the server host (host-only), or `.parent` of it when the server sets
+    /// its session cookie for a parent domain (`NEXTAUTH_COOKIE_DOMAIN`), as the web does, so the
+    /// page's own sign-out clears it and there is never a second cookie with the same name.
+    public let domain: String
     public let secure: Bool
     public let maxAge: Int
 
-    public var description: String { "SessionCookie(\(name), host: \(host), secure: \(secure), maxAge: \(maxAge))" }
+    public var description: String { "SessionCookie(\(name), domain: \(domain), secure: \(secure), maxAge: \(maxAge))" }
 
-    /// HTTPCookie properties: host-only, path /, HttpOnly, SameSite Lax, Secure on https.
+    /// HTTPCookie properties: path /, HttpOnly, SameSite Lax, Secure on https.
     public func properties(now: Date = Date()) -> [HTTPCookiePropertyKey: Any] {
         var p: [HTTPCookiePropertyKey: Any] = [
             .name: name,
             .value: value,
-            .domain: host,
+            .domain: domain,
             .path: "/",
             .expires: now.addingTimeInterval(TimeInterval(maxAge)),
             .sameSitePolicy: HTTPCookieStringPolicy.sameSiteLax.rawValue,
@@ -152,8 +158,9 @@ public enum LoginFlow {
         return request
     }
 
-    /// Reads the token response: `{ token, cookie: { name, maxAge } }` with status 200. The cookie
-    /// goes to the server host only (the response's own domain is ignored).
+    /// Reads the token response: `{ token, cookie: { name, domain, maxAge } }` with status 200.
+    /// The cookie's domain is the server host, or the response's domain when it is the host or a
+    /// dot-prefixed parent of it; any other domain falls back to the host.
     public static func session(status: Int, body: Data, server: String) -> Result<SessionCookie, LoginRejection> {
         guard status == 200,
               let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
@@ -167,7 +174,27 @@ public enum LoginFlow {
               !token.isEmpty, token.utf8.count <= maxTokenBytes,
               token.unicodeScalars.allSatisfy(cookieValueScalar) else { return .failure(.token) }
         let age = Int(min(max(maxAge, Double(minMaxAge)), Double(maxMaxAge)))
-        return .success(SessionCookie(name: name, value: token, host: host, secure: secure, maxAge: age))
+        let domain = cookieDomain(cookie["domain"] as? String, host: host)
+        return .success(SessionCookie(name: name, value: token, domain: domain, secure: secure, maxAge: age))
+    }
+
+    /// `.zerosoft.ai` for host `zerosoft.ai` or `app.zerosoft.ai`; never a bare TLD, never a
+    /// domain the host is not inside, never for an IP address.
+    static func cookieDomain(_ raw: String?, host: String) -> String {
+        guard let raw = raw?.lowercased(), !raw.isEmpty, !host.allSatisfy({ $0.isNumber || $0 == "." || $0 == ":" }) else { return host }
+        let bare = raw.hasPrefix(".") ? String(raw.dropFirst()) : raw
+        guard bare.contains("."), !bare.hasPrefix("."), !bare.hasSuffix("."),
+              host == bare || host.hasSuffix("." + bare) else { return host }
+        return "." + bare
+    }
+
+    /// Whether a stored cookie is one of the session cookies for this server (any of the two
+    /// names, host-only or for a parent domain): the ones a new sign-in replaces.
+    public static func isSessionCookie(name: String, domain: String, host: String) -> Bool {
+        guard cookieNames.contains(name) else { return false }
+        let d = domain.lowercased()
+        let bare = d.hasPrefix(".") ? String(d.dropFirst()) : d
+        return host == bare || host.hasSuffix("." + bare)
     }
 
     /// A JWT is base64url segments and dots; anything else does not go into a cookie.

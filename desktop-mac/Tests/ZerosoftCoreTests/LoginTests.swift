@@ -102,7 +102,8 @@ private func response(_ json: String, status: Int = 200, server s: String = serv
 @Test func tokenResponseBecomesAHostOnlyHttpOnlyCookie() throws {
     let ok = response(#"{"token":"eyJ.abc-_.x","cookie":{"name":"__Secure-next-auth.session-token","domain":"evil.com","secure":true,"maxAge":2592000}}"#)
     let cookie = try #require(try? ok.get())
-    #expect(cookie.host == "zerosoft.ai" && cookie.secure && cookie.maxAge == 2_592_000)
+    // A domain the host is not inside falls back to the host (host-only).
+    #expect(cookie.domain == "zerosoft.ai" && cookie.secure && cookie.maxAge == 2_592_000)
     #expect(!cookie.description.contains("eyJ"))
     let p = cookie.properties(now: start)
     #expect(p[.domain] as? String == "zerosoft.ai")
@@ -114,9 +115,27 @@ private func response(_ json: String, status: Int = 200, server s: String = serv
 
     // Local http: no Secure flag, and a __Secure- name is refused.
     let local = try #require(try? response(#"{"token":"t","cookie":{"name":"next-auth.session-token","maxAge":10}}"#, server: "http://127.0.0.1:3000").get())
-    #expect(!local.secure && local.host == "127.0.0.1" && local.maxAge == LoginFlow.minMaxAge)
+    #expect(!local.secure && local.domain == "127.0.0.1" && local.maxAge == LoginFlow.minMaxAge)
     #expect(local.properties()[.secure] == nil)
     #expect(response(#"{"token":"t","cookie":{"name":"__Secure-next-auth.session-token","maxAge":60}}"#, server: "http://127.0.0.1:3000") == .failure(.token))
+}
+
+@Test func cookieDomainFollowsTheServerOnlyWhenItContainsTheHost() {
+    // The web sets the session cookie for `.zerosoft.ai` (lib/auth.ts): the app does the same,
+    // so the page's sign-out clears it and no second cookie with that name appears.
+    #expect(LoginFlow.cookieDomain(".zerosoft.ai", host: "zerosoft.ai") == ".zerosoft.ai")
+    #expect(LoginFlow.cookieDomain("zerosoft.ai", host: "app.zerosoft.ai") == ".zerosoft.ai")
+    #expect(LoginFlow.cookieDomain(nil, host: "zerosoft.ai") == "zerosoft.ai")
+    for bad in ["evil.com", ".ai", "ai", "rosoft.ai", "app.zerosoft.ai", ".", "zerosoft.ai."] {
+        #expect(LoginFlow.cookieDomain(bad, host: "zerosoft.ai") == "zerosoft.ai", "\(bad)")
+    }
+    #expect(LoginFlow.cookieDomain("0.1", host: "127.0.0.1") == "127.0.0.1")
+    // What a new sign-in replaces: both names, host-only or a parent; nothing else.
+    #expect(LoginFlow.isSessionCookie(name: "next-auth.session-token", domain: "zerosoft.ai", host: "zerosoft.ai"))
+    #expect(LoginFlow.isSessionCookie(name: "__Secure-next-auth.session-token", domain: ".zerosoft.ai", host: "zerosoft.ai"))
+    #expect(!LoginFlow.isSessionCookie(name: "next-auth.csrf-token", domain: "zerosoft.ai", host: "zerosoft.ai"))
+    #expect(!LoginFlow.isSessionCookie(name: "next-auth.session-token", domain: "other.ai", host: "zerosoft.ai"))
+    #expect(!String(describing: pending).contains(pending.verifier) && !String(describing: pending).contains(pending.state))
 }
 
 @Test func unexpectedTokenResponsesAreRefused() {

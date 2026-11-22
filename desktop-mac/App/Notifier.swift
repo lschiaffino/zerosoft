@@ -21,7 +21,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var seen: [String] = []
     private var timer: Timer?
     private var polling = false
-    private var asked = false
+    /// A poll asked for while another was in flight runs right after it.
+    private var pollAgain = false
+    /// Bumped by `restart()`: an answer for an older session is dropped.
+    private var generation = 0
+    /// One permission request shared by every delivery.
+    private var authorization: Task<Void, Never>?
     /// Opens an app path in the web view (already checked with DeepLink.target).
     var openPath: (URL) -> Void = { _ in }
     /// UI tests: every badge update and every page notification decision.
@@ -51,7 +56,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// After a sign-in: a new session starts from scratch.
     func restart() {
+        generation += 1
         since = nil
+        seen = []
         Task { await poll() }
     }
 
@@ -67,12 +74,24 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     // MARK: Badge
 
     func poll() async {
-        guard !polling, let url = Badge.requestURL(server: server, since: since) else { return }
+        guard !polling else {
+            pollAgain = true
+            return
+        }
         polling = true
-        defer { polling = false }
+        repeat {
+            pollAgain = false
+            await pollOnce()
+        } while pollAgain
+        polling = false
+    }
+
+    private func pollOnce() async {
+        guard let url = Badge.requestURL(server: server, since: since) else { return }
+        let asked = generation
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        guard let (status, body) = await http.send(request, withSession: true) else { return }
+        guard let (status, body) = await http.send(request, withSession: true), asked == generation else { return }
         if status == 401 {
             // Signed out: no count, and the next session starts without `since`.
             since = nil
@@ -104,14 +123,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if let body, !body.isEmpty { content.body = body }
         if let path { content.userInfo = [Self.pathKey: path] }
         let request = UNNotificationRequest(identifier: "zs-\(id)", content: content, trigger: nil)
-        Task {
-            if !asked {
-                asked = true
-                let settings = await center.notificationSettings()
-                if settings.authorizationStatus == .notDetermined {
-                    _ = try? await center.requestAuthorization(options: [.alert, .sound])
-                }
+        let authorization = self.authorization ?? Task {
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                _ = try? await center.requestAuthorization(options: [.alert, .sound])
             }
+        }
+        self.authorization = authorization
+        Task {
+            await authorization.value
             do {
                 try await center.add(request)
             } catch {

@@ -97,7 +97,7 @@ final class AuthController: NSObject, ASWebAuthenticationPresentationContextProv
         case let .failure(reason):
             outcome(reason.rawValue)
         case let .success(cookie):
-            guard await NativeHTTP.setCookie(cookie) else {
+            guard await NativeHTTP.setCookie(cookie, host: URL(string: server)?.host?.lowercased() ?? "") else {
                 outcome(LoginRejection.cookie.rawValue)
                 return
             }

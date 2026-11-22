@@ -20,6 +20,8 @@ on:
     paths:
       - 'desktop-mac/**'
       - '.github/workflows/desktop-mac.yml'
+      - 'lib/desktop-bridge.ts'
+      - 'desktop/privacy-facts.json'
   workflow_dispatch:
 
 permissions:

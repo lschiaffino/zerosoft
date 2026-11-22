@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 
 /// One window with one web view of the server, the navigation policy and the load watchdog
 /// (blocks 1 and 2 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links, notifications
@@ -89,6 +90,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let first = launchLink.flatMap(appPage)
         launchLink = nil
+        #if DEBUG
+        if testing {
+            // Each UI test starts signed out: no session cookie left by an earlier test.
+            Task { @MainActor in
+                let store = WKWebsiteDataStore.default()
+                await store.removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: .distantPast)
+                web.start(at: first)
+                notifier.start()
+            }
+            return
+        }
+        #endif
         web.start(at: first)
         notifier.start()
     }
@@ -117,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch DeepLink.parse(url) {
         case let .open(path)?:
             guard let target = DeepLink.target(for: path, server: server) else {
-                onDeepLink?("refused")
+                onDeepLink?("refused \(url.absoluteString)")
                 return nil
             }
             onDeepLink?("open \(path)")
@@ -126,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onDeepLink?("ignored auth")
             return nil
         case nil:
-            onDeepLink?("refused")
+            onDeepLink?("refused \(url.absoluteString)")
             return nil
         }
     }
