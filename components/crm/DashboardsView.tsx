@@ -1249,7 +1249,7 @@ function KpiDelta({
   );
 }
 
-function VisibilityIcon({ visibility }: { visibility: DashboardVisibility }) {
+function VisibilityIcon({ visibility }: { visibility: string }) {
   // Candado (privado), dos personas (equipo) o un globo (todo el workspace).
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden className="cdb-meta-icon">
