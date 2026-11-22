@@ -37,18 +37,49 @@ function post(body: Record<string, unknown>) {
 
 /** A la vista: pintado, con tamaño y dentro del ancho de la ventana (un drawer cerrado no cuenta). */
 function onScreen(el: HTMLElement): boolean {
+  if (!painted(el)) return false;
+  const r = el.getBoundingClientRect();
+  return r.right > 0 && r.left < window.innerWidth;
+}
+
+/** Pintado y con tamaño, esté o no dentro del ancho de la ventana. */
+function painted(el: HTMLElement): boolean {
   if (el.closest('[inert]')) return false;
   const check = (el as HTMLElement & { checkVisibility?: (o?: Record<string, boolean>) => boolean }).checkVisibility;
   if (typeof check === 'function' && !check.call(el, { checkOpacity: true, checkVisibilityCSS: true })) return false;
   const r = el.getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return false;
-  return r.right > 0 && r.left < window.innerWidth;
+  return r.width >= 2 && r.height >= 2;
+}
+
+/**
+ * Un elemento dentro de una fila que se desplaza de costado (pestañas en el
+ * teléfono) puede quedar cortado o afuera: se desplaza esa fila hasta que se
+ * vea entero. Devuelve si hubo que moverla.
+ */
+function revealInRow(el: HTMLElement): boolean {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (p.scrollWidth <= p.clientWidth) continue;
+    const ox = getComputedStyle(p).overflowX;
+    if (ox !== 'auto' && ox !== 'scroll') continue;
+    const pr = p.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const delta = r.left < pr.left ? r.left - pr.left - 8 : r.right > pr.right ? r.right - pr.right + 8 : 0;
+    if (!delta) return false;
+    p.scrollTo({ left: p.scrollLeft + delta, behavior: 'instant' });
+    return true;
+  }
+  return false;
 }
 
 function findTarget(step: TourStep | undefined): HTMLElement | null {
   for (const name of step?.targets ?? []) {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${name}"]`))) {
-      if (onScreen(el)) return el;
+      if (onScreen(el)) {
+        revealInRow(el);
+        return el;
+      }
+      // Afuera de la pantalla solo porque la fila está desplazada: se trae a la vista.
+      if (painted(el) && revealInRow(el) && onScreen(el)) return el;
     }
   }
   return null;

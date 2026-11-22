@@ -15,7 +15,7 @@ import type { TourDef } from './index';
  *   agents-tab-conversations   components/agents/AgentEditor.tsx (pestaña Conversaciones)
  * Sin el botón de crear (no administra) ese paso se saltea. Sin agentes,
  * abrir uno y el editor se saltean. En el teléfono las pestañas se desplazan
- * de costado: las que quedan fuera de la pantalla se saltean.
+ * de costado: el motor corre la fila hasta que la señalada se vea entera.
  */
 export const AGENTS_TOUR = {
   key: 'agents',

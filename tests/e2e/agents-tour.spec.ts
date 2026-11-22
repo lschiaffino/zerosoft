@@ -275,6 +275,10 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en
         // Pegada abajo, o arriba si el elemento quedó en la mitad de abajo.
         expect(card!.y + card!.height >= 844 - 40 || card!.y <= 40, `${look} ${id}`).toBe(true);
         await cardBesideTarget(p, target, `${look} ${id}`);
+        // Las pestañas se desplazan de costado: la señalada queda entera a la vista.
+        const el = await anchor(p, target).boundingBox();
+        expect(el!.x, `${look} ${id}`).toBeGreaterThanOrEqual(0);
+        expect(el!.x + el!.width, `${look} ${id}`).toBeLessThanOrEqual(390);
         await noHorizontalScroll(p, `${look} ${id}`);
         await shot(p, `phone-${look}-${id}`);
       };
