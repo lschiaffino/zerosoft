@@ -291,8 +291,8 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 .deals-filter-bar .filter-sort { width: auto; min-width: 110px; max-width: 220px; field-sizing: content; padding-right: 30px; }
 /* En escritorio, búsqueda y acciones en una sola línea en los tres índices (la búsqueda cede espacio). */
 @media (min-width: 1024px) {
-  .deals-filter-bar .filter-toolbar { flex-wrap: nowrap; }
-  .deals-filter-bar .filter-toolbar .filter-search { flex: 1 1 200px; min-width: 160px; max-width: 280px; }
+  /* La búsqueda cede espacio antes de que las acciones pasen a otra línea (nunca se salen de la pantalla). */
+  .deals-filter-bar .filter-toolbar .filter-search { flex: 1 1 160px; min-width: 160px; max-width: 280px; }
   .deals-filter-bar .filter-right { flex-wrap: nowrap; flex: none; }
 }
 /* Filtros rápidos: del ancho de lo que dicen (no del nombre más largo de la lista), como en HubSpot. */
