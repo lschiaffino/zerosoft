@@ -1224,7 +1224,8 @@
       "custom_report": "Custom report"
     },
     "reportMissing": "This report was deleted or can't run anymore.",
-    "openReport": "Open report"
+    "openReport": "Open report",
+    "salesName": "Sales"
   },
   "settings": {
     "title": "Settings",
@@ -5077,6 +5078,287 @@
       "next30": "Next 30 days",
       "overdue": "Before today",
       "none": "No activity"
+    }
+  },
+  "dash": {
+    "switcher": {
+      "label": "Dashboard",
+      "searchPh": "Find a dashboard",
+      "create": "Create dashboard",
+      "default": "Default",
+      "ownedBy": "Owner: {name}",
+      "noMatch": "No dashboards match."
+    },
+    "visibility": {
+      "private": "Private to me",
+      "team": "Shared with {team}",
+      "teamPlain": "One sales team",
+      "everyone": "Everyone"
+    },
+    "access": {
+      "view": "Can view",
+      "edit": "Can view and edit"
+    },
+    "viewOnly": "View only",
+    "actions": {
+      "menu": "Actions",
+      "rename": "Rename",
+      "clone": "Clone",
+      "share": "Manage access",
+      "setDefault": "Set as default",
+      "delete": "Delete dashboard"
+    },
+    "addReport": "Add report",
+    "create": {
+      "title": "Create dashboard",
+      "name": "Name",
+      "namePh": "Q4 pipeline review",
+      "startWith": "Start with",
+      "sales": "Sales dashboard",
+      "salesHint": "12 ready-made reports: revenue, pipeline, forecast, activity",
+      "blank": "Blank dashboard",
+      "blankHint": "Add reports one by one",
+      "submit": "Create",
+      "cancel": "Cancel"
+    },
+    "cloneName": "{name} (copy)",
+    "rename": {
+      "title": "Rename dashboard",
+      "save": "Save"
+    },
+    "share": {
+      "title": "Manage access",
+      "who": "Who can see it",
+      "what": "What they can do",
+      "team": "Sales team",
+      "noTeams": "Create a sales team in CRM settings to share with one team.",
+      "hint": "Everyone sees only the records they have access to. Totals never include records or fields hidden from them.",
+      "save": "Save"
+    },
+    "filters": {
+      "label": "Dashboard filters",
+      "range": "Date range",
+      "owner": "Owner",
+      "allOwners": "All owners",
+      "team": "Team",
+      "allTeams": "All teams",
+      "pipeline": "Pipeline",
+      "allPipelines": "All pipelines",
+      "reset": "Reset",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "save": "Save filters",
+      "saved": "Filters saved"
+    },
+    "ranges": {
+      "today": "Today",
+      "this_week": "This week",
+      "last_week": "Last week",
+      "this_month": "This month",
+      "last_month": "Last month",
+      "this_quarter": "This quarter",
+      "last_quarter": "Last quarter",
+      "this_year": "This year",
+      "last_year": "Last year",
+      "last_7": "Last 7 days",
+      "last_30": "Last 30 days",
+      "last_90": "Last 90 days",
+      "last_365": "Last 365 days",
+      "custom": "Custom range"
+    },
+    "tile": {
+      "menu": "Actions for {name}",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "remove": "Remove from dashboard",
+      "viewTable": "View as table",
+      "viewChart": "View as chart",
+      "exportCsv": "Export CSV",
+      "size": "Size",
+      "small": "Small",
+      "medium": "Medium",
+      "wide": "Wide",
+      "moveEarlier": "Move earlier",
+      "moveLater": "Move later",
+      "openReport": "Open in report builder",
+      "drag": "Drag to reorder {name}",
+      "current": "Today",
+      "thisMonth": "This month",
+      "allDates": "All dates",
+      "vsPrev": "vs previous period",
+      "noPrev": "No data in the previous period",
+      "noData": "No data for this period",
+      "error": "Couldn't load this report.",
+      "reportMissing": "This report was deleted or can't run anymore.",
+      "fieldHidden": "This report uses a field you don't have access to.",
+      "loading": "Loading…",
+      "total": "Total",
+      "records": "{count, plural, one {# record} other {# records}}",
+      "deals": "{count, plural, one {# deal} other {# deals}}",
+      "winDetail": "{won} won of {closed} closed",
+      "openDeals": "{count, plural, one {# open deal} other {# open deals}}",
+      "perDay": "{value} per day",
+      "days": "{value} days",
+      "conversion": "{value}% from previous stage",
+      "formerMember": "Former member",
+      "seeAll": "See all",
+      "drillHint": "Select a bar or value to see its records",
+      "perDayUnit": "/ day"
+    },
+    "edit": {
+      "title": "Edit report",
+      "name": "Title",
+      "viz": "Chart type",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "viz": {
+      "kpi": "Number",
+      "bar": "Columns",
+      "hbar": "Bars",
+      "stacked": "Stacked bars",
+      "line": "Line",
+      "area": "Area",
+      "funnel": "Funnel",
+      "donut": "Donut",
+      "table": "Table"
+    },
+    "library": {
+      "title": "Report library",
+      "searchPh": "Search reports",
+      "all": "All",
+      "mine": "My reports",
+      "add": "Add",
+      "added": "Added",
+      "createCustom": "Create custom report",
+      "noCustom": "No custom reports yet.",
+      "noResults": "No reports match.",
+      "categories": {
+        "deals": "Deals",
+        "forecast": "Forecast",
+        "activities": "Activities",
+        "contacts": "Contacts"
+      }
+    },
+    "reports": {
+      "revenue_won_kpi": {
+        "name": "Revenue won",
+        "desc": "Amount of deals closed won in the period, compared with the previous one."
+      },
+      "deals_created_kpi": {
+        "name": "Deals created",
+        "desc": "How many deals were created in the period."
+      },
+      "win_rate_kpi": {
+        "name": "Win rate",
+        "desc": "Won deals out of all deals closed (won or lost) in the period."
+      },
+      "avg_deal_size_kpi": {
+        "name": "Average deal size",
+        "desc": "Average amount of the deals won in the period."
+      },
+      "sales_velocity": {
+        "name": "Sales velocity",
+        "desc": "Revenue the pipeline generates per day: open deals × win rate × average deal size ÷ average sales cycle."
+      },
+      "deals_created": {
+        "name": "Deals created over time",
+        "desc": "New deals per day, week or month."
+      },
+      "revenue_won_over_time": {
+        "name": "Revenue won over time",
+        "desc": "Amount closed won per day, week or month."
+      },
+      "won_lost_over_time": {
+        "name": "Deals won vs lost",
+        "desc": "Closed deals per period, split by outcome."
+      },
+      "deals_won_lost_by_owner": {
+        "name": "Deals won and lost by owner",
+        "desc": "Closed deals per rep, split by outcome."
+      },
+      "pipeline_by_stage": {
+        "name": "Pipeline by stage",
+        "desc": "Open deal amount and count in each stage, as of today."
+      },
+      "conversion_funnel": {
+        "name": "Deal conversion funnel",
+        "desc": "How many deals created in the period reached each stage, and the conversion between stages."
+      },
+      "avg_time_in_stage": {
+        "name": "Average time in stage",
+        "desc": "Average days deals spend in each stage."
+      },
+      "deals_closing_this_month": {
+        "name": "Deals closing this month",
+        "desc": "Open deals with a close date in the current month."
+      },
+      "deal_forecast": {
+        "name": "Deal forecast",
+        "desc": "Amount of deals closing in the period by forecast category."
+      },
+      "activities_by_rep": {
+        "name": "Activities by rep",
+        "desc": "Calls, emails and meetings logged and tasks completed per rep."
+      },
+      "activities_kpi": {
+        "name": "Activities logged",
+        "desc": "Calls, emails and meetings logged and tasks completed in the period."
+      },
+      "upcoming_tasks": {
+        "name": "Open tasks",
+        "desc": "Tasks not done yet, due soonest first."
+      },
+      "new_contacts_kpi": {
+        "name": "New contacts",
+        "desc": "Contacts created in the period."
+      },
+      "new_contacts_by_source": {
+        "name": "New contacts by source",
+        "desc": "Contacts created in the period, by source."
+      },
+      "lifecycle_stage_changes": {
+        "name": "Lifecycle stage changes",
+        "desc": "Contacts that moved to each lifecycle stage in the period."
+      }
+    },
+    "series": {
+      "won": "Won",
+      "lost": "Lost",
+      "call": "Calls",
+      "email": "Emails",
+      "meeting": "Meetings",
+      "task": "Tasks completed",
+      "value": "Value"
+    },
+    "forecastCat": {
+      "closed_won": "Closed won",
+      "commit": "Commit",
+      "best_case": "Best case",
+      "pipeline": "Pipeline"
+    },
+    "drill": {
+      "close": "Close",
+      "empty": "No records.",
+      "truncated": "Showing the first {count}. Narrow the filters to see the rest.",
+      "sum": "Total amount",
+      "cols": {
+        "name": "Name",
+        "amount": "Amount",
+        "stage": "Stage",
+        "status": "Status",
+        "type": "Type",
+        "owner": "Owner",
+        "date": "Date"
+      }
+    },
+    "empty": {
+      "title": "This dashboard has no reports yet",
+      "body": "Add ready-made sales reports from the library, or build your own in the report builder.",
+      "noDashTitle": "No dashboards to show",
+      "noDashBody": "Create a dashboard, or start from the Sales template with 12 ready-made reports.",
+      "noData": "There's no CRM data in this period yet. Reports fill in as your team adds deals, contacts and activities."
     }
   },
   "columnMenu": {

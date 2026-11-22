@@ -38,7 +38,7 @@ import {
   redactReportConfig,
 } from '@/lib/crm-custom-reports';
 import { reportConfigSchema } from '@/lib/crm-report-builder';
-import { getWidgetData } from '@/lib/crm-dashboards';
+import { addWidget, computeDashboardTiles, createDashboard } from '@/lib/crm-dashboards';
 import { splitMissingForViewer } from '@/lib/crm-stage-move';
 import { createForm, formFieldIdsFor, redactSubmissionData, submitForm } from '@/lib/crm-forms';
 import type { FormField } from '@/lib/crm-forms-schema';
@@ -380,11 +380,20 @@ describe('config de reportes guardados', () => {
   it('el widget de dashboard no trae la config con el campo oculto', async () => {
     const s = await setup('p2-widget');
     const report = await createCustomReport(s.ws, { name: 'Margins', config: secretConfig, createdBy: s.ws });
-    const req = { type: 'custom_report' as const, reportId: report.id };
-    const asMember = await getWidgetData(s.ws, req, [], [s.w.member.id], null, memberViewer(s));
-    expect(JSON.stringify(asMember)).not.toContain('secret');
-    const asOwnerData = await getWidgetData(s.ws, req, [], undefined, null, { workspaceId: s.ws, personId: s.ws, role: 'owner' });
-    expect(JSON.stringify(asOwnerData)).toContain('deal.custom:secret');
+    const ownerV = { workspaceId: s.ws, personId: s.ws, role: 'owner' as const };
+    const dash = await createDashboard(ownerV, { name: 'Shared', visibility: 'everyone' });
+    const w = await addWidget(ownerV, dash.id, { type: 'custom_report', config: { reportId: report.id } });
+    const tv = (viewer: { workspaceId: string; personId: string; role: 'owner' | 'member' }, scope: string[] | undefined) => ({
+      viewer,
+      scope,
+      fieldViewer: viewer,
+      owners: [],
+      locale: 'en',
+    });
+    const asMember = await computeDashboardTiles(tv(memberViewer(s), [s.w.member.id]), dash.id, undefined);
+    expect(JSON.stringify(asMember[w.id])).not.toContain('secret');
+    const asOwnerData = await computeDashboardTiles(tv(ownerV, undefined), dash.id, undefined);
+    expect(JSON.stringify(asOwnerData[w.id])).toContain('deal.custom:secret');
   });
 
   it('las funciones puras', () => {

@@ -16,6 +16,7 @@ import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import '@/styles/crm-reports.css';
+import '@/styles/crm-dashboards.css';
 
 /** Instalable en iOS desde "Agregar a inicio" (el manifest sale de app/manifest.ts). */
 export const metadata: Metadata = {

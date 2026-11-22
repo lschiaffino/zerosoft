@@ -2,7 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import type { SessionUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { listPipelinesWithStages } from '@/lib/crm';
-import { listDashboards, listReportOwners } from '@/lib/crm-dashboards';
+import { listEditableDashboards, listReportOwners } from '@/lib/crm-dashboards';
+import { sessionViewer } from '@/lib/crm-dashboards-session';
 import { builderCustomFields } from '@/lib/crm-custom-reports';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCrmSettings } from '@/lib/crm-currency';
@@ -25,7 +26,7 @@ export default async function ReportBuilderPage({
   const scope = await sessionScope(user);
   const [customFields, dashboards, owners, pipelines, settings] = await Promise.all([
     builderCustomFields(sessionFieldViewer(user)),
-    listDashboards(user.id),
+    listEditableDashboards(sessionViewer(user)),
     listReportOwners(user, scope),
     listPipelinesWithStages(user.id),
     getCrmSettings(user.id),
@@ -44,7 +45,7 @@ export default async function ReportBuilderPage({
       <ReportBuilder
         report={report}
         customFields={customFields}
-        dashboards={dashboards.map((d) => ({ id: d.id, name: d.name }))}
+        dashboards={dashboards}
         people={owners.map((o) => ({ id: o.id, name: o.name || o.email }))}
         pipelines={pipelines.map((p) => ({ id: p.id, name: p.name, stages: p.stages.map((s) => ({ id: s.id, name: s.name })) }))}
         locale={locale}
