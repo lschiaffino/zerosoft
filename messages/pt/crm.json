@@ -1785,7 +1785,8 @@
       "manual": "Removido",
       "gmail_not_connected": "Caixa de email desconectada",
       "sequence_deleted": "Sequência excluída",
-      "merged": "Mesclado com outro contato"
+      "merged": "Mesclado com outro contato",
+      "sender_left": "O remetente saiu do workspace"
     },
     "pause": "Pausar",
     "resume": "Retomar",

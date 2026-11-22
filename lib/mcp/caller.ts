@@ -10,7 +10,7 @@ import { rateLimit, clientIp } from '../rate-limit';
 import { resolveWorkspace, type TeamRole } from '../teams';
 import { userCanUseApp, type AppAccess } from '../workspace';
 import { canonicalResource, grantForAccessToken, hasWriteScope, isIssuedAccessToken, mcpResourceUrl, type GrantRow } from '../oauth/store';
-import type { DelegatedIdentity } from './identity';
+import { delegatedMfaOk, type DelegatedIdentity } from './identity';
 import type { Operation } from './catalog';
 import type { ProductKey } from '../products';
 import { blockedAppsFor } from '../workspace-apps';
@@ -28,6 +28,8 @@ export interface McpCaller {
   apiKeyId: string | null;
   /** Scopes de la key; undefined en OAuth. */
   apiScopes?: ApiScope[];
+  /** Cuándo se autorizó la conexión OAuth (oauth_grants.created_at); undefined en key y sesión. */
+  issuedAt?: string;
   rateKey: string;
 }
 
@@ -81,6 +83,7 @@ async function callerFromGrant(grant: GrantRow): Promise<McpCaller> {
     clientName: client?.name ?? 'Unnamed client',
     grantId: grant.id,
     apiKeyId: null,
+    issuedAt: grant.created_at,
     rateKey: `mcp:${grant.id}`,
   };
 }
@@ -163,6 +166,8 @@ export async function resolvePerson(caller: McpCaller): Promise<ResolvedPerson |
   if (caller.teamId && workspace.id !== caller.teamId) return null;
   // Una key de un miembro además tiene que seguir siendo del equipo (no guest).
   if (caller.kind === 'api_key' && owner.id !== real.id && !(await personAppAccess(owner.id, real.id))) return null;
+  // El workspace exige dos pasos: la persona los tiene que tener, y una conexión OAuth tiene que ser de después.
+  if (!delegatedMfaOk(row, workspace, caller.issuedAt)) return null;
   const blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: real.id, role, email: row.email });
   return {
     person: row,
@@ -171,7 +176,13 @@ export async function resolvePerson(caller: McpCaller): Promise<ResolvedPerson |
     role,
     apps,
     blockedApps,
-    identity: (apiPath) => ({ real, pinnedTeamId: caller.teamId, apiPath, ...(caller.apiScopes ? { apiScopes: caller.apiScopes } : {}) }),
+    identity: (apiPath) => ({
+      real,
+      pinnedTeamId: caller.teamId,
+      apiPath,
+      ...(caller.apiScopes ? { apiScopes: caller.apiScopes } : {}),
+      ...(caller.issuedAt !== undefined ? { credentialIssuedAt: caller.issuedAt } : {}),
+    }),
   };
 }
 

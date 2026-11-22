@@ -11,7 +11,7 @@ export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'e
  * Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte.
  * `nofolder` ("Sin carpeta") son los chats de la bandeja que no están en ninguna carpeta (ni a mano ni por regla).
  */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'favorites', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -59,6 +59,8 @@ export interface ThreadDto {
   lastFromMe: boolean;
   unread: number;
   pinned: boolean;
+  /** En Favoritos (la lista de WhatsApp). Solo si lo está. */
+  favorite?: boolean;
   done: boolean;
   /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
   archived: boolean;

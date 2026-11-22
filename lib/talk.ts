@@ -711,6 +711,28 @@ export async function updateChannel(actor: TalkActor, id: string, input: UpdateC
   const db = getDb();
   const now = nowIso();
   const manage = canManageChannel(actor, channel, member);
+  if (channel.kind === 'group' && input.kind === 'private') {
+    // Un grupo pasa a canal privado (como en Slack): conserva mensajes, archivos y miembros.
+    if (!member || actor.guest) throw new TalkError('forbidden', 403);
+    const name = normalizeChannelName(input.name ?? '');
+    if (!name) throw new TalkError('invalid_name');
+    const guests = await db
+      .prepare('SELECT 1 AS x FROM talk_members m JOIN talk_guests g ON g.user_id = m.user_id AND g.workspace_id = ? WHERE m.channel_id = ? LIMIT 1')
+      .get(actor.workspaceId, id);
+    if (guests) throw new TalkError('guest_in_group', 409);
+    try {
+      await db
+        .prepare("UPDATE talk_channels SET kind = 'private', name = ?, dm_key = NULL, updated_at = ? WHERE id = ? AND kind = 'group'")
+        .run(name, now, id);
+    } catch (err) {
+      if (/UNIQUE/i.test(String(err))) throw new TalkError('name_taken', 409);
+      throw err;
+    }
+    await db.prepare("UPDATE talk_members SET role = 'admin', hidden = 0 WHERE channel_id = ? AND user_id = ?").run(id, actor.personId);
+    await db.prepare('UPDATE talk_members SET hidden = 0 WHERE channel_id = ?').run(id);
+    await emitTalkEvent(actor.workspaceId, 'channel', { channelId: id, actorId: actor.personId, payload: { change: 'updated' } });
+    return (await getChannelDto(actor, id))!;
+  }
   if (input.topic !== undefined || input.description !== undefined) {
     // Tema y descripción: cualquier miembro (como en Slack); en DMs también el tema.
     if (!member) throw new TalkError('not_member', 403);

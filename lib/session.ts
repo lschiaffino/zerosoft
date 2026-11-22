@@ -10,7 +10,7 @@ import { appFromPath, ensureWorkspace, getWorkspace, hasAllApps, userCanUseApp, 
 import type { ProductKey } from './products';
 import type { Capability } from './capabilities';
 import { seedUserIfNeeded } from './seed';
-import { delegatedIdentity } from './mcp/identity';
+import { delegatedIdentity, delegatedMfaOk } from './mcp/identity';
 import { can } from './permissions';
 import { touchActivity } from './workspace-admin';
 import { blockedAppsFor } from './workspace-apps';
@@ -240,8 +240,9 @@ async function delegatedUser(d: NonNullable<ReturnType<typeof delegatedIdentity>
   const { owner, team, workspace, role, apps, caps } = await resolveWorkspace(d.real);
   // Fijado a un workspace del que ya no es parte: sin acceso, nunca cae al propio.
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return null;
-  // Un workspace que exige dos pasos tampoco se abre por el MCP sin ellos.
+  // Un workspace que exige dos pasos tampoco se abre por el MCP sin ellos (ni con una conexión de antes de activarlos).
   if (owner.id !== d.real.id && workspace.require_mfa && !mfaEnabled(d.real)) return null;
+  if (!delegatedMfaOk(d.real, workspace, d.credentialIssuedAt)) return null;
   const user: SessionUser =
     owner.id === d.real.id ? { ...d.real, team, workspace, role, apps, caps } : { ...owner, actingUser: d.real, team, workspace, role, apps, caps };
   user.blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role, email: d.real.email });

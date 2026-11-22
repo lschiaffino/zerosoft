@@ -53,6 +53,7 @@
     "empty": {
       "all": "No open chats. New WhatsApp messages land here.",
       "unread": "Nothing unread.",
+      "favorites": "No favorites yet. Add a chat from its menu.",
       "unanswered": "Every customer message has a reply.",
       "flagged": "No chat has gone unanswered past the limit.",
       "mine": "No chats assigned to you.",
@@ -95,9 +96,16 @@
     "from": "From line",
     "lineOff": "This line can’t start chats right now ({status}). You can still open the chats it already has."
   },
+  "favorites": {
+    "add": "Add to Favorites",
+    "remove": "Remove from Favorites",
+    "added": "Added to Favorites",
+    "removed": "Removed from Favorites"
+  },
   "filters": {
     "all": "All",
     "unread": "Unread",
+    "favorites": "Favorites",
     "unanswered": "Waiting",
     "flagged": "Overdue",
     "mine": "Mine",
@@ -2572,6 +2580,7 @@
     "waiting": "Waiting for reply",
     "flagged": "Overdue",
     "pinned": "Pinned",
+    "favorite": "In Favorites",
     "muted": "Muted",
     "assignee": "Assigned to",
     "me": "Me",
@@ -2622,7 +2631,8 @@
       "crm": "contact company",
       "hubspot": "crm company deal",
       "muted": "silent notifications",
-      "pinned": "fixed top"
+      "pinned": "fixed top",
+      "favorite": "favorites favourite heart list"
     }
   },
   "slash": {

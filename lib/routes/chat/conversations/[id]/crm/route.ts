@@ -3,6 +3,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import { getChatConversationWithVisitor, listChatMessages } from '@/lib/chat-data';
 import { logChatToCrm } from '@/lib/crm-integrations';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,11 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     messages: await listChatMessages(conversation.id),
     actorId: realUserId(user),
     confirmed: body?.confirm === true,
+    // Con el alcance del CRM de quien guarda: un contacto que no ve no se toca ni se nombra.
+    scope: conversation.widget_user_id === user.id ? await sessionScope(user) : [],
   });
   if ('error' in result) {
-    return NextResponse.json({ error: result.error }, { status: result.error === 'unverified_email' ? 409 : 400 });
+    return NextResponse.json({ error: result.error }, { status: result.error === 'missing_email' ? 400 : 409 });
   }
   return NextResponse.json({ contactId: result.contact.id, created: result.created });
 }

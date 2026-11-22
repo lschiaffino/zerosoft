@@ -47,7 +47,7 @@ import { decodeSysPreview } from '@/lib/wa-group-events';
 import { duration, listTime } from './wa/format';
 import { nameOrPhone } from '@/components/inbox/wa/util';
 import { plainWa } from './wa/rich';
-import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
+import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, HeartIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import LinesImportNotices from './LinesImportNotices';
@@ -93,6 +93,7 @@ const LABEL_HEX: Record<string, string> = {
 /** El campo del panel que cada pestaña pone: su chip no se repite debajo de la búsqueda. */
 const TAB_FIELD: Record<Exclude<LinesTab, 'all'>, string> = {
   unread: 'unread',
+  favorites: 'favorite',
   groups: 'kind',
   unanswered: 'waiting',
   mine: 'assignee',
@@ -842,6 +843,12 @@ export default function InboxShell({
     return Boolean(res.data);
   }
 
+  /** Favoritos, como la lista de WhatsApp: sumar o sacar el chat, con Deshacer. */
+  async function toggleFavorite(c: ChatDto) {
+    const on = !c.favorite;
+    if (await rowAction(c, { favorite: on })) showToast(on ? t('favorites.added') : t('favorites.removed'), false, { label: t('swipe.undo'), onClick: () => void rowAction(c, { favorite: !on }) });
+  }
+
   /** El chat coincide por nombre o teléfono (va en "Chats"; lo que coincide en mensajes va en "Mensajes"). */
   function nameHit(c: ChatDto): boolean {
     return !c.match || matchesChatName(c.name, c.phone, debounced);
@@ -934,6 +941,7 @@ export default function InboxShell({
       { key: 'close', glyph: c.status === 'open' ? <CheckCircle size={18} /> : <Retry size={18} />, label: c.status === 'open' ? t('wa.closeChat') : t('thread.reopen'), onSelect: () => void rowAction(c, { status: c.status === 'open' ? 'closed' : 'open' }) },
       { key: 'mute', glyph: c.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: c.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void rowAction(c, { muted: !c.muted }) },
       { key: 'pin', glyph: <PinIcon size={18} />, label: c.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void rowAction(c, { pinned: !c.pinned }) },
+      { key: 'favorite', glyph: <HeartIcon size={18} />, label: c.favorite ? t('favorites.remove') : t('favorites.add'), onSelect: () => void toggleFavorite(c) },
       { key: 'unread', glyph: c.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: c.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void rowAction(c, { read: c.unread > 0 }) },
       { key: 'assign', glyph: <UserPlus size={18} />, label: c.assignedTo === me ? t('wa.unassignMe') : t('wa.assignMe'), onSelect: () => void rowAction(c, { assignedTo: c.assignedTo === me ? null : me }) },
       { key: 'folder', glyph: <FolderIcon size={18} />, label: t('lines.moveToFolder'), onSelect: () => setMoveIds([c.id]) },
@@ -960,6 +968,7 @@ export default function InboxShell({
       ...from('snooze'),
       ...from('pin'),
       ...from('mute'),
+      ...from('favorite'),
       ...from('close'),
       ...from('assign'),
       ...from('folder'),
@@ -1239,6 +1248,7 @@ export default function InboxShell({
       { id: 'waiting', type: 'bool', category: 'status', label: t('fp.waiting'), help: t('fp.help.waiting'), keywords: t('fp.kw.waiting') },
       { id: 'flagged', type: 'bool', category: 'status', label: t('fp.flagged'), help: t('fp.help.flagged'), keywords: t('fp.kw.flagged') },
       { id: 'pinned', type: 'bool', category: 'status', label: t('fp.pinned'), keywords: t('fp.kw.pinned') },
+      { id: 'favorite', type: 'bool', category: 'status', label: t('fp.favorite'), keywords: t('fp.kw.favorite') },
       { id: 'muted', type: 'bool', category: 'status', label: t('fp.muted'), keywords: t('fp.kw.muted') },
       {
         id: 'assignee',
@@ -1572,7 +1582,7 @@ export default function InboxShell({
               {LINES_TABS.map((tab) => {
                 const on = tabsOn.includes(tab);
                 return (
-                  <button key={tab} type="button" role="tab" aria-selected={on} className={`gr-filter${on ? ' is-on' : ''}`} onClick={() => setFilters((f) => applyTab(f, tab))}>
+                  <button key={tab} type="button" role="tab" aria-selected={on} className={`gr-filter${on ? ' is-on' : ''}`} data-testid={`lines-tab-${tab}`} onClick={() => setFilters((f) => applyTab(f, tab))}>
                     {t(`filters.${tab}`)}
                   </button>
                 );

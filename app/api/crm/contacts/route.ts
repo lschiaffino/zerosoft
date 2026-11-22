@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
   // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
   if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
-  const contact = await catchContactWrite(createContact(user.id, data));
+  // La empresa que se vincula sola por el dominio del email tiene que ser una que la persona ve.
+  const contact = await catchContactWrite(createContact(user.id, data, undefined, { linkScope: await sessionScope(user) }));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   // El email es la identidad del contacto: 409 con el existente solo si quien pide lo ve.
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, await sessionScope(user));

@@ -35,7 +35,11 @@ export default async function CrmTrashPage(props: TrashPageProps) {
     deletedBy: e.deleted_by,
     deletedAt: formatDate(e.deleted_at, locale),
     daysLeft: trashDaysLeft(e.deleted_at),
-    mergedInto: e.merged_into ? { id: e.merged_into, name: e.merged_into_name } : null,
+    mergedInto: e.merged_into
+      ? { id: e.merged_into, name: e.merged_into_name }
+      : e.merged_into_private
+        ? { id: null, name: null, private: true }
+        : null,
   }));
 
   const tabQuery = (value?: TrashEntity) => {

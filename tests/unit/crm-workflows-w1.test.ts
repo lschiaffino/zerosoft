@@ -470,14 +470,15 @@ describe('W1: privacidad', () => {
     const wf = await createWorkflow(w.owner.id, {
       name: 'History',
       triggers: [{ type: 'contact_created' }],
-      actions: [{ type: 'update_field', config: { entity: 'contact', field: 'custom.salary', value: '999' } }],
+      actions: [{ type: 'update_field', config: { entity: 'contact', field: 'custom.salary', value: 'zq-salary-sentinel' } }],
     });
     const mine = await createContact(w.owner.id, { email: 'mine@w1.test', firstName: 'Mine', ownerId: w.member.id });
     await createContact(w.owner.id, { email: 'theirs@w1.test', firstName: 'Theirs', ownerId: w.friend.id });
     const memberScope = await sessionScope(asMember(w.owner, w.member));
     const views = await listWorkflowRunViews(w.owner.id, wf.id, memberScope);
     expect(views.map((v) => v.record?.id)).toEqual([mine.id]);
-    expect(JSON.stringify(views)).not.toContain('999');
+    // Un centinela con letras fuera de [0-9a-f-]: no puede aparecer en un uuid ni en una fecha.
+    expect(JSON.stringify(views)).not.toContain('zq-salary-sentinel');
     expect(JSON.stringify(views)).not.toContain('Theirs');
     // El owner ve las dos.
     expect(await listWorkflowRunViews(w.owner.id, wf.id, await sessionScope(asOwner(w.owner)))).toHaveLength(2);

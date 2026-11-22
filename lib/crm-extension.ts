@@ -319,7 +319,7 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
   if (!contacts.size) {
     const first = to[0] ?? cc[0];
     const created = await catchEmailTaken(
-      createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' }),
+      createContact(actor.workspaceId, { email: first, ownerId: actor.personId, source: 'email' }, undefined, { linkScope: actor.scope }),
     );
     // El email ya es de un contacto que esta persona no ve: no se crea otro
     // (el email es la identidad del contacto) ni se registra nada en ese

@@ -8,7 +8,7 @@ import { isComingSoon, PRODUCT_CONFIG, type ProductKey } from './products';
 import { blockedAppsFor } from './workspace-apps';
 import { normalizeRole, resolveWorkspace, type TeamRole } from './teams';
 import { parseApps } from './workspace';
-import { delegatedIdentity } from './mcp/identity';
+import { delegatedIdentity, delegatedMfaOk } from './mcp/identity';
 
 export function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
@@ -155,6 +155,11 @@ async function delegatedApiAuth(d: NonNullable<ReturnType<typeof delegatedIdenti
   const { owner, workspace } = await resolveWorkspace(d.real);
   const denied = (): ApiAuth => ({ res: apiError(403, 'insufficient_scope', `This connection is missing the "${scope}" scope.`) });
   if (d.pinnedTeamId && workspace.id !== d.pinnedTeamId) return denied();
+  // "Exigir verificación en dos pasos" vale igual que en la sesión (lib/session.ts → delegatedUser):
+  // la persona, también el dueño, los tiene activos, y la conexión OAuth es de después de activarlos.
+  if (!delegatedMfaOk(d.real, workspace, d.credentialIssuedAt)) {
+    return { res: apiError(403, 'mfa_required', 'This workspace requires two-step verification. Turn it on and reconnect.') };
+  }
   const access = await personAppAccess(owner.id, d.real.id);
   if (!access) return denied();
   const blocked = await blockedAppsFor({ ownerId: owner.id, personId: d.real.id, role: access.role, email: d.real.email });

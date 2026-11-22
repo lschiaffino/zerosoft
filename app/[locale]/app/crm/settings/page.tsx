@@ -231,6 +231,7 @@ export default async function CrmSettingsPage(props: {
         </FormSection>
         <FormSection setting="crm-tags" title={t('settings.tags')} description={t('settings.tagsDesc')}>
           <TagsManager
+            canEdit={admin}
             initialTags={tags.map((x) => ({
               id: x.id,
               name: x.name,

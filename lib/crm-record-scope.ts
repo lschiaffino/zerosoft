@@ -136,6 +136,8 @@ export const PRIVATE_REFS = {
   }),
   deal: (fields: readonly string[] = ['deal_name']): PrivateRefSpec => ({ table: 'crm_deals', id: 'deal_id', fields, flag: 'deal_private' }),
   parent: (): PrivateRefSpec => ({ table: 'crm_companies', id: 'parent_company_id', fields: [], flag: 'parent_private' }),
+  /** La empresa en la que se fusionó una entrada de la papelera. */
+  mergedInto: (): PrivateRefSpec => ({ table: 'crm_companies', id: 'merged_into', fields: ['merged_into_name'], flag: 'merged_into_private' }),
 } as const;
 
 /** Marcas que agrega maskPrivateRefs (true = hay un asociado que la persona no ve). */
@@ -144,6 +146,7 @@ export interface PrivateRefFlags {
   company_private?: boolean;
   deal_private?: boolean;
   parent_private?: boolean;
+  merged_into_private?: boolean;
 }
 
 /**

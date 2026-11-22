@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
 import { getChatConversationWithVisitor } from '@/lib/chat-data';
+import { withViewerCrmContact } from '@/lib/chat-crm-contact';
 import { conversationMergeSchema } from '@/lib/chat-schema';
 import { listMergeCandidates, mergeChatConversations } from '@/lib/chat-merge';
 
@@ -34,5 +35,6 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.error === 'not_found' ? 404 : 400 });
   }
-  return NextResponse.json({ moved: result.moved, conversation: await getChatConversationWithVisitor(id) });
+  const conversation = await getChatConversationWithVisitor(id);
+  return NextResponse.json({ moved: result.moved, conversation: conversation ? await withViewerCrmContact(conversation, user) : conversation });
 }

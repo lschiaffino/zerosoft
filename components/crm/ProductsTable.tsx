@@ -10,10 +10,12 @@ interface ProductsTableProps {
   rows: Array<ProductFormValue & { id: string }>;
   locale: string;
   defaultCurrency: string;
+  /** Dueño y admins: editar, archivar y borrar. El resto solo lo consulta. */
+  canEdit?: boolean;
 }
 
 /** Catálogo: fila clickeable abre el modal de edición; archivar y borrar en la fila. */
-export default function ProductsTable({ rows, locale, defaultCurrency }: ProductsTableProps) {
+export default function ProductsTable({ rows, locale, defaultCurrency, canEdit = false }: ProductsTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [editing, setEditing] = useState<ProductFormValue | null>(null);
@@ -51,16 +53,20 @@ export default function ProductsTable({ rows, locale, defaultCurrency }: Product
               <th className="prod-col-opt">{t('products.table.recurring')}</th>
               <th className="num prod-col-opt">{t('products.table.tax')}</th>
               <th>{t('products.table.status')}</th>
-              <th aria-label={t('common.actions')} />
+              {canEdit && <th aria-label={t('common.actions')} />}
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => (
               <tr key={p.id} className={busyId === p.id ? 'row-busy' : undefined}>
                 <td>
-                  <button type="button" className="prod-name" onClick={() => setEditing(p)}>
-                    {p.name}
-                  </button>
+                  {canEdit ? (
+                    <button type="button" className="prod-name" onClick={() => setEditing(p)}>
+                      {p.name}
+                    </button>
+                  ) : (
+                    <span className="prod-name prod-name-static">{p.name}</span>
+                  )}
                   {p.description && <span className="muted prod-desc">{p.description}</span>}
                 </td>
                 <td className="mono muted prod-col-opt">{p.sku || '—'}</td>
@@ -72,6 +78,7 @@ export default function ProductsTable({ rows, locale, defaultCurrency }: Product
                     {p.active ? t('products.active') : t('products.archived')}
                   </span>
                 </td>
+                {canEdit && (
                 <td className="prod-actions-cell">
                   <div className="prod-actions">
                   {confirmId === p.id ? (
@@ -95,6 +102,7 @@ export default function ProductsTable({ rows, locale, defaultCurrency }: Product
                   )}
                   </div>
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

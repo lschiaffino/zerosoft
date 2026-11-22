@@ -30,7 +30,7 @@ export async function GET(req: Request, ctx: Ctx) {
   return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m, id)) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, Favoritos, etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -44,9 +44,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (b.assignedTo === null || typeof b.assignedTo === 'string') patch.assignedTo = (b.assignedTo as string | null) || null;
   if (b.assignedTeamId === null || typeof b.assignedTeamId === 'string') patch.assignedTeamId = (b.assignedTeamId as string | null) || null;
   if (typeof b.pinned === 'boolean') patch.pinned = b.pinned;
+  if (typeof b.favorite === 'boolean') patch.favorite = b.favorite;
   if (b.status === 'open' || b.status === 'closed') patch.status = b.status;
   if (b.crmContactId === null || typeof b.crmContactId === 'string') patch.crmContactId = (b.crmContactId as string | null) || null;
   if (b.crmCompanyId === null || typeof b.crmCompanyId === 'string') patch.crmCompanyId = (b.crmCompanyId as string | null) || null;
+  // Vincular el chat a un contacto o una empresa del CRM: solo uno que la persona ve (el mismo error que uno que no existe).
+  if (patch.crmContactId || patch.crmCompanyId) {
+    const { canSeeRecord, sessionScope } = await import('@/lib/crm-visibility');
+    const scope = await sessionScope(s.user);
+    if (patch.crmContactId && !(await canSeeRecord(s.ws, 'crm_contacts', patch.crmContactId, scope))) return groupsError(400, 'invalid_contact');
+    if (patch.crmCompanyId && !(await canSeeRecord(s.ws, 'crm_companies', patch.crmCompanyId, scope))) return groupsError(400, 'invalid_company');
+  }
   if (b.agentId === null || typeof b.agentId === 'string') patch.agentId = (b.agentId as string | null) || null;
   if (b.properties && typeof b.properties === 'object' && !Array.isArray(b.properties)) patch.properties = b.properties as Record<string, unknown>;
   if (Array.isArray(b.labelIds)) patch.labelIds = strArr(b.labelIds, 20);
