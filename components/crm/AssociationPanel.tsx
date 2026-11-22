@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import RecordCombobox from './RecordCombobox';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
@@ -42,6 +43,17 @@ interface AssociationPanelProps {
   count?: number;
   /** Acción "Crear …" en la misma línea que el selector. */
   action?: React.ReactNode;
+  /**
+   * Modo búsqueda (vista previa): en vez del selector con todo precargado,
+   * "Agregar" abre un buscador que pide las primeras opciones al abrirse
+   * (`loadOptions`) y busca en el servidor al tipear (`search`).
+   */
+  search?: (q: string) => Promise<AssociationOption[]>;
+  loadOptions?: () => Promise<AssociationOption[]>;
+  /** Después de asociar o quitar bien (además del refresh de la página). */
+  onChanged?: () => void;
+  /** Prefijo de los data-testid del modo búsqueda. */
+  testId?: string;
 }
 
 /**
@@ -64,11 +76,34 @@ export default function AssociationPanel({
   busy,
   count,
   action,
+  search,
+  loadOptions,
+  onChanged,
+  testId,
 }: AssociationPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  const [adding, setAdding] = useState(false);
+  const [loaded, setLoaded] = useState<AssociationOption[]>([]);
+  const comboRef = useRef<HTMLDivElement>(null);
+  const searchMode = !!search;
+
+  useEffect(() => {
+    if (!adding) return;
+    comboRef.current?.querySelector<HTMLInputElement>('input')?.focus();
+    let alive = true;
+    void loadOptions?.()
+      .then((rows) => {
+        if (alive) setLoaded(rows);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [adding, loadOptions]);
 
   const busyNow = busy || pending.size > 0;
   const associatedIds = new Set(records.map((r) => r.id));
@@ -83,6 +118,7 @@ export default function AssociationPanel({
         setError(t.has(`errors.${res.error}`) ? t(`errors.${res.error}` as 'errors.generic') : t('errors.generic'));
       } else {
         router.refresh();
+        onChanged?.();
       }
     } catch {
       setError(t('errors.generic'));
@@ -170,31 +206,73 @@ export default function AssociationPanel({
         </ul>
       )}
 
-      {available.length === 0 && !action && <p className="muted assoc-none">{t('assoc.noneToAdd')}</p>}
-      {(available.length > 0 || action) && (
-        <div className="assoc-add-row">
-          {available.length > 0 && (
-            <select
-              className="select assoc-add"
+      {searchMode ? (
+        adding ? (
+          <div className="assoc-add-row assoc-search" ref={comboRef} data-testid={testId ? `${testId}-search` : undefined}>
+            <RecordCombobox
+              options={loaded.filter((o) => !associatedIds.has(o.id)).map((o) => ({ value: o.id, label: o.value }))}
               value=""
-              disabled={busyNow}
-              aria-label={addLabel}
-              onChange={(e) => {
-                const id = e.target.value;
-                e.target.value = '';
-                if (id) void wrap(() => onAssociate(id), id);
+              onChange={(id) => {
+                if (!id) return;
+                setAdding(false);
+                void wrap(() => onAssociate(id), id);
               }}
+              noneLabel={t('assoc.typeToSearch')}
+              placeholder={addLabel}
+              ariaLabel={addLabel}
+              disabled={busyNow}
+              search={async (q) =>
+                (await search!(q)).filter((o) => !associatedIds.has(o.id)).map((o) => ({ value: o.id, label: o.value }))
+              }
+            />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        ) : (
+          <div className="assoc-add-row">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm assoc-add-btn"
+              onClick={() => setAdding(true)}
+              disabled={busyNow}
+              data-testid={testId ? `${testId}-add` : undefined}
             >
-              <option value="">{addLabel}</option>
-              {available.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.value}
-                </option>
-              ))}
-            </select>
-          )}
-          {action}
-        </div>
+              <CrmIcon name="plus" size={14} />
+              {addLabel}
+            </button>
+            {action}
+          </div>
+        )
+      ) : (
+        <>
+        {available.length === 0 && !action && <p className="muted assoc-none">{t('assoc.noneToAdd')}</p>}
+        {(available.length > 0 || action) && (
+          <div className="assoc-add-row">
+            {available.length > 0 && (
+              <select
+                className="select assoc-add"
+                value=""
+                disabled={busyNow}
+                aria-label={addLabel}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  e.target.value = '';
+                  if (id) void wrap(() => onAssociate(id), id);
+                }}
+              >
+                <option value="">{addLabel}</option>
+                {available.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.value}
+                  </option>
+                ))}
+              </select>
+            )}
+            {action}
+          </div>
+        )}
+        </>
       )}
 
       {error && (
