@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
@@ -58,7 +58,17 @@ export default function BulkActionsBar({
   const [listId, setListId] = useState('');
   const [sequenceId, setSequenceId] = useState('');
   const bar = useRef<HTMLDivElement>(null);
-  useDismiss(panel !== null, () => setPanel(null), [bar]);
+  useDismiss(panel !== null, (reason) => {
+    const open = panel;
+    setPanel(null);
+    // Esc devuelve el foco al botón de la acción.
+    if (reason === 'escape' && open) bar.current?.querySelector<HTMLElement>(`[data-panel="${open}"]`)?.focus();
+  }, [bar]);
+  // Al abrir un panel, el foco va a su primer control.
+  useEffect(() => {
+    if (!panel) return;
+    bar.current?.querySelector<HTMLElement>('.bk-pop button:not([disabled]), .bk-pop select, .bk-pop input')?.focus();
+  }, [panel]);
 
   const plural = entity === 'contact' ? 'contacts' : 'companies';
   const endpoint = `/api/crm/${plural}/bulk`;
@@ -129,6 +139,7 @@ export default function BulkActionsBar({
           aria-haspopup="dialog"
           disabled={busy}
           onClick={() => toggle(p)}
+          data-panel={p}
           data-testid={opts.testId}
         >
           {label}

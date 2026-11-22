@@ -6,7 +6,9 @@
  * En la URL va la clave del rango (`created=last7`), no las fechas: una vista
  * guardada con "Últimos 7 días" sigue siendo relativa al día en que se abre.
  * Un rango a medida va en `<param>From` / `<param>To` (YYYY-MM-DD) con la clave
- * `custom`. El rango se calcula en la zona horaria de la persona.
+ * `custom`. El rango se calcula en la zona horaria de la persona, y las
+ * fechas de la base (UTC) se comparan contra el comienzo de cada día en esa
+ * zona (utcBounds en lib/crm-date-bounds.ts, solo server), como el filtro avanzado.
  */
 
 export const DATE_PRESETS = [
@@ -50,7 +52,7 @@ export function todayIn(now: Date, timeZone?: string): string {
   }
 }
 
-function addDays(day: string, n: number): string {
+export function addDays(day: string, n: number): string {
   const d = new Date(`${day}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

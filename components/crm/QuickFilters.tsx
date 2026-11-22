@@ -1,7 +1,7 @@
 'use client';
 
-import { useId, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
 import { CUSTOM_RANGE, DATE_PRESETS, NO_DATE, isDay } from '@/lib/crm-date-presets';
 
@@ -71,7 +71,15 @@ function QuickFilterButton({ filter, onChange }: { filter: QuickFilterDef; onCha
     if (reason === 'escape') btn.current?.focus();
   }, [wrap]);
 
-  const valueLabel = activeLabel(filter, (k, v) => t(k as 'presets.today', v));
+  const locale = useLocale();
+  const valueLabel = activeLabel(filter, (k, v) => t(k as 'presets.today', v), (d) => formatDay(d, locale));
+  const pop = useRef<HTMLDivElement>(null);
+  // Al abrir, el foco va al buscador o a la opción elegida (o la primera).
+  useEffect(() => {
+    if (!open) return;
+    const el = pop.current;
+    (el?.querySelector<HTMLElement>('.qf-search, [aria-selected="true"]') ?? el?.querySelector<HTMLElement>('button, input'))?.focus();
+  }, [open]);
   const active = valueLabel !== null;
 
   function pick(patch: QuickPatch) {
@@ -98,7 +106,7 @@ function QuickFilterButton({ filter, onChange }: { filter: QuickFilterDef; onCha
         </svg>
       </button>
       {open && (
-        <div className="qf-pop" id={popId} role="dialog" aria-label={filter.label}>
+        <div className="qf-pop" id={popId} role="dialog" aria-label={filter.label} ref={pop}>
           {filter.kind === 'select' ? (
             <SelectMenu filter={filter} onPick={pick} />
           ) : (
@@ -111,7 +119,20 @@ function QuickFilterButton({ filter, onChange }: { filter: QuickFilterDef; onCha
 }
 
 /** El texto del valor elegido para el botón; null sin filtro. */
-function activeLabel(filter: QuickFilterDef, t: (key: string, values?: Record<string, string>) => string): string | null {
+/** YYYY-MM-DD en el formato corto del idioma (sin mover de día: se lee en UTC). */
+function formatDay(day: string, locale: string): string {
+  try {
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${day}T00:00:00Z`));
+  } catch {
+    return day;
+  }
+}
+
+function activeLabel(
+  filter: QuickFilterDef,
+  t: (key: string, values?: Record<string, string>) => string,
+  fmt: (day: string) => string,
+): string | null {
   if (filter.kind === 'select') {
     if (!filter.value) return null;
     return filter.options.find((o) => o.value === filter.value)?.label ?? null;
@@ -120,9 +141,9 @@ function activeLabel(filter: QuickFilterDef, t: (key: string, values?: Record<st
   if (filter.preset === NO_DATE && filter.allowNone) return t('presets.none');
   const from = isDay(filter.from) ? filter.from : '';
   const to = isDay(filter.to) ? filter.to : '';
-  if (from && to) return t('range', { from, to });
-  if (from) return t('since', { date: from });
-  if (to) return t('until', { date: to });
+  if (from && to) return t('range', { from: fmt(from), to: fmt(to) });
+  if (from) return t('since', { date: fmt(from) });
+  if (to) return t('until', { date: fmt(to) });
   return null;
 }
 
@@ -141,7 +162,6 @@ function SelectMenu({ filter, onPick }: { filter: Extract<QuickFilterDef, { kind
           onChange={(e) => setQ(e.target.value)}
           placeholder={t('search')}
           aria-label={t('search')}
-          autoFocus
         />
       )}
       <div className="qf-list" role="listbox" aria-label={filter.label}>

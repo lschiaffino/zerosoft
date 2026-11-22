@@ -384,9 +384,14 @@ export interface ContactFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
-  /** Fecha de última actividad (YYYY-MM-DD, inclusive) o sin ninguna actividad (filtro rápido). */
-  activityFrom?: string;
-  activityTo?: string;
+  /**
+   * Filtros rápidos de fecha, ya en instantes UTC de la base (lib/crm-date-presets.ts utcBounds):
+   * desde (inclusive) y hasta (exclusivo) para la creación y la última actividad, o sin actividad.
+   */
+  createdAfter?: string;
+  createdBefore?: string;
+  activityAfter?: string;
+  activityBefore?: string;
   activityNone?: boolean;
   /** Id de tag: solo contactos con ese tag. */
   tag?: string;
@@ -544,16 +549,24 @@ function buildContactWhere(
     where.push('c.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
   }
+  if (f.createdAfter) {
+    where.push('c.created_at >= ?');
+    args.push(f.createdAfter);
+  }
+  if (f.createdBefore) {
+    where.push('c.created_at < ?');
+    args.push(f.createdBefore);
+  }
   if (f.activityNone) {
     where.push('c.last_activity_at IS NULL');
   } else {
-    if (f.activityFrom) {
+    if (f.activityAfter) {
       where.push('c.last_activity_at >= ?');
-      args.push(`${f.activityFrom} 00:00:00`);
+      args.push(f.activityAfter);
     }
-    if (f.activityTo) {
-      where.push('c.last_activity_at <= ?');
-      args.push(`${f.activityTo} 23:59:59`);
+    if (f.activityBefore) {
+      where.push('c.last_activity_at < ?');
+      args.push(f.activityBefore);
     }
   }
   if (f.custom) {
@@ -1087,9 +1100,14 @@ export interface CompanyFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
-  /** Fecha de última actividad (YYYY-MM-DD, inclusive) o sin ninguna actividad (filtro rápido). */
-  activityFrom?: string;
-  activityTo?: string;
+  /**
+   * Filtros rápidos de fecha, ya en instantes UTC de la base (lib/crm-date-presets.ts utcBounds):
+   * desde (inclusive) y hasta (exclusivo) para la creación y la última actividad, o sin actividad.
+   */
+  createdAfter?: string;
+  createdBefore?: string;
+  activityAfter?: string;
+  activityBefore?: string;
   activityNone?: boolean;
   /** Id de tag: solo empresas con ese tag. */
   tag?: string;
@@ -1158,16 +1176,24 @@ export async function listCompanies(
     where.push('co.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
   }
+  if (f.createdAfter) {
+    where.push('co.created_at >= ?');
+    args.push(f.createdAfter);
+  }
+  if (f.createdBefore) {
+    where.push('co.created_at < ?');
+    args.push(f.createdBefore);
+  }
   if (f.activityNone) {
     where.push('co.last_activity_at IS NULL');
   } else {
-    if (f.activityFrom) {
+    if (f.activityAfter) {
       where.push('co.last_activity_at >= ?');
-      args.push(`${f.activityFrom} 00:00:00`);
+      args.push(f.activityAfter);
     }
-    if (f.activityTo) {
-      where.push('co.last_activity_at <= ?');
-      args.push(`${f.activityTo} 23:59:59`);
+    if (f.activityBefore) {
+      where.push('co.last_activity_at < ?');
+      args.push(f.activityBefore);
     }
   }
   if (f.tag) {

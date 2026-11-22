@@ -168,7 +168,7 @@
 }
 .hs-open:hover { color: var(--ink); background: var(--brand-enamel); }
 tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
-@media (hover: none) { .hs-open { opacity: 1; } }
+@media (hover: none) { .hs-open { opacity: 1; width: 40px; height: 40px; } }
 .crm-table tbody tr.is-selected > td { background: color-mix(in srgb, var(--ink) 4%, var(--bg)); }
 .crm-table.is-frozen tbody tr.is-selected > :is(.cell-check, :nth-child(2)) { background: color-mix(in srgb, var(--ink) 4%, var(--bg)); }
 
@@ -231,7 +231,8 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   .bk-pop { position: fixed; left: 16px; right: 16px; bottom: 96px; }
   .hs-bulk .bulk-btn, .hs-bulk .bk-clear { min-height: 40px; }
   .qf-pop { position: fixed; left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; }
-  .qf-btn, .qf-opt, .filter-more { min-height: 40px; }
+  .qf-btn, .qf-opt, .filter-more, .bk-option, .qf-clear { min-height: 40px; }
+  .qf-search, .qf-date .input { height: 40px; min-height: 40px; }
   .hs-search { flex-basis: 100%; }
 }
 

@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { listsForViewer } from '@/lib/crm-list-access';
 import { resolveDateFilter } from '@/lib/crm-date-presets';
+import { utcBounds } from '@/lib/crm-date-bounds';
 import { PAGE_SIZES, parsePageSize } from '@/lib/crm-page-size';
 import PageSizeSelect from '@/components/crm/PageSizeSelect';
 import { workspaceTeamId } from '@/lib/workspace';
@@ -120,6 +121,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const now = new Date();
   const createdRange = resolveDateFilter(created, createdFrom, createdTo, { now, timeZone });
   const activityRange = resolveDateFilter(activity, activityFrom, activityTo, { now, timeZone, allowNone: true });
+  const createdUtc = utcBounds(createdRange, timeZone);
+  const activityUtc = utcBounds(activityRange, timeZone);
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -172,10 +175,10 @@ export default async function ContactsPage(props: ContactsPageProps) {
     leadStatus: leadStatus || undefined,
     source: source || undefined,
     owner: owner || undefined,
-    createdFrom: createdRange.from,
-    createdTo: createdRange.to,
-    activityFrom: activityRange.from,
-    activityTo: activityRange.to,
+    createdAfter: createdUtc.after,
+    createdBefore: createdUtc.before,
+    activityAfter: activityUtc.after,
+    activityBefore: activityUtc.before,
     activityNone: activityRange.none,
     tag: tag || undefined,
     custom: Object.keys(custom).length
@@ -385,7 +388,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
           <ContactsTable
             rows={tableRows}
             viewCols={state.cols}
-            viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
+            viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             lifecycles={[...LIFECYCLE_STAGES]}
             leadStatuses={[...LEAD_STATUSES]}

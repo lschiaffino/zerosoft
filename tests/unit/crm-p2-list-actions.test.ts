@@ -13,6 +13,7 @@ import { getDb } from '@/lib/db';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { OWNER_UNASSIGNED } from '@/lib/crm-filter-model';
+import { utcBounds } from '@/lib/crm-date-bounds';
 import type { SessionUser } from '@/lib/session';
 import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
 
@@ -59,6 +60,7 @@ describe('export of the selected rows (ids)', () => {
     const w = await workspaceWithMember('p2-exp2');
     session.user = asOwner(w.owner);
     expect((await exportIds('companies', [])).status).toBe(400);
+    expect((await exportIds('activities', ['x'])).status).toBe(400);
     expect((await exportIds('companies', Array.from({ length: 501 }, (_, i) => `id${i}`))).status).toBe(400);
   });
 });
@@ -150,9 +152,9 @@ describe('quick filters in the list queries', () => {
     expect(unassigned.rows.map((r) => r.id)).toContain(none.id);
     expect(unassigned.rows.map((r) => r.id)).not.toContain(owned.id);
 
-    const inRange = await listContacts(ws, { activityFrom: '2026-03-01', activityTo: '2026-03-31' });
+    const inRange = await listContacts(ws, { activityAfter: '2026-03-01 00:00:00', activityBefore: '2026-04-01 00:00:00' });
     expect(inRange.rows.map((r) => r.id)).toEqual([owned.id]);
-    const outRange = await listContacts(ws, { activityFrom: '2026-04-01' });
+    const outRange = await listContacts(ws, { activityAfter: '2026-04-01 00:00:00' });
     expect(outRange.rows.map((r) => r.id)).not.toContain(owned.id);
     const noActivity = await listContacts(ws, { activityNone: true });
     expect(noActivity.rows.map((r) => r.id)).toContain(none.id);
@@ -160,7 +162,14 @@ describe('quick filters in the list queries', () => {
 
     const co = await createCompany(ws, { name: 'Active Co' });
     await getDb().prepare("UPDATE crm_companies SET last_activity_at = '2026-03-10 12:00:00' WHERE id = ?").run(co.id);
-    expect((await listCompanies(ws, { activityFrom: '2026-03-10', activityTo: '2026-03-10' })).rows.map((r) => r.id)).toEqual([co.id]);
+    expect((await listCompanies(ws, { activityAfter: '2026-03-10 00:00:00', activityBefore: '2026-03-11 00:00:00' })).rows.map((r) => r.id)).toEqual([co.id]);
+    // Creación: el día de la persona en su zona (un contacto de las 22 h en UTC-3 es del día anterior en UTC+0).
+    const late = await createContact(ws, { firstName: 'Late' });
+    await getDb().prepare("UPDATE crm_contacts SET created_at = '2026-03-11 01:00:00' WHERE id = ?").run(late.id);
+    const day = utcBounds({ from: '2026-03-10', to: '2026-03-10' }, 'America/Argentina/Buenos_Aires');
+    expect((await listContacts(ws, { createdAfter: day.after, createdBefore: day.before })).rows.map((r) => r.id)).toEqual([late.id]);
+    const utcDay = utcBounds({ from: '2026-03-10', to: '2026-03-10' }, 'UTC');
+    expect((await listContacts(ws, { createdAfter: utcDay.after, createdBefore: utcDay.before })).rows.map((r) => r.id)).not.toContain(late.id);
     expect((await listCompanies(ws, { activityNone: true })).rows.map((r) => r.id)).not.toContain(co.id);
   });
 });

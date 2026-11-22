@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isDay, presetRange, resolveDateFilter, todayIn } from '@/lib/crm-date-presets';
 import { parsePageSize } from '@/lib/crm-page-size';
+import { utcBounds } from '@/lib/crm-date-bounds';
 
 // 2026-03-15 02:30 UTC: todavía 14 de marzo en Buenos Aires (UTC-3).
 const NOW = new Date('2026-03-15T02:30:00Z');
@@ -37,6 +38,15 @@ describe('crm date presets', () => {
     expect(resolveDateFilter('drop table', '2026-01-02', '', opts)).toEqual({});
     expect(isDay('2026-02-28')).toBe(true);
     expect(isDay('2026-2-28')).toBe(false);
+  });
+
+  it('turns a range of days into UTC bounds in the person time zone', () => {
+    expect(utcBounds({ from: '2026-03-10', to: '2026-03-10' }, 'UTC')).toEqual({ after: '2026-03-10 00:00:00', before: '2026-03-11 00:00:00' });
+    expect(utcBounds({ from: '2026-03-10', to: '2026-03-12' }, 'America/Argentina/Buenos_Aires')).toEqual({
+      after: '2026-03-10 03:00:00',
+      before: '2026-03-13 03:00:00',
+    });
+    expect(utcBounds({}, 'UTC')).toEqual({ after: undefined, before: undefined });
   });
 
   it('page size accepts only the offered sizes', () => {

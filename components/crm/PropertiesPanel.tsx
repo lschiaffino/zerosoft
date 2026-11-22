@@ -186,12 +186,16 @@ export default function PropertiesPanel({
   // (pierde el foco al primer carácter).
   function renderField(field: PropField) {
     const editing = editingKey === field.key;
-    // Buscador de propiedades de la ficha (PropertySearch): la que no coincide no se muestra.
-    if (!propertyMatch(field, editing)) return null;
     const display =
       field.display ? field.display : field.type === 'select'
         ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
         : field.value;
+    // Buscador de propiedades de la ficha (PropertySearch): busca en lo que se ve; la que no coincide no se muestra.
+    const shown =
+      field.type === 'multiselect' && !field.display
+        ? parseList(field.value).map((v) => field.options?.find((o) => o.value === v)?.label ?? v).join(', ')
+        : display;
+    if (!propertyMatch({ ...field, value: field.type === 'multiselect' ? shown : field.value, display: shown }, editing)) return null;
     return (
       <div key={field.key} className="prop-row" data-prop={field.key}>
         <dt className="prop-label">

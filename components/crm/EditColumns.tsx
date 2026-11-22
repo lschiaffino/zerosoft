@@ -110,7 +110,7 @@ export function useTableColumns(opts: {
   }
 
   function reset() {
-    apply(defaults, false);
+    apply(defaults, defaultFreeze);
   }
 
   return { order, freeze, apply, reset, visible: new Set(order) };

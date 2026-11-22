@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import SortTh from './SortTh';
@@ -124,6 +124,14 @@ export default function ContactsTable({ viewCols, viewFreeze,
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+
+  // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
+  // (la barra masiva nunca actúa sobre registros que ya no se ven).
+  const rowIds = rows.map((r) => r.id).join(',');
+  useEffect(() => {
+    const shown = new Set(rowIds.split(','));
+    setSelected((prev) => (prev.size && [...prev].some((id) => !shown.has(id)) ? new Set([...prev].filter((id) => shown.has(id))) : prev));
+  }, [rowIds]);
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 

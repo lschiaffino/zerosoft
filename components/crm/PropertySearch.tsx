@@ -18,7 +18,7 @@ export function usePropertyMatch(): (field: { key: string; label: string; value:
     if (f.hideEmpty && !field.value.trim()) return false;
     const q = f.query.trim().toLowerCase();
     if (!q) return true;
-    return [field.label, field.display ?? '', field.value].some((s) => s.toLowerCase().includes(q));
+    return [field.label, field.display ?? field.value].some((s) => s.toLowerCase().includes(q));
   };
 }
 

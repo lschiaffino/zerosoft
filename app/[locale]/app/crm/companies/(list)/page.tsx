@@ -3,6 +3,7 @@ import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { resolveDateFilter } from '@/lib/crm-date-presets';
+import { utcBounds } from '@/lib/crm-date-bounds';
 import { PAGE_SIZES, parsePageSize } from '@/lib/crm-page-size';
 import PageSizeSelect from '@/components/crm/PageSizeSelect';
 import { workspaceTeamId } from '@/lib/workspace';
@@ -98,6 +99,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const now = new Date();
   const createdRange = resolveDateFilter(created, createdFrom, createdTo, { now, timeZone });
   const activityRange = resolveDateFilter(activity, activityFrom, activityTo, { now, timeZone, allowNone: true });
+  const createdUtc = utcBounds(createdRange, timeZone);
+  const activityUtc = utcBounds(activityRange, timeZone);
   const rawFilters = state.filters ?? '';
   const sortParam = state.sort;
   const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
@@ -139,10 +142,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     industry: industry || undefined,
     lifecycle: lifecycle || undefined,
     owner: owner || undefined,
-    createdFrom: createdRange.from,
-    createdTo: createdRange.to,
-    activityFrom: activityRange.from,
-    activityTo: activityRange.to,
+    createdAfter: createdUtc.after,
+    createdBefore: createdUtc.before,
+    activityAfter: activityUtc.after,
+    activityBefore: activityUtc.before,
     activityNone: activityRange.none,
     tag: tag || undefined,
     custom: Object.keys(custom).length
@@ -362,7 +365,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
           <CompaniesTable
             rows={tableRows}
             viewCols={state.cols}
-            viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
+            viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             sort={sort}
             lifecycles={[...LIFECYCLE_STAGES]}
