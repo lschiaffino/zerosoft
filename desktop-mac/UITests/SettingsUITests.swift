@@ -108,6 +108,18 @@ final class SettingsUITests: XCTestCase {
         "\(box.value ?? "")" == "1"
     }
 
+    /// Scrolls Settings until `el` can be clicked (the sections are scroll views taller than
+    /// the window), then clicks it.
+    private func reveal(_ app: XCUIApplication, _ el: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(el.waitForExistence(timeout: 15), "missing \(el)", file: file, line: line)
+        let scroll = app.windows.matching(identifier: "zs-settings").firstMatch.scrollViews.firstMatch
+        for delta in [-120.0, -120, -120, -120, 120, 120, 120, 120, 120, 120, 120, 120] where !el.isHittable {
+            scroll.scroll(byDeltaX: 0, deltaY: CGFloat(delta))
+        }
+        XCTAssertTrue(el.isHittable, "\(el) is not visible", file: file, line: line)
+        el.click()
+    }
+
     /// Cmd+, opens Settings; the app's switches go to settings.json and the tab preferences to
     /// session.json, and both are there again after a relaunch.
     func testSettingsOpensAndSwitchesPersist() throws {
@@ -253,9 +265,10 @@ final class SettingsUITests: XCTestCase {
         wait(for: [removed], timeout: 10)
 
         section(app, "voice")
+        // Block 6 put the dictation controls of this Mac above the account's settings.
         let cleanup = app.popUpButtons.matching(identifier: "zs-voice-cleanup").firstMatch
         XCTAssertTrue(cleanup.waitForExistence(timeout: 15), "voice settings did not load")
-        press(cleanup)
+        reveal(app, cleanup)
         cleanup.menuItems["Formal"].click()
         waitServer("patch") { self.server.writes.contains(#"PATCH /api/voice/settings {"cleanupMode":"formal"}"#) }
         XCTAssertTrue(element(app, "zs-voice-saved").waitForExistence(timeout: 10))

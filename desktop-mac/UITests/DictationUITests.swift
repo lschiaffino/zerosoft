@@ -138,6 +138,18 @@ final class DictationUITests: XCTestCase {
         return (field.value as? String) ?? ""
     }
 
+    /// Scrolls Settings until `el` can be clicked (the sections are scroll views taller than
+    /// the window), then clicks it.
+    private func reveal(_ app: XCUIApplication, _ el: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(el.waitForExistence(timeout: 15), "missing \(el)", file: file, line: line)
+        let scroll = app.windows.matching(identifier: "zs-settings").firstMatch.scrollViews.firstMatch
+        for delta in [-120.0, -120, -120, -120, 120, 120, 120, 120, 120, 120, 120, 120] where !el.isHittable {
+            scroll.scroll(byDeltaX: 0, deltaY: CGFloat(delta))
+        }
+        XCTAssertTrue(el.isHittable, "\(el) is not visible", file: file, line: line)
+        el.click()
+    }
+
     // MARK: Tests
 
     /// The microphone is not asked for at launch. The first dictation from the menu bar item
@@ -249,25 +261,21 @@ final class DictationUITests: XCTestCase {
         section(app, "permissions")
         XCTAssertTrue(text(app, "Not asked yet. macOS asks the first time you dictate, or now with the button.").waitForExistence(timeout: 10))
         waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
-        press(button(app, "zs-set-mic"))
+        reveal(app, button(app, "zs-set-mic"))
         waitLabel(app, "zs-test-mic", "mic asked=1 allowed")
         XCTAssertTrue(text(app, "The microphone is on.").waitForExistence(timeout: 10))
 
         waitLabel(app, "zs-test-paste", "paste asked=0 off keys=0")
-        press(button(app, "zs-set-paste"))
+        reveal(app, button(app, "zs-set-paste"))
         waitLabel(app, "zs-test-paste", "paste asked=1 allowed keys=0")
         XCTAssertTrue(text(app, "Pasting is on.").waitForExistence(timeout: 10))
         XCTAssertTrue(element(app, "zs-set-notif").exists, "the notifications row is missing")
 
         section(app, "voice")
         waitLabel(app, "zs-test-dictset", "shortcut=Alt+Space mode=both paste=true restore=true app=true keep=true")
-        let keep = app.checkBoxes.matching(identifier: "zs-dict-keep").firstMatch
-        XCTAssertTrue(keep.waitForExistence(timeout: 10))
-        keep.click()
+        reveal(app, app.checkBoxes.matching(identifier: "zs-dict-keep").firstMatch)
         waitLabel(app, "zs-test-dictset", "shortcut=Alt+Space mode=both paste=true restore=true app=true keep=false")
-        let toggleOnly = app.radioButtons.matching(showing("Only tap to start and stop")).firstMatch
-        XCTAssertTrue(toggleOnly.waitForExistence(timeout: 10))
-        toggleOnly.click()
+        reveal(app, app.radioButtons.matching(showing("Only tap to start and stop")).firstMatch)
         waitLabel(app, "zs-test-dictset", "shortcut=Alt+Space mode=toggle paste=true restore=true app=true keep=false")
     }
 
@@ -278,9 +286,7 @@ final class DictationUITests: XCTestCase {
         signIn(app)
         openSettings(app)
         section(app, "history")
-        let paste = button(app, "zs-history-paste-s1")
-        XCTAssertTrue(paste.waitForExistence(timeout: 15), "history did not load")
-        press(paste)
+        reveal(app, button(app, "zs-history-paste-s1"))
         // The app hid to give the focus back; bring it back to read the result.
         pause(2)
         app.activate()
