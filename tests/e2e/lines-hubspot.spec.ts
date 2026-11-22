@@ -161,6 +161,36 @@ test('HubSpot: conectar, vincular un grupo y un chat, registrar, filtrar y desco
   await expect(hubspotRegion(page).getByRole('link', { name: 'Open Acme Logistics in HubSpot', exact: true })).toBeVisible();
   await expect(hubspotRegion(page).getByRole('link', { name: 'Open Acme Logistics renewal in HubSpot', exact: true })).toBeVisible();
 
+  // ---------- Crear un ticket de HubSpot desde el chat ----------
+  await hubspotRegion(page).getByTestId('hs-create-ticket').click();
+  const ticketForm = page.getByTestId('hs-ticket-form');
+  await expect(ticketForm.getByTestId('hs-ticket-stage')).toBeVisible();
+  // Esc cierra sin crear nada.
+  await page.keyboard.press('Escape');
+  await expect(ticketForm).toBeHidden();
+  await hubspotRegion(page).getByTestId('hs-create-ticket').click();
+  await expect(ticketForm.getByTestId('hs-ticket-stage')).toBeVisible();
+  await expect(page.getByTestId('hs-ticket-submit')).toBeDisabled();
+  await ticketForm.getByTestId('hs-ticket-subject').fill(`Factura ${tag}`);
+  await page.getByTestId('hs-ticket-submit').click();
+  await expect(ticketForm).toBeHidden();
+  await expect(hubspotRegion(page).getByTestId('hs-ticket-done').getByRole('link')).toHaveAttribute('href', /^https:\/\/app\.hubspot\.com\/contacts\/424242\/record\/0-5\/\d+$/);
+
+  // ---------- Y desde la lista de Tickets, con el vínculo guardado ----------
+  const made = await request.post('/api/groups/tickets', { data: { chatId: group.id, title: `Ticket ${tag}` } });
+  expect(made.ok(), await made.text()).toBe(true);
+  const lt = (await made.json()) as { id: string; number: number };
+  await page.goto(`/en/app/lines/tickets?open=${lt.id}`, { waitUntil: 'networkidle' });
+  await page.getByTestId(`hs-ticket-send-${lt.number}`).click();
+  await expect(page.getByTestId('hs-ticket-subject')).toHaveValue(`Ticket ${tag}`);
+  await page.getByTestId('hs-ticket-submit').click();
+  const hsLink = page.getByTestId(`hs-ticket-link-${lt.number}`);
+  await expect(hsLink).toHaveAttribute('href', /\/record\/0-5\/\d+$/);
+  await expect(page.getByTestId(`hs-ticket-send-${lt.number}`)).toHaveCount(0);
+  await page.reload({ waitUntil: 'networkidle' });
+  await expect(page.getByTestId(`hs-ticket-link-${lt.number}`)).toBeVisible();
+  await page.goto(`/en/app/lines/list/${group.id}`, { waitUntil: 'networkidle' });
+
   // ---------- Registrar la conversación ----------
   await hubspotRegion(page).getByRole('button', { name: 'Log conversation to HubSpot' }).click();
   await expect(page.getByText('1 note saved in HubSpot')).toBeVisible();
