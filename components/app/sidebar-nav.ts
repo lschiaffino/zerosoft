@@ -1183,19 +1183,20 @@ export function buildNav(
         {
           items: [
             { href: '/app/social', label: labels.social.calendar, active: pathname === '/app/social' || at('/app/social/calendar'), icon: 'calendar' },
-            { href: '/app/social/posts', label: labels.social.posts, active: at('/app/social/posts') || at('/app/social/posts/new'), icon: 'lists' },
-            { href: '/app/social/inbox', label: labels.social.inbox, active: at('/app/social/inbox'), icon: 'inbox' },
+            // Anclajes del tour de Social (lib/tours/social.ts).
+            { href: '/app/social/posts', label: labels.social.posts, active: at('/app/social/posts') || at('/app/social/posts/new'), icon: 'lists', tour: 'social-posts' },
+            { href: '/app/social/inbox', label: labels.social.inbox, active: at('/app/social/inbox'), icon: 'inbox', tour: 'social-inbox' },
             { href: '/app/social/library', label: labels.social.library, active: at('/app/social/library'), icon: 'templates' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/social/analytics', label: labels.social.analytics, active: at('/app/social/analytics'), icon: 'reports' }],
+          items: [{ href: '/app/social/analytics', label: labels.social.analytics, active: at('/app/social/analytics'), icon: 'reports', tour: 'social-analytics' }],
         },
         {
           items: [
-            { href: '/app/social/accounts', label: labels.social.accounts, active: at('/app/social/accounts'), icon: 'social' },
-            { href: '/app/social/settings', label: labels.social.settings, active: at('/app/social/settings'), icon: 'settings' },
+            { href: '/app/social/accounts', label: labels.social.accounts, active: at('/app/social/accounts'), icon: 'social', tour: 'social-accounts' },
+            { href: '/app/social/settings', label: labels.social.settings, active: at('/app/social/settings'), icon: 'settings', tour: 'social-settings' },
           ],
         },
       ];

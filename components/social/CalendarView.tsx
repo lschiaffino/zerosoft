@@ -94,7 +94,7 @@ export default function CalendarView({ posts, view, anchor, tz, today }: { posts
 
   return (
     <div className="sc-page">
-      <div className="sc-cal-bar">
+      <div className="sc-cal-bar" data-tour="social-calendar">
         <Link className="btn btn-sm" href={href(today)}>
           {t('today')}
         </Link>

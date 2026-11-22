@@ -93,6 +93,7 @@
   "errors": {
     "too_many_pins": "Hasta 3 mensajes fijados por chat. Desfijá uno primero.",
     "not_pinnable": "Ese mensaje no se puede fijar.",
+    "not_reportable": "Solo se pueden reportar mensajes recibidos.",
     "mic_denied": "El navegador no dejó usar el micrófono.",
     "file_too_large": "El archivo es demasiado grande para WhatsApp.",
     "media_too_large": "El archivo es demasiado grande para WhatsApp.",

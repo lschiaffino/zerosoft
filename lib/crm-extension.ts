@@ -261,10 +261,13 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
     outbound,
     contactId: primary,
   });
-  await emitEvent(actor.workspaceId, outbound ? 'email.sent' : 'email.received', {
+  const event = outbound ? 'email.sent' : 'email.received';
+  const logged = {
     email: { id: emailId, subject, from: input.from, to: input.to ?? '', threadId: input.threadId ?? '', via: 'extension' },
     contactIds,
-  });
+  };
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(actor.workspaceId, event, logged, await crmEventOptions(actor.workspaceId, event, logged));
   return { ok: true, emailId, contactIds, duplicate: false };
 }
 
@@ -361,10 +364,12 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
       .run(emailId, contactId, actor.workspaceId);
   }
   await linkActivity(actor, emailId, { subject, body, outbound: true, contactId: primary });
-  await emitEvent(actor.workspaceId, 'email.sent', {
+  const sent = {
     email: { id: emailId, subject, to: input.to, threadId: input.threadId ?? '', via: 'extension' },
     contactId: primary,
     sequence: null,
-  });
+  };
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(actor.workspaceId, 'email.sent', sent, await crmEventOptions(actor.workspaceId, 'email.sent', sent));
   return { ok: true, emailId, pixelUrl: pixelUrl(token), contactIds, createdContact };
 }

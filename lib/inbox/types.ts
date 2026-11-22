@@ -160,6 +160,8 @@ export interface WaMessageMeta {
   mentions?: string[];
   /** Id que puso la pantalla al mandar: reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
   cid?: string;
+  /** "Reportar" (lib/inbox/wa-actions.ts reportMessage): cuándo. Queda en Inbox; no llega a WhatsApp. */
+  reported?: { at: string };
 }
 
 export interface ParticipantDto {

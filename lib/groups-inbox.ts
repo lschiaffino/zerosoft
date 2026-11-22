@@ -271,6 +271,48 @@ export async function starMessage(ws: string, messageId: string, star: boolean):
 }
 
 /**
+ * "Reportar" de WhatsApp: el mensaje recibido queda marcado (meta.reported, con
+ * quién y cuándo) y en el log del chat. Ningún proveedor de la línea (Evolution,
+ * WAHA, Cloud API) expone el reporte a WhatsApp, así que no sale de acá. Como en
+ * WhatsApp se puede, a la vez, bloquear al contacto (chat 1:1) o salir del grupo.
+ * Si bloquear o salir falla, el reporte queda igual y se avisa con el error.
+ */
+export async function reportMessage(
+  ws: string,
+  actor: string,
+  messageId: string,
+  opts: { block?: boolean; leave?: boolean } = {},
+): Promise<{ message: MessageDto; blocked: boolean; left: boolean; error?: string }> {
+  const { msg, chat } = await messageContext(ws, messageId);
+  if (msg.direction !== 'in' || msg.deleted_at) throw new GroupsError('not_reportable');
+  const db = getDb();
+  const reported = JSON.stringify({ at: nowIso(), by: actor });
+  await db
+    .prepare("UPDATE groups_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.reported', json(?)) WHERE id = ? AND user_id = ?")
+    .run(reported, msg.id, ws);
+  let blocked = false;
+  let left = false;
+  let error: string | undefined;
+  try {
+    if (opts.block && chat.kind === 'dm' && !chat.blocked_at) {
+      const { setChatBlocked } = await import('./groups-block');
+      await setChatBlocked(ws, chat.id, true);
+      blocked = true;
+    }
+    if (opts.leave && chat.kind === 'group' && !chat.left_at) {
+      const { leaveGroup } = await import('./groups-org');
+      await leaveGroup(ws, chat.id);
+      left = true;
+    }
+  } catch (err) {
+    error = err instanceof GroupsError ? err.code : 'provider_error';
+  }
+  const { recordAudit } = await import('./groups-audit');
+  await recordAudit(ws, { chatId: chat.id, chatName: chat.name, actorId: actor, action: 'reported', detail: { messageId: msg.id, blocked, left } });
+  return { message: await freshDto(ws, msg.id), blocked, left, ...(error ? { error } : {}) };
+}
+
+/**
  * Fija o desfija. Si el proveedor fija en WhatsApp (WAHA) también lo hace
  * ahí; si no (Cloud API, Evolution, notas), queda fijado solo en Groups.
  */

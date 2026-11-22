@@ -3,6 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import SearchClear from '@/components/app/SearchClear';
 
 // El menú vive en wa/Menu.tsx (también lo usa Inbox); se reexporta para los imports de siempre.
 export { MessageMenu, type MenuItem } from './wa/Menu';
@@ -197,7 +198,10 @@ export function ForwardModal({
         )}
         <label className="ui-field">
           <span className="label">{t('forward.search')}</span>
-          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          <span className="ui-search-box">
+            <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} autoFocus data-clearable="" />
+            <SearchClear shown={q !== ''} onClear={() => setQ('')} label={t('wa.clearSearch')} />
+          </span>
         </label>
         {rows === null ? (
           <p className="ui-help" aria-busy="true">

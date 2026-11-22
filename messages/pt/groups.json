@@ -971,6 +971,7 @@
     "edit_window": "O WhatsApp só deixa editar uma mensagem por 15 minutos.",
     "delete_window": "O WhatsApp só deixa apagar para todos nos primeiros dois dias.",
     "not_pinnable": "Essa mensagem não pode ser fixada.",
+    "not_reportable": "Só é possível denunciar mensagens recebidas.",
     "too_many_pins": "Até 3 mensagens fixadas por chat. Desafixe uma antes.",
     "not_forwardable": "Essa mensagem não pode ser encaminhada.",
     "cannot_forward_media": "Este arquivo veio do WhatsApp e não pode ser copiado para outro número. Encaminhe do mesmo número WAHA.",
@@ -1435,6 +1436,7 @@
       "ticket_created": "Ticket criado",
       "ticket_updated": "Ticket atualizado",
       "ticket_deleted": "Ticket apagado",
+      "reported": "Denunciadas",
       "hubspot_company": "Empresa do HubSpot"
     },
     "actions": {
@@ -1458,6 +1460,9 @@
       "labelsRemoved": "removeu etiquetas: {removed}",
       "assignedSelf": "atribuiu o chat a si",
       "hubspot_company": "substituiu a empresa do HubSpot {previous} por {company}, a que este grupo tem nas outras linhas",
+      "reported": "denunciou uma mensagem",
+      "reportedBlocked": "denunciou uma mensagem e bloqueou o contato",
+      "reportedLeft": "denunciou uma mensagem e saiu do grupo",
       "imported": "importou do Periskope: {kind}, {applied} linhas"
     },
     "memberActions": {
@@ -1734,7 +1739,20 @@
     "action": "Ir para a caixa"
   },
   "wa": {
+    "clearSearch": "Limpar pesquisa",
     "leftGroupBar": "Você não pode enviar mensagens para este grupo porque não é mais membro.",
+    "report": {
+      "action": "Denunciar",
+      "title": "Denunciar esta mensagem?",
+      "body": "Ela fica marcada como denunciada nesta conversa. Seu servidor de WhatsApp não consegue enviar denúncias ao WhatsApp: para o WhatsApp analisar, denuncie também pelo celular.",
+      "block": "Bloquear também {name}",
+      "leave": "Sair também do grupo",
+      "done": "Mensagem denunciada",
+      "doneBlocked": "Mensagem denunciada e {name} bloqueado",
+      "doneLeft": "Mensagem denunciada e você saiu do grupo",
+      "partial": "Mensagem denunciada. {error}",
+      "reported": "Denunciada"
+    },
     "chatSearch": {
       "open": "Pesquisar mensagens",
       "shortcut": "Ctrl+Shift+F",

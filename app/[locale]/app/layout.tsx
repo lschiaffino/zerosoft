@@ -14,6 +14,7 @@ import { listMyWorkspaces, userCanUseApp } from '@/lib/workspace';
 import type { SwitcherEntry } from '@/components/app/WorkspaceSwitcher';
 import OfflineIdentity from '@/components/app/OfflineIdentity';
 import { countDueTasks } from '@/lib/crm';
+import { sessionScope } from '@/lib/crm-visibility';
 import { getWorkspaceMode } from '@/lib/home';
 import { chosenApps, parseProfile } from '@/lib/onboarding';
 import DesktopSeen from '@/components/desktop/DesktopSeen';
@@ -212,7 +213,7 @@ export default async function AppLayout(
       getTranslations({ locale, namespace: 'fleet' }),
       getTranslations({ locale, namespace: 'time' }),
       // El badge no puede tirar todas las páginas de la app: sin la tabla o con un error, 0.
-      countDueTasks(user.id).catch((err) => {
+      sessionScope(user).then((scope) => countDueTasks(user.id, scope)).catch((err) => {
         console.error('[app layout] countDueTasks', err);
         return 0;
       }),
