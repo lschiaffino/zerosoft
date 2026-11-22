@@ -462,6 +462,7 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -948,8 +949,17 @@ button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset:
   /* Los links bajo el título (de dónde viene la tarea) con área táctil propia, lejos del check. */
   .task-title-sub a { display: inline-flex; align-items: center; min-height: 40px; }
   /* El check y el título de la fila, con su propia área táctil de 40px: el link de origen de
-     arriba ya la tiene y quedaban pegados. */
-  .task-row .task-check { min-width: 40px; min-height: 40px; }
+     arriba ya la tiene y quedaban pegados. El círculo se sigue viendo de 22px: el borde
+     transparente de 9px es área táctil y el aro de 3px va por dentro. */
+  .task-row .task-check {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border: 9px solid transparent;
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 3px var(--ink);
+  }
   .task-row .task-subject { display: inline-flex; align-items: center; min-height: 40px; }
   .task-queue-actions { margin-left: 0; }
 }
