@@ -428,14 +428,14 @@ export async function computeLibraryReport(key: string, ctx: ReportContext): Pro
       if (!pid) return emptyChart('days');
       const rows = await all<{ id: string; name: string; days: number | null; c: number }>(
         db,
-        `SELECT s.id, s.name, AVG(MAX(julianday(COALESCE(h.exited_at, datetime('now'))) - julianday(h.entered_at), 0)) AS days, COUNT(h.id) AS c
+        `SELECT s.id, s.name, AVG(MAX(julianday(COALESCE(h.exited_at, ?)) - julianday(h.entered_at), 0)) AS days, COUNT(h.id) AS c
          FROM crm_stages s
          LEFT JOIN crm_deal_stage_history h ON h.stage_id = s.id AND h.user_id = ?
            AND h.deal_id IN (SELECT d.id FROM crm_deals d WHERE ${dealBase(ctx, false).sql})
            ${between('h.entered_at', from, to).sql}
          WHERE s.pipeline_id = ? AND s.is_won = 0 AND s.is_lost = 0
          GROUP BY s.id ORDER BY s.position`,
-        [ctx.workspaceId, ...dealBase(ctx, false).args, ...between('h.entered_at', from, to).args, pid],
+        [(ctx.now ?? new Date()).toISOString().slice(0, 19).replace('T', ' '), ctx.workspaceId, ...dealBase(ctx, false).args, ...between('h.entered_at', from, to).args, pid],
       );
       return {
         kind: 'chart',
@@ -494,7 +494,7 @@ export async function computeLibraryReport(key: string, ctx: ReportContext): Pro
           values: top.map((o) => num(rows.find((r) => r.o === o && r.t === t)?.v)),
         })),
         seriesKind: 'activityType',
-        total: rows.reduce((a, r) => a + num(r.v), 0),
+        total: rows.filter((r) => top.includes(r.o)).reduce((a, r) => a + num(r.v), 0),
         drill: true,
       };
     }
@@ -533,7 +533,8 @@ export async function computeLibraryReport(key: string, ctx: ReportContext): Pro
         categoryKind: 'lifecycle',
         series: [{ key: 'count', label: null, values: rows.map((r) => num(r.v)) }],
         seriesKind: null,
-        total: rows.reduce((a, r) => a + num(r.v), 0),
+        // Un contacto que pasó por dos etapas cuenta en las dos: no hay un total que sume.
+        total: null,
         drill: true,
       };
     }

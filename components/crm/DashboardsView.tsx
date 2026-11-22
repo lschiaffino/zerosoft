@@ -86,6 +86,14 @@ function sameFilters(a: DashboardFilters, b: DashboardFilters): boolean {
   return n(a) === n(b);
 }
 
+/** El botón que abrió el último menú: un diálogo abierto desde un ítem del menú devuelve el foco ahí al cerrar. */
+let lastMenuTrigger: HTMLElement | null = null;
+
+function focusBack(): HTMLElement | null {
+  const el = document.activeElement;
+  return el instanceof HTMLElement && el !== document.body && el.isConnected ? el : lastMenuTrigger;
+}
+
 function setUrlDashboard(id: string) {
   const url = new URL(window.location.href);
   url.searchParams.set('d', id);
@@ -245,6 +253,7 @@ export default function DashboardsView({
       return;
     }
     const data = (await res.json()) as { tiles: Record<string, TileData> };
+    if (req !== requestRef.current) return;
     setTiles((prev) => ({ ...prev, ...data.tiles }));
   }, []);
 
@@ -280,6 +289,17 @@ export default function DashboardsView({
     }).catch(() => null);
     if (!res || !res.ok) {
       setError(t('errors.generic'));
+      return null;
+    }
+    if (res.status === 204) {
+      // Ya no lo ve (un admin lo hizo privado de otra persona): sale de la lista.
+      const rest = boardsRef.current.filter((b) => b.id !== id);
+      setBoards(rest);
+      boardsRef.current = rest;
+      setDialog(null);
+      const next = rest.find((b) => b.isDefault) ?? rest[0];
+      if (next) selectBoard(next.id, rest);
+      else setActiveId(null);
       return null;
     }
     const updated = (await res.json()) as DashboardView;
@@ -394,8 +414,10 @@ export default function DashboardsView({
 
   // ---------- Drill-down ----------
 
+  const drillReq = useRef(0);
   async function openDrill(widgetId: string, segment: DrillSegment, title: string, subtitle: string | null) {
     if (!active) return;
+    const req = ++drillReq.current;
     const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setDrill({ widgetId, title, subtitle, status: 'loading', returnFocus });
     const res = await fetch('/api/crm/dashboards/drill', {
@@ -403,12 +425,15 @@ export default function DashboardsView({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ dashboardId: active.id, widgetId, filters, segment }),
     }).catch(() => null);
+    if (req !== drillReq.current) return;
     if (!res || !res.ok) {
-      setDrill((d) => (d && d.widgetId === widgetId ? { ...d, status: 'error' } : d));
+      setDrill((d) => (d ? { ...d, status: 'error' } : d));
       return;
     }
     const result = (await res.json()) as DrillResult;
-    setDrill((d) => (d && d.widgetId === widgetId ? { ...d, status: 'ready', result } : d));
+    // Una respuesta de un drill anterior no pisa el que está abierto.
+    if (req !== drillReq.current) return;
+    setDrill((d) => (d ? { ...d, status: 'ready', result } : d));
   }
 
   // ---------- Títulos ----------
@@ -434,7 +459,13 @@ export default function DashboardsView({
   function tileSubtitle(w: Widget): string {
     if (w.type === 'custom_report') return t('dash.tile.allDates');
     const def = libraryReport(tileKey(w));
-    if (def?.rangeMode === 'snapshot') return t('dash.tile.current');
+    // Los reportes por etapa usan un pipeline: el del filtro o el primero.
+    const stagePipe =
+      def && ['pipeline_by_stage', 'conversion_funnel', 'avg_time_in_stage'].includes(def.key)
+        ? pipelines.find((p) => p.id === filters.pipelineId)?.name ?? pipelines[0]?.name
+        : null;
+    if (def?.rangeMode === 'snapshot') return [t('dash.tile.current'), stagePipe].filter(Boolean).join(' · ');
+    if (stagePipe) return `${rangeLabel(filters)} · ${stagePipe}`;
     if (def?.rangeMode === 'this_month') return t('dash.tile.thisMonth');
     return rangeLabel(filters);
   }
@@ -448,6 +479,7 @@ export default function DashboardsView({
   // ---------- Menús ----------
 
   function anchorFrom(el: HTMLElement, label: string): ContextMenuAnchor {
+    lastMenuTrigger = el;
     const r = el.getBoundingClientRect();
     return { x: r.left, y: r.bottom + 4, label, returnFocus: el };
   }
@@ -539,7 +571,7 @@ export default function DashboardsView({
     a.href = URL.createObjectURL(blob);
     a.download = `${title.replace(/[^\p{L}\p{N}\- _]/gu, '').slice(0, 80) || 'report'}.csv`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   // ---------- Arrastrar para reordenar ----------
@@ -1228,7 +1260,7 @@ function SwitcherPanel({
 function Modal({ title, onClose, children, foot, testId }: { title: string; onClose: () => void; children: ReactNode; foot: ReactNode; testId?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const back = focusBack();
     const d = ref.current;
     if (d && !d.open) d.showModal();
     return () => back?.focus?.();
@@ -1381,7 +1413,7 @@ function ShareDialog({
           <legend className="label">{t('dash.share.who')}</legend>
           {(['private', 'team', 'everyone'] as const).map((v) => (
             <label key={v} className={`cdb-choice-item${visibility === v ? ' is-on' : ''}`}>
-              <input type="radio" name="cdb-vis" value={v} checked={visibility === v} disabled={v === 'team' && !teams.length} onChange={() => setVisibility(v)} />
+              <input type="radio" name="cdb-vis" value={v} checked={visibility === v} disabled={(v === 'team' && !teams.length) || (v === 'private' && !board.isOwner)} onChange={() => setVisibility(v)} />
               <span>{v === 'team' ? t('dash.visibility.teamPlain') : t(`dash.visibility.${v}`)}</span>
             </label>
           ))}
@@ -1505,7 +1537,7 @@ function LibraryDrawer({
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
-    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const back = focusBack();
     const d = ref.current;
     if (d && !d.open) d.showModal();
     return () => back?.focus?.();

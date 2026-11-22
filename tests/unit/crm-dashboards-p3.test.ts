@@ -325,8 +325,8 @@ describe('los totales cuentan solo lo que quien mira ve', () => {
       return t.value;
     };
     expect(await won(owner(s), { range: 'last_30', ownerId: s.w.member.id })).toBe(300);
-    // El filtro no amplía el alcance: member filtrando por el owner ve 0.
-    expect(await won(member(s), { range: 'last_30', ownerId: s.ws })).toBe(0);
+    // Un owner que member no ve no amplía su alcance: el filtro se ignora y ve solo lo suyo.
+    expect(await won(member(s), { range: 'last_30', ownerId: s.ws })).toBe(300);
     // Equipo de ventas (solo friend, que no tiene deals).
     expect(await won(owner(s), { range: 'last_30', teamId: s.team.id })).toBe(0);
     // Rango sin datos.

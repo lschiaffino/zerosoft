@@ -63,7 +63,8 @@ export const dashboardCreateSchema = z.object({
   name,
   template: z.enum(['blank', 'sales']).optional(),
   cloneFrom: id.optional(),
-  visibility: z.enum(DASHBOARD_VISIBILITIES).optional(),
+  /** Para compartir con un equipo se elige el equipo después (PATCH). */
+  visibility: z.enum(['private', 'everyone']).optional(),
 });
 
 export const dashboardLayoutItemSchema = z.object({

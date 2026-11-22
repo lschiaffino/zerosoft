@@ -27,7 +27,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!parsed.success) return invalidBody(parsed.error);
 
   try {
-    return NextResponse.json(await updateDashboard(sessionViewer(user), params.id, parsed.data));
+    const updated = await updateDashboard(sessionViewer(user), params.id, parsed.data);
+    // Ya no lo ve (lo hizo privado de otra persona): sin cuerpo, el cliente lo saca de la lista.
+    return updated ? NextResponse.json(updated) : new NextResponse(null, { status: 204 });
   } catch (e) {
     return dashboardErrorResponse(e);
   }

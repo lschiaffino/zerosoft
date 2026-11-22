@@ -275,7 +275,8 @@ export interface DashboardPatch {
   layout?: DashboardLayoutItem[];
 }
 
-export async function updateDashboard(viewer: Viewer, id: string, patch: DashboardPatch, db: Db = getDb()): Promise<DashboardView> {
+/** El dashboard actualizado como lo ve la persona; null si ya no lo ve (un admin que lo hizo privado de otro). */
+export async function updateDashboard(viewer: Viewer, id: string, patch: DashboardPatch, db: Db = getDb()): Promise<DashboardView | null> {
   const current = await getDashboardFor(viewer, id, db);
   if (!current) throw new DashboardError('not_found');
   const sharing = patch.visibility !== undefined || patch.teamId !== undefined || patch.access !== undefined;
@@ -339,7 +340,7 @@ export async function updateDashboard(viewer: Viewer, id: string, patch: Dashboa
       )
       .run(viewer.workspaceId, viewer.personId, id);
   }
-  return (await getDashboardFor(viewer, id, db))!;
+  return getDashboardFor(viewer, id, db);
 }
 
 export async function deleteDashboard(viewer: Viewer, id: string, db: Db = getDb()): Promise<void> {
@@ -352,9 +353,9 @@ export async function deleteDashboard(viewer: Viewer, id: string, db: Db = getDb
     .run(viewer.workspaceId, id);
 }
 
-/** Orden de los dashboards en el selector (solo los que la persona ve). */
+/** Orden de los dashboards en el selector: es de todo el workspace, así que solo mueve los que la persona administra. */
 export async function reorderDashboards(viewer: Viewer, ids: string[], db: Db = getDb()): Promise<void> {
-  const visible = new Set((await listVisibleDashboards(viewer, db)).map((d) => d.id));
+  const visible = new Set((await listVisibleDashboards(viewer, db)).filter((d) => d.canManage).map((d) => d.id));
   for (let i = 0; i < ids.length; i++) {
     if (!visible.has(ids[i])) continue;
     await db.prepare('UPDATE crm_dashboards SET position = ? WHERE id = ? AND user_id = ?').run(i, ids[i], viewer.workspaceId);
@@ -387,9 +388,10 @@ async function editableWidget(viewer: Viewer, widgetId: string, db: Db): Promise
 export async function addWidget(
   viewer: Viewer,
   dashboardId: string,
-  data: { type: DashboardWidgetType; config?: DashboardWidgetConfig; size?: TileSize; duplicateOf?: string; w?: number; h?: number },
+  input: { type: DashboardWidgetType; config?: DashboardWidgetConfig; size?: TileSize; duplicateOf?: string; w?: number; h?: number },
   db: Db = getDb(),
 ): Promise<CrmDashboardWidgetRow> {
+  let data = input;
   const dashboard = await requireRight(viewer, dashboardId, 'canEdit', db);
   let type = data.type;
   let config = data.config ?? {};
@@ -401,6 +403,7 @@ export async function addWidget(
     type = src.type as DashboardWidgetType;
     config = parseConfig(src.config);
     w = src.w;
+    data = { ...data, h: src.h };
     // La copia queda al lado del original.
     position = src.position + 1;
     await db.prepare('UPDATE crm_dashboard_widgets SET position = position + 1 WHERE dashboard_id = ? AND position >= ?').run(dashboardId, position);
@@ -500,8 +503,9 @@ export async function reportContext(tv: TileViewer, filters: DashboardFilters, d
   // Un pipeline de otro workspace no existe acá: no se lee ni el nombre de sus etapas.
   const pipelineId = filters.pipelineId && pipelines.some((p) => p.id === filters.pipelineId) ? filters.pipelineId : null;
   let ownerIds: string[] | null = null;
-  if (filters.ownerId) ownerIds = [filters.ownerId];
-  else if (filters.teamId) {
+  // Un owner guardado que la persona no puede nombrar (fuera de su alcance) no filtra: ve lo suyo, sin pantallas en cero sin explicación.
+  if (filters.ownerId && tv.owners.some((o) => o.id === filters.ownerId)) ownerIds = [filters.ownerId];
+  else if (filters.teamId && !filters.ownerId) {
     const rows = (await db
       .prepare(
         `SELECT m.person_id FROM crm_sales_team_members m JOIN crm_sales_teams t ON t.id = m.team_id
@@ -546,7 +550,7 @@ async function tileData(w: CrmDashboardWidgetRow, ctx: ReportContext, tv: TileVi
       const report = cfg.reportId ? await getCustomReport(tv.viewer.workspaceId, cfg.reportId, db) : null;
       if (!report) return { kind: 'error', code: 'report_missing' };
       let config: ReportConfig = report.config;
-      if (ctx.pipelineId && config.source === 'deals') {
+      if (ctx.pipelineId && config.source === 'deals' && config.filters.length < 20) {
         config = { ...config, filters: [...config.filters, { f: 'deal.pipeline', o: 'is', v: ctx.pipelineId }] };
       }
       const result = await runReport(

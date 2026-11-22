@@ -376,7 +376,12 @@ function Donut({ data, text, onDrill, title }: Props) {
     a0 = a1;
     return d;
   };
-  const parts = [...top, ...(restV > 0 ? [{ c: { key: '__other', label: null as string | null }, v: restV }] : [])];
+  // Si "otro" ya es una de las partes, el resto se suma ahí (no dos filas "Otro").
+  const own = top.find((p) => p.c.key === 'other');
+  const parts =
+    own && restV > 0
+      ? top.map((p) => (p === own ? { ...p, v: p.v + restV } : p))
+      : [...top, ...(restV > 0 ? [{ c: { key: '__other', label: null as string | null }, v: restV }] : [])];
   return (
     <div className="cdb-donut">
       <svg viewBox="0 0 160 160" width={160} height={160} role="img" aria-label={title} className="cdb-donut-svg">
