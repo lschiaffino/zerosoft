@@ -3,7 +3,7 @@
 # block needs, bundle id and minimum macOS. Usage: scripts/check-signature.sh path/to/zerosoft.app
 set -eu
 app="$1"
-expected_entitlements="com.apple.security.app-sandbox com.apple.security.device.audio-input com.apple.security.network.client"
+expected_entitlements="com.apple.security.app-sandbox com.apple.security.device.audio-input com.apple.security.device.camera com.apple.security.network.client"
 fail() { echo "::error::$1"; exit 1; }
 
 codesign --verify --strict --deep --verbose=2 "$app"
@@ -25,6 +25,7 @@ plist="$app/Contents/Info.plist"
 plutil -extract NSMicrophoneUsageDescription raw "$plist" >/dev/null || fail "no microphone usage description"
 plutil -extract NSAudioCaptureUsageDescription raw "$plist" >/dev/null || fail "no system audio usage description"
 plutil -extract NSScreenCaptureUsageDescription raw "$plist" >/dev/null || fail "no screen recording usage description"
+plutil -extract NSCameraUsageDescription raw "$plist" >/dev/null || fail "no camera usage description"
 [ "$(plutil -extract ZSAutoPaste raw "$plist")" = "YES" ] || fail "the direct build must allow auto-paste (ZSAutoPaste)"
 archs=$(lipo -archs "$app/Contents/MacOS/zerosoft")
 echo "architectures: $archs"

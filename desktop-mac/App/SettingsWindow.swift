@@ -323,6 +323,7 @@ private struct MeetingsSection: View {
 
     private var stateKey: StringKey {
         if model.captureNow.meeting { return .meetRecording }
+        if model.captureNow.rec { return .recCapturing }
         if model.captureNow.systemAudio { return .meetCapturing }
         return .meetIdle
     }
@@ -330,9 +331,10 @@ private struct MeetingsSection: View {
 
 // MARK: Permissions
 
-/// Notifications, the microphone, Accessibility (paste), the computer's audio and Screen
-/// Recording, each with why it is used, its state and one button. A system prompt shows only from
-/// that button (or the first dictation, or the first meeting capture).
+/// Notifications, the microphone, Accessibility (paste), the camera, the computer's audio and
+/// Screen Recording, each with why it is used, its state and one button. A system prompt shows
+/// only from that button (or the first dictation, the first meeting capture, the first camera
+/// use).
 private struct PermissionsSection: View {
     @ObservedObject var model: SettingsModel
 
@@ -380,6 +382,21 @@ private struct PermissionsSection: View {
                     Text(model.t(.accessUnavailable)).accessibilityIdentifier("zs-set-paste-state")
                 }
             }
+            // Block 8: the camera, for the page (Talk, Rec) and Rec's bubble.
+            Divider()
+            row(title: model.t(.permCamera), help: model.t(.permCameraHelp)) {
+                Text(model.t(cameraKey)).accessibilityIdentifier("zs-set-camera-state")
+                switch model.cameraAccess.buttonAction {
+                case .ask:
+                    Button(model.t(.camTurnOn)) { model.cameraButton() }
+                        .accessibilityIdentifier("zs-set-camera")
+                case .openSystemSettings:
+                    Button(model.t(.notifOpenSystem)) { model.cameraButton() }
+                        .accessibilityIdentifier("zs-set-camera")
+                case .none:
+                    EmptyView()
+                }
+            }
             // Block 7: the computer's audio for meetings, and Screen Recording behind it on
             // macOS 13 to 14.1. Audio taps have no state macOS reports, so their row explains
             // when macOS asks and where to change it.
@@ -395,17 +412,15 @@ private struct PermissionsSection: View {
                         .accessibilityIdentifier("zs-set-audio-state")
                 }
             }
-            // Screen Recording only where the capture needs it (macOS 13 to 14.1): on 14.2 and
-            // later nothing in this block uses it, so the app does not ask for it.
-            if model.capture.backend == .screenCapture {
-                Divider()
-                row(title: model.t(.permScreen), help: model.t(.permScreenHelp)) {
-                    Text(model.t(model.screenAccess ? .screenAllowed : .screenOff)).accessibilityIdentifier("zs-set-screen-state")
-                    if !model.screenAccess {
-                        Button(model.t(.screenAllow)) { model.screenButton() }
-                            .accessibilityIdentifier("zs-set-screen")
-                        Help(model.t(.screenAfter))
-                    }
+            // Screen Recording: Rec's page records the screen (getDisplayMedia) on every macOS
+            // (block 8), and the computer's audio needs it on macOS 13 to 14.1.
+            Divider()
+            row(title: model.t(.permScreen), help: model.t(.permScreenHelp)) {
+                Text(model.t(model.screenAccess ? .screenAllowed : .screenOff)).accessibilityIdentifier("zs-set-screen-state")
+                if !model.screenAccess {
+                    Button(model.t(.screenAllow)) { model.screenButton() }
+                        .accessibilityIdentifier("zs-set-screen")
+                    Help(model.t(.screenAfter))
                 }
             }
         }
@@ -428,6 +443,14 @@ private struct PermissionsSection: View {
         case .allowed: return .notifAllowed
         case .denied: return .notifDenied
         case .notDetermined: return .notifNotDetermined
+        }
+    }
+
+    private var cameraKey: StringKey {
+        switch model.cameraAccess {
+        case .allowed: return .camAllowed
+        case .denied: return .camDenied
+        case .notDetermined: return .camNotDetermined
         }
     }
 

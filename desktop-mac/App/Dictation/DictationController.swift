@@ -125,6 +125,9 @@ final class DictationController {
             if pressed { run(machine.escape()) }
         case .pasteLast:
             if pressed { pasteLast() }
+        case .recToggle, .recStop:
+            // Rec's own instance (RecController) registers these.
+            break
         }
     }
 

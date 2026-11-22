@@ -3,7 +3,8 @@ import Carbon.HIToolbox
 /// Global shortcuts with Carbon's `RegisterEventHotKey` (docs/desktop-swift.md, section 2.2):
 /// it needs no permission in the App Sandbox, unlike `NSEvent.addGlobalMonitorForEvents`, which
 /// needs Accessibility and is not used. The app learns about its own shortcuts and nothing else:
-/// no other key reaches it.
+/// no other key reaches it. Dictation and Rec (block 8) each have their own instance; a press
+/// that belongs to the other instance is passed on to it.
 @MainActor
 final class HotKeys {
     enum Key: UInt32, CaseIterable {
@@ -11,6 +12,9 @@ final class HotKeys {
         /// Registered only while a dictation records.
         case escape = 2
         case pasteLast = 3
+        /// Rec, registered only while a recording runs: pause or resume, and finish.
+        case recToggle = 4
+        case recStop = 5
     }
 
     /// A shortcut went down (`true`) or up.
@@ -38,14 +42,16 @@ final class HotKeys {
             let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
             let keys = Unmanaged<HotKeys>.fromOpaque(user).takeUnretainedValue()
             // Carbon delivers application events on the main thread.
-            MainActor.assumeIsolated { keys.fire(id.id, pressed) }
-            return noErr
+            let mine = MainActor.assumeIsolated { keys.fire(id.id, pressed) }
+            return mine ? noErr : OSStatus(eventNotHandledErr)
         }, specs.count, &specs, me, &handler)
     }
 
-    private func fire(_ raw: UInt32, _ pressed: Bool) {
-        guard let key = Key(rawValue: raw), refs[key] != nil else { return }
+    /// False when the shortcut is another instance's.
+    private func fire(_ raw: UInt32, _ pressed: Bool) -> Bool {
+        guard let key = Key(rawValue: raw), refs[key] != nil else { return false }
         onKey(key, pressed)
+        return true
     }
 
     /// Registers `shortcut` for `key` (replacing what it had). False when the system refused it,

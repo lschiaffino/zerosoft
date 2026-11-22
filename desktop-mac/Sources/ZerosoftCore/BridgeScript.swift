@@ -12,7 +12,9 @@ import Foundation
 ///   and `tabs` and `settingsWindow` true) and the methods with a native side: `info()`,
 ///   `startLogin()` (block 3; `desktopBridge()` in the web app finds the app by it, as with
 ///   Tauri), `notify()`, `openSettings()` (block 5: the native Settings window), `recording()`
-///   and `systemAudioStart/Read/Stop()` (block 7: meetings).
+///   and `systemAudioStart/Read/Stop()` (block 7: meetings), `recOverlay()` and `recLevel()`
+///   (block 8: Rec's floating bar and camera bubble; the web app shows its desktop Rec controls
+///   when `recOverlay` exists).
 /// - `window.Notification` becomes a shim that hands the page's title and body to the native
 ///   side (the app shows it only while it is not in front), as the Tauri app does. The web
 ///   features are measured before the shim replaces it.
@@ -39,6 +41,7 @@ public enum BridgeScript {
             idb: typeof indexedDB !== 'undefined' && indexedDB !== null,
             sw: 'serviceWorker' in navigator,
             media: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+            display: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia),
             rtc: typeof RTCPeerConnection !== 'undefined',
             audio: typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined',
             notification: typeof Notification !== 'undefined'
@@ -74,7 +77,23 @@ public enum BridgeScript {
             },
             systemAudioStart: function () { return call('systemAudioStart'); },
             systemAudioRead: function () { return call('systemAudioRead').then(function (v) { return typeof v === 'string' ? v : ''; }); },
-            systemAudioStop: function () { return call('systemAudioStop').then(function () {}); }
+            systemAudioStop: function () { return call('systemAudioStop').then(function () {}); },
+            // Rec (block 8): the state for the floating bar and the camera bubble, and the
+            // microphone level (lib/rec-controls.ts RecOverlayState).
+            recOverlay: function (s) {
+              s = s || {};
+              var e = s.elapsedMs;
+              return call('recOverlay', {
+                active: !!s.active,
+                phase: typeof s.phase === 'string' ? s.phase.slice(0, 20) : null,
+                elapsedMs: typeof e === 'number' && isFinite(e) && e >= 0 && e <= 1e10 ? e : null,
+                mic: typeof s.mic === 'string' ? s.mic.slice(0, 10) : null,
+                camera: typeof s.camera === 'string' ? s.camera.slice(0, \(Bridge.maxDeviceLabel)) : null
+              }).then(function () {});
+            },
+            recLevel: function (l) {
+              return call('recLevel', { level: typeof l === 'number' && isFinite(l) ? Math.max(0, Math.min(1, l)) : 0 }).then(function () {});
+            }
           });
           try { Object.defineProperty(window, 'zerosoftDesktop', { value: bridge }); } catch (e) { return; }
           var N = function (title, opts) { bridge.notify(title, opts && opts.body).catch(quiet); };

@@ -76,6 +76,8 @@ final class SettingsModel: ObservableObject {
     let paste: PastePermission
     /// Meetings (block 7): Screen Recording and the computer's audio.
     let capture: CapturePermissions
+    /// Rec (block 8): the camera, for the page and the bubble.
+    let camera: CameraPermission
     /// Dictation (block 6): set by the app delegate once it exists.
     weak var dictation: DictationController? {
         didSet { dictationChanged() }
@@ -91,6 +93,7 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var microphone: MicrophoneAccess = .notDetermined
     @Published private(set) var pasteAccess: PasteAccess = .unavailable
     @Published private(set) var screenAccess = false
+    @Published private(set) var cameraAccess: PermissionAccess = .notDetermined
     /// What records now (the menu bar item's state), for Settings › Meetings.
     @Published private(set) var captureNow = CaptureState()
     @Published private(set) var shortcutTaken = false
@@ -124,7 +127,7 @@ final class SettingsModel: ObservableObject {
 
     init(lang: Lang, server: String, lockdown: Bool, store: SessionStore, remote: SettingsRemote,
          loginItems: LoginItemService, permission: NotificationPermission,
-         mic: MicrophonePermission, paste: PastePermission, capture: CapturePermissions) {
+         mic: MicrophonePermission, paste: PastePermission, capture: CapturePermissions, camera: CameraPermission) {
         self.lang = lang
         self.server = server
         self.lockdown = lockdown
@@ -135,11 +138,13 @@ final class SettingsModel: ObservableObject {
         self.mic = mic
         self.paste = paste
         self.capture = capture
+        self.camera = camera
         settings = AppSettings.decode(store.read())
         loginItem = loginItems.state
         microphone = mic.current()
         pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
         screenAccess = capture.screenAllowed()
+        cameraAccess = camera.current()
     }
 
     func t(_ key: StringKey, _ vars: [String: String] = [:]) -> String {
@@ -175,6 +180,22 @@ final class SettingsModel: ObservableObject {
         microphone = mic.current()
         pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
         screenAccess = capture.screenAllowed()
+        cameraAccess = camera.current()
+    }
+
+    /// "Turn on the camera": the system prompt, only from this button or a first use (a page's
+    /// camera, Rec's bubble).
+    func cameraButton() {
+        switch cameraAccess.buttonAction {
+        case .ask:
+            Task {
+                cameraAccess = await camera.request()
+            }
+        case .openSystemSettings:
+            camera.openSystemSettings()
+        case .none:
+            break
+        }
     }
 
     // MARK: Meetings (block 7)

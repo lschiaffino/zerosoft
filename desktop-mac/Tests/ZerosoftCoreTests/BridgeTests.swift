@@ -127,7 +127,7 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(rejection(["cmd": "ready", "args": ["content": -1]]) == .badArgs)
     #expect(rejection(["cmd": "ready", "args": ["content": 1.5]]) == .badArgs)
     #expect(rejection(["cmd": "ready", "args": ["content": true]]) == .badArgs)
-    #expect(ReadyReport(content: 2, features: ["wasm": true]).summary == "content=2 wasm=true idb=? sw=? media=? rtc=? audio=? notification=?")
+    #expect(ReadyReport(content: 2, features: ["wasm": true]).summary == "content=2 wasm=true idb=? sw=? media=? display=? rtc=? audio=? notification=?")
 }
 
 @Test func notifyClipsLikeTheRustCommand() {
@@ -195,10 +195,8 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
         let body: [String: Any] = ["cmd": command.rawValue, "args": minimal[command] ?? [:]]
         #expect(accepted(body)?.command == command, "\(command)")
     }
-    #expect(BridgeCommand.implemented == [
-        .info, .ready, .startLogin, .openSettings, .notify, .tabs, .recording, .systemAudioStart, .systemAudioRead, .systemAudioStop,
-    ])
-    #expect(Set(BridgeCommand.allCases).subtracting(BridgeCommand.implemented) == [.recOverlay, .recLevel])
+    // Since block 8 every command has its native side.
+    #expect(BridgeCommand.implemented == Set(BridgeCommand.allCases))
 }
 
 // MARK: info and the script
@@ -249,6 +247,12 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(script.contains("systemAudio: false") && script.contains("recordingIndicator: true"))
     #expect(script.contains("systemAudioStart: function () { return call('systemAudioStart'); }"))
     #expect(script.contains("recording: function (s) {"))
+    // Rec (block 8): the web app shows its desktop controls when recOverlay exists; the script
+    // sends only the typed fields.
+    #expect(script.contains("recOverlay: function (s) {"))
+    #expect(script.contains("camera: typeof s.camera === 'string' ? s.camera.slice(0, \(Bridge.maxDeviceLabel)) : null"))
+    #expect(script.contains("recLevel: function (l) {"))
+    #expect(script.contains("display: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)"))
     let open = BridgeScript.source(server: "http://127.0.0.1:3000", info: BridgeInfo(version: "1", store: false, lockdown: .off, systemAudio: true))
     #expect(open.contains("systemAudio: true"))
 }

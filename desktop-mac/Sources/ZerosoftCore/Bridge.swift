@@ -6,8 +6,8 @@ import Foundation
 // 1. Origin: only the main frame of the configured server origin (scheme, host, port).
 // 2. Allowlist: `cmd` must be a `BridgeCommand`.
 // 3. Typed arguments: each command parses its own keys and types and rejects anything else.
-// The app adds the context checks of the commands that need them (the tab in front, the tab that
-// owns a recording) when those commands get their native side.
+// The app adds the context checks of the commands that need them (the tab in use for the
+// computer's audio and for a Rec start, the tab that owns a recording for the rest).
 
 /// Where a message came from: `WKScriptMessage.frameInfo` reduced to what the origin check reads.
 /// `port` is `securityOrigin.port`: 0 means the scheme's default port.
@@ -42,12 +42,10 @@ public enum BridgeCommand: String, CaseIterable, Sendable {
     case recLevel
     case tabs
 
-    /// Commands with a native side in this build. The others are valid messages that answer
-    /// `unavailable` until their block lands (`recOverlay` and `recLevel`: block 8).
-    public static let implemented: Set<BridgeCommand> = [
-        .info, .ready, .startLogin, .openSettings, .notify, .tabs,
-        .recording, .systemAudioStart, .systemAudioRead, .systemAudioStop,
-    ]
+    /// Commands with a native side in this build: every one since block 8 (`recOverlay` and
+    /// `recLevel`). A command whose handler is gone (a closed or suspended tab) answers
+    /// `unavailable`.
+    public static let implemented: Set<BridgeCommand> = Set(allCases)
 }
 
 /// Why a message was refused. The raw value is the error the page's promise rejects with and the
@@ -70,7 +68,8 @@ public enum BridgeRejection: String, Error, Equatable, Sendable {
 /// What the bridge script measured when the DOM was ready. Under forced Lockdown restrictions
 /// WebKit removes most of these: the UI tests read them to prove the switch reached WebKit.
 public struct ReadyReport: Equatable, Sendable {
-    public static let featureKeys = ["wasm", "idb", "sw", "media", "rtc", "audio", "notification"]
+    /// `display` is `getDisplayMedia` (Rec's screen capture, block 8).
+    public static let featureKeys = ["wasm", "idb", "sw", "media", "display", "rtc", "audio", "notification"]
 
     /// Visible children of `<body>` at DOMContentLoaded (same rule as the paint check).
     public var content: Int

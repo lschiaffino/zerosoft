@@ -6,7 +6,8 @@ import AppKit
 /// history) joined in block 6; while the microphone is open the icon changes and the tooltip
 /// says so. Block 7: while a meeting records or the computer's audio is captured, the icon is a
 /// red dot, the menu starts with what is capturing (open, stop) and the item shows even when
-/// Settings › General hides it (guideline 2.5.14).
+/// Settings › General hides it (guideline 2.5.14). Block 8: the same for a Rec recording, with
+/// Open and Finish.
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private var item: NSStatusItem?
@@ -32,6 +33,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     var onOpenRecording: () -> Void = {}
     var onStopRecording: () -> Void = {}
     var onStopSystemAudio: () -> Void = {}
+    /// Rec (block 8).
+    var onOpenRec: () -> Void = {}
+    var onStopRec: () -> Void = {}
     private var capture = CaptureState()
     /// Settings › General's switch; a capture shows the item whatever it says.
     private var wanted = true
@@ -103,7 +107,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             case .separator:
                 menu.addItem(.separator())
             case let .capturing(now):
-                let item = add(menu, t(now.meeting ? .meetRecording : .meetCapturing), "capturing", #selector(openRecording(_:)))
+                let item = add(menu, t(now.meeting ? .meetRecording : now.rec ? .recCapturing : .meetCapturing), "capturing", #selector(openRecording(_:)))
                 item.isEnabled = false
             case .openRecording:
                 add(menu, t(.statusOpenRecording), "open-recording", #selector(openRecording(_:)))
@@ -111,6 +115,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
                 add(menu, t(.statusStopRecording), "stop-recording", #selector(stopRecording(_:)))
             case .stopSystemAudio:
                 add(menu, t(.statusStopSystemAudio), "stop-sysaudio", #selector(stopSystemAudio(_:)))
+            case .openRec:
+                add(menu, t(.statusOpenRec), "open-rec", #selector(openRec(_:)))
+            case .stopRec:
+                add(menu, t(.statusStopRec), "stop-rec", #selector(stopRec(_:)))
             case let .dictate(recording):
                 let item = add(menu, t(recording ? .statusDictateStop : .statusDictate), "dictate", #selector(dictate(_:)))
                 item.isEnabled = state?.phase != .working
@@ -162,6 +170,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func openRecording(_ sender: Any?) { onOpenRecording() }
     @objc private func stopRecording(_ sender: Any?) { onStopRecording() }
     @objc private func stopSystemAudio(_ sender: Any?) { onStopSystemAudio() }
+    @objc private func openRec(_ sender: Any?) { onOpenRec() }
+    @objc private func stopRec(_ sender: Any?) { onStopRec() }
 
     @objc private func open(_ sender: Any?) { onOpen() }
     @objc private func newTab(_ sender: Any?) { onNewTab() }

@@ -21,6 +21,9 @@ import AppKit
 /// - Block 7: `zs-test-capture` (CaptureState.summary, the indicator and the menu bar item),
 ///   `zs-test-sysaudio` (SystemAudioController.summary), `zs-test-capperm` (the fake capture
 ///   permissions: how often asked), `zs-test-meetset` (AppSettings.meetingsSummary).
+/// - Block 8: `zs-test-rec` (RecController.summary and the fake camera), `zs-test-recevents`
+///   (how many Rec events and the last one), `zs-test-reckeys` (the shortcuts registered),
+///   `zs-test-camperm` (the fake camera permission: how often asked).
 @MainActor
 final class TestPanel {
     private let panel: NSPanel
@@ -57,6 +60,7 @@ final class TestPanel {
             ("zs-test-mic", "mic asked=0"), ("zs-test-paste", "paste asked=0"), ("zs-test-pending", "pending 0"),
             ("zs-test-dictset", "none"), ("zs-test-hud", "hidden"),
             ("zs-test-capture", "none"), ("zs-test-sysaudio", "none"), ("zs-test-capperm", "none"), ("zs-test-meetset", "none"),
+            ("zs-test-rec", "none"), ("zs-test-recevents", "events 0 none"), ("zs-test-reckeys", "keys off"), ("zs-test-camperm", "none"),
         ] {
             let label = NSTextField(labelWithString: initial)
             label.frame = NSRect(x: CGFloat(labels.count) * 5, y: 0, width: 4, height: 4)
@@ -172,6 +176,38 @@ final class TestPanel {
             self.set("zs-test-capperm", "capperm \(capture.summary)")
         }
         capture.onChange = paint
+        paint()
+        report()
+    }
+
+    private var recEvents = 0
+
+    func watch(rec: RecController, camera: FakeCameraPermission, preview: FakeCameraPreview) {
+        let report = { [weak self, weak rec, weak preview] in
+            guard let self, let rec, let preview else { return }
+            self.set("zs-test-rec", "\(rec.summary) \(preview.summary)")
+        }
+        let onChange = rec.onChange
+        rec.onChange = {
+            onChange()
+            report()
+        }
+        rec.onOutcome = { [weak self] what in
+            guard let self else { return }
+            if what.hasPrefix("keys ") {
+                set("zs-test-reckeys", what)
+            } else {
+                recEvents += 1
+                set("zs-test-recevents", "events \(recEvents) \(what)")
+            }
+            report()
+        }
+        preview.onChange = report
+        let paint = { [weak self, weak camera] in
+            guard let self, let camera else { return }
+            self.set("zs-test-camperm", "camperm \(camera.summary)")
+        }
+        camera.onChange = paint
         paint()
         report()
     }

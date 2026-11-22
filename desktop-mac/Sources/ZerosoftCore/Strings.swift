@@ -267,6 +267,40 @@ public enum StringKey: String, CaseIterable, Sendable {
     case indStop
     case indHide
     case indClick
+    case statusRec
+    case recCapturing
+    case statusOpenRec
+    case statusStopRec
+    case recControls
+    case recStarting
+    case recRecording
+    case recPaused
+    case recFinishing
+    case recPause
+    case recResume
+    case recFinish
+    case recFinishHint
+    case recRestart
+    case recRestartConfirm
+    case recDiscard
+    case recDiscardConfirm
+    case recKeep
+    case recMute
+    case recUnmute
+    case recNoMic
+    case recShowCamera
+    case recHideCamera
+    case recBigger
+    case recSmaller
+    case recBubble
+    case recOpen
+    case recShortcutHint
+    case permCamera
+    case permCameraHelp
+    case camAllowed
+    case camDenied
+    case camNotDetermined
+    case camTurnOn
 }
 
 public enum Strings {
@@ -504,7 +538,7 @@ public enum Strings {
             .permAudioTap: "macOS asks the first time a meeting captures it. If you said no, turn zerosoft on in System Settings › Privacy & Security › Screen & System Audio Recording.",
             .permAudioViaScreen: "On this version of macOS the computer's audio needs Screen Recording, below.",
             .permScreen: "Screen recording",
-            .permScreenHelp: "For the computer's audio on macOS 14.1 and earlier. zerosoft does not record your screen. macOS asks to reopen zerosoft after you allow it.",
+            .permScreenHelp: "For Rec, which records your screen from its page when you start a recording, and for the computer's audio on macOS 14.1 and earlier. macOS asks to reopen zerosoft after you allow it.",
             .screenAllowed: "Screen recording is on.",
             .screenOff: "Screen recording is off.",
             .screenAllow: "Allow screen recording",
@@ -519,6 +553,40 @@ public enum Strings {
             .indStop: "Stop",
             .indHide: "Hide until the next recording",
             .indClick: "Click to open the recording",
+            .statusRec: "zerosoft: recording with Rec",
+            .recCapturing: "Rec is recording.",
+            .statusOpenRec: "Open the Rec recording",
+            .statusStopRec: "Finish the Rec recording",
+            .recControls: "Recording controls",
+            .recStarting: "Starting",
+            .recRecording: "Recording",
+            .recPaused: "Paused",
+            .recFinishing: "Finishing",
+            .recPause: "Pause",
+            .recResume: "Resume",
+            .recFinish: "Finish",
+            .recFinishHint: "Finish and open the recording",
+            .recRestart: "Restart",
+            .recRestartConfirm: "Delete this take and start again?",
+            .recDiscard: "Discard",
+            .recDiscardConfirm: "Discard this recording?",
+            .recKeep: "Keep recording",
+            .recMute: "Mute microphone",
+            .recUnmute: "Unmute microphone",
+            .recNoMic: "No microphone",
+            .recShowCamera: "Show camera",
+            .recHideCamera: "Hide camera",
+            .recBigger: "Make bigger",
+            .recSmaller: "Make smaller",
+            .recBubble: "Your camera. Drag it anywhere: it is recorded where you leave it",
+            .recOpen: "Open zerosoft",
+            .recShortcutHint: "{action} ({key})",
+            .permCamera: "Camera",
+            .permCameraHelp: "For video calls in Talk and screen recordings with your camera in Rec. During a Rec recording the camera shows in a round bubble on top of other apps.",
+            .camAllowed: "The camera is on.",
+            .camDenied: "The camera is off for zerosoft in System Settings.",
+            .camNotDetermined: "Not asked yet. macOS asks the first time a page or Rec uses it, or now with the button.",
+            .camTurnOn: "Turn on the camera",
         ],
         .es: [
             .errorTitle: "zerosoft no pudo abrir",
@@ -753,7 +821,7 @@ public enum Strings {
             .permAudioTap: "macOS pregunta la primera vez que una reunión lo captura. Si dijiste que no, activá zerosoft en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
             .permAudioViaScreen: "En esta versión de macOS el audio de la computadora necesita Grabación de pantalla, abajo.",
             .permScreen: "Grabación de pantalla",
-            .permScreenHelp: "Para el audio de la computadora en macOS 14.1 o anterior. zerosoft no graba tu pantalla. macOS pide reabrir zerosoft después de permitirlo.",
+            .permScreenHelp: "Para Rec, que graba tu pantalla desde su página cuando empezás una grabación, y para el audio de la computadora en macOS 14.1 o anterior. macOS pide reabrir zerosoft después de permitirlo.",
             .screenAllowed: "La grabación de pantalla está activada.",
             .screenOff: "La grabación de pantalla está desactivada.",
             .screenAllow: "Permitir grabación de pantalla",
@@ -768,6 +836,40 @@ public enum Strings {
             .indStop: "Cortar",
             .indHide: "Ocultar hasta la próxima grabación",
             .indClick: "Clic para abrir la grabación",
+            .statusRec: "zerosoft: grabando con Rec",
+            .recCapturing: "Rec está grabando.",
+            .statusOpenRec: "Abrir la grabación de Rec",
+            .statusStopRec: "Terminar la grabación de Rec",
+            .recControls: "Controles de la grabación",
+            .recStarting: "Empieza",
+            .recRecording: "Grabando",
+            .recPaused: "En pausa",
+            .recFinishing: "Terminando",
+            .recPause: "Pausar",
+            .recResume: "Seguir",
+            .recFinish: "Terminar",
+            .recFinishHint: "Terminar y abrir la grabación",
+            .recRestart: "Empezar de nuevo",
+            .recRestartConfirm: "¿Borrar esta toma y empezar de nuevo?",
+            .recDiscard: "Descartar",
+            .recDiscardConfirm: "¿Descartar esta grabación?",
+            .recKeep: "Seguir grabando",
+            .recMute: "Silenciar micrófono",
+            .recUnmute: "Activar micrófono",
+            .recNoMic: "Sin micrófono",
+            .recShowCamera: "Mostrar cámara",
+            .recHideCamera: "Ocultar cámara",
+            .recBigger: "Agrandar",
+            .recSmaller: "Achicar",
+            .recBubble: "Tu cámara. Arrastrala a donde quieras: se graba donde la dejes",
+            .recOpen: "Abrir zerosoft",
+            .recShortcutHint: "{action} ({key})",
+            .permCamera: "Cámara",
+            .permCameraHelp: "Para videollamadas en Talk y grabaciones de pantalla con tu cámara en Rec. Mientras grabás con Rec, la cámara se ve en una burbuja redonda encima de las otras apps.",
+            .camAllowed: "La cámara está activada.",
+            .camDenied: "La cámara de zerosoft está desactivada en Ajustes del Sistema.",
+            .camNotDetermined: "Todavía no se pidió. macOS pregunta la primera vez que una página o Rec la usa, o ahora con el botón.",
+            .camTurnOn: "Activar la cámara",
         ],
         .pt: [
             .errorTitle: "O zerosoft não conseguiu abrir",
@@ -1002,7 +1104,7 @@ public enum Strings {
             .permAudioTap: "O macOS pergunta na primeira vez que uma reunião captura. Se você disse não, ative o zerosoft em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema.",
             .permAudioViaScreen: "Nesta versão do macOS o áudio do computador precisa de Gravação de tela, abaixo.",
             .permScreen: "Gravação de tela",
-            .permScreenHelp: "Para o áudio do computador no macOS 14.1 ou anterior. O zerosoft não grava sua tela. O macOS pede para reabrir o zerosoft depois de permitir.",
+            .permScreenHelp: "Para o Rec, que grava sua tela pela página dele quando você começa uma gravação, e para o áudio do computador no macOS 14.1 ou anterior. O macOS pede para reabrir o zerosoft depois de permitir.",
             .screenAllowed: "A gravação de tela está ativada.",
             .screenOff: "A gravação de tela está desativada.",
             .screenAllow: "Permitir gravação de tela",
@@ -1017,6 +1119,40 @@ public enum Strings {
             .indStop: "Parar",
             .indHide: "Ocultar até a próxima gravação",
             .indClick: "Clique para abrir a gravação",
+            .statusRec: "zerosoft: gravando com o Rec",
+            .recCapturing: "O Rec está gravando.",
+            .statusOpenRec: "Abrir a gravação do Rec",
+            .statusStopRec: "Terminar a gravação do Rec",
+            .recControls: "Controles da gravação",
+            .recStarting: "Começando",
+            .recRecording: "Gravando",
+            .recPaused: "Pausado",
+            .recFinishing: "Terminando",
+            .recPause: "Pausar",
+            .recResume: "Continuar",
+            .recFinish: "Terminar",
+            .recFinishHint: "Terminar e abrir a gravação",
+            .recRestart: "Recomeçar",
+            .recRestartConfirm: "Apagar esta tomada e começar de novo?",
+            .recDiscard: "Descartar",
+            .recDiscardConfirm: "Descartar esta gravação?",
+            .recKeep: "Continuar gravando",
+            .recMute: "Silenciar microfone",
+            .recUnmute: "Ativar microfone",
+            .recNoMic: "Sem microfone",
+            .recShowCamera: "Mostrar câmera",
+            .recHideCamera: "Ocultar câmera",
+            .recBigger: "Aumentar",
+            .recSmaller: "Diminuir",
+            .recBubble: "Sua câmera. Arraste para onde quiser: ela é gravada onde você deixar",
+            .recOpen: "Abrir o zerosoft",
+            .recShortcutHint: "{action} ({key})",
+            .permCamera: "Câmera",
+            .permCameraHelp: "Para videochamadas no Talk e gravações de tela com a sua câmera no Rec. Enquanto você grava com o Rec, a câmera aparece em uma bolha redonda sobre os outros apps.",
+            .camAllowed: "A câmera está ativada.",
+            .camDenied: "A câmera do zerosoft está desativada nos Ajustes do Sistema.",
+            .camNotDetermined: "Ainda não foi pedida. O macOS pergunta na primeira vez que uma página ou o Rec a usa, ou agora com o botão.",
+            .camTurnOn: "Ativar a câmera",
         ],
     ]
 
