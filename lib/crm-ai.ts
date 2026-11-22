@@ -21,6 +21,7 @@ import { getDb, type CrmStageRow } from './db';
 import { crmAiFakeActive, fakeModel, type FakeStep, type FakeCallInfo } from './crm-ai-fake';
 import { getCompany, getContact, getDeal, listTimeline, type ActivityListRow } from './crm';
 import { canSeeActivity, scopeCompanyDetail, scopeContactDetail, scopeDealDetail, type OwnerScope } from './crm-visibility';
+import { scopedCompanyDetail } from './crm-record-scope';
 
 export type AiRecordEntity = 'contact' | 'company' | 'deal';
 export type InsightKind = 'summary' | 'deal_score' | 'call_summary';
@@ -248,7 +249,8 @@ export async function buildRecordContext(
   } else if (entity === 'company') {
     const raw = await getCompany(workspaceId, id);
     if (!raw) return null;
-    const d = scopeCompanyDetail(raw, scope);
+    // La madre que la persona no ve no se nombra (scopedCompanyDetail).
+    const d = await scopedCompanyDetail(workspaceId, scopeCompanyDetail(raw, scope), scope);
     const co = d.company;
     title = co.name || co.domain || 'Company';
     contactIds = d.contacts.map((c) => c.id);

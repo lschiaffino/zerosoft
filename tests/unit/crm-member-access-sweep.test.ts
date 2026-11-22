@@ -40,6 +40,8 @@ const reportRunRoute = await import('@/app/api/crm/custom-reports/run/route');
 const moveRoute = await import('@/lib/routes/crm/deals/[id]/move/route');
 const dealsRoute = await import('@/app/api/crm/deals/route');
 const contactMergeRoute = await import('@/app/api/crm/contacts/merge/route');
+const listMembersRoute = await import('@/lib/routes/crm/lists/[id]/members/route');
+const { listLists } = await import('@/lib/crm');
 
 beforeEach(() => {
   session.user = null;
@@ -236,6 +238,22 @@ describe('listas estáticas', () => {
     expect(a!.members).toHaveLength(2);
     expect(a!.members.every((c) => 'secret' in customOf(c))).toBe(true);
     expect(await members(stranger(s))).toBeNull();
+
+    // El índice de listas cuenta lo mismo que ve la persona.
+    expect((await listLists(s.ws, [s.w.member.id])).find((l) => l.id === list.id)?.memberCount).toBe(1);
+    expect((await listLists(s.ws, null)).find((l) => l.id === list.id)?.memberCount).toBe(2);
+  });
+
+  it('un miembro no agrega ni quita contactos que no ve', async () => {
+    const s = await setup('sweep-list-write');
+    const list = await createList(s.ws, { name: 'Static', entity: 'contacts', kind: 'static' });
+    session.user = member(s);
+    const res = await listMembersRoute.POST(post('http://x', { contactIds: [s.memberContact.id, s.ownerContact.id] }), ctx(list.id));
+    expect(((await res.json()) as { count: number }).count).toBe(1);
+    await addListMembers(s.ws, list.id, [s.ownerContact.id]);
+    const del = new NextRequest('http://x', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contactId: s.ownerContact.id }) });
+    expect((await listMembersRoute.DELETE(del, ctx(list.id))).status).toBe(404);
+    expect((await listLists(s.ws, null)).find((l) => l.id === list.id)?.memberCount).toBe(2);
   });
 });
 
@@ -286,6 +304,26 @@ describe('board y mover de etapa', () => {
     session.user = owner(s);
     const full = (await (await dealsRoute.GET(get(`http://x/api/crm/deals?board=1&pipelineId=${s.p.id}`))).json()) as typeof res;
     expect(full.rows.flatMap((c) => c.deals)).toHaveLength(3);
+
+    // Otro workspace con el id del pipeline: ni las etapas.
+    session.user = stranger(s);
+    const other = (await (await dealsRoute.GET(get(`http://x/api/crm/deals?board=1&pipelineId=${s.p.id}`))).json()) as typeof res;
+    expect(other.rows).toEqual([]);
+  });
+
+  it('la tarjeta no nombra el contacto ni la empresa que la persona no ve', async () => {
+    const s = await setup('sweep-board-names');
+    const r = await createDeal(s.ws, { name: 'Zeta mixed', pipelineId: s.p.id, stageId: s.stageA.id, ownerId: s.w.member.id, companyId: s.parent.id, contactIds: [s.ownerContact.id] });
+    if (!r.ok) throw new Error('deal');
+    session.user = member(s);
+    const res = (await (await dealsRoute.GET(get(`http://x/api/crm/deals?board=1&pipelineId=${s.p.id}`))).json()) as {
+      rows: Array<{ deals: Array<{ id: string; contact_name: string | null; company_name: string | null }> }>;
+    };
+    const card = res.rows.flatMap((c) => c.deals).find((d) => d.id === r.deal.id)!;
+    expect(card.contact_name).toBeNull();
+    expect(card.company_name).toBeNull();
+    const own = res.rows.flatMap((c) => c.deals).find((d) => d.id === s.memberDeal.id)!;
+    expect(own.company_name).toBe('Member Co');
   });
 
   it('mover respeta los permisos por campo y responde sin los ocultos', async () => {
