@@ -31,6 +31,7 @@ import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
 import { SlashIcon } from '@/components/ui/SlashMenu';
 import { useLinesSlashCommands } from './slash-commands';
+import { useChatCommands } from '@/components/ui/useChatCommands';
 import LinkPreview from './wa/LinkPreview';
 import type { InviteJoin } from './wa/InviteCard';
 import { linkFromMeta } from './wa/link-preview-data';
@@ -63,6 +64,11 @@ import { linesVoicePayload, longEnough, recordedSoFar, recordedType } from './wa
 import { colorIndex, dayLabel, extensionOf, linkify, localDayKey, onlyEmoji, previewUrl } from './wa/format';
 import { phoneLabel } from '@/components/inbox/wa/util';
 import { ContactCards, DocCard, GifView, ImageView, LocationCard, MissingMedia, StickerMissing, VideoView, VoicePlayer, type MediaRetryResult } from './wa/MediaParts';
+
+/** Comandos del "/" que viven en el campo de texto y no van en ⌘K. */
+const LINES_CMDK_SKIP = ['emoji'];
+/** Color del punto de cada etiqueta en ⌘K (los de .gr-label-<color> en styles/groups.css). */
+const LABEL_SWATCH: Record<string, string> = { gray: 'var(--dim)', red: '#d93a40', orange: '#f2611d', yellow: '#e6b400', green: '#12a150', teal: '#00b8a9', blue: '#2f6bff', purple: '#7b4dff', pink: '#e23d7f' };
 
 /** "Bajar de nuevo" una foto o un video de Lines que quedó sin archivo: el servidor lo vuelve a pedir a WhatsApp. */
 async function retryLinesMedia(id: string): Promise<MediaRetryResult> {
@@ -799,6 +805,35 @@ export default function ChatThread(props: ThreadProps) {
 
   // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
   // Con el menú abierto no se muestran las menciones ni los emojis de ":".
+  const linesCommands = useLinesSlashCommands({
+    chat,
+    me: props.me,
+    people: props.people,
+    teams: props.teams,
+    labels: props.labels,
+    caps: props.caps,
+    mode,
+    messages,
+    translateOn,
+    ai: aiAllowed ? ai : null,
+    patchChat,
+    setMode,
+    openTicket,
+    openTask: setTaskFor,
+    openLater: () => openLater(),
+    attach: () => attachRef.current?.pickFiles(),
+    openPoll: () => setPollOpen(true),
+    openContact: () => setContactOpen(true),
+    openEmoji: () => setEmojiOpen(true),
+    toggleMute: () => void toggleMute(),
+    toggleUnread: () => void toggleUnread(),
+    toggleArchived: () => void patchChat({ archived: !chat.archived }).then((res) => res && showToast(res.archived ? t('wa.archived') : t('wa.unarchived'))),
+    summarize: () => void summarize(),
+    toggleTranslate,
+    toggleDetails,
+    manageQuickReplies: () => router.push('/app/lines/settings?tab=quick'),
+  });
+
   const slash = useSlashMenu({
     text,
     caret,
@@ -810,34 +845,7 @@ export default function ChatThread(props: ThreadProps) {
     },
     inserts: mode === 'reply' ? props.quickReplies : [],
     insertsLabel: t('thread.quickReplies'),
-    commands: useLinesSlashCommands({
-      chat,
-      me: props.me,
-      people: props.people,
-      teams: props.teams,
-      labels: props.labels,
-      caps: props.caps,
-      mode,
-      messages,
-      translateOn,
-      ai: aiAllowed ? ai : null,
-      patchChat,
-      setMode,
-      openTicket,
-      openTask: setTaskFor,
-      openLater: () => openLater(),
-      attach: () => attachRef.current?.pickFiles(),
-      openPoll: () => setPollOpen(true),
-      openContact: () => setContactOpen(true),
-      openEmoji: () => setEmojiOpen(true),
-      toggleMute: () => void toggleMute(),
-      toggleUnread: () => void toggleUnread(),
-      toggleArchived: () => void patchChat({ archived: !chat.archived }).then((res) => res && showToast(res.archived ? t('wa.archived') : t('wa.unarchived'))),
-      summarize: () => void summarize(),
-      toggleTranslate,
-      toggleDetails,
-      manageQuickReplies: () => router.push('/app/lines/settings?tab=quick'),
-    }),
+    commands: linesCommands,
   });
 
   function pickMention(i: number) {
@@ -1326,6 +1334,10 @@ export default function ChatThread(props: ThreadProps) {
   // Buscar en el chat (la lupa de la cabecera): components/groups/wa/ChatSearch.tsx.
   const [searchOpen, setSearchOpen] = useState(false);
   useChatSearchShortcut(() => setSearchOpen(true));
+  // Las acciones del "/" también en ⌘K (como Superhuman), más buscar en el chat.
+  useChatCommands(chat.name, linesCommands, { prefix: 'lines-chat', skip: LINES_CMDK_SKIP, swatch: (c) => LABEL_SWATCH[c] }, [
+    { id: 'lines-chat:search', label: t('wa.chatSearch.open'), meta: '⌘⇧F', keywords: 'search find', run: () => setSearchOpen(true) },
+  ]);
   // Teléfono: el panel tapa el chat; "atrás" lo cierra.
   useBackLayer(searchOpen && narrow, () => setSearchOpen(false));
   useEffect(() => setSearchOpen(false), [chat.id]);

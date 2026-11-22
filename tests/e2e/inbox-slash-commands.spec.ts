@@ -140,3 +140,59 @@ test('"/" en un chat de WhatsApp: lista las acciones, fija el chat, silencia con
   await expect(thread.getByLabel('Notes about this chat')).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('⌘K en un chat abierto: las mismas acciones del chat, con opciones, y se van al salir del chat', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const name = `Paleta ${uid()}`;
+  await inbound(request, acc, { phone: phone(), name, body: '¿Abren el sábado?' });
+
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: name }).locator('.ib-row-btn').click();
+  const thread = page.locator('.ib-wa-thread');
+  await expect(thread).toBeVisible();
+  const palette = page.locator('.cmdk');
+  const action = (id: string) => palette.locator(`[data-action="inbox-chat:${id}"]`);
+
+  // Las acciones del chat arriba; lo que vive en el campo (emojis, dictar) no.
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(palette).toBeVisible();
+  for (const id of ['done', 'snooze', 'pin', 'archive', 'mute', 'search']) await expect(action(id)).toBeVisible();
+  await expect(action('emoji')).toHaveCount(0);
+  await expect(action('dictate')).toHaveCount(0);
+
+  // Se filtra por el nombre del comando y Enter lo hace: fija el chat.
+  await palette.getByRole('combobox').fill('pin');
+  await expect(palette.getByRole('option').first()).toHaveAttribute('data-action', 'inbox-chat:pin');
+  await page.keyboard.press('Enter');
+  await expect(palette).toBeHidden();
+  await expect(thread.locator('.gr-thread-actions').getByRole('img', { name: 'Pinned' })).toBeVisible();
+
+  // Una acción con argumento abre sus opciones; la elegida silencia, y la próxima vez ofrece reactivar.
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(action('unpin')).toBeVisible();
+  await action('mute').click();
+  await expect(page.getByTestId('cmdk-crumbs')).toBeVisible();
+  await action('mute:muteWeek').click();
+  await expect(palette).toBeHidden();
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(action('unmute')).toBeVisible();
+  await expect(action('mute')).toHaveCount(0);
+
+  // Esc cierra la paleta sin hacer nada.
+  await page.keyboard.press('Escape');
+  await expect(palette).toBeHidden();
+
+  // Buscar en el chat abre el panel de búsqueda.
+  await page.keyboard.press('ControlOrMeta+k');
+  await action('search').click();
+  await expect(page.getByTestId('chat-search-close')).toBeVisible();
+  await page.getByTestId('chat-search-close').click();
+
+  // Fuera del chat no quedan sus acciones.
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(palette).toBeVisible();
+  await expect(palette.locator('[data-action^="inbox-chat:"]')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
