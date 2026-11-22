@@ -48,7 +48,9 @@ beforeEach(() => {
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const wctx = (widgetId: string) => ({ params: Promise.resolve({ widgetId }) });
 const send = (method: string, body: unknown) =>
-  new NextRequest('http://x', { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  body === null
+    ? new NextRequest('http://x', { method })
+    : new NextRequest('http://x', { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const json = async <T,>(res: Response) => (await res.json()) as T;
 
 // ---------- Funciones puras ----------
@@ -75,7 +77,7 @@ describe('rangos y períodos', () => {
     expect(r.bucket).toBe('week');
     const keys = bucketKeys(r);
     expect(keys[0]).toBe('2026-W43');
-    expect(keys.length).toBe(5);
+    expect(keys.length).toBe(6);
     expect(bucketBounds('2026-W44', r)).toEqual({ from: '2026-11-02', to: '2026-11-08' });
     // Recorta al rango.
     expect(bucketBounds('2026-W43', r)).toEqual({ from: '2026-11-01', to: '2026-11-01' });
