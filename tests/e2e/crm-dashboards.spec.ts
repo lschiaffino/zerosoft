@@ -201,8 +201,13 @@ test('reordenar tiles arrastrando y con el teclado; el orden queda guardado', as
 
   // Tamaño desde el menú del tile.
   await tiles.nth(0).getByTestId('cdb-tile-menu').click();
-  await page.getByRole('menuitem', { name: 'Size' }).click();
-  await page.getByRole('menuitem', { name: 'Wide' }).click();
+  // Submenú con el teclado: Enter lo abre y enfoca el primero (Small).
+  await page.getByRole('menuitem', { name: 'Size' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: /Small/ })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
   await expect(tiles.nth(0)).toHaveAttribute('data-size', 'wide');
   expect(errors, errors.join('\n')).toEqual([]);
 });
