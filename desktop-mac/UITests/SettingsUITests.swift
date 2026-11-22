@@ -84,7 +84,14 @@ final class SettingsUITests: XCTestCase {
     private func section(_ app: XCUIApplication, _ name: String) {
         let row = button(app, "zs-settings-\(name)")
         XCTAssertTrue(row.waitForExistence(timeout: 10), "no \(name) section")
-        row.click()
+        press(row)
+    }
+
+    /// A click at the element's center. With the dictionary list on screen, a plain click()
+    /// on any button failed on the runner while XCTest resolved the element
+    /// ("Can't do regex matching on object 1"); a click at a point does not resolve it again.
+    private func press(_ el: XCUIElement) {
+        el.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
     }
 
     /// Typed queries: a click resolves its query over the whole tree, and some SwiftUI controls
@@ -217,7 +224,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "signed out state missing")
 
         // Sign in from Settings itself: the open section loads with the new session.
-        button(app, "zs-remote-signin").click()
+        press(button(app, "zs-remote-signin"))
         waitLabel(app, "zs-test-login", "login 1 ok")
         XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the open section did not reload after sign-in")
 
@@ -227,12 +234,12 @@ final class SettingsUITests: XCTestCase {
         section(app, "dictionary")
         XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the dictionary did not load")
         let phrase = app.textFields.matching(identifier: "zs-dict-phrase").firstMatch
-        phrase.click()
+        press(phrase)
         phrase.typeText("zs-new-word")
-        button(app, "zs-dict-add").click()
+        press(button(app, "zs-dict-add"))
         waitServer("add") { self.server.writes.contains(#"POST /api/voice/dictionary {"kind":"word","phrase":"zs-new-word"}"#) }
         XCTAssertTrue(element(app, "zs-dict-entry-e2").waitForExistence(timeout: 15), "the new entry is not listed")
-        button(app, "zs-dict-delete-e1").click()
+        press(button(app, "zs-dict-delete-e1"))
         waitServer("delete") { self.server.dictionaryIDs == ["e2"] }
         let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element(app, "zs-dict-entry-e1"))
         wait(for: [removed], timeout: 10)
@@ -240,7 +247,7 @@ final class SettingsUITests: XCTestCase {
         section(app, "voice")
         let cleanup = app.popUpButtons.matching(identifier: "zs-voice-cleanup").firstMatch
         XCTAssertTrue(cleanup.waitForExistence(timeout: 15), "voice settings did not load")
-        cleanup.click()
+        press(cleanup)
         cleanup.menuItems["Formal"].click()
         waitServer("patch") { self.server.writes.contains(#"PATCH /api/voice/settings {"cleanupMode":"formal"}"#) }
         XCTAssertTrue(element(app, "zs-voice-saved").waitForExistence(timeout: 10))
@@ -251,7 +258,7 @@ final class SettingsUITests: XCTestCase {
         section(app, "account")
         let signOut = button(app, "zs-account-signout")
         XCTAssertTrue(signOut.waitForExistence(timeout: 10))
-        signOut.click()
+        press(signOut)
         waitServer("sign-out") { self.server.writes.contains("signout ok") }
         XCTAssertTrue(text(app, "Not signed in.").waitForExistence(timeout: 10))
         section(app, "dictionary")
