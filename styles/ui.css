@@ -1325,6 +1325,35 @@ input[type='file']::file-selector-button:hover { background: var(--ui-hover); }
 .input, .select, input[type='search'] { text-overflow: ellipsis; }
 .input::placeholder { text-overflow: ellipsis; }
 
+/* Buscador con la × propia (components/app/SearchClear.tsx): sin la nativa del navegador, que no sigue
+   el diseño, y con lugar a la derecha para el botón. El contenedor del campo es position: relative. */
+input[data-clearable]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+input[data-clearable], .app-frame input[data-clearable] { padding-right: 38px; }
+.ui-search-box { position: relative; display: block; min-width: 0; }
+.ui-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--wa-icon, var(--brand-gray-3));
+  background: none;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+.ui-search-clear:hover { color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--ui-hover)); }
+.ui-search-clear:focus-visible { outline: 2px solid var(--wa-primary, var(--ink)); outline-offset: -2px; }
+@media (pointer: coarse) {
+  .ui-search-clear { width: 40px; height: 40px; right: 0; }
+  input[data-clearable], .app-frame input[data-clearable] { padding-right: 42px; }
+}
+
 /* La insignia neutra usa el mismo gris que el hover de fila: con el filete no se pierde. */
 tr:hover .badge:not(.badge-ok, .badge-warn, .badge-bad, .badge-info, .badge-ink) { border-color: var(--line); }
 

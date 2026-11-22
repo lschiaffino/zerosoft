@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import SearchClear from '@/components/app/SearchClear';
 import Avatar from './Avatar';
 import { MessageMenu, type MenuItem } from './Menu';
 import { ChatIcon, Close, CopyIcon, LinkIcon, Search, UserPlus } from './icons';
@@ -106,6 +107,7 @@ export default function GroupMembers({
   children?: ReactNode;
 }) {
   const t = useTranslations('groups.wa.members');
+  const tw = useTranslations('groups.wa');
   const errText = useErrorText();
   const [members, setMembers] = useState(initial);
   const [pending, setPending] = useState<GroupMember[]>([]);
@@ -336,7 +338,8 @@ export default function GroupMembers({
         <label className="wa-gm-search">
           <Search size={16} />
           <span className="sr-only">{t('search')}</span>
-          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search')} />
+          <input className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search')} data-clearable="" />
+          <SearchClear shown={q !== ''} onClear={() => setQ('')} label={tw('clearSearch')} />
         </label>
       )}
 
@@ -423,6 +426,7 @@ function AddMembersDialog({
   onAdd: (picked: MemberContact[]) => void;
 }) {
   const t = useTranslations('groups.wa.members');
+  const tw = useTranslations('groups.wa');
   const [q, setQ] = useState('');
   const [results, setResults] = useState<MemberContact[] | null>(null);
   const [picked, setPicked] = useState<MemberContact[]>([]);
@@ -482,7 +486,9 @@ function AddMembersDialog({
             }}
             placeholder={t('searchContacts')}
             data-testid="group-add-search"
+            data-clearable=""
           />
+          <SearchClear shown={q !== ''} onClear={() => setQ('')} label={tw('clearSearch')} />
         </label>
         {picked.length > 0 && (
           <ul className="wa-gm-chips" aria-label={t('selected', { n: picked.length })}>
