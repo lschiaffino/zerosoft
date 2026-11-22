@@ -182,6 +182,7 @@ function useGroupOrder() {
         'crmQuotes',
         'crmApprovals',
         'crmScores',
+        'crmViews',
         'reports',
         'eventTypes',
         'bookings',

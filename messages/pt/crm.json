@@ -1302,7 +1302,8 @@
       "contactCount": "Quantidade de contatos",
       "forecastCategory": "Categoria de forecast",
       "lostReason": "Motivo da perda",
-      "closedAt": "Data de fechamento real"
+      "closedAt": "Data de fechamento real",
+      "dealStatus": "Status do negócio"
     },
     "panelHint": "Um registro entra em um grupo quando cumpre todos os filtros dele. Os grupos se somam com OU.",
     "addFilter": "Adicionar filtro",
@@ -1387,6 +1388,11 @@
       "next_days": "é {count, plural, one {no próximo dia} other {nos próximos # dias}}",
       "less_days_ago": "é há menos de {count, plural, one {# dia} other {# dias}}",
       "more_days_ago": "é há mais de {count, plural, one {# dia} other {# dias}}"
+    },
+    "dealStatus": {
+      "open": "Aberto",
+      "won": "Ganho",
+      "lost": "Perdido"
     }
   },
   "meetings": {
@@ -4538,5 +4544,97 @@
     "help": "Os membros só veem as propriedades personalizadas que podem editar, e só essas são obrigatórias para eles.",
     "saved": "Salvo",
     "missing": "Preencha os campos obrigatórios: {fields}"
+  },
+  "views": {
+    "tabsLabel": "Visualizações",
+    "unsaved": "Alterações não salvas",
+    "tabOptions": "Opções de {name}",
+    "pin": "Fixar aba",
+    "unpin": "Soltar aba",
+    "moveLeft": "Mover para a esquerda",
+    "moveRight": "Mover para a direita",
+    "edit": "Renomear e compartilhar",
+    "saveAs": "Salvar como nova visualização",
+    "close": "Fechar aba",
+    "delete": "Excluir visualização",
+    "more": "Mais ({count})",
+    "addView": "Adicionar visualização",
+    "create": "Criar visualização com esta lista",
+    "allViews": "Todas as visualizações",
+    "reset": "Restaurar",
+    "save": "Salvar",
+    "deleteTitle": "Excluir a visualização \"{name}\"?",
+    "deleteShared": "A visualização é compartilhada. Ela some para todas as pessoas que a têm como aba. Os registros continuam como estão.",
+    "deleteBody": "Os registros continuam como estão. Só os filtros, a ordem e as colunas salvos são excluídos.",
+    "editTitle": "Renomear e compartilhar a visualização",
+    "createTitle": "Salvar visualização",
+    "name": "Nome da visualização",
+    "visibility": {
+      "label": "Quem vê",
+      "private": "Privada",
+      "privateHint": "Só você.",
+      "team": "Minha equipe",
+      "teamHint": "As pessoas da sua equipe de vendas.",
+      "noTeam": "Você não está em uma equipe de vendas.",
+      "chooseTeam": "Equipe",
+      "everyone": "Todos",
+      "everyoneHint": "Todo o workspace."
+    },
+    "errors": {
+      "generic": "Não foi possível salvar a alteração. Tente de novo.",
+      "forbidden": "Só quem criou esta visualização ou um admin pode alterá-la.",
+      "notFound": "Esta visualização não existe mais."
+    },
+    "defaults": {
+      "allContacts": "Todos os contatos",
+      "myContacts": "Meus contatos",
+      "unassignedContacts": "Contatos sem responsável",
+      "allCompanies": "Todas as empresas",
+      "myCompanies": "Minhas empresas",
+      "unassignedCompanies": "Empresas sem responsável",
+      "allDeals": "Todos os negócios",
+      "myDeals": "Meus negócios",
+      "openDeals": "Negócios abertos"
+    },
+    "columns": {
+      "button": "Editar colunas",
+      "title": "Editar colunas",
+      "available": "Propriedades",
+      "search": "Buscar propriedades",
+      "noMatch": "Nenhuma propriedade corresponde.",
+      "selected": "Colunas escolhidas",
+      "selectedCount": "Colunas escolhidas ({count})",
+      "locked": "Sempre a primeira",
+      "moveUp": "Subir {name}",
+      "moveDown": "Descer {name}",
+      "remove": "Remover {name}",
+      "freeze": "Fixar a primeira coluna",
+      "reset": "Colunas padrão",
+      "apply": "Aplicar"
+    },
+    "all": {
+      "title": "Todas as visualizações",
+      "description": "As visualizações salvas que você pode abrir. As privadas de outras pessoas não aparecem.",
+      "entity": "Objeto",
+      "entities": {
+        "contacts": "Contatos",
+        "companies": "Empresas",
+        "deals": "Negócios"
+      },
+      "you": "Você",
+      "formerMember": "Ex-membro",
+      "sharedTeam": "Equipe: {team}",
+      "emptyTitle": "Ainda não há visualizações salvas",
+      "emptyBody": "Filtre a lista e use Adicionar visualização para salvar os filtros, a ordem e as colunas.",
+      "backToList": "Ir para a lista",
+      "search": "Buscar visualizações",
+      "createdBy": "Criada por",
+      "anyone": "Qualquer pessoa",
+      "sharedWith": "Compartilhada com",
+      "anySharing": "Qualquer acesso",
+      "createdByMe": "Criadas por mim",
+      "noMatch": "Nenhuma visualização corresponde a estes filtros.",
+      "updated": "Atualizada"
+    }
   }
 }

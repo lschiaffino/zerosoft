@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
-import { ColumnToggleInBar, useColumnVisibility } from './ColumnToggle';
+import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
@@ -48,6 +48,9 @@ interface Option {
 }
 
 interface ContactsTableProps {
+  /** Columnas en orden (`cols` de la URL o de la vista activa) y si la primera queda fija. */
+  viewCols?: string;
+  viewFreeze?: boolean;
   rows: ContactRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
@@ -85,7 +88,7 @@ const COLS = [
 ];
 
 /** Tabla de contactos con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function ContactsTable({
+export default function ContactsTable({ viewCols, viewFreeze,
   rows,
   lifecycles,
   leadStatuses,
@@ -108,10 +111,8 @@ export default function ContactsTable({
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
   ];
-  const [visible, toggleVisible] = useColumnVisibility(
-    columnDefs,
-    'zs-contacts-columns',
-  );
+  const cols = useTableColumns({ entity: 'contacts', columns: columnDefs, storageKey: 'zs-contacts-columns', first: 'name', viewCols, viewFreeze });
+  const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [bulkSequence, setBulkSequence] = useState('');
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
@@ -174,17 +175,218 @@ export default function ContactsTable({
   const leadStatusOpts = leadStatuses.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) }));
   const sourceOpts = sources.map((v) => ({ value: v, label: t(`enums.source.${v}`) }));
 
+  const headCells: Record<string, ReactNode> = {
+    name: (
+      <th data-card="main">
+        <SortTh label={t('contacts.table.name')} asc="name" desc="name_desc" current={sort} />
+      </th>
+    ),
+    email: (
+      <th>
+        <SortTh label={t('contacts.table.email')} asc="email" desc="email_desc" current={sort} />
+      </th>
+    ),
+    phone: <th>{t('contacts.table.phone')}</th>,
+    company: <th>{t('contacts.table.company')}</th>,
+    lifecycle: <th>{t('contacts.table.lifecycle')}</th>,
+    leadStatus: <th>{t('contacts.table.leadStatus')}</th>,
+    source: <th>{t('contacts.table.source')}</th>,
+    score: (
+      <th className="num">
+        <SortTh label={t('scoring.column')} asc="score_asc" desc="score" current={sort} />
+      </th>
+    ),
+    tags: <th>{t('tags.column')}</th>,
+    owner: <OwnerHeader sort={sort} />,
+    created: (
+      <th className="num cell-date">
+        <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
+      </th>
+    ),
+    lastActivity: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
+      </th>
+    ),
+    lastContacted: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
+      </th>
+    ),
+    nextActivity: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
+      </th>
+    ),
+  };
+  for (const c of customColumns) headCells[c.id] = <CustomColumnHeader key={c.id} col={c} sort={sort} />;
+  const customById = new Map(customColumns.map((c) => [c.id, c]));
+
+  function bodyCell(id: string, row: ContactRow): ReactNode {
+    switch (id) {
+      case 'name':
+        return (
+          <td data-card="main">
+            <Link href={`/app/crm/contacts/${row.id}`} className="cell-name">
+              {row.name}
+            </Link>
+          </td>
+        );
+      case 'email':
+        return (
+          <td className="card-contact-email" data-card="line">
+            <InlineEditCell
+              endpoint={`/api/crm/contacts/${row.id}`}
+              field="email"
+              value={row.email}
+              type="email"
+              className="cell-email muted"
+            />
+            {row.email ? (
+              <a
+                href={`mailto:${row.email}`}
+                className="cell-quick"
+                title={t('enums.activityType.email')}
+                aria-label={t('enums.activityType.email')}
+              >
+                <CrmIcon name="mail" />
+              </a>
+            ) : null}
+          </td>
+        );
+      case 'phone':
+        return (
+          <td className="cell-sub card-contact-phone" data-card="line">
+            <InlineEditCell
+              endpoint={`/api/crm/contacts/${row.id}`}
+              field="phone"
+              value={row.phone}
+              displayValue={formatPhoneDisplay(row.phone)}
+              className="muted"
+            />
+            {row.phone ? <PhoneTouch phone={row.phone} contactId={row.id} compact /> : null}
+          </td>
+        );
+      case 'company':
+        return (
+          <td data-card="line">
+            {companies.length > 0 ? (
+              <InlineEditCell
+                endpoint={`/api/crm/contacts/${row.id}`}
+                field="companyId"
+                value={row.companyId ?? ''}
+                type="select"
+                nullOption
+                options={companies}
+                className="cell-sub"
+              />
+            ) : row.companyName && row.companyId ? (
+              <Link href={`/app/crm/companies/${row.companyId}`} className="cell-sub">
+                {row.companyName}
+              </Link>
+            ) : (
+              <span className="muted cell-empty">—</span>
+            )}
+          </td>
+        );
+      case 'lifecycle':
+        return (
+          <td data-card="state">
+            <InlineEditCell
+              endpoint={`/api/crm/contacts/${row.id}`}
+              field="lifecycleStage"
+              value={row.lifecycle}
+              type="select"
+              options={lifecycleOpts}
+              className={`badge stage-${row.lifecycle}`}
+            />
+          </td>
+        );
+      case 'leadStatus':
+        return (
+          <td>
+            <InlineEditCell
+              endpoint={`/api/crm/contacts/${row.id}`}
+              field="leadStatus"
+              value={row.leadStatus}
+              type="select"
+              options={leadStatusOpts}
+              className="badge"
+            />
+          </td>
+        );
+      case 'source':
+        return (
+          <td className="muted cell-sub">
+            <InlineEditCell
+              endpoint={`/api/crm/contacts/${row.id}`}
+              field="source"
+              value={row.source}
+              type="select"
+              options={sourceOpts}
+              className="muted"
+            />
+          </td>
+        );
+      case 'score':
+        return (
+          <td className="num cell-score" data-testid="contact-score">
+            {row.score}
+            {row.scoreTier && <span className="score-tier" data-testid="contact-score-tier">{row.scoreTier}</span>}
+          </td>
+        );
+      case 'tags':
+        return (
+          <td className="cell-crm-tags">
+            <TagDots tags={row.tags ?? []} max={2} />
+          </td>
+        );
+      case 'owner':
+        return (
+          <OwnerCell endpoint={`/api/crm/contacts/${row.id}`} ownerId={row.ownerId} owners={owners} />
+        );
+      case 'created':
+        return <td className="num muted cell-date">{row.created}</td>;
+      case 'lastActivity':
+        return <td className="num muted cell-date">{row.lastActivity || '—'}</td>;
+      case 'lastContacted':
+        return <td className="num muted cell-date">{row.lastContacted || '—'}</td>;
+      case 'nextActivity':
+        return <td className="num muted cell-date">{row.nextActivity || '—'}</td>;
+      default: {
+        const c = customById.get(id);
+        if (!c) return null;
+        const cell = row.custom?.[c.id];
+        return (
+          <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
+            {!cell ? (
+              <span className="muted">—</span>
+            ) : cell.href ? (
+              <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                {cell.text}
+              </a>
+            ) : (
+              cell.text
+            )}
+          </td>
+        );
+      }
+    }
+  }
+
   return (
     <>
-      <ColumnToggleInBar
+      <EditColumnsInBar
         columns={columnDefs}
-        visible={visible}
-        onToggle={toggleVisible}
-        label={t('common.columns')}
+        first="name"
+        order={cols.order}
+        freeze={cols.freeze}
+        onApply={cols.apply}
+        onReset={cols.reset}
       />
 
       <div className="table-wrap">
-        <table className="table crm-table crm-cards">
+        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
           <thead>
             <tr>
               <th className="cell-check" data-card="check">
@@ -196,49 +398,9 @@ export default function ContactsTable({
                   aria-label={t('common.all')}
                 />
               </th>
-              {visible.has('name') && (
-                <th data-card="main">
-                  <SortTh label={t('contacts.table.name')} asc="name" desc="name_desc" current={sort} />
-                </th>
-              )}
-              {visible.has('email') && (
-                <th>
-                  <SortTh label={t('contacts.table.email')} asc="email" desc="email_desc" current={sort} />
-                </th>
-              )}
-              {visible.has('phone') && <th>{t('contacts.table.phone')}</th>}
-              {visible.has('company') && <th>{t('contacts.table.company')}</th>}
-              {visible.has('lifecycle') && <th>{t('contacts.table.lifecycle')}</th>}
-              {visible.has('leadStatus') && <th>{t('contacts.table.leadStatus')}</th>}
-              {visible.has('source') && <th>{t('contacts.table.source')}</th>}
-              {visible.has('score') && (
-                <th className="num">
-                  <SortTh label={t('scoring.column')} asc="score_asc" desc="score" current={sort} />
-                </th>
-              )}
-              {visible.has('tags') && <th>{t('tags.column')}</th>}
-              {visible.has('owner') && <OwnerHeader sort={sort} />}
-              {visible.has('created') && (
-                <th className="num cell-date">
-                  <SortTh label={t('contacts.table.created')} asc="oldest" desc="newest" current={sort} />
-                </th>
-              )}
-              {visible.has('lastActivity') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
-                </th>
-              )}
-              {visible.has('lastContacted') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
-                </th>
-              )}
-              {visible.has('nextActivity') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
-                </th>
-              )}
-              {customColumns.map((c) => visible.has(c.id) && <CustomColumnHeader key={c.id} col={c} sort={sort} />)}
+              {order.map((id) => (
+                <Fragment key={id}>{headCells[id]}</Fragment>
+              ))}
               <th className="cell-actions-head"><span className="sr-only">{t('contacts.table.actions')}</span></th>
             </tr>
           </thead>
@@ -254,138 +416,9 @@ export default function ContactsTable({
                     aria-label={row.name}
                   />
                 </td>
-                {visible.has('name') && (
-                  <td data-card="main">
-                    <Link href={`/app/crm/contacts/${row.id}`} className="cell-name">
-                      {row.name}
-                    </Link>
-                  </td>
-                )}
-                {visible.has('email') && (
-                  <td className="card-contact-email" data-card="line">
-                    <InlineEditCell
-                      endpoint={`/api/crm/contacts/${row.id}`}
-                      field="email"
-                      value={row.email}
-                      type="email"
-                      className="cell-email muted"
-                    />
-                    {row.email ? (
-                      <a
-                        href={`mailto:${row.email}`}
-                        className="cell-quick"
-                        title={t('enums.activityType.email')}
-                        aria-label={t('enums.activityType.email')}
-                      >
-                        <CrmIcon name="mail" />
-                      </a>
-                    ) : null}
-                  </td>
-                )}
-                {visible.has('phone') && (
-                  <td className="cell-sub card-contact-phone" data-card="line">
-                    <InlineEditCell
-                      endpoint={`/api/crm/contacts/${row.id}`}
-                      field="phone"
-                      value={row.phone}
-                      displayValue={formatPhoneDisplay(row.phone)}
-                      className="muted"
-                    />
-                    {row.phone ? <PhoneTouch phone={row.phone} contactId={row.id} compact /> : null}
-                  </td>
-                )}
-                {visible.has('company') && (
-                  <td data-card="line">
-                    {companies.length > 0 ? (
-                      <InlineEditCell
-                        endpoint={`/api/crm/contacts/${row.id}`}
-                        field="companyId"
-                        value={row.companyId ?? ''}
-                        type="select"
-                        nullOption
-                        options={companies}
-                        className="cell-sub"
-                      />
-                    ) : row.companyName && row.companyId ? (
-                      <Link href={`/app/crm/companies/${row.companyId}`} className="cell-sub">
-                        {row.companyName}
-                      </Link>
-                    ) : (
-                      <span className="muted cell-empty">—</span>
-                    )}
-                  </td>
-                )}
-                {visible.has('lifecycle') && (
-                  <td data-card="state">
-                    <InlineEditCell
-                      endpoint={`/api/crm/contacts/${row.id}`}
-                      field="lifecycleStage"
-                      value={row.lifecycle}
-                      type="select"
-                      options={lifecycleOpts}
-                      className={`badge stage-${row.lifecycle}`}
-                    />
-                  </td>
-                )}
-                {visible.has('leadStatus') && (
-                  <td>
-                    <InlineEditCell
-                      endpoint={`/api/crm/contacts/${row.id}`}
-                      field="leadStatus"
-                      value={row.leadStatus}
-                      type="select"
-                      options={leadStatusOpts}
-                      className="badge"
-                    />
-                  </td>
-                )}
-                {visible.has('source') && (
-                  <td className="muted cell-sub">
-                    <InlineEditCell
-                      endpoint={`/api/crm/contacts/${row.id}`}
-                      field="source"
-                      value={row.source}
-                      type="select"
-                      options={sourceOpts}
-                      className="muted"
-                    />
-                  </td>
-                )}
-                {visible.has('score') && (
-                  <td className="num cell-score" data-testid="contact-score">
-                    {row.score}
-                    {row.scoreTier && <span className="score-tier" data-testid="contact-score-tier">{row.scoreTier}</span>}
-                  </td>
-                )}
-                {visible.has('tags') && (
-                  <td className="cell-crm-tags">
-                    <TagDots tags={row.tags ?? []} max={2} />
-                  </td>
-                )}
-                {visible.has('owner') && (
-                  <OwnerCell endpoint={`/api/crm/contacts/${row.id}`} ownerId={row.ownerId} owners={owners} />
-                )}
-                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
-                {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
-                {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
-                {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
-                {customColumns.map((c) => {
-                  if (!visible.has(c.id)) return null;
-                  const cell = row.custom?.[c.id];
-                  return (
-                    <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
-                      {!cell ? (
-                        <span className="muted">—</span>
-                      ) : cell.href ? (
-                        <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
-                          {cell.text}
-                        </a>
-                      ) : (
-                        cell.text
-                      )}
-                    </td>
-                  );
-                })}
+                {order.map((id) => (
+                  <Fragment key={id}>{bodyCell(id, row)}</Fragment>
+                ))}
                 <td className="cell-actions">
                   <button
                     type="button"
