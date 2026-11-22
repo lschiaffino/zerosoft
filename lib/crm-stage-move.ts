@@ -20,6 +20,25 @@ export interface MissingFieldInfo {
   currency?: string;
 }
 
+/**
+ * Lo que pide la etapa, separado según la persona: `fillable` lo que puede
+ * completar en el diálogo; `adminRequired` si falta además un campo propio
+ * que tiene oculto o de solo lectura (lo tiene que completar un admin). Los
+ * ocultos no se nombran. Puro.
+ */
+export function splitMissingForViewer(
+  missing: string[],
+  restricted: ReadonlyMap<string, 'read' | 'hidden'>,
+): { fillable: string[]; adminRequired: boolean } {
+  const fillable: string[] = [];
+  let adminRequired = false;
+  for (const key of missing) {
+    if (key.startsWith('custom:') && restricted.has(key.slice(7))) adminRequired = true;
+    else fillable.push(key);
+  }
+  return { fillable, adminRequired };
+}
+
 /** Cómo pedir cada propiedad que falta (la UI arma el diálogo con esto). */
 export async function describeMissing(
   userId: string,

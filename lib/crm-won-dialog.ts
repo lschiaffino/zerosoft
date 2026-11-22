@@ -15,8 +15,20 @@ export function todayIso(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** La fecha de cierre va siempre y primero; después lo que pida la etapa (sin repetirla). */
-export function wonRequirements<F extends FieldLike>(req: { stage: string; missing: F[] }): { stage: string; missing: F[] } {
+/**
+ * La fecha de cierre va siempre y primero; después lo que pida la etapa (sin
+ * repetirla). `adminRequired` (un campo que la persona no puede completar) se
+ * conserva.
+ */
+export function wonRequirements<F extends FieldLike>(req: { stage: string; missing: F[]; adminRequired?: boolean }): {
+  stage: string;
+  missing: F[];
+  adminRequired?: boolean;
+} {
   const rest = req.missing.filter((f) => f.key !== 'closeDate');
-  return { stage: req.stage, missing: [{ key: 'closeDate', type: 'closeDate' } as F, ...rest] };
+  return {
+    stage: req.stage,
+    missing: [{ key: 'closeDate', type: 'closeDate' } as F, ...rest],
+    ...(req.adminRequired ? { adminRequired: true } : {}),
+  };
 }

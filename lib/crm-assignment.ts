@@ -10,6 +10,8 @@
 import { localized } from './notification-copy';
 import { getDb, type Db } from './db';
 import { isWorkspacePerson } from './crm-refs';
+import { maskPrivateRefs, PRIVATE_REFS, type PrivateRefFlags } from './crm-record-scope';
+import type { OwnerScope } from './crm-visibility';
 import { createNotification } from './notifications';
 
 export const ASSIGNMENT_SOURCES = ['form', 'chat', 'cal', 'import', 'api'] as const;
@@ -176,12 +178,14 @@ export interface AssignmentHistoryRow {
   created_at: string;
 }
 
+/** Historial de asignaciones. Con `scope`, los contactos que la persona no ve salen como "Registro privado". */
 export async function listAssignmentHistory(
   workspaceId: string,
   limit = 50,
+  scope?: OwnerScope,
   db: Db = getDb(),
-): Promise<AssignmentHistoryRow[]> {
-  return (await db
+): Promise<Array<AssignmentHistoryRow & PrivateRefFlags>> {
+  const rows = (await db
     .prepare(
       `SELECT h.id, h.contact_id, NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          h.person_id, u.email AS person_email, h.source, h.method, h.created_at
@@ -193,4 +197,5 @@ export async function listAssignmentHistory(
        LIMIT ?`,
     )
     .all(workspaceId, Math.min(Math.max(limit, 1), 200))) as AssignmentHistoryRow[];
+  return maskPrivateRefs(workspaceId, rows, [PRIVATE_REFS.contact(['contact_name'])], scope, db);
 }

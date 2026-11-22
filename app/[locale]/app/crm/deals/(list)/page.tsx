@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { countPendingFor } from '@/lib/crm-approvals';
-import { sessionScope } from '@/lib/crm-visibility';
+import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
   ACTIVITY_DATE_SORTS,
@@ -331,12 +331,14 @@ export default async function DealsPage(props: DealsPageProps) {
     if (rows.length) {
       const ids = rows.map((r) => r.id);
       const ph = ids.map(() => '?').join(',');
+      // Solo cuenta los contactos que la persona ve.
+      const cScope = scopeAnd('c', scope);
       const counts = (await getDb()
         .prepare(
-          `SELECT deal_id, COUNT(*) AS c FROM crm_deal_contacts
-           WHERE deal_id IN (${ph}) GROUP BY deal_id`,
+          `SELECT dc.deal_id, COUNT(*) AS c FROM crm_deal_contacts dc JOIN crm_contacts c ON c.id = dc.contact_id
+           WHERE dc.deal_id IN (${ph})${cScope.sql} GROUP BY dc.deal_id`,
         )
-        .all(...ids)) as Array<{ deal_id: string; c: number }>;
+        .all(...ids, ...cScope.args)) as Array<{ deal_id: string; c: number }>;
       for (const r of counts) contactCounts.set(r.deal_id, r.c);
     }
 
@@ -373,6 +375,7 @@ export default async function DealsPage(props: DealsPageProps) {
         tags: rowTags.get(d.id) ?? [],
         custom: customCells(customFieldDefs, parseCustom(d.custom), cellCtx),
         companyName: d.company_name,
+        companyPrivate: !!d.company_private,
         amountBase: (() => {
           if (d.currency.toUpperCase() === currencyCtx.base) return null;
           const v = convertAmount(d.amount, d.currency, currencyCtx.base, currencyCtx);

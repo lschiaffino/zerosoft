@@ -5,7 +5,7 @@ import { deleteCompany, getCompany, updateCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope, scopeCompanyDetail } from '@/lib/crm-visibility';
-import { scopedCompanyDetail } from '@/lib/crm-record-scope';
+import { maskPrivateRef, PRIVATE_REFS, scopedCompanyDetail } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const company = await catchRef(updateCompany(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email));
   if (company instanceof CrmRefError) return crmError(400, company.code);
   if (!company) return notFound();
-  return NextResponse.json(redactRow(company, await hiddenFieldsFor(fieldViewer, 'companies')));
+  // La madre que la persona no ve no sale ni por id.
+  const shown = (await maskPrivateRef(user.id, company, [PRIVATE_REFS.parent()], scope))!;
+  return NextResponse.json(redactRow(shown, await hiddenFieldsFor(fieldViewer, 'companies')));
 }
 
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {

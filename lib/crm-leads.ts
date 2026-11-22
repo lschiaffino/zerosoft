@@ -13,6 +13,7 @@ import { getDb, type CrmLeadRow, type CrmLeadStageRow, type Db } from './db';
 import { createDeal, listPipelinesWithStages } from './crm';
 import { assertRefs, CrmRefError } from './crm-refs';
 import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { maskPrivateRef, maskPrivateRefs, PRIVATE_REFS, type PrivateRefFlags } from './crm-record-scope';
 import { SOURCES } from './crm-constants';
 
 export const LEAD_STAGE_KINDS = ['open', 'qualified', 'disqualified'] as const;
@@ -138,7 +139,19 @@ export type LeadListRow = CrmLeadRow & {
   owner_name: string | null;
   deal_name: string | null;
   last_activity_at: string | null;
-};
+} & PrivateRefFlags;
+
+/** El contacto, la empresa y el deal de un lead que la persona no ve salen como "Registro privado". */
+const LEAD_REFS = [PRIVATE_REFS.contact(), PRIVATE_REFS.company(), PRIVATE_REFS.deal()] as const;
+
+function maskLeads(workspaceId: string, rows: LeadListRow[], scope: OwnerScope | undefined, db: Db): Promise<LeadListRow[]> {
+  return maskPrivateRefs(workspaceId, rows, LEAD_REFS, scope, db);
+}
+
+/** Un lead (por ejemplo el que devuelve updateLead) sin los ids de asociados que la persona no ve. */
+export async function maskLeadRefs<T extends CrmLeadRow>(workspaceId: string, row: T, scope: OwnerScope | undefined, db: Db = getDb()): Promise<T & PrivateRefFlags> {
+  return (await maskPrivateRef(workspaceId, row, LEAD_REFS, scope, db)) as T & PrivateRefFlags;
+}
 
 const LEAD_SELECT = `
   SELECT l.*, s.name AS stage_name, s.kind AS stage_kind,
@@ -179,11 +192,16 @@ function leadWhere(workspaceId: string, f: LeadFilter): { where: string; args: A
   const args: Array<string | number> = [workspaceId];
   if (f.q) {
     const like = `%${escapeLike(f.q)}%`;
+    // Buscar por el contacto o la empresa solo cuando la persona los ve (si no, la búsqueda delata la asociación).
+    const cScope = ownerScopeSql('c', f.ownerScope);
+    const coScope = ownerScopeSql('co', f.ownerScope);
+    const inC = cScope.sql ? ` AND ${cScope.sql}` : '';
+    const inCo = coScope.sql ? ` AND ${coScope.sql}` : '';
     where.push(
-      `(l.name LIKE ? ESCAPE '\\' OR c.email LIKE ? ESCAPE '\\' OR co.name LIKE ? ESCAPE '\\'
-        OR (COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE ? ESCAPE '\\')`,
+      `(l.name LIKE ? ESCAPE '\\' OR (c.email LIKE ? ESCAPE '\\'${inC}) OR (co.name LIKE ? ESCAPE '\\'${inCo})
+        OR ((COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE ? ESCAPE '\\'${inC}))`,
     );
-    args.push(like, like, like, like);
+    args.push(like, like, ...cScope.args, like, ...coScope.args, like, ...cScope.args);
   }
   if (f.stageId) {
     where.push('l.stage_id = ?');
@@ -234,7 +252,7 @@ export async function listLeads(
   const rows = (await db
     .prepare(`${LEAD_SELECT} WHERE ${where} ORDER BY ${LEAD_ORDER[f.sort ?? 'newest'] ?? LEAD_ORDER.newest} LIMIT ? OFFSET ?`)
     .all(...args, pageSize, (page - 1) * pageSize)) as LeadListRow[];
-  return { rows, total };
+  return { rows: await maskLeads(workspaceId, rows, f.ownerScope, db), total };
 }
 
 export interface LeadBoardStage extends CrmLeadStageRow {
@@ -261,15 +279,26 @@ export async function listLeadsForBoard(
            LEFT JOIN crm_contacts c ON c.id = l.contact_id LEFT JOIN crm_companies co ON co.id = l.company_id WHERE ${where}`,
         )
         .get(...args)) as { n: number }).n;
-      return { ...s, leads, count };
+      return { ...s, leads: await maskLeads(workspaceId, leads, f.ownerScope, db), count };
     }),
   );
 }
 
-export async function getLead(workspaceId: string, id: string, db: Db = getDb()): Promise<LeadListRow | null> {
-  return ((await db.prepare(`${LEAD_SELECT} WHERE l.id = ? AND l.user_id = ?`).get(id, workspaceId)) as
+/**
+ * Un lead del workspace. Con `ownerScope`, su contacto, empresa o deal que la
+ * persona no ve salen sin nombre ni id (marcados como privados); no chequea
+ * si ve el lead mismo (eso es canSeeOwnedRow).
+ */
+export async function getLead(
+  workspaceId: string,
+  id: string,
+  ownerScope?: OwnerScope,
+  db: Db = getDb(),
+): Promise<LeadListRow | null> {
+  const row = ((await db.prepare(`${LEAD_SELECT} WHERE l.id = ? AND l.user_id = ?`).get(id, workspaceId)) as
     | LeadListRow
     | undefined) ?? null;
+  return maskPrivateRef(workspaceId, row, LEAD_REFS, ownerScope, db);
 }
 
 export interface LeadInput {

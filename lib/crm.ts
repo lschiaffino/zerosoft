@@ -56,6 +56,7 @@ import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } f
 
 export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { maskPrivateRefs, PRIVATE_REFS, type PrivateRefFlags } from './crm-record-scope';
 import type { ChatReader } from './crm-chat-privacy';
 import {
   cleanContactEmail,
@@ -389,7 +390,10 @@ export interface ContactFilter {
   pageSize?: number;
 }
 
-export type ContactListRow = CrmContactRow & { company_name: string | null };
+export type ContactListRow = CrmContactRow & { company_name: string | null } & PrivateRefFlags;
+
+/** La empresa primaria de un contacto que la persona no ve sale como "Registro privado". */
+const CONTACT_LIST_REFS = [PRIVATE_REFS.company(['company_name'])] as const;
 
 /** Días desde una fecha de la DB (nunca = 100000, así "hace más de N días" incluye a los que nunca tuvieron). */
 function daysSince(col: string): string {
@@ -558,7 +562,7 @@ export async function listContacts(
        LIMIT ? OFFSET ?`,
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as ContactListRow[];
-  return { rows, total };
+  return { rows: await maskPrivateRefs(userId, rows, CONTACT_LIST_REFS, f.ownerScope, db), total };
 }
 
 /** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
@@ -1051,7 +1055,7 @@ export interface CompanyFilter {
   pageSize?: number;
 }
 
-export type CompanyListRow = CrmCompanyRow & { contact_count: number };
+export type CompanyListRow = CrmCompanyRow & { contact_count: number } & PrivateRefFlags;
 
 const COMPANY_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: 'co.name', type: 'text' },
@@ -1141,17 +1145,20 @@ export async function listCompanies(
         : f.sort === 'name_desc'
           ? 'co.name COLLATE NOCASE DESC, co.id'
           : 'co.created_at DESC, co.id');
+  // La cantidad de contactos cuenta solo los que la persona ve, y la madre que no ve no sale ni por id.
+  const countScope = scopeAnd('xc', f.ownerScope);
   const rows = (await db
     .prepare(
       `SELECT co.*,
-         (SELECT COUNT(*) FROM crm_contact_companies ct WHERE ct.company_id = co.id) AS contact_count
+         (SELECT COUNT(*) FROM crm_contact_companies ct JOIN crm_contacts xc ON xc.id = ct.contact_id
+          WHERE ct.company_id = co.id${countScope.sql}) AS contact_count
        FROM crm_companies co
        WHERE ${whereSql}
        ORDER BY ${order}
        LIMIT ? OFFSET ?`,
     )
-    .all(...args, pageSize, (page - 1) * pageSize)) as CompanyListRow[];
-  return { rows, total };
+    .all(...countScope.args, ...args, pageSize, (page - 1) * pageSize)) as CompanyListRow[];
+  return { rows: await maskPrivateRefs(userId, rows, [PRIVATE_REFS.parent()], f.ownerScope, db), total };
 }
 
 export interface CompanyDetail {
@@ -1543,7 +1550,7 @@ export const STALLED_DEAL_SQL = `EXISTS (
     ) >= (CASE WHEN sx.rotting_days IS NOT NULL AND sx.rotting_days > 0 THEN sx.rotting_days ELSE 14 END) + 1
 )`;
 
-export type DealListRow = CrmDealRow & { stage_name: string | null; company_name: string | null };
+export type DealListRow = CrmDealRow & { stage_name: string | null; company_name: string | null; company_id: string | null } & PrivateRefFlags;
 
 const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: 'd.name', type: 'text' },
@@ -1664,7 +1671,8 @@ export async function listDeals(
     .prepare(
       `SELECT d.*, s.name AS stage_name,
          (SELECT co.name FROM crm_deal_companies pdc JOIN crm_companies co ON co.id = pdc.company_id
-          WHERE pdc.deal_id = d.id AND pdc.is_primary = 1) AS company_name
+          WHERE pdc.deal_id = d.id AND pdc.is_primary = 1) AS company_name,
+         (SELECT pdc.company_id FROM crm_deal_companies pdc WHERE pdc.deal_id = d.id AND pdc.is_primary = 1) AS company_id
        FROM crm_deals d
        LEFT JOIN crm_stages s ON s.id = d.stage_id
        WHERE ${whereSql}
@@ -1672,12 +1680,15 @@ export async function listDeals(
        LIMIT ? OFFSET ?`,
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as DealListRow[];
-  return { rows, total };
+  // La empresa primaria que la persona no ve sale como "Registro privado".
+  return { rows: await maskPrivateRefs(userId, rows, [PRIVATE_REFS.company(['company_name'])], f.ownerScope, db), total };
 }
 
-export interface BoardDeal extends CrmDealRow {
+export interface BoardDeal extends CrmDealRow, PrivateRefFlags {
   contact_id: string | null;
   contact_name: string | null;
+  /** Empresa primaria. */
+  company_id: string | null;
   company_name: string | null;
   last_activity_at: string | null;
   /** Último email sincronizado o enviado con alguno de los contactos del deal. */
@@ -1723,8 +1734,7 @@ export async function listDealsForBoard(
   const rawDeals = (await db
     .prepare(
       `SELECT d.*,
-         c.id AS contact_id, c.owner_id AS vis_contact_owner,
-         co.owner_id AS vis_company_owner, co.id AS vis_company_id,
+         c.id AS contact_id, co.id AS company_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
          (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
@@ -1742,20 +1752,15 @@ export async function listDealsForBoard(
        WHERE d.user_id = ? AND d.pipeline_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}${filterSql}
        ORDER BY d.position ASC`,
     )
-    .all(userId, pipelineId, ...scope.args, ...(filterSql ? [userId, ...fArgs] : []))) as Array<
-    BoardDeal & { vis_contact_owner: string | null; vis_company_owner: string | null; vis_company_id: string | null }
-  >;
-  // La tarjeta no nombra un contacto o empresa que la persona no ve.
-  const deals: BoardDeal[] = rawDeals.map(({ vis_contact_owner, vis_company_owner, vis_company_id, ...d }) => {
-    const out = { ...d } as BoardDeal;
-    if (ownerScope && d.contact_id && !ownerScope.includes(vis_contact_owner ?? userId)) {
-      Object.assign(out, { contact_id: null, contact_name: null });
-    }
-    if (ownerScope && vis_company_id && !ownerScope.includes(vis_company_owner ?? userId)) {
-      Object.assign(out, { company_name: null });
-    }
-    return out;
-  });
+    .all(userId, pipelineId, ...scope.args, ...(filterSql ? [userId, ...fArgs] : []))) as BoardDeal[];
+  // La tarjeta no nombra un contacto o empresa que la persona no ve: sale como "Registro privado".
+  const deals = await maskPrivateRefs(
+    userId,
+    rawDeals,
+    [PRIVATE_REFS.contact(['contact_name']), PRIVATE_REFS.company(['company_name'])],
+    ownerScope,
+    db,
+  );
   return stages.map((stage) => {
     const stageDeals = deals.filter((d) => d.stage_id === stage.id);
     return {
@@ -2925,7 +2930,7 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
     const count = (await db
       .prepare(`SELECT COUNT(*) AS n FROM crm_contacts c WHERE ${where}`)
       .get(...args)) as { n: number };
-    return { list, members, memberCount: count.n };
+    return { list, members: await maskPrivateRefs(userId, members, CONTACT_LIST_REFS, ownerScope, db), memberCount: count.n };
   }
   // Una lista estática también muestra solo los contactos que la persona ve.
   const scope = scopeAnd('c', ownerScope);
@@ -2939,7 +2944,7 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
        ORDER BY c.created_at DESC`,
     )
     .all(id, userId, ...scope.args)) as ContactListRow[];
-  return { list, members, memberCount: members.length };
+  return { list, members: await maskPrivateRefs(userId, members, CONTACT_LIST_REFS, ownerScope, db), memberCount: members.length };
 }
 
 export interface ListInput {

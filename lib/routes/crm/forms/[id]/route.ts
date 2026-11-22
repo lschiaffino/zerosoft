@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from '@/lib/session';
-import { deleteForm, FormError, getForm, updateForm, type CrmForm } from '@/lib/crm-forms';
+import { deleteForm, formForViewer, FormError, getForm, updateForm, type CrmForm } from '@/lib/crm-forms';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { formUpdateSchema } from '@/lib/crm-forms-schema';
 import { crmError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
@@ -20,7 +21,8 @@ export async function GET(_req: NextRequest, props: Ctx) {
   if (!user) return unauthorized();
   const form = await getForm(user.id, id);
   if (!form) return notFound();
-  return NextResponse.json(form);
+  // Sin nombrar propiedades que la persona tiene ocultas.
+  return NextResponse.json((await formForViewer(sessionFieldViewer(user), form)).form);
 }
 
 export async function PATCH(req: NextRequest, props: Ctx) {
@@ -30,6 +32,8 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const form = await getForm(user.id, id);
   if (!form) return notFound();
   if (!canEdit(user, form)) return forbidden();
+  // Guarda en una propiedad que la persona tiene oculta: no lo puede reescribir sin verla.
+  if ((await formForViewer(sessionFieldViewer(user), form)).hiddenTargets) return forbidden();
   const body: unknown = await req.json().catch(() => null);
   const parsed = formUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);

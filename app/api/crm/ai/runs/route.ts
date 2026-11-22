@@ -6,6 +6,8 @@ import { getDb } from '@/lib/db';
 import { createRun, defaultRunName, listRuns, runCreateSchema, stepRun } from '@/lib/crm-ai-agents';
 import { crmAiAvailable } from '@/lib/crm-ai';
 import { aiErrorResponse, aiLocale } from '@/lib/crm-ai-http';
+import { canSeeList } from '@/lib/crm-list-access';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,6 +34,8 @@ export async function POST(req: NextRequest) {
   const locale = aiLocale(req, parsed.data.locale);
   let listName: string | null = null;
   if (parsed.data.listId) {
+    // Una lista que la persona no ve tampoco se recorre (lib/crm-list-access.ts).
+    if (!(await canSeeList(sessionFieldViewer(user), parsed.data.listId))) return NextResponse.json({ error: 'not_found' }, { status: 404 });
     const row = (await getDb().prepare('SELECT name FROM crm_lists WHERE id = ? AND user_id = ?').get(parsed.data.listId, user.id)) as
       | { name: string }
       | undefined;

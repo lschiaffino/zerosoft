@@ -8,6 +8,7 @@ import { SOURCES } from '@/lib/crm-constants';
 import { ownerOptions } from '@/lib/crm-owners';
 import LocalDate from '@/components/ui/LocalDate';
 import PageHeader from '@/components/ui/PageHeader';
+import PrivateRecord from '@/components/crm/PrivateRecord';
 import EmptyState from '@/components/ui/EmptyState';
 import CrmPager from '@/components/crm/CrmPager';
 import ListToolbar from '@/components/crm/ListToolbar';
@@ -104,10 +105,12 @@ export default async function LeadsPage(props: {
         id: l.id,
         name: l.name,
         // El nombre del lead suele ser el del contacto: no se repite en la card.
-        contact: (l.contact_name ?? l.contact_email ?? '') === l.name ? '' : (l.contact_name ?? l.contact_email ?? ''),
-        company: l.company_name ?? '',
+        contact: l.contact_private
+          ? t('common.privateRecord')
+          : (l.contact_name ?? l.contact_email ?? '') === l.name ? '' : (l.contact_name ?? l.contact_email ?? ''),
+        company: l.company_private ? t('common.privateRecord') : l.company_name ?? '',
         owner: ownerName.get(l.owner_id ?? user.id) ?? '',
-        converted: !!l.deal_id,
+        converted: !!l.deal_id || !!l.deal_private,
       })),
     }));
     const empty = board.every((s) => s.count === 0);
@@ -169,15 +172,32 @@ export default async function LeadsPage(props: {
                         {l.name}
                       </Link>
                       {l.deal_name && <span className="muted cell-sub">{t('leads.columns.deal')}: {l.deal_name}</span>}
+                      {l.deal_private && (
+                        <span className="muted cell-sub">
+                          {t('leads.columns.deal')}: <PrivateRecord label={t('common.privateRecord')} />
+                        </span>
+                      )}
                     </td>
                     <td data-label={t('leads.columns.stage')}>
                       <span className={`badge lead-kind-${l.stage_kind ?? 'open'}`}>{l.stage_name ?? '—'}</span>
                     </td>
                     <td className="muted hide-sm" data-label={t('leads.columns.contact')}>
-                      {l.contact_id ? <Link href={`/app/crm/contacts/${l.contact_id}`}>{l.contact_name ?? l.contact_email}</Link> : '—'}
+                      {l.contact_id ? (
+                        <Link href={`/app/crm/contacts/${l.contact_id}`}>{l.contact_name ?? l.contact_email}</Link>
+                      ) : l.contact_private ? (
+                        <PrivateRecord label={t('common.privateRecord')} />
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="muted hide-sm" data-label={t('leads.columns.company')}>
-                      {l.company_id ? <Link href={`/app/crm/companies/${l.company_id}`}>{l.company_name}</Link> : '—'}
+                      {l.company_id ? (
+                        <Link href={`/app/crm/companies/${l.company_id}`}>{l.company_name}</Link>
+                      ) : l.company_private ? (
+                        <PrivateRecord label={t('common.privateRecord')} />
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="muted hide-sm" data-label={t('leads.columns.owner')}>{ownerName.get(l.owner_id ?? user.id) ?? l.owner_name ?? '—'}</td>
                     <td className="num muted cell-date hide-sm" data-label={t('leads.columns.lastActivity')}>{l.last_activity_at ? <LocalDate value={l.last_activity_at} locale={locale} kind="date" /> : '—'}</td>

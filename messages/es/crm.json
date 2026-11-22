@@ -78,7 +78,8 @@
     "moreFilters": "Más filtros",
     "sortBy": "Ordenar por",
     "activityType": "Tipo de actividad",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "privateRecord": "Registro privado"
   },
   "assoc": {
     "noneToAdd": "No queda nada para vincular. Creá un registro primero.",
@@ -2353,7 +2354,8 @@
   },
   "mentions": {
     "suggestions": "Personas para mencionar",
-    "placeholder": "Notas. Escribí @ para mencionar a alguien del equipo"
+    "placeholder": "Notas. Escribí @ para mencionar a alguien del equipo",
+    "notNotified": "{count, plural, one {{names} no puede ver este registro, así que no recibió el aviso.} other {{names} no pueden ver este registro, así que no recibieron el aviso.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2378,8 @@
     "needContacts": "Asociá al menos un contacto al deal.",
     "openDeal": "Abrir el deal",
     "saveAndMove": "Guardar y mover",
-    "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}"
+    "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}",
+    "adminRequired": "Esta etapa pide una propiedad que solo un admin puede completar. Pídele a un admin que la complete y después mueve el deal."
   },
   "calls": {
     "call": "Llamar",
@@ -3363,7 +3366,8 @@
       "invalid_field": "Uno de los campos ya no existe. Quitalo y probá de nuevo.",
       "invalid_metric": "Suma, promedio, mínimo y máximo necesitan un campo numérico.",
       "invalid_input": "Esa combinación de objetos no está disponible para la fuente de datos.",
-      "network": "No pudimos conectar con el servidor. Revisá tu conexión."
+      "network": "No pudimos conectar con el servidor. Revisá tu conexión.",
+      "report_restricted": "Este reporte usa una propiedad que no puedes ver. Pide a un admin que lo cambie."
     },
     "fields": {
       "contact": {

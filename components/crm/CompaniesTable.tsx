@@ -4,6 +4,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
+import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
@@ -40,6 +41,8 @@ export interface CompanyRow {
   tags?: TagDot[];
   /** Empresa madre (jerarquía). */
   parentName?: string | null;
+  /** La madre es un registro que la persona no ve. */
+  parentPrivate?: boolean;
 }
 
 interface CompaniesTableProps {
@@ -243,7 +246,7 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
           <OwnerCell endpoint={`/api/crm/companies/${row.id}`} ownerId={row.ownerId} owners={owners} />
         );
       case 'parent':
-        return <td className="muted cell-sub">{row.parentName || '—'}</td>;
+        return <td className="muted cell-sub">{row.parentName || (row.parentPrivate ? <PrivateRecord label={t('common.privateRecord')} /> : '—')}</td>;
       case 'created':
         return <td className="num muted cell-date">{row.created}</td>;
       case 'lastActivity':
