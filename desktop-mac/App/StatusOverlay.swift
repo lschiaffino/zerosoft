@@ -75,7 +75,7 @@ struct StatusOverlayView: View {
 final class MainContentView: NSView {
     private var overlayHost: NSHostingView<StatusOverlayView>?
     #if DEBUG
-    private var testLabel: NSTextField?
+    private var testLabels: [NSTextField] = []
     #endif
 
     func install(_ web: WebController) {
@@ -89,8 +89,8 @@ final class MainContentView: NSView {
         addSubview(host, positioned: .above, relativeTo: web.webView)
         overlayHost = host
         #if DEBUG
-        // The test label stays above the overlay so tests can read it at any time.
-        if let label = testLabel { addSubview(label, positioned: .above, relativeTo: host) }
+        // The test labels stay above the overlay so tests can read them at any time.
+        for label in testLabels { addSubview(label, positioned: .above, relativeTo: host) }
         #endif
         web.onOverlayChange = { [weak host] overlay in
             host?.isHidden = overlay == .none
@@ -101,13 +101,33 @@ final class MainContentView: NSView {
     /// UI tests only (`-ZSUITest YES`): a tiny label that receives the last URL that would have
     /// opened in the browser, so tests can check the policy without launching a browser.
     func installTestRecorder() -> (URL) -> Void {
-        let label = NSTextField(labelWithString: "none")
-        label.frame = NSRect(x: 0, y: 0, width: 4, height: 4)
-        label.alphaValue = 0.02
-        label.setAccessibilityIdentifier("zs-test-external")
-        addSubview(label)
-        testLabel = label
+        let label = testLabel("zs-test-external", "none")
         return { [weak label] url in label?.stringValue = url.absoluteString }
+    }
+
+    /// UI tests only: what the bridge's `ready` reported (`zs-test-ready`) and how many messages
+    /// it refused, by reason (`zs-test-bridge`), so tests see the native side of the checks.
+    func installBridgeRecorder(_ web: WebController) {
+        let ready = testLabel("zs-test-ready", "none")
+        let rejected = testLabel("zs-test-bridge", "rejected end")
+        var counts: [BridgeRejection: Int] = [:]
+        let order: [BridgeRejection] = [.origin, .malformed, .tooLarge, .unknownCommand, .badArgs, .unavailable]
+        web.onBridgeReady = { [weak ready] report in ready?.stringValue = "ready \(report.summary) end" }
+        web.onBridgeReject = { [weak rejected] reason in
+            counts[reason, default: 0] += 1
+            let parts = order.compactMap { r in counts[r].map { "\(r.rawValue)=\($0)" } }
+            rejected?.stringValue = (["rejected"] + parts + ["end"]).joined(separator: " ")
+        }
+    }
+
+    private func testLabel(_ id: String, _ initial: String) -> NSTextField {
+        let label = NSTextField(labelWithString: initial)
+        label.frame = NSRect(x: CGFloat(testLabels.count) * 5, y: 0, width: 4, height: 4)
+        label.alphaValue = 0.02
+        label.setAccessibilityIdentifier(id)
+        addSubview(label)
+        testLabels.append(label)
+        return label
     }
     #endif
 }

@@ -40,12 +40,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let content = MainContentView(frame: window.contentLayoutRect)
         var openExternal: (URL) -> Void = { NSWorkspace.shared.open($0) }
         #if DEBUG
+        let testing = defaults.bool(forKey: "ZSUITest")
         // UI tests: record what would open in the browser instead of launching it.
-        if defaults.bool(forKey: "ZSUITest") {
+        if testing {
             openExternal = content.installTestRecorder()
         }
         #endif
-        web = WebController(server: server, lockdown: lockdown, lang: lang, openExternal: openExternal)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        let info = BridgeInfo(version: version, store: Self.storeBuild, lockdown: lockdown)
+        web = WebController(server: server, lockdown: lockdown, info: info, lang: lang, openExternal: openExternal)
+        #if DEBUG
+        if testing { content.installBridgeRecorder(web) }
+        #endif
         content.install(web)
         window.contentView = content
 
@@ -54,6 +60,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         web.start()
     }
+
+    /// The Mac App Store build (`STORE` compilation condition, block 10) hides purchase links.
+    #if STORE
+    static let storeBuild = true
+    #else
+    static let storeBuild = false
+    #endif
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
