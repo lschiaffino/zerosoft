@@ -684,6 +684,11 @@ export interface CrmWorkflowRow {
   enabled: 0 | 1;
   created_at: string;
   updated_at: string;
+  /** JSON { reenroll, filters } (lib/crm-workflow-rules.ts). */
+  settings?: string;
+  /** Secreto sellado para firmar los webhooks; nunca sale al cliente. */
+  webhook_secret?: string | null;
+  rr_cursor?: number;
 }
 
 export interface CrmWorkflowTriggerRow {
@@ -708,10 +713,16 @@ export interface CrmWorkflowRunRow {
   user_id: string;
   trigger_entity: string;
   trigger_entity_id: string;
-  status: 'pending' | 'running' | 'done' | 'failed';
+  status: 'pending' | 'running' | 'waiting' | 'done' | 'failed';
   output: string; // JSON
   started_at: string;
   finished_at: string | null;
+  /** Corrida en una espera: cuándo sigue y desde qué acción. */
+  resume_at?: string | null;
+  next_position?: number | null;
+  state?: string;
+  steps?: number;
+  trigger_type?: string;
 }
 
 // ---------- CRM: modelo nivel HubSpot (022_crm_model_tables) ----------

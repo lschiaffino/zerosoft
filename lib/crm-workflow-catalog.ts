@@ -1,5 +1,6 @@
 // Solo tipos: este módulo lo usa el editor (cliente) y crm-workflows toca la DB.
 import type { ActionType, TriggerType, WorkflowInput } from './crm-workflows';
+import { delayMinutes } from './crm-workflow-rules';
 
 /**
  * Catálogo del editor de workflows: triggers y acciones agrupados (para los
@@ -7,8 +8,9 @@ import type { ActionType, TriggerType, WorkflowInput } from './crm-workflows';
  * Puro: sin DB ni React, así se testea solo.
  */
 
-export const TRIGGER_GROUPS: Array<{ key: 'contacts' | 'deals' | 'email' | 'other'; types: TriggerType[] }> = [
+export const TRIGGER_GROUPS: Array<{ key: 'contacts' | 'companies' | 'deals' | 'email' | 'other'; types: TriggerType[] }> = [
   { key: 'contacts', types: ['contact_created', 'contact_updated', 'form_submitted', 'score_changed'] },
+  { key: 'companies', types: ['company_created', 'company_updated'] },
   { key: 'deals', types: ['deal_created', 'deal_updated', 'deal_stage_changed', 'deal_won', 'deal_lost', 'quote_accepted'] },
   { key: 'email', types: ['email_received', 'email_opened', 'email_clicked', 'meeting_booked'] },
   { key: 'other', types: ['task_due', 'manual'] },
@@ -18,7 +20,19 @@ export const TRIGGER_GROUPS: Array<{ key: 'contacts' | 'deals' | 'email' | 'othe
 export const ACTION_GROUPS: Array<{ key: 'basic' | 'advanced'; types: ActionType[] }> = [
   {
     key: 'basic',
-    types: ['create_task', 'send_email', 'notify_user', 'update_field', 'add_to_list', 'enroll_in_sequence', 'create_activity'],
+    types: [
+      'create_task',
+      'send_email',
+      'notify_user',
+      'delay',
+      'update_field',
+      'rotate_owner',
+      'create_deal',
+      'add_to_list',
+      'remove_from_list',
+      'enroll_in_sequence',
+      'create_activity',
+    ],
   },
   { key: 'advanced', types: ['ai_step', 'webhook', 'run_flow', 'branch'] },
 ];
@@ -85,6 +99,14 @@ export function defaultActionConfig(type: ActionType): Record<string, unknown> {
       return { type: 'note' };
     case 'ai_step':
       return { mode: 'prompt', prompt: '', output: 'note' };
+    case 'delay':
+      return { amount: 1, unit: 'days' };
+    case 'rotate_owner':
+      return { ownerIds: [] };
+    case 'create_deal':
+      return { name: '{{contact.fullName}}', pipelineId: '', stageId: '' };
+    case 'notify_user':
+      return { recipients: 'owner', message: '' };
     default:
       return {};
   }
@@ -139,13 +161,23 @@ export function actionMissing(type: ActionType, config: Record<string, unknown> 
       return need('subject');
     case 'send_email':
       return need('to', 'subject', 'body');
-    case 'notify_user':
-      return need('message');
+    case 'notify_user': {
+      const out = need('message');
+      if (config.recipients === 'people' && !(Array.isArray(config.userIds) && config.userIds.length)) out.push('userIds');
+      return out;
+    }
     case 'update_field':
     case 'branch':
       return need('field');
     case 'add_to_list':
+    case 'remove_from_list':
       return need('listId');
+    case 'delay':
+      return delayMinutes(config) === null ? ['amount'] : [];
+    case 'rotate_owner':
+      return Array.isArray(config.ownerIds) && config.ownerIds.length ? [] : ['ownerIds'];
+    case 'create_deal':
+      return need('name', 'pipelineId', 'stageId');
     case 'enroll_in_sequence':
       return need('sequenceId');
     case 'run_flow':
