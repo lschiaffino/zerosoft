@@ -33,6 +33,8 @@
   ],
 
   "quarantine": ["tests/e2e/quarantine.json", "tests/e2e/quarantine.ts", "playwright.config.ts", ".github/workflows/ci.yml"],
+  "//mac": "La app de Mac en Swift (.github/workflows/desktop-mac.yml, en macOS): solo en un PR que toca lo suyo o el contrato del puente. En main corre por su propio workflow.",
+  "mac": ["desktop-mac/**", ".github/workflows/desktop-mac.yml", ".github/workflows/ci.yml", "lib/desktop-bridge.ts", "desktop/privacy-facts.json"],
 
   "areas": {
     "inbox": { "names": ["inbox", "inboxWa"], "specs": ["inbox", "inbox-*", "assistant-folders"], "with": ["chat-ui"] },

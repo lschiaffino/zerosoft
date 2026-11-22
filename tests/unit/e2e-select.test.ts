@@ -13,6 +13,7 @@ type Plan = {
   real: boolean;
   quarantine: boolean;
   docker: boolean;
+  mac: boolean;
 };
 const plan = select.plan as (changed: string[], event?: string) => Plan;
 const all = select.listSpecs() as string[];
@@ -89,6 +90,20 @@ describe('qué e2e corre un pull request (scripts/e2e-select.mjs)', () => {
   it('un cambio en los workflows corre todo, con e2e-real, cuarentena y Docker', () => {
     expect(plan(['.github/workflows/ci.yml'])).toMatchObject({ mode: 'full', shards: 6, build: true, real: true, quarantine: true, docker: true });
     expect(plan(['.github/workflows/security.yml'])).toMatchObject({ mode: 'full', shards: 6 });
+  });
+
+  it('la app de Mac en Swift corre (y CI result la espera) solo en un PR que toca lo suyo', () => {
+    for (const f of ['desktop-mac/App/AppDelegate.swift', '.github/workflows/desktop-mac.yml', '.github/workflows/ci.yml', 'lib/desktop-bridge.ts', 'desktop/privacy-facts.json']) {
+      expect(plan([f]).mac, f).toBe(true);
+    }
+    // Solo la app de Mac: ningún e2e de la web.
+    expect(plan(['desktop-mac/Sources/ZerosoftCore/DeepLink.swift'])).toMatchObject({ mode: 'none', build: false, mac: true });
+    for (const f of ['styles/inbox.css', 'lib/db.ts', 'desktop/src-tauri/src/lib.rs', 'components/auth/GoogleButton.tsx', 'docs/desktop-swift.md']) {
+      expect(plan([f]).mac, f).toBe(false);
+    }
+    // Fuera de un PR la corre su propio workflow; sin la lista de archivos, ante la duda, sí.
+    for (const event of ['push', 'schedule', 'workflow_dispatch']) expect(plan(['desktop-mac/App/AppDelegate.swift'], event).mac).toBe(false);
+    expect(plan([]).mac).toBe(true);
   });
 
   it('Docker solo con el Dockerfile o las dependencias; e2e-real con sus specs o el código de sesión', () => {

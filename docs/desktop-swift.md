@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: plan, November 2026. No Swift code exists yet. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 3 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -400,6 +400,16 @@ from the store for each request, as `api.rs` does; the app keeps no token copy, 
 `privacy-facts.json` stays true. Integration OAuth (Gmail, Calendar...) keeps opening its start
 route in the default browser because the callback validates state against a cookie set there.
 
+**Built in block 3** (`desktop-mac/App/AuthController.swift`, `Sources/ZerosoftCore/Login.swift`):
+ASWebAuthenticationSession, not the deep link. The verifier and state live in memory for one
+attempt; the callback is checked for shape, state (constant time), age (10 minutes) and server
+before the code is exchanged; the token goes from the response straight into the web view's cookie
+store (host-only, `HttpOnly`, `SameSite=Lax`, `Secure` on https) and nowhere else: no Keychain item
+is needed because the app keeps no copy of its own. A `zerosoft://auth/callback` link that arrives
+through `application(_:open:)` is ignored: a sign-in completes only in the session that started it.
+Native requests (`App/NativeHTTP.swift`) use an ephemeral `URLSession` without a cookie jar or
+redirects and refuse any URL outside the server origin.
+
 ### 4.6 Load watchdog, offline and blank pages
 
 A white window must not be possible. Per web view:
@@ -524,8 +534,10 @@ new workflow `.github/workflows/desktop-mac.yml` on `macos-15`, triggered by cha
 `ZerosoftCore`, `xcodegen`, `xcodebuild build` and `xcodebuild test` (unit + UI tests, Lockdown
 matrix from block 2), ad hoc signing (`codesign -s -`), and the built `.app` as an artifact. Locally
 only `swift build` / `swift test` of the package run (Command Line Tools); no Xcode is installed.
-The new workflow needs a home in CI's required checks, or the `CI result` job must depend on it
-for `desktop-mac/` changes.
+Since block 3, `ci.yml` calls `desktop-mac.yml` (`workflow_call`) when a pull request touches the
+files in the `mac` list of `scripts/e2e-areas.json` (the paths above plus the two workflows), and
+`CI result` waits for that job. A pull request that touches only the web skips it. On `main` the
+workflow runs on its own for pushes that touch the app.
 
 | # | Block | Delivers | Tests | Depends on |
 |---|---|---|---|---|

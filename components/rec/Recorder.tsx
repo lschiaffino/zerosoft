@@ -6,7 +6,7 @@ import { REC_MODES, fmtClock, type RecMode } from '@/lib/rec-schema';
 import { indexWebm } from '@/lib/rec-webm';
 import { encodeGif, type GifFrame } from '@/lib/rec-gif';
 import { clockElapsed, clockIdle, clockPause, clockResume, clockStart, controlAllowed, overlayState, parseRecControl, type RecClock, type RecControl } from '@/lib/rec-controls';
-import { DESKTOP_REC_CONTROL_EVENT, desktopBridge } from '@/lib/desktop-bridge';
+import { DESKTOP_REC_CONTROL_EVENT, desktopBridge, desktopHasSettings } from '@/lib/desktop-bridge';
 import {
   QUALITY,
   audioContextForClick,
@@ -1072,7 +1072,7 @@ export default function Recorder({
       {sysNotice && (phase === 'recording' || phase === 'paused') && (
         <div className="rec-notice" role="status" data-testid="rec-system-audio-notice" data-reason={sysNotice}>
           <p>{t(`systemAudioNotice.${sysNotice}`)}</p>
-          {desktop && sysNotice !== 'missing' && (
+          {desktop && sysNotice !== 'missing' && desktopHasSettings(desktopBridge()) && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => desktopBridge()?.openSettings()} data-testid="rec-system-audio-settings">
               {t('systemAudioNotice.settings')}
             </button>
