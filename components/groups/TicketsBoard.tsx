@@ -9,6 +9,7 @@ import type { GroupsPerson, PropertyDef } from '@/lib/groups';
 import type { TicketDto } from '@/lib/groups-tickets';
 import PropertyInput, { PropertyValueText, filterOptions } from './PropertyInput';
 import { Modal, api, useErrorText, useRelativeTime, useToast } from './ui';
+import HubspotTicketModal from './HubspotTicketModal';
 import { parseDbUtc } from '@/lib/utils';
 
 const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', 'all'] as const;
@@ -17,8 +18,9 @@ const STATUS_FILTERS = ['active', 'open', 'in_progress', 'resolved', 'closed', '
  * Tickets de los chats: filtros (también por campo propio), y estado,
  * prioridad y asignado editables en la fila. Los campos propios se editan
  * en el ticket (clic en el título del panel o "Campos"); los obligatorios
- * se piden al resolver o cerrar. Los vinculados en Freshdesk o Zoho Desk
- * muestran su enlace.
+ * se piden al resolver o cerrar. Los vinculados en Freshdesk, Zoho Desk o
+ * HubSpot muestran su enlace; con HubSpot conectado, cada ticket se puede
+ * mandar a HubSpot.
  */
 export default function TicketsBoard({
   initial,
@@ -28,6 +30,7 @@ export default function TicketsBoard({
   fields = [],
   remote = {},
   canExport = false,
+  hubspot = false,
 }: {
   initial: TicketDto[];
   people: GroupsPerson[];
@@ -36,8 +39,10 @@ export default function TicketsBoard({
   fields?: PropertyDef[];
   /** Admin o dueño: puede exportar a CSV (el servidor también lo frena). */
   canExport?: boolean;
-  /** Tickets vinculados en Freshdesk o Zoho Desk, por id de ticket. */
+  /** Tickets vinculados en Freshdesk, Zoho Desk o HubSpot, por id de ticket. */
   remote?: Record<string, Array<{ kind: string; remoteId: string; remoteUrl: string }>>;
+  /** HubSpot conectado: cada ticket con chat se puede mandar a HubSpot. */
+  hubspot?: boolean;
 }) {
   const t = useTranslations('groups');
   const locale = useLocale();
@@ -61,6 +66,9 @@ export default function TicketsBoard({
   const [fieldKey, setFieldKey] = useState('');
   const [fieldValue, setFieldValue] = useState('');
   const [editing, setEditing] = useState<{ ticket: TicketDto; status?: string } | null>(null);
+  const [links, setLinks] = useState(remote);
+  const [toHubspot, setToHubspot] = useState<{ chatId: string; ticket: { id: string; title: string; body: string; priority: string } } | null>(null);
+  const remoteName = (kind: string) => (kind === 'hubspot' ? t('hubspot.title') : t(`integrations.${kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`));
   const fieldDef = fields.find((f) => f.key === fieldKey) ?? null;
   const shownFields = fields.slice(0, 2);
 
@@ -233,18 +241,32 @@ export default function TicketsBoard({
                       )}
                       <span className="ui-help">
                         {tk.chatName} · {t(`tickets.source.${tk.source}`)} · {rel(tk.createdAt)}
-                        {(remote[tk.id] ?? []).map((l) => (
+                        {(links[tk.id] ?? []).map((l) => (
                           <span key={l.kind}>
                             {' · '}
                             {l.remoteUrl ? (
-                              <a href={l.remoteUrl} target="_blank" rel="noreferrer">
-                                {t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #{l.remoteId}
+                              <a href={l.remoteUrl} target="_blank" rel="noreferrer" data-testid={l.kind === 'hubspot' ? `hs-ticket-link-${tk.number}` : undefined}>
+                                {remoteName(l.kind)} #{l.remoteId}
                               </a>
                             ) : (
-                              `${t(`integrations.${l.kind === 'zoho' ? 'zoho' : 'freshdesk'}.name`)} #${l.remoteId}`
+                              `${remoteName(l.kind)} #${l.remoteId}`
                             )}
                           </span>
                         ))}
+                        {hubspot && tk.chatId && !(links[tk.id] ?? []).some((l) => l.kind === 'hubspot') && (
+                          <>
+                            {' · '}
+                            <button
+                              type="button"
+                              className="gr-link-button"
+                              onClick={() => setToHubspot({ chatId: tk.chatId as string, ticket: { id: tk.id, title: tk.title, body: tk.messageBody, priority: tk.priority } })}
+                              aria-label={t('hubspot.ticket.sendAria', { n: tk.number })}
+                              data-testid={`hs-ticket-send-${tk.number}`}
+                            >
+                              {t('hubspot.ticket.send')}
+                            </button>
+                          </>
+                        )}
                       </span>
                     </div>
                   </td>
@@ -319,6 +341,18 @@ export default function TicketsBoard({
             setEditing(null);
             showToast(t('common.saved'));
           }
+        }}
+      />
+      <HubspotTicketModal
+        open={!!toHubspot}
+        chatId={toHubspot?.chatId ?? ''}
+        ticket={toHubspot?.ticket ?? null}
+        onClose={() => setToHubspot(null)}
+        onCreated={(ref) => {
+          const id = toHubspot?.ticket.id;
+          setToHubspot(null);
+          if (id) setLinks((prev) => ({ ...prev, [id]: [...(prev[id] ?? []).filter((l) => l.kind !== 'hubspot'), { kind: 'hubspot', remoteId: ref.id, remoteUrl: ref.url }] }));
+          showToast(t('hubspot.ticket.done'));
         }}
       />
       {toast}

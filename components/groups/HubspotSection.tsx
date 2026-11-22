@@ -11,6 +11,7 @@ import { parseDbUtc } from '@/lib/utils';
 import { formatHubspotValue, type HubspotSchemaDto } from '@/lib/groups-hubspot-shared';
 import HubspotScreen from './HubspotScreen';
 import HubspotMyProps from './HubspotMyProps';
+import HubspotTicketModal from './HubspotTicketModal';
 import { useHubspotSchema } from './hubspot-client';
 import { useHubspotDocked } from './hubspot-dock';
 import { ExternalIcon } from './wa/PersonHubspot';
@@ -89,6 +90,8 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
   const [busy, setBusy] = useState(false);
   const [screen, setScreen] = useState(false);
   const [myProps, setMyProps] = useState(false);
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [ticketMade, setTicketMade] = useState<string | null>(null);
   const docked = useHubspotDocked();
   const seq = useRef(0);
 
@@ -106,6 +109,7 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
     setQ('');
     setResults(null);
     setSearchError('');
+    setTicketMade(null);
     void load();
   }, [load]);
 
@@ -411,6 +415,24 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
             ) : null}
           </div>
 
+          <div className="gr-hs-ticket">
+            <div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTicketOpen(true)} data-testid="hs-create-ticket">
+                {t('hubspot.ticket.open')}
+              </button>
+            </div>
+            {ticketMade ? (
+              <p className="ui-help" role="status" data-testid="hs-ticket-done">
+                {t('hubspot.ticket.done')}{' '}
+                <a href={ticketMade} target="_blank" rel="noopener noreferrer">
+                  {t('hubspot.ticket.view')}
+                </a>
+              </p>
+            ) : (
+              <p className="ui-help">{state.links.length > 0 ? t('hubspot.ticket.linkedHelp') : t('hubspot.ticket.unlinkedHelp')}</p>
+            )}
+          </div>
+
           {state.links.length > 0 && (
             <div className="gr-hs-log">
               {state.canLog && (
@@ -434,6 +456,16 @@ export default function HubspotSection({ chatId, isAdmin, showToast }: { chatId:
         </>
       )}
       <HubspotMyProps open={myProps} onClose={() => setMyProps(false)} />
+      <HubspotTicketModal
+        open={ticketOpen}
+        chatId={chatId}
+        onClose={() => setTicketOpen(false)}
+        onCreated={(ref) => {
+          setTicketOpen(false);
+          setTicketMade(ref.url);
+          showToast(t('hubspot.ticket.done'));
+        }}
+      />
       <HubspotScreen
         source={{ app: 'lines', chatId }}
         open={screen}

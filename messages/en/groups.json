@@ -877,6 +877,7 @@
     "waiting": "Waiting for reply"
   },
   "errors": {
+    "hubspot_no_ticket_pipeline": "HubSpot has no ticket pipeline. Create one in HubSpot and try again.",
     "periskope_auth": "Periskope did not accept the API key. Check it and try again.",
     "periskope_rate_limited": "Periskope is limiting requests. Wait a minute and try again.",
     "periskope_unavailable": "Could not reach Periskope. Try again in a moment.",
@@ -2317,6 +2318,7 @@
     "allInGroup": "All of {name}"
   },
   "hubspot": {
+    "ticket": {"open": "Create HubSpot ticket", "title": "Create a ticket in HubSpot", "help": "The ticket is associated with the company, contact and deal linked to this chat.", "subject": "Subject", "content": "Description", "priority": "Priority", "noPriority": "No priority", "pipeline": "Pipeline", "stage": "Stage", "create": "Create ticket", "done": "Ticket created in HubSpot.", "view": "Open in HubSpot", "linkedHelp": "Creates a ticket in HubSpot with the records linked above.", "unlinkedHelp": "Creates a ticket in HubSpot. Link a company, contact or deal first to associate it.", "send": "Send to HubSpot", "sendAria": "Send ticket {n} to HubSpot"},
     "createContact": "Create contact in HubSpot",
     "createContactHelp": "Uses this chat's name and number. If the number is already in HubSpot, you link that contact instead.",
     "createContactNoScope": "To create contacts, the HubSpot key needs the {scope} scope.",
