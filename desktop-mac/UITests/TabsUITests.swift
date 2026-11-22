@@ -213,7 +213,11 @@ final class TabsUITests: XCTestCase {
         // The first window has the keyboard; its first tab loads when picked.
         app.typeKey("1", modifierFlags: .command)
         waitTabs(app, "main=*/app/two,/app w1=*/app")
-        let page = app.staticTexts.matching(NSPredicate(format: "value BEGINSWITH %@ OR label BEGINSWITH %@", "app path=/app/two ", "app path=/app/two ")).firstMatch
+        // Block predicate: some elements have a number as their value.
+        let page = app.staticTexts.matching(NSPredicate { obj, _ in
+            guard let el = obj as? XCUIElementAttributes else { return false }
+            return [el.label, (el.value as? String) ?? ""].contains { $0.hasPrefix("app path=/app/two ") }
+        }).firstMatch
         XCTAssertTrue(page.waitForExistence(timeout: 20), "the picked tab did not load its page")
     }
 
