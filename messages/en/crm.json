@@ -3922,7 +3922,7 @@
     "retry": "Try again",
     "off": {
       "title": "Sync is off",
-      "body": "Connect HubSpot to bring its companies, contacts, deals and activity into the CRM. Nothing is written to HubSpot."
+      "body": "Connect HubSpot to bring its companies, contacts, deals and activity into the CRM. Writing back to HubSpot is a separate switch and starts off."
     },
     "connect": {
       "title": "HubSpot account",
@@ -4187,7 +4187,7 @@
     },
     "inbound": {
       "title": "From HubSpot to the CRM",
-      "desc": "Brings companies, contacts, deals with their pipelines and stages, and notes, calls, meetings, tasks and emails into this CRM, then checks HubSpot for changes every minute. Nothing is written to HubSpot and nothing is deleted here.",
+      "desc": "Brings companies, contacts, deals with their pipelines and stages, and notes, calls, meetings, tasks and emails into this CRM, then checks HubSpot for changes every minute. Nothing is deleted here.",
       "loading": "Loading the sync…",
       "loadError": "We could not load the sync status.",
       "retry": "Try again",
@@ -4239,7 +4239,7 @@
         "deals": "Deals",
         "activities": "Activity"
       },
-      "conflicts": "{n} records changed on both sides since the last sync. We kept the value in zerosoft. Choosing which side wins comes with writing back to HubSpot.",
+      "conflicts": "{n} records changed on both sides since the last sync. We kept the value in zerosoft, and writing to HubSpot does not send that field either.",
       "archived": "{n} records were archived in HubSpot. They stay in the CRM.",
       "objectsTitle": "What to bring",
       "objects": {
@@ -4300,7 +4300,127 @@
         "deletes": "Records archived in HubSpot stay here. A record you delete here is not brought back.",
         "owners": "Owners match people in this workspace by email. A HubSpot owner who is not in the workspace leaves the record unassigned.",
         "fields": "HubSpot properties of your own become custom fields here, created when missing. Missing pipelines and stages are created too.",
-        "hubspot": "Nothing is written to HubSpot yet."
+        "hubspot": "Writing to HubSpot is a separate switch below, off until an admin turns it on."
+      }
+    },
+    "outbound": {
+      "title": "From the CRM to HubSpot",
+      "desc": "Sends what changes here in synced companies, contacts and deals to HubSpot: properties, owner, pipeline and stage, new records and new associations. It is off by default, separate from bringing data in, and never deletes anything in HubSpot.",
+      "loading": "Loading writing to HubSpot…",
+      "loadError": "We could not load the status of writing to HubSpot.",
+      "retry": "Try again",
+      "state": {
+        "unavailable": "Writing to HubSpot is not available yet",
+        "off": "Writing to HubSpot is off",
+        "on": "On. Changes made here go to HubSpot every minute.",
+        "paused": "Paused with the sync. Nothing is sent until you resume.",
+        "waiting": "HubSpot reached its daily request limit. Changes are sent later by themselves.",
+        "retrying": "The last run failed. It tries again by itself, waiting longer each time.",
+        "blocked": "Writing stopped because of the HubSpot key."
+      },
+      "blockers": {
+        "not_connected": "Connect HubSpot first.",
+        "read_sync_first": "Start bringing HubSpot into the CRM above and let the first run finish. Writing uses the links it creates.",
+        "missing_write_scope": "The key cannot write to HubSpot. Add these permissions to it and check the key again:"
+      },
+      "failures": {
+        "hubspot_busy": "HubSpot kept limiting requests.",
+        "network": "We could not reach HubSpot.",
+        "provider_error": "HubSpot returned an error.",
+        "internal_error": "Something failed on our side.",
+        "missing_scope": "The key is missing a write permission.",
+        "invalid_token": "HubSpot no longer accepts the key. Replace it above.",
+        "portal_changed": "The key now opens a different HubSpot account. Writing was turned off.",
+        "daily_limit": "HubSpot reached its daily request limit."
+      },
+      "nextTry": "Next try",
+      "lastRun": "Last sent",
+      "neverRun": "Nothing sent yet",
+      "enabledAt": "Turned on",
+      "queued": "{n, plural, one {# change waiting} other {# changes waiting}}",
+      "countsCaption": "Changes sent to HubSpot, by object",
+      "col": {
+        "object": "Object",
+        "updated": "Updated",
+        "created": "Created",
+        "associations": "Associations",
+        "conflicts": "Conflicts",
+        "failed": "Failed"
+      },
+      "objects": {
+        "companies": "Companies",
+        "contacts": "Contacts",
+        "deals": "Deals"
+      },
+      "failedItems": "{n, plural, one {# change was rejected by HubSpot several times. It stays noted under recent problems and goes again when the record is edited.} other {# changes were rejected by HubSpot several times. They stay noted under recent problems and go again when the record is edited.}}",
+      "preview": {
+        "title": "What would be sent",
+        "at": "Preview from",
+        "empty": "Nothing changed here since the last sync. Only new changes would be sent.",
+        "records": "{n, plural, one {# record to update} other {# records to update}}",
+        "create": "{n, plural, one {# new record} other {# new records}}",
+        "associations": "{n, plural, one {# new association} other {# new associations}}",
+        "truncated": "Only the first records were checked.",
+        "note": "This preview reads the CRM only, not HubSpot. When sending, a field that also changed in HubSpot is not sent and is counted as a conflict."
+      },
+      "confirm": {
+        "title": "Turn on writing to HubSpot?",
+        "body": "{n, plural, =0 {Nothing from the preview needs to go now.} one {# record from the preview goes to HubSpot now.} other {# records from the preview go to HubSpot now.}} After that, every change in {objects} goes too. Nothing is deleted in HubSpot.",
+        "cancel": "Cancel",
+        "yes": "Turn on"
+      },
+      "enabling": "Turning on…",
+      "previewing": "Checking…",
+      "previewRun": "Preview what would be sent",
+      "previewAgain": "Check again",
+      "enable": "Turn on writing",
+      "disable": "Turn off writing",
+      "previewFirst": "Run the preview first. Writing can be turned on for an hour after it.",
+      "errorsTitle": "Recent problems",
+      "codes": {
+        "hubspot_busy": "HubSpot limited requests",
+        "network": "Could not reach HubSpot",
+        "provider_error": "HubSpot returned an error",
+        "internal_error": "Something failed on our side",
+        "missing_scope": "The key is missing a write permission",
+        "invalid_token": "HubSpot rejected the key",
+        "portal_changed": "The key opens a different account",
+        "daily_limit": "Daily request limit reached",
+        "value_not_accepted": "HubSpot does not accept a value from here (for example an option that does not exist there)",
+        "property_missing": "A field has no property in HubSpot",
+        "read_only": "A field is read only in HubSpot",
+        "owner_unmapped": "The owner is not a HubSpot user",
+        "stage_unmapped": "A deal stage has no equivalent in HubSpot",
+        "email_taken": "Another HubSpot contact already uses that email",
+        "ambiguous_match": "More than one HubSpot company has that domain",
+        "not_found": "The record is no longer in HubSpot",
+        "association_rejected": "HubSpot did not accept an association",
+        "linked_meanwhile": "The record was linked by the other direction at the same time",
+        "waiting_link": "An association waits for its other record",
+        "rejected": "HubSpot rejected a change to one record",
+        "create_uncertain": "A record may have been created in HubSpot already without a link: check it there and edit it here to retry",
+        "other": "Other problem"
+      },
+      "errors": {
+        "generic": "That did not work. Try again in a moment.",
+        "not_connected": "Connect HubSpot first.",
+        "read_sync_first": "Start bringing HubSpot into the CRM and let the first run finish.",
+        "missing_write_scope": "The key cannot write to HubSpot. Add the write permissions and check the key again.",
+        "preview_required": "Run the preview again before turning writing on.",
+        "portal_changed": "The key now opens a different HubSpot account. Connect the right one above.",
+        "key_invalid": "HubSpot no longer accepts the key. Replace it above.",
+        "rate_limited": "Too many changes in a short time. Try again later.",
+        "forbidden": "Only workspace admins can do this."
+      },
+      "rules": {
+        "title": "How writing decides",
+        "what": "A field goes to HubSpot when it changed here since the last sync and HubSpot still has the value from that sync.",
+        "conflict": "If the field also changed in HubSpot, it is not sent: each side keeps its value and the record is counted as a conflict, with the field name only.",
+        "echo": "What the sync brought from HubSpot is not sent back, and what we send does not come back as a conflict.",
+        "create": "A record created here is created in HubSpot. A contact with an email or a company with a domain that HubSpot already has is linked to that one instead.",
+        "associations": "Associations added here are added in HubSpot. Removing one here does not remove it there.",
+        "deletes": "Deleting a record here never deletes it in HubSpot: the link is only marked.",
+        "pause": "Pausing the sync above pauses both directions."
       }
     }
   },
