@@ -544,4 +544,4 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
 @media (pointer: coarse), (max-width: 640px) { .zs-ctx-item { min-height: 44px; } }
 
 /* El número de un KPI se toca para ver sus registros: 40px de alto. */
-button.cdb-kpi-value { min-height: 40px; }
+button.cdb-kpi-value { min-height: 40px; min-width: 40px; }
