@@ -103,7 +103,15 @@ test.describe('CRM a 390px', () => {
     await bar.locator('.kb-stagebar-btn').nth(1).click();
     await expect(bar.locator('.kb-stagebar-btn').nth(1)).toHaveClass(/is-active/);
     const qualifiedCol = page.locator('.kb-col').filter({ has: page.locator(`.kb-cards[data-stage-id="${qualified.id}"]`) });
-    await expect(qualifiedCol).toBeInViewport({ ratio: 0.6 });
+    // La columna queda en el lugar del board (horizontal): con pestañas de vistas arriba el board puede
+    // empezar más abajo y la columna salirse en parte por debajo, así que se mide solo el eje x.
+    await expect
+      .poll(async () => {
+        const col = await qualifiedCol.boundingBox();
+        const b = await page.locator('.kb-board').boundingBox();
+        return col && b ? Math.abs(col.x - b.x) : Infinity;
+      })
+      .toBeLessThanOrEqual(2);
 
     // Mover con el dedo: "Mover a…" en la tarjeta.
     await bar.locator('.kb-stagebar-btn').first().click();
