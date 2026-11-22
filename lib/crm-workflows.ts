@@ -2223,7 +2223,14 @@ export async function sendCrmEmailAndSave(
   const contactId = await resolveContactIdForEmail(userId, recordType, recordId, scope);
   if (!contactId) return { ok: false, error: 'missing_contact' };
 
-  const { sendCrmEmail } = await import('./crm-email');
+  const { sendCrmEmail, threadReplyInfo } = await import('./crm-email');
+  // Responder en un thread: solo uno con algún email de un contacto que quien envía ve (la misma regla
+  // que el timeline); si no, como si no existiera. El In-Reply-To sale del thread, no de quien llama.
+  let reply: { threadId: string; inReplyTo: string } | null = null;
+  if (input.threadId) {
+    reply = await threadReplyInfo(userId, input.threadId, scope ?? undefined);
+    if (!reply) return { ok: false, error: 'not_found' };
+  }
   const res = await sendCrmEmail(userId, {
     senderId: input.senderId,
     senderEmail: fromEmail,
@@ -2232,8 +2239,8 @@ export async function sendCrmEmailAndSave(
     subject,
     body,
     tracking: input.tracking,
-    threadId: input.threadId ?? null,
-    inReplyTo: input.inReplyTo ?? null,
+    threadId: reply?.threadId ?? null,
+    inReplyTo: reply?.inReplyTo || null,
     dealId: recordType === 'deal' ? recordId : null,
     companyId: recordType === 'company' ? recordId : null,
   });

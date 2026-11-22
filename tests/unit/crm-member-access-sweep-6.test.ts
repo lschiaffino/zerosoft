@@ -666,3 +666,29 @@ describe('revisión: import, eventos, Inbox, total del score, papelera, Lines', 
     expect((await linesChatRoute.PATCH(send('PATCH', `/api/groups/chats/${chat.id}`, { crmCompanyId: s.ownerCo.id }), ctx(chat.id))).status).toBe(200);
   });
 });
+
+describe('responder en un thread: solo uno con un contacto que quien envía ve', () => {
+  async function thread(s: Setup, contactId: string, threadId: string) {
+    const id = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO crm_emails (id, user_id, contact_id, gmail_id, thread_id, message_id, direction, subject, sent_at) VALUES (?, ?, ?, ?, ?, ?, 'in', 'Hello', datetime('now'))")
+      .run(id, s.ws, contactId, `g-${id}`, threadId, `<m-${id}@mail.test>`);
+    await getDb().prepare('INSERT INTO crm_email_contacts (email_id, contact_id, user_id) VALUES (?, ?, ?)').run(id, contactId, s.ws);
+  }
+
+  it('un miembro no responde en un thread de un contacto que no ve (ni desde un registro suyo); el owner sí', async () => {
+    const s = await setup('s6reply');
+    const { sendCrmEmailAndSave } = await import('@/lib/crm-workflows');
+    const hidden = await createContact(s.ws, { firstName: 'Vip', email: 'vip-thread@gmail.com', ownerId: s.ws });
+    const mine = await createContact(s.ws, { firstName: 'Own', email: 'own-thread@gmail.com', ownerId: s.w.member.id });
+    await thread(s, hidden.id, 'thr-hidden-s6');
+    await thread(s, mine.id, 'thr-mine-s6');
+    const base = { recordType: 'contact' as const, recordId: mine.id, to: 'own-thread@gmail.com', subject: 'Re', body: 'Hi', fromEmail: 'm@x.test' };
+    expect(await sendCrmEmailAndSave(s.ws, { ...base, senderId: s.w.member.id, threadId: 'thr-hidden-s6', inReplyTo: '<forged@x>' })).toMatchObject({ ok: false, error: 'not_found' });
+    expect(await sendCrmEmailAndSave(s.ws, { ...base, senderId: s.w.friend.id, threadId: 'thr-mine-s6' })).toMatchObject({ ok: false, error: 'not_found' });
+    const own = await sendCrmEmailAndSave(s.ws, { ...base, senderId: s.w.member.id, threadId: 'thr-mine-s6' });
+    expect(own.error).not.toBe('not_found');
+    const byOwner = await sendCrmEmailAndSave(s.ws, { ...base, recordId: hidden.id, to: 'vip-thread@gmail.com', senderId: s.ws, threadId: 'thr-hidden-s6' });
+    expect(byOwner.error).not.toBe('not_found');
+  });
+});
