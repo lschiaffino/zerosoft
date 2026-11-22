@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { CHAT_FILTERS, listChats, type ChatFilter, type ChatQuery, type PropertyFilter } from '@/lib/groups';
 import { getSavedList, listQuery } from '@/lib/groups-org';
 import { z } from 'zod';
-import { groupsError, groupsSession, handleGroupsError, lineGuard, sessionViewer } from '@/lib/groups-http';
+import { groupsError, groupsSession, handleGroupsError, lineGuard, pageLocale, sessionViewer } from '@/lib/groups-http';
 import { invalidInput, limitWrites } from '@/lib/write-limit';
 import { conditionalJson } from '@/lib/etag';
 import { parseHubspotFilterParam } from '@/lib/groups-hubspot-shared';
@@ -80,6 +80,7 @@ export async function GET(req: Request) {
   const [res, imports, unreadChats, archived, dropped, hubspotOn, hidden] = await Promise.all([
     listChats(s.ws, s.me, {
       ...base,
+      locale: pageLocale(req),
       filter: filter && filter !== 'all' ? filter : (base.filter ?? 'all'),
       q: p.get('q') || panel?.q || base.q || '',
       filters,
