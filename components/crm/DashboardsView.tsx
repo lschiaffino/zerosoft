@@ -10,7 +10,7 @@ import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from '@/com
 import RecordPreview from './RecordPreview';
 import ReportChart from './ReportChart';
 import DashChart, { ChartTable, type ChartText } from './dash/DashChart';
-import { bucketLabel } from '@/lib/crm-buckets';
+import { bucketLabel, bucketsSpanYears } from '@/lib/crm-buckets';
 import { LIFECYCLE_STAGES, SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
 import { toCsv } from '@/lib/crm-report-builder';
 import type { DashboardView } from '@/lib/crm-dashboards';
@@ -202,8 +202,8 @@ export default function DashboardsView({
   );
 
   const enumLabel = useCallback(
-    (kind: string | null, key: string, label: string | null): string => {
-      if (kind === 'bucket') return bucketLabel(key, locale);
+    (kind: string | null, key: string, label: string | null, withYear = false): string => {
+      if (kind === 'bucket') return bucketLabel(key, locale, withYear);
       if (kind === 'source') return (SOURCES as readonly string[]).includes(key) ? t(`enums.source.${key}`) : key;
       if (kind === 'lifecycle') return (LIFECYCLE_STAGES as readonly string[]).includes(key) ? t(`enums.lifecycle.${key}`) : key;
       if (kind === 'forecastCategory') return ['closed_won', 'commit', 'best_case', 'pipeline'].includes(key) ? t(`dash.forecastCat.${key}`) : key;
@@ -215,15 +215,19 @@ export default function DashboardsView({
   );
 
   const chartText = useCallback(
-    (data: Extract<TileResult, { kind: 'chart' }>): ChartText => ({
-      category: (key, label) => enumLabel(data.categoryKind, key, label),
+    (data: Extract<TileResult, { kind: 'chart' }>): ChartText => {
+      // Un rango que cruza años (últimos 365 días) pone el año en cada período.
+      const withYear = data.categoryKind === 'bucket' && bucketsSpanYears(data.categories.map((c) => c.key));
+      return {
+      category: (key, label) => enumLabel(data.categoryKind, key, label, withYear),
       series: (key, label) => (data.seriesKind ? enumLabel('outcome', key, label) : t('dash.tile.total')),
       value: fmtValue,
       axis: fmtAxis,
       extra: (n, kind) => (n === null ? null : kind === 'count' ? t('dash.tile.deals', { count: n }) : t('dash.tile.conversion', { value: n })),
       aria: (parts) => parts.join(', '),
       total: t('dash.tile.total'),
-    }),
+      };
+    },
     [enumLabel, fmtAxis, fmtValue, t],
   );
 
@@ -457,7 +461,11 @@ export default function DashboardsView({
   }
 
   function tileSubtitle(w: Widget): string {
-    if (w.type === 'custom_report') return t('dash.tile.allDates');
+    if (w.type === 'custom_report') {
+      // El rango del dashboard se aplica si el reporte tiene un campo de fecha (lo dice el resultado).
+      const d = tiles[w.id];
+      return d?.kind === 'custom' && d.report.result.dateField ? rangeLabel(filters) : t('dash.tile.allDates');
+    }
     const def = libraryReport(tileKey(w));
     // Los reportes por etapa usan un pipeline: el del filtro o el primero.
     const stagePipe =
@@ -686,28 +694,55 @@ export default function DashboardsView({
     if (data.kind === 'custom') {
       return (
         <div className="cdb-custom">
-          <ReportChart result={data.report.result} viz={data.report.config.viz} locale={locale} baseCurrency={baseCurrency} compact />
+          <ReportChart
+            result={data.report.result}
+            viz={data.report.config.viz}
+            locale={locale}
+            baseCurrency={baseCurrency}
+            compact
+            onDrill={(keys, label) => void openDrill(w.id, { keys }, title, [label, subtitle].filter(Boolean).join(' · '))}
+          />
         </div>
       );
     }
     if (data.kind === 'kpi') {
-      const pct = data.prev !== null && data.prev !== 0 ? Math.round(((data.value - data.prev) / Math.abs(data.prev)) * 100) : null;
       const valueText = fmtValue(data.value, data.format);
-      // "Por día" va chico al lado del número, no como parte de él.
-      const shown = data.format === 'moneyPerDay' ? fmtValue(data.value, 'money') : valueText;
+      // Un número de siete cifras va compacto ($1.2M) para que no se corte; el entero queda en el nombre accesible.
+      const big = Math.abs(data.value) >= 1_000_000 && (data.format === 'money' || data.format === 'moneyPerDay' || data.format === 'number');
+      const shown = big ? (data.format === 'number' ? numCompact.format(data.value) : moneyCompact.format(data.value)) : data.format === 'moneyPerDay' ? fmtValue(data.value, 'money') : valueText;
       const key = tileKey(w);
+      const d = data.detail;
+      const velocity = key === 'sales_velocity';
       const detail =
-        data.detail?.closed !== undefined
-          ? t('dash.tile.winDetail', { won: data.detail.won ?? 0, closed: data.detail.closed })
-          : data.detail?.count !== undefined
-            ? key === 'sales_velocity'
-              ? t('dash.tile.openDeals', { count: data.detail.count })
-              : t('dash.tile.deals', { count: data.detail.count })
-            : null;
+        d?.closed !== undefined
+          ? t('dash.tile.winDetail', { won: d.won ?? 0, closed: d.closed })
+          : velocity && d?.count !== undefined && d.cycle
+            ? t('dash.tile.velocityDetail', { count: d.count, cycle: num.format(Math.round(d.cycle)) })
+            : d?.count !== undefined
+              ? velocity
+                ? t('dash.tile.openDeals', { count: d.count })
+                : t('dash.tile.deals', { count: d.count })
+              : null;
+      const formula =
+        velocity && d?.cycle
+          ? t('dash.tile.velocityFormula', {
+              open: num.format(d.count ?? 0),
+              rate: num.format(d.rate ?? 0),
+              avg: fmtValue(d.avg ?? 0, 'money'),
+              cycle: num.format(Math.round(d.cycle)),
+            })
+          : null;
       return (
         <div className="cdb-kpi">
           {data.drill ? (
-            <button type="button" className="cdb-kpi-value" data-testid="cdb-kpi-value" aria-label={`${title}: ${valueText}`} onClick={() => void openDrill(w.id, {}, title, subtitle)}>
+            <button
+              type="button"
+              className="cdb-kpi-value"
+              data-testid="cdb-kpi-value"
+              aria-label={`${title}: ${valueText}`}
+              title={formula ?? (big ? valueText : undefined)}
+              onClick={() => void openDrill(w.id, {}, title, subtitle)}
+            >
               {shown}
               {data.format === 'moneyPerDay' && <span className="cdb-kpi-unit">{t('dash.tile.perDayUnit')}</span>}
             </button>
@@ -715,17 +750,7 @@ export default function DashboardsView({
             <span className="cdb-kpi-value">{shown}</span>
           )}
           <div className="cdb-kpi-meta">
-            {pct !== null ? (
-              <span className={`cdb-delta ${pct > 0 ? 'is-up' : pct < 0 ? 'is-down' : 'is-flat'}`}>
-                <span aria-hidden>{pct > 0 ? '▲' : pct < 0 ? '▼' : '='}</span> {Math.abs(pct)}% <span className="cdb-muted">{t('dash.tile.vsPrev')}</span>
-              </span>
-            ) : data.prev === 0 ? (
-              <span className="cdb-muted">
-                {t('dash.tile.vsPrev')}: {fmtValue(0, data.format)}
-              </span>
-            ) : (
-              <span className="cdb-muted">{t('dash.tile.noPrev')}</span>
-            )}
+            <KpiDelta value={data.value} prev={data.prev} format={data.format} fmtValue={fmtValue} num={num} t={t} />
             {detail && <span className="cdb-muted">{detail}</span>}
           </div>
         </div>
@@ -861,28 +886,41 @@ export default function DashboardsView({
               visibilityLabel={visibilityLabel}
             />
           )}
-          {active && (
-            <p className="cdb-meta">
-              <span>{visibilityLabel(active)}</span>
-              {active.ownerName && !active.isOwner && <span>{t('dash.switcher.ownedBy', { name: active.ownerName })}</span>}
-              {!active.canEdit && <span>{t('dash.viewOnly')}</span>}
-              {active.isDefault && <span>{t('dash.switcher.default')}</span>}
-            </p>
-          )}
         </div>
+        {active && (
+          <p className="cdb-meta" data-testid="cdb-meta">
+            {active.canManage ? (
+              <button type="button" className="cdb-meta-share" data-testid="cdb-visibility" onClick={() => setDialog('share')}>
+                <VisibilityIcon visibility={active.visibility} />
+                {visibilityLabel(active)}
+              </button>
+            ) : (
+              <span className="cdb-meta-item">
+                <VisibilityIcon visibility={active.visibility} />
+                {visibilityLabel(active)}
+              </span>
+            )}
+            {active.ownerName && !active.isOwner && <span className="cdb-meta-item">{t('dash.switcher.ownedBy', { name: active.ownerName })}</span>}
+            {!active.canEdit && <span className="cdb-meta-item">{t('dash.viewOnly')}</span>}
+            {active.isDefault && <span className="cdb-meta-item">{t('dash.switcher.default')}</span>}
+          </p>
+        )}
         <div className="cdb-head-actions">
-          {active?.canEdit && (
-            <button type="button" className="btn btn-sm btn-primary" data-testid="cdb-add-report" onClick={() => setDialog('library')}>
-              {t('dash.addReport')}
-            </button>
-          )}
           {active ? (
             <button type="button" className="btn btn-sm" aria-haspopup="menu" data-testid="cdb-actions" onClick={(e) => openBoardMenu(e.currentTarget)}>
               {t('dash.actions.menu')}
+              <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden className="cdb-btn-chevron">
+                <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
             </button>
           ) : (
             <button type="button" className="btn btn-sm btn-primary" onClick={() => setDialog('create')}>
               {t('dash.switcher.create')}
+            </button>
+          )}
+          {active?.canEdit && (
+            <button type="button" className="btn btn-sm btn-primary" data-testid="cdb-add-report" onClick={() => setDialog('library')}>
+              {t('dash.addReport')}
             </button>
           )}
         </div>
@@ -937,7 +975,7 @@ export default function DashboardsView({
               )}
             </form>
           )}
-          {owners.length > 1 && (
+          {owners.length > 0 && (
             <MenuSelect
               label={t('dash.filters.owner')}
               testId="cdb-filter-owner"
@@ -946,16 +984,14 @@ export default function DashboardsView({
               onChange={(v) => applyFilters({ ...filters, ownerId: v || null, teamId: v ? null : filters.teamId })}
             />
           )}
-          {teams.length > 0 && (
-            <MenuSelect
+          <MenuSelect
               label={t('dash.filters.team')}
               testId="cdb-filter-team"
               value={filters.teamId ?? ''}
               options={teamOptions}
               onChange={(v) => applyFilters({ ...filters, teamId: v || null, ownerId: v ? null : filters.ownerId })}
             />
-          )}
-          {pipelines.length > 1 && (
+          {pipelines.length > 0 && (
             <MenuSelect
               label={t('dash.filters.pipeline')}
               testId="cdb-filter-pipeline"
@@ -1166,6 +1202,67 @@ export default function DashboardsView({
 }
 
 type T = ReturnType<typeof useTranslations<'crm'>>;
+
+/**
+ * Comparación con el período anterior, como en HubSpot: flecha y cambio en
+ * color (subir es bueno en todos los KPIs de la biblioteca), y el valor
+ * anterior en gris. Un porcentaje (tasa de cierre) cambia en puntos. Sin
+ * datos antes, o con el anterior en cero, no se inventa un porcentaje.
+ */
+function KpiDelta({
+  value,
+  prev,
+  format,
+  fmtValue,
+  num,
+  t,
+}: {
+  value: number;
+  prev: number | null;
+  format: ValueFormat;
+  fmtValue: (n: number, f?: ValueFormat) => string;
+  num: Intl.NumberFormat;
+  t: T;
+}) {
+  if (prev === null) return <span className="cdb-delta-line cdb-muted" data-testid="cdb-delta">{t('dash.tile.noPrev')}</span>;
+  const diff = value - prev;
+  const dir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+  const prevText = t('dash.tile.vsPrevValue', { value: fmtValue(prev, format === 'moneyPerDay' ? 'money' : format) });
+  let change: string | null = null;
+  if (format === 'percent') change = t('dash.tile.pts', { value: Math.abs(Math.round(diff * 10) / 10) });
+  else if (prev !== 0) change = `${num.format(Math.abs(Math.round((diff / Math.abs(prev)) * 100)))}%`;
+  return (
+    <span className="cdb-delta-line" data-testid="cdb-delta">
+      {dir !== 'flat' && change !== null ? (
+        <span className={`cdb-delta is-${dir}`}>
+          <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden className="cdb-delta-arrow">
+            <path d={dir === 'up' ? 'M5 1 9.5 8.5H.5Z' : 'M5 9 .5 1.5h9Z'} />
+          </svg>
+          <span className="sr-only">{dir === 'up' ? '+' : '−'}</span>
+          {change}
+        </span>
+      ) : dir === 'flat' && prev !== 0 ? (
+        <span className="cdb-delta is-flat">{format === 'percent' ? t('dash.tile.pts', { value: 0 }) : '0%'}</span>
+      ) : null}
+      <span className="cdb-muted">{prevText}</span>
+    </span>
+  );
+}
+
+function VisibilityIcon({ visibility }: { visibility: DashboardVisibility }) {
+  // Candado (privado), dos personas (equipo) o un globo (todo el workspace).
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden className="cdb-meta-icon">
+      {visibility === 'private' ? (
+        <path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2M3.5 7h9v6.5h-9Z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      ) : visibility === 'team' ? (
+        <path d="M6 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM1.5 13.5c.4-2.4 2.2-4 4.5-4s4.1 1.6 4.5 4M11 2.8a2.3 2.3 0 0 1 0 4.4M12.5 9.8c1 .6 1.8 1.8 2 3.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      ) : (
+        <path d="M8 14.5A6.5 6.5 0 1 0 8 1.5a6.5 6.5 0 0 0 0 13ZM1.5 8h13M8 1.5c1.8 2 2.6 4.1 2.6 6.5S9.8 12.5 8 14.5C6.2 12.5 5.4 10.4 5.4 8S6.2 3.5 8 1.5Z" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      )}
+    </svg>
+  );
+}
 
 function RecordLink({ row, onPreview }: { row: DrillRow; onPreview: (p: PreviewTarget) => void }) {
   const name = row.name || '…';
@@ -1679,7 +1776,8 @@ function DrillPanel({
     return () => window.removeEventListener('keydown', key);
   }, [onClose]);
   const res = drill.result;
-  const statusHead = res?.object === 'deal' ? t('dash.drill.cols.stage') : res?.object === 'activity' ? t('dash.drill.cols.type') : t('dash.drill.cols.status');
+  const statusHead =
+    res?.object === 'deal' ? t('dash.drill.cols.stage') : res?.object === 'activity' ? t('dash.drill.cols.type') : res?.object === 'company' ? t('dash.drill.cols.lifecycle') : t('dash.drill.cols.status');
   return (
     <div
       className="cdb-drill-overlay"

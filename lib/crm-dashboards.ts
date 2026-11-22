@@ -16,7 +16,7 @@ import { getDb, type CrmDashboardRow, type CrmDashboardWidgetRow, type Db } from
 import type { OwnerScope, Viewer } from './crm-visibility';
 import type { FieldViewer } from './crm-field-perms';
 import { listMembers, roleAtLeast } from './teams';
-import { getCustomReport, reportForViewer, runReport, ReportError } from './crm-custom-reports';
+import { drillReport, getCustomReport, reportForViewer, runReport, ReportError } from './crm-custom-reports';
 import type { ReportConfig } from './crm-report-builder';
 import type { SessionUser } from './session';
 import { workspaceTeamId } from './workspace';
@@ -29,6 +29,7 @@ import {
   resolveRange,
   type DashboardFilters,
   type DrillResult,
+  type DrillRow,
   type DrillSegment,
   type TileSize,
 } from './crm-dashboard-library';
@@ -560,6 +561,8 @@ async function tileData(w: CrmDashboardWidgetRow, ctx: ReportContext, tv: TileVi
           scope: narrowScope(tv.scope, ctx.ownerIds),
           people: tv.owners.map((o) => ({ id: o.id, name: o.name || o.email })),
           viewer: tv.fieldViewer,
+          // El rango del dashboard va al campo de fecha del reporte (si tiene uno).
+          range: { from: ctx.range.from, to: ctx.range.to },
         },
         db,
       );
@@ -614,8 +617,68 @@ export async function drillTile(
   const d = await getDashboardFor(tv.viewer, dashboardId, db);
   const w = d?.widgets.find((x) => x.id === widgetId);
   if (!d || !w) throw new DashboardError('not_found');
+  if (w.type === 'custom_report') return drillCustomTile(tv, w, filters ?? parseDashboardFilters(d.filters), segment, db);
   const key = widgetReportKey(w);
   if (!key) throw new DashboardError('invalid_input');
   const ctx = await reportContext(tv, filters ?? parseDashboardFilters(d.filters), db);
   return drillLibraryReport(key, ctx, segment);
+}
+
+/**
+ * Drill-down de un tile de reporte propio: los registros del segmento con el
+ * mismo alcance (el de quien mira, recortado al filtro de owner/equipo), los
+ * mismos filtros y pipeline que el tile y el rango del dashboard. Un campo
+ * oculto para quien mira hace fallar el drill igual que el tile (forbidden).
+ */
+async function drillCustomTile(
+  tv: TileViewer,
+  w: CrmDashboardWidgetRow,
+  filters: DashboardFilters,
+  segment: DrillSegment,
+  db: Db,
+): Promise<DrillResult> {
+  const cfg = parseConfig(w.config);
+  const report = cfg.reportId ? await getCustomReport(tv.viewer.workspaceId, cfg.reportId, db) : null;
+  if (!report) throw new DashboardError('not_found');
+  const ctx = await reportContext(tv, filters, db);
+  let config: ReportConfig = report.config;
+  if (ctx.pipelineId && config.source === 'deals' && config.filters.length < 20) {
+    config = { ...config, filters: [...config.filters, { f: 'deal.pipeline', o: 'is', v: ctx.pipelineId }] };
+  }
+  let res: Awaited<ReturnType<typeof drillReport>>;
+  try {
+    res = await drillReport(
+      tv.viewer.workspaceId,
+      config,
+      segment.keys ?? [],
+      { scope: narrowScope(tv.scope, ctx.ownerIds), viewer: tv.fieldViewer, range: { from: ctx.range.from, to: ctx.range.to }, locale: tv.locale },
+      db,
+    );
+  } catch (e) {
+    if (e instanceof ReportError) throw new DashboardError(e.code === 'invalid_field' ? 'forbidden' : 'invalid_input');
+    throw e;
+  }
+  const people = new Map(tv.owners.map((o) => [o.id, o.name || o.email]));
+  const object: DrillResult['object'] = res.object;
+  return {
+    object,
+    total: res.total,
+    truncated: res.truncated,
+    sum: null,
+    rows: res.rows.map((r): DrillRow => {
+      const preview = r.object === 'activity' ? null : r.object;
+      return {
+        id: r.id,
+        previewType: preview,
+        previewId: preview ? r.id : null,
+        href: r.object === 'activity' ? (report.config.source === 'tasks' ? `/app/crm/tasks/${r.id}` : null) : `/app/crm/${r.object === 'company' ? 'companies' : `${r.object}s`}/${r.id}`,
+        name: r.name,
+        amount: r.object === 'deal' ? r.amount : null,
+        status: r.status,
+        statusKind: r.object === 'deal' ? 'stage' : r.object === 'activity' ? 'activityType' : 'lifecycle',
+        owner: r.ownerId ? people.get(r.ownerId) ?? null : null,
+        date: r.date,
+      };
+    }),
+  };
 }

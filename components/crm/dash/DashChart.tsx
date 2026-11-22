@@ -47,18 +47,19 @@ function seriesSlot(key: string, i: number, n: number): string {
   return fixed[key] ?? seriesClass(i, n);
 }
 
-function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
+function useSize<T extends HTMLElement>(): [React.RefObject<T | null>, number, number] {
   const ref = useRef<T>(null);
-  const [w, setW] = useState(0);
+  const [size, setSize] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    setW(el.clientWidth);
-    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    const read = () => setSize((s) => (s.w === el.clientWidth && s.h === el.clientHeight ? s : { w: el.clientWidth, h: el.clientHeight }));
+    read();
+    const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  return [ref, w];
+  return [ref, size.w, size.h];
 }
 
 function niceMax(max: number): number {
@@ -99,16 +100,36 @@ function Tooltip({ tip }: { tip: Tip | null }) {
   );
 }
 
-function Legend({ data, text }: { data: Chart; text: ChartText }) {
+/**
+ * Leyenda (dos series o más). Con drill-down cada serie es un botón que abre
+ * sus registros, con el mismo aspecto de leyenda (sin subrayado) y su total.
+ */
+function Legend({ data, text, onDrill }: { data: Chart; text: ChartText; onDrill?: ((segment: DrillSegment) => void) | null }) {
   if (data.series.length < 2) return null;
   return (
     <ul className="cdb-legend">
-      {data.series.map((s, i) => (
-        <li key={s.key}>
-          <span className={`cdb-key ${seriesSlot(s.key, i, data.series.length)}`} aria-hidden />
-          {text.series(s.key, s.label)}
-        </li>
-      ))}
+      {data.series.map((s, i) => {
+        const name = text.series(s.key, s.label);
+        const sum = text.value(s.values.reduce((a, b) => a + b, 0), data.format);
+        const inner = (
+          <>
+            <span className={`cdb-key ${seriesSlot(s.key, i, data.series.length)}`} aria-hidden />
+            <span>{name}</span>
+            <span className="cdb-legend-num">{sum}</span>
+          </>
+        );
+        return (
+          <li key={s.key}>
+            {onDrill ? (
+              <button type="button" className="cdb-legend-btn" data-testid="cdb-legend-series" aria-label={text.aria([name, sum])} onClick={() => onDrill({ series: s.key })}>
+                {inner}
+              </button>
+            ) : (
+              inner
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -116,11 +137,12 @@ function Legend({ data, text }: { data: Chart; text: ChartText }) {
 // ---------- Columnas, líneas y áreas (eje de tiempo o pocas categorías) ----------
 
 function Columns({ data, viz, text, onDrill, title }: Props) {
-  const [ref, width] = useWidth<HTMLDivElement>();
+  const [ref, width, height] = useSize<HTMLDivElement>();
   const [tip, setTip] = useState<Tip | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const H = 200;
-  const pad = { t: 12, r: 8, b: 26, l: 44 };
+  // El gráfico llena el alto que le deja el tile (con un mínimo legible).
+  const H = Math.max(160, Math.min(height || 200, 420));
+  const pad = { t: 12, r: 8, b: 26, l: 48 };
   const W = Math.max(width, 200);
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
@@ -133,7 +155,8 @@ function Columns({ data, viz, text, onDrill, title }: Props) {
   const step = n ? iw / n : iw;
   const y = (v: number) => pad.t + ih - (v / max) * ih;
   const ticks = [0, 0.5, 1].map((k) => k * max);
-  const labelEvery = Math.max(1, Math.ceil(54 / Math.max(step, 1)));
+  const longest = Math.max(4, ...data.categories.map((c) => text.category(c.key, c.label).length));
+  const labelEvery = Math.max(1, Math.ceil(Math.min(longest * 6.2 + 10, 120) / Math.max(step, 1)));
   const lineLike = viz === 'line' || viz === 'area';
   const grouped = !stacked && !lineLike && data.series.length > 1;
   const barW = Math.min(24, Math.max(3, (grouped ? step / (data.series.length + 1) : step * 0.6) - 2));
@@ -154,7 +177,8 @@ function Columns({ data, viz, text, onDrill, title }: Props) {
   };
 
   return (
-    <div className="cdb-chart" ref={ref} onMouseLeave={hide}>
+    <div className="cdb-chart" onMouseLeave={hide}>
+      <div className="cdb-plot" ref={ref}>
       {width > 0 && (
         <svg width={W} height={H} role="group" aria-label={title} className="cdb-svg">
           {ticks.map((v) => (
@@ -217,13 +241,18 @@ function Columns({ data, viz, text, onDrill, title }: Props) {
                 </g>
               );
             })}
-          {data.categories.map((c, i) =>
-            i % labelEvery === 0 ? (
+          {data.categories.map((c, i) => {
+            if (i % labelEvery !== 0) return null;
+            const full = text.category(c.key, c.label);
+            // Un nombre que no entra en su lugar se corta con "…" (el tooltip y la tabla lo tienen entero).
+            const room = Math.max(4, Math.floor((step * labelEvery - 6) / 6.2));
+            const shown = full.length > room ? `${full.slice(0, Math.max(1, room - 1))}…` : full;
+            return (
               <text key={c.key} className="cdb-axis" x={pad.l + step * (i + 0.5)} y={H - 8} textAnchor="middle">
-                {text.category(c.key, c.label)}
+                {shown}
               </text>
-            ) : null,
-          )}
+            );
+          })}
           {/* Áreas de toque (más grandes que la marca): tooltip y drill-down por categoría. */}
           {data.categories.map((c, i) => {
             const parts = [text.category(c.key, c.label), ...data.series.map((s) => `${text.series(s.key, s.label)}: ${text.value(s.values[i], data.format)}`)];
@@ -249,8 +278,9 @@ function Columns({ data, viz, text, onDrill, title }: Props) {
           })}
         </svg>
       )}
+      </div>
       <Tooltip tip={tip} />
-      <Legend data={data} text={text} />
+      <Legend data={data} text={text} onDrill={stacked || grouped ? onDrill : null} />
     </div>
   );
 }
@@ -262,6 +292,7 @@ function HBars({ data, viz, text, onDrill, title }: Props) {
   const totals = data.categories.map((_c, i) => data.series.reduce((a, s) => a + Math.max(0, s.values[i]), 0));
   const max = Math.max(0, ...(stacked ? totals : data.categories.map((_c, i) => Math.max(0, ...data.series.map((s) => s.values[i])))));
   return (
+    <div className="cdb-chart">
     <div className="cdb-hbars" role="group" aria-label={title}>
       {data.categories.map((c, i) => {
         const label = text.category(c.key, c.label);
@@ -304,17 +335,8 @@ function HBars({ data, viz, text, onDrill, title }: Props) {
           </div>
         );
       })}
-      {stacked && !onDrill && <Legend data={data} text={text} />}
-      {stacked && onDrill && data.series.length > 1 && (
-        <div className="cdb-series-drill">
-          {data.series.map((s, si) => (
-            <button key={s.key} type="button" className="cdb-link" onClick={() => onDrill({ series: s.key })}>
-              <span className={`cdb-key ${seriesSlot(s.key, si, data.series.length)}`} aria-hidden />
-              {text.series(s.key, s.label)} · {text.value(s.values.reduce((a, b) => a + b, 0), data.format)}
-            </button>
-          ))}
-        </div>
-      )}
+    </div>
+      {stacked && <Legend data={data} text={text} onDrill={onDrill} />}
     </div>
   );
 }
@@ -324,25 +346,36 @@ function HBars({ data, viz, text, onDrill, title }: Props) {
 function Funnel({ data, text, onDrill, title }: Props) {
   const vals = data.series[0]?.values ?? [];
   const max = Math.max(1, ...vals);
+  // Embudo alineado a la izquierda: cada etapa con su nombre y su número arriba de la
+  // barra, y entre etapa y etapa la conversión (la que llegó de la anterior).
   return (
     <ol className="cdb-funnel" aria-label={title}>
       {data.categories.map((c, i) => {
         const label = text.category(c.key, c.label);
-        const conv = data.extra ? text.extra(data.extra.values[i], 'conversion') : null;
+        const raw = data.extra && i > 0 ? data.extra.values[i] : null;
+        const conv = raw !== null && raw !== undefined ? text.extra(raw, 'conversion') : null;
+        const pct = (vals[i] / max) * 100;
         const inner = (
           <>
-            <span className="cdb-funnel-label">{label}</span>
-            <span className="cdb-funnel-track">
-              <span className="cdb-funnel-bar cdb-s0" style={{ width: `${Math.max((vals[i] / max) * 100, vals[i] > 0 ? 2 : 0)}%` }} />
+            <span className="cdb-funnel-top">
+              <span className="cdb-funnel-label">{label}</span>
+              <span className="cdb-funnel-value">{text.value(vals[i], data.format)}</span>
             </span>
-            <span className="cdb-funnel-value">
-              {text.value(vals[i], data.format)}
-              {conv && <span className="cdb-hbar-extra">{conv}</span>}
+            <span className="cdb-funnel-track">
+              <span className="cdb-funnel-bar cdb-s0" style={{ width: `${Math.max(pct, vals[i] > 0 ? 1.5 : 0)}%` }} />
             </span>
           </>
         );
         return (
-          <li key={c.key}>
+          <li key={c.key} className="cdb-funnel-step">
+            {conv && (
+              <span className="cdb-funnel-conv" data-testid="cdb-funnel-conv">
+                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                  <path d="M5 1v7M2 5.5 5 8.5 8 5.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                </svg>
+                {conv}
+              </span>
+            )}
             {onDrill ? (
               <button type="button" className="cdb-funnel-row" data-testid="cdb-mark" aria-label={text.aria([label, text.value(vals[i], data.format), ...(conv ? [conv] : [])])} onClick={() => onDrill({ category: c.key })}>
                 {inner}
@@ -483,7 +516,8 @@ export default function DashChart(props: Props): ReactNode {
   if (viz === 'funnel') return <Funnel {...props} />;
   if (viz === 'donut') return <Donut {...props} />;
   if (viz === 'hbar') return <HBars {...props} />;
-  // Apiladas: con categorías de tiempo, columnas; con personas, barras horizontales (los nombres se leen).
-  if (viz === 'stacked' && data.categoryKind !== 'bucket') return <HBars {...props} />;
+  // Apiladas por persona: columnas si son pocas (llenan el tile, como en HubSpot);
+  // con muchas, barras horizontales (los nombres se leen enteros).
+  if (viz === 'stacked' && data.categoryKind !== 'bucket' && data.categories.length > 6) return <HBars {...props} />;
   return <Columns {...props} />;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
@@ -82,6 +82,11 @@ interface ChartProps {
   baseCurrency?: string;
   /** Compacto en widgets de dashboard: sin leyenda larga ni pie de tabla. */
   compact?: boolean;
+  /**
+   * Drill-down (tiles de dashboard): el valor de cada dimensión del segmento
+   * elegido (null = sin valor) y su etiqueta. Sin esto el gráfico no es clickeable.
+   */
+  onDrill?: (keys: Array<string | null>, label: string) => void;
 }
 
 interface Series {
@@ -100,7 +105,7 @@ function metricLabel(r: ReportAggregateResult, fmt: ReturnType<typeof useReportF
 }
 
 /** Dibuja el resultado de un reporte según la visualización elegida. */
-export default function ReportChart({ result, viz, locale, baseCurrency = 'USD', compact = false }: ChartProps) {
+export default function ReportChart({ result, viz, locale, baseCurrency = 'USD', compact = false, onDrill }: ChartProps) {
   const fmt = useReportFormat(locale, baseCurrency);
   const { t } = fmt;
 
@@ -112,7 +117,13 @@ export default function ReportChart({ result, viz, locale, baseCurrency = 'USD',
   if (viz === 'kpi' || result.dimensions.length === 0) {
     return (
       <div className="rb-kpi" data-testid="rb-kpi">
-        <span className="stat-num">{fmtValue(result.total)}</span>
+        {onDrill ? (
+          <button type="button" className="stat-num rb-drill-num" data-testid="rb-drill" onClick={() => onDrill([], metricLabel(result, fmt))}>
+            {fmtValue(result.total)}
+          </button>
+        ) : (
+          <span className="stat-num">{fmtValue(result.total)}</span>
+        )}
         <span className="stat-label muted">{metricLabel(result, fmt)}</span>
       </div>
     );
@@ -138,7 +149,20 @@ export default function ReportChart({ result, viz, locale, baseCurrency = 'USD',
               {result.rows.map((r, i) => (
                 <tr key={i}>
                   {r.keys.map((k, j) => (
-                    <td key={j}>{fmt.value(result.dimensions[j], k, result.labels)}</td>
+                    <td key={j}>
+                      {j === 0 && onDrill ? (
+                        <button
+                          type="button"
+                          className="rb-drill-link"
+                          data-testid="rb-drill"
+                          onClick={() => onDrill(r.keys, r.keys.map((x, xi) => fmt.value(result.dimensions[xi], x, result.labels)).join(' · '))}
+                        >
+                          {fmt.value(result.dimensions[j], k, result.labels)}
+                        </button>
+                      ) : (
+                        fmt.value(result.dimensions[j], k, result.labels)
+                      )}
+                    </td>
                   ))}
                   <td className="num">{fmtValue(r.value)}</td>
                 </tr>
@@ -161,7 +185,7 @@ export default function ReportChart({ result, viz, locale, baseCurrency = 'USD',
 
   return (
     <>
-      <AggregateChart result={result} viz={viz} fmt={fmt} fmtValue={fmtValue} compact={compact} />
+      <AggregateChart result={result} viz={viz} fmt={fmt} fmtValue={fmtValue} compact={compact} onDrill={onDrill} />
       {truncated}
     </>
   );
@@ -173,13 +197,17 @@ function AggregateChart({
   fmt,
   fmtValue,
   compact,
+  onDrill,
 }: {
   result: ReportAggregateResult;
   viz: ReportViz;
   fmt: ReturnType<typeof useReportFormat>;
   fmtValue: (n: number) => string;
   compact: boolean;
+  onDrill?: (keys: Array<string | null>, label: string) => void;
 }) {
+  // Clave interna de un grupo o serie → valor de la dimensión (el nulo viaja como null).
+  const realKey = (k: string): string | null => (k === '\u0000' ? null : k);
   const [d0, d1] = result.dimensions;
   // Grupos (primera dimensión) y series (segunda), con las series fijas por orden de aparición.
   const { groups, series, cell } = useMemo(() => {
@@ -214,6 +242,10 @@ function AggregateChart({
       cell: (g: string, s: string) => map.get(`${g}|${s}`) ?? 0,
     };
   }, [result, d0, d1, fmt]);
+
+  // Grupo y, si hay segunda dimensión y la serie no es "Otros", también la serie.
+  const drillKeys = (g: string, sKey?: string): Array<string | null> =>
+    d1 && sKey && sKey !== '__other' ? [realKey(g), realKey(sKey)] : [realKey(g)];
 
   const legend =
     d1 && series.length > 1 ? (
@@ -255,11 +287,23 @@ function AggregateChart({
           })}
         </svg>
         <div className="rb-legend">
-          {slices.map((s, i) => (
-            <span key={s.key} className={`rb-legend-item ${s.key === '__other' ? 'rb-s7' : `rb-s${i + 1}`}`}>
-              <span className="rb-swatch" aria-hidden /> {s.label} · <span className="mono">{fmtValue(s.v)}</span>
-            </span>
-          ))}
+          {slices.map((s, i) =>
+            onDrill && s.key !== '__other' ? (
+              <button
+                key={s.key}
+                type="button"
+                className={`rb-legend-item rb-drill-item ${`rb-s${i + 1}`}`}
+                data-testid="rb-drill"
+                onClick={() => onDrill([realKey(s.key)], s.label)}
+              >
+                <span className="rb-swatch" aria-hidden /> {s.label} · <span className="mono">{fmtValue(s.v)}</span>
+              </button>
+            ) : (
+              <span key={s.key} className={`rb-legend-item ${s.key === '__other' ? 'rb-s7' : `rb-s${i + 1}`}`}>
+                <span className="rb-swatch" aria-hidden /> {s.label} · <span className="mono">{fmtValue(s.v)}</span>
+              </span>
+            ),
+          )}
         </div>
       </div>
     );
@@ -296,7 +340,29 @@ function AggregateChart({
             <g key={s.key} className={s.cls || 'rb-s1'}>
               <path className="rb-line-path" d={groups.map((g, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(cell(g.key, s.key))}`).join(' ')} vectorEffect="non-scaling-stroke" />
               {groups.map((g, i) => (
-                <circle key={g.key} className="rb-line-dot" cx={x(i)} cy={y(cell(g.key, s.key))} r={4} vectorEffect="non-scaling-stroke">
+                <circle
+                  key={g.key}
+                  className={`rb-line-dot${onDrill ? ' rb-drill-dot' : ''}`}
+                  cx={x(i)}
+                  cy={y(cell(g.key, s.key))}
+                  r={4}
+                  vectorEffect="non-scaling-stroke"
+                  {...(onDrill
+                    ? {
+                        role: 'button',
+                        tabIndex: 0,
+                        'data-testid': 'rb-drill',
+                        'aria-label': `${g.label}${s.label ? ` · ${s.label}` : ''}: ${fmtValue(cell(g.key, s.key))}`,
+                        onClick: () => onDrill(drillKeys(g.key, s.key), [g.label, s.label].filter(Boolean).join(' · ')),
+                        onKeyDown: (e: KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onDrill(drillKeys(g.key, s.key), [g.label, s.label].filter(Boolean).join(' · '));
+                          }
+                        },
+                      }
+                    : {})}
+                >
                   <title>{`${g.label}${s.label ? ` · ${s.label}` : ''}: ${fmtValue(cell(g.key, s.key))}`}</title>
                 </circle>
               ))}
@@ -321,8 +387,14 @@ function AggregateChart({
   return (
     <>
       <div className="rb-bars" data-testid="rb-bars">
-        {groups.map((g, gi) => (
-          <div key={g.key} className="rb-bar-row">
+        {groups.map((g, gi) => {
+          const Row = onDrill ? 'button' : 'div';
+          return (
+          <Row
+            key={g.key}
+            className={`rb-bar-row${onDrill ? ' rb-drill-row' : ''}`}
+            {...(onDrill ? { type: 'button' as const, 'data-testid': 'rb-drill', onClick: () => onDrill(drillKeys(g.key), g.label) } : {})}
+          >
             <span className="rb-bar-label" title={g.label}>
               {g.label}
             </span>
@@ -341,8 +413,9 @@ function AggregateChart({
               })}
             </span>
             <span className="rb-bar-value">{fmtValue(totals[gi])}</span>
-          </div>
-        ))}
+          </Row>
+          );
+        })}
       </div>
       {legend}
     </>

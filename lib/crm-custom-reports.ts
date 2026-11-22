@@ -503,6 +503,8 @@ export async function runReport(
     people?: Array<{ id: string; name: string }>;
     /** Quién lo corre: sus permisos por campo deciden qué campos propios se pueden usar. */
     viewer: FieldViewer;
+    /** Rango de un dashboard (YYYY-MM-DD, incluidos): se aplica al campo de fecha del reporte (reportDateField). */
+    range?: { from: string; to: string };
   },
   db: Db = getDb(),
 ): Promise<ReportResult> {
@@ -522,6 +524,11 @@ export async function runReport(
     if (!cond) continue;
     where.push(cond.sql);
     whereArgs.push(...cond.args);
+  }
+  const ranged = opts.range ? rangeCondition(config, defs, opts.range) : null;
+  if (ranged) {
+    where.push(ranged.sql);
+    whereArgs.push(...ranged.args);
   }
   const whereSql = where.join(' AND ');
   const fromArgs = [...from.args, ...whereArgs];
@@ -604,7 +611,144 @@ export async function runReport(
   }
 
   result.labels = await resolveLabels(workspaceId, result, labelFields, opts.people ?? [], db);
+  if (ranged) result.dateField = ranged.field;
   return result;
+}
+
+/**
+ * Campo de fecha al que un dashboard le aplica su rango: la primera dimensión
+ * de fecha; si no hay, la primera columna de fecha (tabla de registros); si no,
+ * el campo del primer filtro de fecha. Sin ninguno, el reporte no tiene fecha
+ * y el rango no se aplica. Pura (los campos propios se resuelven con defs).
+ */
+function reportDateField(config: ReportConfig, defs: CustomDefs): ResolvedField | null {
+  const keys = [
+    ...config.dimensions.map((d) => d.field),
+    ...(config.dimensions.length ? [] : config.columns),
+    ...config.filters.map((f) => f.f),
+  ];
+  for (const key of keys) {
+    let f: ResolvedField;
+    try {
+      f = resolveField(key, config, defs);
+    } catch {
+      continue;
+    }
+    if (f.type === 'date') return f;
+  }
+  return null;
+}
+
+function rangeCondition(config: ReportConfig, defs: CustomDefs, range: { from: string; to: string }): { sql: string; args: string[]; field: string } | null {
+  if (!ISO_DATE.test(range.from) || !ISO_DATE.test(range.to)) return null;
+  const f = reportDateField(config, defs);
+  if (!f) return null;
+  return { sql: `date(${f.expr}) BETWEEN date(?) AND date(?)`, args: [range.from, range.to], field: f.key };
+}
+
+/** Registros detrás de un segmento de un reporte propio (drill-down de un tile de dashboard). */
+export interface ReportDrillRow {
+  id: string;
+  object: ReportObject;
+  name: string;
+  amount: number | null;
+  status: string | null;
+  ownerId: string | null;
+  date: string | null;
+}
+
+const DRILL_LIMIT = 200;
+
+/**
+ * Registros del objeto principal del reporte que caen en un segmento: los
+ * mismos filtros, el mismo alcance y el mismo rango que el tile, más la
+ * igualdad en cada dimensión (keys[i] null = sin valor). Los campos propios
+ * ocultos para quien mira no existen (invalid_field), igual que en runReport.
+ */
+export async function drillReport(
+  workspaceId: string,
+  rawConfig: ReportConfig,
+  keys: Array<string | null>,
+  opts: { scope?: OwnerScope; viewer: FieldViewer; range?: { from: string; to: string }; locale?: string },
+  db: Db = getDb(),
+): Promise<{ object: ReportObject; rows: ReportDrillRow[]; total: number; truncated: boolean }> {
+  const config = reportConfigSchema.parse(rawConfig);
+  if (!configObjectsValid(config)) throw new ReportError('invalid_input');
+  const objects = usedObjects(config);
+  const defs = await loadCustomDefs(workspaceId, objects, opts.viewer, db);
+  // Igual que el tile: si el reporte usa en algún lado un campo oculto para quien mira, no hay drill.
+  for (const key of configFieldKeys(config)) resolveField(key, config, defs);
+  const from = fromClause(workspaceId, config, objects, opts.scope);
+  const base = SOURCE_OBJECT[config.source];
+  const where = [...from.where];
+  const whereArgs: Array<string | number> = [...from.whereArgs];
+  for (const rule of config.filters) {
+    const cond = filterCondition(resolveField(rule.f, config, defs), rule);
+    if (!cond) continue;
+    where.push(cond.sql);
+    whereArgs.push(...cond.args);
+  }
+  const ranged = opts.range ? rangeCondition(config, defs, opts.range) : null;
+  if (ranged) {
+    where.push(ranged.sql);
+    whereArgs.push(...ranged.args);
+  }
+  // Una clave por dimensión, como las devuelve runReport (mismo cálculo de la expresión).
+  if (keys.length > config.dimensions.length) throw new ReportError('invalid_input');
+  keys.forEach((k, i) => {
+    const d = config.dimensions[i];
+    const f = resolveField(d.field, config, defs);
+    const expr = f.type === 'date' ? bucketExpr(f.expr, d.bucket ?? 'month') : f.type === 'boolean' ? `COALESCE(${f.expr}, 0)` : `NULLIF(${f.expr}, '')`;
+    if (k === null) where.push(`${expr} IS NULL`);
+    else if (f.type === 'number' || f.type === 'boolean') {
+      if (!Number.isFinite(Number(k))) throw new ReportError('invalid_input');
+      where.push(`${expr} = ?`);
+      whereArgs.push(Number(k));
+    } else {
+      where.push(`${expr} = ?`);
+      whereArgs.push(k);
+    }
+  });
+  const marker = privateChatMarker(opts.locale ?? 'en').replace(/'/g, "''");
+  const pick: Record<ReportObject, { name: string; amount: string; status: string }> = {
+    deal: { name: 'd.name', amount: baseAmountSql('d'), status: '(SELECT xs.name FROM crm_stages xs WHERE xs.id = d.stage_id)' },
+    contact: { name: "COALESCE(NULLIF(TRIM(c.first_name || ' ' || c.last_name), ''), c.email)", amount: 'NULL', status: 'c.lifecycle_stage' },
+    company: { name: 'co.name', amount: 'NULL', status: 'co.lifecycle_stage' },
+    activity: {
+      name: `CASE WHEN EXISTS (SELECT 1 FROM groups_tasks zrt WHERE zrt.activity_id = a.id) THEN '${marker}' ELSE a.subject END`,
+      amount: 'NULL',
+      status: 'a.type',
+    },
+  };
+  const a = ALIAS[base];
+  const p = pick[base];
+  const inner = `SELECT DISTINCT ${a}.id AS id, ${p.name} AS name, ${p.amount} AS amount, ${p.status} AS status,
+      COALESCE(${a}.owner_id, ${a}.user_id) AS owner, ${a}.created_at AS dt
+    FROM ${from.sql} WHERE ${where.join(' AND ')}`;
+  const args = [...from.args, ...whereArgs];
+  const total = Number(((await db.prepare(`SELECT COUNT(*) AS n FROM (${inner})`).get(...args)) as { n: number }).n);
+  const rows = (await db.prepare(`${inner} ORDER BY dt DESC, id LIMIT ${DRILL_LIMIT}`).all(...args)) as Array<{
+    id: string;
+    name: string | null;
+    amount: number | null;
+    status: string | null;
+    owner: string | null;
+    dt: string | null;
+  }>;
+  return {
+    object: base,
+    total,
+    truncated: total > rows.length,
+    rows: rows.map((r) => ({
+      id: String(r.id),
+      object: base,
+      name: r.name ?? '',
+      amount: r.amount === null || r.amount === undefined ? null : Math.round(Number(r.amount) * 100) / 100,
+      status: r.status ?? null,
+      ownerId: r.owner ?? null,
+      date: r.dt ?? null,
+    })),
+  };
 }
 
 /** Nombres para valores con id (owner, etapa, pipeline). */

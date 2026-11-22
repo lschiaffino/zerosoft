@@ -395,6 +395,8 @@ export type ValueFormat = 'number' | 'money' | 'percent' | 'days' | 'moneyPerDay
 export interface DrillSegment {
   category?: string | null;
   series?: string | null;
+  /** Reportes propios: el valor de cada dimensión del segmento (null = sin valor). */
+  keys?: Array<string | null>;
 }
 
 export interface TileCategory {
@@ -418,7 +420,7 @@ export type TileResult =
       prev: number | null;
       format: ValueFormat;
       /** Detalle chico debajo del número (p. ej. "12 ganados de 30 cerrados"). */
-      detail?: { won?: number; closed?: number; count?: number };
+      detail?: { won?: number; closed?: number; count?: number; cycle?: number; rate?: number; avg?: number };
       drill: boolean;
     }
   | {
@@ -441,7 +443,7 @@ export type TileResult =
       sum: number | null;
     };
 
-export type DrillObject = 'deal' | 'contact' | 'activity';
+export type DrillObject = 'deal' | 'contact' | 'company' | 'activity';
 
 export interface DrillRow {
   id: string;
@@ -470,4 +472,5 @@ export interface DrillResult {
 export const drillSegmentSchema = z.object({
   category: z.string().max(80).nullish(),
   series: z.string().max(80).nullish(),
+  keys: z.array(z.string().max(500).nullable()).max(2).optional(),
 });

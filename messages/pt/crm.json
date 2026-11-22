@@ -5185,7 +5185,11 @@
       "formerMember": "Ex-integrante",
       "seeAll": "Ver todos",
       "drillHint": "Escolha uma barra ou um valor para ver os registros",
-      "perDayUnit": "/ dia"
+      "perDayUnit": "/ dia",
+      "vsPrevValue": "vs. {value} no período anterior",
+      "pts": "{value, plural, one {# ponto} other {# pontos}}",
+      "velocityDetail": "{count, plural, one {# deal aberto} other {# deals abertos}} · ciclo de {cycle} dias",
+      "velocityFormula": "{open} deals abertos × {rate}% de fechamento × {avg} de ticket médio ÷ ciclo de {cycle} dias"
     },
     "edit": {
       "title": "Editar relatório",
@@ -5331,7 +5335,8 @@
         "status": "Status",
         "type": "Tipo",
         "owner": "Proprietário",
-        "date": "Data"
+        "date": "Data",
+        "lifecycle": "Etapa do ciclo de vida"
       }
     },
     "empty": {
