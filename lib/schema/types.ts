@@ -487,6 +487,16 @@ export interface CrmDashboardRow {
   user_id: string;
   name: string;
   position: number;
+  /** Quién lo creó (NULL = el dueño del workspace). */
+  owner_id: string | null;
+  /** 'private' | 'team' | 'everyone'. */
+  visibility: string;
+  /** Equipo de ventas con el que se comparte (visibility 'team'). */
+  team_id: string | null;
+  /** Qué puede hacer el resto: 'view' | 'edit'. */
+  access: string;
+  /** Filtros guardados (JSON). */
+  filters: string;
   created_at: string;
   updated_at: string;
 }

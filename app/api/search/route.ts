@@ -26,6 +26,8 @@ import { searchRuns, sessionRunViewer } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
+import { searchDashboards } from '@/lib/crm-dashboards';
+import { sessionViewer } from '@/lib/crm-dashboards-session';
 import { searchMedia } from '@/lib/crm-media';
 import { searchRec } from '@/lib/rec';
 import { searchDesigns } from '@/lib/design';
@@ -329,6 +331,10 @@ async function getPrivate(req: NextRequest) {
 
   for (const r of reports) {
     items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });
+  }
+  // Dashboards del CRM que la persona ve, por nombre.
+  for (const d of await searchDashboards(sessionViewer(user), q)) {
+    items.push({ id: d.id, group: 'reports', label: d.name, meta: '', href: `/app/crm/dashboards?d=${d.id}` });
   }
 
   // Ajustes puntuales (la misma búsqueda que la caja de Ajustes): solo los que la persona puede abrir.

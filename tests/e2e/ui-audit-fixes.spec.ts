@@ -107,7 +107,8 @@ test('los registros desconocidos responden 404 y los válidos abren', async ({ r
 test('Vista previa de empresa: carga y atrapa el foco', async ({ page, request }) => {
   await request.post('/api/crm/companies', { data: { name: `Preview ${uid()}` } });
   await page.goto('/en/app/crm/companies', { waitUntil: 'networkidle' });
-  await page.locator('.preview-btn').first().click();
+  // Clic en el nombre (primera columna): abre la vista previa al costado.
+  await page.getByTestId('record-name').first().click();
   const panel = page.locator('.preview-panel');
   await expect(panel.locator('.preview-close')).toBeFocused();
   await expect(panel).not.toContainText(/couldn.t load|failed/i);

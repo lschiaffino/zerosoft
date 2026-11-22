@@ -731,13 +731,31 @@ function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
+/** Un grupo cuyo asunto todavía no llegó: las mismas palabras que Inbox (list.group en messages/<idioma>/inbox.json), nunca el id. No se guarda: el asunto lo completa. */
+const GROUP_CHAT_NAME: Record<string, string> = { es: 'Grupo', en: 'Group', pt: 'Grupo' };
+
 /** Nombre visible: el del grupo o contacto, o el teléfono con +. */
-export function chatDisplayName(row: Pick<ChatRow, 'name' | 'phone' | 'provider_chat_id'>): string {
-  // Un id "@lid" de WhatsApp no es un teléfono: no se muestra.
-  return row.name || (row.phone ? `+${row.phone}` : isLidJid(row.provider_chat_id) ? LID_CHAT_NAME.en : row.provider_chat_id);
+export function chatDisplayName(row: Pick<ChatRow, 'name' | 'phone' | 'provider_chat_id'>, locale = 'en'): string {
+  if (row.name) return row.name;
+  if (row.phone) return `+${row.phone}`;
+  const lang = locale.slice(0, 2);
+  // Un id "@lid" de WhatsApp no es un teléfono, ni el de un grupo un nombre: no se muestran.
+  if (isLidJid(row.provider_chat_id)) return LID_CHAT_NAME[lang] ?? LID_CHAT_NAME.en;
+  if (isGroupJid(row.provider_chat_id)) return GROUP_CHAT_NAME[lang] ?? GROUP_CHAT_NAME.en;
+  return row.provider_chat_id;
 }
 
-export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
+function unnamedGroup(row: Pick<ChatRow, 'name' | 'provider_chat_id'>): boolean {
+  return !row.name && isGroupJid(row.provider_chat_id);
+}
+
+/** El idioma de la persona (para los nombres genéricos de chats sin nombre). */
+async function viewerLocale(userId: string): Promise<string> {
+  const row = (await getDb().prepare('SELECT locale FROM users WHERE id = ?').get(userId)) as { locale?: string | null } | undefined;
+  return String(row?.locale ?? '') || 'en';
+}
+
+export function toChatDto(row: ChatRow, labels: LabelDto[] = [], locale?: string): ChatDto {
   return {
     id: row.id,
     numberId: row.number_id,
@@ -745,7 +763,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     // (listChats). La columna folder_id de antes no se lee.
     folderId: null,
     kind: row.kind,
-    name: chatDisplayName(row),
+    name: chatDisplayName(row, locale),
     phone: row.phone,
     description: row.description,
     inviteLink: row.invite_link,
@@ -808,7 +826,7 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
   return ((await getDb().prepare('SELECT * FROM groups_chats WHERE id = ? AND user_id = ?').get(id, ws)) as ChatRow) ?? null;
 }
 
-export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
+export async function getChat(ws: string, id: string, locale?: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
   if (row.kind === 'dm') {
@@ -822,7 +840,7 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     const { isVipPhone } = await import('./groups-vip');
     if (await isVipPhone(ws, row.phone)) row.vip_hit = 1;
   }
-  const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
+  const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? [], unnamedGroup(row) ? locale || (await viewerLocale(ws)) : undefined);
   // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
   if (row.kind === 'dm' && !dto.phone && isLidJid(row.provider_chat_id)) {
     const { phoneForLid } = await import('./wa-contacts');
@@ -871,6 +889,8 @@ export interface PropertyFilter {
 }
 
 export interface ChatQuery {
+  /** El idioma de la página (cookie NEXT_LOCALE): nombres genéricos de chats sin nombre. Sin él, el de la persona. */
+  locale?: string;
   filter?: ChatFilter;
   q?: string;
   labelId?: string;
@@ -1256,6 +1276,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const [myFolders, teamFolders] = rows.length
     ? await Promise.all([chatFoldersFor(ws, me, rows.map((r) => r.id)), teamFoldersFor(ws, rows.map((r) => r.id))])
     : [new Map<string, string>(), new Map<string, string>()];
+  const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
@@ -1263,7 +1284,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
       const sender = rest.join('|');
       const match = (r.match ?? snippets?.get(r.id)) ? named[i * 2 + 1] : null;
       return maskChat(query.viewer, {
-        ...toChatDto(r, labels.get(r.id) ?? []),
+        ...toChatDto(r, labels.get(r.id) ?? [], locale),
         folderId: myFolders.get(r.id) ?? null,
         teamFolderId: teamFolders.get(r.id) ?? null,
         lastDirection: dir || null,
@@ -3138,6 +3159,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           if (chat.kind === 'group' && chat.member_count === 0 && PROVIDER_CAPS[number.provider].groups) {
             if (await membersFetchAllowed(chat.id)) await syncMembers(ws, chat.id).catch(() => null);
           }
+          // Grupo sin asunto (llegó del historial o sin el nombre): se pide a WhatsApp ya, como en Inbox, en vez de
+          // esperar al repaso de contactos. Una vez cada MEMBERS_RETRY_SEC por chat, como los miembros.
+          if (chat.kind === 'group' && !chat.name) await fillGroupSubject(number, chat.id, chat.provider_chat_id).catch(() => null);
           // Quien escribe en un grupo es miembro: se guarda (o completa) su nombre de perfil.
           if (chat.kind === 'group' && !ev.fromMe && ev.senderPhone) {
             const r = await getDb()
@@ -3549,6 +3573,28 @@ export const MEMBERS_GAP_MS = 400;
 export async function membersFetchAllowed(chatId: string): Promise<boolean> {
   const { rateLimit } = await import('./rate-limit');
   return (await rateLimit(`groups-members:${chatId}`, 1, MEMBERS_RETRY_SEC)).ok;
+}
+
+/**
+ * El asunto de un grupo que llegó sin él, desde WhatsApp. Solo completa un
+ * nombre vacío (nunca pisa uno que llegó mientras tanto). Devuelve si lo puso.
+ */
+export async function fillGroupSubject(number: NumberRow, chatId: string, providerChatId: string): Promise<boolean> {
+  const provider = providerFor(number);
+  if (!provider.chatInfo) return false;
+  // Solo un grupo sin nombre de esta línea (nunca un chat de otra línea o de otro workspace).
+  const own = await getDb()
+    .prepare("SELECT 1 FROM groups_chats WHERE id = ? AND number_id = ? AND provider_chat_id = ? AND kind = 'group' AND name = ''")
+    .get(chatId, number.id, providerChatId);
+  if (!own) return false;
+  const { rateLimit } = await import('./rate-limit');
+  if (!(await rateLimit(`groups-subject:${chatId}`, 1, MEMBERS_RETRY_SEC)).ok) return false;
+  const info = await provider.chatInfo(providerChatId);
+  const name = (info?.name ?? '').trim().slice(0, 200);
+  if (!name) return false;
+  const r = await getDb().prepare("UPDATE groups_chats SET name = ? WHERE id = ? AND number_id = ? AND name = ''").run(name, chatId, number.id);
+  if (r.changes > 0) pokeLive('lines', number.user_id);
+  return r.changes > 0;
 }
 
 /** Vuelve a leer los miembros desde WhatsApp. */

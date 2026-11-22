@@ -440,7 +440,7 @@ test('CRM: tarea rápida con la tecla C', async ({ page }) => {
 
 test('CRM: los widgets del dashboard no se superponen', async ({ page }) => {
   await page.goto('/en/app/crm/dashboards');
-  const widgets = page.locator('.dash-widget');
+  const widgets = page.getByTestId('cdb-tile');
   await expect(widgets.first()).toBeVisible();
   const boxes = await widgets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
   for (let i = 0; i < boxes.length; i++) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getChat, getChatRow, listMembers, type ChatPatch } from '@/lib/groups';
-import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, strArr } from '@/lib/groups-http';
+import { chatGuard, groupsError, groupsSession, handleGroupsError, pageLocale, readJson, strArr } from '@/lib/groups-http';
 import { maskChat, maskMember } from '@/lib/groups-access';
 import { patchChatAs, removeChatAs } from '@/lib/groups-chat-ops';
 
@@ -24,7 +24,7 @@ export async function GET(req: Request, ctx: Ctx) {
       return handleGroupsError(err);
     }
   }
-  const [chat, row] = await Promise.all([getChat(s.ws, id), getChatRow(s.ws, id)]);
+  const [chat, row] = await Promise.all([getChat(s.ws, id, pageLocale(req)), getChatRow(s.ws, id)]);
   if (!chat || !row) return groupsError(404, 'not_found');
   const { withSameChatLines } = await import('@/lib/groups-same-chat');
   return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m, id)) });

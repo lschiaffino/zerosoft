@@ -61,8 +61,10 @@ export function useTableColumns(opts: {
   first: string;
   viewCols?: string;
   viewFreeze?: boolean;
+  /** Primera columna fija si nadie eligió (contactos y empresas, como HubSpot). */
+  defaultFreeze?: boolean;
 }) {
-  const { entity, columns, storageKey, first, viewCols, viewFreeze } = opts;
+  const { entity, columns, storageKey, first, viewCols, viewFreeze, defaultFreeze = false } = opts;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -84,7 +86,7 @@ export function useTableColumns(opts: {
     : stored.order?.length
       ? orderedColumns(stored.order, ids, first)
       : defaults;
-  const freeze = viewFreeze ?? stored.freeze ?? false;
+  const freeze = viewFreeze ?? stored.freeze ?? defaultFreeze;
   const cols = serializeColumns(order);
 
   useEffect(() => {
@@ -108,7 +110,7 @@ export function useTableColumns(opts: {
   }
 
   function reset() {
-    apply(defaults, false);
+    apply(defaults, defaultFreeze);
   }
 
   return { order, freeze, apply, reset, visible: new Set(order) };
