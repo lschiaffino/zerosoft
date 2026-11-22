@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Close, Search } from './icons';
 import { listTime } from './format';
+import SearchClear from '@/components/app/SearchClear';
 
 /**
  * Buscar mensajes en el chat abierto (Lines e Inbox), como la lupa de la
@@ -63,6 +64,7 @@ export function ChatSearchPanel(props: {
   onClose: () => void;
 }) {
   const t = useTranslations('groups.wa.chatSearch');
+  const tw = useTranslations('groups.wa');
   const locale = useLocale();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<ChatSearchHitView[]>([]);
@@ -178,8 +180,10 @@ export function ChatSearchPanel(props: {
             placeholder={t('placeholder')}
             aria-label={t('placeholder')}
             autoFocus
+            data-clearable=""
             data-testid="chat-search-input"
           />
+          <SearchClear shown={q !== ''} onClear={() => setQ('')} label={tw('clearSearch')} />
         </label>
       </div>
       <div className="wa-chat-search-body" aria-busy={state === 'loading' || undefined}>

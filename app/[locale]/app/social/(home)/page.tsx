@@ -42,18 +42,21 @@ export default async function SocialCalendarPage(props: { params: Promise<{ loca
         title={t('calendar.title')}
         description={t('calendar.description')}
         actions={
-          <Link className="btn btn-primary" href={`/app/social/posts/new${anchor !== today ? `?date=${anchor}` : ''}`}>
+          <Link className="btn btn-primary" href={`/app/social/posts/new${anchor !== today ? `?date=${anchor}` : ''}`} data-tour="social-new-post">
             {t('sidebar.newPost')}
           </Link>
         }
       />
+      {/* Anclajes del tour de Social (lib/tours/social.ts): Nueva publicación, el vacío (conectar cuentas) y la barra del calendario. */}
       {accounts.length === 0 && posts.length === 0 ? (
-        <EmptyState
-          title={t('calendar.emptyTitle')}
-          body={t('calendar.emptyBody')}
-          product="social"
-          action={{ label: t('calendar.emptyAction'), href: '/app/social/accounts' }}
-        />
+        <div data-tour="social-connect">
+          <EmptyState
+            title={t('calendar.emptyTitle')}
+            body={t('calendar.emptyBody')}
+            product="social"
+            action={{ label: t('calendar.emptyAction'), href: '/app/social/accounts' }}
+          />
+        </div>
       ) : (
         <CalendarView posts={posts} view={view} anchor={anchor} tz={tz} today={today} />
       )}

@@ -256,6 +256,9 @@
 .wa-head-who:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; border-radius: 4px; }
 .gr-inbox .gr-thread-title { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
 .gr-inbox .gr-thread-title h2 { font-size: var(--wa-fs-ui); line-height: 19px; font-weight: 500; color: var(--wa-text); }
+/* Un nombre muy largo entra en una línea con "…", en Lines y en Inbox y en todos los aspectos (no depende del orden de
+   las hojas ni de lo que cada aspecto le haga a los títulos). */
+.gr-inbox .wa-head .gr-thread-title h2 { min-width: 0; max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-head-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-small); line-height: 17px; color: var(--wa-text-2); }
 .wa-head-sub.is-typing, .gr-row-typing { color: var(--wa-primary); }
 .gr-row-typing { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1032,7 +1035,9 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .wa-emoji-tabs button { flex: 1; height: 32px; font-size: 1.125rem; background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; filter: grayscale(0.6); }
 .wa-emoji-tabs button[aria-selected='true'] { border-bottom-color: var(--wa-primary); filter: none; }
 .wa-emoji-tabs button:focus-visible { outline: 2px solid var(--wa-primary); }
-.wa-emoji-search { margin: 8px 2px 2px; height: 32px; padding: 0 10px; font: inherit; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
+.wa-emoji-search-box { position: relative; margin: 8px 2px 2px; }
+.wa-emoji-search-box .ui-search-clear { width: 28px; height: 28px; right: 2px; }
+.wa-emoji-search { width: 100%; margin: 0; height: 32px; padding: 0 10px; font: inherit; font-size: 0.875rem; color: var(--wa-text); background: var(--wa-search-bg); border: 0; border-radius: 8px; }
 .wa-emoji-search:focus-visible { outline: 2px solid var(--wa-primary); }
 .wa-emoji .wa-emoji-title { position: static; padding: 6px 4px 2px; }
 .wa-emoji .wa-emoji-grid { flex: 1; min-height: 0; overflow-y: auto; grid-template-columns: repeat(9, minmax(0, 1fr)); align-content: start; }
@@ -1087,7 +1092,7 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 
 /* Pestaña GIFs: búsqueda, categorías, mosaico de vistas previas animadas y la atribución del proveedor. */
 .wa-gif-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.wa-gif-panel .wa-emoji-search { margin: 2px 2px 6px; }
+.wa-gif-panel .wa-emoji-search-box { margin: 2px 2px 6px; }
 .wa-gif-cats { display: flex; gap: 6px; padding: 0 2px 6px; overflow-x: auto; scrollbar-width: none; }
 .wa-gif-cats::-webkit-scrollbar { display: none; }
 .wa-gif-cats button { flex: none; height: 28px; padding: 0 10px; font: inherit; font-size: 0.8125rem; color: var(--wa-text); background: var(--wa-search-bg); border: 1px solid transparent; border-radius: 6px; cursor: pointer; }

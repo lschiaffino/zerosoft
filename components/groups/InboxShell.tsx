@@ -1517,6 +1517,7 @@ export default function InboxShell({
               value={q}
               delay={250}
               clearOnEscape={false}
+              clearLabel={t('wa.clearSearch')}
               onCommit={(v) => {
                 setQ(v);
                 setDebounced(v.trim());

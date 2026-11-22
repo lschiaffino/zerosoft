@@ -1726,6 +1726,7 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "clearSearch": "Borrar búsqueda",
     "leftGroupBar": "No podés enviar mensajes a este grupo porque ya no sos miembro.",
     "chatSearch": {
       "open": "Buscar mensajes",

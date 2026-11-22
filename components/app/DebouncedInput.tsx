@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useRef, useState, type InputHTMLAttributes } from 'react';
+import SearchClear from './SearchClear';
 
 /**
  * Campo de búsqueda que guarda lo que se escribe en su propio estado y avisa
@@ -8,12 +9,13 @@ import { forwardRef, useEffect, useRef, useState, type InputHTMLAttributes } fro
  * vuelve a dibujar con cada tecla: solo cuando cambia la búsqueda de verdad.
  * `value` es la búsqueda vigente; si cambia desde afuera (limpiar, abrir una
  * lista guardada) el campo la toma. Escape la limpia en el acto (salvo
- * `clearOnEscape={false}`).
+ * `clearOnEscape={false}`). Con `clearLabel` suma la × propia para vaciarlo
+ * (components/app/SearchClear.tsx); el contenedor tiene que ser `position: relative`.
  */
 const DebouncedInput = forwardRef<
   HTMLInputElement,
-  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string; onCommit: (value: string) => void; delay?: number; clearOnEscape?: boolean }
->(function DebouncedInput({ value, onCommit, delay = 220, clearOnEscape = true, onKeyDown, ...rest }, ref) {
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string; onCommit: (value: string) => void; delay?: number; clearOnEscape?: boolean; clearLabel?: string }
+>(function DebouncedInput({ value, onCommit, delay = 220, clearOnEscape = true, clearLabel, onKeyDown, ...rest }, ref) {
   const [text, setText] = useState(value);
   const committed = useRef(value);
   const commit = useRef(onCommit);
@@ -33,21 +35,30 @@ const DebouncedInput = forwardRef<
     }, delay);
     return () => window.clearTimeout(id);
   }, [text, delay]);
-  return (
+  const clear = () => {
+    committed.current = '';
+    setText('');
+    commit.current('');
+  };
+  const input = (
     <input
       {...rest}
       ref={ref}
       value={text}
+      {...(clearLabel ? { 'data-clearable': '' } : {})}
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => {
-        if (clearOnEscape && e.key === 'Escape' && text) {
-          committed.current = '';
-          setText('');
-          commit.current('');
-        }
+        if (clearOnEscape && e.key === 'Escape' && text) clear();
         onKeyDown?.(e);
       }}
     />
+  );
+  if (!clearLabel) return input;
+  return (
+    <>
+      {input}
+      <SearchClear shown={text !== ''} onClear={clear} label={clearLabel} />
+    </>
   );
 });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import SearchClear from '@/components/app/SearchClear';
 import type { EmojiCategory } from './emoji-data';
 import StickerPanel, { type StickerTab } from './StickerPanel';
 import GifPanel, { type GifTab } from './GifPanel';
@@ -218,15 +219,19 @@ export default function EmojiPicker({
           </button>
         ))}
       </div>
-      <input
-        ref={searchRef}
-        className="wa-emoji-search"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={t('emojiSearch')}
-        aria-label={t('emojiSearch')}
-      />
+      <div className="wa-emoji-search-box">
+        <input
+          ref={searchRef}
+          className="wa-emoji-search"
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('emojiSearch')}
+          aria-label={t('emojiSearch')}
+          data-clearable=""
+        />
+        <SearchClear shown={q !== ''} onClear={() => setQ('')} label={t('clearSearch')} />
+      </div>
       <p className="wa-emoji-title">{results ? t('emojiResults') : t(`emojiSets.${active}`)}</p>
       <div className="wa-emoji-grid" ref={gridRef}>
         {!data && <p className="wa-emoji-empty">…</p>}

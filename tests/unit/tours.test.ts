@@ -135,6 +135,23 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.hiring, { audience: 'team', admin: false }))).not.toContain('settings');
   });
 
+  it('el tour de Social arranca en el calendario; quién publica es de equipo y de quien administra', () => {
+    expect(tourForPath('/app/social')?.key).toBe('social');
+    expect(tourForPath('/es/app/social/posts/post_abc123')?.key).toBe('social');
+    expect(tourForPath('/app/socialx')).toBeNull();
+    expect(atTourStart(TOURS.social, '/pt/app/social')).toBe(true);
+    expect(atTourStart(TOURS.social, '/app/social/posts/new')).toBe(false);
+    expect(atTourStart(TOURS.social, '/app/social/inbox')).toBe(false);
+    // Cuentas primero (el vacío o, con cuentas, el lateral); el lateral al final.
+    const steps = ids([...TOURS.social.steps]);
+    expect(steps).toEqual(['intro', 'accounts', 'newPost', 'calendar', 'posts', 'inbox', 'analytics', 'settings', 'done']);
+    expect(TOURS.social.steps.find((s) => s.id === 'accounts')?.targets).toEqual(['social-connect', 'social-accounts']);
+    expect(ids(stepsFor(TOURS.social, { audience: 'team', admin: true }))).toEqual(steps);
+    expect(ids(stepsFor(TOURS.social, { audience: 'solo', admin: true }))).not.toContain('settings');
+    expect(ids(stepsFor(TOURS.social, { audience: 'team', admin: false }))).not.toContain('settings');
+    expect(ids(stepsFor(TOURS.social, { audience: null, admin: true, touch: true }))).toEqual(['intro', 'accounts', 'newPost', 'calendar', 'posts', 'inbox', 'analytics', 'done']);
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');
