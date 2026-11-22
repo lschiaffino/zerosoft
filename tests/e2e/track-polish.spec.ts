@@ -111,8 +111,13 @@ test.describe('Track como Linear (pulido)', () => {
 
     // Archivar desde ⌘K: banner con Restaurar.
     await page.goto(`/en/app/track/issues/${issue.id}`);
-    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    await page.keyboard.press('ControlOrMeta+k');
+    // Recién llegada la página, ⌘K puede caer antes de que la paleta escuche: se espera a que abra con el campo enfocado
+    // (si no, la "A" de "Archive" va al atajo de asignar de la issue).
+    await expect(async () => {
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await page.keyboard.press('ControlOrMeta+k');
+      await expect(page.locator('.cmdk-input')).toBeFocused({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
     await page.keyboard.type('Archive issue');
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('track-archived-banner')).toBeVisible();
