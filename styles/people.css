@@ -109,6 +109,11 @@ a.ppl-rowtitle:not(:hover) {
   align-items: center;
   margin: 0 0 12px;
 }
+/* "Abrir el directorio" en el organigrama sin jefes: que se lea como link. */
+.ppl-note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .ppl-tabpanel {
   margin-top: 16px;
   min-width: 0;
