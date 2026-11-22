@@ -4639,6 +4639,7 @@
       "createdByMe": "Criadas por mim",
       "noMatch": "Nenhuma visualização corresponde a estes filtros.",
       "updated": "Atualizada"
-    }
+    },
+    "partialFilters": "Alguns filtros desta visualização não se aplicam a você."
   }
 }

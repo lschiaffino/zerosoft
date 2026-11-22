@@ -47,7 +47,7 @@ export async function loadListViews(
     if (def) return { key, label: t(`views.defaults.${def.labelKey}`), pinned, saved: false, canEdit: false };
     const v = byId.get(key);
     if (!v) return null;
-    return { key, label: v.name, pinned, saved: true, canEdit: v.canEdit, visibility: v.visibility, teamId: v.teamId };
+    return { key, label: v.name, pinned, saved: true, canEdit: v.canEdit, visibility: v.visibility, teamId: v.teamId, partial: v.partial };
   };
   const tabs = ctx.tabs.map((p) => item(p.key, !!p.pinned)).filter((x): x is ViewTabItem => !!x);
   const activeExtra = tabs.some((x) => x.key === ctx.activeKey) ? null : item(ctx.activeKey, false);

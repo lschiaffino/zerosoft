@@ -676,3 +676,72 @@ describe('ids de asociados y filtros por nombre de empresa', () => {
     expect(JSON.stringify(o)).toContain('custom.secret');
   });
 });
+
+// ---------- Industrias, vistas de quien se va y vistas con filtros ocultos ----------
+
+describe('índice de empresas, vistas guardadas y quien deja el workspace', () => {
+  it('el filtro de industria lista solo las de empresas que la persona ve', async () => {
+    const s = await setup('p2-industry');
+    await createCompany(s.ws, { name: 'Ind Owner', ownerId: s.ws, industry: 'Mining' });
+    await createCompany(s.ws, { name: 'Ind Member', ownerId: s.w.member.id, industry: 'Retail' });
+    await createCompany(s.ws, { name: 'Ind Friend', ownerId: s.w.friend.id, industry: 'Energy' });
+    const { listIndustries } = await import('@/lib/crm');
+    expect(await listIndustries(s.ws, [s.w.member.id])).toEqual(['Retail']);
+    expect(await listIndustries(s.ws, [s.w.friend.id])).toEqual(['Energy']);
+    expect(await listIndustries(s.ws, null)).toEqual(['Energy', 'Mining', 'Retail']);
+    expect(await listIndustries(s.w.stranger.id, null)).toEqual([]);
+  });
+
+  it('al sacar a una persona se van sus pestañas y vistas privadas, y no vuelven si la suman de nuevo', async () => {
+    const s = await setup('p2-views-removed');
+    const { createView, setTabs, sessionViewViewer } = await import('@/lib/crm-views');
+    const viewer = await sessionViewViewer(member(s));
+    const priv = await createView(viewer, { entity: 'contacts', name: 'Mine', query: { q: 'Zeta' }, visibility: 'private' });
+    const shared = await createView(viewer, { entity: 'contacts', name: 'Shared', query: { q: 'Zeta' }, visibility: 'everyone' });
+    if (!priv.ok || !shared.ok) throw new Error('view');
+    await setTabs(viewer, 'contacts', [{ key: priv.view.id }]);
+    const count = async (sql: string) => ((await getDb().prepare(sql).get(s.ws, s.w.member.id)) as { n: number }).n;
+    expect(await count('SELECT COUNT(*) AS n FROM crm_view_tabs WHERE user_id = ? AND person_id = ?')).toBe(1);
+
+    const { addMember, removeMember } = await import('@/lib/teams');
+    await removeMember(s.w.team.id, s.w.member.id);
+    expect(await count('SELECT COUNT(*) AS n FROM crm_view_tabs WHERE user_id = ? AND person_id = ?')).toBe(0);
+    expect(await count("SELECT COUNT(*) AS n FROM crm_saved_views WHERE user_id = ? AND person_id = ? AND visibility = 'private'")).toBe(0);
+    // La compartida es del workspace: queda.
+    expect(await count("SELECT COUNT(*) AS n FROM crm_saved_views WHERE user_id = ? AND person_id = ? AND visibility = 'everyone'")).toBe(1);
+    await addMember(s.w.team.id, s.w.member.id, 'member');
+    expect(await count('SELECT COUNT(*) AS n FROM crm_view_tabs WHERE user_id = ? AND person_id = ?')).toBe(0);
+  });
+
+  it('una vista compartida que filtra por un campo oculto avisa que esos filtros no se aplican y no se reescribe', async () => {
+    const s = await setup('p2-views-partial');
+    const { createView, getView, updateView, sessionViewViewer } = await import('@/lib/crm-views');
+    const ownerViewer = await sessionViewViewer(owner(s));
+    const filters = JSON.stringify({ v: 1, groups: [{ rules: [{ f: 'custom:secret', o: 'equals', v: 's-1' }] }] });
+    const made = await createView(ownerViewer, { entity: 'contacts', name: 'Gated', query: { filters }, visibility: 'everyone' });
+    if (!made.ok) throw new Error('view');
+    expect(made.view.partial).toBe(false);
+    const asMember = await getView(await sessionViewViewer(member(s)), made.view.id);
+    expect(asMember?.partial).toBe(true);
+    expect(JSON.stringify(asMember)).not.toContain('secret');
+    expect((await getView(await sessionViewViewer(admin(s)), made.view.id))?.partial).toBe(false);
+    // Un tier oculto solo para el equipo: el miembro de afuera lo ve entero.
+    const tier = await createView(ownerViewer, {
+      entity: 'contacts',
+      name: 'By tier',
+      query: { filters: JSON.stringify({ v: 1, groups: [{ rules: [{ f: 'custom:tier', o: 'equals', v: 'gold' }] }] }) },
+      visibility: 'everyone',
+    });
+    if (!tier.ok) throw new Error('view');
+    expect((await getView(await sessionViewViewer(member(s)), tier.view.id))?.partial).toBe(false);
+    expect((await getView(await sessionViewViewer(teamMember(s)), tier.view.id))?.partial).toBe(true);
+    expect(await getView(await sessionViewViewer(stranger(s)), made.view.id)).toBeNull();
+
+    // Quien la puede editar pero tiene el campo oculto no reescribe sus filtros (los borraría).
+    await getDb().prepare('UPDATE crm_saved_views SET person_id = ? WHERE id = ?').run(s.w.member.id, made.view.id);
+    const res = await updateView(await sessionViewViewer(member(s)), made.view.id, { query: { q: 'x' } });
+    expect(res).toEqual({ ok: false, error: 'forbidden' });
+    const renamed = await updateView(await sessionViewViewer(member(s)), made.view.id, { name: 'Renamed' });
+    expect(renamed.ok).toBe(true);
+  });
+});

@@ -1176,6 +1176,18 @@ export async function listCompanies(
   return { rows: await maskPrivateRefs(userId, rows, [PRIVATE_REFS.parent()], f.ownerScope, db), total };
 }
 
+/** Industrias de las empresas que la persona ve (opciones del filtro del índice). */
+export async function listIndustries(userId: string, ownerScope?: OwnerScope): Promise<string[]> {
+  const sc = scopeAnd('co', ownerScope);
+  const rows = (await getDb()
+    .prepare(
+      `SELECT DISTINCT co.industry FROM crm_companies co
+       WHERE co.user_id = ? AND co.industry != ''${sc.sql} ORDER BY co.industry COLLATE NOCASE`,
+    )
+    .all(userId, ...sc.args)) as Array<{ industry: string }>;
+  return rows.map((r) => r.industry);
+}
+
 export interface CompanyDetail {
   company: CrmCompanyRow;
   /** Contactos asociados (con label y si esta es su empresa primaria). */

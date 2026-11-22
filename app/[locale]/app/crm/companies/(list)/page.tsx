@@ -9,6 +9,7 @@ import {
   ACTIVITY_DATE_SORTS,
   LIFECYCLE_STAGES,
   listCompanies,
+  listIndustries,
   type CompanyFilter,
   parseCustom,
 } from '@/lib/crm';
@@ -94,15 +95,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       ? (sortParam as NonNullable<CompanyFilter['sort']>)
       : 'newest';
 
-  // Industrias presentes para el filtro (select).
-  const industries = (
-    (await getDb()
-      .prepare(
-        `SELECT DISTINCT industry FROM crm_companies
-         WHERE user_id = ? AND industry != '' ORDER BY industry COLLATE NOCASE`,
-      )
-      .all(user.id)) as Array<{ industry: string }>
-  ).map((r) => r.industry);
+  // Industrias presentes para el filtro (select): solo las de empresas que la persona ve.
+  const industries = await listIndustries(user.id, scope);
 
   const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
 

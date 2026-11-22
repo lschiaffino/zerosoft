@@ -4639,6 +4639,7 @@
       "createdByMe": "Created by me",
       "noMatch": "No view matches these filters.",
       "updated": "Updated"
-    }
+    },
+    "partialFilters": "Some filters in this view don't apply to you."
   }
 }
