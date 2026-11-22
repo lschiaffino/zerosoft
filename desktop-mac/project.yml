@@ -45,6 +45,10 @@ targets:
         ENABLE_TESTABILITY: NO
         # See App/Info.plist: zerosoft:// stays the Tauri app's until the Swift app replaces it.
         ZS_URL_SCHEME: zerosoft-mac
+        # Decision 7.1 (docs/desktop-swift.md, sections 5.1 and 7): auto-paste of dictated text
+        # behind a flag. YES in the direct build and in the Store submission; the Store
+        # configuration (block 10) sets NO if review rejects it, and the app then only copies.
+        ZS_AUTO_PASTE: "YES"
       configs:
         Debug:
           ENABLE_TESTABILITY: YES

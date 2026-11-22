@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The first-run window (block 5 of docs/desktop-swift.md, section 4.2): what the app does,
-/// notifications with the reason before the system prompt, open at login and the menu bar item
-/// (both optional, login off by default), then sign in. It opens by itself once; finishing or
+/// The first-run window (blocks 5 and 6 of docs/desktop-swift.md, sections 2.1 and 4.2): what
+/// the app does, the dictation shortcut with the microphone and paste permissions (each asked
+/// only from its button), notifications with the reason before the system prompt, open at login
+/// and the menu bar item (both optional, login off by default), then sign in. It opens by itself once; finishing or
 /// closing it counts as seen. Settings › General opens it again.
 @MainActor
 final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
@@ -13,7 +14,7 @@ final class OnboardingWindowController: NSWindowController, NSWindowDelegate {
     init(model: SettingsModel) {
         self.model = model
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 540, height: 440),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -81,7 +82,7 @@ struct OnboardingView: View {
             }
         }
         .padding(28)
-        .frame(width: 520, height: 380)
+        .frame(width: 540, height: 440)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("zs-ob-step-\(state.step.rawValue)")
     }
@@ -91,6 +92,41 @@ struct OnboardingView: View {
         case .welcome:
             OBTitle(model.t(.obWelcomeTitle))
             OBText(model.t(.obWelcomeBody))
+        case .dictation:
+            OBTitle(model.t(.obDictTitle))
+            OBText(model.t(.obDictBody, ["key": model.settings.shortcut.label]))
+                .accessibilityIdentifier("zs-ob-dict-body")
+            if model.shortcutTaken {
+                Text(model.t(.dictShortcutTaken)).foregroundStyle(.red)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.t(.permMic)).font(.headline)
+                switch model.microphone {
+                case .notDetermined:
+                    OBText(model.t(.obMicBody))
+                    Button(model.t(.micTurnOn)) { model.microphoneButton() }
+                        .accessibilityIdentifier("zs-ob-mic")
+                case .allowed:
+                    Text(model.t(.micAllowed)).accessibilityIdentifier("zs-ob-mic-state")
+                case .denied:
+                    Text(model.t(.micDenied)).accessibilityIdentifier("zs-ob-mic-state")
+                    Button(model.t(.notifOpenSystem)) { model.microphoneButton() }
+                }
+            }
+            .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.t(.permAccess)).font(.headline)
+                switch model.pasteAccess {
+                case .notAllowed:
+                    OBText(model.t(.obPasteBody))
+                    Button(model.t(.accessAllow)) { model.pasteButton() }
+                        .accessibilityIdentifier("zs-ob-paste")
+                case .allowed:
+                    Text(model.t(.accessAllowed)).accessibilityIdentifier("zs-ob-paste-state")
+                case .unavailable:
+                    OBText(model.t(.obCopyBody))
+                }
+            }
         case .notifications:
             OBTitle(model.t(.obNotifTitle))
             OBText(model.t(.obNotifBody))

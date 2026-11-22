@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: blocks 1 to 5 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 6 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -627,7 +627,7 @@ the app is in front, so a background page cannot pull the app over other apps. W
   removes it. The open server section reloads after a sign-in or sign-out from anywhere. Writes to
   the voice routes carry the server as `Origin`. Every path is in `desktop/privacy-facts.json`
   (a Swift test compares them).
-- The first-run window does not show the dictation shortcut yet (section 2.1): block 6 adds that
+- The first-run window did not show the dictation shortcut yet (section 2.1): block 6 added that
   step. It opens once, never in a UI test unless `-ZSOnboarding YES` asks for it; closing it counts
   as seen.
 - The menu bar item's menu: Open zerosoft, New Tab, New Window, the count of new items, Settings,
@@ -636,6 +636,61 @@ the app is in front, so a background page cannot pull the app over other apps. W
 - UI tests replace the login item and the notification permission with fakes (CI cannot answer
   the system prompt, and an ad hoc build must not add itself to the runner's login items); the
   mapping of the system states is unit tested.
+
+**Built in block 6** (`Sources/ZerosoftCore/Dictation.swift`, `DictationAudio.swift`,
+`DictationAPI.swift`, `PendingDictations.swift`, `PasteFlow.swift`; `App/Dictation/`): dictation
+in any app. The bridge `dictation` capability is on; the page still has no command that starts a
+dictation. Where the code differs from the table above or from the Tauri app:
+
+- **Paste path (decision 7.1, as planned).** Auto-paste sits behind the `ZSAutoPaste` flag in
+  Info.plist, from the `ZS_AUTO_PASTE` build setting in `project.yml`: `YES` for the direct build
+  and for the Store submission, and the Store configuration of block 10 sets `NO` if review
+  rejects it. The keystroke is posted only when the flag is on, the person's "Paste into the app
+  in front" switch is on (Settings › Dictation) and macOS approved it
+  (`CGPreflightPostEventAccess`). Otherwise the text is copied and the HUD says "Copied. Paste
+  with ⌘V" (the plan's copy-only baseline; no extra notification). Approval is asked for only
+  from the "Allow pasting" button (onboarding or Settings › Permissions):
+  `CGRequestPostEventAccess` the first time, System Settings › Accessibility after. No
+  Accessibility (AX) API is used. `scripts/check-signature.sh` checks the built app has the flag
+  on and a microphone usage string.
+- **Microphone.** `com.apple.security.device.audio-input` and `NSMicrophoneUsageDescription` are
+  the only additions (the signature check lists the entitlements). The prompt shows only from
+  "Turn on the microphone" (onboarding, Settings › Permissions) or the first dictation, which asks
+  and records nothing; the next one records. Capture is `AVAudioEngine`'s input node at the
+  device's rate, mixed to mono in memory and resampled to 16 kHz WAV when the dictation ends.
+- **Shortcut.** `RegisterEventHotKey` for the dictation shortcut (the Tauri list, default
+  Option+Space) and "paste last" (Control+Command+V); Esc is registered only while recording.
+  Hold, tap (hands-free) and both modes are the Tauri state machine (`DictationMachine`), with
+  key repeats ignored and a lost release not blocking the next press. A shortcut another app holds
+  shows "Pick another one" in Settings and the onboarding. Option-only shortcuts on macOS 15 are
+  still to be checked on a real Mac: the UI tests record whether the default registers on the
+  runner and use Control+Option+Space for the shortcut test.
+- **Clipboard.** The port of `clipboard.rs` keeps its rules, with two changes: the snapshot keeps
+  every item and type (Tauri kept text or an image), and "is our text still there" compares the
+  pasteboard's change count instead of reading the text back. The clipboard is read only when the
+  keystroke will be posted and "put back the clipboard" is on; whether macOS 26's paste prompt
+  shows for that read is still **(unconfirmed)**. Text the app writes is transient, concealed and
+  this Mac only.
+- **Saved dictations.** `retry.rs` ported with its limits (20, a week): `<id>.audio` and
+  `<id>.json`, mode 0600, in the container's `Application Support/zerosoft/pending/`, only for
+  failures where the audio was fine and only with "Keep dictations that could not be sent" on (on
+  by default, as the Tauri app and the privacy facts). They are sent only to the server they were
+  recorded for, and the text that comes back is copied, never pasted. No transcript is ever
+  written to disk; the last text stays in memory for "Paste last dictation".
+- **Settings and menus.** settings.json gains the shortcut and the mode (names from closed lists)
+  and four switches (`autoPaste`, `restoreClipboard`, `sendAppName`, `keepFailedDictations`).
+  Settings › Notifications became Permissions (notifications, microphone, Accessibility).
+  Settings › Dictation has the switches above the account's dictation settings; the app-name and
+  keep switches live there until block 9's Privacy page. History pastes back (zerosoft hides so
+  the focus returns to the previous app) and sends the saved dictations again. The menu bar item
+  gained Start/Stop dictation, the hold hint, Paste last dictation, Send saved dictations again
+  and Dictation history; its icon and tooltip change while the microphone is open. The
+  onboarding has a dictation step (shortcut, microphone, pasting) after the welcome.
+- **Not in this block.** Timings are logged as numbers (`os.Logger`, never text) instead of shown
+  in History; activity-log events for the microphone and paste wait for block 9 with the rest of
+  the log, and the Swift code paths in `desktop/privacy-facts.json` too. UI tests use a fake audio
+  source and fake microphone and Accessibility permissions (CI cannot grant either and must not
+  post keystrokes); the real capture and keystroke need a run on a real Mac before TestFlight.
 
 Parallel work: after block 2, blocks 4 and 5 can run at the same time; 6 and 7 at the same time
 after 5; block 10's signing setup any time after 1 once the owner's account exists. At most two blocks

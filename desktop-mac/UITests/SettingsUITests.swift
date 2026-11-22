@@ -188,6 +188,12 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(onboarding.waitForExistence(timeout: 20), "no onboarding window")
         waitLabel(app, "zs-test-notif", "notif asked=0")
         button(app, "zs-ob-next").click()
+        // Block 6: the dictation step shows the shortcut and explains the microphone before
+        // anything asks for it.
+        XCTAssertTrue(button(app, "zs-ob-mic").waitForExistence(timeout: 10), "no dictation step")
+        XCTAssertTrue(element(app, "zs-ob-dict-body").exists)
+        waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
+        button(app, "zs-ob-next").click()
         XCTAssertTrue(button(app, "zs-ob-notif").waitForExistence(timeout: 10))
         // Still not asked: the step explains first.
         waitLabel(app, "zs-test-notif", "notif asked=0")
@@ -207,8 +213,10 @@ final class SettingsUITests: XCTestCase {
         waitLabel(app, "zs-test-settings", "onboarded=true menubar=true")
         // Settings shows the same answer, without a second prompt.
         openSettings(app)
-        section(app, "notifications")
+        section(app, "permissions")
         XCTAssertTrue(text(app, "Notifications are on.").waitForExistence(timeout: 10))
+        // Nothing in the onboarding asked for the microphone.
+        waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
         waitLabel(app, "zs-test-notif", "notif asked=1 allowed")
     }
 
