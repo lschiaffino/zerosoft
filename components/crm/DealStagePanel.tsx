@@ -26,10 +26,14 @@ interface DealStagePanelProps {
   dealId: string;
   stages: StageOption[];
   currentStageId: string;
+  /** Vista previa: un select de etapa (no entra la barra de progreso en el panel angosto). */
+  variant?: 'progress' | 'select';
+  /** Después de mover (la vista previa vuelve a leer el deal). */
+  onMoved?: () => void;
 }
 
 /** Select de stage del pipeline del deal → POST /move (lost pide motivo, won confirma). */
-export default function DealStagePanel({ dealId, stages, currentStageId }: DealStagePanelProps) {
+export default function DealStagePanel({ dealId, stages, currentStageId, variant = 'progress', onMoved }: DealStagePanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [pending, setPending] = useState<StageOption | null>(null);
@@ -69,6 +73,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
     if (res && res.ok) {
       setPending(null);
       router.refresh();
+      onMoved?.();
       return;
     }
     const needsApproval = await readApproval(res);
@@ -138,6 +143,26 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
 
   return (
     <div className="deal-stage">
+      {variant === 'select' ? (
+        <select
+          className="select deal-stage-select"
+          value={pending?.id ?? currentStageId}
+          disabled={busy}
+          aria-label={t('deals.form.stage')}
+          data-testid="preview-stage"
+          onChange={(e) => onSelect(e.target.value)}
+          onKeyDown={(e) => {
+            // Esc solo cierra la lista, no la vista previa.
+            if (e.key === 'Escape') e.preventDefault();
+          }}
+        >
+          {stages.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      ) : (
       <div className="stage-row-wrap">
         <ol className={`stage-progress${closedLost ? ' is-lost' : ''}`} aria-label={t('deals.form.stage')}>
           {openStages.map((s, i) => {
@@ -185,6 +210,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
           )}
         </div>
       </div>
+      )}
       {pending?.is_lost ? (
         <div className="stage-confirm" role="group" aria-label={t('deals.lostDialog.title')}>
           <p className="ui-help">{t('deals.lostDialog.sub')}</p>
@@ -244,6 +270,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
           onDone={() => {
             setReq(null);
             router.refresh();
+            onMoved?.();
           }}
         />
       )}

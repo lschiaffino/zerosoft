@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
+import DateRangeFilter from './DateRangeFilter';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 import type { ExtraSort } from '@/lib/crm-list-sort';
 
@@ -27,6 +28,14 @@ interface DealsFiltersProps {
   stalled?: boolean;
   createdFrom: string;
   createdTo: string;
+  /** Fecha de cierre y última actividad (filtros rápidos, como en HubSpot). */
+  closeFrom?: string;
+  closeTo?: string;
+  activityFrom?: string;
+  activityTo?: string;
+  locale?: string;
+  /** Pipeline y cambio tabla/board: a la derecha de la búsqueda. */
+  trailing?: React.ReactNode;
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
@@ -59,6 +68,12 @@ export default function DealsFilters({
   stalled = false,
   createdFrom,
   createdTo,
+  closeFrom = '',
+  closeTo = '',
+  activityFrom = '',
+  activityTo = '',
+  locale = 'en',
+  trailing,
   custom,
   advanced,
   sort,
@@ -91,6 +106,10 @@ export default function DealsFilters({
       stalled: stalled ? '1' : undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      closeFrom: closeFrom || undefined,
+      closeTo: closeTo || undefined,
+      activityFrom: activityFrom || undefined,
+      activityTo: activityTo || undefined,
       filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       ...keep,
@@ -122,16 +141,22 @@ export default function DealsFilters({
     stalled,
     createdFrom,
     createdTo,
+    closeFrom,
+    closeTo,
+    activityFrom,
+    activityTo,
     ...Object.values(custom),
   ].filter(Boolean).length;
-  const moreActive = [source, createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
+  // Lo que vive en "Más filtros" (los rápidos quedan en la fila).
+  const moreActive = [priority, source, tag, stalled, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
   return (
-    <div className="filter-bar">
+    <div className="filter-bar deals-filter-bar">
       <div className="filter-toolbar">
         <form
           className="filter-search"
+          role="search"
           onSubmit={(e) => {
             e.preventDefault();
             go({ q: search.trim() || undefined });
@@ -146,105 +171,8 @@ export default function DealsFilters({
             aria-label={t('deals.table.searchPlaceholder')}
           />
         </form>
-        {layout === 'table' && (
-          <select
-            className={`filter-select${stageId ? ' on' : ''}`}
-            value={stageId}
-            onChange={(e) => go({ stageId: e.target.value || undefined })}
-            aria-label={t('deals.table.stage')}
-          >
-            <option value="">{t('deals.table.stage')}</option>
-            {stages.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <select
-          className={`filter-select${priority ? ' on' : ''}`}
-          value={priority}
-          onChange={(e) => go({ priority: e.target.value || undefined })}
-          aria-label={t('deals.table.priority')}
-        >
-          <option value="">{t('deals.table.priority')}</option>
-          {priorities.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <select
-          className={`filter-select${owner ? ' on' : ''}`}
-          value={owner}
-          onChange={(e) => go({ owner: e.target.value || undefined })}
-          aria-label={t('deals.filterOwner')}
-        >
-          <option value="">{t('deals.filterOwner')}</option>
-          {owners.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {tags.length > 0 && (
-          <select
-            className={`filter-select${tag ? ' on' : ''}`}
-            value={tag}
-            onChange={(e) => go({ tag: e.target.value || undefined })}
-            aria-label={t('tags.filter')}
-            data-testid="tag-filter"
-          >
-            <option value="">{t('tags.filter')}</option>
-            {tags.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          type="button"
-          className={`filter-more${stalled ? ' on' : ''}`}
-          onClick={() => go({ stalled: stalled ? undefined : '1' })}
-          aria-pressed={stalled}
-          data-testid="stalled-filter"
-        >
-          {t('deals.filterStalled')}
-        </button>
-        <button
-          type="button"
-          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
-          onClick={() => setMoreOpen((v) => !v)}
-          aria-expanded={moreOpen}
-        >
-          {t('common.moreFilters')}
-          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
-        </button>
-        {children}
-
         <div className="filter-right">
-          {activeFilters > 0 && (
-            <button
-              type="button"
-              className="filter-clear"
-              onClick={() =>
-                go({
-                  q: undefined,
-                  stageId: undefined,
-                  priority: undefined,
-                  source: undefined,
-                  owner: undefined,
-                  tag: undefined,
-                  stalled: undefined,
-                  createdFrom: undefined,
-                  createdTo: undefined,
-                })
-              }
-            >
-              {t('common.clear')}
-            </button>
-          )}
+          {trailing}
           {layout === 'table' && (
             <>
               <select
@@ -276,8 +204,119 @@ export default function DealsFilters({
         </div>
       </div>
 
+      <div className="filter-quick" role="group" aria-label={t('dateFilter.quickFilters')}>
+        <select
+          className={`filter-select${owner ? ' on' : ''}`}
+          value={owner}
+          onChange={(e) => go({ owner: e.target.value || undefined })}
+          aria-label={t('deals.filterOwner')}
+          data-testid="deals-owner-filter"
+        >
+          <option value="">{t('deals.filterOwner')}</option>
+          {owners.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <DateRangeFilter
+          label={t('dateFilter.created')}
+          kind="past"
+          from={createdFrom}
+          to={createdTo}
+          locale={locale}
+          testId="deals-created-filter"
+          onChange={(f, tt) => go({ createdFrom: f || undefined, createdTo: tt || undefined })}
+        />
+        <DateRangeFilter
+          label={t('dateFilter.close')}
+          kind="future"
+          from={closeFrom}
+          to={closeTo}
+          locale={locale}
+          testId="deals-close-filter"
+          onChange={(f, tt) => go({ closeFrom: f || undefined, closeTo: tt || undefined })}
+        />
+        <DateRangeFilter
+          label={t('dateFilter.activity')}
+          kind="past"
+          from={activityFrom}
+          to={activityTo}
+          locale={locale}
+          testId="deals-activity-filter"
+          onChange={(f, tt) => go({ activityFrom: f || undefined, activityTo: tt || undefined })}
+        />
+        {layout === 'table' && (
+          <select
+            className={`filter-select${stageId ? ' on' : ''}`}
+            value={stageId}
+            onChange={(e) => go({ stageId: e.target.value || undefined })}
+            aria-label={t('deals.table.stage')}
+          >
+            <option value="">{t('deals.table.stage')}</option>
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+          data-testid="deals-more-filters"
+        >
+          {t('common.moreFilters')}
+          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
+        </button>
+        {children}
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            className="filter-clear"
+            onClick={() =>
+              go({
+                q: undefined,
+                stageId: undefined,
+                priority: undefined,
+                source: undefined,
+                owner: undefined,
+                tag: undefined,
+                stalled: undefined,
+                createdFrom: undefined,
+                createdTo: undefined,
+                closeFrom: undefined,
+                closeTo: undefined,
+                activityFrom: undefined,
+                activityTo: undefined,
+              })
+            }
+          >
+            {t('common.clear')}
+          </button>
+        )}
+      </div>
+
       {moreOpen && (
         <div className="filter-more-panel">
+          <label className="filter-field">
+            <span className="label">{t('deals.table.priority')}</span>
+            <select
+              className={`filter-select${priority ? ' on' : ''}`}
+              value={priority}
+              onChange={(e) => go({ priority: e.target.value || undefined })}
+              aria-label={t('deals.table.priority')}
+            >
+              <option value="">{t('common.all')}</option>
+              {priorities.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="filter-field">
             <span className="label">{t('deals.filterSource')}</span>
             <select
@@ -293,24 +332,37 @@ export default function DealsFilters({
               ))}
             </select>
           </label>
-          <label className="filter-field">
-            <span className="label">{t('deals.filterCreatedFrom')}</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdFrom}
-              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
-            />
-          </label>
-          <label className="filter-field">
-            <span className="label">{t('deals.filterCreatedTo')}</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdTo}
-              onChange={(e) => go({ createdTo: e.target.value || undefined })}
-            />
-          </label>
+          {tags.length > 0 && (
+            <label className="filter-field">
+              <span className="label">{t('tags.filter')}</span>
+              <select
+                className={`filter-select${tag ? ' on' : ''}`}
+                value={tag}
+                onChange={(e) => go({ tag: e.target.value || undefined })}
+                aria-label={t('tags.filter')}
+                data-testid="tag-filter"
+              >
+                <option value="">{t('common.all')}</option>
+                {tags.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="filter-field">
+            <span className="label">{t('deals.filterStalledLabel')}</span>
+            <button
+              type="button"
+              className={`filter-more${stalled ? ' on' : ''}`}
+              onClick={() => go({ stalled: stalled ? undefined : '1' })}
+              aria-pressed={stalled}
+              data-testid="stalled-filter"
+            >
+              {t('deals.filterStalled')}
+            </button>
+          </div>
           {customFields.map((cf) => (
             <label key={cf.name} className="filter-field">
               <span className="label">{cf.label}</span>

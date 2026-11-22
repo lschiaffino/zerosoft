@@ -484,8 +484,9 @@ const parity: ProductParity = {
     {
       id: 'record-preview',
       area: 'record',
-      label: { en: 'Preview a record in a side panel from the table', es: 'Vista previa de un registro en un panel lateral desde la tabla', pt: 'Prévia de um registro em um painel lateral a partir da tabela' },
-      status: 'have',
+      label: { en: 'Preview a record in a side panel and edit it there', es: 'Vista previa de un registro en un panel lateral, editable ahí', pt: 'Prévia de um registro em um painel lateral, editável ali' },
+      detail: { en: 'Opens from the contacts, companies and deals tables, the deal board and the work queue. Properties are edited in place with the same field permissions as the record page, the deal stage changes from the panel, and it lists the associated records with Open record at the bottom. Missing: choosing which properties and cards the preview shows, and logging activities from it', es: 'Se abre desde las tablas de contactos, empresas y deals, el board de deals y la cola de trabajo. Las propiedades se editan ahí con los mismos permisos por campo que la ficha, la etapa del deal cambia desde el panel, y lista los registros asociados con Abrir registro abajo. Falta: elegir qué propiedades y tarjetas muestra, y registrar actividades desde ahí', pt: 'Abre nas tabelas de contatos, empresas e negócios, no quadro de negócios e na fila de trabalho. As propriedades são editadas ali com as mesmas permissões por campo do registro, a etapa do negócio muda pelo painel, e lista os registros associados com Abrir registro embaixo. Falta: escolher quais propriedades e cartões a prévia mostra, e registrar atividades por ela' },
+      status: 'partial',
       competitorHas: true,
     },
     {
@@ -572,6 +573,7 @@ const parity: ProductParity = {
       id: 'quick-filters',
       area: 'index',
       label: { en: 'Quick filters above the table', es: 'Filtros rápidos sobre la tabla', pt: 'Filtros rápidos acima da tabela' },
+      detail: { en: 'Deals have owner, create date, close date and last activity as quick filters, with date presets and a custom range, on the table and the board', es: 'Los deals tienen propietario, fecha de creación, fecha de cierre y última actividad como filtros rápidos, con rangos rápidos y uno a medida, en la tabla y en el board', pt: 'Os negócios têm responsável, data de criação, data de fechamento e última atividade como filtros rápidos, com intervalos prontos e um personalizado, na tabela e no quadro' },
       status: 'have',
       competitorHas: true,
     },
@@ -610,8 +612,8 @@ const parity: ProductParity = {
       id: 'board-totals',
       area: 'index',
       label: { en: 'Stage totals and weighted amount on the board', es: 'Totales por etapa y monto ponderado en el tablero', pt: 'Totais por etapa e valor ponderado no quadro' },
-      detail: { en: 'Each column shows its deal count and total in the base currency. The weighted amount by stage probability is on the forecast and analytics pages, not on the board', es: 'Cada columna muestra su cantidad de deals y el total en la moneda base. El monto ponderado por probabilidad de etapa está en forecast y analítica, no en el tablero', pt: 'Cada coluna mostra a quantidade de negócios e o total na moeda base. O valor ponderado pela probabilidade da etapa está em forecast e análises, não no quadro' },
-      status: 'partial',
+      detail: { en: 'Each column shows its deal count, its total in the base currency and the amount weighted by the stage probability, and the board shows the open, total and weighted amounts of the pipeline', es: 'Cada columna muestra su cantidad de deals, su total en la moneda base y el monto ponderado por la probabilidad de la etapa, y el tablero muestra los montos abiertos, totales y ponderados del pipeline', pt: 'Cada coluna mostra a quantidade de negócios, o total na moeda base e o valor ponderado pela probabilidade da etapa, e o quadro mostra os valores abertos, totais e ponderados do pipeline' },
+      status: 'have',
       competitorHas: true,
     },
     {

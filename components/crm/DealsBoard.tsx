@@ -46,6 +46,8 @@ interface DealsBoardProps {
   priorities: Array<{ value: string; label: string }>;
   /** Ya no se usa (el alta inline sigue el formulario de alta); se acepta por compatibilidad. */
   sources?: Array<{ value: string; label: string }>;
+  /** Personas del workspace: el propietario en la card y en la vista previa. */
+  owners?: Array<{ value: string; label: string }>;
 }
 
 interface DragState {
@@ -111,7 +113,13 @@ function applyMove(cols: BoardStage[], dealId: string, stageId: string, beforeId
   });
 }
 
-export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities }: DealsBoardProps) {
+/** Iniciales para el avatar del propietario. */
+function ownerInitials(name: string): string {
+  const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·';
+}
+
+export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities, owners = [] }: DealsBoardProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [cols, setCols] = useState<BoardStage[]>(stages);
@@ -278,6 +286,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
   }, []);
 
   const priorityLabel = new Map(priorities.map((p) => [p.value, p.label]));
+  const ownerName = new Map(owners.map((o) => [o.value, o.label]));
 
   const fmtMoney = (amount: number, currency: string): string =>
     new Intl.NumberFormat(locale, {
@@ -594,7 +603,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       <p className="sr-only" role="status" aria-live="polite" data-testid="board-announce">
         {announce}
       </p>
-      <p id={`kb-hint-${pipelineId}`} className="muted kb-hint">
+      <p id={`kb-hint-${pipelineId}`} className="sr-only kb-hint">
         {t('deals.keyboard.hint')}
       </p>
       <nav className="kb-stagebar" aria-label={t('mobile.stages')}>
@@ -619,9 +628,19 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
           return (
             <div className="kb-col" key={col.stage.id} data-stage-col={col.stage.id}>
               <div className="kb-col-head">
-                <span className="kb-col-name">{col.stage.name}</span>
-                <span className="kb-col-stats">
-                  {col.count} · {fmtMoney(col.amount, baseCurrency)}
+                <span className="kb-col-title">
+                  <span className="kb-col-name">{col.stage.name}</span>
+                  <span className="kb-col-count num" aria-label={t('deals.totals.open')}>
+                    {col.count}
+                  </span>
+                </span>
+                <span className="kb-col-stats num">
+                  {fmtMoney(col.amount, baseCurrency)}
+                  {!closed && col.stage.probability > 0 && col.stage.probability < 100 && (
+                    <span className="kb-col-weighted">
+                      {t('deals.colWeighted', { amount: fmtMoney((col.amount * col.stage.probability) / 100, baseCurrency) })}
+                    </span>
+                  )}
                 </span>
               </div>
 
@@ -665,13 +684,17 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                       </span>
                     ) : null}
                     <div className="kb-card-foot">
-                      {deal.priority === 'high' && (
-                        <span className="badge prio-high">{priorityLabel.get(deal.priority) ?? deal.priority}</span>
-                      )}
                       {deal.close_date && (
                         <span className="kb-card-date" title={t('deals.table.closeDate')}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                            <rect x="3" y="5" width="18" height="16" rx="1" />
+                            <path d="M3 10h18M8 3v4M16 3v4" />
+                          </svg>
                           {fmtClose(deal.close_date)}
                         </span>
+                      )}
+                      {deal.priority === 'high' && (
+                        <span className="badge prio-high">{priorityLabel.get(deal.priority) ?? deal.priority}</span>
                       )}
                       {deal.ai_score != null && (
                         <span
@@ -685,6 +708,16 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                       {isDealRotting(deal.idle_days, col.stage) && (
                         <span className="kb-card-rotting" title={t('deals.rotting', { days: deal.idle_days ?? 0 })}>
                           {t('deals.rotting', { days: deal.idle_days ?? 0 })}
+                        </span>
+                      )}
+                      {deal.owner_id && ownerName.get(deal.owner_id) && (
+                        <span
+                          className="kb-card-owner"
+                          title={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
+                          aria-label={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
+                          data-testid="kb-card-owner"
+                        >
+                          {ownerInitials(ownerName.get(deal.owner_id)!)}
                         </span>
                       )}
                     </div>
@@ -842,7 +875,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       )}
 
       {previewId && (
-        <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+        <RecordPreview type="deal" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
       )}
 
       {approval && (

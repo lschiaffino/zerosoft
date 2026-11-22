@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
+import PropertiesPanel, { type PropField } from './PropertiesPanel';
+import DealStagePanel, { type StageOption } from './DealStagePanel';
+import { customFieldSections, customPropFields } from './customPropFields';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
-import { parseDbUtc } from '@/lib/utils';
+import { DEAL_TYPES, LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import type { CrmCustomFieldRow } from '@/lib/schema/types';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
 
@@ -24,9 +28,8 @@ interface PreviewContact {
   lifecycle_stage: string;
   lead_status: string;
   source: string;
+  owner_id: string | null;
   custom: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface PreviewCompany {
@@ -40,9 +43,9 @@ interface PreviewCompany {
   city: string;
   country: string;
   lifecycle_stage: string;
+  description?: string | null;
+  owner_id: string | null;
   custom: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface PreviewDeal {
@@ -54,41 +57,19 @@ interface PreviewDeal {
   priority: string;
   source: string;
   description: string;
-  lost_reason: string;
-  closed_at: string | null;
+  deal_type?: string | null;
+  next_step?: string | null;
+  stage_id: string;
+  pipeline_id: string;
+  owner_id: string | null;
   custom: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PreviewStage {
-  id: string;
-  name: string;
-  is_won: 0 | 1;
-  is_lost: 0 | 1;
-}
-
-interface PreviewPipeline {
-  id: string;
-  name: string;
-}
-
-interface TimelineItem {
-  id: string;
-  type: 'note' | 'task' | 'call' | 'meeting' | 'email';
-  subject: string;
-  body: string;
-  due_at: string | null;
-  created_at: string;
-  pinned: 0 | 1;
-  external?: boolean;
 }
 
 interface ContactPayload {
   contact: PreviewContact;
   company: PreviewCompany | null;
+  companies?: PreviewCompany[];
   deals: Array<PreviewDeal & { stage_name: string; pipeline_name: string }>;
-  lists: Array<{ id: string; name: string }>;
 }
 
 interface CompanyPayload {
@@ -99,102 +80,131 @@ interface CompanyPayload {
 
 interface DealPayload {
   deal: PreviewDeal;
-  stage: PreviewStage | null;
-  pipeline: PreviewPipeline | null;
+  pipeline: { id: string; name: string } | null;
   contacts: PreviewContact[];
   company: PreviewCompany | null;
+  companies?: PreviewCompany[];
 }
 
 type PreviewPayload = ContactPayload | CompanyPayload | DealPayload;
+type FieldDef = CrmCustomFieldRow & { access?: 'edit' | 'read' | 'hidden' };
 
 interface RecordPreviewProps {
   type: PreviewType;
   id: string;
   locale: string;
   onClose: () => void;
+  /** Personas del workspace: la propiedad Propietario se edita con esta lista (sin ella, no aparece). */
+  owners?: Array<{ value: string; label: string }>;
 }
 
-function isContactPayload(type: PreviewType, p: PreviewPayload): p is ContactPayload {
-  return type === 'contact';
-}
+const PLURAL: Record<PreviewType, 'contacts' | 'companies' | 'deals'> = {
+  contact: 'contacts',
+  company: 'companies',
+  deal: 'deals',
+};
 
-function isCompanyPayload(type: PreviewType, p: PreviewPayload): p is CompanyPayload {
-  return type === 'company';
-}
+/** Propiedades a la vista sin abrir "Ver todas" (como "Información clave" en HubSpot). */
+const KEY_PROPS: Record<PreviewType, string[]> = {
+  contact: ['email', 'phone', 'jobTitle', 'lifecycleStage', 'leadStatus', 'ownerId'],
+  company: ['domain', 'industry', 'phone', 'lifecycleStage', 'ownerId', 'city'],
+  deal: ['amount', 'closeDate', 'ownerId', 'priority', 'dealType', 'nextStep'],
+};
 
-function isDealPayload(type: PreviewType, p: PreviewPayload): p is DealPayload {
-  return type === 'deal';
-}
-
-function parseCustom(json: string): Record<string, unknown> {
+function parseCustom(json: string | undefined): Record<string, unknown> {
   try {
-    return JSON.parse(json) as Record<string, unknown>;
+    const v: unknown = JSON.parse(json || '{}');
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
   } catch {
     return {};
   }
 }
 
-function formatDate(iso: string, locale: string): string {
-  if (!iso) return '';
-  try {
-    // Fecha sin hora (close date): un día del calendario, no medianoche UTC.
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
-    }
-    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
-      parseDbUtc(iso),
-    );
-  } catch {
-    return iso;
-  }
-}
-
 function formatMoney(amount: number, currency: string, locale: string): string {
   try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: 0,
-    }).format(amount);
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(amount);
   } catch {
     return `${amount} ${currency}`;
   }
 }
 
-function contactName(c: PreviewContact): string {
+/** Fecha sin hora (close date): un día del calendario, no medianoche UTC. */
+function formatDay(day: string | null, locale: string): string {
+  if (!day) return '';
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${day.slice(0, 10)}T00:00:00Z`));
+  } catch {
+    return day;
+  }
+}
+
+function contactName(c: Pick<PreviewContact, 'first_name' | 'last_name' | 'email'>): string {
   return `${c.first_name} ${c.last_name}`.trim() || c.email || '—';
 }
 
-export default function RecordPreview({ type, id, locale, onClose }: RecordPreviewProps) {
+function initials(name: string): string {
+  const parts = name.replace(/[^\p{L}\p{N} ]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·';
+}
+
+/**
+ * Vista previa lateral de un registro (como la de HubSpot): propiedades
+ * editables en línea con los mismos permisos que la ficha (el servidor los
+ * aplica: PATCH /api/crm/<objeto>/<id>), asociaciones y "Abrir registro".
+ */
+export default function RecordPreview({ type, id, locale, onClose, owners = [] }: RecordPreviewProps) {
   const t = useTranslations('crm');
-  const plural = type === 'company' ? 'companies' : `${type}s`;
+  const plural = PLURAL[type];
+  const titleId = useId();
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
+  const [defs, setDefs] = useState<FieldDef[]>([]);
+  const [stages, setStages] = useState<StageOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  // Vuelve a leer el registro (después de guardar) sin mostrar "cargando".
+  const reload = useCallback(async () => {
+    const res = await fetch(`/api/crm/${plural}/${id}`, { cache: 'no-store' }).catch(() => null);
+    if (res?.ok) setPayload((await res.json()) as PreviewPayload);
+  }, [plural, id]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetch(`/api/crm/${plural}/${id}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!cancelled) {
-          setPayload(data);
-          setLoading(false);
-          if (!data) setError(true);
+    Promise.all([
+      fetch(`/api/crm/${plural}/${id}`, { cache: 'no-store' }).then((r) => (r.ok ? (r.json() as Promise<PreviewPayload>) : null)),
+      // Definiciones con el acceso de la persona: las ocultas no llegan, las de solo lectura vienen marcadas.
+      fetch(`/api/crm/custom-fields?entity=${plural}`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ rows: FieldDef[] }>) : { rows: [] }))
+        .catch(() => ({ rows: [] as FieldDef[] })),
+      type === 'deal'
+        ? fetch('/api/crm/pipelines')
+            .then((r) => (r.ok ? (r.json() as Promise<{ rows: Array<{ id: string; stages: StageOption[] }> }>) : { rows: [] }))
+            .catch(() => ({ rows: [] as Array<{ id: string; stages: StageOption[] }> }))
+        : Promise.resolve(null),
+    ])
+      .then(([data, fieldRows, pipelines]) => {
+        if (cancelled) return;
+        setPayload(data);
+        setDefs(fieldRows.rows ?? []);
+        if (data && pipelines && 'deal' in data) {
+          const p = pipelines.rows.find((x) => x.id === (data as DealPayload).deal.pipeline_id);
+          setStages(p?.stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost })) ?? []);
         }
+        setError(!data);
+        setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) {
-          setError(true);
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setError(true);
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [plural, id]);
+  }, [plural, id, type, attempt]);
 
   // Es un diálogo: el foco entra al abrir y vuelve a donde estaba al cerrar.
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -205,13 +215,20 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
     return () => previous?.focus?.();
   }, []);
 
-  // Cerrar con Escape.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        // Esc que ya usó otro (cancelar una edición, cerrar un diálogo encima) no cierra el panel.
+        if (e.defaultPrevented) return;
+        if (document.querySelector('dialog[open], .modal-overlay')) return;
+        onClose();
+        return;
+      }
       if (e.key !== 'Tab') return;
       // El foco no sale del diálogo.
-      const items = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex="0"]') ?? []);
+      const items = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, summary, [tabindex="0"]') ?? [],
+      );
       if (items.length === 0) return;
       const first = items[0];
       const last = items[items.length - 1];
@@ -229,308 +246,332 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
   }, [onClose]);
 
   const detailHref = `/app/crm/${plural}/${id}`;
+  const endpoint = `/api/crm/${plural}/${id}`;
+
+  const record = payload
+    ? type === 'contact'
+      ? (payload as ContactPayload).contact
+      : type === 'company'
+        ? (payload as CompanyPayload).company
+        : (payload as DealPayload).deal
+    : null;
+  const customJson = record?.custom;
+  const custom = useMemo(() => parseCustom(customJson), [customJson]);
+
+  const ownerOptions = owners;
+  const ownerField = (ownerId: string | null, label: string): PropField[] =>
+    ownerOptions.length
+      ? [{ key: 'ownerId', label, type: 'select', value: ownerId ?? '', options: ownerOptions, nullOption: true }]
+      : [];
+
+  const customFields = customPropFields(defs, custom, { yes: t('common.yes'), no: t('common.no'), locale, owners: ownerOptions });
+
+  function standardFields(): PropField[] {
+    if (!payload) return [];
+    if (type === 'contact') {
+      const c = (payload as ContactPayload).contact;
+      return [
+        { key: 'firstName', label: t('contacts.form.firstName'), type: 'text', value: c.first_name },
+        { key: 'lastName', label: t('contacts.form.lastName'), type: 'text', value: c.last_name },
+        { key: 'email', label: t('contacts.form.email'), type: 'text', value: c.email },
+        { key: 'phone', label: t('contacts.form.phone'), type: 'text', inputType: 'tel', value: c.phone, display: formatPhoneDisplay(c.phone) },
+        { key: 'jobTitle', label: t('contacts.form.jobTitle'), type: 'text', value: c.job_title },
+        {
+          key: 'lifecycleStage',
+          label: t('contacts.form.lifecycle'),
+          type: 'select',
+          value: c.lifecycle_stage,
+          options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+        },
+        {
+          key: 'leadStatus',
+          label: t('contacts.form.leadStatus'),
+          type: 'select',
+          value: c.lead_status,
+          options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+        },
+        ...ownerField(c.owner_id, t('contacts.form.owner')),
+        {
+          key: 'source',
+          label: t('contacts.form.source'),
+          type: 'select',
+          value: c.source,
+          // La API no acepta source vacío: '—' solo si ya está vacío.
+          options: [...(c.source === '' ? [{ value: '', label: '—' }] : []), ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) }))],
+        },
+        { key: 'website', label: t('contacts.form.website'), type: 'text', value: c.website },
+        { key: 'city', label: t('contacts.form.city'), type: 'text', value: c.city },
+        { key: 'country', label: t('contacts.form.country'), type: 'text', value: c.country },
+      ];
+    }
+    if (type === 'company') {
+      const c = (payload as CompanyPayload).company;
+      return [
+        { key: 'name', label: t('companies.form.name'), type: 'text', value: c.name },
+        { key: 'domain', label: t('companies.form.domain'), type: 'text', value: c.domain },
+        { key: 'industry', label: t('companies.form.industry'), type: 'text', value: c.industry },
+        { key: 'phone', label: t('companies.form.phone'), type: 'text', inputType: 'tel', value: c.phone, display: formatPhoneDisplay(c.phone) },
+        {
+          key: 'lifecycleStage',
+          label: t('companies.form.lifecycle'),
+          type: 'select',
+          value: c.lifecycle_stage,
+          options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+        },
+        ...ownerField(c.owner_id, t('companies.form.owner')),
+        { key: 'city', label: t('companies.form.city'), type: 'text', value: c.city },
+        { key: 'country', label: t('companies.form.country'), type: 'text', value: c.country },
+        { key: 'employees', label: t('companies.form.employees'), type: 'number', value: c.employees === null ? '' : String(c.employees) },
+        { key: 'website', label: t('companies.form.website'), type: 'text', value: c.website },
+        { key: 'description', label: t('companiesEnrich.description'), type: 'textarea', value: c.description ?? '' },
+      ];
+    }
+    const d = (payload as DealPayload).deal;
+    return [
+      { key: 'name', label: t('deals.form.name'), type: 'text', value: d.name },
+      { key: 'amount', label: t('deals.form.amount'), type: 'number', value: String(d.amount), display: formatMoney(d.amount, d.currency, locale) },
+      { key: 'closeDate', label: t('deals.form.closeDate'), type: 'date', value: d.close_date ?? '', display: formatDay(d.close_date, locale) || undefined, nullOption: true },
+      ...ownerField(d.owner_id, t('deals.form.owner')),
+      {
+        key: 'priority',
+        label: t('deals.form.priority'),
+        type: 'select',
+        value: d.priority,
+        options: PRIORITIES.map((v) => ({ value: v, label: t(`enums.priority.${v}`) })),
+      },
+      {
+        key: 'dealType',
+        label: t('deals.form.dealType'),
+        type: 'select',
+        value: d.deal_type ?? '',
+        options: [{ value: '', label: '—' }, ...DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) }))],
+      },
+      { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', value: d.next_step ?? '' },
+      {
+        key: 'source',
+        label: t('deals.form.source'),
+        type: 'select',
+        value: d.source,
+        options: [...(d.source === '' ? [{ value: '', label: '—' }] : []), ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) }))],
+      },
+      { key: 'currency', label: t('deals.form.currency'), type: 'text', value: d.currency },
+      { key: 'description', label: t('deals.form.description'), type: 'textarea', value: d.description },
+    ];
+  }
 
   // Pre-fill del booking: contacto directo, o primer contacto del deal.
   let prefillName: string | undefined;
   let prefillEmail: string | undefined;
-  if (payload && isContactPayload(type, payload)) {
-    const c = payload.contact;
+  if (payload && type === 'contact') {
+    const c = (payload as ContactPayload).contact;
     prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
     prefillEmail = c.email || undefined;
-  } else if (payload && isDealPayload(type, payload) && payload.contacts.length > 0) {
-    const c = payload.contacts[0];
+  } else if (payload && type === 'deal' && (payload as DealPayload).contacts.length > 0) {
+    const c = (payload as DealPayload).contacts[0];
     prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
     prefillEmail = c.email || undefined;
   }
 
   function renderHeader() {
     if (!payload) return null;
-    if (isContactPayload(type, payload)) {
-      const c = payload.contact;
-      return (
-        <div className="preview-header">
-          <h2 className="preview-title">{contactName(c)}</h2>
-          <div className="preview-badges">
-            {c.lifecycle_stage && (
-              <span className={`badge stage-${c.lifecycle_stage}`}>
-                {t(`enums.lifecycle.${c.lifecycle_stage}`)}
-              </span>
-            )}
-            {c.lead_status && <span className="badge">{t(`enums.leadStatus.${c.lead_status}`)}</span>}
-          </div>
-          <div className="preview-meta">
-            {c.email && (
-              <a href={`mailto:${c.email}`} className="preview-meta-item">
-                {c.email}
-              </a>
-            )}
-            {c.phone && (
-              <span className="preview-meta-item">
-                {formatPhoneDisplay(c.phone)} <PhoneTouch phone={c.phone} contactId={c.id} />
-              </span>
-            )}
-            {c.job_title && <span className="preview-meta-item muted">{c.job_title}</span>}
-            {(c.city || c.country) && (
-              <span className="preview-meta-item muted">{[c.city, c.country].filter(Boolean).join(', ')}</span>
-            )}
-          </div>
-        </div>
-      );
+    let title = '';
+    let lines: React.ReactNode[] = [];
+    if (type === 'contact') {
+      const c = (payload as ContactPayload).contact;
+      const company = (payload as ContactPayload).company;
+      title = contactName(c);
+      const role = [c.job_title, company?.name].filter(Boolean).join(' · ');
+      lines = [
+        role && <span key="role">{role}</span>,
+        c.email && (
+          <a key="email" href={`mailto:${c.email}`} className="preview-meta-link">
+            {c.email}
+          </a>
+        ),
+        c.phone && (
+          <span key="phone" className="preview-meta-phone">
+            {formatPhoneDisplay(c.phone)} <PhoneTouch phone={c.phone} contactId={c.id} />
+          </span>
+        ),
+      ];
+    } else if (type === 'company') {
+      const c = (payload as CompanyPayload).company;
+      title = c.name;
+      lines = [
+        c.domain && (
+          <a key="domain" href={`https://${c.domain}`} target="_blank" rel="noopener noreferrer" className="preview-meta-link">
+            {c.domain} <CrmIcon name="external" size={12} />
+          </a>
+        ),
+        [c.industry, [c.city, c.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ') && (
+          <span key="where">{[c.industry, [c.city, c.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}</span>
+        ),
+      ];
+    } else {
+      const p = payload as DealPayload;
+      title = p.deal.name;
+      lines = [
+        <span key="amount" className="preview-amount num">
+          {formatMoney(p.deal.amount, p.deal.currency, locale)}
+        </span>,
+        p.deal.close_date && (
+          <span key="close">
+            {t('deals.form.closeDate')}: {formatDay(p.deal.close_date, locale)}
+          </span>
+        ),
+      ];
     }
-    if (isCompanyPayload(type, payload)) {
-      const c = payload.company;
-      return (
-        <div className="preview-header">
-          <h2 className="preview-title">{c.name}</h2>
-          <div className="preview-badges">
-            {c.lifecycle_stage && (
-              <span className={`badge stage-${c.lifecycle_stage}`}>
-                {t(`enums.lifecycle.${c.lifecycle_stage}`)}
-              </span>
-            )}
-          </div>
-          <div className="preview-meta">
-            {c.domain && (
-              <a
-                href={`https://${c.domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="preview-meta-item"
-              >
-                {c.domain} <CrmIcon name="external" size={12} />
-              </a>
-            )}
-            {c.industry && <span className="preview-meta-item muted">{c.industry}</span>}
-            {c.employees !== null && (
-              <span className="preview-meta-item muted">{c.employees} employees</span>
-            )}
-            {(c.city || c.country) && (
-              <span className="preview-meta-item muted">{[c.city, c.country].filter(Boolean).join(', ')}</span>
-            )}
-          </div>
+    return (
+      <div className="preview-header">
+        <div className="preview-ident">
+          <span className={`preview-avatar preview-avatar-${type}`} aria-hidden="true">
+            {initials(title)}
+          </span>
+          <h2 className="preview-title" id={titleId}>
+            {title}
+          </h2>
         </div>
-      );
-    }
-    if (isDealPayload(type, payload)) {
-      const d = payload.deal;
-      return (
-        <div className="preview-header">
-          <h2 className="preview-title">{d.name}</h2>
-          <div className="preview-badges">
-            {payload.stage && (
-              <span
-                className={`badge${payload.stage.is_won ? ' stage-customer' : payload.stage.is_lost ? ' task-overdue' : ''}`}
-              >
-                {payload.stage.name}
-              </span>
-            )}
-            <span className={`badge prio-${d.priority}`}>{t(`enums.priority.${d.priority}`)}</span>
-          </div>
-          <div className="preview-meta">
-            <span className="preview-meta-item">{formatMoney(d.amount, d.currency, locale)}</span>
-            {payload.pipeline && (
-              <span className="preview-meta-item muted">{payload.pipeline.name}</span>
-            )}
-            {d.close_date && (
-              <span className="preview-meta-item muted">{formatDate(d.close_date, locale)}</span>
-            )}
-          </div>
-        </div>
-      );
-    }
-    return null;
+        <div className="preview-meta">{lines.filter(Boolean)}</div>
+      </div>
+    );
+  }
+
+  function renderStage() {
+    if (!payload || type !== 'deal') return null;
+    const p = payload as DealPayload;
+    if (!stages.length) return null;
+    return (
+      <div className="preview-stage">
+        <span className="preview-stage-label">
+          {p.pipeline?.name ? `${p.pipeline.name} · ` : ''}
+          {t('deals.form.stage')}
+        </span>
+        <DealStagePanel key={p.deal.stage_id} variant="select" dealId={p.deal.id} stages={stages} currentStageId={p.deal.stage_id} onMoved={reload} />
+      </div>
+    );
+  }
+
+  // Función de render (no componente): uno definido acá adentro se remontaría en cada render
+  // y la edición en curso de un campo se perdería.
+  function section(sid: string, title: string, count: number | undefined, children: React.ReactNode) {
+    return (
+      <details key={sid} className="preview-sec" open data-preview-section={sid}>
+        <summary className="preview-sec-head">
+          <svg className="preview-sec-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+          <span className="preview-sec-title">{title}</span>
+          {count !== undefined && <span className="preview-sec-count num">{count}</span>}
+        </summary>
+        <div className="preview-sec-body">{children}</div>
+      </details>
+    );
+  }
+
+  function assocList(items: Array<{ id: string; href: string; name: string; meta?: string }>, empty: string) {
+    if (!items.length) return <p className="muted preview-empty">{empty}</p>;
+    return (
+      <ul className="preview-list">
+        {items.map((it) => (
+          <li key={it.id}>
+            <Link href={it.href} className="preview-list-name">
+              {it.name}
+            </Link>
+            {it.meta && <span className="preview-list-meta">{it.meta}</span>}
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   function renderAssociations() {
     if (!payload) return null;
-    if (isContactPayload(type, payload)) {
+    const contactItem = (c: PreviewContact) => ({ id: c.id, href: `/app/crm/contacts/${c.id}`, name: contactName(c), meta: c.email || undefined });
+    const companyItem = (c: PreviewCompany) => ({ id: c.id, href: `/app/crm/companies/${c.id}`, name: c.name, meta: c.domain || undefined });
+    if (type === 'contact') {
+      const p = payload as ContactPayload;
+      const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
       return (
-        <div className="preview-section">
-          <h3 className="preview-section-title">{t('contacts.detail.deals')}</h3>
-          {payload.deals.length === 0 ? (
-            <p className="muted">{t('contacts.detail.noDeals')}</p>
-          ) : (
-            <ul className="preview-list">
-              {payload.deals.map((d) => (
-                <li key={d.id}>
-                  <Link href={`/app/crm/deals/${d.id}`} className="preview-list-name">
-                    {d.name}
-                  </Link>
-                  <span className="preview-list-meta">
-                    {d.stage_name} · {formatMoney(d.amount, d.currency, locale)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+        <>
+          {section('companies', t('deals.detail.companies'), companies.length,
+            assocList(companies.map(companyItem), t('deals.detail.noCompany')),
           )}
-          {payload.company && (
-            <>
-              <h3 className="preview-section-title">{t('contacts.detail.company')}</h3>
-              <Link href={`/app/crm/companies/${payload.company.id}`} className="preview-list-name">
-                {payload.company.name}
-              </Link>
-            </>
+          {section('deals', t('contacts.detail.deals'), p.deals.length,
+            assocList(
+              p.deals.map((d) => ({
+                id: d.id,
+                href: `/app/crm/deals/${d.id}`,
+                name: d.name,
+                meta: [d.stage_name, formatMoney(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
+              })),
+              t('contacts.detail.noDeals'),
+            ),
           )}
-        </div>
+        </>
       );
     }
-    if (isCompanyPayload(type, payload)) {
+    if (type === 'company') {
+      const p = payload as CompanyPayload;
       return (
-        <div className="preview-section">
-          <h3 className="preview-section-title">{t('companies.detail.contacts')}</h3>
-          {payload.contacts.length === 0 ? (
-            <p className="muted">{t('companies.detail.noContacts')}</p>
-          ) : (
-            <ul className="preview-list">
-              {payload.contacts.map((c) => (
-                <li key={c.id}>
-                  <Link href={`/app/crm/contacts/${c.id}`} className="preview-list-name">
-                    {contactName(c)}
-                  </Link>
-                  {c.email && <span className="preview-list-meta">{c.email}</span>}
-                </li>
-              ))}
-            </ul>
+        <>
+          {section('contacts', t('companies.detail.contacts'), p.contacts.length,
+            assocList(p.contacts.map(contactItem), t('companies.detail.noContacts')),
           )}
-          <h3 className="preview-section-title">{t('companies.detail.deals')}</h3>
-          {payload.deals.length === 0 ? (
-            <p className="muted">{t('companies.detail.noDeals')}</p>
-          ) : (
-            <ul className="preview-list">
-              {payload.deals.map((d) => (
-                <li key={d.id}>
-                  <Link href={`/app/crm/deals/${d.id}`} className="preview-list-name">
-                    {d.name}
-                  </Link>
-                  <span className="preview-list-meta">{formatMoney(d.amount, d.currency, locale)}</span>
-                </li>
-              ))}
-            </ul>
+          {section('deals', t('companies.detail.deals'), p.deals.length,
+            assocList(
+              p.deals.map((d) => ({ id: d.id, href: `/app/crm/deals/${d.id}`, name: d.name, meta: formatMoney(d.amount, d.currency, locale) })),
+              t('companies.detail.noDeals'),
+            ),
           )}
-        </div>
+        </>
       );
     }
-    if (isDealPayload(type, payload)) {
-      return (
-        <div className="preview-section">
-          <h3 className="preview-section-title">{t('deals.detail.contacts')}</h3>
-          {payload.contacts.length === 0 ? (
-            <p className="muted">{t('deals.detail.noContacts')}</p>
-          ) : (
-            <ul className="preview-list">
-              {payload.contacts.map((c) => (
-                <li key={c.id}>
-                  <Link href={`/app/crm/contacts/${c.id}`} className="preview-list-name">
-                    {contactName(c)}
-                  </Link>
-                  {c.email && <span className="preview-list-meta">{c.email}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-          {payload.company && (
-            <>
-              <h3 className="preview-section-title">{t('deals.detail.company')}</h3>
-              <Link href={`/app/crm/companies/${payload.company.id}`} className="preview-list-name">
-                {payload.company.name}
-              </Link>
-            </>
-          )}
-        </div>
-      );
-    }
-    return null;
-  }
-
-  function renderTimeline() {
-    if (!payload) return null;
-    let items: TimelineItem[] = [];
-    if (isContactPayload(type, payload)) {
-      // El payload no incluye timeline directamente; lo obtenemos vía fetch aparte si hiciera falta.
-      // Para mantener el preview ligero, mostramos deals + company arriba y dejamos timeline para el detalle.
-      return null;
-    }
-    if (isCompanyPayload(type, payload)) return null;
-    if (isDealPayload(type, payload)) return null;
-    if (items.length === 0) return null;
+    const p = payload as DealPayload;
+    const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
     return (
-      <div className="preview-section">
-        <h3 className="preview-section-title">{t('history.title')}</h3>
-        <ul className="preview-timeline">
-          {items.slice(0, 5).map((item) => (
-            <li key={item.id}>
-              <span className="preview-tl-type">{t(`enums.activityType.${item.type}`)}</span>
-              <span className="preview-tl-subject">{item.subject || '—'}</span>
-              <span className="preview-tl-date">{formatDate(item.created_at, locale)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <>
+        {section('contacts', t('deals.detail.contacts'), p.contacts.length,
+            assocList(p.contacts.map(contactItem), t('deals.detail.noContacts')),
+          )}
+        {section('companies', t('deals.detail.companies'), companies.length,
+            assocList(companies.map(companyItem), t('deals.detail.noCompany')),
+          )}
+      </>
     );
   }
 
   function renderProperties() {
     if (!payload) return null;
-    const custom = parseCustom(
-      isContactPayload(type, payload)
-        ? payload.contact.custom
-        : isCompanyPayload(type, payload)
-          ? payload.company.custom
-          : payload.deal.custom,
-    );
-    const entries: Array<{ label: string; value: string }> = [];
-    if (isContactPayload(type, payload)) {
-      const c = payload.contact;
-      entries.push(
-        { label: t('contacts.form.email'), value: c.email },
-        { label: t('contacts.form.phone'), value: c.phone },
-        { label: t('contacts.form.jobTitle'), value: c.job_title },
-        { label: t('contacts.form.source'), value: c.source ? t(`enums.source.${c.source}`) : '' },
-        { label: t('contacts.form.lifecycle'), value: t(`enums.lifecycle.${c.lifecycle_stage}`) },
-        { label: t('contacts.form.leadStatus'), value: t(`enums.leadStatus.${c.lead_status}`) },
-      );
-    } else if (isCompanyPayload(type, payload)) {
-      const c = payload.company;
-      entries.push(
-        { label: t('companies.form.domain'), value: c.domain },
-        { label: t('companies.form.industry'), value: c.industry },
-        { label: t('companies.form.phone'), value: c.phone },
-        { label: t('companies.form.website'), value: c.website },
-        { label: t('companies.form.lifecycle'), value: t(`enums.lifecycle.${c.lifecycle_stage}`) },
-      );
-    } else if (isDealPayload(type, payload)) {
-      const d = payload.deal;
-      entries.push(
-        { label: t('deals.form.amount'), value: formatMoney(d.amount, d.currency, locale) },
-        { label: t('deals.form.priority'), value: t(`enums.priority.${d.priority}`) },
-        { label: t('deals.form.source'), value: d.source ? t(`enums.source.${d.source}`) : '' },
-        { label: t('deals.form.closeDate'), value: d.close_date ? formatDate(d.close_date, locale) : '' },
-        { label: t('deals.form.description'), value: d.description },
-      );
-    }
-
-    const customEntries = Object.entries(custom).filter(([, v]) => v !== '' && v != null);
-
+    const std = standardFields();
+    const aboutTitle =
+      type === 'contact' ? t('contacts.detail.aboutSection') : type === 'company' ? t('companies.detail.aboutSection') : t('deals.detail.aboutSection');
+    const keys = KEY_PROPS[type].filter((k) => std.some((f) => f.key === k));
+    const customSections = customFieldSections(defs, customFields, t('preview.customProps'));
     return (
-      <div className="preview-section">
-        <h3 className="preview-section-title">{t('contacts.detail.properties')}</h3>
-        <dl className="preview-props">
-          {entries
-            .filter((e) => e.value)
-            .map((e) => (
-              <div key={e.label} className="preview-prop-row">
-                <dt className="preview-prop-label">{e.label}</dt>
-                <dd className="preview-prop-value">{e.value}</dd>
-              </div>
-            ))}
-          {customEntries.map(([k, v]) => (
-            <div key={k} className="preview-prop-row">
-              <dt className="preview-prop-label">{k}</dt>
-              <dd className="preview-prop-value">{String(v)}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <>
+        {section('about', aboutTitle, undefined, (
+          <PropertiesPanel
+            endpoint={endpoint}
+            fields={std}
+            custom={custom}
+            compactKeys={keys}
+            viewAllLabel={t('preview.allProps')}
+            optimistic
+            onSaved={() => void reload()}
+          />
+        ))}
+        {customSections.map((s) =>
+          section(s.id, s.title, undefined, (
+            <PropertiesPanel
+              endpoint={endpoint}
+              fields={customFields.filter((f) => s.keys.includes(f.key))}
+              custom={custom}
+              optimistic
+              onSaved={() => void reload()}
+            />
+          )),
+        )}
+      </>
     );
   }
 
@@ -542,37 +583,50 @@ export default function RecordPreview({ type, id, locale, onClose }: RecordPrevi
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={t('common.viewAll')}
+        aria-labelledby={payload ? titleId : undefined}
+        aria-label={payload ? undefined : t(`preview.kind.${type}`)}
+        data-testid="record-preview"
       >
         <div className="preview-head">
-          <button
-            ref={closeRef}
-            type="button"
-            className="icon-btn preview-close"
-            onClick={onClose}
-            aria-label={t('common.close')}
-          >
+          <span className="preview-kind">{t(`preview.kind.${type}`)}</span>
+          <button ref={closeRef} type="button" className="icon-btn preview-close" onClick={onClose} aria-label={t('common.close')}>
             <CrmIcon name="x" />
           </button>
         </div>
 
         <div className="preview-body">
-          {loading && <p className="muted">{t('common.saving')}</p>}
-          {error && <p className="form-error">{t('errors.generic')}</p>}
+          {loading && (
+            <div className="preview-loading" role="status" aria-label={t('record.loading')}>
+              <span className="preview-skel preview-skel-title" />
+              <span className="preview-skel" />
+              <span className="preview-skel preview-skel-short" />
+            </div>
+          )}
+          {!loading && error && (
+            <div className="preview-error" role="alert">
+              <p>{t('preview.loadError')}</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAttempt((n) => n + 1)}>
+                {t('preview.retry')}
+              </button>
+            </div>
+          )}
           {!loading && !error && payload && (
             <>
               {renderHeader()}
               <div className="preview-actions">
-                <Link href={detailHref} className="btn btn-solid btn-small">
-                  {t('common.viewAll')}
-                </Link>
                 <BookMeetingMenu name={prefillName} email={prefillEmail} locale={locale} />
               </div>
-              {renderAssociations()}
+              {renderStage()}
               {renderProperties()}
-              {renderTimeline()}
+              {renderAssociations()}
             </>
           )}
+        </div>
+
+        <div className="preview-foot">
+          <Link href={detailHref} className="btn btn-primary preview-open" data-testid="preview-open-record">
+            {t('preview.openRecord')}
+          </Link>
         </div>
       </aside>
     </div>

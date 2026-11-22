@@ -102,7 +102,7 @@ export default async function WorkQueuePage(props: QueuePageProps) {
           />
         }
       />
-      <WorkQueue key={key} tasks={tasks} locale={locale} timeZone={timeZone} />
+      <WorkQueue key={key} tasks={tasks} locale={locale} timeZone={timeZone} owners={members.map((m) => ({ value: m.user_id, label: m.name || m.email }))} />
     </div>
   );
 }
