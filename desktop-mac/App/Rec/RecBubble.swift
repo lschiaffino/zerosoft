@@ -128,7 +128,8 @@ private final class BubbleView: NSView {
         face.borderColor = NSColor.white.withAlphaComponent(0.85).cgColor
         face.borderWidth = 3
         layer?.addSublayer(face)
-        toolTip = Strings.text(.recBubble, lang)
+        // No tooltips: one would float over the bar next to the bubble. The panel and the
+        // buttons carry accessibility labels.
         for (b, name, id, action) in [
             (size, "arrow.up.left.and.arrow.down.right", "zs-recbubble-size", #selector(tapSize)),
             (hide, "eye.slash", "zs-recbubble-hide", #selector(tapHide)),
@@ -147,7 +148,6 @@ private final class BubbleView: NSView {
             addSubview(b)
         }
         hide.setAccessibilityLabel(Strings.text(.recHideCamera, lang))
-        hide.toolTip = Strings.text(.recHideCamera, lang)
         paintSize()
     }
 
@@ -166,7 +166,6 @@ private final class BubbleView: NSView {
         size.image = NSImage(systemSymbolName: large ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right", accessibilityDescription: nil)
         let text = Strings.text(large ? .recSmaller : .recBigger, lang)
         size.setAccessibilityLabel(text)
-        size.toolTip = text
     }
 
     override func layout() {
