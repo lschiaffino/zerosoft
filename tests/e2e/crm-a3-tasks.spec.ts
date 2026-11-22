@@ -159,6 +159,28 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
   });
 }
 
+test('el check de la fila es un círculo de 22px; en el teléfono se toca en 40px', async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const subject = `Send the proposal with the updated pricing table and the onboarding plan for the second quarter ${uid()}`;
+  await ok(request.post('/api/crm/activities', { data: { type: 'task', subject } }));
+  for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
+    await page.setViewportSize(viewport);
+    await page.goto('/en/app/crm/tasks', { waitUntil: 'networkidle' });
+    const check = row(page, subject).getByRole('button', { name: 'Complete' });
+    await expect(check).toBeVisible(NAV);
+    // clientWidth/Height es el círculo que se ve (sin el borde transparente del área táctil).
+    const box = await check.evaluate((el) => ({ w: el.clientWidth, h: el.clientHeight, ow: el.offsetWidth, oh: el.offsetHeight }));
+    // Un título largo de varias líneas no aplasta el círculo.
+    expect(box.w, name).toBeGreaterThanOrEqual(16);
+    expect(box.w, name).toBe(box.h);
+    expect(box.w, name).toBeLessThanOrEqual(24);
+    if (name === '390') {
+      expect(box.ow).toBeGreaterThanOrEqual(40);
+      expect(box.oh).toBeGreaterThanOrEqual(40);
+    }
+  }
+});
+
 test('la tabla de tareas se lee en los cinco aspectos, claro y oscuro', async ({ page, request, context }) => {
   test.setTimeout(240_000);
   await page.setViewportSize(DESKTOP);
