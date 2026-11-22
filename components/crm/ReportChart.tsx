@@ -324,7 +324,7 @@ function AggregateChart({
     const every = Math.max(1, Math.ceil(groups.length / (compact ? 4 : 8)));
     return (
       <>
-        <svg className="rb-line-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={fmt.fieldLabel(d0)} data-testid="rb-line">
+        <svg className="rb-line-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role={onDrill ? 'group' : 'img'} aria-label={fmt.fieldLabel(d0)} data-testid="rb-line">
           {[0, 1, 2, 3, 4].map((k) => {
             const v = min + (span * k) / 4;
             return (

@@ -132,6 +132,19 @@ describe('reportes propios: el rango del dashboard', () => {
     if (old?.kind !== 'custom') throw new Error('kind');
     expect(old.report.result.dateField).toBeUndefined();
 
+    // Un reporte que ya filtra su campo de fecha manda: el rango del dashboard no lo vacía.
+    const own = await dashboardWith(s, {
+      source: 'deals',
+      dimensions: [{ field: 'deal.created', bucket: 'month' }],
+      filters: [{ f: 'deal.created', o: 'last', v: '3650' }],
+      metric: { agg: 'count' },
+      viz: 'bar',
+    });
+    const ownTile = (await tile(owner(s), own.d.id, own.wid, { range: 'custom', from: '2020-01-01', to: '2020-01-31' })).tile;
+    expect(total(ownTile)).toBe(3);
+    if (ownTile?.kind !== 'custom') throw new Error('kind');
+    expect(ownTile.report.result.dateField).toBeUndefined();
+
     // Una tabla de registros usa su primera columna de fecha.
     const table = await dashboardWith(s, { source: 'deals', columns: ['deal.name', 'deal.created'], viz: 'table' });
     expect(total((await tile(owner(s), table.d.id, table.wid, { range: 'custom', from: '2020-01-01', to: '2020-01-31' })).tile)).toBe(0);
@@ -233,5 +246,14 @@ describe('velocidad de ventas', () => {
     expect(Math.round(t.detail?.cycle ?? 0)).toBe(40);
     // Antes: abiertos hace 30 días eran A y C (B no existía) → 2 × 50% × 1000 ÷ 10 = 100.
     expect(t.prev).toBe(100);
+
+    // El drill del período anterior lista los mismos abiertos que cuenta (A y C), no los de hoy.
+    const day = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+    const prevDrill = await json<DrillResult>(
+      await drillRoute.POST(send('POST', { dashboardId: d.id, widgetId: wid, filters: { range: 'custom', from: day(59), to: day(30) }, segment: {} })),
+    );
+    expect(prevDrill.rows.map((r) => r.name).sort()).toEqual(['A open', 'C won']);
+    const nowDrill = await json<DrillResult>(await drillRoute.POST(send('POST', { dashboardId: d.id, widgetId: wid, filters: { range: 'last_30' }, segment: {} })));
+    expect(nowDrill.rows.map((r) => r.name).sort()).toEqual(['A open', 'B open']);
   });
 });

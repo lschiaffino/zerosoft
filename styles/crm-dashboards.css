@@ -130,6 +130,7 @@
 .cdb-tile[data-size='small'] { grid-column: span 3; }
 .cdb-tile[data-size='wide'] { grid-column: span 12; }
 .cdb-tile.cdb-tile-kpi { height: auto; min-height: 164px; }
+.cdb-tile.cdb-tile-error, .cdb-tile.cdb-tile-custom:has(.rb-kpi) { height: auto; min-height: 164px; }
 .cdb-tile.is-dragged { opacity: 0.4; }
 .cdb-grid.is-dragging { cursor: grabbing; user-select: none; }
 .cdb-tile.drop-before::before, .cdb-tile.drop-after::after {

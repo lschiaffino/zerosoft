@@ -617,16 +617,12 @@ export async function runReport(
 
 /**
  * Campo de fecha al que un dashboard le aplica su rango: la primera dimensión
- * de fecha; si no hay, la primera columna de fecha (tabla de registros); si no,
- * el campo del primer filtro de fecha. Sin ninguno, el reporte no tiene fecha
- * y el rango no se aplica. Pura (los campos propios se resuelven con defs).
+ * de fecha o, en una tabla de registros, la primera columna de fecha. Si el
+ * reporte ya filtra ese campo por fecha (p. ej. "cierra en los próximos 90
+ * días"), manda su filtro y el rango no se aplica. Sin campo, tampoco.
  */
 function reportDateField(config: ReportConfig, defs: CustomDefs): ResolvedField | null {
-  const keys = [
-    ...config.dimensions.map((d) => d.field),
-    ...(config.dimensions.length ? [] : config.columns),
-    ...config.filters.map((f) => f.f),
-  ];
+  const keys = [...config.dimensions.map((d) => d.field), ...(config.dimensions.length ? [] : config.columns)];
   for (const key of keys) {
     let f: ResolvedField;
     try {
@@ -634,7 +630,7 @@ function reportDateField(config: ReportConfig, defs: CustomDefs): ResolvedField 
     } catch {
       continue;
     }
-    if (f.type === 'date') return f;
+    if (f.type === 'date') return config.filters.some((r) => r.f === f.key) ? null : f;
   }
   return null;
 }
@@ -705,7 +701,8 @@ export async function drillReport(
       where.push(`${expr} = ?`);
       whereArgs.push(Number(k));
     } else {
-      where.push(`${expr} = ?`);
+      // runReport devuelve cada clave como texto: un valor JSON numérico en un campo de texto también matchea.
+      where.push(`CAST(${expr} AS TEXT) = ?`);
       whereArgs.push(k);
     }
   });
