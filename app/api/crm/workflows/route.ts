@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
   const parsed = workflowCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const workflow = await createWorkflow(user.id, parsed.data, realUserId(user));
+  // Un workflow nuevo arranca sin reinscripción, como en HubSpot (los de antes de W1 la conservan).
+  const data = { ...parsed.data, settings: { reenroll: false, ...(parsed.data.settings ?? {}) } };
+  const workflow = await createWorkflow(user.id, data, realUserId(user));
   return NextResponse.json(workflow, { status: 201 });
 }

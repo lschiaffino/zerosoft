@@ -181,6 +181,10 @@ function safeString(v: unknown): string {
   return String(v);
 }
 
+function isObjectRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
 function toDbBool(v: boolean): 0 | 1 {
   return v ? 1 : 0;
 }
@@ -388,6 +392,22 @@ export async function updateWorkflow(
     }
 
     if (data.actions) {
+      // Las esperas retoman por posición: si la lista de acciones cambia, las
+      // inscripciones que esperan seguirían en otra acción (o en otra rama).
+      // Se cierran; guardar sin cambios (el editor manda todo) no las toca.
+      const before = (await tdb
+        .prepare('SELECT type, config FROM crm_workflow_actions WHERE workflow_id = ? ORDER BY position ASC')
+        .all(id)) as Array<{ type: string; config: string }>;
+      const sig = (list: Array<{ type: string; config: unknown }>) =>
+        JSON.stringify(list.map((a) => [a.type, typeof a.config === 'string' ? parseJsonObject(a.config) : a.config ?? {}]));
+      if (sig(before) !== sig(ordered(data.actions).map((a) => ({ type: a.type, config: a.config ?? {} })))) {
+        await tdb
+          .prepare(
+            `UPDATE crm_workflow_runs SET status = 'failed', finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}'
+             WHERE workflow_id = ? AND status = 'waiting'`,
+          )
+          .run(now(), id);
+      }
       await tdb.prepare('DELETE FROM crm_workflow_actions WHERE workflow_id = ?').run(id);
       const insAction = tdb.prepare(
         'INSERT INTO crm_workflow_actions (id, workflow_id, type, config, position) VALUES (?, ?, ?, ?, ?)',
@@ -1063,7 +1083,9 @@ async function executeAction(
         });
         const secret = await workflowWebhookSecret(userId, workflowId);
         const headers: Record<string, string> = { ...safeWebhookHeaders(cfg.headers) };
-        if (secret) headers['zerosoft-signature'] = signPayload(secret, body);
+        // GET no lleva cuerpo: se firma lo que de verdad sale (vacío).
+        const sent = method === 'GET' ? '' : body;
+        if (secret) headers['zerosoft-signature'] = signPayload(secret, sent);
         const res = await safeFetch(url, method === 'GET' ? { method, headers } : { method, headers, body });
         return { ok: res.ok, type: action.type, result: { status: res.status } };
       }
@@ -1325,6 +1347,13 @@ interface RunState {
   event: WorkflowEvent;
   branch: boolean | null;
   results: ActionResult[];
+  /**
+   * Cadena con la que empezó la inscripción (workflows ya corridos y
+   * profundidad). Se guarda en la espera y se restaura al retomar: si no, dos
+   * workflows con espera que se disparan entre sí (A crea un deal que
+   * dispara B, que crea uno que dispara A) no terminarían nunca.
+   */
+  chain?: { depth: number; seen: string[] };
 }
 
 /**
@@ -1360,7 +1389,7 @@ async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent):
        (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at)
        SELECT ?, ?, ?, ?, ?, ?, 'running', '{}', ?
        WHERE NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE ${same}
-                         AND (status = 'waiting' OR (status IN ('running', 'pending') AND started_at > ?)))
+                         AND (status = 'waiting' OR (status IN ('running', 'pending') AND COALESCE(resume_at, started_at) > ?)))
          AND (? = 1 OR NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE ${same}))
          AND (SELECT COUNT(*) FROM crm_workflow_runs WHERE ${same} AND started_at > ?) < ?`,
     )
@@ -1434,7 +1463,13 @@ async function executeRun(
       results.push({ ok: true, type: action.type, result: { minutes } });
       const next = actions[i + 1];
       if (!next) continue;
-      const nextState: RunState = { event, branch, results };
+      const store = chain.getStore();
+      const nextState: RunState = {
+        event,
+        branch,
+        results,
+        chain: { depth: store?.depth ?? 1, seen: [...new Set([...(store?.seen ?? []), workflow.id])] },
+      };
       await db
         .prepare(
           `UPDATE crm_workflow_runs SET status = 'waiting', resume_at = ?, next_position = ?, state = ?, steps = ?, output = ?
@@ -1585,6 +1620,13 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
   const db = getDb();
   const start = Date.now();
   const at = dbTime(new Date());
+  // Corridas que quedaron en 'running' (la función se cortó a mitad de camino): fallan para no colgarse para siempre.
+  await db
+    .prepare(
+      `UPDATE crm_workflow_runs SET status = 'failed', finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}'
+       WHERE status = 'running' AND COALESCE(resume_at, started_at) < ?`,
+    )
+    .run(at, dbTime(addMinutes(new Date(), -STUCK_RUN_MINUTES)));
   const rows = (await db
     .prepare(
       `SELECT r.id, r.user_id, r.workflow_id, r.next_position, r.state, r.steps FROM crm_workflow_runs r
@@ -1604,8 +1646,9 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
   for (const row of rows) {
     if (opts.budgetMs && Date.now() - start > opts.budgetMs) break;
     const claim = await db
-      .prepare("UPDATE crm_workflow_runs SET status = 'running' WHERE id = ? AND status = 'waiting' AND resume_at <= ?")
-      .run(row.id, at);
+      // resume_at pasa a ser la hora del claim: el guard de enroll la usa para saber que sigue activa.
+      .prepare("UPDATE crm_workflow_runs SET status = 'running', resume_at = ? WHERE id = ? AND status = 'waiting' AND resume_at <= ?")
+      .run(dbTime(new Date()), row.id, at);
     if (!claim.changes) continue;
     try {
       const workflow = await getWorkflow(row.user_id, row.workflow_id);
@@ -1620,6 +1663,7 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
       const state: RunState = {
         event,
         branch: typeof parsed.branch === 'boolean' ? parsed.branch : null,
+        chain: isObjectRecord(parsed.chain) ? (parsed.chain as RunState['chain']) : undefined,
         results: Array.isArray(parsed.results) ? (parsed.results as ActionResult[]) : [],
       };
       // Si el registro ya no existe (borrado o en la papelera), la inscripción termina.
@@ -1633,7 +1677,10 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
         }
       }
       const ctx = await loadContext(row.user_id, event);
-      await chain.run({ depth: 1, seen: new Set([workflow.id]) }, () =>
+      const saved = isObjectRecord(parsed.chain) ? parsed.chain : {};
+      const seen = Array.isArray(saved.seen) ? (saved.seen as unknown[]).map(safeString).filter(Boolean) : [];
+      const depth = Math.min(Math.max(Number(saved.depth) || 1, 1), MAX_CHAIN_DEPTH);
+      await chain.run({ depth, seen: new Set([...seen, workflow.id]) }, () =>
         executeRun(row.user_id, workflow, row.id, ctx, Number(row.next_position ?? 0), state, Number(row.steps ?? 0)),
       );
       resumed++;

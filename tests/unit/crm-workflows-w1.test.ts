@@ -288,6 +288,69 @@ describe('W1: esperas', () => {
     expect(out.results.map((r) => r.type)).toEqual(['create_task', 'delay', 'create_task']);
   });
 
+  it('dos workflows con espera que crean deals entre sí no hacen ping-pong después de retomar', async () => {
+    const a = await makeUser('w1-pingpong');
+    const p = await createPipeline(a.id, 'Sales');
+    const s = (await createStage(a.id, p.id, { name: 'New' })) as { id: string };
+    const make = (name: string) =>
+      createWorkflow(a.id, {
+        name,
+        settings: { reenroll: true },
+        triggers: [{ type: 'deal_created' }],
+        actions: [
+          { type: 'delay', config: { amount: 1, unit: 'minutes' } },
+          { type: 'create_deal', config: { name: `From ${name}`, pipelineId: p.id, stageId: s.id } },
+        ],
+      });
+    await make('A');
+    await make('B');
+    const countDeals = async () => ((await getDb().prepare('SELECT COUNT(*) AS n FROM crm_deals WHERE user_id = ?').get(a.id)) as { n: number }).n;
+    const { createDeal } = await import('@/lib/crm');
+    await createDeal(a.id, { name: 'Seed', pipelineId: p.id, stageId: s.id });
+    for (let i = 0; i < 4; i++) {
+      await getDb().prepare("UPDATE crm_workflow_runs SET resume_at = '2000-01-01 00:00:00' WHERE user_id = ? AND status = 'waiting'").run(a.id);
+      await resumeWaitingWorkflowRuns();
+    }
+    // Seed → A y B esperan y crean un deal cada uno → el otro se inscribe en ese deal (cadena {A, B}),
+    // espera y crea uno más → ahí los dos ya están en la cadena y termina: 1 + 2 + 2.
+    expect(await countDeals()).toBe(5);
+    const waiting = await getDb().prepare("SELECT COUNT(*) AS n FROM crm_workflow_runs WHERE user_id = ? AND status = 'waiting'").get(a.id);
+    expect((waiting as { n: number }).n).toBe(0);
+  });
+
+  it('cambiar las acciones cierra las inscripciones que esperan; guardar lo mismo no', async () => {
+    const a = await makeUser('w1-edit');
+    const actions = [
+      { type: 'delay' as const, config: { amount: 1, unit: 'days' } },
+      { type: 'create_task' as const, config: { subject: 'Later' } },
+    ];
+    const wf = await createWorkflow(a.id, { name: 'Edit', triggers: [{ type: 'contact_created' }], actions });
+    await createContact(a.id, { email: 'edit@w1.test' });
+    const { updateWorkflow } = await import('@/lib/crm-workflows');
+    await updateWorkflow(a.id, wf.id, { name: 'Edit 2', actions });
+    expect((await runs(a.id, wf.id))[0].status).toBe('waiting');
+    await updateWorkflow(a.id, wf.id, { actions: [actions[1], actions[0]] });
+    expect((await runs(a.id, wf.id))[0].status).toBe('failed');
+  });
+
+  it('una corrida colgada en running falla y no bloquea al registro', async () => {
+    const a = await makeUser('w1-stuck');
+    const wf = await createWorkflow(a.id, {
+      name: 'Stuck',
+      settings: { reenroll: true },
+      triggers: [{ type: 'contact_updated' }],
+      actions: [{ type: 'create_activity', config: { type: 'note', subject: 'n' } }],
+    });
+    const c = await createContact(a.id, { email: 'stuck@w1.test' });
+    await updateContact(a.id, c.id, { city: 'A' });
+    const [run] = await runs(a.id, wf.id);
+    await getDb().prepare("UPDATE crm_workflow_runs SET status = 'running', resume_at = '2000-01-01 00:00:00' WHERE id = ?").run(run.id);
+    await resumeWaitingWorkflowRuns();
+    expect((await runs(a.id, wf.id))[0].status).toBe('failed');
+    await updateContact(a.id, c.id, { city: 'B' });
+    expect(await runs(a.id, wf.id)).toHaveLength(2);
+  });
+
   it('si el registro se borra durante la espera, la inscripción termina sin correr nada más', async () => {
     const a = await makeUser('w1-delay-gone');
     const wf = await createWorkflow(a.id, {
@@ -464,7 +527,9 @@ describe('W1: privacidad', () => {
     session.user = asMember(w.owner, w.friend, 'admin');
     const created = await res(listRoute.POST(req('POST', payload)));
     expect(created.status).toBe(201);
-    const { id } = (await created.json()) as { id: string };
+    const { id, settings } = (await created.json()) as { id: string; settings: { reenroll: boolean } };
+    // Por la API un workflow nuevo arranca sin reinscripción.
+    expect(settings.reenroll).toBe(false);
 
     session.user = asMember(w.owner, w.member);
     expect((await res(itemRoute.PATCH(req('PATCH', { name: 'Hacked' }), params(id)))).status).toBe(403);

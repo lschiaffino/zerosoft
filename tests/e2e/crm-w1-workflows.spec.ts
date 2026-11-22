@@ -70,7 +70,8 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
       await enroll.getByRole('button', { name: 'Remove filter 1' }).click();
       await expect(enroll.getByTestId('workflow-filter')).toHaveCount(0);
 
-      await page.goto(`/en/app/crm/contacts/${contact.id}`);
+      // En el teléfono las tarjetas de asociaciones están en la pestaña Relacionado.
+      await page.goto(`/en/app/crm/contacts/${contact.id}${name === '390' ? '?tab=related' : ''}`);
       const card = page.getByTestId('record-workflows');
       await expect(card).toBeVisible(NAV);
       await expect(card.getByRole('link', { name: `Follow up ${tag}` })).toBeVisible();
