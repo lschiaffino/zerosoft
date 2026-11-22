@@ -164,6 +164,24 @@
 .ib-wa-badge { display: inline-flex; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; color: var(--wa-primary-ink); background: var(--wa-chip-on-bg); border-radius: var(--radius-1); }
 .ib-wa-about, .ib-wa-summary-text { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ib-wa-muted { margin: 0; font-size: var(--wa-fs-preview); color: var(--wa-text-2); }
+/* Nombre y descripción del grupo con su lápiz (components/inbox/wa/GroupInfoEdit.tsx). El lápiz está siempre: nada salta al pasar el mouse. */
+.ib-wa-editable { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.ib-wa-hero-name.ib-wa-editable { justify-content: center; align-items: center; max-width: 100%; }
+.ib-wa-editable > span, .ib-wa-editable > .ib-wa-about { min-width: 0; overflow-wrap: anywhere; }
+.ib-wa-editable-block { justify-content: space-between; }
+.ib-wa-edit-btn { --wa-btn: 32px; color: var(--wa-text-2); }
+.ib-wa-add-desc { padding: 0; font: inherit; font-size: var(--wa-fs-ui); color: var(--wa-primary-ink); text-align: start; background: none; border: 0; cursor: pointer; }
+.ib-wa-add-desc:hover { text-decoration: underline; }
+.ib-wa-add-desc:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 2px; }
+.ib-wa-edit-row { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; margin-top: 6px; }
+.ib-wa-edit-row.is-block { flex-direction: column; align-items: stretch; margin-top: 0; }
+.ib-wa-edit-input { flex: 1; min-width: 0; font-size: var(--wa-fs-ui); }
+textarea.ib-wa-edit-input { resize: vertical; min-height: 88px; }
+.ib-wa-edit-count { flex: none; font-size: var(--wa-fs-small, 0.75rem); color: var(--wa-text-2); font-variant-numeric: tabular-nums; }
+.ib-wa-edit-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ib-wa-edit-actions { display: inline-flex; flex: none; gap: 2px; }
+.ib-wa-edit-actions .wa-icon-btn { --wa-btn: 36px; }
+.ib-wa-edit-actions .is-primary { color: var(--wa-primary); }
 .ib-wa-summary .btn { align-self: flex-start; }
 .ib-wa-summary .ib-wa-card-title { color: var(--wa-primary-ink); }
 

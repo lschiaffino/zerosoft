@@ -277,6 +277,11 @@ export const CheckIcon = (p: P) => (
     <path d="m5 12.5 4.5 4.5L19 7.5" />
   </Svg>
 );
+export const PencilIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
+  </Svg>
+);
 export const UserPlus = (p: P) => (
   <Svg {...p}>
     <circle cx="10" cy="8.5" r="3.6" />
