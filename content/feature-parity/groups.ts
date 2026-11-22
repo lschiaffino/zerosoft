@@ -344,9 +344,9 @@ const parity: ProductParity = {
     }),
     row('leave-join', 'groups', ['Join by invite and leave a group', 'Entrar por invitación y salir de un grupo', 'Entrar por convite e sair de um grupo'], 'partial', {
       detail: [
-        'Join with the invite link, or with Join group on an invite card in a chat (after a confirmation), and the group arrives with its members; leaving keeps the history. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Entrar con el link de invitación, o con Unirme al grupo en la tarjeta de una invitación en un chat (después de confirmar), trae el grupo con sus miembros; salir conserva el historial. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Entrar com o link de convite, ou com Entrar no grupo no cartão de um convite numa conversa (depois de confirmar), traz o grupo com os membros; sair mantém o histórico. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Join with the invite link, or with Join group on an invite card in a chat (after a confirmation), and the group arrives with its members; leaving keeps the history read only, with "You left" and the WhatsApp notice in place of the message field (internal notes still work), and being removed from the phone does the same. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Entrar con el link de invitación, o con Unirme al grupo en la tarjeta de una invitación en un chat (después de confirmar), trae el grupo con sus miembros; salir conserva el historial de solo lectura, con "Saliste" y el aviso de WhatsApp en lugar del campo de mensaje (las notas internas siguen), y que te saquen desde el teléfono hace lo mismo. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Entrar com o link de convite, ou com Entrar no grupo no cartão de um convite numa conversa (depois de confirmar), traz o grupo com os membros; sair mantém o histórico somente leitura, com "Você saiu" e o aviso do WhatsApp no lugar do campo de mensagem (as notas internas continuam), e ser removido pelo celular faz o mesmo. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
 

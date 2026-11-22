@@ -1725,6 +1725,7 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "leftGroupBar": "No podés enviar mensajes a este grupo porque ya no sos miembro.",
     "chatSearch": {
       "open": "Buscar mensajes",
       "shortcut": "Ctrl+Mayús+F",

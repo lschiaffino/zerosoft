@@ -6,7 +6,7 @@ import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
 import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
-import { ArchiveIcon, Ban, Close, DocIcon, MuteIcon, Sparkle } from '@/components/groups/wa/icons';
+import { ArchiveIcon, Ban, Close, DocIcon, ExitIcon, MuteIcon, Sparkle } from '@/components/groups/wa/icons';
 import { fileSize, posterFrame } from '@/components/groups/wa/format';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
@@ -91,6 +91,8 @@ export default function ContactPanel({
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [muteOpen, setMuteOpen] = useState(false);
   // Un participante abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast });
@@ -108,6 +110,7 @@ export default function ContactPanel({
     setShared({});
     setSummary(null);
     setConfirmBlock(false);
+    setConfirmExit(false);
     void load('media');
     void load('starred');
     void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => r.ok && setSummary(r.data.summary));
@@ -139,6 +142,19 @@ export default function ContactPanel({
     if (!r.ok) onError(r.data.error ?? 'generic');
     else {
       onToast(on ? w('blocked', { name }) : w('unblocked', { name }));
+      onChanged();
+    }
+  };
+
+  // Salir del grupo, como en WhatsApp: el chat queda como historial de solo lectura.
+  const exitGroup = async () => {
+    setConfirmExit(false);
+    setExiting(true);
+    const r = await api(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'leave' } });
+    setExiting(false);
+    if (!r.ok) onError(r.data.error ?? 'generic');
+    else {
+      onToast(w('exitGroupDone'));
       onChanged();
     }
   };
@@ -451,6 +467,32 @@ export default function ContactPanel({
               ))}
             </div>
           )}
+          {group &&
+            thread.channel === 'whatsapp' &&
+            (thread.leftAt ? (
+              <p className="ib-wa-row ib-wa-left-note" data-testid="group-left-note">
+                {w('leftNote')}
+              </p>
+            ) : confirmExit ? (
+              <div className="ib-confirm" role="alertdialog" aria-label={w('exitGroupTitle', { name })}>
+                <p>{w('exitGroupBody')}</p>
+                <div className="ib-row">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmExit(false)}>
+                    {w('cancel')}
+                  </button>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => void exitGroup()} autoFocus data-testid="group-exit-confirm">
+                    {w('exitGroup')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="ib-wa-row ib-wa-action is-danger" onClick={() => setConfirmExit(true)} disabled={exiting} aria-busy={exiting || undefined} data-testid="group-exit">
+                <ExitIcon size={20} />
+                <span className="ib-wa-row-main">
+                  <span className="ib-wa-row-name">{w('exitGroup')}</span>
+                </span>
+              </button>
+            ))}
           {!group &&
             (confirmBlock ? (
               <div className="ib-confirm" role="alertdialog" aria-label={w('blockTitle', { name })}>
