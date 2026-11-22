@@ -63,6 +63,8 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
+import RecordWorkflows from '@/components/crm/RecordWorkflows';
+import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 import { maskDetailRefs } from '@/lib/crm-record-scope';
@@ -513,6 +515,9 @@ export default async function ContactDetailPage(props: {
   const firstOpenStage =
     defaultPipeline?.stages.find((s) => !s.is_won && !s.is_lost) ?? defaultPipeline?.stages[0];
 
+  // La persona ya ve el contacto (notFound arriba si no): sus inscripciones en workflows.
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'contact', contact.id);
+
   const right = (
     <>
       <RecordCard id="contact.ai" label={t('ai.summary.title')} bare>
@@ -638,6 +643,9 @@ export default async function ContactDetailPage(props: {
       </RecordCard>
       <RecordCard id="contact.track" label={t('record.cards.track')} bare>
         <CrmTrackRequests contactId={contact.id} locale={locale} />
+      </RecordCard>
+      <RecordCard id="contact.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
+        <RecordWorkflows enrollments={workflowEnrollments} />
       </RecordCard>
     </>
   );

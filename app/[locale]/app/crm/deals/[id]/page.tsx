@@ -56,6 +56,8 @@ import RecordTags from '@/components/crm/RecordTags';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
+import RecordWorkflows from '@/components/crm/RecordWorkflows';
+import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { parseDbUtc } from '@/lib/utils';
 import { maskDetailRefs } from '@/lib/crm-record-scope';
@@ -619,6 +621,9 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   );
 
   // ---------- Derecha: asociaciones ----------
+  // La persona ya ve el deal (notFound arriba si no): sus inscripciones en workflows.
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'deal', deal.id);
+
   const right = (
     <>
       <RecordCard id="deal.ai" label={t('ai.summary.title')} bare>
@@ -697,6 +702,9 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       </RecordCard>
 
       <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
+      <RecordCard id="deal.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
+        <RecordWorkflows enrollments={workflowEnrollments} />
+      </RecordCard>
     </>
   );
 

@@ -2929,6 +2929,26 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-config-branch { display: grid; grid-template-columns: 140px minmax(0, 1fr) 160px minmax(0, 1fr); gap: 12px; }
 .wf-config-url { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
 .wf-when { max-width: 260px; }
+/* Inscripción (W1): reinscripción, filtros y personas. */
+.wf-enroll { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wf-enroll-title { margin: 0; font-size: 0.875rem; font-weight: 600; }
+.wf-enroll > .btn { align-self: flex-start; }
+.wf-filters { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.wf-filter { align-items: end; }
+.wf-filter .wf-filter-remove { justify-self: start; }
+.wf-config-branch.wf-filter { grid-template-columns: 140px minmax(0, 1fr) 160px minmax(0, 1fr) auto; }
+.wf-people { margin: 0; padding: 0; border: 0; min-width: 0; }
+.wf-people-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; }
+.wf-people-list .ui-check { min-height: 32px; overflow-wrap: anywhere; }
+.wf-delay { display: grid; grid-template-columns: 110px 160px; gap: 12px; }
+.wf-secret { font-family: var(--font-data); }
+.wf-runs-record { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-runs-resume { white-space: nowrap; }
+/* Ficha: inscripciones del registro en workflows. */
+.crm-record-workflows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.crm-record-workflow { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; }
+.crm-record-workflow-name { min-width: 0; overflow-wrap: anywhere; font-size: 0.875rem; }
+.crm-record-workflow-meta { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--brand-gray-1); }
 .wf-empty[data-invalid] { color: var(--bad-ink); }
 .wf-table .ui-switch { font-size: 0.8125rem; }
 
@@ -3029,7 +3049,8 @@ td.crm-row-actions > * + * { margin-left: 4px; }
   .fb-field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .fb-label { grid-column: 1 / -1; }
   .fb-field-tools { justify-self: end; }
-  .wf-config-3, .wf-config-branch, .wf-config-url, .wf-templates { grid-template-columns: minmax(0, 1fr); }
+  .wf-config-3, .wf-config-branch, .wf-config-url, .wf-templates, .wf-config-branch.wf-filter { grid-template-columns: minmax(0, 1fr); }
+  .wf-filter { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
   .wf-type { max-width: none; }
   .wf-steps-btn span:last-child { font-size: 0.8125rem; }
 }

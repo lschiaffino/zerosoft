@@ -46,6 +46,8 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
+import RecordWorkflows from '@/components/crm/RecordWorkflows';
+import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { scopedCompanyRollup, visibleRecordIds } from '@/lib/crm-record-scope';
 import CompanyLogo from '@/components/crm/CompanyLogo';
@@ -519,6 +521,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   );
 
   // ---------- Derecha: asociaciones ----------
+  // La persona ya ve la empresa (notFound arriba si no): sus inscripciones en workflows.
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'company', company.id);
+
   const right = (
     <>
       <RecordCard id="company.ai" label={t('ai.summary.title')} bare>
@@ -633,6 +638,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       </RecordCard>
       <RecordCard id="company.track" label={t('record.cards.track')} bare>
         <CrmTrackRequests companyId={company.id} locale={locale} />
+      </RecordCard>
+      <RecordCard id="company.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
+        <RecordWorkflows enrollments={workflowEnrollments} />
       </RecordCard>
     </>
   );
