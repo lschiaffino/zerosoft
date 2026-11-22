@@ -8,6 +8,7 @@ import { checkApproval, getApproval } from '@/lib/crm-approvals';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope } from '@/lib/crm-visibility';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 
 import { listMembers } from '@/lib/teams';
 import type { SessionUser } from '@/lib/session';
@@ -36,6 +37,17 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const { stageId, lostReason } = parsed.data;
 
+  // Permisos por campo: las propiedades que completa la etapa pasan por las mismas reglas que el PATCH.
+  const fieldViewer = sessionFieldViewer(user);
+  const hiddenFields = await hiddenFieldsFor(fieldViewer, 'deals');
+  const visibleMissing = (keys: string[]) => keys.filter((k) => !k.startsWith('custom:') || !hiddenFields.has(k.slice(7)));
+  let payload = parsed.data;
+  if (payload.fields?.custom) {
+    const fp = await guardRecordCustomWrite(fieldViewer, 'deal', params.id, payload.fields.custom);
+    if (!fp.ok) return crmError(403, 'field_readonly');
+    payload = { ...payload, fields: { ...payload.fields, custom: fp.custom } };
+  }
+
   const detail = await getDeal(user.id, params.id);
   if (!detail) return notFound();
 
@@ -48,7 +60,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   // Pregunta previa de la UI (p. ej. antes del diálogo de ganado): qué pediría
   // la etapa, sin mover. Responde 200 para que el caso esperado no sea un error.
   if (parsed.data.dryRun) {
-    const missing = detail.deal.stage_id === stageId ? [] : await dealMissingForStage(user.id, detail.deal, stage);
+    const missing = detail.deal.stage_id === stageId ? [] : visibleMissing(await dealMissingForStage(user.id, detail.deal, stage));
     const check = detail.deal.stage_id === stageId ? null : await checkApproval(user.id, detail.deal, stageId, user.actingUser?.id ?? user.id);
     let approval: Record<string, unknown> | null = null;
     if (check?.needed) {
@@ -80,7 +92,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
 
   const result = await catchRef(
-    moveDealWithFields(user.id, params.id, parsed.data, user.actingUser?.email ?? user.email, user.actingUser?.id ?? user.id),
+    moveDealWithFields(user.id, params.id, payload, user.actingUser?.email ?? user.email, user.actingUser?.id ?? user.id),
   );
   if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
@@ -90,7 +102,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         {
           error: 'missing_required',
           stage: stage.name,
-          missing: await describeMissing(user.id, result.missing, await peopleOptions(user)),
+          missing: await describeMissing(user.id, visibleMissing(result.missing), await peopleOptions(user)),
         },
         { status: 422 },
       );
@@ -115,5 +127,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     }
     return result.reason === 'not_found' ? notFound() : crmError(400, 'invalid_stage');
   }
-  return NextResponse.json(result.deal);
+  return NextResponse.json(redactRow(result.deal, hiddenFields));
 }

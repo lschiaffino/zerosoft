@@ -48,5 +48,5 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return crmError(403, 'field_readonly');
   const lead = await catchRef(createLead(user.id, { ...parsed.data, custom: guard.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
   if (lead instanceof CrmRefError) return crmError(400, lead.code);
-  return NextResponse.json(lead, { status: 201 });
+  return NextResponse.json(redactRow(lead, await hiddenFieldsFor(sessionFieldViewer(user), 'leads')), { status: 201 });
 }

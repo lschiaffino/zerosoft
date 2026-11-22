@@ -5,7 +5,7 @@ import { createRecord, getObject, listRecords, objectEntity } from '@/lib/crm-ob
 import { parseFilterRules } from '@/lib/crm';
 import { objectRecordCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, pageParams, unauthorized } from '@/lib/crm-http';
-import { fieldAccessFor, guardCustomWrite, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, guardCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { filterTypeFor } from '@/lib/crm-custom-fields';
 
 export const runtime = 'nodejs';
@@ -54,5 +54,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     createRecord(user.id, id, { ...parsed.data, custom: guard.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }),
   );
   if (record instanceof CrmRefError) return crmError(400, record.code);
-  return NextResponse.json(record, { status: 201 });
+  return NextResponse.json(redactRow(record, await hiddenFieldsFor(sessionFieldViewer(user), objectEntity(id))), { status: 201 });
 }

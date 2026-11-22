@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope, visibleIds } from '@/lib/crm-visibility';
+import { hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { mergeCompanies } from '@/lib/crm-company-merge';
 import { contactMergeSchema } from '@/lib/crm-schema';
 import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -24,5 +25,6 @@ export async function POST(req: NextRequest) {
 
   const res = await mergeCompanies(user.id, keepId, dropId, user.actingUser?.email ?? user.email);
   if (!res.ok) return res.reason === 'same' ? crmError(400, 'invalid_input') : notFound();
-  return NextResponse.json(res.company);
+  // La fusión junta los campos propios de las dos: sin los que la persona tiene ocultos.
+  return NextResponse.json(redactRow(res.company, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')));
 }

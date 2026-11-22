@@ -1697,13 +1697,18 @@ export async function listDealsForBoard(
 ): Promise<BoardStage[]> {
   const db = getDb();
   const scope = ownerScopeSql('d', ownerScope);
+  // El pipeline tiene que ser del workspace (sus etapas no salen para otro).
   const stages = (await db
-    .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
-    .all(pipelineId)) as CrmStageRow[];
-  const deals = (await db
+    .prepare(
+      `SELECT s.* FROM crm_stages s JOIN crm_pipelines p ON p.id = s.pipeline_id
+       WHERE s.pipeline_id = ? AND p.user_id = ? ORDER BY s.position ASC`,
+    )
+    .all(pipelineId, userId)) as CrmStageRow[];
+  const rawDeals = (await db
     .prepare(
       `SELECT d.*,
-         c.id AS contact_id,
+         c.id AS contact_id, c.owner_id AS vis_contact_owner,
+         co.owner_id AS vis_company_owner, co.id AS vis_company_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
          (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
@@ -1721,7 +1726,20 @@ export async function listDealsForBoard(
        WHERE d.user_id = ? AND d.pipeline_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}
        ORDER BY d.position ASC`,
     )
-    .all(userId, pipelineId, ...scope.args)) as BoardDeal[];
+    .all(userId, pipelineId, ...scope.args)) as Array<
+    BoardDeal & { vis_contact_owner: string | null; vis_company_owner: string | null; vis_company_id: string | null }
+  >;
+  // La tarjeta no nombra un contacto o empresa que la persona no ve.
+  const deals: BoardDeal[] = rawDeals.map(({ vis_contact_owner, vis_company_owner, vis_company_id, ...d }) => {
+    const out = { ...d } as BoardDeal;
+    if (ownerScope && d.contact_id && !ownerScope.includes(vis_contact_owner ?? userId)) {
+      Object.assign(out, { contact_id: null, contact_name: null });
+    }
+    if (ownerScope && vis_company_id && !ownerScope.includes(vis_company_owner ?? userId)) {
+      Object.assign(out, { company_name: null });
+    }
+    return out;
+  });
   return stages.map((stage) => {
     const stageDeals = deals.filter((d) => d.stage_id === stage.id);
     return {
@@ -2845,14 +2863,19 @@ export async function listLists(userId: string, ownerScope?: OwnerScope): Promis
   const lists = (await db
     .prepare('SELECT * FROM crm_lists WHERE user_id = ? ORDER BY created_at ASC')
     .all(userId)) as CrmListRow[];
-  const countStmt = db.prepare('SELECT COUNT(*) AS c FROM crm_list_members WHERE list_id = ?');
+  // Estáticas: cuenta solo los contactos que la persona ve (como la lista misma).
+  const listScope = scopeAnd('c', ownerScope);
+  const countStmt = db.prepare(
+    `SELECT COUNT(*) AS c FROM crm_list_members m JOIN crm_contacts c ON c.id = m.contact_id
+     WHERE m.list_id = ? AND c.user_id = ?${listScope.sql}`,
+  );
   return Promise.all(
     lists.map(async (list) => ({
       ...list,
       memberCount:
         list.kind === 'dynamic'
           ? await countDynamicList(userId, parseListFilter(list.filter), ownerScope)
-          : ((await countStmt.get(list.id)) as { c: number }).c,
+          : ((await countStmt.get(list.id, userId, ...listScope.args)) as { c: number }).c,
     })),
   );
 }
@@ -2888,16 +2911,18 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
       .get(...args)) as { n: number };
     return { list, members, memberCount: count.n };
   }
+  // Una lista estática también muestra solo los contactos que la persona ve.
+  const scope = scopeAnd('c', ownerScope);
   const members = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
        FROM crm_contacts c
        JOIN crm_list_members m ON m.contact_id = c.id
        LEFT JOIN crm_companies co ON co.id = c.company_id
-       WHERE m.list_id = ? AND c.user_id = ?
+       WHERE m.list_id = ? AND c.user_id = ?${scope.sql}
        ORDER BY c.created_at DESC`,
     )
-    .all(id, userId)) as ContactListRow[];
+    .all(id, userId, ...scope.args)) as ContactListRow[];
   return { list, members, memberCount: members.length };
 }
 

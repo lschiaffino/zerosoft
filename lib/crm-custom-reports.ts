@@ -35,6 +35,7 @@ import {
   type ReportResult,
 } from './crm-report-builder';
 import { FORECAST_DEFAULTS } from './crm-forecast';
+import { hiddenFieldsFor, type FieldViewer } from './crm-field-perms';
 
 export interface CustomReportRow {
   id: string;
@@ -228,7 +229,12 @@ const CUSTOM_NAME = /^[A-Za-z0-9_\-]{1,100}$/;
 
 type CustomDefs = Partial<Record<ReportObject, Map<string, { label: string; type: string }>>>;
 
-async function loadCustomDefs(workspaceId: string, objects: ReportObject[], db: Db): Promise<CustomDefs> {
+/**
+ * Campos propios que el reporte puede usar: los de la persona que lo corre.
+ * Uno oculto para ella no existe (columna, dimensión, métrica o filtro dan
+ * invalid_field), así no se lee su valor ni se filtra por él.
+ */
+async function loadCustomDefs(workspaceId: string, objects: ReportObject[], viewer: FieldViewer, db: Db): Promise<CustomDefs> {
   const out: CustomDefs = {};
   for (const o of objects) {
     const entity = CUSTOM_FIELD_ENTITY[o];
@@ -236,7 +242,8 @@ async function loadCustomDefs(workspaceId: string, objects: ReportObject[], db: 
     const rows = (await db
       .prepare('SELECT name, label, type FROM crm_custom_fields WHERE user_id = ? AND entity = ?')
       .all(workspaceId, entity)) as Array<{ name: string; label: string; type: string }>;
-    out[o] = new Map(rows.map((r) => [r.name, { label: r.label, type: r.type }]));
+    const hidden = await hiddenFieldsFor(viewer, entity, db);
+    out[o] = new Map(rows.filter((r) => !hidden.has(r.name)).map((r) => [r.name, { label: r.label, type: r.type }]));
   }
   return out;
 }
@@ -431,13 +438,18 @@ const HREF: Record<ReportObject, string> = {
 export async function runReport(
   workspaceId: string,
   rawConfig: ReportConfig,
-  opts: { scope?: OwnerScope; people?: Array<{ id: string; name: string }> } = {},
+  opts: {
+    scope?: OwnerScope;
+    people?: Array<{ id: string; name: string }>;
+    /** Quién lo corre: sus permisos por campo deciden qué campos propios se pueden usar. */
+    viewer: FieldViewer;
+  },
   db: Db = getDb(),
 ): Promise<ReportResult> {
   const config = reportConfigSchema.parse(rawConfig);
   if (!configObjectsValid(config)) throw new ReportError('invalid_input');
   const objects = usedObjects(config);
-  const defs = await loadCustomDefs(workspaceId, objects, db);
+  const defs = await loadCustomDefs(workspaceId, objects, opts.viewer, db);
   const from = fromClause(workspaceId, config, objects, opts.scope);
   const base = SOURCE_OBJECT[config.source];
   const baseAlias = ALIAS[base];
@@ -595,13 +607,19 @@ export interface BuilderCustomField {
   options?: string[];
 }
 
-export async function builderCustomFields(workspaceId: string, db: Db = getDb()): Promise<BuilderCustomField[]> {
+/** Campos propios que ofrece el constructor: sin los que la persona tiene ocultos. */
+export async function builderCustomFields(viewer: FieldViewer, db: Db = getDb()): Promise<BuilderCustomField[]> {
   const rows = (await db
     .prepare("SELECT entity, name, label, type, options FROM crm_custom_fields WHERE user_id = ? AND entity IN ('contacts', 'companies', 'deals') ORDER BY position, label")
-    .all(workspaceId)) as Array<{ entity: string; name: string; label: string; type: string; options: string }>;
+    .all(viewer.workspaceId)) as Array<{ entity: string; name: string; label: string; type: string; options: string }>;
   const objOf: Record<string, ReportObject> = { contacts: 'contact', companies: 'company', deals: 'deal' };
+  const hidden = {
+    contacts: await hiddenFieldsFor(viewer, 'contacts', db),
+    companies: await hiddenFieldsFor(viewer, 'companies', db),
+    deals: await hiddenFieldsFor(viewer, 'deals', db),
+  } as Record<string, Set<string>>;
   return rows
-    .filter((r) => CUSTOM_NAME.test(r.name))
+    .filter((r) => CUSTOM_NAME.test(r.name) && !hidden[r.entity]?.has(r.name))
     .map((r) => {
       let options: string[] = [];
       try {

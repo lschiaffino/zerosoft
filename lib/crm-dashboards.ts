@@ -5,6 +5,7 @@
 import { getDb, type CrmDashboardRow, type CrmDashboardWidgetRow } from './db';
 import type { OwnerScope } from './crm-visibility';
 import type { ChatReader } from './crm-chat-privacy';
+import type { FieldViewer } from './crm-field-perms';
 import { listTasks, listTimeline, wonLostByMonth } from './crm';
 import { defaultPipelineId } from './crm-http';
 import {
@@ -315,9 +316,11 @@ export async function getWidgetData(
   userId: string,
   req: DashboardDataRequest,
   owners: DashboardOwner[],
-  scope?: OwnerScope,
+  scope: OwnerScope | undefined,
   /** Tareas de chats de Lines que quien mira no ve: sin su texto (lib/crm-chat-privacy.ts). */
-  chatReader?: ChatReader | null,
+  chatReader: ChatReader | null | undefined,
+  /** Quién mira: un reporte propio no usa los campos que tiene ocultos. */
+  viewer: FieldViewer,
 ): Promise<WidgetData> {
   const rangeLabel = req.range ?? '30d';
   const range = reportRange(rangeLabel);
@@ -357,6 +360,7 @@ export async function getWidgetData(
         const result = await runReport(userId, report.config, {
           scope,
           people: owners.map((o) => ({ id: o.id, name: o.name || o.email })),
+          viewer,
         });
         return { report: { id: report.id, name: report.name, config: report.config, result } };
       } catch (e) {

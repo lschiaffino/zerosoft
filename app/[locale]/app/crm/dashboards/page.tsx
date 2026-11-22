@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { listPipelinesWithStages } from '@/lib/crm';
 import {
@@ -81,6 +82,7 @@ export default async function CrmDashboardsPage(
             owners,
             scope,
             chatReader,
+            sessionFieldViewer(user),
           ),
         ] as const,
     ),
