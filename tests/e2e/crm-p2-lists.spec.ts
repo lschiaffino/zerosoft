@@ -94,9 +94,10 @@ test.describe('contacts index', () => {
     await expect(rows(page)).toHaveCount(0);
     await expect(page.locator('.ui-empty').first()).toBeVisible();
 
-    // Limpiar deja todo.
+    // Limpiar quita todos los filtros (también la búsqueda).
     await page.getByTestId('quick-clear').click();
-    await expect(page).not.toHaveURL(/createdFrom=|leadStatus=/);
+    await expect(page).not.toHaveURL(/createdFrom=|leadStatus=|q=/);
+    await page.goto(`/en/app/crm/contacts?q=${tag}`, { waitUntil: 'networkidle' });
     await expect(rows(page)).toHaveCount(2);
 
     // Responsable: "Sin responsable" va a la URL.
