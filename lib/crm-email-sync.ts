@@ -220,7 +220,7 @@ export async function storeGmailMessage(
         contactIds: [...new Set(contacts.values())],
       };
       const { crmEventOptions } = await import('./crm-event-privacy');
-      await emitEvent(userId, 'email.received', received, crmEventOptions(userId, 'email.received', received));
+      await emitEvent(userId, 'email.received', received, await crmEventOptions(userId, 'email.received', received));
     }
   } else if (recent) {
     const sent = {
@@ -229,7 +229,7 @@ export async function storeGmailMessage(
       sequence: null,
     };
     const { crmEventOptions } = await import('./crm-event-privacy');
-    await emitEvent(userId, 'email.sent', sent, crmEventOptions(userId, 'email.sent', sent));
+    await emitEvent(userId, 'email.sent', sent, await crmEventOptions(userId, 'email.sent', sent));
   }
   return true;
 }

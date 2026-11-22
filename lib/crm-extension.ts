@@ -267,7 +267,7 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
     contactIds,
   };
   const { crmEventOptions } = await import('./crm-event-privacy');
-  await emitEvent(actor.workspaceId, event, logged, crmEventOptions(actor.workspaceId, event, logged));
+  await emitEvent(actor.workspaceId, event, logged, await crmEventOptions(actor.workspaceId, event, logged));
   return { ok: true, emailId, contactIds, duplicate: false };
 }
 
@@ -370,6 +370,6 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
     sequence: null,
   };
   const { crmEventOptions } = await import('./crm-event-privacy');
-  await emitEvent(actor.workspaceId, 'email.sent', sent, crmEventOptions(actor.workspaceId, 'email.sent', sent));
+  await emitEvent(actor.workspaceId, 'email.sent', sent, await crmEventOptions(actor.workspaceId, 'email.sent', sent));
   return { ok: true, emailId, pixelUrl: pixelUrl(token), contactIds, createdContact };
 }

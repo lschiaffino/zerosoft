@@ -13,7 +13,12 @@ import { MockLanguageModelV4 } from 'ai/test';
 import { countDueTasks, createActivity, createCompany, createContact, createCustomField, createDeal, createPipeline, createStage, updateActivity } from '@/lib/crm';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { createSalesTeam, ownerScopeFor, setMemberVisibility } from '@/lib/crm-visibility';
-import { crmPersonalizer, deliveryPayloadFor } from '@/lib/crm-event-privacy';
+import { crmEventOptions, crmPersonalizer, deliveryPayloadFor } from '@/lib/crm-event-privacy';
+import { generateRecordSummary, getRecordSummary } from '@/lib/crm-ai';
+import { resetFakeProvider } from '@/lib/groups-provider-fake';
+import { connectNumber, createNumber, getNumberRowById, ingestEvents } from '@/lib/groups';
+import { setLineAccess } from '@/lib/groups-lines';
+import { createGroupTask } from '@/lib/groups-tasks';
 import { createQueue } from '@/lib/crm-task-queues';
 import { createView, sessionViewViewer } from '@/lib/crm-views';
 import { createWorkflow, runWorkflowsForEvent } from '@/lib/crm-workflows';
@@ -41,6 +46,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   setAiModelOverride(null);
+  vi.unstubAllEnvs();
 });
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -298,6 +304,48 @@ describe('task.*, email.* y quote.* con el acceso de quien creó la suscripción
     const r = crmPersonalizer(s.ws, 'email.sent', linked);
     expect((await r(s.w.friend.id))?.data).toEqual({ ...linked, contactId: null });
     expect(await r(s.w.member.id)).toBeNull();
+
+    // Con "todo visible", un email sin contactos también le llega a un miembro.
+    await setMemberVisibility(s.ws, 'all');
+    const loose = { email: { id: crypto.randomUUID(), subject: 'Loose', to: 'x@example.test', threadId: 't-4' }, contactIds: [] };
+    expect((await crmPersonalizer(s.ws, 'email.received', loose)(s.w.member.id))?.data).toEqual(loose);
+    expect(await crmPersonalizer(s.ws, 'email.received', loose)(s.w.stranger.id)).toBeNull();
+  });
+
+  it('task.created de un chat de Lines: el texto solo a quien ve el chat, y Slack con el marcador', async () => {
+    vi.stubEnv('GROUPS_FAKE', '1');
+    vi.stubEnv('RATE_LIMIT_DISABLED', 'true');
+    resetFakeProvider();
+    const w = await workspaceWithMember('p4-chat-task');
+    const ws = w.owner.id;
+    const h = { owner: await hook(ws, ws, ['task.created']), member: await hook(ws, w.member.id, ['task.created']), friend: await hook(ws, w.friend.id, ['task.created']), legacy: await hook(ws, null, ['task.created']) };
+    const n = await createNumber(ws, ws, { provider: 'fake', name: 'Private line' });
+    await connectNumber(ws, n.id);
+    const fake = (globalThis as unknown as { __groupsFake: Map<string, { connectedAt: number | null }> }).__groupsFake.get(n.id);
+    if (fake) fake.connectedAt = Date.now() - 5000;
+    const line = (await getNumberRowById(n.id))!;
+    await ingestEvents(line, [
+      { type: 'message' as const, chatId: '10000000001@c.us', isGroup: false, fromMe: false, senderPhone: '10000000001', senderName: 'X', providerMessageId: 'p4-m1', body: 'hi' },
+    ]);
+    await setLineAccess(ws, line.id, { ownerId: ws, visibility: 'restricted', personIds: [w.friend.id], teamIds: [] });
+    const chat = (await getDb().prepare('SELECT id FROM groups_chats WHERE user_id = ? AND number_id = ?').get(ws, line.id)) as { id: string };
+    const SECRET = 'zqx chat task title';
+    const task = await createGroupTask(ws, w.friend.id, { chatId: chat.id, title: SECRET, notes: 'zqx chat notes', ownerId: w.member.id });
+
+    const text = async (hookId: string) => JSON.stringify(await deliveries(hookId));
+    expect(await text(h.owner)).toContain(SECRET);
+    expect(await text(h.friend)).toContain(SECRET);
+    // El miembro (dueño de la tarea, sin la línea) y un webhook viejo sin creador: la tarea, sin su texto.
+    for (const k of ['member', 'legacy'] as const) {
+      const got = await deliveries(h[k]);
+      expect(got).toHaveLength(1);
+      expect(JSON.stringify(got)).not.toContain('zqx');
+    }
+    // Las apps del workspace (un canal compartido) reciben el marcador.
+    const row = (await getDb().prepare('SELECT * FROM crm_activities WHERE id = ?').get(task.activityId)) as Parameters<typeof import('@/lib/crm').taskEventPayload>[0];
+    const { taskEventPayload } = await import('@/lib/crm');
+    const opts = await crmEventOptions(ws, 'task.created', taskEventPayload(row));
+    expect(JSON.stringify(opts.appsData)).not.toContain('zqx');
   });
 
   it('quote.*: solo si ve el deal del quote', async () => {
@@ -325,7 +373,30 @@ describe('task.*, email.* y quote.* con el acceso de quien creó la suscripción
   });
 });
 
-// ---------- 4. Paso de IA de un workflow ----------
+// ---------- 4. Paso de IA de un workflow (y lo que se guarda para todos) ----------
+
+describe('resumen con IA guardado para todos', () => {
+  it('lo pida quien lo pida, se arma con lo que ve cualquiera que abre el registro', async () => {
+    vi.stubEnv('CRM_AI_FAKE', '1');
+    const s = await setup('p4-ai-summary');
+    const co = await createCompany(s.ws, { name: 'Owner only company', ownerId: s.ws });
+    const c = await createContact(s.ws, { firstName: 'Ana', lastName: 'Member', ownerId: s.w.member.id, companyId: co.id });
+    // Lo genera el owner (ve todo): lo guardado no nombra a la empresa que el miembro no ve.
+    const made = await generateRecordSummary({ workspaceId: s.ws, entity: 'contact', id: c.id, scope: null, locale: 'en', actorId: s.ws });
+    expect(JSON.stringify(made.content)).not.toContain('Owner only company');
+    const memberScope = await ownerScopeFor({ workspaceId: s.ws, personId: s.w.member.id, role: 'member' });
+    const seen = await getRecordSummary(s.ws, 'contact', c.id, memberScope);
+    expect(seen?.stale).toBe(false);
+    expect((await getRecordSummary(s.ws, 'contact', c.id, null))?.stale).toBe(false);
+    // Quien no ve el registro no lo recibe.
+    const friendScope = await ownerScopeFor({ workspaceId: s.ws, personId: s.w.friend.id, role: 'member' });
+    expect(await getRecordSummary(s.ws, 'contact', c.id, friendScope)).toBeNull();
+    await expect(generateRecordSummary({ workspaceId: s.ws, entity: 'contact', id: c.id, scope: friendScope, locale: 'en', actorId: s.w.friend.id })).rejects.toMatchObject({ code: 'not_found' });
+    expect(await getRecordSummary(s.w.stranger.id, 'contact', c.id, null)).toBeNull();
+  });
+});
+
+// ---------- 5. Paso de IA de un workflow ----------
 
 /** Modelo que devuelve el prompt que recibió: la nota muestra exactamente el contexto. */
 function echoModel() {

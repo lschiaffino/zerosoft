@@ -230,7 +230,8 @@ export async function taskEventFor(sub: Subscriber, data: EventData, db: Db = ge
  * ninguno; si no, solo con los contactos que ve.
  */
 export async function emailEventFor(sub: Subscriber, data: EventData, db: Db = getDb()): Promise<EventData | null> {
-  if (sub.unrestricted) return data;
+  // Sin restricción de registros (admins o visibilidad "todos"): también los emails sin contactos.
+  if (sub.unrestricted || sub.scope === null) return data;
   const ws = sub.viewer.workspaceId;
   const emailId = isObj(data.email) ? str(data.email.id) : null;
   const listed = [
@@ -255,7 +256,7 @@ export async function emailEventFor(sub: Subscriber, data: EventData, db: Db = g
 
 /** quote.accepted, quote.paid: solo si ve el deal del quote (el de ahora y el del evento). */
 export async function quoteEventFor(sub: Subscriber, data: EventData, db: Db = getDb()): Promise<EventData | null> {
-  if (sub.unrestricted) return data;
+  if (sub.unrestricted || sub.scope === null) return data;
   const ws = sub.viewer.workspaceId;
   const id = str(data.id);
   const row = id
@@ -336,11 +337,25 @@ export async function crmEventFor(
 
 /**
  * Opciones de emitEvent para un evento del CRM: cada suscripción recibe lo
- * que ve quien la creó; las apps del workspace (Slack) reciben `data` como
- * antes.
+ * que ve quien la creó. Las apps del workspace (Slack, un canal compartido)
+ * reciben `data`, salvo el texto de una tarea de un chat de Lines, que va
+ * con el marcador (como para quien no ve ese chat).
  */
-export function crmEventOptions(workspaceId: string, event: string, data: EventData): { personalize: Personalizer; appsData: EventData } {
-  return { personalize: crmPersonalizer(workspaceId, event, data), appsData: data };
+export async function crmEventOptions(
+  workspaceId: string,
+  event: string,
+  data: EventData,
+): Promise<{ personalize: Personalizer; appsData: EventData }> {
+  let appsData = data;
+  const task = TASK_EVENT.test(event) && isObj(data.task) ? data.task : null;
+  const id = task ? str(task.id) : null;
+  if (task && id) {
+    const { noChatReader, redactChatTask } = await import('./crm-chat-privacy');
+    const text = { id, subject: typeof task.subject === 'string' ? task.subject : '', body: typeof task.body === 'string' ? task.body : '' };
+    const seen = await redactChatTask(workspaceId, text, noChatReader(workspaceId));
+    if (seen.subject !== text.subject || seen.body !== text.body) appsData = { ...data, task: { ...task, subject: seen.subject, body: seen.body } };
+  }
+  return { personalize: crmPersonalizer(workspaceId, event, data), appsData };
 }
 
 /** personalize de lib/events.ts / lib/webhooks.ts para un evento del CRM (cachea por creador). */

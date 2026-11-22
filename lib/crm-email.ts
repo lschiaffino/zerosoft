@@ -462,7 +462,7 @@ async function fireTrackingEvents(email: CrmEmailRow, kind: 'open' | 'click', ur
   };
   const event = kind === 'open' ? 'email.opened' : 'email.clicked';
   const { crmEventOptions } = await import('./crm-event-privacy');
-  await emitEvent(email.user_id, event, data, crmEventOptions(email.user_id, event, data));
+  await emitEvent(email.user_id, event, data, await crmEventOptions(email.user_id, event, data));
   const { recalcContactScoreSafe } = await import('./crm-scoring');
   await recalcContactScoreSafe(email.user_id, email.contact_id);
   const { runWorkflowsForEvent } = await import('./crm-workflows');
@@ -734,7 +734,7 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
     sequence: input.enrollmentId ? { enrollmentId: input.enrollmentId, stepId: input.stepId ?? null } : null,
   };
   const { crmEventOptions } = await import('./crm-event-privacy');
-  await emitEvent(userId, 'email.sent', sent, crmEventOptions(userId, 'email.sent', sent));
+  await emitEvent(userId, 'email.sent', sent, await crmEventOptions(userId, 'email.sent', sent));
   return { ok: true, email, via };
 }
 

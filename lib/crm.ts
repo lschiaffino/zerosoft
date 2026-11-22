@@ -2347,9 +2347,10 @@ export async function fireDueTasks(limit = 200): Promise<number> {
     await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
     const task = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(row.id)) as CrmActivityRow | undefined;
     if (task) {
-      // Cada flow recibe la tarea como la ve quien lo creó (lib/crm-event-privacy.ts).
       const { crmEventOptions } = await import('./crm-event-privacy');
-      await emitEvent(row.user_id, 'task.due', taskEventPayload(await dueTaskForOwner(task)), crmEventOptions(row.user_id, 'task.due', taskEventPayload(task)));
+      // Sin el texto de un chat que no ve quien tiene la tarea, y además con lo que ve quien creó cada flow.
+      const data = taskEventPayload(await dueTaskForOwner(task));
+      await emitEvent(row.user_id, 'task.due', data, await crmEventOptions(row.user_id, 'task.due', data));
     }
   }
   return rows.length;
@@ -2390,6 +2391,14 @@ export function taskEventPayload(task: CrmActivityRow) {
 export async function createActivity(
   userId: string,
   data: ActivityInput,
+  opts: {
+    /**
+     * Corre después de guardar y antes de emitir task.created: para lo que
+     * cambia quién puede leer la tarea (el vínculo con un chat de Lines), así
+     * el evento ya sale con eso.
+     */
+    beforeEvent?: (row: CrmActivityRow) => Promise<void>;
+  } = {},
 ): Promise<CrmActivityRow> {
   const db = getDb();
   await assertActivityRefs(userId, data, db);
@@ -2435,10 +2444,11 @@ export async function createActivity(
     await recalcContactScoreSafe(userId, data.contactId);
   }
   const created = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
+  if (opts.beforeEvent) await opts.beforeEvent(created);
   if (created.type === 'task') {
     const { crmEventOptions } = await import('./crm-event-privacy');
     const data = taskEventPayload(created);
-    await emitEvent(userId, 'task.created', data, crmEventOptions(userId, 'task.created', data));
+    await emitEvent(userId, 'task.created', data, await crmEventOptions(userId, 'task.created', data));
   }
   return created;
 }
@@ -2502,7 +2512,7 @@ export async function updateActivity(
   if (data.done === true && existing.done === 0 && updated.type === 'task') {
     const { crmEventOptions } = await import('./crm-event-privacy');
     const data = taskEventPayload(updated);
-    await emitEvent(userId, 'task.completed', data, crmEventOptions(userId, 'task.completed', data));
+    await emitEvent(userId, 'task.completed', data, await crmEventOptions(userId, 'task.completed', data));
   }
   if (data.done === true && existing.done === 0 && (await spawnNextRepeat(userId, updated, db))) {
     return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
