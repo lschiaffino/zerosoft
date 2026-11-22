@@ -95,6 +95,7 @@ import {
   Mic,
   Panel,
   PinIcon,
+  HeartIcon,
   FlagIcon,
   Plus,
   SendIcon,
@@ -2563,6 +2564,15 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'select', glyph: <CheckCircle size={18} />, label: t('wa.selectMessages'), onSelect: () => setSelecting(new Set()) },
                 { key: 'mute', glyph: chat.muted ? <Bell size={18} /> : <MuteIcon size={18} />, label: chat.muted ? t('wa.unmute') : t('wa.mute'), onSelect: () => void toggleMute() },
                 { key: 'pin', glyph: <PinIcon size={18} />, label: chat.pinned ? t('thread.unpinChat') : t('thread.pinChat'), onSelect: () => void patchChat({ pinned: !chat.pinned }) },
+                {
+                  key: 'favorite',
+                  glyph: <HeartIcon size={18} />,
+                  label: chat.favorite ? t('favorites.remove') : t('favorites.add'),
+                  onSelect: () => {
+                    const on = !chat.favorite;
+                    void patchChat({ favorite: on }).then((res) => res && showToast(on ? t('favorites.added') : t('favorites.removed')));
+                  },
+                },
                 { key: 'unread', glyph: chat.unread > 0 ? <ReadIcon size={18} /> : <UnreadIcon size={18} />, label: chat.unread > 0 ? t('thread.markRead') : t('thread.markUnread'), onSelect: () => void toggleUnread() },
                 ...(chat.archived
                   ? [

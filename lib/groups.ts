@@ -576,6 +576,8 @@ export interface ChatRow {
   awaiting_since: string | null;
   flagged_at: string | null;
   pinned_at?: string | null;
+  /** Favoritos (como la lista de WhatsApp): desde cuándo. */
+  favorite_at?: string | null;
   assigned_team_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -628,6 +630,8 @@ export interface ChatDto {
   assignedTeamId: string | null;
   /** Fijado arriba de la lista. */
   pinned: boolean;
+  /** En Favoritos (la lista de WhatsApp). Solo si lo está. */
+  favorite?: boolean;
   properties: Record<string, unknown>;
   crmContactId: string | null;
   crmCompanyId: string | null;
@@ -745,6 +749,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     assignedTo: row.assigned_to,
     assignedTeamId: row.assigned_team_id ?? null,
     pinned: Boolean(row.pinned_at),
+    ...(row.favorite_at ? { favorite: true } : {}),
     properties: parseJson<Record<string, unknown>>(row.properties, {}),
     crmContactId: row.crm_contact_id,
     crmCompanyId: row.crm_company_id,
@@ -1442,6 +1447,8 @@ export interface ChatPatch {
   assignedTo?: string | null;
   assignedTeamId?: string | null;
   pinned?: boolean;
+  /** Sumar a Favoritos o sacar (la lista de WhatsApp). */
+  favorite?: boolean;
   /** false: marcar como no leído (queda con 1 sin leer si no tenía). */
   read?: boolean;
   status?: 'open' | 'closed';
@@ -1519,6 +1526,7 @@ export async function updateChat(ws: string, id: string, patch: ChatPatch, actor
     set('assigned_team_id', patch.assignedTeamId || null);
   }
   if (patch.pinned !== undefined) set('pinned_at', patch.pinned ? row.pinned_at || nowIso() : null);
+  if (patch.favorite !== undefined) set('favorite_at', patch.favorite ? row.favorite_at || nowIso() : null);
   if (patch.status) set('status', patch.status);
   if (patch.muted !== undefined) set('muted_until', patch.muted ? '9999-12-31T00:00:00.000Z' : null);
   // "Mantener archivado" implica archivado; desarchivar a mano lo apaga (en el mismo UPDATE: el trigger lo deja pasar).

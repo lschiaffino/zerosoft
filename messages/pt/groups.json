@@ -53,6 +53,7 @@
     "empty": {
       "all": "Não há conversas abertas. As mensagens novas do WhatsApp chegam aqui.",
       "unread": "Nada por ler.",
+      "favorites": "Ainda não há favoritos. Adicione uma conversa pelo menu dela.",
       "unanswered": "Todas as mensagens de clientes têm resposta.",
       "flagged": "Nenhuma conversa passou do limite sem resposta.",
       "mine": "Você não tem conversas atribuídas.",
@@ -95,9 +96,16 @@
     "from": "Da linha",
     "lineOff": "Esta linha não pode iniciar conversas agora ({status}). As conversas que ela já tem podem ser abertas."
   },
+  "favorites": {
+    "add": "Adicionar aos Favoritos",
+    "remove": "Remover dos Favoritos",
+    "added": "Adicionado aos Favoritos",
+    "removed": "Removido dos Favoritos"
+  },
   "filters": {
     "all": "Todas",
     "unread": "Não lidas",
+    "favorites": "Favoritos",
     "unanswered": "Aguardando",
     "flagged": "Atrasadas",
     "mine": "Minhas",
@@ -2572,6 +2580,7 @@
     "waiting": "Aguardando resposta",
     "flagged": "Atrasadas",
     "pinned": "Fixadas",
+    "favorite": "Nos Favoritos",
     "muted": "Silenciadas",
     "assignee": "Atribuído a",
     "me": "Eu",
@@ -2622,7 +2631,8 @@
       "crm": "contato empresa",
       "hubspot": "crm empresa negocio",
       "muted": "silencio avisos",
-      "pinned": "fixo topo"
+      "pinned": "fixo topo",
+      "favorite": "favoritos favorito coração lista"
     }
   },
   "slash": {

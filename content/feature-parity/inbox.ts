@@ -255,11 +255,11 @@ const parity: ProductParity = {
         'Contatos e grupos, servidas com sua sessão e guardadas no cache privado do navegador; um link vencido é renovado. Nos grupos, cada participante tem sua foto (ao lado das mensagens, na lista de participantes e ao mencionar), buscada poucas por vez, guardada para não expirar e conferida toda semana. Testado com o provedor falso',
       ],
     }),
-    row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'partial', {
+    row('wa-list', 'whatsapp', ['Chat list like WhatsApp', 'Lista de chats como WhatsApp', 'Lista de conversas como o WhatsApp'], 'have', {
       detail: [
-        'Photo, name, time, ticks, sender in groups, media icon, typing, muted, unread and pinned. Filters are Inbox views, not WhatsApp lists',
-        'Foto, nombre, hora, tildes, quién mandó en grupos, ícono de media, escribiendo, silenciado, no leídos y fijado. Los filtros son las vistas de Inbox, no las listas de WhatsApp',
-        'Foto, nome, hora, confirmações, quem enviou em grupos, ícone de mídia, digitando, silenciado, não lidas e fixada. Os filtros são as visões do Inbox, não as listas do WhatsApp',
+        'Photo, name, time, ticks, sender in groups, media icon, typing, muted, unread and pinned. Filter tabs like WhatsApp: All, Unread, Favorites and Groups, plus WhatsApp and Email. Add or remove a chat from Favorites in its ⋯ menu or with a right click on the row; Favorites stay in Inbox and do not sync to the phone. Your own lists are folders',
+        'Foto, nombre, hora, tildes, quién mandó en grupos, ícono de media, escribiendo, silenciado, no leídos y fijado. Pestañas de filtro como WhatsApp: Todos, No leídos, Favoritos y Grupos, más WhatsApp y Correo. Agregar o quitar un chat de Favoritos desde su menú ⋯ o con clic derecho en la fila; los Favoritos quedan en Inbox y no se sincronizan con el teléfono. Las listas propias son las carpetas',
+        'Foto, nome, hora, confirmações, quem enviou em grupos, ícone de mídia, digitando, silenciado, não lidas e fixada. Abas de filtro como o WhatsApp: Todas, Não lidas, Favoritos e Grupos, mais WhatsApp e E-mail. Adicionar ou remover uma conversa dos Favoritos pelo menu ⋯ dela ou com o clique direito na linha; os Favoritos ficam no Inbox e não sincronizam com o celular. As listas próprias são as pastas',
       ],
     }),
     row('wa-conversation', 'whatsapp', ['Conversation like WhatsApp Web', 'Conversación como WhatsApp Web', 'Conversa como o WhatsApp Web'], 'have', {

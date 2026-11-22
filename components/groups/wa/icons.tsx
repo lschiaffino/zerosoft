@@ -123,6 +123,12 @@ export const PinIcon = (p: P) => (
     <path d="M9 4h6l-1 6 4 4H6l4-4zM12 14v7" />
   </Svg>
 );
+/** Favoritos (la lista de WhatsApp): un corazón de trazo. */
+export const HeartIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+  </Svg>
+);
 /** Reportado: una banderita, como la de WhatsApp. */
 export const FlagIcon = (p: P) => (
   <Svg {...p}>
