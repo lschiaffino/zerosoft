@@ -69,6 +69,8 @@ interface LeadActionsProps {
   leadId: string;
   leadName: string;
   dealId: string | null;
+  /** Ya se convirtió en un deal que la persona no ve: no hay acciones. */
+  dealPrivate?: boolean;
   stageKind: 'open' | 'qualified' | 'disqualified';
   disqualifiedStageId: string | null;
   firstOpenStageId: string | null;
@@ -81,6 +83,7 @@ export default function LeadActions({
   leadId,
   leadName,
   dealId,
+  dealPrivate,
   stageKind,
   disqualifiedStageId,
   firstOpenStageId,
@@ -150,6 +153,7 @@ export default function LeadActions({
     if (await patchLead(leadId, { stageId: firstOpenStageId, disqualifyReason: '' })) router.refresh();
   }
 
+  if (dealPrivate) return null;
   if (dealId) {
     return (
       <Link href={`/app/crm/deals/${dealId}`} className="btn btn-secondary btn-sm">

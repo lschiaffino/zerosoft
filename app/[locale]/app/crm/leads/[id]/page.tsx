@@ -59,6 +59,7 @@ export default async function LeadPage(props: {
           leadId={lead.id}
           leadName={lead.name}
           dealId={lead.deal_id}
+          dealPrivate={!!lead.deal_private}
           stageKind={kind}
           disqualifiedStageId={stages.find((s) => s.kind === 'disqualified')?.id ?? null}
           firstOpenStageId={stages.find((s) => s.kind === 'open')?.id ?? null}

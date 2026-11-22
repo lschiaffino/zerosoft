@@ -2379,7 +2379,7 @@
     "openDeal": "Abrir el deal",
     "saveAndMove": "Guardar y mover",
     "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}",
-    "adminRequired": "Esta etapa pide una propiedad que solo un admin puede completar. Pídele a un admin que la complete y después mueve el deal."
+    "adminRequired": "Esta etapa pide una propiedad que solo un admin puede completar. Pedile a un admin que la complete y después mové el deal."
   },
   "calls": {
     "call": "Llamar",
@@ -3367,7 +3367,7 @@
       "invalid_metric": "Suma, promedio, mínimo y máximo necesitan un campo numérico.",
       "invalid_input": "Esa combinación de objetos no está disponible para la fuente de datos.",
       "network": "No pudimos conectar con el servidor. Revisá tu conexión.",
-      "report_restricted": "Este reporte usa una propiedad que no puedes ver. Pide a un admin que lo cambie."
+      "report_restricted": "Este reporte usa una propiedad que no podés ver. Pedile a un admin que lo cambie."
     },
     "fields": {
       "contact": {

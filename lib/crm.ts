@@ -427,6 +427,21 @@ export const CONTACT_ACTIVITY_FIELDS: Record<string, AdvancedFieldDef> = {
   daysSinceActivity: { expr: daysSince('c.last_activity_at'), type: 'number' },
 };
 
+/** Ids seguros para escribir en SQL (los owners son ids de usuario). */
+const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
+/**
+ * Los filtros por nombre de empresa con el alcance de la persona: una empresa
+ * que no ve no matchea (si no, filtrar por su nombre delataría la asociación).
+ */
+function scopedCompanyNameFields(fields: Record<string, AdvancedFieldDef>, scope: OwnerScope | undefined): Record<string, AdvancedFieldDef> {
+  if (!scope || !fields.companyName) return fields;
+  const ids = scope.filter((id) => SAFE_ID.test(id));
+  const cond = ids.length ? `COALESCE(xco.owner_id, xco.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0';
+  const expr = fields.companyName.expr.replace(/\)\s*$/, ` AND ${cond})`);
+  return { ...fields, companyName: { ...fields.companyName, expr } };
+}
+
 const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: "trim(c.first_name || ' ' || c.last_name)", type: 'text' },
   firstName: { expr: 'c.first_name', type: 'text' },
@@ -438,7 +453,7 @@ const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   city: { expr: 'c.city', type: 'text' },
   country: { expr: 'c.country', type: 'text' },
   company: { expr: 'c.company_id', type: 'select' },
-  // El nombre de la empresa principal: el mismo que ya muestra la fila del listado.
+  // El nombre de la empresa principal (con alcance: scopedCompanyNameFields).
   companyName: { expr: '(SELECT xco.name FROM crm_companies xco WHERE xco.id = c.company_id)', type: 'text' },
   lifecycle: { expr: 'c.lifecycle_stage', type: 'select' },
   leadStatus: { expr: 'c.lead_status', type: 'select' },
@@ -517,7 +532,7 @@ function buildContactWhere(
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'c', CONTACT_ADV_FIELDS, f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
+  appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
 }
@@ -1572,7 +1587,7 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   dealType: { expr: 'd.deal_type', type: 'select' },
   nextStep: { expr: 'd.next_step', type: 'text' },
   wonReason: { expr: 'd.won_reason', type: 'text' },
-  // La empresa principal: la misma que ya muestra la fila del listado.
+  // La empresa principal (con alcance: scopedCompanyNameFields).
   companyName: {
     expr: `(SELECT xco.name FROM crm_deal_companies xpdc JOIN crm_companies xco ON xco.id = xpdc.company_id
       WHERE xpdc.deal_id = d.id AND xpdc.is_primary = 1)`,
@@ -1646,7 +1661,7 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'd', DEAL_ADV_FIELDS, f.filters, f.customTypes, 'all', f.filterEnv);
+  appendAdvancedFilters(where, args, 'd', scopedCompanyNameFields(DEAL_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'd', f.ownerScope);
 }
 
@@ -3668,5 +3683,10 @@ export async function searchAll(userId: string, q: string, ownerScope?: OwnerSco
        LIMIT 5`,
     )
     .all(userId, like, ...ds.args)) as CrmDealRow[];
-  return { contacts, companies, deals };
+  // La empresa de un contacto o la madre de una empresa que la persona no ve no salen ni por id.
+  return {
+    contacts: await maskPrivateRefs(userId, contacts, [PRIVATE_REFS.company([])], ownerScope, db),
+    companies: await maskPrivateRefs(userId, companies, [PRIVATE_REFS.parent()], ownerScope, db),
+    deals,
+  };
 }

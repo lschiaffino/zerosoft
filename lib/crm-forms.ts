@@ -436,6 +436,12 @@ export async function formForViewer(viewer: FieldViewer, form: CrmForm, db: Db =
   return { form: { ...form, fields: form.fields.map((f) => (ids.has(f.id) ? { ...f, property: '' } : f)) }, hiddenTargets: true };
 }
 
+/** formForViewer para una lista de forms. */
+export async function formsForViewer(viewer: FieldViewer, forms: CrmForm[], db: Db = getDb()): Promise<CrmForm[]> {
+  if (isUnrestricted(viewer) || !forms.length) return forms;
+  return Promise.all(forms.map(async (f) => (await formForViewer(viewer, f, db)).form));
+}
+
 /** Campos propios que alguna regla oculta a alguien (para no copiarlos en notas y avisos que ve todo el equipo). */
 async function fieldsHiddenToAnyone(workspaceId: string, db: Db): Promise<{ contacts: Set<string>; companies: Set<string> }> {
   const rows = (await db
@@ -663,7 +669,8 @@ export async function submitForm(
     await db.prepare('UPDATE crm_forms SET submission_count = submission_count + 1 WHERE id = ?').run(form.id);
   };
   // Los valores del envío, para la nota y los avisos. Lo que va a un campo propio que alguien tiene
-  // oculto no se copia: la nota la ve todo el equipo, y el valor ya queda en la propiedad.
+  // oculto no se copia: la nota la ve todo el equipo. El valor queda en la propiedad (si se escribe) y
+  // siempre en el envío, que owner y admins ven entero.
   const restrictedIds = formFieldIdsFor(form.fields, await fieldsHiddenToAnyone(workspaceId, db));
   const lines = form.fields
     .filter((f) => values[f.id] !== '' && values[f.id] !== undefined && !restrictedIds.has(f.id))

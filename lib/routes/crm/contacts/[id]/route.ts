@@ -6,6 +6,7 @@ import { contactUpdateSchema } from '@/lib/crm-schema';
 import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { sessionScope, scopeContactDetail } from '@/lib/crm-visibility';
+import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (hidden) return hidden;
   const detail = await getContact(user.id, params.id);
   if (!detail) return notFound();
-  const scoped = scopeContactDetail(detail, scope);
+  // La empresa primaria o la madre de una empresa que la persona no ve no salen ni por id.
+  const scoped = await maskDetailRefs(user.id, 'contact', scopeContactDetail(detail, scope), scope);
   // Sin campos ocultos ni en el registro ni en sus asociados.
   return NextResponse.json(await redactRecordDetail(sessionFieldViewer(user), 'contact', scoped));
 }

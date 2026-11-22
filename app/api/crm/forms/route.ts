@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { createForm, FormError, listForms } from '@/lib/crm-forms';
+import { createForm, FormError, formsForViewer, listForms } from '@/lib/crm-forms';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { formCreateSchema } from '@/lib/crm-forms-schema';
 import { crmError, invalidBody, unauthorized } from '@/lib/crm-http';
 
@@ -10,7 +11,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ forms: await listForms(user.id) });
+  // Sin nombrar propiedades que la persona tiene ocultas.
+  return NextResponse.json({ forms: await formsForViewer(sessionFieldViewer(user), await listForms(user.id)) });
 }
 
 export async function POST(req: NextRequest) {

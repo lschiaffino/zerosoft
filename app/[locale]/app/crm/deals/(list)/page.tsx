@@ -46,6 +46,7 @@ import { customBulkFields } from '@/components/crm/bulkFields';
 import { customCells, customColumns, customFilterTypes, extraSortOptions } from '@/components/crm/customFieldViews';
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
+import { redactStagesFor } from '@/lib/crm-stage-move';
 
 export const dynamic = 'force-dynamic';
 
@@ -477,6 +478,8 @@ export default async function DealsPage(props: DealsPageProps) {
   const boardStages = rawBoard
     ? rawBoard.map((col) => ({
         ...col,
+        // Lo que pide la etapa, sin nombrar campos que la persona tiene ocultos.
+        stage: redactStagesFor([col.stage], hiddenDealFields)[0],
         deals: col.deals.map((d) => ({ ...redactRow(d, hiddenDealFields), ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
       }))
     : null;

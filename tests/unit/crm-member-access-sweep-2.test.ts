@@ -67,6 +67,11 @@ const v1CompanyRoute = await import('@/lib/routes/v1/crm/companies/[id]/route');
 const submissionsRoute = await import('@/lib/routes/crm/forms/[id]/submissions/route');
 const formRoute = await import('@/lib/routes/crm/forms/[id]/route');
 const activitiesRoute = await import('@/app/api/crm/activities/route');
+const contactRoute = await import('@/lib/routes/crm/contacts/[id]/route');
+const v1ContactRoute = await import('@/lib/routes/v1/crm/contacts/[id]/route');
+const searchRoute = await import('@/app/api/crm/search/route');
+const formsRoute = await import('@/app/api/crm/forms/route');
+const pipelinesRoute = await import('@/app/api/crm/pipelines/route');
 
 beforeEach(() => {
   session.user = null;
@@ -593,5 +598,81 @@ describe('menciones a quien no ve la nota', () => {
     // Otro workspace no puede escribir en ese contacto.
     session.user = stranger(s);
     expect((await activitiesRoute.POST(send('POST', { type: 'note', body: 'x', contactId: s.friendContact.id }))).status).not.toBe(201);
+  });
+});
+
+// ---------- Revisión: más lugares con ids, nombres y filtros ----------
+
+describe('ids de asociados y filtros por nombre de empresa', () => {
+  it('filtrar contactos o deals por el nombre de una empresa que no se ve no encuentra nada', async () => {
+    const s = await setup('p2-filter-co');
+    const byName = [{ f: 'companyName', o: 'contains', v: 'Hidden Owner' }];
+    const asMember = (await listContacts(s.ws, { ownerScope: [s.w.member.id], filters: byName })).rows;
+    expect(asMember).toEqual([]);
+    const asOwnerRows = (await listContacts(s.ws, { ownerScope: null, filters: byName })).rows;
+    expect(asOwnerRows.map((c) => c.id)).toEqual([s.memberContact.id]);
+    const deals = (await listDeals(s.ws, { pipelineId: s.p.id, ownerScope: [s.w.member.id], filters: byName })).rows;
+    expect(deals).toEqual([]);
+    expect((await listDeals(s.ws, { pipelineId: s.p.id, ownerScope: null, filters: byName })).rows.map((d) => d.id)).toEqual([s.memberDeal.id]);
+  });
+
+  it('la ficha de contacto, la API v1 y la búsqueda no traen el id de una empresa que no se ve', async () => {
+    const s = await setup('p2-contact-ids');
+    session.user = member(s);
+    const detail = await json<{ contact: { company_id: string | null; company_private?: boolean } }>(
+      await contactRoute.GET(get('http://x'), ctx(s.memberContact.id)),
+    );
+    expect(detail.contact).toMatchObject({ company_id: null, company_private: true });
+    expect(JSON.stringify(detail)).not.toContain(s.ownerCo.id);
+    // La empresa visible de un contacto tampoco nombra a su madre fuera de alcance.
+    const ownMember = await createContact(s.ws, { firstName: 'Own', ownerId: s.w.member.id, companyId: s.memberCo.id });
+    const d2 = await json<{ company: { parent_company_id: string | null } }>(await contactRoute.GET(get('http://x'), ctx(ownMember.id)));
+    expect(d2.company.parent_company_id).toBeNull();
+
+    const found = await json<{ contacts: Array<{ id: string; company_id: string | null }>; companies: Array<{ id: string; parent_company_id: string | null }> }>(
+      await searchRoute.GET(get('http://x/api/crm/search?q=Member')),
+    );
+    expect(found.contacts.find((c) => c.id === s.memberContact.id)?.company_id).toBeNull();
+    expect(found.companies.find((c) => c.id === s.memberCo.id)?.parent_company_id).toBeNull();
+
+    session.user = owner(s);
+    const full = await json<{ contact: { company_id: string } }>(await contactRoute.GET(get('http://x'), ctx(s.memberContact.id)));
+    expect(full.contact.company_id).toBe(s.ownerCo.id);
+    session.user = admin(s);
+    expect((await json<{ contact: { company_id: string } }>(await contactRoute.GET(get('http://x'), ctx(s.memberContact.id)))).contact.company_id).toBe(s.ownerCo.id);
+    session.user = stranger(s);
+    expect((await contactRoute.GET(get('http://x'), ctx(s.memberContact.id))).status).toBe(404);
+
+    const { createApiKey } = await import('@/lib/api-auth');
+    const key = await createApiKey(s.ws, 'k', s.w.member.id, ['crm:read']);
+    const res = await v1ContactRoute.GET(
+      new NextRequest(`http://x/api/v1/crm/contacts/${s.memberContact.id}`, { headers: { authorization: `Bearer ${key.key}` } }),
+      ctx(s.memberContact.id),
+    );
+    expect((await json<{ company_id: string | null }>(res)).company_id).toBeNull();
+  });
+
+  it('la lista de forms y los pipelines no nombran campos ocultos', async () => {
+    const s = await setup('p2-names');
+    await createForm(s.ws, {
+      name: 'Signup',
+      fields: [{ id: 'budget', type: 'text', label: 'Budget', property: 'custom.secret', required: false }],
+    });
+    await updateStage(s.ws, s.stageB.id, { requiredFields: ['amount', 'custom:secret', 'custom:margin'] });
+    session.user = member(s);
+    const forms = await json<{ forms: Array<{ fields: Array<{ property: string }> }> }>(await formsRoute.GET());
+    expect(JSON.stringify(forms)).not.toContain('custom.secret');
+    const pipes = await json<{ rows: Array<{ id: string; stages: Array<{ id: string; required_fields: string }> }> }>(await pipelinesRoute.GET());
+    const stage = pipes.rows.find((p) => p.id === s.p.id)!.stages.find((st) => st.id === s.stageB.id)!;
+    expect(JSON.parse(stage.required_fields)).toEqual(['amount', 'custom:margin', 'custom:_private']);
+    session.user = teamMember(s);
+    const t = await json<{ rows: Array<{ id: string; stages: Array<{ id: string; required_fields: string }> }> }>(await pipelinesRoute.GET());
+    expect(JSON.parse(t.rows.find((p) => p.id === s.p.id)!.stages.find((st) => st.id === s.stageB.id)!.required_fields)).toEqual([
+      'amount',
+      'custom:_private',
+    ]);
+    session.user = owner(s);
+    const o = await json<{ forms: unknown[] }>(await formsRoute.GET());
+    expect(JSON.stringify(o)).toContain('custom.secret');
   });
 });

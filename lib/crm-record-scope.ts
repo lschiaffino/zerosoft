@@ -187,3 +187,33 @@ export async function maskPrivateRef<T extends object>(
   if (!row) return null;
   return (await maskPrivateRefs(workspaceId, [row], specs, scope, db))[0];
 }
+
+/** Por cada clave de una ficha, qué ids de asociados lleva cada fila (el registro y sus asociados). */
+const DETAIL_REFS = {
+  contact: { contact: [PRIVATE_REFS.company([])], company: [PRIVATE_REFS.parent()], companies: [PRIVATE_REFS.parent()] },
+  company: { company: [PRIVATE_REFS.parent()], contacts: [PRIVATE_REFS.company([])] },
+  deal: { contacts: [PRIVATE_REFS.company([])], company: [PRIVATE_REFS.parent()], companies: [PRIVATE_REFS.parent()] },
+} as const satisfies Record<'contact' | 'company' | 'deal', Record<string, readonly PrivateRefSpec[]>>;
+
+/**
+ * Ficha (getContact, getCompany, getDeal, ya pasada por scope*Detail) sin ids
+ * de asociados que la persona no ve dentro de cada fila: la empresa primaria
+ * de un contacto (`company_id`) y la madre de una empresa
+ * (`parent_company_id`). Sin restricción la devuelve tal cual.
+ */
+export async function maskDetailRefs<T extends object>(
+  workspaceId: string,
+  kind: keyof typeof DETAIL_REFS,
+  detail: T,
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<T> {
+  if (!scope) return detail;
+  const out: Record<string, unknown> = { ...(detail as Record<string, unknown>) };
+  for (const [key, specs] of Object.entries(DETAIL_REFS[kind]) as Array<[string, readonly PrivateRefSpec[]]>) {
+    const v = out[key];
+    if (Array.isArray(v)) out[key] = await maskPrivateRefs(workspaceId, v as object[], specs, scope, db);
+    else if (v && typeof v === 'object') out[key] = await maskPrivateRef(workspaceId, v as object, specs, scope, db);
+  }
+  return out as T;
+}
