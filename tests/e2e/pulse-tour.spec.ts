@@ -14,6 +14,14 @@ import { e2eDb } from './helpers/db';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
+/** Capturas para la revisión visual a mano (opcional): PULSE_TOUR_SHOTS=<carpeta>. */
+const SHOTS = process.env.PULSE_TOUR_SHOTS;
+const shot = async (p: Page, name: string) => {
+  if (!SHOTS) return;
+  // Que el resaltado y la tarjeta terminen de moverse.
+  await p.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
+  await p.screenshot({ path: `${SHOTS}/${name}.png` });
+};
 
 async function sql(statement: string, args: Array<string | number | null> = []) {
   const db = e2eDb();
@@ -98,6 +106,7 @@ test('sin proyecto: se abre solo, va y vuelve, saltea instalación y números, t
     await p.getByTestId('tour-next').click();
     await stepIs(p, 'newProject');
     await cardBesideTarget(p, 'pulse-new-project', 'newProject');
+    await shot(p, 'desktop-empty-newProject');
     await p.getByTestId('tour-back').click();
     await stepIs(p, 'intro');
     await expect(p.getByTestId('tour-next')).toBeFocused();
@@ -114,6 +123,7 @@ test('sin proyecto: se abre solo, va y vuelve, saltea instalación y números, t
       await p.getByTestId('tour-next').click();
       await stepIs(p, id);
       await cardBesideTarget(p, target, id);
+      await shot(p, `desktop-empty-${id}`);
     }
     await expect.poll(async () => (await tours(p)).seen?.pulse).toMatchObject({ status: 'active', step: 'dashboards' });
     await p.getByTestId('tour-next').click();
@@ -150,6 +160,8 @@ test('equipo con un proyecto: instalación, números y lateral; "No mostrar más
   try {
     await p.goto('/en/app/pulse', { waitUntil: 'networkidle' });
     await expect(anchor(p, 'pulse-setup')).toBeVisible();
+    // Los números llegan después de la página (la consulta): esperarlos antes de Siguiente.
+    await expect(anchor(p, 'pulse-stats')).toBeVisible({ timeout: 30_000 });
     await stepIs(p, 'intro');
     // Con proyecto no hay vacío: crear proyecto se saltea.
     for (const [id, target] of [
@@ -161,6 +173,7 @@ test('equipo con un proyecto: instalación, números y lateral; "No mostrar más
       await p.getByTestId('tour-next').click();
       await stepIs(p, id);
       await cardBesideTarget(p, target, id);
+      await shot(p, `desktop-project-${id}`);
     }
     await p.getByTestId('tour-off').click();
     await expect(tour(p)).toHaveCount(0);
@@ -181,6 +194,37 @@ test('equipo con un proyecto: instalación, números y lateral; "No mostrar más
   }
 });
 
+test('escritorio en los cinco aspectos, claro y oscuro (capturas para la revisión a mano)', async ({ browser }) => {
+  test.skip(!SHOTS, 'solo con PULSE_TOUR_SHOTS');
+  test.setTimeout(600_000);
+  for (const look of ['current', 'lines', 'classic', 'liquid', 'retro'] as const) {
+    for (const scheme of ['light', 'dark'] as const) {
+      const { ctx, p } = await person(browser, { scheme, look, project: true });
+      try {
+        await p.goto('/en/app/pulse', { waitUntil: 'networkidle' });
+        await expect(anchor(p, 'pulse-stats')).toBeVisible({ timeout: 30_000 });
+        await stepIs(p, 'intro');
+        await shot(p, `desk-${look}-${scheme}-intro`);
+        for (const [id, target] of [
+          ['setup', 'pulse-setup'],
+          ['web', 'pulse-stats'],
+          ['events', 'pulse-events'],
+          ['insights', 'pulse-insights'],
+          ['dashboards', 'pulse-dashboards'],
+        ] as const) {
+          await p.getByTestId('tour-next').click();
+          await stepIs(p, id);
+          await cardBesideTarget(p, target, `${look} ${scheme} ${id}`);
+          await noHorizontalScroll(p, `${look} ${scheme} ${id}`);
+          await shot(p, `desk-${look}-${scheme}-${id}`);
+        }
+      } finally {
+        await ctx.close();
+      }
+    }
+  }
+});
+
 test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en los cinco aspectos', async ({ browser }) => {
   test.setTimeout(420_000);
   for (const [look, scheme] of [
@@ -195,6 +239,7 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en
       await p.goto('/en/app/pulse', { waitUntil: 'networkidle' });
       await expect(p.locator('html')).toHaveAttribute('data-look', look);
       await expect(anchor(p, 'pulse-setup')).toBeVisible();
+      await expect(anchor(p, 'pulse-stats')).toBeVisible({ timeout: 30_000 });
       await stepIs(p, 'intro');
       await noHorizontalScroll(p, `${look} intro`);
       // En el teléfono el lateral es un cajón: la actividad señala el link de la página; insights y tableros se saltean.
@@ -213,6 +258,7 @@ test('teléfono: tarjeta pegada abajo o arriba sin tapar y sin scroll lateral en
         expect(card!.y + card!.height >= 844 - 40 || card!.y <= 40, `${look} ${id}`).toBe(true);
         await cardBesideTarget(p, target, `${look} ${id}`);
         await noHorizontalScroll(p, `${look} ${id}`);
+        await shot(p, `phone-${look}-${id}`);
       }
       await p.getByTestId('tour-next').click();
       await stepIs(p, 'done');
