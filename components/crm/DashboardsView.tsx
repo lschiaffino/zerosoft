@@ -654,7 +654,11 @@ export default function DashboardsView({
   useEffect(() => {
     if (!dragging) return;
     const cancel = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') gripCancel();
+      if (e.key !== 'Escape') return;
+      dragRef.current = null;
+      dropRef.current = null;
+      setDragging(null);
+      setDropAt(null);
     };
     window.addEventListener('keydown', cancel);
     return () => window.removeEventListener('keydown', cancel);
