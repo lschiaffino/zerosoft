@@ -50,6 +50,7 @@ import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 import { useBackLayer, useMediaQuery } from '@/components/groups/wa/backLayer';
 import { useConversationZoom } from '@/components/groups/wa/useConversationZoom';
+import { useScrollEdges } from '@/components/groups/wa/useScrollEdges';
 
 export interface InboxStateDto {
   accounts: InboxAccountDto[];
@@ -252,6 +253,8 @@ export default function InboxApp(props: {
   const composer = useRef<ComposerHandle>(null);
   const gPending = useRef(0);
 
+  // Las pestañas de filtro se deslizan de costado: el borde con más para ver se esfuma.
+  const tabsEdges = useScrollEdges<HTMLElement>();
   const errText = useCallback((code?: string) => (code && t.has(`errors.${code}`) ? t(`errors.${code}`) : code && w.has(`errors.${code}`) ? w(`errors.${code}`) : t('errors.generic')), [t, w]);
   const toast = useCallback((text: string, opts: { bad?: boolean; undo?: () => void } = {}) => {
     const id = ++seq.current;
@@ -1388,7 +1391,7 @@ export default function InboxApp(props: {
             </div>
           )}
           {tabView && !q && (
-            <nav className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
+            <nav ref={tabsEdges} className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
               {TABS.map((v) => (
                 <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
                   {t(`tabs.${v}`)}
