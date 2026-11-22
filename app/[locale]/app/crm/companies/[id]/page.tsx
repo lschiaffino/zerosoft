@@ -5,7 +5,7 @@ import { fieldAccessFor, hiddenFieldsFor, redactCustomJson, sessionFieldViewer }
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd } from '@/lib/crm-visibility';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
@@ -640,7 +640,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         <CrmTrackRequests companyId={company.id} locale={locale} />
       </RecordCard>
       <RecordCard id="company.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
-        <RecordWorkflows enrollments={workflowEnrollments} />
+        <RecordWorkflows enrollments={workflowEnrollments} canEdit={isWorkspaceAdmin(user)} />
       </RecordCard>
     </>
   );

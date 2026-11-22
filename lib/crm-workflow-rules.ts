@@ -291,3 +291,147 @@ export function workflowUsesHiddenField(
   for (const m of text.matchAll(/custom\.([A-Za-z0-9_-]+)/g)) if (hidden.has(m[1])) return true;
   return false;
 }
+
+// ---------- W3: inscripción por criterios ----------
+
+/**
+ * Disparador "el registro cumple los criterios" (como "When filter criteria
+ * is met" de HubSpot): los criterios son los filtros de inscripción y se
+ * revisan cuando el registro se crea o cambia.
+ */
+export const CRITERIA_TRIGGER = 'criteria_met';
+
+/** Registros que revisa "inscribir los que ya cumplen" como máximo. */
+export const MAX_BACKFILL_SCAN = 2000;
+/** Registros que inscribe como máximo una pasada de "inscribir los que ya cumplen". */
+export const MAX_BACKFILL_ENROLL = 500;
+/** Inscripciones que entran a la cola del cron por minuto en esa pasada (las de una pasada esperan su turno). */
+export const BACKFILL_BATCH = 50;
+
+export function criteriaEntity(cfg: Record<string, unknown> | undefined): ConditionEntity {
+  const e = str(cfg?.entity);
+  return (CONDITION_ENTITIES as readonly string[]).includes(e) ? (e as ConditionEntity) : 'contact';
+}
+
+/** Eventos en los que se revisan los criterios de un registro de esa entidad. */
+export function criteriaEventTypes(entity: ConditionEntity): string[] {
+  return entity === 'deal' ? ['deal_created', 'deal_updated', 'deal_stage_changed'] : [`${entity}_created`, `${entity}_updated`];
+}
+
+/** Propiedades que cambiaron en un evento (la etapa, para un cambio de etapa). */
+export function eventChangedFields(eventType: string, payload: Record<string, unknown> | undefined): string[] {
+  if (eventType === 'deal_stage_changed') return ['stage_id'];
+  return Array.isArray(payload?.changed) ? (payload!.changed as unknown[]).map(str) : [];
+}
+
+/**
+ * Con reinscripción, un registro que ya estuvo inscripto vuelve a entrar
+ * solo si cambió una propiedad que usan los criterios (de su misma entidad) y
+ * los vuelve a cumplir: editar otra cosa no lo reinscribe.
+ */
+export function criteriaChanged(filters: readonly EnrollCondition[], entity: ConditionEntity, changed: readonly string[]): boolean {
+  if (!changed.length) return false;
+  const set = new Set(changed);
+  return filters.some((f) => f.entity === entity && set.has(fieldColumn(f.field)));
+}
+
+/** Valor de una propiedad en una fila de contacto, empresa o deal ('custom.<key>' en el JSON custom). */
+export function rowValue(row: Record<string, unknown>, field: string): unknown {
+  const f = field.trim();
+  if (f.startsWith('custom.')) return parseObj(row.custom)[f.slice(7)];
+  const col = fieldColumn(f);
+  return /^[a-z_]+$/.test(col) ? row[col] : undefined;
+}
+
+/** Compara un valor con una condición (las mismas reglas para filtros, criterios y si/si no). Puro. */
+export function compareCondition(actualRaw: unknown, op: string, expectedRaw: unknown): boolean {
+  const actual = actualRaw === undefined || actualRaw === null ? '' : String(actualRaw).trim().toLowerCase();
+  const expected = str(expectedRaw).trim().toLowerCase();
+  switch (op) {
+    case 'not_equals':
+      return actual !== expected;
+    case 'contains':
+      return expected !== '' && actual.includes(expected);
+    case 'gt':
+    case 'lt': {
+      const a = Number(actual);
+      const b = Number(expected);
+      if (actual === '' || Number.isNaN(a) || Number.isNaN(b)) return false;
+      return op === 'gt' ? a > b : a < b;
+    }
+    case 'is_set':
+      return actual !== '';
+    case 'is_not_set':
+      return actual === '';
+    default:
+      return actual === expected;
+  }
+}
+
+/**
+ * ¿Alguna condición del workflow (filtros, si/si no, valor del disparador)
+ * mira una entidad distinta de `entity`? Entonces que un registro esté
+ * inscripto dice algo de otro registro (su deal, su empresa), que la persona
+ * puede no ver: a quien no ve todo no se le muestra esa inscripción. Puro.
+ */
+export function conditionsReachOtherEntity(
+  workflow: { settings?: { filters?: readonly EnrollCondition[] }; actions: Array<{ type: string; config: Record<string, unknown> }> },
+  entity: string,
+): boolean {
+  for (const f of workflow.settings?.filters ?? []) if (f.entity !== entity) return true;
+  for (const a of workflow.actions) {
+    if (a.type !== 'branch') continue;
+    const e = str(a.config.entity) || 'contact';
+    if (e !== entity) return true;
+  }
+  return false;
+}
+
+// ---------- W3: registro por acción ----------
+
+/** Un paso de una inscripción como lo ven owner y admins: qué acción, cómo salió y cuándo. Sin valores. */
+export interface ActionLogEntry {
+  type: string;
+  outcome: 'ok' | 'skipped' | 'failed' | 'waited';
+  /** Código de error corto (nunca texto libre: puede traer datos). */
+  error?: string;
+  /** Rama que tomó un si/si no. */
+  branch?: 'yes' | 'no';
+  /** Minutos de una espera. */
+  minutes?: number;
+  at?: string;
+}
+
+const ERROR_CODE_RE = /^[a-z0-9_]{1,40}$/;
+
+/**
+ * Registro por acción a partir de los resultados guardados de la corrida.
+ * Solo tipo, resultado, código de error, rama y hora: nada de lo que la
+ * acción escribió o devolvió (valores, textos de IA, respuestas). Puro.
+ */
+export function actionLog(results: unknown): ActionLogEntry[] {
+  if (!Array.isArray(results)) return [];
+  const out: ActionLogEntry[] = [];
+  for (const r of results.slice(0, 60)) {
+    if (!isObject(r)) continue;
+    const type = str(r.type).slice(0, 40);
+    if (!/^[a-z_]+$/.test(type)) continue;
+    const result = isObject(r.result) ? r.result : {};
+    const entry: ActionLogEntry = { type, outcome: 'ok' };
+    if (r.ok !== true) {
+      entry.outcome = 'failed';
+      const code = str(r.error);
+      entry.error = ERROR_CODE_RE.test(code) ? code : 'action_error';
+    } else if (result.skipped === true) entry.outcome = 'skipped';
+    else if (type === 'delay') {
+      entry.outcome = 'waited';
+      const m = Number(result.minutes);
+      if (Number.isFinite(m) && m > 0) entry.minutes = m;
+    }
+    if (type === 'branch' && (result.branch === 'yes' || result.branch === 'no')) entry.branch = result.branch;
+    const at = str(r.at);
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(at)) entry.at = at;
+    out.push(entry);
+  }
+  return out;
+}

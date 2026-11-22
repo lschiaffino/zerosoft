@@ -3,14 +3,15 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import type { Workflow, WorkflowTriggerInput, WorkflowActionInput, TriggerType, ActionType, WorkflowRunView } from '@/lib/crm-workflows';
+import type { BackfillCursor, Workflow, WorkflowTriggerInput, WorkflowActionInput, TriggerType, ActionType, WorkflowRunView } from '@/lib/crm-workflows';
 import type { CrmListRow } from '@/lib/db';
-import { BRANCH_OPS, DELAY_UNITS, MAX_FILTERS, type EnrollCondition, type WorkflowSettings } from '@/lib/crm-workflow-rules';
+import { BRANCH_OPS, DELAY_UNITS, MAX_BACKFILL_ENROLL, MAX_FILTERS, type EnrollCondition, type WorkflowSettings } from '@/lib/crm-workflow-rules';
 import {
   ACTION_GROUPS,
   TEMPLATE_KEYS,
   actionMissing,
   actionStepProblems,
+  triggerStepProblems,
   TRIGGER_GROUPS,
   buildTemplate,
   defaultActionConfig,
@@ -101,6 +102,8 @@ export default function WorkflowEditor({
   const [running, setRunning] = useState(false);
   // Inscripción: un workflow nuevo arranca sin reinscripción, como en HubSpot.
   const [settings, setSettings] = useState<WorkflowSettings>(workflow?.settings ?? { reenroll: false, filters: [] });
+  // Asistente: inscribir también los registros que ya cumplen los criterios (W3).
+  const [enrollExisting, setEnrollExisting] = useState(false);
 
   const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, scores, canEdit, idBase, showErrors, webhookSecret };
   const triggerLabel = (type: string) => (t.has(`triggerTypes.${type}`) ? t(`triggerTypes.${type}` as 'triggerTypes.manual') : type);
@@ -160,7 +163,10 @@ export default function WorkflowEditor({
     dirty();
   }
 
-  const problems = workflowProblems({ name: effectiveName, triggers, actions });
+  const problems = workflowProblems({ name: effectiveName, triggers, actions, settings });
+  /** Entidad de "el registro cumple los criterios", si el workflow se inscribe así. */
+  const criteriaTrigger = triggers.find((x) => x.type === 'criteria_met');
+  const criteriaEntity = criteriaTrigger ? ((safeString(criteriaTrigger.config?.entity) || 'contact') as EnrollCondition['entity']) : null;
 
   async function save(e?: FormEvent) {
     e?.preventDefault();
@@ -193,6 +199,9 @@ export default function WorkflowEditor({
     }
     const saved = (await res.json()) as Workflow;
     if (isNew) {
+      if (enrollExisting && criteriaEntity && enabled) {
+        await fetch(`/api/crm/workflows/${saved.id}/enroll-existing`, { method: 'POST' }).catch(() => null);
+      }
       router.push(`/app/crm/workflows/${saved.id}`);
     } else {
       setState('saved');
@@ -240,7 +249,7 @@ export default function WorkflowEditor({
               trigger={tr}
               index={i}
               ctx={ctx}
-              onType={(type) => updateTrigger(i, { type, config: {} })}
+              onType={(type) => updateTrigger(i, { type, config: type === 'criteria_met' ? { entity: 'contact' } : {} })}
               onConfig={(patch) => updateTriggerConfig(i, patch)}
             />
           </div>
@@ -268,10 +277,18 @@ export default function WorkflowEditor({
     <EnrollmentSettings
       settings={settings}
       ctx={ctx}
+      criteriaEntity={criteriaEntity}
       onChange={(next) => {
         setSettings(next);
+        // El aviso "agregá un criterio" del asistente no queda viejo.
+        if (isNew) setError(null);
         dirty();
       }}
+      backfill={
+        workflow && criteriaEntity && canEdit ? (
+          <EnrollExisting workflowId={workflow.id} enabled={workflow.enabled} unsaved={state === 'dirty'} onDone={() => router.refresh()} />
+        ) : null
+      }
     />
   );
 
@@ -498,6 +515,24 @@ export default function WorkflowEditor({
                 </li>
               ))}
             </ol>
+            {criteriaEntity && (
+              <div className="ui-field wf-backfill-opt">
+                <label className="ui-check">
+                  <input
+                    type="checkbox"
+                    checked={enrollExisting}
+                    onChange={(e) => setEnrollExisting(e.target.checked)}
+                    disabled={!enabled}
+                    aria-describedby={`${idBase}-backfill-help`}
+                    data-testid="workflow-enroll-existing-opt"
+                  />
+                  {t('backfill.option')}
+                </label>
+                <span className="ui-help" id={`${idBase}-backfill-help`}>
+                  {enabled ? t('backfill.optionHint', { max: MAX_BACKFILL_ENROLL }) : t('backfill.needsOn')}
+                </span>
+              </div>
+            )}
           </section>
         )}
 
@@ -517,7 +552,7 @@ export default function WorkflowEditor({
                 className="btn btn-primary btn-sm"
                 key="next"
                 onClick={() => {
-                  const blocking = step === 1 ? actionStepProblems(actions) : [];
+                  const blocking = step === 0 ? triggerStepProblems(triggers, settings) : step === 1 ? actionStepProblems(actions) : [];
                   if (blocking.length) {
                     setShowErrors(true);
                     setError(t(`problems.${blocking[0]}`));
@@ -610,7 +645,7 @@ export default function WorkflowEditor({
         {canEdit && <div className="crm-savebar-more">{secondaryActions}</div>}
       </form>
 
-      <WorkflowRuns runs={runs} />
+      <WorkflowRuns runs={runs} workflowId={workflow!.id} canEdit={canEdit} />
     </div>
   );
 
@@ -709,6 +744,26 @@ function TriggerConfig({
           </optgroup>
         ))}
       </select>
+      {trigger.type === 'criteria_met' && (
+        <div className="wf-criteria">
+          <Field id={id('centity')} label={t('criteria.entity')} help={t('criteria.hint')}>
+            <select
+              id={id('centity')}
+              className="select"
+              value={safeString(cfg.entity) || 'contact'}
+              onChange={(e) => onConfig({ entity: e.target.value })}
+              disabled={!ctx.canEdit}
+              data-testid="workflow-criteria-entity"
+            >
+              {ENTITIES.map((en) => (
+                <option key={en} value={en}>
+                  {t(`entities.${en}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
       {trigger.type === 'form_submitted' && (
         <div className="ui-fields-2">
           <Field id={id('form')} label={t('formId')}>
@@ -797,16 +852,30 @@ function TriggerConfig({
  * Inscripción (como "Enrollment" de HubSpot): reinscripción y filtros que el
  * registro tiene que cumplir para entrar. Todas las condiciones a la vez.
  */
-function EnrollmentSettings({ settings, ctx, onChange }: { settings: WorkflowSettings; ctx: Ctx; onChange: (next: WorkflowSettings) => void }) {
+function EnrollmentSettings({
+  settings,
+  ctx,
+  criteriaEntity,
+  onChange,
+  backfill,
+}: {
+  settings: WorkflowSettings;
+  ctx: Ctx;
+  /** Inscripción por criterios: los filtros son los criterios (al menos uno). */
+  criteriaEntity: EnrollCondition['entity'] | null;
+  onChange: (next: WorkflowSettings) => void;
+  backfill?: ReactNode;
+}) {
   const t = useTranslations('crm.workflows');
   const tc = useTranslations('crm');
   const dis = !ctx.canEdit;
   const id = (k: string) => `${ctx.idBase}-enroll-${k}`;
   const setFilter = (i: number, patch: Partial<EnrollCondition>) =>
     onChange({ ...settings, filters: settings.filters.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
+  const missingCriteria = !!criteriaEntity && !settings.filters.some((f) => f.field.trim());
   return (
     <div className="wf-enroll" data-testid="workflow-enrollment">
-      <h3 className="wf-enroll-title">{t('enrollment.title')}</h3>
+      <h3 className="wf-enroll-title">{criteriaEntity ? t('criteria.title') : t('enrollment.title')}</h3>
       <div className="ui-field">
         <label className="ui-switch">
           <input
@@ -821,10 +890,16 @@ function EnrollmentSettings({ settings, ctx, onChange }: { settings: WorkflowSet
           {t('enrollment.reenroll')}
         </label>
         <span className="ui-help" id={id('re-help')}>
-          {settings.reenroll ? t('enrollment.reenrollOn') : t('enrollment.reenrollOff')}
+          {settings.reenroll ? (criteriaEntity ? t('criteria.reenrollOn') : t('enrollment.reenrollOn')) : t('enrollment.reenrollOff')}
         </span>
       </div>
-      <p className="ui-help">{settings.filters.length ? t('enrollment.filtersHint') : t('enrollment.noFilters')}</p>
+      {criteriaEntity ? (
+        <p className={missingCriteria && ctx.showErrors ? 'ui-error' : 'ui-help'} id={id('criteria-help')}>
+          {settings.filters.length ? t('criteria.filtersHint') : t('criteria.none')}
+        </p>
+      ) : (
+        <p className="ui-help">{settings.filters.length ? t('enrollment.filtersHint') : t('enrollment.noFilters')}</p>
+      )}
       {settings.filters.length > 0 && (
         <ul className="wf-filters">
           {settings.filters.map((f, i) => (
@@ -873,11 +948,85 @@ function EnrollmentSettings({ settings, ctx, onChange }: { settings: WorkflowSet
         <button
           type="button"
           className="btn btn-ghost btn-sm"
-          onClick={() => onChange({ ...settings, filters: [...settings.filters, { entity: 'contact', field: '', op: 'equals', value: '' }] })}
+          onClick={() =>
+            onChange({ ...settings, filters: [...settings.filters, { entity: criteriaEntity ?? 'contact', field: '', op: 'equals', value: '' }] })
+          }
           data-testid="workflow-add-filter"
         >
-          {t('enrollment.addFilter')}
+          {criteriaEntity ? t('criteria.add') : t('enrollment.addFilter')}
         </button>
+      )}
+      {backfill}
+    </div>
+  );
+}
+
+/**
+ * "Inscribir los registros que ya cumplen los criterios" (como la pregunta de
+ * HubSpot al prender un workflow). Con confirmación: entra hasta
+ * MAX_BACKFILL_ENROLL registros, de a tandas por minuto.
+ */
+function EnrollExisting({ workflowId, enabled, unsaved, onDone }: { workflowId: string; enabled: boolean; unsaved: boolean; onDone: () => void }) {
+  const t = useTranslations('crm.workflows');
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  // Una pasada que se cortó en un tope sigue desde acá.
+  const [next, setNext] = useState<BackfillCursor | null>(null);
+  const blocked = !enabled || unsaved;
+  async function go(after: BackfillCursor | null) {
+    setBusy(true);
+    setMsg(null);
+    const res = await fetch(`/api/crm/workflows/${workflowId}/enroll-existing`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(after ? { after } : {}),
+    }).catch(() => null);
+    setBusy(false);
+    setConfirming(false);
+    if (!res?.ok) {
+      setMsg({ tone: 'error', text: res?.status === 429 ? t('backfill.limited') : t('backfill.error') });
+      return;
+    }
+    const out = (await res.json()) as { enrolled: number; capped: boolean; busy?: boolean; next?: BackfillCursor };
+    setNext(out.capped && out.next ? out.next : null);
+    setMsg(
+      out.busy
+        ? { tone: 'error', text: t('backfill.busy') }
+        : { tone: 'ok', text: `${t('backfill.done', { n: out.enrolled })}${out.capped ? ` ${t('backfill.capped')}` : ''}` },
+    );
+    onDone();
+  }
+  return (
+    <div className="wf-backfill" data-testid="workflow-backfill-panel">
+      <p className="ui-help">{blocked ? (enabled ? t('backfill.saveFirst') : t('backfill.needsOn')) : t('backfill.hint', { max: MAX_BACKFILL_ENROLL })}</p>
+      <div className="wf-backfill-actions" onKeyDown={(e) => e.key === 'Escape' && setConfirming(false)}>
+        {confirming ? (
+          <>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void go(null)} aria-busy={busy || undefined} disabled={busy} data-testid="workflow-backfill-confirm">
+              {t('backfill.confirm', { max: MAX_BACKFILL_ENROLL })}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>
+              {t('cancel')}
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirming(true)} disabled={blocked} data-testid="workflow-backfill">
+              {t('backfill.button')}
+            </button>
+            {next && !blocked && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void go(next)} disabled={busy} aria-busy={busy || undefined} data-testid="workflow-backfill-next">
+                {t('backfill.continue')}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      {msg && (
+        <p className={msg.tone === 'error' ? 'ui-error' : 'ui-help'} role="status" data-testid="workflow-backfill-result">
+          {msg.text}
+        </p>
       )}
     </div>
   );
