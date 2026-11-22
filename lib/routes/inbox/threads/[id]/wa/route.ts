@@ -110,12 +110,14 @@ export async function POST(req: Request, ctx: Ctx) {
   // Miembros del grupo: { action: 'members', op: add|remove|promote|demote, phones }, { action: 'invite', revoke? }
   // (el link) y { action: 'inviteSend', phones, text } (el link por 1:1 a quienes WhatsApp no dejó agregar).
   // { action: 'groupInfo', name?, description? } cambia el nombre o la descripción del grupo en WhatsApp.
-  if (b?.action === 'members' || b?.action === 'invite' || b?.action === 'inviteSend' || b?.action === 'groupInfo') {
+  // { action: 'leave' } sale del grupo en WhatsApp; el chat queda de solo lectura (lib/inbox/wa-group-members.ts).
+  if (b?.action === 'members' || b?.action === 'invite' || b?.action === 'inviteSend' || b?.action === 'groupInfo' || b?.action === 'leave') {
     const limitedM = await limitByIp(req, 'inbox-group-members', 60, 60).catch(() => null);
     if (limitedM) return limitedM;
     const body = b as { op?: unknown; phones?: unknown; revoke?: unknown; text?: unknown; name?: unknown; description?: unknown };
     return withOwner(async (owner) => {
-      const { updateGroupMembers, groupInviteLinkFor, sendGroupInvites, updateGroupInfo } = await import('@/lib/inbox/wa-group-members');
+      const { updateGroupMembers, groupInviteLinkFor, sendGroupInvites, updateGroupInfo, leaveGroupThread } = await import('@/lib/inbox/wa-group-members');
+      if (b.action === 'leave') return iJson(await leaveGroupThread(owner, id));
       if (b.action === 'groupInfo') return iJson(await updateGroupInfo(owner, id, { name: body.name, description: body.description }));
       if (b.action === 'invite') return iJson({ link: await groupInviteLinkFor(owner, id, body.revoke === true) });
       if (b.action === 'inviteSend') return iJson({ results: await sendGroupInvites(owner, id, body.phones, body.text) });

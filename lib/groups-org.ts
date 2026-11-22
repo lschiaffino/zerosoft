@@ -177,6 +177,9 @@ export async function leaveGroup(ws: string, chatId: string): Promise<ChatDto> {
     .run(now, now, chatId);
   await db.prepare('DELETE FROM groups_members WHERE chat_id = ?').run(chatId);
   await refreshMemberCount(chatId);
+  // El aviso "Saliste" en el chat, como en WhatsApp (el teléfono no se lo avisa a la línea).
+  const { linesOwnGroupEvent } = await import('./wa-group-system');
+  await linesOwnGroupEvent(chat, { t: 'leave', by: { p: 'me' } }, now).catch(() => false);
   return (await getChat(ws, chatId)) as ChatDto;
 }
 
