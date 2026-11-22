@@ -301,7 +301,7 @@ test('drill-down de un reporte propio desde su tile', async ({ page, request }) 
   const tile = page.getByTestId('cdb-tile').first();
   // El reporte agrupa por etapa (sin fecha): "Todas las fechas".
   await expect(tile.locator('.cdb-tile-sub')).toHaveText('All dates');
-  await tile.getByTestId('rb-drill').first().click();
+  await tile.getByTestId('cdb-mark').first().click();
   const drill = page.getByTestId('cdb-drill');
   await expect(drill).toBeVisible();
   await expect(drill.getByTestId('cdb-drill-count')).toContainText('1 record');

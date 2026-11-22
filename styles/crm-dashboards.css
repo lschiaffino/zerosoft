@@ -356,10 +356,12 @@ button.cdb-funnel-row { cursor: pointer; }
 button.cdb-funnel-row:hover { background: var(--ui-hover); }
 .cdb-funnel-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
 .cdb-funnel-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdb-funnel-value { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cdb-funnel-value { flex: none; margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
 .cdb-funnel-track { display: block; height: 12px; background: color-mix(in srgb, var(--ink) 5%, transparent); border-radius: 2px; }
 .cdb-funnel-bar { display: block; height: 100%; background: var(--cdb); border-radius: 2px 4px 4px 2px; }
-.cdb-funnel-conv { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; font-size: 0.6875rem; line-height: 1.6; color: var(--dim); font-variant-numeric: tabular-nums; }
+.cdb-funnel-top { justify-content: flex-start; }
+.cdb-funnel-conv { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cdb-funnel { gap: 2px; }
 
 /* ---------- Dona ---------- */
 

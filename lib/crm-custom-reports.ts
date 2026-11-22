@@ -658,7 +658,7 @@ const DRILL_LIMIT = 200;
 /**
  * Registros del objeto principal del reporte que caen en un segmento: los
  * mismos filtros, el mismo alcance y el mismo rango que el tile, más la
- * igualdad en cada dimensión (keys[i] null = sin valor). Los campos propios
+ * igualdad en cada dimensión (keys[i] null = sin valor, '' = cualquiera). Los campos propios
  * ocultos para quien mira no existen (invalid_field), igual que en runReport.
  */
 export async function drillReport(
@@ -692,6 +692,8 @@ export async function drillReport(
   // Una clave por dimensión, como las devuelve runReport (mismo cálculo de la expresión).
   if (keys.length > config.dimensions.length) throw new ReportError('invalid_input');
   keys.forEach((k, i) => {
+    // '' = cualquier valor (ninguna dimensión devuelve '': los vacíos son null).
+    if (k === '') return;
     const d = config.dimensions[i];
     const f = resolveField(d.field, config, defs);
     const expr = f.type === 'date' ? bucketExpr(f.expr, d.bucket ?? 'month') : f.type === 'boolean' ? `COALESCE(${f.expr}, 0)` : `NULLIF(${f.expr}, '')`;

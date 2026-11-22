@@ -21,6 +21,8 @@ export interface ChartText {
   value: (n: number, format?: ValueFormat) => string;
   axis: (n: number, format?: ValueFormat) => string;
   extra: (n: number | null, kind: 'count' | 'conversion') => string | null;
+  /** Conversión corta del embudo ("64% moved on"); sin esto, la larga. */
+  convShort?: (n: number) => string;
   /** Nombre accesible de un segmento ("Negotiation, Won: 3"). */
   aria: (parts: string[]) => string;
   total: string;
@@ -359,6 +361,14 @@ function Funnel({ data, text, onDrill, title }: Props) {
           <>
             <span className="cdb-funnel-top">
               <span className="cdb-funnel-label">{label}</span>
+              {conv && (
+                <span className="cdb-funnel-conv" data-testid="cdb-funnel-conv" title={conv}>
+                  <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden>
+                    <path d="M1 9 9 1M3.5 1H9v5.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                  {text.convShort && raw !== null && raw !== undefined ? text.convShort(raw) : conv}
+                </span>
+              )}
               <span className="cdb-funnel-value">{text.value(vals[i], data.format)}</span>
             </span>
             <span className="cdb-funnel-track">
@@ -368,14 +378,6 @@ function Funnel({ data, text, onDrill, title }: Props) {
         );
         return (
           <li key={c.key} className="cdb-funnel-step">
-            {conv && (
-              <span className="cdb-funnel-conv" data-testid="cdb-funnel-conv">
-                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-                  <path d="M5 1v7M2 5.5 5 8.5 8 5.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
-                </svg>
-                {conv}
-              </span>
-            )}
             {onDrill ? (
               <button type="button" className="cdb-funnel-row" data-testid="cdb-mark" aria-label={text.aria([label, text.value(vals[i], data.format), ...(conv ? [conv] : [])])} onClick={() => onDrill({ category: c.key })}>
                 {inner}

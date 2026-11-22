@@ -5189,7 +5189,8 @@
       "vsPrevValue": "vs. {value} el período anterior",
       "pts": "{value, plural, one {# punto} other {# puntos}}",
       "velocityDetail": "{count, plural, one {# deal abierto} other {# deals abiertos}} · ciclo de {cycle} días",
-      "velocityFormula": "{open} deals abiertos × {rate}% de cierre × {avg} de ticket promedio ÷ ciclo de {cycle} días"
+      "velocityFormula": "{open} deals abiertos × {rate}% de cierre × {avg} de ticket promedio ÷ ciclo de {cycle} días",
+      "conversionShort": "{value}% avanzó"
     },
     "edit": {
       "title": "Editar reporte",

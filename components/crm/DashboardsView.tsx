@@ -8,11 +8,11 @@ import EmptyState from '@/components/ui/EmptyState';
 import MenuSelect from '@/components/ui/MenuSelect';
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import RecordPreview from './RecordPreview';
-import ReportChart from './ReportChart';
+import ReportChart, { useReportFormat } from './ReportChart';
 import DashChart, { ChartTable, type ChartText } from './dash/DashChart';
 import { bucketLabel, bucketsSpanYears } from '@/lib/crm-buckets';
 import { LIFECYCLE_STAGES, SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
-import { toCsv } from '@/lib/crm-report-builder';
+import { toCsv, type ReportAggregateResult, type ReportViz } from '@/lib/crm-report-builder';
 import type { DashboardView } from '@/lib/crm-dashboards';
 import type { DashboardVisibility, DashboardAccess, TileData } from '@/lib/crm-dashboards-schema';
 import {
@@ -85,6 +85,9 @@ function sameFilters(a: DashboardFilters, b: DashboardFilters): boolean {
     JSON.stringify([f.range, f.range === 'custom' ? f.from ?? '' : '', f.range === 'custom' ? f.to ?? '' : '', f.ownerId ?? '', f.teamId ?? '', f.pipelineId ?? '']);
   return n(a) === n(b);
 }
+
+/** Clave interna de un valor vacío de una dimensión de un reporte propio (viaja como null). */
+const NULL_KEY = '\u0000';
 
 /** El botón que abrió el último menú: un diálogo abierto desde un ítem del menú devuelve el foco ahí al cerrar. */
 let lastMenuTrigger: HTMLElement | null = null;
@@ -224,11 +227,63 @@ export default function DashboardsView({
       value: fmtValue,
       axis: fmtAxis,
       extra: (n, kind) => (n === null ? null : kind === 'count' ? t('dash.tile.deals', { count: n }) : t('dash.tile.conversion', { value: n })),
+      convShort: (n) => t('dash.tile.conversionShort', { value: n }),
       aria: (parts) => parts.join(', '),
       total: t('dash.tile.total'),
       };
     },
     [enumLabel, fmtAxis, fmtValue, t],
+  );
+
+  // ---------- Reportes propios como gráficos del dashboard ----------
+
+  const rfmt = useReportFormat(locale, baseCurrency);
+  /**
+   * Un resultado agregado de un reporte propio (una o dos dimensiones, hasta 6
+   * series) en el formato de los tiles de la biblioteca, así se ve igual que
+   * el resto. Lo demás (tabla, KPI, muchas series) sigue con ReportChart.
+   */
+  const customChart = useCallback(
+    (res: ReportAggregateResult, viz: ReportViz): { data: Extract<TileResult, { kind: 'chart' }>; viz: TileViz; text: ChartText } | null => {
+      if (!res.rows.length || res.dimensions.length === 0 || res.dimensions.length > 2) return null;
+      if (viz !== 'bar' && viz !== 'line' && viz !== 'pie') return null;
+      const [d0, d1] = res.dimensions;
+      if (d1 && viz === 'pie') return null;
+      const key = (k: string | null) => k ?? NULL_KEY;
+      const cats: string[] = [];
+      for (const r of res.rows) if (!cats.includes(key(r.keys[0]))) cats.push(key(r.keys[0]));
+      const sers: string[] = [];
+      for (const r of res.rows) if (d1 && !sers.includes(key(r.keys[1]))) sers.push(key(r.keys[1]));
+      if (sers.length > 6) return null;
+      const seriesKeys = d1 ? sers : ['value'];
+      const cell = new Map(res.rows.map((r) => [`${key(r.keys[0])}|${d1 ? key(r.keys[1]) : 'value'}`, r.value]));
+      const format: ValueFormat = res.metric.field?.money ? 'money' : 'number';
+      const label0 = (k: string) => rfmt.value(d0, k === NULL_KEY ? null : k, res.labels);
+      const label1 = (k: string) => (d1 ? rfmt.value(d1, k === NULL_KEY ? null : k, res.labels) : t('dash.tile.total'));
+      const data: Extract<TileResult, { kind: 'chart' }> = {
+        kind: 'chart',
+        format,
+        categories: cats.map((k) => ({ key: k, label: label0(k) })),
+        categoryKind: null,
+        series: seriesKeys.map((sk) => ({ key: sk, label: label1(sk), values: cats.map((c) => cell.get(`${c}|${sk}`) ?? 0) })),
+        seriesKind: d1 ? 'metric' : null,
+        total: res.total,
+        drill: true,
+      };
+      const isDate = d0.type === 'date';
+      const dashViz: TileViz = viz === 'pie' ? 'donut' : viz === 'line' ? 'line' : d1 ? 'stacked' : isDate ? 'bar' : 'hbar';
+      const text: ChartText = {
+        category: (_k, label) => label ?? '',
+        series: (_k, label) => label ?? '',
+        value: fmtValue,
+        axis: fmtAxis,
+        extra: () => null,
+        aria: (parts) => parts.join(', '),
+        total: t('dash.tile.total'),
+      };
+      return { data, viz: dashViz, text };
+    },
+    [rfmt, fmtValue, fmtAxis, t],
   );
 
   // ---------- Carga de tiles ----------
@@ -692,6 +747,38 @@ export default function DashboardsView({
       return <p className="cdb-empty">{msg}</p>;
     }
     if (data.kind === 'custom') {
+      const asChart = data.report.result.kind === 'aggregate' ? customChart(data.report.result, data.report.config.viz) : null;
+      if (asChart && !asTable.has(w.id)) {
+        // Barras, líneas y torta de un reporte propio se dibujan como el resto de los tiles.
+        const res = data.report.result as ReportAggregateResult;
+        const showTotal = res.metric.agg === 'count' || res.metric.agg === 'sum';
+        return (
+          <>
+            {showTotal && (
+              <p className="cdb-total">
+                <span className="cdb-total-num">{fmtValue(res.total, asChart.data.format)}</span> <span className="cdb-muted">{t('dash.tile.total')}</span>
+              </p>
+            )}
+            <DashChart
+              data={asChart.data}
+              viz={asChart.viz}
+              text={asChart.text}
+              title={title}
+              onDrill={(seg) => {
+                const keys = [seg.category ?? null, ...(seg.series !== undefined && seg.series !== null ? [seg.series] : [])].map((k) => (k === NULL_KEY ? null : k));
+                const parts = [
+                  seg.category ? asChart.text.category(seg.category, asChart.data.categories.find((c) => c.key === seg.category)?.label ?? null) : null,
+                  seg.series ? asChart.text.series(seg.series, asChart.data.series.find((x) => x.key === seg.series)?.label ?? null) : null,
+                  subtitle,
+                ].filter(Boolean);
+                // Una serie sola (leyenda): la primera dimensión va libre ('' = cualquier valor).
+                if (!seg.category && seg.series) return void openDrill(w.id, { keys: ['', seg.series === NULL_KEY ? null : seg.series] }, title, parts.join(' · '));
+                void openDrill(w.id, { keys }, title, parts.join(' · '));
+              }}
+            />
+          </>
+        );
+      }
       return (
         <div className="cdb-custom">
           <ReportChart
