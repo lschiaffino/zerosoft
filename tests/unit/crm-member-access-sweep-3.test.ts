@@ -177,6 +177,14 @@ describe('webhooks de contactos, empresas y deals', () => {
 
     const mine = await deliveries(h.member);
     expect(mine.map((d) => d.event).sort()).toEqual(['company.created', 'contact.deleted', 'deal.created']);
+    // Se intentan (la URL no responde), no se descartan por acceso.
+    expect(mine.every((d) => d.error !== 'audience_revoked')).toBe(true);
+    // Al reenviar un borrado, el owner sale de la papelera: el del miembro se reenvía, no se descarta.
+    const del = mine.find((d) => d.event === 'contact.deleted')!;
+    const again = await resendDelivery(s.ws, del.id);
+    expect((await deliveries(h.member)).find((d) => d.id === again)!.error).not.toBe('audience_revoked');
+    expect(await deliveryPayloadFor(s.ws, s.w.member.id, 'contact.deleted', JSON.stringify(del.body))).toBe(JSON.stringify(del.body));
+    expect(await deliveryPayloadFor(s.ws, s.w.friend.id, 'contact.deleted', JSON.stringify(del.body))).toBeNull();
     expect(JSON.stringify(mine)).not.toContain('secret');
     expect(JSON.stringify(mine)).not.toContain('Owner Only Co');
     expect(JSON.stringify(mine)).not.toContain('Hidden');

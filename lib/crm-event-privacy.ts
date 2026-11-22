@@ -196,6 +196,15 @@ export function isPersonalCrmEvent(event: string): boolean {
   );
 }
 
+/** Owner que tenía un registro borrado (papelera). undefined si no está. */
+async function trashedOwner(workspaceId: string, entity: CrmEventEntity, id: unknown): Promise<string | null | undefined> {
+  if (typeof id !== 'string' || !id) return undefined;
+  const row = (await getDb()
+    .prepare('SELECT owner_id FROM crm_trash WHERE user_id = ? AND entity = ? AND record_id = ? ORDER BY deleted_at DESC LIMIT 1')
+    .get(workspaceId, entity, id)) as { owner_id: string | null } | undefined;
+  return row ? row.owner_id : undefined;
+}
+
 async function formFields(workspaceId: string, formId: unknown): Promise<Array<{ id: string; property: string }> | null> {
   if (typeof formId !== 'string' || !formId) return null;
   const { getForm } = await import('./crm-forms');
@@ -222,8 +231,12 @@ export async function crmEventFor(
   if (event === 'contact.score_changed') return scoreChangedFor(sub, data);
   if (event.endsWith('.property_changed')) return propertyChangeFor(sub, data);
   const entity = event.split('.')[0] as CrmEventEntity;
-  // Un borrado ya no tiene fila: sin el owner que tenía, quien tiene alcance no lo recibe.
-  if (event.endsWith('.deleted') && ctx.ownerId === undefined) return sub.scope ? null : recordEventFor(sub, entity, data, { ownerId: null });
+  // Un borrado ya no tiene fila: el owner que tenía sale de la papelera; sin él, quien tiene alcance no lo recibe.
+  if (event.endsWith('.deleted') && ctx.ownerId === undefined) {
+    const trashed = sub.scope ? await trashedOwner(sub.viewer.workspaceId, entity, data.id) : undefined;
+    if (sub.scope && trashed === undefined) return null;
+    return recordEventFor(sub, entity, data, { ownerId: trashed ?? null });
+  }
   return recordEventFor(sub, entity, data, ctx.ownerId !== undefined ? { ownerId: ctx.ownerId } : {});
 }
 

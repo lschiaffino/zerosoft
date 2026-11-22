@@ -631,7 +631,12 @@ export async function listRecordEnrollments(
   if (!viewer || isUnrestricted(viewer) || !rows.length) return rows;
   const hidden = await hiddenAnywhere(viewer);
   if (!hidden.size) return rows;
-  const allowed = new Set((await workflowsForViewer(viewer, await listWorkflows(workspaceId))).map((w) => w.id));
+  // Solo los workflows de estas inscripciones (no todos los del workspace).
+  const allowed = new Set<string>();
+  for (const id of new Set(rows.map((r) => r.workflow_id))) {
+    const wf = await getWorkflow(workspaceId, id);
+    if (wf && !workflowUsesHiddenField(wf, hidden)) allowed.add(id);
+  }
   return rows.filter((r) => allowed.has(r.workflow_id));
 }
 
@@ -662,7 +667,8 @@ async function workspacePersonRole(workspaceId: string, personId: string): Promi
   const row = (await getDb()
     .prepare(
       `SELECT m.role FROM team_members m JOIN teams t ON t.id = m.team_id
-       WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest' LIMIT 1`,
+       WHERE t.owner_id = ? AND m.user_id = ? AND m.role != 'guest'
+       ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END LIMIT 1`,
     )
     .get(workspaceId, personId)) as { role: string } | undefined;
   return row ? normalizeRole(row.role) : null;
@@ -1255,7 +1261,8 @@ async function executeAction(
         const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
         const flow = await getFlowRow(userId, flowId);
         if (!flow) return { ok: false, type: action.type, error: 'flow_not_found' };
-        // El flow recibe lo que ve quien lo creó (como los flows que dispara un evento).
+        // El flow recibe lo que ve quien lo creó (como los flows que dispara un evento); si ya no es del workspace, no corre.
+        if (flow.created_by && !(await workspacePersonRole(userId, flow.created_by))) return { ok: false, type: action.type, error: 'flow_creator_gone' };
         const view = await contextForPerson(userId, flow.created_by ?? null, ctx);
         const hidden = flow.created_by && view === ctx ? new Set<string>() : await hiddenAnywhereFor(userId, flow.created_by ?? null);
         const payload = event.payload ?? {};

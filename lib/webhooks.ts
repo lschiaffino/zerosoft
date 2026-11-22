@@ -391,8 +391,10 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
   // CRM: el cuerpo se arma con el acceso de quien creó el webhook. Al
   // reintentar o reenviar se vuelve a armar con el acceso de hoy (un registro
   // que dejó de ver o un campo que pasó a oculto ya no sale).
+  // El primer intento ya sale armado para quien lo creó (emitWebhook): no se vuelve a armar.
   const { isPersonalCrmEvent, deliveryPayloadFor } = await import('./crm-event-privacy');
-  if (isPersonalCrmEvent(row.event)) {
+  const fresh = row.attempts === 0 && !opts.force && (row.captured_by ?? null) === (row.w_creator ?? null);
+  if (!fresh && isPersonalCrmEvent(row.event)) {
     const current = await deliveryPayloadFor(row.w_user, row.w_creator, row.event, row.payload);
     if (current === null) {
       await db
