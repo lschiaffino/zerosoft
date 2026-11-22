@@ -67,9 +67,9 @@ export function redactRequiredFields(json: string | null | undefined, hidden: Re
 }
 
 /** Etapas (o pipelines con sus etapas) sin nombrar en `required_fields` campos que la persona tiene ocultos. */
-export function redactStagesFor<S extends { required_fields: string }>(stages: S[], hidden: ReadonlySet<string>): S[] {
+export function redactStagesFor<S extends { required_fields?: string | null }>(stages: S[], hidden: ReadonlySet<string>): S[] {
   if (!hidden.size) return stages;
-  return stages.map((st) => ({ ...st, required_fields: redactRequiredFields(st.required_fields, hidden) }));
+  return stages.map((st) => (st.required_fields ? { ...st, required_fields: redactRequiredFields(st.required_fields, hidden) } : st));
 }
 
 /** Cómo pedir cada propiedad que falta (la UI arma el diálogo con esto). */
