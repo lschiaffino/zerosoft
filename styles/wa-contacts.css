@@ -2,6 +2,8 @@
    Usa la barra y los menús de la tabla de grupos (lines-groups-table.css) y solo tokens. */
 
 .wc-toolbar { flex-wrap: wrap; }
+/* El buscador con su × (components/app/SearchClear.tsx) ocupa el lugar que tenía el campo solo. */
+.wc-toolbar > .wc-search { flex: 0 1 240px; min-width: 140px; }
 .wc-pick .gr-gt-menu-btn.is-on { border-color: var(--ink); }
 .wc-pick-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wc-menu { min-width: 220px; padding: 4px; }
@@ -105,7 +107,7 @@
   .wc-groups,
   .wc-hs { max-width: 100%; }
   .wc-groups-names { white-space: normal; }
-  .wc-toolbar > .input { flex: 1 1 100%; }
+  .wc-toolbar > .wc-search { flex: 1 1 100%; }
   .wc-toolbar .gr-columns { position: static; }
   .wc-toolbar .gr-gt-popover { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
   .wc-count { display: none; }

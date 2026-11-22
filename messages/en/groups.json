@@ -1724,6 +1724,7 @@
     "action": "Go to inbox"
   },
   "wa": {
+    "clearSearch": "Clear search",
     "chatSearch": {
       "open": "Search messages",
       "shortcut": "Ctrl+Shift+F",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import SearchClear from '@/components/app/SearchClear';
 
 /** Un GIF del buscador (lo que devuelve /api/<app>/gifs; ver lib/wa-gifs.ts). */
 export interface GifItem {
@@ -50,6 +51,7 @@ const SKELETON = [
  */
 export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: () => void }) {
   const t = useTranslations('groups.wa.gifs');
+  const tw = useTranslations('groups.wa');
   const locale = useLocale();
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
@@ -194,16 +196,20 @@ export default function GifPanel({ api, onSend, onSent }: GifTab & { onSent?: ()
 
   return (
     <div className="wa-gif-panel">
-      <input
-        ref={searchRef}
-        className="wa-emoji-search"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        maxLength={50}
-      />
+      <div className="wa-emoji-search-box">
+        <input
+          ref={searchRef}
+          className="wa-emoji-search"
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          maxLength={50}
+          data-clearable=""
+        />
+        <SearchClear shown={q !== ''} onClear={() => setQ('')} label={tw('clearSearch')} />
+      </div>
       <div className="wa-gif-cats" role="group" aria-label={t('categories')}>
         {CATS.map((c) => (
           <button key={c} type="button" aria-pressed={activeCat === c} onClick={() => setQ(term(c))}>

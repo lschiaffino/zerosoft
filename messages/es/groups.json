@@ -1724,6 +1724,7 @@
     "action": "Ir a la bandeja"
   },
   "wa": {
+    "clearSearch": "Borrar búsqueda",
     "chatSearch": {
       "open": "Buscar mensajes",
       "shortcut": "Ctrl+Mayús+F",

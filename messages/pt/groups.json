@@ -1724,6 +1724,7 @@
     "action": "Ir para a caixa"
   },
   "wa": {
+    "clearSearch": "Limpar pesquisa",
     "chatSearch": {
       "open": "Pesquisar mensagens",
       "shortcut": "Ctrl+Shift+F",

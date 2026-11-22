@@ -44,6 +44,8 @@ dialog.ui-drawer.wa-nc {
 .wa-nc-search-icon { position: absolute; left: 28px; top: 50%; transform: translateY(-50%); margin-top: 2px; display: inline-flex; color: var(--brand-gray-2); pointer-events: none; }
 .wa-nc-search .wa-nc-input { width: 100%; padding-left: 38px; background: var(--bg-soft); }
 .wa-nc-search .wa-nc-input:focus { background: var(--bg); }
+.wa-nc-search .ui-search-clear { right: 20px; margin-top: 2px; }
+@media (pointer: coarse) { .wa-nc-search .ui-search-clear { right: 16px; } }
 
 .wa-nc-msg { margin: 0; padding: 4px 16px 8px; }
 div.wa-nc-msg { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 16px; }
