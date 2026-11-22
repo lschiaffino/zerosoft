@@ -3805,12 +3805,13 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 /* Selector de pipeline y filtros de fecha: menús anclados al botón. */
 .pipe-menu, .dr-filter { position: relative; }
 .pipe-menu-btn { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pipe-menu-list, .dr-filter-menu {
-  position: absolute; top: calc(100% + 4px); z-index: var(--z-menu);
+/* Usan .record-more-menu (el menú anclado de la app; en el teléfono baja como hoja, styles/app-shared.css). */
+.pipe-menu .pipe-menu-list, .dr-filter .dr-filter-menu {
+  position: absolute; top: calc(100% + 4px); right: auto; z-index: var(--z-menu);
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-md);
   box-shadow: 0 12px 32px var(--ui-shadow);
 }
-.pipe-menu-list { min-width: 220px; max-width: calc(100vw - 32px); padding: 6px; display: flex; flex-direction: column; }
+.pipe-menu .pipe-menu-list { min-width: 220px; max-width: calc(100vw - 32px); padding: 6px; display: flex; flex-direction: column; }
 .pipe-menu-item {
   display: flex; align-items: center; min-height: 36px; padding: 0 10px;
   border-radius: var(--radius-1); font-size: 0.875rem; color: var(--ink); text-decoration: none;
@@ -3821,7 +3822,7 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 
 .dr-filter-btn { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .dr-filter-value { font-weight: 500; }
-.dr-filter-menu { left: 0; width: 280px; max-width: calc(100vw - 32px); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.dr-filter .dr-filter-menu { width: 280px; max-width: calc(100vw - 32px); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .dr-filter-presets { display: flex; flex-direction: column; }
 .dr-filter-preset {
   text-align: left; min-height: 34px; padding: 0 10px; border: 0; background: none;
@@ -3919,23 +3920,8 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 .preview-amount { text-align: left; }
 .pipe-menu-btn { text-align: left; }
 
-/* Teléfono: el pipeline y los filtros de fecha bajan al pie como hoja con telón, como los
-   demás menús anclados (styles/app-shared.css), con filas de 44px. */
+/* Teléfono: bajan al pie como hoja (regla de .record-more-menu), con filas de 44px. */
 @media (max-width: 640px) {
-  :is(.pipe-menu-list, .dr-filter-menu) {
-    position: fixed !important;
-    top: auto !important;
-    right: 8px !important;
-    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-    left: 8px !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    max-height: 70dvh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    box-shadow: 0 0 0 100vmax var(--ui-backdrop);
-  }
   :is(.pipe-menu-item, .dr-filter-preset) { min-height: 44px; }
   .dr-filter-field .input { min-height: 40px; }
   :is(.dr-filter-actions, .pipe-menu-add) .btn { min-height: 40px; }

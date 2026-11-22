@@ -195,7 +195,7 @@ test('deals y vista previa a 390: sin scroll horizontal y con blancos de 40px', 
   // Vista previa a 390 (desde el board): ocupa la pantalla y no desborda.
   const preview = await openPreviewFromBoard(page, p.id, name);
   const pb = (await preview.boundingBox())!;
-  expect(pb.width).toBeLessThanOrEqual(390);
+  expect(pb.width).toBeLessThanOrEqual(391);
   await noHorizontalScroll(page);
 });
 

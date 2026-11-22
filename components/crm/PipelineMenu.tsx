@@ -88,7 +88,7 @@ export default function PipelineMenu({ current, pipelines, currentId }: Pipeline
         {current}
       </button>
       {open && (
-        <div ref={listRef} className="pipe-menu-list" style={{ left: shift }}>
+        <div ref={listRef} className="record-more-menu pipe-menu-list" style={{ left: shift }}>
           <div ref={menuRef} role="menu" aria-label={t('deals.pipelineLabel')} className="pipe-menu-items">
           {pipelines.map((p) => (
             <Link

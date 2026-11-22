@@ -138,7 +138,7 @@ export default function DateRangeFilter({ label, kind, from, to, locale, onChang
           id={menuId}
           role="dialog"
           aria-label={label}
-          className="dr-filter-menu"
+          className="record-more-menu dr-filter-menu"
           style={{ left: shift }}
           data-testid={testId ? `${testId}-menu` : undefined}
         >
