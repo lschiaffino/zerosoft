@@ -322,8 +322,16 @@ describe('playbooks: preguntas que van a un campo oculto', () => {
 // ---------- 4. Secuencias con remitente que salió ----------
 
 describe('secuencias: remitente que ya no es del workspace', () => {
+  // El tick de secuencias recorre toda la base: las inscripciones de estas pruebas no quedan activas para otras.
+  const seeded: string[] = [];
+  afterEach(async () => {
+    for (const ws of seeded.splice(0)) {
+      await getDb().prepare("UPDATE crm_sequence_enrollments SET status = 'exited', exit_reason = 'manual' WHERE user_id = ? AND status IN ('active', 'paused')").run(ws);
+    }
+  });
   async function seed(label: string) {
     const s = await setup(label);
+    seeded.push(s.ws);
     const seq = await createSequence(s.ws, s.ws, {
       name: 'Follow-up',
       timezone: 'UTC',
