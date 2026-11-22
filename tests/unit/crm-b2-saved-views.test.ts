@@ -328,10 +328,10 @@ describe('vistas: API y permisos', () => {
     expect(((await gone.json()) as { tabs: Array<{ key: string }> }).tabs.map((t) => t.key)).toEqual(['open']);
   });
 
-  it('una vista vieja de otro objeto (tasks) no rompe el listado', async () => {
+  it('una vista vieja de otro objeto no rompe el listado', async () => {
     const w = await workspaceWithMember('b2-legacy');
     await getDb()
-      .prepare("INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, 'tasks', 'Old', '{\"q\":\"x\"}')")
+      .prepare("INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, 'tickets', 'Old', '{\"q\":\"x\"}')")
       .run(crypto.randomUUID(), w.owner.id);
     session.user = asOwner(w.owner);
     const res = await viewsRoute.GET(get('http://x/api/crm/views'));
@@ -341,7 +341,7 @@ describe('vistas: API y permisos', () => {
 
   it('valida el cuerpo', async () => {
     const w = await workspaceWithMember('b2-body');
-    expect((await create(asOwner(w.owner), { entity: 'tasks' })).status).toBe(400);
+    expect((await create(asOwner(w.owner), { entity: 'tickets' })).status).toBe(400);
     expect((await create(asOwner(w.owner), { name: '' })).status).toBe(400);
     expect((await create(asOwner(w.owner), { visibility: 'world' })).status).toBe(400);
   });

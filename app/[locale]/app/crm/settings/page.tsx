@@ -248,7 +248,7 @@ export default async function CrmSettingsPage(props: {
       workspacePeople(user),
       getAssignmentRule(user.id),
       unavailablePeople(user.id),
-      listAssignmentHistory(user.id, 15),
+      sessionScope(user).then((scope) => listAssignmentHistory(user.id, 15, scope)),
       listScoreRules(user.id),
       fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
       listScores(user.id),

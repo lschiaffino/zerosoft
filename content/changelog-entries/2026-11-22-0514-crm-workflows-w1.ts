@@ -1,0 +1,19 @@
+import type { ChangelogEntry } from '../changelog';
+
+export default {
+  id: '2026-11-22-0514-crm-workflows-w1',
+  date: '2026-11-22',
+  title: {
+    en: 'CRM: workflows with delays, enrollment filters and company triggers',
+    es: 'CRM: workflows con esperas, filtros de inscripción y disparadores de empresas',
+    pt: 'CRM: workflows com esperas, filtros de inscrição e gatilhos de empresas',
+  },
+  items: [
+    {
+      product: 'crm',
+      en: 'Workflows can now wait minutes, hours or days between actions. Turning a workflow off pauses the records that are waiting, and they continue where they were when you turn it back on. Each workflow has enrollment filters on contact, company and deal properties and a re-enrollment switch that is off by default, and an updated trigger can fire only when a chosen property changes to a value. Companies have their own triggers. New actions rotate the owner among chosen people (skipping anyone out of office), create a deal, remove a contact from a static list, and notify the record owner or chosen people. A person only gets the notification if they can see the record, and it leaves out the fields hidden from them. Webhooks are signed with a secret that owners and admins see, and never carry fields hidden from anyone in the workspace. Each workflow lists its enrollments, and each contact, company and deal has a Workflows card; members only see enrollments of records they can see. Only owners and admins create, edit or turn workflows on and off.',
+      es: 'Los workflows ahora pueden esperar minutos, horas o días entre acciones. Apagar un workflow pausa los registros que están esperando, y siguen donde estaban cuando lo volvés a prender. Cada workflow tiene filtros de inscripción sobre propiedades de contacto, empresa y deal y una opción de reinscripción que viene apagada, y un disparador de actualización puede correr solo cuando una propiedad elegida cambia a un valor. Las empresas tienen sus propios disparadores. Las acciones nuevas rotan el owner entre personas elegidas (salteando a quien está fuera de oficina), crean un deal, sacan un contacto de una lista estática y avisan al owner del registro o a personas elegidas. Una persona recibe el aviso solo si ve el registro, y no incluye los campos que tiene ocultos. Los webhooks van firmados con un secreto que ven owners y admins, y nunca llevan campos que alguien del workspace tiene ocultos. Cada workflow lista sus inscripciones, y cada contacto, empresa y deal tiene una tarjeta Workflows; los miembros solo ven las inscripciones de registros que pueden ver. Solo owners y admins crean, editan, prenden y apagan workflows.',
+      pt: 'Os workflows agora podem esperar minutos, horas ou dias entre ações. Desligar um workflow pausa os registros que estão esperando, e eles continuam de onde estavam quando você o liga de novo. Cada workflow tem filtros de inscrição sobre propriedades de contato, empresa e negócio e uma opção de reinscrição que vem desligada, e um gatilho de atualização pode rodar só quando uma propriedade escolhida muda para um valor. As empresas têm seus próprios gatilhos. As novas ações revezam o responsável entre pessoas escolhidas (pulando quem está fora do escritório), criam um negócio, removem um contato de uma lista estática e avisam o responsável pelo registro ou pessoas escolhidas. Uma pessoa só recebe o aviso se vê o registro, e ele deixa de fora os campos ocultos para ela. Os webhooks vão assinados com um segredo que owners e admins veem, e nunca levam campos ocultos para alguém do workspace. Cada workflow lista suas inscrições, e cada contato, empresa e negócio tem um cartão Workflows; os membros só veem as inscrições de registros que podem ver. Só owners e admins criam, editam, ligam e desligam workflows.',
+    },
+  ],
+} satisfies ChangelogEntry;

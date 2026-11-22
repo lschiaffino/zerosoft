@@ -118,6 +118,23 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.people, { audience: 'team', admin: false }))).not.toContain('settings');
   });
 
+  it('el tour de Hiring arranca en el inicio; las scorecards son de equipo y los ajustes de quien administra', () => {
+    expect(tourForPath('/app/hiring')?.key).toBe('hiring');
+    expect(tourForPath('/es/app/hiring/jobs/job_abc123')?.key).toBe('hiring');
+    expect(tourForPath('/app/hiringx')).toBeNull();
+    expect(atTourStart(TOURS.hiring, '/pt/app/hiring')).toBe(true);
+    expect(atTourStart(TOURS.hiring, '/app/hiring/jobs')).toBe(false);
+    expect(atTourStart(TOURS.hiring, '/app/hiring/candidates/cand_abc123')).toBe(false);
+    // El inicio primero; el lateral (en el teléfono, un cajón que se saltea) al final.
+    const steps = ids([...TOURS.hiring.steps]);
+    expect(steps).toEqual(['intro', 'newJob', 'jobs', 'pending', 'recent', 'candidates', 'reports', 'templates', 'settings', 'done']);
+    expect(ids(stepsFor(TOURS.hiring, { audience: 'team', admin: true }))).toEqual(steps);
+    const solo = ids(stepsFor(TOURS.hiring, { audience: 'solo', admin: true }));
+    expect(solo).not.toContain('pending');
+    expect(solo).toEqual(expect.arrayContaining(['newJob', 'jobs', 'recent', 'candidates', 'reports', 'settings']));
+    expect(ids(stepsFor(TOURS.hiring, { audience: 'team', admin: false }))).not.toContain('settings');
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');

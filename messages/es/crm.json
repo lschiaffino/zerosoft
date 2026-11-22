@@ -78,7 +78,8 @@
     "moreFilters": "Más filtros",
     "sortBy": "Ordenar por",
     "activityType": "Tipo de actividad",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "privateRecord": "Registro privado"
   },
   "assoc": {
     "noneToAdd": "No queda nada para vincular. Creá un registro primero.",
@@ -562,7 +563,8 @@
       "project": "Proyecto",
       "owner": "Responsable",
       "repeat": "Repetir",
-      "priority": "Prioridad"
+      "priority": "Prioridad",
+      "reminder": "Recordatorio"
     },
     "detail": {
       "back": "← Todas las tareas",
@@ -628,7 +630,66 @@
       "error": "No se pudo crear el issue.",
       "created": "Issue {id} creado",
       "source": "Desde"
-    }
+    },
+    "searchPlaceholder": "Buscar tareas",
+    "filterType": "Tipo de tarea",
+    "filterPriority": "Prioridad",
+    "ownerMe": "Yo",
+    "ownerUnassigned": "Sin asignar",
+    "kind": {
+      "todo": "Por hacer"
+    },
+    "startView": "{count, plural, one {Empezar # tarea} other {Empezar # tareas}}",
+    "emptyFiltered": "Ninguna tarea coincide con estos filtros",
+    "emptyFilteredBody": "Cambiá o limpiá los filtros para ver más tareas.",
+    "table": {
+      "title": "Título",
+      "type": "Tipo",
+      "priority": "Prioridad",
+      "associated": "Asociada a",
+      "due": "Vencimiento",
+      "owner": "Asignada a",
+      "status": "Estado",
+      "created": "Creada"
+    },
+    "reminderNeedsDue": "Poné una fecha de vencimiento para sumar un recordatorio.",
+    "reminder": {
+      "none": "Sin recordatorio",
+      "at_due": "A la hora del vencimiento",
+      "15m": "15 minutos antes",
+      "1h": "1 hora antes",
+      "1d": "1 día antes",
+      "1w": "1 semana antes"
+    },
+    "reminderAt": "Recordatorio {when}",
+    "reminderSent": "enviado",
+    "reminderHelp": "A esta hora, la persona asignada recibe un aviso y un email.",
+    "bulkLabel": "Tareas elegidas",
+    "bulkSelected": "{count, plural, one {# tarea elegida} other {# tareas elegidas}}",
+    "bulkConfirmDelete": "{count, plural, one {¿Borrar # tarea?} other {¿Borrar # tareas?}}",
+    "queues": {
+      "label": "Cola",
+      "filter": "Cola",
+      "none": "Sin cola",
+      "manage": "Colas",
+      "help": "Juntá tareas en una cola y trabajalas una detrás de otra. Una cola privada es solo tuya; una compartida la ve todo el workspace.",
+      "namePlaceholder": "Nombre de la cola",
+      "shareWithAll": "Compartir con el workspace",
+      "shared": "Compartida",
+      "private": "Privada",
+      "share": "Compartir",
+      "makePrivate": "Hacer privada",
+      "rename": "Renombrar",
+      "start": "Empezar",
+      "deleteConfirm": "Sus tareas quedan, sin cola.",
+      "openCount": "{count, plural, one {# tarea abierta} other {# tareas abiertas}}",
+      "empty": "Todavía no hay colas."
+    },
+    "digest": {
+      "label": "Email diario",
+      "hint": "Cada mañana a las 8, un email con tus tareas abiertas vencidas o que vencen hoy."
+    },
+    "selectTask": "Elegir tarea"
   },
   "lists": {
     "title": "Listas",
@@ -680,7 +741,9 @@
       "email_clicked": "Click en un link del email",
       "quote_accepted": "Cotización aceptada",
       "form_submitted": "Formulario enviado",
-      "score_changed": "Cambió el lead score"
+      "score_changed": "Cambió el lead score",
+      "company_created": "Empresa creada",
+      "company_updated": "Empresa actualizada"
     },
     "actionTypes": {
       "send_email": "Enviar email",
@@ -693,7 +756,11 @@
       "enroll_in_sequence": "Inscribir en secuencia",
       "run_flow": "Ejecutar un Flow",
       "branch": "Si / si no",
-      "ai_step": "Paso de IA"
+      "ai_step": "Paso de IA",
+      "delay": "Esperar",
+      "rotate_owner": "Rotar owner",
+      "create_deal": "Crear un deal",
+      "remove_from_list": "Quitar de una lista"
     },
     "addTrigger": "Agregar disparador",
     "addAction": "Agregar acción",
@@ -705,7 +772,8 @@
       "pending": "Pendiente",
       "running": "Ejecutando",
       "done": "Listo",
-      "failed": "Falló"
+      "failed": "Falló",
+      "waiting": "Esperando"
     },
     "noRuns": "Todavía no hay ejecuciones.",
     "delete": "Eliminar workflow",
@@ -759,7 +827,8 @@
       "contacts": "Contactos",
       "deals": "Deals",
       "email": "Email y reuniones",
-      "other": "Otros"
+      "other": "Otros",
+      "companies": "Empresas"
     },
     "templates": {
       "copy": {
@@ -869,7 +938,71 @@
         "deal_score": "Guarda el score con IA y el plan del deal. Usalo con triggers de deals."
       }
     },
-    "scoreId": "Score"
+    "scoreId": "Score",
+    "runRecord": "Registro",
+    "runNoRecord": "Sin registro",
+    "resumesAt": "hasta {when}",
+    "propertyChanged": "Solo cuando cambia esta propiedad",
+    "propertyChangedHint": "Opcional. El nombre de una propiedad, como lifecycle_stage, o custom.clave para una propiedad propia. Vacío es cualquier cambio.",
+    "propertyNewValue": "Y el valor nuevo es",
+    "propertyNewValueHint": "Opcional. Vacío es cualquier valor.",
+    "enrollment": {
+      "title": "Inscripción",
+      "reenroll": "Reinscribir registros",
+      "reenrollOn": "Un registro se vuelve a inscribir cada vez que pasa el disparador, hasta 10 veces por día, y nunca mientras sigue en este workflow.",
+      "reenrollOff": "Cada registro se inscribe una vez. Los disparadores siguientes del mismo registro se ignoran.",
+      "noFilters": "Se inscribe todo registro que cumple el disparador. Agregá un filtro para inscribir solo algunos.",
+      "filtersHint": "Un registro se inscribe solo si cumple todos los filtros.",
+      "addFilter": "Agregar filtro",
+      "remove": "Quitar",
+      "removeFilter": "Quitar el filtro {n}"
+    },
+    "notify": {
+      "recipients": "Avisar a",
+      "to": {
+        "owner": "El owner del registro",
+        "people": "Personas elegidas",
+        "workspace": "El dueño del workspace"
+      },
+      "people": "Personas",
+      "privacyHint": "Una persona recibe el aviso solo si ve el registro, y el mensaje no incluye los campos que tiene ocultos."
+    },
+    "delay": {
+      "amount": "Esperar",
+      "unit": "Unidad",
+      "units": {
+        "minutes": "Minutos",
+        "hours": "Horas",
+        "days": "Días"
+      },
+      "hint": "Las acciones siguientes corren después de esta espera, de hasta 30 días. Apagar el workflow pausa los registros que esperan, y siguen cuando se vuelve a prender.",
+      "summary": {
+        "minutes": "{n, plural, one {# minuto} other {# minutos}}",
+        "hours": "{n, plural, one {# hora} other {# horas}}",
+        "days": "{n, plural, one {# día} other {# días}}"
+      }
+    },
+    "rotate": {
+      "eventRecord": "El registro inscripto",
+      "pool": "Rotar entre",
+      "onlyUnowned": "Solo si el registro no tiene owner",
+      "hint": "Cada inscripción va a la persona siguiente en el orden. Se saltea a quien está marcado fuera de oficina."
+    },
+    "createDeal": {
+      "name": "Nombre del deal",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "amount": "Monto",
+      "hint": "El deal queda asociado al contacto y a la empresa del registro inscripto, con el owner del registro."
+    },
+    "webhookSecret": "Secreto de firma",
+    "webhookSecretHint": "Cada pedido lleva la cabecera zerosoft-signature con la hora del envío (t) y un HMAC-SHA256 de la hora, un punto y el cuerpo, hecho con este secreto (v1). Solo lo ven owners y admins.",
+    "webhookSignedHint": "Los pedidos van firmados con la cabecera zerosoft-signature. Nunca salen los campos que alguien del workspace tiene ocultos.",
+    "recordCard": {
+      "title": "Workflows",
+      "empty": "Este registro no se inscribió en ningún workflow.",
+      "resumes": "sigue {when}"
+    }
   },
   "history": {
     "title": "Historial",
@@ -1253,7 +1386,9 @@
     "not_unique": "Hay registros que ya comparten un valor en esta propiedad. Corregí los duplicados primero.",
     "invalid_unique": "Solo las propiedades de texto, número, URL y teléfono de contactos, empresas y deals pueden pedir valor único.",
     "duplicate_label": "Ya hay un label con ese nombre.",
-    "too_many_labels": "Llegaste al límite de labels para esta asociación."
+    "too_many_labels": "Llegaste al límite de labels para esta asociación.",
+    "invalid_queue": "Esa cola no existe o no la podés ver.",
+    "too_many": "Este workspace llegó al límite."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -2268,7 +2403,8 @@
         "overdue": "Nada vencido",
         "today": "Nada para hoy",
         "upcoming": "Nada en los próximos días",
-        "done": "Todavía no completaste tareas"
+        "done": "Todavía no completaste tareas",
+        "all": "No hay tareas abiertas"
       },
       "tasksBody": "Las tareas de contactos, empresas y deals aparecen acá según su fecha.",
       "bringFromHubspot": "Traé tus datos desde HubSpot"
@@ -2353,7 +2489,8 @@
   },
   "mentions": {
     "suggestions": "Personas para mencionar",
-    "placeholder": "Notas. Escribí @ para mencionar a alguien del equipo"
+    "placeholder": "Notas. Escribí @ para mencionar a alguien del equipo",
+    "notNotified": "{count, plural, one {{names} no puede ver este registro, así que no recibió el aviso.} other {{names} no pueden ver este registro, así que no recibieron el aviso.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2513,8 @@
     "needContacts": "Asociá al menos un contacto al deal.",
     "openDeal": "Abrir el deal",
     "saveAndMove": "Guardar y mover",
-    "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}"
+    "bulkBlocked": "{count, plural, one {# deal quedó donde estaba porque la etapa pide propiedades que no tiene.} other {# deals quedaron donde estaban porque la etapa pide propiedades que no tienen.}}",
+    "adminRequired": "Esta etapa pide una propiedad que solo un admin puede completar. Pedile a un admin que la complete y después mové el deal."
   },
   "calls": {
     "call": "Llamar",
@@ -3015,7 +3153,9 @@
     "scope": {
       "due": "Vencidas y de hoy",
       "overdue": "Vencidas",
-      "today": "Hoy"
+      "today": "Hoy",
+      "upcoming": "Próximas",
+      "all": "Todas las abiertas"
     },
     "counter": "Tarea {current} de {total}",
     "progress": "Avance de la cola",
@@ -3057,7 +3197,8 @@
     "emptyBody": "En esta cola no hay tareas vencidas ni que venzan hoy.",
     "finishedTitle": "Terminaste la cola",
     "finishedSummary": "{done} completadas, {snoozed} pospuestas y {skipped} para después.",
-    "reviewSkipped": "Repasar las {count} salteadas"
+    "reviewSkipped": "Repasar las {count} salteadas",
+    "namedDesc": "Las tareas abiertas de esta cola, de a una."
   },
   "playbooks": {
     "title": "Playbooks",
@@ -3363,7 +3504,8 @@
       "invalid_field": "Uno de los campos ya no existe. Quitalo y probá de nuevo.",
       "invalid_metric": "Suma, promedio, mínimo y máximo necesitan un campo numérico.",
       "invalid_input": "Esa combinación de objetos no está disponible para la fuente de datos.",
-      "network": "No pudimos conectar con el servidor. Revisá tu conexión."
+      "network": "No pudimos conectar con el servidor. Revisá tu conexión.",
+      "report_restricted": "Este reporte usa una propiedad que no podés ver. Pedile a un admin que lo cambie."
     },
     "fields": {
       "contact": {
@@ -4594,7 +4736,12 @@
       "unassignedCompanies": "Empresas sin asignar",
       "allDeals": "Todos los deals",
       "myDeals": "Mis deals",
-      "openDeals": "Deals abiertos"
+      "openDeals": "Deals abiertos",
+      "allTasks": "Todas las tareas",
+      "dueToday": "Vencen hoy",
+      "overdueTasks": "Vencidas",
+      "upcomingTasks": "Próximas",
+      "completedTasks": "Completadas"
     },
     "columns": {
       "button": "Editar columnas",
@@ -4619,7 +4766,8 @@
       "entities": {
         "contacts": "Contactos",
         "companies": "Empresas",
-        "deals": "Deals"
+        "deals": "Deals",
+        "tasks": "Tareas"
       },
       "you": "Vos",
       "formerMember": "Ex miembro",
@@ -4635,6 +4783,7 @@
       "createdByMe": "Creadas por mí",
       "noMatch": "Ninguna vista coincide con estos filtros.",
       "updated": "Actualizada"
-    }
+    },
+    "partialFilters": "Algunos filtros de esta vista no se aplican para vos."
   }
 }

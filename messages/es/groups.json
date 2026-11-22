@@ -868,7 +868,8 @@
     "flow": "Flow también puede mandar un mensaje de WhatsApp con el paso Lines: mandar mensaje de WhatsApp.",
     "docs": "Cada endpoint con ejemplos está en",
     "docsLink": "la documentación de la API",
-    "webhooksManage": "Creá endpoints, mirá el log de entregas y reenviá desde"
+    "webhooksManage": "Creá endpoints, mirá el log de entregas y reenviá desde",
+    "hubspotWorkflow": "Para mandar WhatsApp desde un workflow de HubSpot, sumá una acción \"Send a webhook\" que haga POST a /api/v1/groups/hubspot/send con una API key en el encabezado Authorization (Bearer zs_…) y ?text= con tu mensaje."
   },
   "crmBlock": {
     "title": "WhatsApp",
@@ -877,6 +878,7 @@
     "waiting": "Esperando respuesta"
   },
   "errors": {
+    "hubspot_no_ticket_pipeline": "HubSpot no tiene un pipeline de tickets. Creá uno en HubSpot y probá de nuevo.",
     "periskope_auth": "Periskope no aceptó la clave de API. Revisala y probá de nuevo.",
     "periskope_rate_limited": "Periskope está limitando los pedidos. Esperá un minuto y probá de nuevo.",
     "periskope_unavailable": "No se pudo llegar a Periskope. Probá de nuevo en un momento.",
@@ -1725,6 +1727,7 @@
   },
   "wa": {
     "clearSearch": "Borrar búsqueda",
+    "leftGroupBar": "No podés enviar mensajes a este grupo porque ya no sos miembro.",
     "chatSearch": {
       "open": "Buscar mensajes",
       "shortcut": "Ctrl+Mayús+F",
@@ -2318,6 +2321,7 @@
     "allInGroup": "Todo {name}"
   },
   "hubspot": {
+    "ticket": {"open": "Crear ticket en HubSpot", "title": "Crear un ticket en HubSpot", "help": "El ticket queda asociado a la empresa, el contacto y el negocio vinculados a este chat.", "subject": "Asunto", "content": "Descripción", "priority": "Prioridad", "noPriority": "Sin prioridad", "pipeline": "Pipeline", "stage": "Etapa", "create": "Crear ticket", "done": "Ticket creado en HubSpot.", "view": "Abrir en HubSpot", "linkedHelp": "Crea un ticket en HubSpot con los registros vinculados arriba.", "unlinkedHelp": "Crea un ticket en HubSpot. Vinculá antes una empresa, un contacto o un negocio para asociarlo.", "send": "Mandar a HubSpot", "sendAria": "Mandar el ticket {n} a HubSpot"},
     "createContact": "Crear contacto en HubSpot",
     "createContactHelp": "Usa el nombre y el número de este chat. Si el número ya está en HubSpot, vinculás ese contacto.",
     "createContactNoScope": "Para crear contactos, la clave de HubSpot necesita el permiso {scope}.",

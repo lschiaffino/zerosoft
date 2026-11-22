@@ -2,9 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Block 1 needs only these two (docs/desktop-swift.md, section 2.2). Each later block adds
-	     the entitlements of its feature, and CI checks the signed app has exactly this list. -->
+	<!-- docs/desktop-swift.md, section 2.2. Each block adds the entitlements of its feature, and
+	     CI checks the signed app has exactly this list (scripts/check-signature.sh). Block 6:
+	     the microphone, for dictation. Pasting needs no entitlement (the person allows it in
+	     Privacy & Security › Accessibility). -->
 	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.device.audio-input</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>

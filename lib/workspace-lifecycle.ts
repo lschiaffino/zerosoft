@@ -175,6 +175,30 @@ const STEPS: Step[] = [
     },
   },
   {
+    // CRM: sus vistas privadas y sus pestañas de vistas son solo suyas: se van, y no vuelven si la
+    // suman de nuevo. Las vistas que compartió con su equipo o con todos quedan (son del workspace).
+    name: 'crm_views',
+    run: async (e) => {
+      await db().prepare('DELETE FROM crm_view_tabs WHERE user_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      await db()
+        .prepare("DELETE FROM crm_saved_views WHERE user_id = ? AND person_id = ? AND visibility = 'private'")
+        .run(e.ownerId, e.userId);
+      // Sus colas de tareas privadas (A3): las tareas quedan, sin cola. Y su email diario de tareas.
+      try {
+        await db()
+          .prepare(
+            'UPDATE crm_activities SET queue_id = NULL WHERE user_id = ? AND queue_id IN (SELECT id FROM crm_task_queues WHERE user_id = ? AND person_id = ? AND shared = 0)',
+          )
+          .run(e.ownerId, e.ownerId, e.userId);
+        await db().prepare('DELETE FROM crm_task_queues WHERE user_id = ? AND person_id = ? AND shared = 0').run(e.ownerId, e.userId);
+        // El email diario de tareas: no vuelve solo si la suman de nuevo.
+        await db().prepare('DELETE FROM crm_task_digests WHERE user_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      } catch (err) {
+        if (!/no such table|no such column/i.test(String(err))) throw err;
+      }
+    },
+  },
+  {
     // Track: accesos a proyectos privados del workspace.
     name: 'track',
     run: (e) =>

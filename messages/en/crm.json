@@ -78,7 +78,8 @@
     "moreFilters": "More filters",
     "sortBy": "Sort by",
     "activityType": "Activity type",
-    "preview": "Preview"
+    "preview": "Preview",
+    "privateRecord": "Private record"
   },
   "assoc": {
     "noneToAdd": "Nothing left to link. Create a record first.",
@@ -562,7 +563,8 @@
       "project": "Project",
       "owner": "Owner",
       "repeat": "Repeat",
-      "priority": "Priority"
+      "priority": "Priority",
+      "reminder": "Reminder"
     },
     "detail": {
       "back": "← All tasks",
@@ -628,7 +630,66 @@
       "error": "The issue could not be created.",
       "created": "Issue {id} created",
       "source": "From"
-    }
+    },
+    "searchPlaceholder": "Search tasks",
+    "filterType": "Task type",
+    "filterPriority": "Priority",
+    "ownerMe": "Me",
+    "ownerUnassigned": "Unassigned",
+    "kind": {
+      "todo": "To-do"
+    },
+    "startView": "{count, plural, one {Start # task} other {Start # tasks}}",
+    "emptyFiltered": "No tasks match these filters",
+    "emptyFilteredBody": "Change or clear the filters to see more tasks.",
+    "table": {
+      "title": "Title",
+      "type": "Type",
+      "priority": "Priority",
+      "associated": "Associated with",
+      "due": "Due date",
+      "owner": "Assigned to",
+      "status": "Status",
+      "created": "Created"
+    },
+    "reminderNeedsDue": "Set a due date to add a reminder.",
+    "reminder": {
+      "none": "No reminder",
+      "at_due": "At the due time",
+      "15m": "15 minutes before",
+      "1h": "1 hour before",
+      "1d": "1 day before",
+      "1w": "1 week before"
+    },
+    "reminderAt": "Reminder {when}",
+    "reminderSent": "sent",
+    "reminderHelp": "The person assigned gets a notification and an email at this time.",
+    "bulkLabel": "Selected tasks",
+    "bulkSelected": "{count, plural, one {# task selected} other {# tasks selected}}",
+    "bulkConfirmDelete": "{count, plural, one {Delete # task?} other {Delete # tasks?}}",
+    "queues": {
+      "label": "Queue",
+      "filter": "Queue",
+      "none": "No queue",
+      "manage": "Queues",
+      "help": "Group tasks in a queue and work through them one after another. A private queue is only yours; a shared one is visible to the whole workspace.",
+      "namePlaceholder": "Queue name",
+      "shareWithAll": "Share with the workspace",
+      "shared": "Shared",
+      "private": "Private",
+      "share": "Share",
+      "makePrivate": "Make private",
+      "rename": "Rename",
+      "start": "Start",
+      "deleteConfirm": "Its tasks stay, without a queue.",
+      "openCount": "{count, plural, one {# open task} other {# open tasks}}",
+      "empty": "No queues yet."
+    },
+    "digest": {
+      "label": "Daily email",
+      "hint": "Every morning at 8, an email with your open tasks that are overdue or due today."
+    },
+    "selectTask": "Select task"
   },
   "lists": {
     "title": "Lists",
@@ -680,7 +741,9 @@
       "email_clicked": "Email link clicked",
       "quote_accepted": "Quote accepted",
       "form_submitted": "Form submitted",
-      "score_changed": "Lead score changed"
+      "score_changed": "Lead score changed",
+      "company_created": "Company created",
+      "company_updated": "Company updated"
     },
     "actionTypes": {
       "send_email": "Send email",
@@ -693,7 +756,11 @@
       "enroll_in_sequence": "Enroll in sequence",
       "run_flow": "Run a Flow",
       "branch": "If / else",
-      "ai_step": "AI step"
+      "ai_step": "AI step",
+      "delay": "Delay",
+      "rotate_owner": "Rotate owner",
+      "create_deal": "Create a deal",
+      "remove_from_list": "Remove from list"
     },
     "addTrigger": "Add trigger",
     "addAction": "Add action",
@@ -705,7 +772,8 @@
       "pending": "Pending",
       "running": "Running",
       "done": "Done",
-      "failed": "Failed"
+      "failed": "Failed",
+      "waiting": "Waiting"
     },
     "noRuns": "No runs yet.",
     "delete": "Delete workflow",
@@ -759,7 +827,8 @@
       "contacts": "Contacts",
       "deals": "Deals",
       "email": "Email and meetings",
-      "other": "Other"
+      "other": "Other",
+      "companies": "Companies"
     },
     "templates": {
       "copy": {
@@ -869,7 +938,71 @@
         "deal_score": "Saves the AI score and deal plan. Use it with deal triggers."
       }
     },
-    "scoreId": "Score"
+    "scoreId": "Score",
+    "runRecord": "Record",
+    "runNoRecord": "No record",
+    "resumesAt": "until {when}",
+    "propertyChanged": "Only when this property changes",
+    "propertyChangedHint": "Optional. A property name such as lifecycle_stage, or custom.key for a custom property. Empty means any change.",
+    "propertyNewValue": "And the new value is",
+    "propertyNewValueHint": "Optional. Empty means any value.",
+    "enrollment": {
+      "title": "Enrollment",
+      "reenroll": "Re-enroll records",
+      "reenrollOn": "A record enrolls again each time the trigger happens, at most 10 times a day, and never while it is still in this workflow.",
+      "reenrollOff": "Each record enrolls once. Later triggers for the same record are ignored.",
+      "noFilters": "Every record that meets the trigger enrolls. Add a filter to enroll only some.",
+      "filtersHint": "A record enrolls only when it meets every filter.",
+      "addFilter": "Add filter",
+      "remove": "Remove",
+      "removeFilter": "Remove filter {n}"
+    },
+    "notify": {
+      "recipients": "Notify",
+      "to": {
+        "owner": "The record owner",
+        "people": "Chosen people",
+        "workspace": "The workspace owner"
+      },
+      "people": "People",
+      "privacyHint": "A person is notified only if they can see the record, and the message leaves out fields hidden from them."
+    },
+    "delay": {
+      "amount": "Wait",
+      "unit": "Unit",
+      "units": {
+        "minutes": "Minutes",
+        "hours": "Hours",
+        "days": "Days"
+      },
+      "hint": "The next actions run after this wait, up to 30 days. Turning the workflow off pauses waiting records, and they continue when it is turned on again.",
+      "summary": {
+        "minutes": "{n, plural, one {# minute} other {# minutes}}",
+        "hours": "{n, plural, one {# hour} other {# hours}}",
+        "days": "{n, plural, one {# day} other {# days}}"
+      }
+    },
+    "rotate": {
+      "eventRecord": "The enrolled record",
+      "pool": "Rotate between",
+      "onlyUnowned": "Only when the record has no owner",
+      "hint": "Each enrollment goes to the next person in order. People marked as out of office are skipped."
+    },
+    "createDeal": {
+      "name": "Deal name",
+      "pipeline": "Pipeline",
+      "stage": "Stage",
+      "amount": "Amount",
+      "hint": "The deal is associated with the contact and company of the enrolled record, and gets the record owner."
+    },
+    "webhookSecret": "Signing secret",
+    "webhookSecretHint": "Each request carries a zerosoft-signature header with the send time (t) and an HMAC-SHA256 of the time, a dot and the body, made with this secret (v1). Only owners and admins see it.",
+    "webhookSignedHint": "Requests are signed with the zerosoft-signature header. Fields hidden from anyone in the workspace are never sent.",
+    "recordCard": {
+      "title": "Workflows",
+      "empty": "This record has not been enrolled in a workflow.",
+      "resumes": "continues {when}"
+    }
   },
   "history": {
     "title": "History",
@@ -1253,7 +1386,9 @@
     "not_unique": "Some records already share a value in this property. Fix the duplicates first.",
     "invalid_unique": "Only text, number, URL and phone properties of contacts, companies and deals can require unique values.",
     "duplicate_label": "There is already a label with that name.",
-    "too_many_labels": "You reached the limit of labels for this association."
+    "too_many_labels": "You reached the limit of labels for this association.",
+    "invalid_queue": "That queue does not exist or you cannot see it.",
+    "too_many": "This workspace reached the limit."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -2268,7 +2403,8 @@
         "overdue": "Nothing overdue",
         "today": "Nothing due today",
         "upcoming": "Nothing coming up",
-        "done": "No completed tasks yet"
+        "done": "No completed tasks yet",
+        "all": "No open tasks"
       },
       "tasksBody": "Tasks from contacts, companies and deals show up here by date.",
       "bringFromHubspot": "Bring your data from HubSpot"
@@ -2353,7 +2489,8 @@
   },
   "mentions": {
     "suggestions": "People to mention",
-    "placeholder": "Notes. Type @ to mention a teammate"
+    "placeholder": "Notes. Type @ to mention a teammate",
+    "notNotified": "{count, plural, one {{names} can't see this record, so they weren't notified.} other {{names} can't see this record, so they weren't notified.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2513,8 @@
     "needContacts": "Associate at least one contact with the deal.",
     "openDeal": "Open the deal",
     "saveAndMove": "Save and move",
-    "bulkBlocked": "{count, plural, one {# deal stayed put because the stage needs properties it doesn't have.} other {# deals stayed put because the stage needs properties they don't have.}}"
+    "bulkBlocked": "{count, plural, one {# deal stayed put because the stage needs properties it doesn't have.} other {# deals stayed put because the stage needs properties they don't have.}}",
+    "adminRequired": "This stage needs a property that only an admin can fill in. Ask an admin to complete it, then move the deal."
   },
   "calls": {
     "call": "Call",
@@ -3015,7 +3153,9 @@
     "scope": {
       "due": "Overdue and today",
       "overdue": "Overdue",
-      "today": "Today"
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "all": "All open"
     },
     "counter": "Task {current} of {total}",
     "progress": "Queue progress",
@@ -3057,7 +3197,8 @@
     "emptyBody": "There are no overdue tasks or tasks due today in this queue.",
     "finishedTitle": "Queue finished",
     "finishedSummary": "{done} completed, {snoozed} snoozed, {skipped} left for later.",
-    "reviewSkipped": "Go through the {count} skipped"
+    "reviewSkipped": "Go through the {count} skipped",
+    "namedDesc": "The open tasks in this queue, one at a time."
   },
   "playbooks": {
     "title": "Playbooks",
@@ -3363,7 +3504,8 @@
       "invalid_field": "One of the fields no longer exists. Remove it and try again.",
       "invalid_metric": "Sum, average, minimum and maximum need a number field.",
       "invalid_input": "This combination of objects isn't available for the data source.",
-      "network": "Couldn't reach the server. Check your connection."
+      "network": "Couldn't reach the server. Check your connection.",
+      "report_restricted": "This report uses a property you can't see. Ask an admin to change it."
     },
     "fields": {
       "contact": {
@@ -4594,7 +4736,12 @@
       "unassignedCompanies": "Unassigned companies",
       "allDeals": "All deals",
       "myDeals": "My deals",
-      "openDeals": "Open deals"
+      "openDeals": "Open deals",
+      "allTasks": "All tasks",
+      "dueToday": "Due today",
+      "overdueTasks": "Overdue",
+      "upcomingTasks": "Upcoming",
+      "completedTasks": "Completed"
     },
     "columns": {
       "button": "Edit columns",
@@ -4619,7 +4766,8 @@
       "entities": {
         "contacts": "Contacts",
         "companies": "Companies",
-        "deals": "Deals"
+        "deals": "Deals",
+        "tasks": "Tasks"
       },
       "you": "You",
       "formerMember": "Former member",
@@ -4635,6 +4783,7 @@
       "createdByMe": "Created by me",
       "noMatch": "No view matches these filters.",
       "updated": "Updated"
-    }
+    },
+    "partialFilters": "Some filters in this view don't apply to you."
   }
 }

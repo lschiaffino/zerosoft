@@ -30,6 +30,8 @@ final class MainWindowUITests: XCTestCase {
             "-ZSUITest", "YES",
             "-AppleLanguages", "(\(language))",
             "-ApplePersistenceIgnoreState", "YES",
+            // The fixture's main page is the server root (a fresh session opens /app otherwise).
+            "-ZSStartPath", "/",
         ]
         app.launchArguments += ["-ZSLockdown", lockdown ?? Self.mode]
         app.launch()
@@ -272,7 +274,7 @@ final class MainWindowUITests: XCTestCase {
         let app = launch()
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
         let detect = line(app, prefix: "detect ")
-        XCTAssertTrue(detect.contains("startLogin=function notification=function permission=granted settingsWindow=false end"), detect)
+        XCTAssertTrue(detect.contains("startLogin=function notification=function permission=granted settingsWindow=true end"), detect)
     }
 
     /// Google sign-in end to end against the fixture's copy of the server flow: PKCE challenge
@@ -333,6 +335,8 @@ final class MainWindowUITests: XCTestCase {
         waitForLabel(app, "zs-test-deeplink", equals: "link 1 open /app/deep")
         let page = line(app, prefix: "app path=")
         XCTAssertTrue(page.contains("app path=/app/deep "), page)
+        // As the Tauri app: the link loads in the tab in front, no new tab.
+        waitForLabel(app, "zs-test-tabs", equals: "tabs main=*/app/deep end")
     }
 
     /// `new Notification(...)` in the page reaches the native side through the shim, with the

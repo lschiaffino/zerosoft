@@ -31,6 +31,11 @@ import {
 } from './timelineModel';
 import { parseDbUtc } from '@/lib/utils';
 
+/** Lo que suma la respuesta al guardar una nota o tarea con @menciones (lib/crm-mention-notify.ts). */
+interface MentionsReply {
+  mentions_not_notified?: Array<{ id: string; name: string }>;
+}
+
 /** lead y objectRecord: leads y registros de objetos propios (sin emails). */
 export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'objectRecord';
 
@@ -578,9 +583,17 @@ export default function Timeline({
       setEmailError(errorText(data?.error));
       return;
     }
+    const saved = (await res.json().catch(() => null)) as MentionsReply | null;
     resetComposer();
     setComposing(null);
     refresh();
+    noticeNotNotified(saved);
+  }
+
+  /** Mencionados que no ven el registro: no recibieron nada, y se le dice a quien escribe. */
+  function noticeNotNotified(reply: MentionsReply | null) {
+    const names = (reply?.mentions_not_notified ?? []).map((m) => m.name).filter(Boolean);
+    if (names.length) setNotice(t('mentions.notNotified', { names: names.join(', '), count: names.length }));
   }
 
   // Cmd/Ctrl+Enter guarda desde cualquier campo del composer (como HubSpot); Esc lo cierra.
@@ -647,8 +660,10 @@ export default function Timeline({
   async function saveEdit(item: TimelineItem) {
     const res = await patch(item.id, { subject: editSubject.trim(), body: editBody.trim() });
     if (res && res.ok) {
+      const saved = (await res.json().catch(() => null)) as MentionsReply | null;
       setEditingId(null);
       refresh();
+      noticeNotNotified(saved);
     }
   }
 

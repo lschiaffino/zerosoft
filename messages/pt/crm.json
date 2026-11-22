@@ -78,7 +78,8 @@
     "moreFilters": "Mais filtros",
     "sortBy": "Ordenar por",
     "activityType": "Tipo de atividade",
-    "preview": "Pré-visualizar"
+    "preview": "Pré-visualizar",
+    "privateRecord": "Registro privado"
   },
   "assoc": {
     "noneToAdd": "Não há mais nada para vincular. Crie um registro primeiro.",
@@ -562,7 +563,8 @@
       "project": "Projeto",
       "owner": "Responsável",
       "repeat": "Repetir",
-      "priority": "Prioridade"
+      "priority": "Prioridade",
+      "reminder": "Lembrete"
     },
     "detail": {
       "back": "← Todas as tarefas",
@@ -628,7 +630,66 @@
       "error": "Não foi possível criar a issue.",
       "created": "Issue {id} criada",
       "source": "De"
-    }
+    },
+    "searchPlaceholder": "Buscar tarefas",
+    "filterType": "Tipo de tarefa",
+    "filterPriority": "Prioridade",
+    "ownerMe": "Eu",
+    "ownerUnassigned": "Sem responsável",
+    "kind": {
+      "todo": "A fazer"
+    },
+    "startView": "{count, plural, one {Começar # tarefa} other {Começar # tarefas}}",
+    "emptyFiltered": "Nenhuma tarefa corresponde a estes filtros",
+    "emptyFilteredBody": "Mude ou limpe os filtros para ver mais tarefas.",
+    "table": {
+      "title": "Título",
+      "type": "Tipo",
+      "priority": "Prioridade",
+      "associated": "Associada a",
+      "due": "Vencimento",
+      "owner": "Atribuída a",
+      "status": "Status",
+      "created": "Criada"
+    },
+    "reminderNeedsDue": "Defina uma data de vencimento para adicionar um lembrete.",
+    "reminder": {
+      "none": "Sem lembrete",
+      "at_due": "Na hora do vencimento",
+      "15m": "15 minutos antes",
+      "1h": "1 hora antes",
+      "1d": "1 dia antes",
+      "1w": "1 semana antes"
+    },
+    "reminderAt": "Lembrete {when}",
+    "reminderSent": "enviado",
+    "reminderHelp": "Nesse horário, a pessoa atribuída recebe um aviso e um email.",
+    "bulkLabel": "Tarefas selecionadas",
+    "bulkSelected": "{count, plural, one {# tarefa selecionada} other {# tarefas selecionadas}}",
+    "bulkConfirmDelete": "{count, plural, one {Excluir # tarefa?} other {Excluir # tarefas?}}",
+    "queues": {
+      "label": "Fila",
+      "filter": "Fila",
+      "none": "Sem fila",
+      "manage": "Filas",
+      "help": "Junte tarefas em uma fila e trabalhe uma depois da outra. Uma fila privada é só sua; uma compartilhada é vista por todo o workspace.",
+      "namePlaceholder": "Nome da fila",
+      "shareWithAll": "Compartilhar com o workspace",
+      "shared": "Compartilhada",
+      "private": "Privada",
+      "share": "Compartilhar",
+      "makePrivate": "Tornar privada",
+      "rename": "Renomear",
+      "start": "Começar",
+      "deleteConfirm": "As tarefas ficam, sem fila.",
+      "openCount": "{count, plural, one {# tarefa aberta} other {# tarefas abertas}}",
+      "empty": "Ainda não há filas."
+    },
+    "digest": {
+      "label": "Email diário",
+      "hint": "Toda manhã às 8, um email com suas tarefas abertas vencidas ou que vencem hoje."
+    },
+    "selectTask": "Selecionar tarefa"
   },
   "lists": {
     "title": "Listas",
@@ -680,7 +741,9 @@
       "email_clicked": "Clique em um link do email",
       "quote_accepted": "Orçamento aceito",
       "form_submitted": "Formulário enviado",
-      "score_changed": "Lead score mudou"
+      "score_changed": "Lead score mudou",
+      "company_created": "Empresa criada",
+      "company_updated": "Empresa atualizada"
     },
     "actionTypes": {
       "send_email": "Enviar e-mail",
@@ -693,7 +756,11 @@
       "enroll_in_sequence": "Inscrever em sequência",
       "run_flow": "Executar um Flow",
       "branch": "Se / senão",
-      "ai_step": "Passo de IA"
+      "ai_step": "Passo de IA",
+      "delay": "Esperar",
+      "rotate_owner": "Revezar responsável",
+      "create_deal": "Criar um negócio",
+      "remove_from_list": "Remover de uma lista"
     },
     "addTrigger": "Adicionar gatilho",
     "addAction": "Adicionar ação",
@@ -705,7 +772,8 @@
       "pending": "Pendente",
       "running": "Executando",
       "done": "Concluído",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "waiting": "Esperando"
     },
     "noRuns": "Ainda não há execuções.",
     "delete": "Excluir workflow",
@@ -759,7 +827,8 @@
       "contacts": "Contatos",
       "deals": "Deals",
       "email": "Email e reuniões",
-      "other": "Outros"
+      "other": "Outros",
+      "companies": "Empresas"
     },
     "templates": {
       "copy": {
@@ -869,7 +938,71 @@
         "deal_score": "Salva o score com IA e o plano do negócio. Use com gatilhos de negócios."
       }
     },
-    "scoreId": "Score"
+    "scoreId": "Score",
+    "runRecord": "Registro",
+    "runNoRecord": "Sem registro",
+    "resumesAt": "até {when}",
+    "propertyChanged": "Só quando esta propriedade muda",
+    "propertyChangedHint": "Opcional. O nome de uma propriedade, como lifecycle_stage, ou custom.chave para uma propriedade própria. Vazio é qualquer mudança.",
+    "propertyNewValue": "E o novo valor é",
+    "propertyNewValueHint": "Opcional. Vazio é qualquer valor.",
+    "enrollment": {
+      "title": "Inscrição",
+      "reenroll": "Reinscrever registros",
+      "reenrollOn": "Um registro se inscreve de novo cada vez que o gatilho acontece, até 10 vezes por dia, e nunca enquanto ainda está neste workflow.",
+      "reenrollOff": "Cada registro se inscreve uma vez. Os gatilhos seguintes do mesmo registro são ignorados.",
+      "noFilters": "Todo registro que cumpre o gatilho se inscreve. Adicione um filtro para inscrever só alguns.",
+      "filtersHint": "Um registro se inscreve só se cumpre todos os filtros.",
+      "addFilter": "Adicionar filtro",
+      "remove": "Remover",
+      "removeFilter": "Remover o filtro {n}"
+    },
+    "notify": {
+      "recipients": "Avisar",
+      "to": {
+        "owner": "O responsável pelo registro",
+        "people": "Pessoas escolhidas",
+        "workspace": "O dono do workspace"
+      },
+      "people": "Pessoas",
+      "privacyHint": "Uma pessoa recebe o aviso só se vê o registro, e a mensagem deixa de fora os campos ocultos para ela."
+    },
+    "delay": {
+      "amount": "Esperar",
+      "unit": "Unidade",
+      "units": {
+        "minutes": "Minutos",
+        "hours": "Horas",
+        "days": "Dias"
+      },
+      "hint": "As ações seguintes rodam depois desta espera, de até 30 dias. Desligar o workflow pausa os registros que esperam, e eles continuam quando ele é ligado de novo.",
+      "summary": {
+        "minutes": "{n, plural, one {# minuto} other {# minutos}}",
+        "hours": "{n, plural, one {# hora} other {# horas}}",
+        "days": "{n, plural, one {# dia} other {# dias}}"
+      }
+    },
+    "rotate": {
+      "eventRecord": "O registro inscrito",
+      "pool": "Revezar entre",
+      "onlyUnowned": "Só quando o registro não tem responsável",
+      "hint": "Cada inscrição vai para a próxima pessoa na ordem. Quem está marcado como fora do escritório é pulado."
+    },
+    "createDeal": {
+      "name": "Nome do negócio",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "amount": "Valor",
+      "hint": "O negócio fica associado ao contato e à empresa do registro inscrito, com o responsável do registro."
+    },
+    "webhookSecret": "Segredo de assinatura",
+    "webhookSecretHint": "Cada requisição leva o cabeçalho zerosoft-signature com a hora do envio (t) e um HMAC-SHA256 da hora, um ponto e o corpo, feito com este segredo (v1). Só owners e admins o veem.",
+    "webhookSignedHint": "As requisições vão assinadas com o cabeçalho zerosoft-signature. Os campos ocultos para alguém do workspace nunca são enviados.",
+    "recordCard": {
+      "title": "Workflows",
+      "empty": "Este registro não foi inscrito em nenhum workflow.",
+      "resumes": "continua {when}"
+    }
   },
   "history": {
     "title": "Histórico",
@@ -1253,7 +1386,9 @@
     "not_unique": "Alguns registros já compartilham um valor nesta propriedade. Corrija os duplicados primeiro.",
     "invalid_unique": "Só propriedades de texto, número, URL e telefone de contatos, empresas e negócios podem exigir valor único.",
     "duplicate_label": "Já existe um rótulo com esse nome.",
-    "too_many_labels": "Você atingiu o limite de rótulos para esta associação."
+    "too_many_labels": "Você atingiu o limite de rótulos para esta associação.",
+    "invalid_queue": "Essa fila não existe ou você não pode vê-la.",
+    "too_many": "Este workspace atingiu o limite."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -2268,7 +2403,8 @@
         "overdue": "Nada vencido",
         "today": "Nada para hoje",
         "upcoming": "Nada nos próximos dias",
-        "done": "Nenhuma tarefa concluída ainda"
+        "done": "Nenhuma tarefa concluída ainda",
+        "all": "Nenhuma tarefa aberta"
       },
       "tasksBody": "As tarefas de contatos, empresas e deals aparecem aqui por data.",
       "bringFromHubspot": "Traga seus dados do HubSpot"
@@ -2353,7 +2489,8 @@
   },
   "mentions": {
     "suggestions": "Pessoas para mencionar",
-    "placeholder": "Notas. Digite @ para mencionar alguém da equipe"
+    "placeholder": "Notas. Digite @ para mencionar alguém da equipe",
+    "notNotified": "{count, plural, one {{names} não pode ver este registro, então não foi notificado.} other {{names} não podem ver este registro, então não foram notificados.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2513,8 @@
     "needContacts": "Associe pelo menos um contato ao deal.",
     "openDeal": "Abrir o deal",
     "saveAndMove": "Salvar e mover",
-    "bulkBlocked": "{count, plural, one {# deal ficou onde estava porque a etapa pede propriedades que ele não tem.} other {# deals ficaram onde estavam porque a etapa pede propriedades que eles não têm.}}"
+    "bulkBlocked": "{count, plural, one {# deal ficou onde estava porque a etapa pede propriedades que ele não tem.} other {# deals ficaram onde estavam porque a etapa pede propriedades que eles não têm.}}",
+    "adminRequired": "Esta etapa pede uma propriedade que só um admin pode preencher. Peça a um admin para preenchê-la e depois mova o deal."
   },
   "calls": {
     "call": "Ligar",
@@ -3015,7 +3153,9 @@
     "scope": {
       "due": "Atrasadas e de hoje",
       "overdue": "Atrasadas",
-      "today": "Hoje"
+      "today": "Hoje",
+      "upcoming": "Próximas",
+      "all": "Todas as abertas"
     },
     "counter": "Tarefa {current} de {total}",
     "progress": "Progresso da fila",
@@ -3057,7 +3197,8 @@
     "emptyBody": "Nesta fila não há tarefas atrasadas nem que vencem hoje.",
     "finishedTitle": "Você terminou a fila",
     "finishedSummary": "{done} concluídas, {snoozed} adiadas e {skipped} para depois.",
-    "reviewSkipped": "Revisar as {count} puladas"
+    "reviewSkipped": "Revisar as {count} puladas",
+    "namedDesc": "As tarefas abertas desta fila, uma por vez."
   },
   "playbooks": {
     "title": "Playbooks",
@@ -3363,7 +3504,8 @@
       "invalid_field": "Um dos campos não existe mais. Remova-o e tente de novo.",
       "invalid_metric": "Soma, média, mínimo e máximo precisam de um campo numérico.",
       "invalid_input": "Essa combinação de objetos não está disponível para a fonte de dados.",
-      "network": "Não foi possível falar com o servidor. Verifique sua conexão."
+      "network": "Não foi possível falar com o servidor. Verifique sua conexão.",
+      "report_restricted": "Este relatório usa uma propriedade que você não pode ver. Peça a um admin para alterá-lo."
     },
     "fields": {
       "contact": {
@@ -4594,7 +4736,12 @@
       "unassignedCompanies": "Empresas sem responsável",
       "allDeals": "Todos os negócios",
       "myDeals": "Meus negócios",
-      "openDeals": "Negócios abertos"
+      "openDeals": "Negócios abertos",
+      "allTasks": "Todas as tarefas",
+      "dueToday": "Vencem hoje",
+      "overdueTasks": "Vencidas",
+      "upcomingTasks": "Próximas",
+      "completedTasks": "Concluídas"
     },
     "columns": {
       "button": "Editar colunas",
@@ -4619,7 +4766,8 @@
       "entities": {
         "contacts": "Contatos",
         "companies": "Empresas",
-        "deals": "Negócios"
+        "deals": "Negócios",
+        "tasks": "Tarefas"
       },
       "you": "Você",
       "formerMember": "Ex-membro",
@@ -4635,6 +4783,7 @@
       "createdByMe": "Criadas por mim",
       "noMatch": "Nenhuma visualização corresponde a estes filtros.",
       "updated": "Atualizada"
-    }
+    },
+    "partialFilters": "Alguns filtros desta visualização não se aplicam a você."
   }
 }

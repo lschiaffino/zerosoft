@@ -26,6 +26,7 @@ import {
   parseTabs,
   pickViewState,
   redactViewQuery,
+  viewQueryDropsFilters,
   viewCreator,
   type TabPref,
   type ViewEntity,
@@ -46,6 +47,8 @@ export interface SavedViewDto {
   mine: boolean;
   canEdit: boolean;
   query: ViewQuery;
+  /** Filtra por campos que quien mira tiene ocultos: esos filtros no se le aplican. */
+  partial: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +100,7 @@ export function toViewDto(row: CrmSavedViewRow, viewer: ViewViewer, hidden: Read
     mine: viewCreator(row) === viewer.personId,
     canEdit: canEditView(row, viewer),
     query: redactViewQuery(pickViewState(entity, parseQuery(row.query)), hidden),
+    partial: viewQueryDropsFilters(pickViewState(entity, parseQuery(row.query)), hidden),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
   };
@@ -255,6 +259,10 @@ export async function updateView(
     teamId = wanted;
   }
   const name = patch.name !== undefined ? patch.name.trim().slice(0, 200) : row.name;
+  // Una vista que filtra por campos que el editor tiene ocultos no se reescribe: los borraría sin verlos.
+  if (patch.query !== undefined && viewQueryDropsFilters(parseQuery(row.query), await hiddenFor(viewer, entity, db))) {
+    return { ok: false, error: 'forbidden' };
+  }
   // Lo que el editor no ve (campos ocultos para él) no se guarda: la edición reemplaza el estado.
   const query = patch.query !== undefined ? JSON.stringify(await cleanQuery(viewer, entity, patch.query, db)) : row.query;
   await db

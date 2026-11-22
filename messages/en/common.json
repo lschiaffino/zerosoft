@@ -1524,6 +1524,48 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "hiring": {
+      "intro": {
+        "title": "Welcome to Hiring",
+        "body": "Hiring takes a job from the first post to the offer, with a pipeline of candidates, scorecards and reports. This tour points out the main parts."
+      },
+      "newJob": {
+        "title": "Create a job",
+        "body": "Start from a template or a blank job, with its stages, application form and hiring team. Publish it on your careers page."
+      },
+      "jobs": {
+        "title": "Jobs and their pipeline",
+        "body": "Your open jobs. Open one to see its pipeline: add candidates by hand or from a CSV, and drag a card or pick its stage to move it forward."
+      },
+      "pending": {
+        "title": "Your scorecards",
+        "body": "Candidates waiting for your feedback after an interview. Interviewers only see the candidates they are asked to evaluate."
+      },
+      "recent": {
+        "title": "Latest candidates",
+        "body": "Who moved last across your jobs. Open one for the resume, notes, emails, interviews and offers."
+      },
+      "candidates": {
+        "title": "Candidates",
+        "body": "Every candidate across your jobs. Search, filter by job, source or tag, and move, tag or reject several at once."
+      },
+      "reports": {
+        "title": "Reports",
+        "body": "Time to hire, conversion by stage, source effectiveness and rejection reasons, with a CSV download."
+      },
+      "templates": {
+        "title": "Templates",
+        "body": "Reusable emails to candidates and the offer letter."
+      },
+      "settings": {
+        "title": "Hiring settings",
+        "body": "Your careers page, candidate emails, rejection reasons, approvals and data retention."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "send": {
       "intro": {
         "title": "Welcome to Send",

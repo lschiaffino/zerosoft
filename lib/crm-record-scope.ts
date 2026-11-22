@@ -12,9 +12,11 @@ import { scopeAnd, type OwnerScope } from './crm-visibility';
 const placeholders = (ids: string[]) => ids.map(() => '?').join(',');
 
 /** De una lista de ids de una tabla del CRM, los que son del workspace y la persona puede ver. */
+export type RecordTable = 'crm_companies' | 'crm_deals' | 'crm_contacts';
+
 export async function visibleRecordIds(
   workspaceId: string,
-  table: 'crm_companies' | 'crm_deals' | 'crm_contacts',
+  table: RecordTable,
   ids: string[],
   scope: OwnerScope | undefined,
   db: Db = getDb(),
@@ -72,22 +74,152 @@ export async function scopedCompanyRollup(
  * Ficha de empresa (ya pasada por scopeCompanyDetail) con lo que la persona
  * ve también en el valor de deals y en la cadena de madres: el rollup solo
  * cuenta deals e hijas de su alcance, y las madres que no ve no salen ni por
- * nombre. Sin restricción devuelve la ficha tal cual.
+ * nombre ni por id (`company.parent_company_id` queda en null). Sin
+ * restricción devuelve la ficha tal cual.
  */
 export async function scopedCompanyDetail<
   T extends {
-    company: { id: string };
+    company: { id: string; parent_company_id?: string | null };
     parent: { id: string; name: string } | null;
     ancestors: Array<{ id: string; name: string }>;
     rollup: CompanyRollup;
   },
 >(workspaceId: string, detail: T, scope: OwnerScope | undefined, db: Db = getDb()): Promise<T> {
   if (!scope) return detail;
-  const visible = await visibleRecordIds(workspaceId, 'crm_companies', detail.ancestors.map((a) => a.id), scope, db);
+  const parentId = detail.company.parent_company_id ?? null;
+  const visible = await visibleRecordIds(
+    workspaceId,
+    'crm_companies',
+    [...detail.ancestors.map((a) => a.id), ...(parentId ? [parentId] : [])],
+    scope,
+    db,
+  );
+  // El id de una madre que no ve tampoco sale en la empresa misma.
+  const company = parentId && !visible.has(parentId) ? { ...detail.company, parent_company_id: null } : detail.company;
   return {
     ...detail,
+    company,
     rollup: await scopedCompanyRollup(workspaceId, detail.company.id, scope, db),
     ancestors: detail.ancestors.filter((a) => visible.has(a.id)),
     parent: detail.parent && visible.has(detail.parent.id) ? detail.parent : null,
   };
+}
+
+// ---------- Asociados fuera de alcance ----------
+
+/**
+ * Un asociado que una fila nombra (el contacto de un lead, la empresa de un
+ * contacto): `id` es la columna con su id, `fields` las columnas que lo
+ * describen (nombre, email, dominio) y `flag` la columna que se marca en true
+ * cuando la persona no lo ve.
+ */
+export interface PrivateRefSpec {
+  table: RecordTable;
+  id: string;
+  fields: readonly string[];
+  flag: string;
+}
+
+/** Asociados de uso común. Todas las fichas y listas usan estas marcas. */
+export const PRIVATE_REFS = {
+  contact: (fields: readonly string[] = ['contact_name', 'contact_email']): PrivateRefSpec => ({
+    table: 'crm_contacts',
+    id: 'contact_id',
+    fields,
+    flag: 'contact_private',
+  }),
+  company: (fields: readonly string[] = ['company_name', 'company_domain'], id = 'company_id'): PrivateRefSpec => ({
+    table: 'crm_companies',
+    id,
+    fields,
+    flag: 'company_private',
+  }),
+  deal: (fields: readonly string[] = ['deal_name']): PrivateRefSpec => ({ table: 'crm_deals', id: 'deal_id', fields, flag: 'deal_private' }),
+  parent: (): PrivateRefSpec => ({ table: 'crm_companies', id: 'parent_company_id', fields: [], flag: 'parent_private' }),
+} as const;
+
+/** Marcas que agrega maskPrivateRefs (true = hay un asociado que la persona no ve). */
+export interface PrivateRefFlags {
+  contact_private?: boolean;
+  company_private?: boolean;
+  deal_private?: boolean;
+  parent_private?: boolean;
+}
+
+/**
+ * Filas sin los asociados que la persona no ve: su id y sus columnas quedan
+ * en null y la marca en true, así la UI muestra "Registro privado" sin link.
+ * Un id que no apunta a un registro del workspace (borrado, o de otro
+ * workspace) queda en null sin marca, para todos: se ve como "sin asociado",
+ * igual para un admin que para un miembro, y no dice si el registro existe
+ * en otro lado. Sin nada que limpiar devuelve las filas tal cual.
+ */
+export async function maskPrivateRefs<T extends object>(
+  workspaceId: string,
+  rows: T[],
+  specs: readonly PrivateRefSpec[],
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<Array<T & PrivateRefFlags>> {
+  if (!rows.length || !specs.length) return rows as Array<T & PrivateRefFlags>;
+  let out: Array<Record<string, unknown>> | null = null;
+  for (const spec of specs) {
+    const source = out ?? (rows as Array<Record<string, unknown>>);
+    const ids = source.map((r) => r[spec.id]).filter((v): v is string => typeof v === 'string' && v !== '');
+    if (!ids.length) continue;
+    const existing = await visibleRecordIds(workspaceId, spec.table, ids, undefined, db);
+    const visible = scope ? await visibleRecordIds(workspaceId, spec.table, [...existing], scope, db) : existing;
+    if (ids.every((id) => visible.has(id))) continue;
+    out ??= rows.map((r) => ({ ...r }) as Record<string, unknown>);
+    for (const r of out) {
+      const id = r[spec.id];
+      if (typeof id !== 'string' || id === '' || visible.has(id)) continue;
+      r[spec.id] = null;
+      for (const f of spec.fields) if (f in r) r[f] = null;
+      // Huérfano: sin marca (no hay nada que no se pueda ver).
+      if (existing.has(id)) r[spec.flag] = true;
+    }
+  }
+  return (out ?? rows) as Array<T & PrivateRefFlags>;
+}
+
+/** maskPrivateRefs para una sola fila (null pasa como null). */
+export async function maskPrivateRef<T extends object>(
+  workspaceId: string,
+  row: T | null,
+  specs: readonly PrivateRefSpec[],
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<(T & PrivateRefFlags) | null> {
+  if (!row) return null;
+  return (await maskPrivateRefs(workspaceId, [row], specs, scope, db))[0];
+}
+
+/** Por cada clave de una ficha, qué ids de asociados lleva cada fila (el registro y sus asociados). */
+const DETAIL_REFS = {
+  contact: { contact: [PRIVATE_REFS.company([])], company: [PRIVATE_REFS.parent()], companies: [PRIVATE_REFS.parent()] },
+  company: { company: [PRIVATE_REFS.parent()], contacts: [PRIVATE_REFS.company([])] },
+  deal: { contacts: [PRIVATE_REFS.company([])], company: [PRIVATE_REFS.parent()], companies: [PRIVATE_REFS.parent()] },
+} as const satisfies Record<'contact' | 'company' | 'deal', Record<string, readonly PrivateRefSpec[]>>;
+
+/**
+ * Ficha (getContact, getCompany, getDeal, ya pasada por scope*Detail) sin ids
+ * de asociados que la persona no ve dentro de cada fila: la empresa primaria
+ * de un contacto (`company_id`) y la madre de una empresa
+ * (`parent_company_id`). Un id huérfano queda en null para todos.
+ */
+export async function maskDetailRefs<T extends object>(
+  workspaceId: string,
+  kind: keyof typeof DETAIL_REFS,
+  detail: T,
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<T> {
+  const out: Record<string, unknown> = { ...(detail as Record<string, unknown>) };
+  for (const [key, specs] of Object.entries(DETAIL_REFS[kind]) as Array<[string, readonly PrivateRefSpec[]]>) {
+    const v = out[key];
+    if (Array.isArray(v)) out[key] = await maskPrivateRefs(workspaceId, v as object[], specs, scope, db);
+    else if (v && typeof v === 'object') out[key] = await maskPrivateRef(workspaceId, v as object, specs, scope, db);
+  }
+  return out as T;
 }

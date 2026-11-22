@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
-import { listForms } from '@/lib/crm-forms';
+import { formsForViewer, listForms } from '@/lib/crm-forms';
+import { apiFieldViewer } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
-  const forms = await listForms(auth.user.id);
+  // Sin nombrar propiedades que la persona de la key tiene ocultas.
+  const forms = await formsForViewer(apiFieldViewer(auth), await listForms(auth.user.id));
   return NextResponse.json({
     forms: forms.map(({ user_id: _u, ...f }) => ({ ...f, key: f.slug ?? f.token })),
   });

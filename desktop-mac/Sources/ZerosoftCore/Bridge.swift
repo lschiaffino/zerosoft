@@ -44,7 +44,7 @@ public enum BridgeCommand: String, CaseIterable, Sendable {
 
     /// Commands with a native side in this build. The others are valid messages that answer
     /// `unavailable` until their block lands.
-    public static let implemented: Set<BridgeCommand> = [.info, .ready, .startLogin, .notify]
+    public static let implemented: Set<BridgeCommand> = [.info, .ready, .startLogin, .openSettings, .notify, .tabs]
 }
 
 /// Why a message was refused. The raw value is the error the page's promise rejects with and the
@@ -159,21 +159,25 @@ public struct BridgeInfo: Equatable, Sendable {
     }
 
     /// Capability fields of `lib/desktop-bridge.ts` that the Tauri app leaves out (meaning yes):
-    /// this build has no native settings window yet (block 5), does not update from the Tauri
-    /// feed `/api/desktop/update/latest.json` (the Store or Sparkle update it, block 10), and has
-    /// no tab strip yet (block 4). The web app reads these instead of asking which app it is in.
-    public static let settingsWindow = false
+    /// this build does not update from the Tauri feed `/api/desktop/update/latest.json` (the
+    /// Store or Sparkle update it, block 10). It has its own tabs and windows since block 4, so
+    /// the web app opens links in them the way it does in the Tauri app (`openInNewWindow` in
+    /// components/ui/ContextMenu.tsx), and its native Settings window since block 5, which the
+    /// web app's "Desktop app settings" buttons open with `openSettings()`. The web app reads
+    /// these instead of asking which app it is in.
+    public static let settingsWindow = true
     public static let updateFeed = false
-    public static let tabs = false
+    public static let tabs = true
 
     /// The reply to `info`: plain JSON types only (what WKScriptMessageHandlerWithReply sends back).
-    /// Features without a native side in this build report false.
+    /// Features without a native side in this build report false. `dictation` is true since
+    /// block 6 (dictation in any app from the shortcut; the page cannot start one).
     public var reply: [String: Any] {
         [
             "version": version,
             "platform": "darwin",
             "systemAudio": false,
-            "dictation": false,
+            "dictation": true,
             "recordingIndicator": false,
             "settingsWindow": Self.settingsWindow,
             "updateFeed": Self.updateFeed,

@@ -63,8 +63,11 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
+import RecordWorkflows from '@/components/crm/RecordWorkflows';
+import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
+import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +96,7 @@ export default async function ContactDetailPage(props: {
   const t = await getTranslations({ locale, namespace: 'crm' });
   const rawDetail = await getContact(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.contact.owner_id, user.id)) notFound();
-  const detail = scopeContactDetail(rawDetail, scope);
+  const detail = await maskDetailRefs(user.id, 'contact', scopeContactDetail(rawDetail, scope), scope);
 
   const { contact, company, companies: contactCompanies, deals, lists } = detail;
   const base = `/app/crm/contacts/${contact.id}`;
@@ -320,10 +323,17 @@ export default async function ContactDetailPage(props: {
       ],
     },
     // `company` ya pasó por el alcance de la persona. Si la empresa principal existe pero no se
-    // le muestra, la propiedad queda vacía y sin selector: no ve cuál es ni puede pisarla.
+    // le muestra, la propiedad dice "Registro privado" y no tiene selector: no ve cuál es ni puede pisarla.
     // Si es visible pero no entró en las 100 primeras del selector, se suma para leer su nombre.
-    contact.company_id && !company
-      ? { key: 'companyId', label: t('contacts.form.company'), type: 'select', value: '', options: [], readOnly: true }
+    (contact.company_id || (contact as { company_private?: boolean }).company_private) && !company
+      ? {
+          key: 'companyId',
+          label: t('contacts.form.company'),
+          type: 'select',
+          value: 'private',
+          options: [{ value: 'private', label: t('common.privateRecord') }],
+          readOnly: true,
+        }
       : {
           key: 'companyId',
           label: t('contacts.form.company'),
@@ -505,6 +515,9 @@ export default async function ContactDetailPage(props: {
   const firstOpenStage =
     defaultPipeline?.stages.find((s) => !s.is_won && !s.is_lost) ?? defaultPipeline?.stages[0];
 
+  // La persona ya ve el contacto (notFound arriba si no): sus inscripciones en workflows.
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'contact', contact.id, 20, sessionFieldViewer(user));
+
   const right = (
     <>
       <RecordCard id="contact.ai" label={t('ai.summary.title')} bare>
@@ -630,6 +643,9 @@ export default async function ContactDetailPage(props: {
       </RecordCard>
       <RecordCard id="contact.track" label={t('record.cards.track')} bare>
         <CrmTrackRequests contactId={contact.id} locale={locale} />
+      </RecordCard>
+      <RecordCard id="contact.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
+        <RecordWorkflows enrollments={workflowEnrollments} />
       </RecordCard>
     </>
   );

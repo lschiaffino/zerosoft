@@ -253,6 +253,10 @@ export const activityCreateSchema = z.object({
   taskKind: z.enum(TASK_KINDS).optional(),
   /** Solo tareas: '' (sin prioridad), low, medium o high. */
   priority: z.enum(TASK_PRIORITIES).optional(),
+  /** Solo tareas: la cola con nombre (lib/crm-task-queues.ts). */
+  queueId: id.nullish(),
+  /** Solo tareas: cuándo recordarle a quien la tiene (UTC). */
+  reminderAt: isoDate.nullish(),
 });
 
 export const activityUpdateSchema = activityCreateSchema.partial().extend({
@@ -267,6 +271,24 @@ export const taskProjectCreateSchema = z.object({
 });
 
 export const taskProjectUpdateSchema = taskProjectCreateSchema.partial();
+
+/** Colas de tareas (A3): nombre y si la ve todo el workspace. */
+export const taskQueueCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  shared: z.boolean().optional(),
+});
+export const taskQueueUpdateSchema = taskQueueCreateSchema.partial();
+
+/** Edición en masa de tareas (A3): completar, reabrir, borrar o fijar una propiedad. */
+export const taskBulkSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.enum(['complete', 'reopen', 'delete']), ids: z.array(id).min(1).max(500) }),
+  z.object({
+    action: z.literal('set_property'),
+    ids: z.array(id).min(1).max(500),
+    field: z.enum(['ownerId', 'priority', 'queueId', 'projectId', 'taskKind', 'dueDate']),
+    value: z.union([z.string().max(100), z.null()]),
+  }),
+]);
 
 // ---------- Lists ----------
 

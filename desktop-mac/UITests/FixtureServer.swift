@@ -47,7 +47,42 @@ final class FixtureServer {
         lock.lock(); defer { lock.unlock() }; return _tokenRequests
     }
 
+    private var _requests: [String] = []
+    /// Every request, as host + path ("127.0.0.1:4100/app"), in order.
+    var requests: [String] {
+        lock.lock(); defer { lock.unlock() }; return _requests
+    }
+
     static let sessionToken = "fixture.session-token_value"
+    static let csrfToken = "fixture-csrf+token/1"
+    static let csrfCookie = "next-auth.csrf-token=fixturecsrfcookie"
+
+    /// The Settings window's server side (block 5): dictation settings, the dictionary, the
+    /// history and the sign-out, kept in memory.
+    private var voice: [String: Any] = ["language": "auto", "cleanupMode": "per_app", "cleanupDepth": "standard", "aiCleanup": true, "styles": [String: String]()]
+    private var entries: [[String: Any]] = [["id": "e1", "kind": "word", "phrase": "zerosoft", "replacement": ""]]
+    private var nextEntry = 2
+    private var _writes: [String] = []
+    /// Every write of the Settings window: "PATCH /api/voice/settings {body}", "POST ...",
+    /// "DELETE ...", "signout ok|bad"; "bad-origin <path>" when a write came without the
+    /// server as Origin.
+    var writes: [String] {
+        lock.lock(); defer { lock.unlock() }; return _writes
+    }
+
+    var dictionaryIDs: [String] {
+        lock.lock(); defer { lock.unlock() }; return entries.compactMap { $0["id"] as? String }
+    }
+
+    private var _dictations: [String] = []
+    /// One entry per request to /api/voice/dictate (block 6): "warm session=no",
+    /// "ok context=other app=yes capture=desktop fast=1 rate=16000 ms=1000", "signed-out",
+    /// "bad-origin" or "bad-body <why>". The app name itself is not recorded.
+    var dictations: [String] {
+        lock.lock(); defer { lock.unlock() }; return _dictations
+    }
+
+    static let dictatedText = "zs-dictated-text"
 
     private var listenFD: Int32 = -1
     private var held: [Int32] = []
@@ -144,12 +179,14 @@ final class FixtureServer {
         setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, socklen_t(MemoryLayout<Int32>.size))
         var wait = timeval(tv_sec: 10, tv_usec: 0)
         setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
-        let request = readHead(client)
+        let (request, rawBody) = readRequest(client)
         if request.isEmpty {
             close(client)
             return
         }
         let path = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
+        let host = Self.header(request, "Host") ?? ""
+        lock.lock(); _requests.append("\(host)\(path)"); lock.unlock()
         let mode = self.mode
         if mode == .hang {
             lock.lock(); held.append(client); lock.unlock()
@@ -158,6 +195,9 @@ final class FixtureServer {
         let status: String, extra: String, bytes: [UInt8]
         if mode != .blank, path.hasPrefix("/fonts/fixture.ttf") {
             (status, extra, bytes) = Self.font()
+        } else if mode != .blank, path.hasPrefix("/api/voice/dictate") {
+            let (s, body, e) = dictate(request: request, body: rawBody)
+            (status, extra, bytes) = (s, e, Array(body.utf8))
         } else {
             let (s, body, e) = page(path: path, mode: mode, request: request)
             (status, extra, bytes) = (s, e, Array(body.utf8))
@@ -169,20 +209,98 @@ final class FixtureServer {
         close(client)
     }
 
-    /// The request head and, when it has a Content-Length, its body.
-    private func readHead(_ client: Int32) -> String {
+    /// The request (head and body, as text) and the body's bytes as they came (an upload is
+    /// binary: its length is counted in bytes, not in decoded characters).
+    private func readRequest(_ client: Int32) -> (String, [UInt8]) {
         var data = [UInt8]()
-        var buf = [UInt8](repeating: 0, count: 4096)
-        while data.count < 65_536 {
+        var buf = [UInt8](repeating: 0, count: 65_536)
+        var bodyStart: Int?
+        var length = 0
+        while data.count < 8 * 1024 * 1024 {
             let n = read(client, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0 ..< n])
-            let text = String(decoding: data, as: UTF8.self)
-            guard let end = text.range(of: "\r\n\r\n") else { continue }
-            let length = Self.header(text, "Content-Length").flatMap { Int($0) } ?? 0
-            if text[end.upperBound...].utf8.count >= length { break }
+            if bodyStart == nil, let end = Self.find(data, Array("\r\n\r\n".utf8)) {
+                bodyStart = end + 4
+                let head = String(decoding: data[0 ..< end], as: UTF8.self)
+                length = Self.header(head, "Content-Length").flatMap { Int($0) } ?? 0
+            }
+            if let start = bodyStart, data.count - start >= length { break }
+            if bodyStart == nil, data.count >= 65_536 { break }
         }
-        return String(decoding: data, as: UTF8.self)
+        let body = bodyStart.map { Array(data[min($0, data.count)...]) } ?? []
+        return (String(decoding: data, as: UTF8.self), body)
+    }
+
+    private static func find(_ data: [UInt8], _ needle: [UInt8], from: Int = 0) -> Int? {
+        guard !needle.isEmpty, data.count >= needle.count, from <= data.count - needle.count else { return nil }
+        var i = from
+        while i <= data.count - needle.count {
+            if data[i] == needle[0], Array(data[i ..< i + needle.count]) == needle { return i }
+            i += 1
+        }
+        return nil
+    }
+
+    /// POST /api/voice/dictate (app/api/voice/dictate/route.ts), reduced: the session, the same
+    /// origin, then the multipart fields and a real 16 kHz WAV. GET warms (204).
+    private func dictate(request: String, body: [UInt8]) -> (String, String, String) {
+        let method = request.split(separator: " ").first.map(String.init) ?? "GET"
+        func note(_ s: String) { lock.lock(); _dictations.append(s); lock.unlock() }
+        if method == "GET" {
+            note("warm session=\(Self.signedIn(request) ? "yes" : "no")")
+            return ("204 No Content", "", "Content-Type: text/plain\r\n")
+        }
+        if Self.header(request, "Origin") != origin {
+            note("bad-origin")
+            return ("403 Forbidden", #"{"error":"origin"}"#, Self.json)
+        }
+        guard Self.signedIn(request) else {
+            note("signed-out")
+            return ("401 Unauthorized", #"{"error":"unauthorized"}"#, Self.json)
+        }
+        let type = Self.header(request, "Content-Type") ?? ""
+        guard let range = type.range(of: "boundary=") else {
+            note("bad-body type")
+            return ("400 Bad Request", #"{"error":"audio_type"}"#, Self.json)
+        }
+        let parts = Self.multipart(body, boundary: String(type[range.upperBound...]))
+        let field = { (name: String) in parts[name].map { String(decoding: $0.data, as: UTF8.self) } }
+        guard let audio = parts["audio"], audio.head.contains("filename=\"dictation.wav\""), audio.head.contains("Content-Type: audio/wav"),
+              audio.data.count > 44, Array(audio.data[0 ..< 4]) == Array("RIFF".utf8) else {
+            note("bad-body audio")
+            return ("400 Bad Request", #"{"error":"empty_audio"}"#, Self.json)
+        }
+        let rate = Int(audio.data[24]) | Int(audio.data[25]) << 8 | Int(audio.data[26]) << 16 | Int(audio.data[27]) << 24
+        let app = field("sourceApp") ?? ""
+        note("ok context=\(field("context") ?? "-") app=\(app.isEmpty ? "none" : app == "desktop" ? "desktop" : "yes") capture=\(field("capture") ?? "-") fast=\(field("fast") ?? "-") rate=\(rate) ms=\(field("durationMs") ?? "-")")
+        let answer: [String: Any] = [
+            "text": Self.dictatedText, "raw": "zs dictated text", "ai": false,
+            "timings": ["transcribeMs": 5, "cleanupMs": 0, "totalMs": 7],
+        ]
+        return ("201 Created", Self.encode(answer), Self.json)
+    }
+
+    /// name -> (part head, part bytes).
+    private static func multipart(_ body: [UInt8], boundary: String) -> [String: (head: String, data: [UInt8])] {
+        let marker = Array("--\(boundary)".utf8)
+        var out: [String: (head: String, data: [UInt8])] = [:]
+        var at = find(body, marker) ?? body.count
+        while at < body.count {
+            let start = at + marker.count
+            guard let next = find(body, marker, from: start) else { break }
+            var part = Array(body[start ..< next])
+            if part.starts(with: Array("\r\n".utf8)) { part.removeFirst(2) }
+            if part.count >= 2, Array(part.suffix(2)) == Array("\r\n".utf8) { part.removeLast(2) }
+            if let split = find(part, Array("\r\n\r\n".utf8)) {
+                let head = String(decoding: part[0 ..< split], as: UTF8.self)
+                if let r = head.range(of: "name=\""), let end = head[r.upperBound...].firstIndex(of: "\"") {
+                    out[String(head[r.upperBound ..< end])] = (head, Array(part[(split + 4)...]))
+                }
+            }
+            at = next
+        }
+        return out
     }
 
     private static func header(_ request: String, _ name: String) -> String? {
@@ -248,7 +366,7 @@ final class FixtureServer {
         }
         if path.hasPrefix("/api/desktop/badge") {
             guard Self.signedIn(request) else { return ("401 Unauthorized", #"{"error":"unauthorized"}"#, "Content-Type: application/json\r\n") }
-            let body = #"{"total":3,"talk":1,"bell":2,"notifications":[],"byPath":{},"now":"2026-11-22T10:00:00.000Z","disabledApps":[]}"#
+            let body = #"{"total":3,"talk":1,"bell":2,"notifications":[],"byPath":{},"now":"2026-11-22T10:00:00.000Z","disabledApps":[],"user":{"email":"fixture@example.com","name":"Fixture"}}"#
             return ("200 OK", body, "Content-Type: application/json\r\n")
         }
         if path.hasPrefix("/app") || path.hasPrefix("/es/app") {
@@ -268,10 +386,71 @@ final class FixtureServer {
         return nil
     }
 
+    private static let json = "Content-Type: application/json\r\n"
+
+    private static func encode(_ object: Any) -> String {
+        (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+
+    /// The routes the Settings window calls (lib/routes and app/api/voice), reduced.
+    private func settings(path: String, request: String) -> (String, String, String)? {
+        let method = request.split(separator: " ").first.map(String.init) ?? "GET"
+        let route = path.split(separator: "?").first.map(String.init) ?? path
+        guard route.hasPrefix("/api/voice/") || route.hasPrefix("/api/auth/") else { return nil }
+        if method != "GET", Self.header(request, "Origin") != origin {
+            lock.lock(); _writes.append("bad-origin \(route)"); lock.unlock()
+            return ("403 Forbidden", #"{"error":"origin"}"#, Self.json)
+        }
+        if route == "/api/auth/csrf" {
+            return ("200 OK", #"{"csrfToken":"\#(Self.csrfToken)"}"#, "\(Self.json)Set-Cookie: \(Self.csrfCookie); Path=/; HttpOnly; SameSite=Lax\r\n")
+        }
+        if route == "/api/auth/signout", method == "POST" {
+            let cookie = Self.header(request, "Cookie") ?? ""
+            let form = Self.body(request)
+            let token = Self.csrfToken.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? ""
+            let ok = Self.signedIn(request) && cookie.contains(Self.csrfCookie) && form == "csrfToken=\(token)&json=true"
+            lock.lock(); _writes.append(ok ? "signout ok" : "signout bad"); lock.unlock()
+            return ("200 OK", #"{"url":"/"}"#, "\(Self.json)Set-Cookie: next-auth.session-token=; Path=/; Max-Age=0\r\n")
+        }
+        guard Self.signedIn(request) else { return ("401 Unauthorized", #"{"error":"unauthorized"}"#, Self.json) }
+        lock.lock(); defer { lock.unlock() }
+        if method != "GET" { _writes.append("\(method) \(route) \(Self.body(request))") }
+        switch (method, route) {
+        case ("GET", "/api/voice/settings"):
+            return ("200 OK", Self.encode(["settings": voice, "transcription": true, "ai": true]), Self.json)
+        case ("PATCH", "/api/voice/settings"):
+            let patch = (try? JSONSerialization.jsonObject(with: Data(Self.body(request).utf8))) as? [String: Any] ?? [:]
+            for (k, v) in patch { voice[k] = v }
+            return ("200 OK", Self.encode(["settings": voice]), Self.json)
+        case ("GET", "/api/voice/dictionary"):
+            return ("200 OK", Self.encode(["entries": entries, "canEditTeam": false]), Self.json)
+        case ("POST", "/api/voice/dictionary"):
+            var entry = (try? JSONSerialization.jsonObject(with: Data(Self.body(request).utf8))) as? [String: Any] ?? [:]
+            let id = "e\(nextEntry)"
+            nextEntry += 1
+            entry["id"] = id
+            if entry["replacement"] == nil { entry["replacement"] = "" }
+            entries.append(entry)
+            return ("201 Created", Self.encode(["id": id]), Self.json)
+        case ("GET", "/api/voice/sessions"):
+            let item: [String: Any] = ["id": "s1", "kind": "dictation", "text": "zs-history-text", "durationMs": 3000, "startedAt": "2026-11-22T10:00:00.000Z"]
+            return ("200 OK", Self.encode(["sessions": [item]]), Self.json)
+        default:
+            if method == "DELETE", route.hasPrefix("/api/voice/dictionary/") {
+                let id = String(route.dropFirst("/api/voice/dictionary/".count))
+                guard entries.contains(where: { $0["id"] as? String == id }) else { return ("404 Not Found", #"{"error":"not_found"}"#, Self.json) }
+                entries.removeAll { $0["id"] as? String == id }
+                return ("200 OK", #"{"ok":true}"#, Self.json)
+            }
+            return ("404 Not Found", #"{"error":"not_found"}"#, Self.json)
+        }
+    }
+
     /// (status line, body, extra headers; with extra headers the page sets its own type).
     private func page(path: String, mode: Mode, request: String) -> (String, String, String) {
         if path.hasPrefix("/favicon") { return ("404 Not Found", "", "") }
         if mode != .blank, let answer = signIn(path: path, request: request) { return answer }
+        if mode != .blank, let answer = settings(path: path, request: request) { return answer }
         if mode == .blank {
             return ("200 OK", "<!doctype html><html><head><title>blank</title></head><body><script>void 0</script></body></html>", "")
         }
@@ -309,9 +488,13 @@ final class FixtureServer {
         <p><a href="/second">Same origin</a></p>
         <p><a href="/api/integrations/demo/start">Connect demo</a></p>
         <p><a href="/files/report.csv">Download report</a></p>
+        <p><a href="/app/two">App two</a></p>
+        <p><a href="/app/one" target="_blank">Blank same</a></p>
+        <p><a href="\(otherOrigin)/blank-other" target="_blank">Blank other</a></p>
         <p><button onclick="window.open()">Open blank</button></p>
         <p><button onclick="window.zerosoftDesktop.startLogin()">Sign in with Google</button></p>
         <p><button onclick="new Notification('zs-note', { body: 'zs-body' })">Notify</button></p>
+        <p><button onclick="window.zerosoftDesktop.openSettings()">Desktop settings</button></p>
         <p id="detect">detect pending</p>
         <p id="features">features</p>
         <script>

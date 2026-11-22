@@ -156,6 +156,29 @@ export async function groupInviteLinkFor(owner: string, threadId: string, revoke
   }
 }
 
+/**
+ * "Salir del grupo", como en WhatsApp: la cuenta sale en WhatsApp, el chat
+ * queda como historial de solo lectura (left_at) con el aviso "Saliste" y se
+ * puede seguir leyendo, buscando y borrando. Ya fuera: group_left (409).
+ */
+export async function leaveGroupThread(owner: string, threadId: string): Promise<{ leftAt: string }> {
+  const { thread, account } = await groupThread(owner, threadId);
+  if (thread.left_at) throw new InboxError('group_left', 409);
+  try {
+    await waProviderFor(account).leaveGroup(thread.external_id);
+  } catch (err) {
+    if (err instanceof ProviderError && err.code === 'not_connected') throw new InboxError('not_connected', 409);
+    throw new InboxError('send_failed', 502);
+  }
+  const at = nowIso();
+  const { addInboxGroupEvent, applyInboxMembership } = await import('../wa-group-system');
+  const e = { t: 'leave' as const, by: { p: 'me' } };
+  await addInboxGroupEvent(thread, e, at).catch(() => false);
+  await applyInboxMembership(thread.id, e, at);
+  await getDb().prepare('UPDATE inbox_threads SET updated_at = ? WHERE id = ? AND owner_id = ?').run(at, thread.id, owner);
+  return { leftAt: at };
+}
+
 /** "Mandar el link" a quienes WhatsApp no dejó agregar: un mensaje 1:1 con el texto de la pantalla y el link. */
 export async function sendGroupInvites(owner: string, threadId: string, rawPhones: unknown, text: unknown): Promise<MemberTargetResult[]> {
   const link = await groupInviteLinkFor(owner, threadId);

@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listLists } from '@/lib/crm';
+import { listsForViewer } from '@/lib/crm-list-access';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
+import { sessionScope } from '@/lib/crm-visibility';
 import { listRuns } from '@/lib/crm-ai-agents';
 import { crmAiAvailable } from '@/lib/crm-ai';
 import AiRunsIndex from '@/components/crm/AiRunsIndex';
@@ -15,7 +17,7 @@ export default async function CrmAgentsPage(props: {
   const [{ locale }, sp] = await Promise.all([props.params, props.searchParams]);
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm.ai' });
-  const [runs, lists, available] = await Promise.all([listRuns(user.id), listLists(user.id), crmAiAvailable()]);
+  const [runs, lists, available] = await Promise.all([listRuns(user.id), sessionScope(user).then((scope) => listsForViewer(sessionFieldViewer(user), scope)), crmAiAvailable()]);
   return (
     <div className="app-page">
       <AiRunsIndex

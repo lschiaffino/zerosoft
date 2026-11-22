@@ -30,6 +30,7 @@ import type { MessageHit } from '@/lib/inbox/message-search';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
 import SelectionBar from '@/components/groups/wa/SelectionBar';
 import PinnedBar from '@/components/groups/wa/PinnedBar';
+import LeftGroupBar from '@/components/groups/wa/LeftGroupBar';
 import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
@@ -163,6 +164,8 @@ const WaConversation = forwardRef<
   const { thread, messages, scheduled } = detail;
   const wa = detail.wa ?? null;
   const group = thread.kind === 'group';
+  // Ya no es miembro del grupo (salió o la sacaron): historial de solo lectura, como en WhatsApp.
+  const left = group && !!thread.leftAt;
   const name = chatName(thread, w('group'));
   const tg = useTranslations('groups.wa.newGroup');
   // El aviso de creación del grupo (para la tarjeta del grupo sin mensajes: quién lo creó).
@@ -592,8 +595,10 @@ const WaConversation = forwardRef<
     // responder en privado, mensaje a quien lo mandó | eliminar.
     if (!m.revoked) {
       if (m.fromMe) items.push({ key: 'info', label: w('info'), onSelect: () => openInfo(m) });
-      items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
-      items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
+      if (!left) {
+        items.push({ key: 'reply', label: w('reply'), onSelect: () => startReply(m) });
+        items.push({ key: 'react', label: w('react'), onSelect: () => setFullPickerFor(m.id) });
+      }
       const url = m.hasMedia && m.mediaType !== 'sticker' && !m.meta?.viewOnce ? inboxMediaUrl(m) : '';
       if (url) items.push({ key: 'download', label: w('download'), onSelect: () => downloadFile(url, m.mediaName) });
       items.push({ key: 'star', label: m.starred ? w('unstar') : w('star'), onSelect: () => void act(m, { action: m.starred ? 'unstar' : 'star' }) });
@@ -601,7 +606,7 @@ const WaConversation = forwardRef<
       // Texto y cualquier archivo (audios incluidos), como WhatsApp; "ver una vez" no.
       if (canForwardMsg(m)) items.push({ key: 'forward', label: w('forward'), onSelect: () => selection.startForward(m.id) });
       if (m.body) items.push({ key: 'copy', label: w('copy'), onSelect: () => void copy(m) });
-      if (canEdit(m)) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
+      if (canEdit(m) && !left) items.push({ key: 'edit', label: w('edit'), onSelect: () => startEdit(m) });
       if (m.mediaType === 'sticker' && m.hasMedia) items.push({ key: 'stickerFav', label: ws('addFavorite'), onSelect: () => void favoriteSticker(m) });
       // Grupo, mensaje de otra persona: escribirle por privado (con la cita o sin ella), como en WhatsApp.
       if (group && props.onMessagePerson && canReplyPrivately({ group, fromMe: m.fromMe, deleted: !!m.revoked, senderPhone: m.senderHandle, myPhone: wa?.myPhone })) {
@@ -868,7 +873,7 @@ const WaConversation = forwardRef<
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
     const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0) + (m.pinnedAt ? 16 : 0));
     const gestures = swipeAndHold({
-      onSwipe: selecting || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
+      onSwipe: selecting || left || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
       onHold: (el) => (selecting ? toggleSelected(m.id) : setHeld({ id: m.id, el })),
     });
     const selected = !album && (selecting?.has(m.id) || held?.id === m.id);
@@ -1178,13 +1183,13 @@ const WaConversation = forwardRef<
       className={`gr-thread wa-thread ib-wa-thread${dragging ? ' is-dragging' : ''}`}
       aria-label={name}
       onDragEnter={(e) => {
-        if (!connected || !hasFiles(e.dataTransfer)) return;
+        if (!connected || left || !hasFiles(e.dataTransfer)) return;
         e.preventDefault();
         dragDepth.current++;
         setDragging(true);
       }}
       onDragOver={(e) => {
-        if (!connected || !hasFiles(e.dataTransfer)) return;
+        if (!connected || left || !hasFiles(e.dataTransfer)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
       }}
@@ -1197,7 +1202,7 @@ const WaConversation = forwardRef<
         e.preventDefault();
         dragDepth.current = 0;
         setDragging(false);
-        if (connected) tray.add(filesFrom(e.dataTransfer));
+        if (connected && !left) tray.add(filesFrom(e.dataTransfer));
       }}
     >
       <header className="gr-thread-head wa-head">
@@ -1366,6 +1371,10 @@ const WaConversation = forwardRef<
               { key: 'delete', label: w('deleteForMe'), icon: <Trash size={22} />, onClick: () => setDeletingSel(true), danger: true },
             ]}
           />
+        </div>
+      ) : left ? (
+        <div className="wa-composer ib-wa-composer is-left">
+          <LeftGroupBar />
         </div>
       ) : recording ? (
         <div className="wa-composer ib-wa-composer">

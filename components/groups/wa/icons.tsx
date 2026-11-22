@@ -190,6 +190,12 @@ export const Ban = (p: P) => (
     <path d="m6 6 12 12" />
   </Svg>
 );
+/** Salir del grupo: la puerta con la flecha hacia afuera. */
+export const ExitIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M15 8l4 4-4 4M19 12H9" />
+  </Svg>
+);
 export const Forwarded = (p: P) => (
   <Svg {...p}>
     <path d="M14 5l6 6-6 6M20 11H10a6 6 0 0 0-6 6v1" />

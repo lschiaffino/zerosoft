@@ -9,7 +9,9 @@ import UserNotifications
 /// - The badge poll: GET /api/desktop/badge every 30 s and when the app comes to the front. The
 ///   count goes to the Dock; new items become notifications with their title only (Badge.parse
 ///   never reads an item's body), and a click opens the item's page.
-/// - Permission is asked the first time there is something to show, not at launch.
+/// - Permission is asked only from the "Turn on notifications" button of the onboarding or of
+///   Settings (block 5), never at launch or when something arrives; until then nothing is
+///   handed to the system.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "notify")
@@ -25,10 +27,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var pollAgain = false
     /// Bumped by `restart()`: an answer for an older session is dropped.
     private var generation = 0
-    /// One permission request shared by every delivery.
-    private var authorization: Task<Void, Never>?
     /// Opens an app path in the web view (already checked with DeepLink.target).
     var openPath: (URL) -> Void = { _ in }
+    /// Products with something unread: the dots on their tabs (block 4).
+    var onUnread: (Set<String>) -> Void = { _ in }
+    /// After each poll: signed in or not, and the badge total (the menu bar item's menu).
+    var onSession: ((Bool, Int) -> Void)?
     /// UI tests: every badge update and every page notification decision.
     var onBadge: ((String) -> Void)?
     var onPageNotification: ((String, String?, Bool) -> Void)?
@@ -96,10 +100,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             // Signed out: no count, and the next session starts without `since`.
             since = nil
             setBadge(0)
+            onUnread([])
+            onSession?(false, 0)
             return
         }
         guard status == 200, let update = Badge.parse(body) else { return }
         setBadge(update.total)
+        onUnread(update.unread)
+        onSession?(true, update.total)
         for item in Badge.toShow(update, since: since, appActive: NSApp.isActive, seen: Set(seen)) {
             deliver(id: item.id, title: item.title, body: nil, path: item.path)
         }
@@ -123,15 +131,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if let body, !body.isEmpty { content.body = body }
         if let path { content.userInfo = [Self.pathKey: path] }
         let request = UNNotificationRequest(identifier: "zs-\(id)", content: content, trigger: nil)
-        let authorization = self.authorization ?? Task {
-            let settings = await center.notificationSettings()
-            if settings.authorizationStatus == .notDetermined {
-                _ = try? await center.requestAuthorization(options: [.alert, .sound])
-            }
-        }
-        self.authorization = authorization
         Task {
-            await authorization.value
+            // Only once the person allowed it (onboarding or Settings). Asking here, the first
+            // time something arrives, would put the system prompt in front of them out of
+            // nowhere; until they decide, the Dock badge still counts.
+            let settings = await center.notificationSettings()
+            guard SystemNotificationPermission.map(settings.authorizationStatus).mayDeliver else { return }
             do {
                 try await center.add(request)
             } catch {

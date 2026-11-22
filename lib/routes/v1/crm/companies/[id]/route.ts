@@ -5,6 +5,7 @@ import { getCompany, updateCompany, deleteCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,12 +14,15 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
-  const hidden = await apiGuardRecord(auth.user.id, 'company', params.id, await apiScope(auth));
+  const scope = await apiScope(auth);
+  const hidden = await apiGuardRecord(auth.user.id, 'company', params.id, scope);
   if (hidden) return hidden;
 
   const detail = await getCompany(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Company not found.');
-  return NextResponse.json(cleanRow(redactRow(detail.company, await hiddenFieldsFor(apiFieldViewer(auth), 'companies'))));
+  // La madre que la key no ve no sale ni por id.
+  const company = (await maskPrivateRef(auth.user.id, detail.company, [PRIVATE_REFS.parent()], scope))!;
+  return NextResponse.json(cleanRow(redactRow(company, await hiddenFieldsFor(apiFieldViewer(auth), 'companies'))));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -40,7 +44,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const company = await catchRef(updateCompany(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
   if (company instanceof CrmRefError) return apiError(400, company.code, refErrorMessage(company.code));
   if (!company) return apiError(404, 'not_found', 'Company not found.');
-  return NextResponse.json(cleanRow(redactRow(company, await hiddenFieldsFor(fieldViewer, 'companies'))));
+  const shown = (await maskPrivateRef(auth.user.id, company, [PRIVATE_REFS.parent()], await apiScope(auth)))!;
+  return NextResponse.json(cleanRow(redactRow(shown, await hiddenFieldsFor(fieldViewer, 'companies'))));
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {

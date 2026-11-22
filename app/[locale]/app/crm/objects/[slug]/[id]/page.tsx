@@ -89,7 +89,11 @@ export default async function ObjectRecordPage(props: {
 
   if (tab === 'activity') {
     const [timeline, links] = await Promise.all([
-      sessionChatReader(user, locale).then((chatReader) => listTimeline(user.id, { objectRecordId: record.id, limit: 100, chatReader })),
+      sessionChatReader(user, locale).then((chatReader) => listTimeline(user.id, { objectRecordId: record.id, limit: 100, chatReader }).then((rows) =>
+          // Sin la cola ni el recordatorio de las tareas (la cola puede ser privada de otra persona).
+          rows.map((a) => ({ ...a, queue_id: null, reminder_at: null, reminder_sent_at: null })),
+        ),
+      ),
       recordLinks(user.id, record.id),
     ]);
     const items = await withActivityFiles(timeline);

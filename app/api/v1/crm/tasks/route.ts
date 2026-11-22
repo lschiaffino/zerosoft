@@ -13,6 +13,7 @@ import { apiScope } from '@/lib/crm-visibility';
 import { apiChatReader } from '@/lib/crm-chat-privacy';
 import { z } from 'zod';
 import { API_LINK_KINDS } from '@/lib/tasks-shared';
+import { apiQueueViewer, getQueue, maskQueueRefs } from '@/lib/crm-task-queues';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   const { page, pageSize } = pageParams(sp);
   const start = (page - 1) * pageSize;
-  const pageRows = rows.slice(start, start + pageSize);
+  const pageRows = await maskQueueRefs(apiQueueViewer(auth), rows.slice(start, start + pageSize));
   const { taskLinksForKey } = await import('@/lib/tasks');
   const links = await taskLinksForKey(auth, pageRows.map((r) => r.id));
   return NextResponse.json({
@@ -70,6 +71,8 @@ export async function POST(req: NextRequest) {
   for (const l of wanted ?? []) {
     if (!(await linkTargetExists(auth.user.id, l.kind, l.id, { personId: auth.personId, role: auth.role }))) return apiError(400, 'invalid_link', 'A linked record does not exist.');
   }
+  // Cola de tareas: solo una que la persona de la key ve.
+  if (data.queueId && !(await getQueue(apiQueueViewer(auth), data.queueId))) return apiError(400, 'invalid_queue', 'The queue does not exist.');
   const task = await catchRef(createActivity(auth.user.id, { ...data, type: 'task' }));
   if (task instanceof CrmRefError) return apiError(400, task.code, 'A referenced record does not exist.');
   for (const l of wanted ?? []) await linkTask(auth.user.id, task.id, l.kind, l.id, auth.personId);

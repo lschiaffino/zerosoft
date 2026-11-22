@@ -55,6 +55,15 @@
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Dictation (block 6): asked the first time the person dictates or presses "Turn on the
+	     microphone", never at launch. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>zerosoft records your voice while you dictate: from the shortcut until you let go, tap again or reach 2 minutes. The audio goes to your zerosoft server to become text.</string>
+	<!-- Auto-paste of dictated text (decision 7.1, section 5.1): YES posts Command+V once the
+	     person allows it in Privacy & Security › Accessibility; NO only copies. From the
+	     ZS_AUTO_PASTE build setting (project.yml). -->
+	<key>ZSAutoPaste</key>
+	<string>$(ZS_AUTO_PASTE)</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticTermination</key>

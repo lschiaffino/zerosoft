@@ -21,6 +21,9 @@ public struct BadgeUpdate: Equatable, Sendable {
     public let notifications: [BadgeNotification]
     /// The server time of this answer: `since` of the next poll.
     public let now: String?
+    /// Products with something unread (`byPath` keys with a count above 0): the dots on the tabs
+    /// of those products (TabSession.setUnread). Only short lowercase keys, at most 64.
+    public var unread: Set<String> = []
 }
 
 /// The Dock badge poll (docs/desktop-swift.md, section 4.7; port of badge.rs):
@@ -53,7 +56,12 @@ public enum Badge {
             if items.count == maxNotifications { break }
         }
         let now = (json["now"] as? String).flatMap { validTime($0) ? $0 : nil }
-        return BadgeUpdate(total: total, notifications: items, now: now)
+        var unread = Set<String>()
+        for (key, value) in (json["byPath"] as? [String: Any]) ?? [:] where unread.count < 64 {
+            guard productKey(key), let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue > 0 else { continue }
+            unread.insert(key)
+        }
+        return BadgeUpdate(total: total, notifications: items, now: now, unread: unread)
     }
 
     /// The Dock badge text: empty for 0, "99+" above 99.
@@ -67,6 +75,11 @@ public enum Badge {
     public static func toShow(_ update: BadgeUpdate, since: String?, appActive: Bool, seen: Set<String>) -> [BadgeNotification] {
         guard since != nil, !appActive else { return [] }
         return update.notifications.filter { !seen.contains($0.id) }
+    }
+
+    /// A product segment of /app/<x>: 1 to 32 of a-z, 0-9 and -.
+    static func productKey(_ s: String) -> Bool {
+        (1 ... 32).contains(s.utf8.count) && s.unicodeScalars.allSatisfy { ("a" ... "z").contains($0) || ("0" ... "9").contains($0) || $0 == "-" }
     }
 
     /// An ISO 8601 time as the server writes it (`new Date().toISOString()`).

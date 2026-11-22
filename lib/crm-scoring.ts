@@ -312,13 +312,18 @@ async function fireScoreChanged(
   } catch {
     /* un workflow nunca rompe el recálculo */
   }
-  await emitEvent(workspaceId, 'contact.score_changed', {
+  const data = {
     id: contact.id,
     first_name: contact.first_name,
     last_name: contact.last_name,
     email: contact.email,
     ...payload,
     breakdown,
+  };
+  const { crmPersonalizer } = await import('./crm-event-privacy');
+  await emitEvent(workspaceId, 'contact.score_changed', data, {
+    personalize: crmPersonalizer(workspaceId, 'contact.score_changed', data),
+    appsData: data,
   });
 }
 

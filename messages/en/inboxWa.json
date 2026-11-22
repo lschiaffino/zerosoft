@@ -105,7 +105,8 @@
     "nothing_to_summarize": "There are no messages to summarize yet.",
     "voice_too_short": "Record at least one second to schedule it.",
     "invalid_name": "The group needs a name.",
-    "not_group_admin": "Only group admins can change this, and your number is not an admin of the group."
+    "not_group_admin": "Only group admins can change this, and your number is not an admin of the group.",
+    "group_left": "You already left this group."
   },
   "groupEdit": {
     "editName": "Edit group name",
@@ -392,5 +393,10 @@
     "hsCreated": "Created in HubSpot",
     "hsOff": "Connect HubSpot in Lines settings to link contacts.",
     "hsReadOnly": "Guests can see the link but not change it."
-  }
+  },
+  "exitGroup": "Exit group",
+  "exitGroupTitle": "Exit \"{name}\"?",
+  "exitGroupBody": "You will stop getting messages from this group. The chat stays here as history, read only.",
+  "exitGroupDone": "You left the group",
+  "leftNote": "You are no longer a member of this group."
 }
