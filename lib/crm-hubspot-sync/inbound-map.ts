@@ -311,7 +311,7 @@ export interface Resolution {
   shadow: Values;
 }
 
-function same(field: string, a: string, b: string): boolean {
+export function same(field: string, a: string, b: string): boolean {
   if (a === b) return true;
   const d = DEFAULTS[field];
   return d !== undefined && ((a === '' && b === d) || (b === '' && a === d));
