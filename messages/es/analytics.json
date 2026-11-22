@@ -883,7 +883,7 @@
   },
   "alerts": {
     "title": "Alertas",
-    "description": "Recibí un aviso en la app cuando un insight de tendencias cruza un umbral. Se crean desde el insight.",
+    "description": "Recibí un aviso en la app, y un email si querés, cuando un insight de tendencias cruza un umbral. Se crean desde el insight.",
     "new": "Nueva alerta",
     "emptyTitle": "Todavía no hay alertas",
     "emptyBody": "Abrí un insight de tendencias guardado y sumá una alerta debajo del gráfico.",
@@ -891,7 +891,7 @@
     "meta": "Estado e insight",
     "deleteTitle": "¿Borrar \"{name}\"?",
     "deleteBody": "Deja de controlar y de avisar. El insight queda.",
-    "help": "Se controla cada hora o cada día sobre el último período cerrado. Avisa en la app cuando se dispara, una vez hasta que se normaliza.",
+    "help": "Se controla cada hora o cada día sobre el último período cerrado. Avisa en la app cuando se dispara, y por email si lo activás, una vez hasta que se normaliza.",
     "none": "Este insight no tiene alertas.",
     "line": "{condition} {value}, {frequency}",
     "lastValue": "último valor {value}",
@@ -920,7 +920,9 @@
       "firing": "Disparada",
       "error": "Error",
       "off": "Pausada"
-    }
+    },
+    "emailNew": "Mandarme también un email",
+    "email": "Email"
   },
   "correlation": {
     "title": "Qué empuja la conversión",

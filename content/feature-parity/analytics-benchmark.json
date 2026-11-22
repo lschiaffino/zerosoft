@@ -3900,8 +3900,13 @@
         "es": "Destinos de alertas",
         "pt": "Destinos de alertas"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "In-app notices, plus an email to each subscriber when the alert is set to email; no Slack, Discord, Teams or webhooks",
+        "es": "Avisos en la app y, si la alerta tiene el email activado, un email a cada persona suscripta; sin Slack, Discord, Teams ni webhooks",
+        "pt": "Avisos no app e, se o alerta tiver o email ativado, um email para cada pessoa inscrita; sem Slack, Discord, Teams nem webhooks"
+      }
     },
     {
       "id": "alert-skip-weekends",
