@@ -165,21 +165,31 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(isOn(checkbox(app, "zs-set-restore")))
     }
 
+    /// Opens the menu bar item's menu and returns one of its entries. On a busy runner the item
+    /// can exist before it takes clicks, or the first click can be lost: wait until it can be
+    /// clicked, and click once more if the menu did not open.
+    private func statusMenuEntry(_ app: XCUIApplication, _ id: String, file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
+        let item = app.statusItems.matching(identifier: "zs-status-item").firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 10), "no menu bar item", file: file, line: line)
+        let hittable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: item)
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed, "the menu bar item cannot be clicked", file: file, line: line)
+        let entry = app.menuItems.matching(identifier: id).firstMatch
+        item.click()
+        if !entry.waitForExistence(timeout: 5) {
+            app.typeKey(.escape, modifierFlags: [])
+            item.click()
+        }
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "the menu did not open (\(id))", file: file, line: line)
+        return entry
+    }
+
     /// The menu bar item's menu opens a window and Settings.
     func testMenuBarItem() throws {
         let app = launch()
         ready(app)
-        let item = app.statusItems.matching(identifier: "zs-status-item").firstMatch
-        XCTAssertTrue(item.waitForExistence(timeout: 10), "no menu bar item")
-        item.click()
-        let newWindow = app.menuItems.matching(identifier: "zs-status-new-window").firstMatch
-        XCTAssertTrue(newWindow.waitForExistence(timeout: 10))
-        newWindow.click()
+        statusMenuEntry(app, "zs-status-new-window").click()
         waitLabel(app, "zs-test-tabs", "tabs main=*/ w1=*/app end")
-        item.click()
-        let settings = app.menuItems.matching(identifier: "zs-status-settings").firstMatch
-        XCTAssertTrue(settings.waitForExistence(timeout: 10))
-        settings.click()
+        statusMenuEntry(app, "zs-status-settings").click()
         XCTAssertTrue(settingsWindow(app).waitForExistence(timeout: 10), "the menu bar item did not open Settings")
     }
 
