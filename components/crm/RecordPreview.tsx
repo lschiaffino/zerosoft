@@ -7,20 +7,6 @@ import CrmIcon from './CrmIcon';
 import AssociationPanel, { type AssociationOption } from './AssociationPanel';
 import PreviewActions, { RecentActivity, type RecentItem } from './PreviewActions';
 import { useCrmAdmin } from './CrmViewer';
-import {
-  associateCompanyToContact,
-  associateCompanyToDeal,
-  associateContactToCompany,
-  associateContactToDeal,
-  associateDealToCompany,
-  associateDealToContact,
-  removeCompanyFromContact,
-  removeCompanyFromDealByDeal,
-  removeContactFromCompany,
-  removeContactFromDeal,
-  removeDealFromCompany,
-  removeDealFromContact,
-} from './associationActions';
 import { customLayoutName, defaultPreviewLayout, type PreviewLayout } from '@/lib/crm-layouts-shared';
 import PhoneTouch from './PhoneTouch';
 import PropertiesPanel, { type PropField } from './PropertiesPanel';
@@ -545,25 +531,32 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     };
   }, []);
 
+  // Asociar y quitar por la ruta de asociaciones (verifica que la persona ve los dos registros).
+  const ASSOC_TYPE = { contacts: 'contact', companies: 'company', deals: 'deal' } as const;
+  async function linkRecords(method: 'POST' | 'DELETE', sid: 'contacts' | 'companies' | 'deals', otherId: string): Promise<{ error?: string } | void> {
+    const res = await fetch('/api/crm/associations', {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fromType: type, fromId: id, toType: ASSOC_TYPE[sid], toId: otherId }),
+    }).catch(() => null);
+    if (res?.ok) return;
+    const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+    return { error: data?.error ?? 'generic' };
+  }
+
   function assocCard(
     sid: 'contacts' | 'companies' | 'deals',
     title: string,
     records: Array<{ id: string; name: string; meta?: string }>,
     empty: string,
     addLabel: string,
-    onAssociate: (otherId: string) => Promise<unknown>,
-    onRemove: (otherId: string) => Promise<unknown>,
   ) {
     return section(sid, title, records.length,
       <AssociationPanel
         records={records.map((r) => ({ ...r, href: `/app/crm/${sid}/${r.id}` }))}
         options={[]}
-        onAssociate={async (otherId) => {
-          await onAssociate(otherId);
-        }}
-        onRemove={async (otherId) => {
-          await onRemove(otherId);
-        }}
+        onAssociate={(otherId) => linkRecords('POST', sid, otherId)}
+        onRemove={(otherId) => linkRecords('DELETE', sid, otherId)}
         addLabel={addLabel}
         emptyLabel={empty}
         search={loaders[sid].search}
@@ -582,40 +575,34 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
       const p = payload as ContactPayload;
       if (sid === 'companies') {
         const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
-        return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'),
-          (x) => associateCompanyToContact(id, x), (x) => removeCompanyFromContact(id, x));
+        return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'));
       }
       if (sid === 'deals') {
         return assocCard('deals', t('contacts.detail.deals'),
           p.deals.map((d) => ({ id: d.id, name: d.name, meta: [d.stage_name, formatMoney(d.amount, d.currency, locale)].filter(Boolean).join(' · ') })),
-          t('contacts.detail.noDeals'), t('previewActions.addDeal'),
-          (x) => associateDealToContact(id, x), (x) => removeDealFromContact(id, x));
+          t('contacts.detail.noDeals'), t('previewActions.addDeal'));
       }
       return null;
     }
     if (type === 'company') {
       const p = payload as CompanyPayload;
       if (sid === 'contacts') {
-        return assocCard('contacts', t('companies.detail.contacts'), p.contacts.map(contactItem), t('companies.detail.noContacts'), t('previewActions.addContact'),
-          (x) => associateContactToCompany(id, x), (x) => removeContactFromCompany(id, x));
+        return assocCard('contacts', t('companies.detail.contacts'), p.contacts.map(contactItem), t('companies.detail.noContacts'), t('previewActions.addContact'));
       }
       if (sid === 'deals') {
         return assocCard('deals', t('companies.detail.deals'),
           p.deals.map((d) => ({ id: d.id, name: d.name, meta: formatMoney(d.amount, d.currency, locale) })),
-          t('companies.detail.noDeals'), t('previewActions.addDeal'),
-          (x) => associateDealToCompany(id, x), (x) => removeDealFromCompany(id, x));
+          t('companies.detail.noDeals'), t('previewActions.addDeal'));
       }
       return null;
     }
     const p = payload as DealPayload;
     if (sid === 'contacts') {
-      return assocCard('contacts', t('deals.detail.contacts'), p.contacts.map(contactItem), t('deals.detail.noContacts'), t('previewActions.addContact'),
-        (x) => associateContactToDeal(id, x), (x) => removeContactFromDeal(id, x));
+      return assocCard('contacts', t('deals.detail.contacts'), p.contacts.map(contactItem), t('deals.detail.noContacts'), t('previewActions.addContact'));
     }
     if (sid === 'companies') {
       const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
-      return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'),
-        (x) => associateCompanyToDeal(id, x), (x) => removeCompanyFromDealByDeal(id, x));
+      return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'));
     }
     return null;
   }
