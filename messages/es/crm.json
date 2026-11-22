@@ -743,7 +743,8 @@
       "form_submitted": "Formulario enviado",
       "score_changed": "Cambió el lead score",
       "company_created": "Empresa creada",
-      "company_updated": "Empresa actualizada"
+      "company_updated": "Empresa actualizada",
+      "criteria_met": "El registro cumple los criterios"
     },
     "actionTypes": {
       "send_email": "Enviar email",
@@ -773,7 +774,8 @@
       "running": "Ejecutando",
       "done": "Listo",
       "failed": "Falló",
-      "waiting": "Esperando"
+      "waiting": "Esperando",
+      "unenrolled": "Sacado"
     },
     "noRuns": "Todavía no hay ejecuciones.",
     "delete": "Eliminar workflow",
@@ -828,7 +830,8 @@
       "deals": "Deals",
       "email": "Email y reuniones",
       "other": "Otros",
-      "companies": "Empresas"
+      "companies": "Empresas",
+      "criteria": "Criterios"
     },
     "templates": {
       "copy": {
@@ -862,7 +865,8 @@
       "headers": "Los headers tienen que ser un objeto JSON.",
       "save": "No se pudo guardar. Probá de nuevo.",
       "required": "Completá este campo.",
-      "fields": "Completá los campos marcados en las acciones."
+      "fields": "Completá los campos marcados en las acciones.",
+      "criteria": "Agregá al menos un criterio con una propiedad."
     },
     "saving": "Guardando…",
     "saved": "Cambios guardados",
@@ -1002,6 +1006,51 @@
       "title": "Workflows",
       "empty": "Este registro no se inscribió en ningún workflow.",
       "resumes": "sigue {when}"
+    },
+    "criteria": {
+      "title": "Criterios de inscripción",
+      "entity": "Registros",
+      "hint": "Un registro se inscribe cuando cumple todos los criterios de abajo. Se revisa cada vez que el registro se crea o cambia una de sus propiedades.",
+      "none": "Agregá al menos un criterio. Se inscriben los registros que cumplen todos.",
+      "filtersHint": "Un registro se inscribe cuando cumple todos los criterios.",
+      "add": "Agregar criterio",
+      "reenrollOn": "Un registro se vuelve a inscribir cuando cambia una propiedad de los criterios y los vuelve a cumplir, hasta 10 veces por día, y nunca mientras sigue en este workflow."
+    },
+    "backfill": {
+      "button": "Inscribir los registros que ya cumplen los criterios",
+      "hint": "Revisa los registros que tenés ahora e inscribe hasta {max} que cumplen los criterios. Quedan afuera los que ya estuvieron en este workflow.",
+      "confirm": "Inscribir hasta {max} registros",
+      "done": "{n, plural, =0 {No hay registros para inscribir.} one {Se inscribió # registro. Arranca en unos minutos.} other {Se inscribieron # registros. Arrancan en unos minutos.}}",
+      "capped": "Había más registros de los que revisa una pasada. Usá \"Seguir con los registros siguientes\" para el resto.",
+      "saveFirst": "Primero guardá los cambios.",
+      "needsOn": "Prendé el workflow para inscribir los registros que ya existen.",
+      "limited": "Demasiadas pasadas en la última hora. Probá más tarde.",
+      "error": "No se pudieron inscribir los registros. Probá de nuevo.",
+      "option": "Inscribir también los registros que ya cumplen los criterios",
+      "optionHint": "Hasta {max} registros, después de crear el workflow.",
+      "continue": "Seguir con los registros siguientes",
+      "busy": "Este workspace ya tiene 500 registros esperando arrancar de pasadas anteriores. Probá de nuevo en unos minutos."
+    },
+    "runLog": {
+      "title": "Registro de acciones",
+      "show": "Detalle",
+      "empty": "Todavía no corrió ninguna acción.",
+      "outcome": {
+        "ok": "Hecha",
+        "skipped": "Salteada (otra rama)",
+        "failed": "Falló",
+        "waited": "Esperó"
+      },
+      "branch": {
+        "yes": "Tomó la rama Sí",
+        "no": "Tomó la rama No"
+      },
+      "waited": "Esperó {time}",
+      "unenroll": "Sacar del workflow",
+      "unenrollConfirm": "Sacarlo de este workflow",
+      "unenrollError": "No se pudo sacar el registro. Puede que ya haya terminado.",
+      "unenrolled": "Lo sacaron del workflow a mano.",
+      "unenrolledBy": "Lo sacó del workflow {name}."
     }
   },
   "history": {

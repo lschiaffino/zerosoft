@@ -25,7 +25,8 @@ export default async function WorkflowDetailPage(props: { params: Promise<{ loca
   const hasWebhook = found.actions.some((a) => a.type === 'webhook');
 
   const [runs, data, webhookSecret] = await Promise.all([
-    listWorkflowRunViews(user.id, id, await sessionScope(user), 20),
+    // Owner y admins: con el registro por acción (sin valores).
+    listWorkflowRunViews(user.id, id, await sessionScope(user), 20, { log: admin }),
     loadWorkflowEditorData(user),
     admin && hasWebhook ? workflowWebhookSecret(user.id, id) : Promise.resolve(null),
   ]);

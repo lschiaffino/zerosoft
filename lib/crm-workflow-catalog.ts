@@ -8,7 +8,9 @@ import { delayMinutes } from './crm-workflow-rules';
  * Puro: sin DB ni React, así se testea solo.
  */
 
-export const TRIGGER_GROUPS: Array<{ key: 'contacts' | 'companies' | 'deals' | 'email' | 'other'; types: TriggerType[] }> = [
+export const TRIGGER_GROUPS: Array<{ key: 'criteria' | 'contacts' | 'companies' | 'deals' | 'email' | 'other'; types: TriggerType[] }> = [
+  // W3: inscribir por criterios (como "When filter criteria is met" de HubSpot).
+  { key: 'criteria', types: ['criteria_met'] },
   { key: 'contacts', types: ['contact_created', 'contact_updated', 'form_submitted', 'score_changed'] },
   { key: 'companies', types: ['company_created', 'company_updated'] },
   { key: 'deals', types: ['deal_created', 'deal_updated', 'deal_stage_changed', 'deal_won', 'deal_lost', 'quote_accepted'] },
@@ -194,17 +196,27 @@ export function actionMissing(type: ActionType, config: Record<string, unknown> 
   }
 }
 
-export type WorkflowProblem = 'name' | 'trigger' | 'action' | 'fields' | 'headers';
+export type WorkflowProblem = 'name' | 'trigger' | 'criteria' | 'action' | 'fields' | 'headers';
 
 /** Qué falta para poder guardar (el asistente no deja pasar sin esto). */
-export function workflowProblems(input: Pick<WorkflowInput, 'name' | 'triggers' | 'actions'>): WorkflowProblem[] {
+export function workflowProblems(input: Pick<WorkflowInput, 'name' | 'triggers' | 'actions' | 'settings'>): WorkflowProblem[] {
   const out: WorkflowProblem[] = [];
   if (!input.name.trim()) out.push('name');
   if (input.triggers.length === 0) out.push('trigger');
+  if (triggerStepProblems(input.triggers, input.settings).length) out.push('criteria');
   if (input.actions.length === 0) out.push('action');
   if (input.actions.some((a) => actionMissing(a.type, a.config ?? {}).length > 0)) out.push('fields');
   if (input.actions.some((a) => a.type === 'webhook' && !webhookHeadersValid(a.config?.headers))) out.push('headers');
   return out;
+}
+
+/**
+ * "El registro cumple los criterios" sin ningún criterio con propiedad: el
+ * asistente no pasa del paso Disparador (y el servidor tampoco lo guarda).
+ */
+export function triggerStepProblems(triggers: WorkflowInput['triggers'], settings?: WorkflowInput['settings']): WorkflowProblem[] {
+  if (!triggers.some((t) => t.type === 'criteria_met')) return [];
+  return (settings?.filters ?? []).some((f) => String(f.field ?? '').trim()) ? [] : ['criteria'];
 }
 
 /** Problemas que frenan el paso Acciones → Revisar (el nombre se pide después). */

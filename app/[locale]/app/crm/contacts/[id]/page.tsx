@@ -6,7 +6,7 @@ import { fieldAccessFor, hiddenFieldsFor, redactCustomJson, sessionFieldViewer }
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
 import { canSeeActivity, canSeeOwner, ownerScopeSql, scopeContactDetail, sessionScope } from '@/lib/crm-visibility';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
@@ -645,7 +645,7 @@ export default async function ContactDetailPage(props: {
         <CrmTrackRequests contactId={contact.id} locale={locale} />
       </RecordCard>
       <RecordCard id="contact.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
-        <RecordWorkflows enrollments={workflowEnrollments} />
+        <RecordWorkflows enrollments={workflowEnrollments} canEdit={isWorkspaceAdmin(user)} />
       </RecordCard>
     </>
   );

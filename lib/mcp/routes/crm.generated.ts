@@ -169,8 +169,10 @@ import * as r166 from "@/app/api/crm/voice/fake/route";
 import * as r167 from "@/app/api/crm/voice/settings/route";
 import * as r168 from "@/app/api/crm/workflows/route";
 import * as r169 from "@/lib/routes/crm/workflows/[id]/route";
-import * as r170 from "@/lib/routes/crm/workflows/[id]/run/route";
-import * as r171 from "@/lib/routes/crm/workflows/[id]/toggle/route";
+import * as r170 from "@/lib/routes/crm/workflows/[id]/enroll-existing/route";
+import * as r171 from "@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route";
+import * as r172 from "@/lib/routes/crm/workflows/[id]/run/route";
+import * as r173 from "@/lib/routes/crm/workflows/[id]/toggle/route";
 
 export const routes: Record<string, unknown> = {
   "/api/crm/activities": r0,
@@ -343,6 +345,8 @@ export const routes: Record<string, unknown> = {
   "/api/crm/voice/settings": r167,
   "/api/crm/workflows": r168,
   "/api/crm/workflows/[id]": r169,
-  "/api/crm/workflows/[id]/run": r170,
-  "/api/crm/workflows/[id]/toggle": r171,
+  "/api/crm/workflows/[id]/enroll-existing": r170,
+  "/api/crm/workflows/[id]/enrollments/[runId]": r171,
+  "/api/crm/workflows/[id]/run": r172,
+  "/api/crm/workflows/[id]/toggle": r173,
 };

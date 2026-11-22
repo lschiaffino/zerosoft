@@ -743,7 +743,8 @@
       "form_submitted": "Form submitted",
       "score_changed": "Lead score changed",
       "company_created": "Company created",
-      "company_updated": "Company updated"
+      "company_updated": "Company updated",
+      "criteria_met": "Record meets the criteria"
     },
     "actionTypes": {
       "send_email": "Send email",
@@ -773,7 +774,8 @@
       "running": "Running",
       "done": "Done",
       "failed": "Failed",
-      "waiting": "Waiting"
+      "waiting": "Waiting",
+      "unenrolled": "Unenrolled"
     },
     "noRuns": "No runs yet.",
     "delete": "Delete workflow",
@@ -828,7 +830,8 @@
       "deals": "Deals",
       "email": "Email and meetings",
       "other": "Other",
-      "companies": "Companies"
+      "companies": "Companies",
+      "criteria": "Criteria"
     },
     "templates": {
       "copy": {
@@ -862,7 +865,8 @@
       "headers": "Headers must be a JSON object.",
       "save": "Couldn't save. Try again.",
       "required": "Fill in this field.",
-      "fields": "Fill in the marked fields in the actions."
+      "fields": "Fill in the marked fields in the actions.",
+      "criteria": "Add at least one criterion with a property."
     },
     "saving": "Saving…",
     "saved": "Changes saved",
@@ -1002,6 +1006,51 @@
       "title": "Workflows",
       "empty": "This record has not been enrolled in a workflow.",
       "resumes": "continues {when}"
+    },
+    "criteria": {
+      "title": "Enrollment criteria",
+      "entity": "Records",
+      "hint": "A record enrolls when it meets every criterion below. It is checked each time the record is created or one of its properties changes.",
+      "none": "Add at least one criterion. Records that meet all of them enroll.",
+      "filtersHint": "A record enrolls when it meets every criterion.",
+      "add": "Add criterion",
+      "reenrollOn": "A record enrolls again when a property in the criteria changes and it meets them again, at most 10 times a day, and never while it is still in this workflow."
+    },
+    "backfill": {
+      "button": "Enroll records that already meet the criteria",
+      "hint": "Checks the records you have now and enrolls up to {max} that meet the criteria. Records that were in this workflow before are left out.",
+      "confirm": "Enroll up to {max} records",
+      "done": "{n, plural, =0 {No records to enroll.} one {# record enrolled. It starts within a few minutes.} other {# records enrolled. They start within a few minutes.}}",
+      "capped": "There were more records than one pass checks. Use \"Continue with the next records\" for the rest.",
+      "saveFirst": "Save your changes first.",
+      "needsOn": "Turn the workflow on to enroll existing records.",
+      "limited": "Too many passes in the last hour. Try again later.",
+      "error": "Couldn't enroll the records. Try again.",
+      "option": "Also enroll the records that already meet the criteria",
+      "optionHint": "Up to {max} records, after you create the workflow.",
+      "continue": "Continue with the next records",
+      "busy": "This workspace already has 500 records waiting to start from earlier passes. Try again in a few minutes."
+    },
+    "runLog": {
+      "title": "Action log",
+      "show": "Log",
+      "empty": "No actions ran yet.",
+      "outcome": {
+        "ok": "Done",
+        "skipped": "Skipped (other branch)",
+        "failed": "Failed",
+        "waited": "Waited"
+      },
+      "branch": {
+        "yes": "Took the Yes branch",
+        "no": "Took the No branch"
+      },
+      "waited": "Waited {time}",
+      "unenroll": "Unenroll",
+      "unenrollConfirm": "Remove from this workflow",
+      "unenrollError": "Couldn't unenroll the record. It may have finished already.",
+      "unenrolled": "Removed from the workflow by hand.",
+      "unenrolledBy": "Removed from the workflow by {name}."
     }
   },
   "history": {
