@@ -254,6 +254,10 @@ public enum StatusMenuItem: Equatable, Sendable {
     case stopRecording
     /// Stop capturing the computer's audio, natively, whatever the page does.
     case stopSystemAudio
+    /// Rec (block 8): bring the recording tab to the front, or finish the recording (the page
+    /// gets the `stop` control).
+    case openRec
+    case stopRec
     case open
     case newTab
     case newWindow
@@ -280,6 +284,7 @@ public enum StatusMenuItem: Equatable, Sendable {
         if capture.forcesMenuBarItem {
             list += [.separator, .capturing(capture)]
             if capture.meeting { list += [.openRecording, .stopRecording] }
+            if capture.rec { list += [.openRec, .stopRec] }
             if capture.systemAudio { list.append(.stopSystemAudio) }
         }
         if let d = dictation {

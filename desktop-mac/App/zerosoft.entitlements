@@ -7,10 +7,13 @@
 	     the microphone, for dictation. Pasting needs no entitlement (the person allows it in
 	     Privacy & Security › Accessibility). Block 7 (meetings) adds none: Core Audio taps use the
 	     audio input entitlement above plus their usage string, and ScreenCaptureKit needs only
-	     the person's Screen Recording approval. -->
+	     the person's Screen Recording approval. Block 8 (Rec) adds the camera, for the page's
+	     getUserMedia (Talk, Rec) and Rec's camera bubble (section 2.2). -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<key>com.apple.security.device.camera</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>

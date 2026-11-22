@@ -475,6 +475,24 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         webs[id]?.dispatchStopRecording()
     }
 
+    // MARK: Rec (block 8)
+
+    /// The tab the person is using now (`tabInUse`), if any.
+    var tabInUseNow: Int? {
+        guard NSApp.isActive else { return nil }
+        return session.activeOf(keyLabel()).flatMap { tabInUse($0) ? $0 : nil }
+    }
+
+    /// A control from Rec's bar, bubble or shortcuts for the recording page.
+    func sendRecControl(_ control: RecControl, to id: Int) {
+        webs[id]?.dispatchRecControl(control)
+    }
+
+    /// The screen of the tab's window (where Rec's bar and bubble go the first time).
+    func screen(of id: Int) -> NSScreen? {
+        session.windowOf(id).flatMap { windows[$0]?.window?.screen }
+    }
+
     // MARK: From the page (bridge `tabs`)
 
     private func pageAction(from id: Int, _ action: TabsAction, path: String?, title: String?, n: Int?) {

@@ -76,6 +76,8 @@ public struct DictationShortcut: Equatable, Hashable, Sendable {
         case Self.keyF5: return s + "F5"
         case Self.keyEscape: return s + "Esc"
         case Self.keyV: return s + "V"
+        case RecShortcuts.keyP: return s + "P"
+        case RecShortcuts.keyS: return s + "S"
         default: return s + "?"
         }
     }

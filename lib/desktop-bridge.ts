@@ -59,7 +59,9 @@ export interface DesktopBridge {
   /**
    * Rec (como Loom): mientras se graba, la app muestra una barra flotante (reloj, micrófono,
    * pausa, terminar, reiniciar, descartar) y, con `camera`, la burbuja de la cámara encima de
-   * todo. Lo que se toca ahí llega como DESKTOP_REC_CONTROL_EVENT. Desde la 0.3.4.
+   * todo. Lo que se toca ahí llega como DESKTOP_REC_CONTROL_EVENT. Desde la 0.3.4 (Tauri) y el
+   * bloque 8 (Swift: la barra solo la empieza la pestaña que se está usando y queda fuera de la
+   * captura; la burbuja es nativa y abre la cámara por su nombre).
    */
   recOverlay?: (state: RecOverlayState) => Promise<void>;
   /** Nivel del micrófono (0 a 1) para la barra flotante. */

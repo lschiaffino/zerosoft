@@ -34,6 +34,11 @@ final class MeetingsController {
     var onCapture: () -> Void = {}
     /// The person dragged the indicator somewhere else.
     var onMoved: (IndicatorPosition) -> Void = { _ in }
+    /// Rec (block 8): the tabs recording with Rec (they get the red dot too), and whether Rec's
+    /// floating bar shows (it marks the computer's audio of a Rec recording, so the indicator
+    /// does not show for that).
+    var recTabs: () -> Set<Int> = { [] }
+    var recBar: () -> Bool = { false }
 
     init(server: String, lang: Lang, tabs: TabsController, systemAudio: SystemAudioController) {
         self.server = server
@@ -131,7 +136,7 @@ final class MeetingsController {
 
     /// The red dot on every tab that records a meeting or captures the computer's audio.
     private func markTabs() {
-        var ids = Set(recordings.keys)
+        var ids = Set(recordings.keys).union(recTabs())
         if let owner = systemAudio.owner { ids.insert(owner) }
         tabs.setRecording(ids)
     }
@@ -144,7 +149,7 @@ final class MeetingsController {
     func update() {
         let inFront = markedTab.map(tabs.isInFront) ?? false
         let show = RecordingIndicatorRules.shouldShow(
-            meeting: recording != nil, systemAudio: systemAudio.running, recBar: false,
+            meeting: recording != nil, systemAudio: systemAudio.running, recBar: recBar(),
             enabled: indicatorEnabled, dismissed: dismissed, inFront: inFront
         )
         if show {
@@ -153,6 +158,12 @@ final class MeetingsController {
             indicator.hide()
         }
         onCapture()
+    }
+
+    /// Rec started, changed or ended: the tabs' dots, the indicator and the menu bar item.
+    func recChanged() {
+        markTabs()
+        update()
     }
 
     /// Open (indicator, menu bar item): the recording tab in front; when there is none, the

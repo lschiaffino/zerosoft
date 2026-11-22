@@ -163,7 +163,9 @@ final class MeetingsUITests: XCTestCase {
     private func reveal(_ app: XCUIApplication, _ el: XCUIElement, click: Bool = true, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(el.waitForExistence(timeout: 15), "missing \(el)", file: file, line: line)
         let scroll = settingsWindow(app).scrollViews.firstMatch
-        for delta in [-120.0, -120, -120, -120, 120, 120, 120, 120, 120, 120, 120, 120] where !el.isHittable {
+        // Negative deltas scroll down. Small steps all the way down, then back up, so a row
+        // never jumps past the visible part (Permissions grew a camera row in block 8).
+        for delta in Array(repeating: -60.0, count: 24) + Array(repeating: 60.0, count: 24) where !el.isHittable {
             scroll.scroll(byDeltaX: 0, deltaY: CGFloat(delta))
         }
         XCTAssertTrue(el.isHittable, "\(el) is not visible", file: file, line: line)
@@ -337,8 +339,10 @@ final class MeetingsUITests: XCTestCase {
 
         press(app.buttons.matching(identifier: "zs-settings-permissions").firstMatch)
         reveal(app, element(app, "zs-set-audio-state"), click: false)
-        // macOS 14.2 and later (audio taps) never need Screen Recording: no row asks for it.
-        XCTAssertFalse(element(app, "zs-set-screen-state").exists, "Screen Recording offered without a use")
+        // The computer's audio on macOS 14.2 and later (audio taps) never needs Screen
+        // Recording. Since block 8 its row shows on every macOS for Rec, which records the
+        // screen from the page; showing it asks nothing.
+        reveal(app, element(app, "zs-set-screen-state"), click: false)
         waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=0")
 
         app.terminate()

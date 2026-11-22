@@ -6,8 +6,8 @@ import WebKit
 /// through `Bridge.validate` (origin, allowlist, typed arguments, size) before anything native
 /// runs; refusals reject the page's promise with a closed reason and are logged with that reason
 /// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`;
-/// block 4 adds `tabs`; block 5 `openSettings`; block 7 `recording` and `systemAudioStart/Read/Stop`.
-/// The other commands answer `unavailable` until their blocks add the native side.
+/// block 4 adds `tabs`; block 5 `openSettings`; block 7 `recording` and `systemAudioStart/Read/Stop`;
+/// block 8 `recOverlay` and `recLevel`. A command whose handler is gone answers `unavailable`.
 @MainActor
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "bridge")
@@ -33,6 +33,9 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     var onSystemAudioStart: ((@escaping @MainActor (String) -> Void) -> Void)?
     var onSystemAudioRead: (() -> String)?
     var onSystemAudioStop: (() -> Void)?
+    /// Rec (block 8): the state for the floating bar and the camera bubble, and the level.
+    var onRecOverlay: ((Bool, RecPhase?, Double?, String?, String?) -> Void)?
+    var onRecLevel: ((Double) -> Void)?
 
     init(server: String, info: BridgeInfo) {
         self.server = server
@@ -75,6 +78,8 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         onSystemAudioStart = nil
         onSystemAudioRead = nil
         onSystemAudioStop = nil
+        onRecOverlay = nil
+        onRecLevel = nil
     }
 
     func userContentController(
@@ -135,9 +140,14 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             guard let onSystemAudioStop else { return reject(.unavailable, reply) }
             onSystemAudioStop()
             reply(nil, nil)
-        default:
-            // Valid, but this build has no native side for it yet.
-            reject(.unavailable, reply)
+        case let .recOverlay(active, phase, elapsedMs, mic, camera):
+            guard let onRecOverlay else { return reject(.unavailable, reply) }
+            onRecOverlay(active, phase, elapsedMs, mic, camera)
+            reply(nil, nil)
+        case let .recLevel(level):
+            guard let onRecLevel else { return reject(.unavailable, reply) }
+            onRecLevel(level)
+            reply(nil, nil)
         }
     }
 

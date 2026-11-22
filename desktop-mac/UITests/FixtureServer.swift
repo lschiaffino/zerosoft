@@ -536,6 +536,63 @@ final class FixtureServer {
           return { start: start, stop: stop, later: function () { setTimeout(start, 4000); } };
         })();
         </script>
+        <p><button onclick="zsRec.start(false, false)">Start rec</button>
+          <button onclick="zsRec.start(true, false)">Start rec with camera</button>
+          <button onclick="zsRec.start(false, true)">Start rec with audio</button>
+          <button onclick="zsRec.later()">Start rec soon</button></p>
+        <p id="rec">rec pending</p>
+        <script>
+        // What components/rec/Recorder.tsx does with the bridge (block 8): the state for the
+        // floating bar (countdown, recording, paused, finishing), the microphone level, and the
+        // controls that come back as zerosoft:rec-control.
+        window.zsRec = (function () {
+          var b = window.zerosoftDesktop, phase = 'setup', mic = 'on', cam = null, seen = [], elapsed = 0, since = 0, lvl = 0, sys = 'none';
+          var paint = function () {
+            document.getElementById('rec').textContent = 'rec phase=' + phase + ' mic=' + mic + ' cam=' + (cam === null ? 'none' : 'bubble') +
+              ' controls=' + (seen.slice(-6).join(',') || 'none') + ' sys=' + sys + ' api=' + (b ? typeof b.recOverlay : 'none') + ' end';
+          };
+          var send = function () {
+            if (!b || typeof b.recOverlay !== 'function') return;
+            var now = Date.now();
+            b.recOverlay(phase === 'setup' ? { active: false } : {
+              active: true, phase: phase, elapsedMs: elapsed + (phase === 'recording' ? now - since : 0), mic: mic, camera: cam
+            }).catch(function () {});
+          };
+          var set = function (p) { phase = p; send(); paint(); };
+          var record = function () {
+            since = Date.now();
+            set('recording');
+            clearInterval(lvl);
+            lvl = setInterval(function () { if (b) b.recLevel(0.5).catch(function () {}); }, 250);
+          };
+          var start = function (camera, audio) {
+            elapsed = 0;
+            cam = camera ? 'Fixture Camera' : null;
+            if (audio && b) b.systemAudioStart().then(function (r) { sys = r; paint(); }, function () { sys = 'error'; paint(); });
+            set('countdown');
+            setTimeout(record, 1500);
+          };
+          var end = function () {
+            clearInterval(lvl);
+            if (b && sys === 'ok') b.systemAudioStop().catch(function () {});
+            sys = 'none';
+            set('setup');
+          };
+          addEventListener('zerosoft:rec-control', function (e) {
+            var c = e.detail;
+            seen.push(c);
+            if (c === 'pause' || (c === 'toggle' && phase === 'recording')) { elapsed += Date.now() - since; set('paused'); }
+            else if (c === 'resume' || c === 'toggle') { since = Date.now(); set('recording'); }
+            else if (c === 'stop') { set('finishing'); setTimeout(end, 500); }
+            else if (c === 'discard') end();
+            else if (c === 'restart') { elapsed = 0; set('countdown'); setTimeout(record, 1500); }
+            else if (c === 'mute' || c === 'unmute') { mic = c === 'mute' ? 'muted' : 'on'; send(); paint(); }
+            else if (c === 'bubble-failed') { cam = null; send(); paint(); }
+          });
+          setTimeout(paint, 0);
+          return { start: start, later: function () { setTimeout(function () { start(false, false); }, 4000); } };
+        })();
+        </script>
         <p id="detect">detect pending</p>
         <p id="features">features</p>
         <script>
@@ -604,7 +661,7 @@ final class FixtureServer {
             res(function () { return h.postMessage('info'); })
           ]).then(function (r) {
             show('bridge', 'bridge info=' + r[0] + ' unknown=' + r[1] + ' oversize=' + r[2] + ' badargs=' + r[3] +
-              ' unimplemented=' + r[4] + ' malformed=' + r[5] + ' frozen=' + frozen + ' fields=' +
+              ' recoff=' + r[4] + ' malformed=' + r[5] + ' frozen=' + frozen + ' fields=' +
               (b ? b.platform + ',' + b.store + ',' + b.lockdown : 'none') + ' end');
           });
         })();
