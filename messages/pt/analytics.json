@@ -876,7 +876,7 @@
   },
   "alerts": {
     "title": "Alertas",
-    "description": "Receba um aviso no app quando um insight de tendências cruza um limite. Crie a partir do insight.",
+    "description": "Receba um aviso no app, e um email se quiser, quando um insight de tendências cruza um limite. Crie a partir do insight.",
     "new": "Novo alerta",
     "emptyTitle": "Ainda não há alertas",
     "emptyBody": "Abra um insight de tendências salvo e adicione um alerta abaixo do gráfico.",
@@ -884,7 +884,7 @@
     "meta": "Estado e insight",
     "deleteTitle": "Apagar \"{name}\"?",
     "deleteBody": "Para de verificar e avisar. O insight fica.",
-    "help": "Verificado a cada hora ou dia no último período fechado. Avisa no app quando dispara, uma vez até normalizar.",
+    "help": "Verificado a cada hora ou dia no último período fechado. Avisa no app quando dispara, e por email se você ativar, uma vez até normalizar.",
     "none": "Este insight não tem alertas.",
     "line": "{condition} {value}, {frequency}",
     "lastValue": "último valor {value}",
@@ -913,7 +913,9 @@
       "firing": "Disparado",
       "error": "Erro",
       "off": "Pausado"
-    }
+    },
+    "emailNew": "Também me enviar um email",
+    "email": "Email"
   },
   "correlation": {
     "title": "O que impulsa a conversão",

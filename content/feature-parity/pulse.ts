@@ -35,7 +35,7 @@ const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 
 
 const parity: ProductParity = {
   competitor: 'PostHog',
-  lastReviewed: '2026-11-18',
+  lastReviewed: '2026-11-22',
   percentHidden: {
     note: loc([
       'This comparison goes through the full PostHog docs, feature by feature, so it has many more rows than the other apps and its numbers are not comparable with their percentages. That is why there is no overall percentage here.',
@@ -210,16 +210,16 @@ const parity: ProductParity = {
     }),
     row('alerts', 'insights', ['Alerts on insights', 'Alertas sobre insights', 'Alertas sobre insights'], 'partial', {
       detail: [
-        'Thresholds and percentage changes on trends insights, hourly or daily, with in-app notices. No email or Slack delivery',
-        'Umbrales y cambios porcentuales sobre insights de tendencias, por hora o por día, con avisos en la app. Sin envío por email ni Slack',
-        'Limites e variações percentuais em insights de tendências, por hora ou por dia, com avisos no app. Sem envio por email nem Slack',
+        'Thresholds and percentage changes on trends insights, hourly or daily, with in-app notices and an optional email to subscribers. No Slack or webhook delivery, and no funnel or SQL alerts',
+        'Umbrales y cambios porcentuales sobre insights de tendencias, por hora o por día, con avisos en la app y un email opcional a quienes se suscriben. Sin envío a Slack ni webhooks, y sin alertas de embudos ni de SQL',
+        'Limites e variações percentuais em insights de tendências, por hora ou por dia, com avisos no app e um email opcional para quem se inscreve. Sem envio para Slack nem webhooks, e sem alertas de funis nem de SQL',
       ],
     }),
     row('sharing', 'insights', ['Public sharing and embeds', 'Compartir y embeber en público', 'Compartilhar e embutir em público'], 'partial', {
       detail: [
-        'Revocable public links and iframe embeds for insights and dashboards, with results only. No password or whitelabel options',
-        'Links públicos revocables e iframes para insights y tableros, solo con resultados. Sin contraseña ni marca blanca',
-        'Links públicos revogáveis e iframes para insights e painéis, só com resultados. Sem senha nem marca branca',
+        'Revocable public links and iframe embeds for insights and dashboards, with results only, optional passwords, theme and auto-refresh. No whitelabel: the credit stays',
+        'Links públicos revocables e iframes para insights y tableros, solo con resultados, con contraseña opcional, tema y actualización automática. Sin marca blanca: el crédito queda',
+        'Links públicos revogáveis e iframes para insights e painéis, só com resultados, com senha opcional, tema e atualização automática. Sem marca branca: o crédito fica',
       ],
     }),
 
@@ -270,9 +270,9 @@ const parity: ProductParity = {
     }),
     row('heatmaps', 'web', ['Heatmaps', 'Mapas de calor', 'Mapas de calor'], 'partial', {
       detail: [
-        'Clicks, most clicked elements and scroll depth per page and viewport, opt-in per project. No rage clicks or in-page view',
-        'Clics, elementos más clicados y profundidad de scroll por página y ancho, a elección por proyecto. Sin clics de bronca ni vista dentro de la página',
-        'Cliques, elementos mais clicados e profundidade de scroll por página e largura, opcional por projeto. Sem cliques de raiva nem visão dentro da página',
+        'Clicks painted over the real page in a sandboxed frame, most clicked elements and scroll depth per page and viewport, opt-in per project. No rage or dead clicks',
+        'Clics pintados sobre la página real en un marco aislado, elementos más clicados y profundidad de scroll por página y ancho, a elección por proyecto. Sin clics de bronca ni clics muertos',
+        'Cliques pintados sobre a página real em um quadro isolado, elementos mais clicados e profundidade de scroll por página e largura, opcional por projeto. Sem cliques de raiva nem cliques mortos',
       ],
     }),
     row('toolbar', 'web', ['Toolbar on your site', 'Toolbar en tu sitio', 'Toolbar no seu site'], 'missing'),

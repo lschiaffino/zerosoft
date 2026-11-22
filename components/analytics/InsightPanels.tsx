@@ -255,6 +255,7 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
   const [threshold, setThreshold] = useState('100');
   const [frequency, setFrequency] = useState<'hourly' | 'daily'>('daily');
   const [seriesIndex, setSeriesIndex] = useState(0);
+  const [email, setEmail] = useState(true);
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState<AlertDto | null>(null);
 
@@ -277,7 +278,7 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
     setError(null);
     try {
       await api('/api/analytics/alerts', {
-        body: { projectId, insightId, name: t('defaultName', { insight: insightName.slice(0, 120), condition: t(`conditions.${condition}`), value }), seriesIndex, condition, threshold: value, frequency },
+        body: { projectId, insightId, name: t('defaultName', { insight: insightName.slice(0, 120), condition: t(`conditions.${condition}`), value }), seriesIndex, condition, threshold: value, frequency, email },
       });
       await load();
       notifyChanged();
@@ -288,9 +289,10 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
     }
   };
 
-  const toggle = async (a: AlertDto) => {
+  const patch = async (a: AlertDto, body: { enabled?: boolean; email?: boolean }) => {
+    setError(null);
     try {
-      await api(`/api/analytics/alerts/${a.id}`, { method: 'PATCH', body: { enabled: !a.enabled } });
+      await api(`/api/analytics/alerts/${a.id}`, { method: 'PATCH', body });
       await load();
     } catch {
       setError(tc('error'));
@@ -319,7 +321,10 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
                 {t('line', { condition: t(`conditions.${a.condition}`), value: fmtNumber(a.threshold, locale), frequency: t(`frequencies.${a.frequency}`) })}
                 {a.lastValue !== null && <span className="an-muted"> · {t('lastValue', { value: fmtNumber(a.lastValue, locale) })}</span>}
               </span>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void toggle(a)}>
+              <label className="ui-check an-small">
+                <input type="checkbox" data-testid="an-alert-email" checked={a.email} onChange={(e) => void patch(a, { email: e.target.checked })} aria-label={`${t('email')}: ${a.name}`} /> {t('email')}
+              </label>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void patch(a, { enabled: !a.enabled })}>
                 {a.enabled ? t('pause') : t('resume')}
               </button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(a)} aria-label={`${tc('delete')}: ${a.name}`}>
@@ -357,6 +362,9 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
           <option value="hourly">{t('frequencies.hourly')}</option>
           <option value="daily">{t('frequencies.daily')}</option>
         </select>
+        <label className="ui-check an-small">
+          <input type="checkbox" data-testid="an-alert-email-new" checked={email} onChange={(e) => setEmail(e.target.checked)} /> {t('emailNew')}
+        </label>
         <button type="submit" className="btn btn-sm" disabled={busy}>
           {t('add')}
         </button>

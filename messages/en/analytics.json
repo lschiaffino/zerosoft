@@ -876,7 +876,7 @@
   },
   "alerts": {
     "title": "Alerts",
-    "description": "Get a notice in the app when a trends insight crosses a threshold. Create them from the insight.",
+    "description": "Get a notice in the app, and an email if you want, when a trends insight crosses a threshold. Create them from the insight.",
     "new": "New alert",
     "emptyTitle": "No alerts yet",
     "emptyBody": "Open a saved trends insight and add an alert below the chart.",
@@ -884,7 +884,7 @@
     "meta": "State and insight",
     "deleteTitle": "Delete \"{name}\"?",
     "deleteBody": "It stops checking and notifying. The insight stays.",
-    "help": "Checked every hour or day on the last closed period. It notifies you in the app when it starts firing, once until it clears.",
+    "help": "Checked every hour or day on the last closed period. It notifies you in the app when it starts firing, and by email if you turn it on, once until it clears.",
     "none": "No alerts on this insight.",
     "line": "{condition} {value}, {frequency}",
     "lastValue": "last value {value}",
@@ -913,7 +913,9 @@
       "firing": "Firing",
       "error": "Error",
       "off": "Paused"
-    }
+    },
+    "emailNew": "Also send me an email",
+    "email": "Email"
   },
   "correlation": {
     "title": "What drives conversion",

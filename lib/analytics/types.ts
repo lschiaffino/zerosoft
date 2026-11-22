@@ -679,6 +679,8 @@ export const alertInputSchema = z.object({
   frequency: z.enum(['hourly', 'daily']).default('daily'),
   enabled: z.boolean().default(true),
   subscribers: z.array(z.string().max(64)).max(25).default([]),
+  /** Además del aviso en la app, un email a cada persona suscripta. */
+  email: z.boolean().default(false),
 });
 export type AlertInput = z.infer<typeof alertInputSchema>;
 export interface AlertDto extends AlertInput {
