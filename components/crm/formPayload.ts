@@ -4,6 +4,7 @@
  */
 import type { CrmCustomFieldType } from '@/lib/schema/types';
 import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
+import { builtinField, type CreateFormEntity, type ResolvedCreateField } from '@/lib/crm-create-form-shared';
 
 export interface CustomFieldDef {
   name: string;
@@ -125,4 +126,51 @@ export function dealPayload(fd: FormData, fixedContactId?: string) {
     ...(description ? { description } : {}),
     ...(contactId ? { contactIds: [contactId] } : {}),
   };
+}
+
+/**
+ * Valores de las propiedades del formulario de alta configurable
+ * (lib/crm-create-form-shared.ts) para el body del POST. Lee solo las
+ * claves de `fields`; los vacíos se omiten (el server pone sus valores por
+ * defecto). Personalizadas en `custom`; el contacto de un deal, en contactIds.
+ */
+export function createFormBody(
+  entity: CreateFormEntity,
+  fd: FormData,
+  fields: ReadonlyArray<Pick<ResolvedCreateField, 'key' | 'custom'>>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const customDefs: CustomFieldDef[] = [];
+  for (const f of fields) {
+    if (f.custom) {
+      customDefs.push({
+        name: f.custom.name,
+        label: f.custom.label,
+        type: f.custom.type as CrmCustomFieldType,
+        options: f.custom.options,
+      });
+      continue;
+    }
+    const def = builtinField(entity, f.key);
+    if (!def) continue;
+    const v = str(fd, f.key);
+    if (v === undefined) continue;
+    if (def.input === 'number') {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) out[f.key] = f.key === 'employees' ? Math.round(n) : n;
+    } else if (def.input === 'contact') {
+      out.contactIds = [v];
+    } else if (def.input === 'currency') {
+      out[f.key] = v.toUpperCase();
+    } else if (def.input === 'url') {
+      out[f.key] = normalizeFieldUrl(v);
+    } else {
+      out[f.key] = v;
+    }
+  }
+  if (customDefs.length) {
+    const custom = readCustomFields(fd, customDefs);
+    if (Object.keys(custom).length) out.custom = custom;
+  }
+  return out;
 }

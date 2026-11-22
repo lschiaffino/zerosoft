@@ -9,6 +9,7 @@ import { chatName, phoneLabel } from './wa/util';
 import ScheduledList from './ScheduledList';
 import Composer, { type ComposerHandle } from './Composer';
 import { useInboxThreadCommands } from './slash-commands';
+import { useChatCommands } from '@/components/ui/useChatCommands';
 
 export interface ThreadDetail {
   thread: ThreadDto;
@@ -206,6 +207,8 @@ const Conversation = forwardRef<
 
   // Comandos "/" del campo: las mismas acciones de esta cabecera y de "Más acciones".
   const slashCommands = useInboxThreadCommands({ thread, onAction, openNotes: () => void openNotes(), rename: () => setRenaming(true) });
+  // Las mismas acciones también en ⌘K (como Superhuman).
+  useChatCommands(thread.title, slashCommands, { prefix: 'inbox-chat' });
 
   const openNotes = async () => {
     if (notesOpen) {

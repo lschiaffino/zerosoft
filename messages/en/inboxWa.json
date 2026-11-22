@@ -103,7 +103,21 @@
     "forbidden": "Only your own messages can be changed.",
     "client_upload_unavailable": "Files over 4 MB can't be sent from this server.",
     "nothing_to_summarize": "There are no messages to summarize yet.",
-    "voice_too_short": "Record at least one second to schedule it."
+    "voice_too_short": "Record at least one second to schedule it.",
+    "invalid_name": "The group needs a name.",
+    "not_group_admin": "Only group admins can change this, and your number is not an admin of the group."
+  },
+  "groupEdit": {
+    "editName": "Edit group name",
+    "editDescription": "Edit group description",
+    "addDescription": "Add group description",
+    "nameLabel": "Group name",
+    "descriptionLabel": "Group description",
+    "save": "Save",
+    "cancel": "Cancel",
+    "nameSaved": "Group name changed",
+    "descriptionSaved": "Group description changed",
+    "left": "{n} left"
   },
   "viewPhoto": "View photo",
   "groupMembers": "{n, plural, one {Group · # member} other {Group · # members}}",

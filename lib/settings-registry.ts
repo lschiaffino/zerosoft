@@ -164,6 +164,7 @@ const CRM_DEFS: SettingDef[] = [
   crmDef('crm-currency', 'sales', 'crm:settings.currency', 'crm:settings.currencyDesc', { en: 'exchange rates, dollars', es: 'moneda, tipo de cambio, dólares', pt: 'moeda, câmbio, dólares' }),
   crmDef('crm-call-outcomes', 'sales', 'crm:calls.settingsTitle', 'crm:calls.settingsDesc'),
   crmDef('crm-custom-fields', 'data', 'crm:settings.customFields', 'crm:settings.customFieldsDesc', { en: 'properties, custom properties', es: 'propiedades, campos personalizados', pt: 'propriedades, campos personalizados' }),
+  crmDef('crm-create-form', 'data', 'crm:createForm.title', 'crm:createForm.desc', { en: 'required fields, new record form', es: 'campos obligatorios, formulario de alta', pt: 'campos obrigatórios, formulário de criação' }),
   crmDef('crm-field-permissions', 'data', 'crm:fieldPerms.title', 'crm:fieldPerms.desc'),
   crmDef('crm-tags', 'data', 'crm:settings.tags', 'crm:settings.tagsDesc', { en: 'labels', es: 'etiquetas', pt: 'etiquetas' }),
   { ...crmDef('crm-access', 'access', 'crm:access.title', 'crm:access.desc', { en: 'visibility, who sees what, sales teams', es: 'visibilidad, quién ve qué, equipos de ventas', pt: 'visibilidade, quem vê o quê, equipes de vendas' }) },

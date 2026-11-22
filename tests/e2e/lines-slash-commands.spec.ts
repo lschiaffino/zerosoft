@@ -247,3 +247,45 @@ test('con el mouse desde el menú +, y a 390 px sin scroll horizontal', async ({
   await expect(menu).toHaveCount(0);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('⌘K en un chat abierto: etiqueta con sus opciones, cerrar el chat y buscar, como el "/"', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const tag = uid();
+  const label = (await (await request.post('/api/groups/labels', { data: { name: `Paleta ${tag}`, color: 'blue' } })).json()) as { id: string; name: string };
+  const name = `Cmdk${tag}`;
+  const id = await openChat(page, request, name);
+  const palette = page.locator('.cmdk');
+  const action = (a: string) => palette.locator(`[data-action="lines-chat:${a}"]`);
+
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(palette).toBeVisible();
+  for (const a of ['close', 'label', 'pin', 'mute', 'details', 'search']) await expect(action(a)).toBeVisible();
+  // Los emojis viven en el campo y la AI escribe en él: no van en la paleta.
+  await expect(action('emoji')).toHaveCount(0);
+  await expect(palette.locator('[data-action^="lines-chat:"][data-action*="suggest"]')).toHaveCount(0);
+
+  // Etiqueta: abre la lista de etiquetas, elegir una la pone y la próxima vez aparece tildada.
+  await action('label').click();
+  await expect(page.getByTestId('cmdk-crumbs')).toContainText(name);
+  await palette.getByRole('combobox').fill(`paleta ${tag}`);
+  await action(`label:${label.id}`).click();
+  await expect(palette).toBeHidden();
+  await expect.poll(async () => (await chatState(request, id)).labels.map((l) => l.name)).toContain(label.name);
+  await page.keyboard.press('ControlOrMeta+k');
+  await action('label').click();
+  await expect(action(`label:${label.id}`).locator('.cmdk-check')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(palette).toBeHidden();
+
+  // Cerrar el chat, con el mismo handler que el botón; la próxima vez ofrece reabrir.
+  await page.keyboard.press('ControlOrMeta+k');
+  await action('close').click();
+  await expect.poll(async () => (await chatState(request, id)).status).toBe('closed');
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(action('reopen')).toBeVisible();
+
+  // Buscar en el chat abre el panel de búsqueda.
+  await action('search').click();
+  await expect(page.getByTestId('chat-search-close')).toBeVisible();
+  expect(errors, errors.join('\n')).toEqual([]);
+});

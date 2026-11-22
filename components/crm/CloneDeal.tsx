@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { missingFromResponse, useMissingMessage } from './CreateFormFields';
 
 interface CloneDealProps {
   /** Cuerpo ya armado para POST /api/crm/deals (lib/crm-deal-clone.ts). */
@@ -15,24 +16,26 @@ export default function CloneDeal({ body, name }: CloneDealProps) {
   const t = useTranslations('crm.deals.detail');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const missingMessage = useMissingMessage('deals');
+  /** null = sin error; '' = error genérico; texto = obligatorias del formulario de alta que faltan. */
+  const [failed, setFailed] = useState<string | null>(null);
 
   async function onClone() {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     const res = await fetch('/api/crm/deals', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
-    if (res && res.status === 201) {
-      const created = (await res.json().catch(() => null)) as { id?: string } | null;
-      if (created?.id) {
-        router.push(`/app/crm/deals/${created.id}`);
-        return;
-      }
+    const data = res ? ((await res.json().catch(() => null)) as { id?: string } | null) : null;
+    if (res && res.status === 201 && data?.id) {
+      router.push(`/app/crm/deals/${data.id}`);
+      return;
     }
-    setFailed(true);
+    // El formulario de alta pide propiedades que el deal original no tiene.
+    const missing = missingFromResponse(data);
+    setFailed(missing ? missingMessage(missing.fields, [], missing.labels) : '');
     setBusy(false);
   }
 
@@ -44,9 +47,9 @@ export default function CloneDeal({ body, name }: CloneDealProps) {
           {busy ? t('cloning') : t('cloneButton')}
         </button>
       </div>
-      {failed && (
+      {failed !== null && (
         <p className="form-error" role="alert">
-          {t('cloneError')}
+          {failed || t('cloneError')}
         </p>
       )}
     </div>

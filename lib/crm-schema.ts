@@ -188,6 +188,11 @@ export const dealCreateSchema = z.object({
   custom: custom.optional(),
 });
 
+/** Alta desde la app: suma el motivo de ganado (la API v1 sigue con dealCreateSchema). */
+export const dealSessionCreateSchema = dealCreateSchema.extend({
+  wonReason: shortText.optional(),
+});
+
 export const dealUpdateSchema = dealCreateSchema
   .partial()
   .omit({ pipelineId: true, stageId: true })
@@ -295,14 +300,6 @@ export const listUpdateSchema = listCreateSchema.partial();
 
 export const listMembersSchema = z.object({
   contactIds: z.array(id).min(1).max(1000),
-});
-
-// ---------- Saved views ----------
-
-export const savedViewCreateSchema = z.object({
-  entity: z.enum(['contacts', 'companies', 'deals', 'tasks']),
-  name,
-  query: z.record(z.unknown()).optional(),
 });
 
 // ---------- Saved reports ----------
@@ -534,6 +531,10 @@ export const importDealRowSchema = z.object({
   priority: priority.optional(),
   source: source.optional(),
   description: longText.optional(),
+  /** Tipo de deal tal como viene ("New Business"); lib/crm-import.ts lo normaliza. */
+  dealType: shortText.optional(),
+  nextStep: shortText.optional(),
+  wonReason: shortText.optional(),
   companyName: shortText.optional(),
   companyDomain: shortText.optional(),
   /** Uno o más emails ("Jane (jane@x.com); bob@y.com"). */
@@ -578,7 +579,6 @@ export type TaskProjectUpdatePayload = z.infer<typeof taskProjectUpdateSchema>;
 export type ListCreatePayload = z.infer<typeof listCreateSchema>;
 export type ListUpdatePayload = z.infer<typeof listUpdateSchema>;
 export type ListMembersPayload = z.infer<typeof listMembersSchema>;
-export type SavedViewCreatePayload = z.infer<typeof savedViewCreateSchema>;
 export type CustomFieldCreatePayload = z.infer<typeof customFieldCreateSchema>;
 export type CustomFieldUpdatePayload = z.infer<typeof customFieldUpdateSchema>;
 export type ImportContactsPayload = z.infer<typeof importContactsSchema>;

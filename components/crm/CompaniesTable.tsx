@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import InlineEditCell from './InlineEditCell';
-import { ColumnToggleInBar, useColumnVisibility } from './ColumnToggle';
+import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import TagBulkControls from './TagBulkControls';
@@ -43,6 +43,9 @@ export interface CompanyRow {
 }
 
 interface CompaniesTableProps {
+  /** Columnas en orden (`cols` de la URL o de la vista activa) y si la primera queda fija. */
+  viewCols?: string;
+  viewFreeze?: boolean;
   rows: CompanyRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
@@ -75,7 +78,7 @@ const COLS = [
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [] }: CompaniesTableProps) {
+export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [] }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -86,10 +89,8 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
   ];
-  const [visible, toggleVisible] = useColumnVisibility(
-    columnDefs,
-    'zs-companies-columns',
-  );
+  const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze });
+  const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -124,17 +125,167 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
 
   const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
 
+  const headCells: Record<string, ReactNode> = {
+    name: (
+      <th data-card="main">
+        <SortTh label={t('companies.table.name')} asc="name" desc="name_desc" current={sort} />
+      </th>
+    ),
+    domain: <th>{t('companies.table.domain')}</th>,
+    industry: <th>{t('companies.table.industry')}</th>,
+    phone: <th>{t('companies.table.phone')}</th>,
+    location: <th>{t('companies.table.location')}</th>,
+    contacts: (
+      <th className="num">{t('companies.table.contacts')}</th>
+    ),
+    deals: <th className="num">{t('deals.title')}</th>,
+    lifecycle: <th>{t('companies.table.lifecycle')}</th>,
+    tags: <th>{t('tags.column')}</th>,
+    owner: <OwnerHeader sort={sort} />,
+    parent: <th>{t('companies.detail.parent')}</th>,
+    created: (
+      <th>
+        <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
+      </th>
+    ),
+    lastActivity: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
+      </th>
+    ),
+    lastContacted: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
+      </th>
+    ),
+    nextActivity: (
+      <th className="num cell-date">
+        <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
+      </th>
+    ),
+  };
+  for (const c of customColumns) headCells[c.id] = <CustomColumnHeader key={c.id} col={c} sort={sort} />;
+  const customById = new Map(customColumns.map((c) => [c.id, c]));
+
+  function bodyCell(id: string, row: CompanyRow): ReactNode {
+    switch (id) {
+      case 'name':
+        return (
+          <td data-card="main">
+            <Link href={`/app/crm/companies/${row.id}`} className="cell-name cell-name-logo">
+              <CompanyLogo domain={row.domain} name={row.name} size={18} />
+              {row.name}
+            </Link>
+          </td>
+        );
+      case 'domain':
+        return (
+          <td data-card="line">
+            <InlineEditCell
+              endpoint={`/api/crm/companies/${row.id}`}
+              field="domain"
+              value={row.domain}
+              className="cell-email muted"
+            />
+          </td>
+        );
+      case 'industry':
+        return (
+          <td data-card="line">
+            <InlineEditCell
+              endpoint={`/api/crm/companies/${row.id}`}
+              field="industry"
+              value={row.industry}
+              className="muted"
+            />
+          </td>
+        );
+      case 'phone':
+        return (
+          <td className="cell-sub" data-card="line">
+            <InlineEditCell
+              endpoint={`/api/crm/companies/${row.id}`}
+              field="phone"
+              value={row.phone}
+              displayValue={formatPhoneDisplay(row.phone)}
+              className="muted"
+            />
+            {row.phone ? <PhoneTouch phone={row.phone} companyId={row.id} compact /> : null}
+          </td>
+        );
+      case 'location':
+        return <td className="muted cell-sub">{row.location || '—'}</td>;
+      case 'contacts':
+        return <td className="num">{row.contacts}</td>;
+      case 'deals':
+        return <td className="num">{row.deals}</td>;
+      case 'lifecycle':
+        return (
+          <td data-card="state">
+            <InlineEditCell
+              endpoint={`/api/crm/companies/${row.id}`}
+              field="lifecycleStage"
+              value={row.lifecycle}
+              type="select"
+              options={lifecycleOpts}
+              className={`badge stage-${row.lifecycle}`}
+            />
+          </td>
+        );
+      case 'tags':
+        return (
+          <td className="cell-crm-tags">
+            <TagDots tags={row.tags ?? []} max={2} />
+          </td>
+        );
+      case 'owner':
+        return (
+          <OwnerCell endpoint={`/api/crm/companies/${row.id}`} ownerId={row.ownerId} owners={owners} />
+        );
+      case 'parent':
+        return <td className="muted cell-sub">{row.parentName || '—'}</td>;
+      case 'created':
+        return <td className="num muted cell-date">{row.created}</td>;
+      case 'lastActivity':
+        return <td className="num muted cell-date">{row.lastActivity || '—'}</td>;
+      case 'lastContacted':
+        return <td className="num muted cell-date">{row.lastContacted || '—'}</td>;
+      case 'nextActivity':
+        return <td className="num muted cell-date">{row.nextActivity || '—'}</td>;
+      default: {
+        const c = customById.get(id);
+        if (!c) return null;
+        const cell = row.custom?.[c.id];
+        return (
+          <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
+            {!cell ? (
+              <span className="muted">—</span>
+            ) : cell.href ? (
+              <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
+                {cell.text}
+              </a>
+            ) : (
+              cell.text
+            )}
+          </td>
+        );
+      }
+    }
+  }
+
   return (
     <>
-      <ColumnToggleInBar
+      <EditColumnsInBar
         columns={columnDefs}
-        visible={visible}
-        onToggle={toggleVisible}
-        label={t('common.columns')}
+        first="name"
+        order={cols.order}
+        freeze={cols.freeze}
+        onApply={cols.apply}
+        onReset={cols.reset}
       />
 
       <div className="table-wrap">
-        <table className="table crm-table crm-cards">
+        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
           <thead>
             <tr>
               <th className="cell-check" data-card="check">
@@ -146,44 +297,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   aria-label={t('common.all')}
                 />
               </th>
-              {visible.has('name') && (
-                <th data-card="main">
-                  <SortTh label={t('companies.table.name')} asc="name" desc="name_desc" current={sort} />
-                </th>
-              )}
-              {visible.has('domain') && <th>{t('companies.table.domain')}</th>}
-              {visible.has('industry') && <th>{t('companies.table.industry')}</th>}
-              {visible.has('phone') && <th>{t('companies.table.phone')}</th>}
-              {visible.has('location') && <th>{t('companies.table.location')}</th>}
-              {visible.has('contacts') && (
-                <th className="num">{t('companies.table.contacts')}</th>
-              )}
-              {visible.has('deals') && <th className="num">{t('deals.title')}</th>}
-              {visible.has('lifecycle') && <th>{t('companies.table.lifecycle')}</th>}
-              {visible.has('tags') && <th>{t('tags.column')}</th>}
-              {visible.has('owner') && <OwnerHeader sort={sort} />}
-              {visible.has('parent') && <th>{t('companies.detail.parent')}</th>}
-              {visible.has('created') && (
-                <th>
-                  <SortTh label={t('companies.table.created')} asc="oldest" desc="newest" current={sort} />
-                </th>
-              )}
-              {visible.has('lastActivity') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
-                </th>
-              )}
-              {visible.has('lastContacted') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
-                </th>
-              )}
-              {visible.has('nextActivity') && (
-                <th className="num cell-date">
-                  <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
-                </th>
-              )}
-              {customColumns.map((c) => visible.has(c.id) && <CustomColumnHeader key={c.id} col={c} sort={sort} />)}
+              {order.map((id) => (
+                <Fragment key={id}>{headCells[id]}</Fragment>
+              ))}
               <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
             </tr>
           </thead>
@@ -199,91 +315,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                     aria-label={row.name}
                   />
                 </td>
-                {visible.has('name') && (
-                  <td data-card="main">
-                    <Link href={`/app/crm/companies/${row.id}`} className="cell-name cell-name-logo">
-                      <CompanyLogo domain={row.domain} name={row.name} size={18} />
-                      {row.name}
-                    </Link>
-                  </td>
-                )}
-                {visible.has('domain') && (
-                  <td data-card="line">
-                    <InlineEditCell
-                      endpoint={`/api/crm/companies/${row.id}`}
-                      field="domain"
-                      value={row.domain}
-                      className="cell-email muted"
-                    />
-                  </td>
-                )}
-                {visible.has('industry') && (
-                  <td data-card="line">
-                    <InlineEditCell
-                      endpoint={`/api/crm/companies/${row.id}`}
-                      field="industry"
-                      value={row.industry}
-                      className="muted"
-                    />
-                  </td>
-                )}
-                {visible.has('phone') && (
-                  <td className="cell-sub" data-card="line">
-                    <InlineEditCell
-                      endpoint={`/api/crm/companies/${row.id}`}
-                      field="phone"
-                      value={row.phone}
-                      displayValue={formatPhoneDisplay(row.phone)}
-                      className="muted"
-                    />
-                    {row.phone ? <PhoneTouch phone={row.phone} companyId={row.id} compact /> : null}
-                  </td>
-                )}
-                {visible.has('location') && <td className="muted cell-sub">{row.location || '—'}</td>}
-                {visible.has('contacts') && <td className="num">{row.contacts}</td>}
-                {visible.has('deals') && <td className="num">{row.deals}</td>}
-                {visible.has('lifecycle') && (
-                  <td data-card="state">
-                    <InlineEditCell
-                      endpoint={`/api/crm/companies/${row.id}`}
-                      field="lifecycleStage"
-                      value={row.lifecycle}
-                      type="select"
-                      options={lifecycleOpts}
-                      className={`badge stage-${row.lifecycle}`}
-                    />
-                  </td>
-                )}
-                {visible.has('tags') && (
-                  <td className="cell-crm-tags">
-                    <TagDots tags={row.tags ?? []} max={2} />
-                  </td>
-                )}
-                {visible.has('owner') && (
-                  <OwnerCell endpoint={`/api/crm/companies/${row.id}`} ownerId={row.ownerId} owners={owners} />
-                )}
-                {visible.has('parent') && <td className="muted cell-sub">{row.parentName || '—'}</td>}
-                {visible.has('created') && <td className="num muted cell-date">{row.created}</td>}
-                {visible.has('lastActivity') && <td className="num muted cell-date">{row.lastActivity || '—'}</td>}
-                {visible.has('lastContacted') && <td className="num muted cell-date">{row.lastContacted || '—'}</td>}
-                {visible.has('nextActivity') && <td className="num muted cell-date">{row.nextActivity || '—'}</td>}
-                {customColumns.map((c) => {
-                  if (!visible.has(c.id)) return null;
-                  const cell = row.custom?.[c.id];
-                  return (
-                    <td key={c.id} className={c.numeric ? 'num cell-sub' : 'cell-sub'}>
-                      {!cell ? (
-                        <span className="muted">—</span>
-                      ) : cell.href ? (
-                        <a href={cell.href} target={cell.href.startsWith('tel:') ? undefined : '_blank'} rel="noreferrer">
-                          {cell.text}
-                        </a>
-                      ) : (
-                        cell.text
-                      )}
-                    </td>
-                  );
-                })}
+                {order.map((id) => (
+                  <Fragment key={id}>{bodyCell(id, row)}</Fragment>
+                ))}
                 <td className="cell-actions">
                   <button
                     type="button"

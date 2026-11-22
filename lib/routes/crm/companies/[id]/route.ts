@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRecordDetail, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser } from '@/lib/session';
 import { deleteCompany, getCompany, updateCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope, scopeCompanyDetail } from '@/lib/crm-visibility';
+import { scopedCompanyDetail } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,8 +20,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const detail = await getCompany(user.id, params.id);
   if (!detail) return notFound();
   const scoped = scopeCompanyDetail(detail, scope);
-  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'companies');
-  return NextResponse.json({ ...scoped, company: redactRow(scoped.company, hiddenFields) });
+  // Valor de deals, madres e hijas: solo lo que la persona ve; y sin campos ocultos en ningún registro.
+  return NextResponse.json(await redactRecordDetail(sessionFieldViewer(user), 'company', await scopedCompanyDetail(user.id, scoped, scope)));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {

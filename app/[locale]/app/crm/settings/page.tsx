@@ -52,6 +52,8 @@ import { listObjects, objectEntity } from '@/lib/crm-objects';
 import { fieldAccessFor, listFieldPermissions, sessionFieldViewer, visibleFieldDefinitions } from '@/lib/crm-field-perms';
 import AppsPanel from '@/components/crm/AppsPanel';
 import AssociationLabelsPanel from '@/components/crm/AssociationLabelsPanel';
+import CreateFormPanel from '@/components/crm/CreateFormPanel';
+import { resolveCreateForm } from '@/lib/crm-create-form';
 import { listAssociationLabels } from '@/lib/crm-assoc-labels';
 import HubspotSyncPanel from '@/components/crm/HubspotSyncPanel';
 import { listApps } from '@/lib/crm-apps';
@@ -181,14 +183,19 @@ export default async function CrmSettingsPage(props: {
       </>
     );
   } else if (tab === 'data') {
-    const [customFields, tags, objects, permissions, salesTeams, assocLabels] = await Promise.all([
-      visibleFieldDefinitions(sessionFieldViewer(user)),
+    const viewer = sessionFieldViewer(user);
+    const [customFields, tags, objects, permissions, salesTeams, assocLabels, contactForm, companyForm, dealForm] = await Promise.all([
+      visibleFieldDefinitions(viewer),
       listTags(user.id, undefined, await sessionScope(user)),
       listObjects(user.id),
       admin ? listFieldPermissions(user.id) : Promise.resolve([]),
       listSalesTeams(user.id),
       listAssociationLabels(user.id),
+      resolveCreateForm(viewer, 'contacts'),
+      resolveCreateForm(viewer, 'companies'),
+      resolveCreateForm(viewer, 'deals'),
     ]);
+    const plain = (fields: Array<{ key: string; required: boolean }>) => fields.map(({ key, required }) => ({ key, required }));
     const entityLabel = (entity: string): string => {
       const obj = objects.find((o) => objectEntity(o.id) === entity);
       if (obj) return obj.plural;
@@ -198,6 +205,15 @@ export default async function CrmSettingsPage(props: {
       <>
         <FormSection setting="crm-custom-fields" title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
           <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} canEditUnique={admin} />
+        </FormSection>
+        <FormSection setting="crm-create-form" title={t('createForm.title')} description={t('createForm.desc')}>
+          <CreateFormPanel
+            initial={{ contacts: plain(contactForm), companies: plain(companyForm), deals: plain(dealForm) }}
+            customFields={customFields
+              .filter((f) => f.entity === 'contacts' || f.entity === 'companies' || f.entity === 'deals')
+              .map((f) => ({ entity: f.entity, name: f.name, label: f.label, type: f.type }))}
+            canEdit={admin}
+          />
         </FormSection>
         <FormSection setting="crm-field-permissions" title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>
           <FieldPermissionsPanel

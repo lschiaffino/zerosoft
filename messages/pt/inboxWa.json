@@ -103,7 +103,21 @@
     "forbidden": "Só dá para mudar as suas próprias mensagens.",
     "client_upload_unavailable": "Arquivos com mais de 4 MB não podem ser enviados deste servidor.",
     "nothing_to_summarize": "Ainda não há mensagens para resumir.",
-    "voice_too_short": "Grave pelo menos um segundo para agendar."
+    "voice_too_short": "Grave pelo menos um segundo para agendar.",
+    "invalid_name": "O grupo precisa de um nome.",
+    "not_group_admin": "Só os admins do grupo podem mudar isso, e seu número não é admin do grupo."
+  },
+  "groupEdit": {
+    "editName": "Editar o nome do grupo",
+    "editDescription": "Editar a descrição do grupo",
+    "addDescription": "Adicionar descrição do grupo",
+    "nameLabel": "Nome do grupo",
+    "descriptionLabel": "Descrição do grupo",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "nameSaved": "O nome do grupo mudou",
+    "descriptionSaved": "A descrição do grupo mudou",
+    "left": "Faltam {n}"
   },
   "viewPhoto": "Ver a foto",
   "groupMembers": "{n, plural, one {Grupo · # membro} other {Grupo · # membros}}",

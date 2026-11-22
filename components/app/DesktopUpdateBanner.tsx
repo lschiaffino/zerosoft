@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { desktopBridge } from '@/lib/desktop-bridge';
+import { desktopBridge, desktopUsesUpdateFeed } from '@/lib/desktop-bridge';
 import { desktopUpdateKind, type DesktopUpdateKind } from '@/lib/desktop-version';
 
 const DISMISS_KEY = 'zs-desktop-update-dismissed';
@@ -21,7 +21,8 @@ export default function DesktopUpdateBanner() {
 
   useEffect(() => {
     const bridge = desktopBridge();
-    if (!bridge) return;
+    // La app de Mac en Swift no se actualiza desde este feed (es el de Tauri).
+    if (!desktopUsesUpdateFeed(bridge)) return;
     let alive = true;
     fetch('/api/desktop/update/latest.json', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))

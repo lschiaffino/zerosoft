@@ -101,6 +101,23 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.rec, { audience: 'team', admin: false }))).not.toContain('settings');
   });
 
+  it('el tour de People arranca en el directorio; evaluaciones es de equipo y ajustes de quien administra', () => {
+    expect(tourForPath('/app/people')?.key).toBe('people');
+    expect(tourForPath('/es/app/people/time-off')?.key).toBe('people');
+    expect(tourForPath('/app/peoplex')).toBeNull();
+    expect(atTourStart(TOURS.people, '/pt/app/people')).toBe(true);
+    expect(atTourStart(TOURS.people, '/app/people/org')).toBe(false);
+    expect(atTourStart(TOURS.people, '/app/people/emp_abc123')).toBe(false);
+    // El directorio primero; el lateral (en el teléfono, un cajón que se saltea) al final.
+    const steps = ids([...TOURS.people.steps]);
+    expect(steps).toEqual(['intro', 'person', 'filters', 'add', 'org', 'timeOff', 'reviews', 'settings', 'done']);
+    expect(ids(stepsFor(TOURS.people, { audience: 'team', admin: true }))).toEqual(steps);
+    const solo = ids(stepsFor(TOURS.people, { audience: 'solo', admin: true }));
+    expect(solo).not.toContain('reviews');
+    expect(solo).toEqual(expect.arrayContaining(['person', 'filters', 'org', 'timeOff', 'settings']));
+    expect(ids(stepsFor(TOURS.people, { audience: 'team', admin: false }))).not.toContain('settings');
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');

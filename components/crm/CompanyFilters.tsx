@@ -35,6 +35,8 @@ interface CompanyFiltersProps {
   extraSorts?: Array<{ value: string; label: string }>;
   /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
   children?: React.ReactNode;
+  /** Params que se conservan al filtrar (vista activa, columnas; lib/crm-views-shared.ts). */
+  keep?: Record<string, string>;
 }
 
 /** Búsqueda + filtros de industria/lifecycle/owner/fecha/custom + sort (todo server-side vía query params). */
@@ -56,6 +58,7 @@ export default function CompanyFilters({
   customFields,
   extraSorts = [],
   children,
+  keep = {},
 }: CompanyFiltersProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -74,6 +77,7 @@ export default function CompanyFilters({
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
+      ...keep,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {

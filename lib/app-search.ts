@@ -1,3 +1,4 @@
+import { listViews, sessionViewViewer } from '@/lib/crm-views';
 import { getDb } from '@/lib/db';
 import { roleAtLeast } from '@/lib/teams';
 import { likeContains } from '@/lib/track-views';
@@ -27,6 +28,7 @@ export interface AppSearchItem {
     | 'crmQuotes'
     | 'crmApprovals'
     | 'crmScores'
+    | 'crmViews'
     | 'boards'
     | 'boardFolders'
     | 'projects'
@@ -132,6 +134,11 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   const crmScope = await ownerScopeFor({ workspaceId: user.id, personId: user.actingUser?.id ?? user.id, role: user.role ?? 'owner' }).catch(() => [] as string[]);
   const quoteDeals = dealScopeSql('q.deal_id', crmScope);
   const approvalDeals = dealScopeSql('a.deal_id', crmScope);
+  // CRM: vistas guardadas que la persona ve (las privadas de otros no aparecen; lib/crm-views.ts).
+  const crmViews = await sessionViewViewer({ id: user.id, role: user.role ?? 'owner', actingUser: user.actingUser })
+    .then((viewer) => listViews(viewer, { q: needle }))
+    .then((rows) => rows.slice(0, limit))
+    .catch(() => []);
   const boardFolders = await all(`SELECT id, name AS label FROM board_folders WHERE workspace_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY name LIMIT ?`, user.id, like);
 
   const waGroup = WA_GROUP[locale] ?? WA_GROUP.en;
@@ -649,6 +656,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(quotes, 'crmQuotes', (id) => `/app/crm/quotes/${id}`),
     ...map(approvals, 'crmApprovals', () => '/app/crm/approvals'),
     ...map(scores, 'crmScores', () => '/app/crm/settings?tab=automation'),
+    ...crmViews.map((v) => ({ id: v.id, group: 'crmViews' as const, label: v.name, meta: '', href: `/app/crm/${v.entity}?sv=${v.id}` })),
     ...groupMessageRows.map(gMask).map((r) => {
       const [chatId, ...rest] = String(r.meta ?? '').split('|');
       return { id: r.id, group: 'groupsMessages' as const, label: r.label, meta: rest.join('|'), href: `/app/lines/inbox/${chatId}#m-${r.id}` };

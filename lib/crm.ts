@@ -82,7 +82,6 @@ import {
   type CrmPipelineRow,
   type CrmPropertyEventRow,
   type CrmSavedReportRow,
-  type CrmSavedViewRow,
   type CrmStageRow,
   type CrmTaskProjectRow,
   type CrmTaskFileRow,
@@ -1551,6 +1550,12 @@ const DEAL_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   amount: { expr: 'd.amount', type: 'number' },
   pipeline: { expr: 'd.pipeline_id', type: 'select' },
   stage: { expr: 'd.stage_id', type: 'select' },
+  // Abierto, ganado o perdido según la etapa (la vista "Deals abiertos").
+  status: {
+    expr: `(SELECT CASE WHEN xst.is_won = 1 THEN 'won' WHEN xst.is_lost = 1 THEN 'lost' ELSE 'open' END
+      FROM crm_stages xst WHERE xst.id = d.stage_id)`,
+    type: 'select',
+  },
   priority: { expr: 'd.priority', type: 'select' },
   source: { expr: 'd.source', type: 'select' },
   currency: { expr: 'd.currency', type: 'select' },
@@ -1588,13 +1593,8 @@ const DEAL_ORDER: Record<Exclude<NonNullable<DealFilter['sort']>, ExtraSort>, st
   ...activityDateOrders('d'),
 };
 
-export async function listDeals(
-  userId: string,
-  f: DealFilter,
-): Promise<{ rows: DealListRow[]; total: number }> {
-  const db = getDb();
-  const where: string[] = ['d.user_id = ?', 'd.pipeline_id = ?'];
-  const args: Array<string | number> = [userId, f.pipelineId];
+/** Condiciones de los filtros de deals (tabla y board) sobre el alias `d`. */
+function appendDealFilters(where: string[], args: Array<string | number>, f: Omit<DealFilter, 'pipelineId'>): void {
   if (f.q) {
     where.push(`d.name LIKE ? ESCAPE '\\'`);
     args.push(`%${escapeLike(f.q)}%`);
@@ -1641,6 +1641,16 @@ export async function listDeals(
   }
   appendAdvancedFilters(where, args, 'd', DEAL_ADV_FIELDS, f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'd', f.ownerScope);
+}
+
+export async function listDeals(
+  userId: string,
+  f: DealFilter,
+): Promise<{ rows: DealListRow[]; total: number }> {
+  const db = getDb();
+  const where: string[] = ['d.user_id = ?', 'd.pipeline_id = ?'];
+  const args: Array<string | number> = [userId, f.pipelineId];
+  appendDealFilters(where, args, f);
   const whereSql = where.join(' AND ');
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args)) as {
@@ -1694,16 +1704,27 @@ export async function listDealsForBoard(
   userId: string,
   pipelineId: string,
   ownerScope?: OwnerScope,
+  /** Filtros de la vista activa (los mismos de la tabla, sin etapa ni orden). */
+  filter?: Omit<DealFilter, 'pipelineId' | 'stageId' | 'sort' | 'page' | 'pageSize' | 'ownerScope' | 'companyId'>,
 ): Promise<BoardStage[]> {
   const db = getDb();
   const scope = ownerScopeSql('d', ownerScope);
+  // El pipeline tiene que ser del workspace (sus etapas no salen para otro).
+  const fWhere: string[] = [];
+  const fArgs: Array<string | number> = [];
+  if (filter) appendDealFilters(fWhere, fArgs, filter);
+  const filterSql = fWhere.length ? ` AND d.id IN (SELECT d.id FROM crm_deals d WHERE d.user_id = ? AND ${fWhere.join(' AND ')})` : '';
   const stages = (await db
-    .prepare('SELECT * FROM crm_stages WHERE pipeline_id = ? ORDER BY position ASC')
-    .all(pipelineId)) as CrmStageRow[];
-  const deals = (await db
+    .prepare(
+      `SELECT s.* FROM crm_stages s JOIN crm_pipelines p ON p.id = s.pipeline_id
+       WHERE s.pipeline_id = ? AND p.user_id = ? ORDER BY s.position ASC`,
+    )
+    .all(pipelineId, userId)) as CrmStageRow[];
+  const rawDeals = (await db
     .prepare(
       `SELECT d.*,
-         c.id AS contact_id,
+         c.id AS contact_id, c.owner_id AS vis_contact_owner,
+         co.owner_id AS vis_company_owner, co.id AS vis_company_id,
          NULLIF(trim(c.first_name || ' ' || c.last_name), '') AS contact_name,
          co.name AS company_name,
          (SELECT MAX(a.created_at) FROM crm_activities a WHERE a.deal_id = d.id) AS last_activity_at,
@@ -1718,10 +1739,23 @@ export async function listDealsForBoard(
        )
        LEFT JOIN crm_deal_companies pdc ON pdc.deal_id = d.id AND pdc.is_primary = 1
        LEFT JOIN crm_companies co ON co.id = pdc.company_id
-       WHERE d.user_id = ? AND d.pipeline_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}
+       WHERE d.user_id = ? AND d.pipeline_id = ?${scope.sql ? ` AND ${scope.sql}` : ''}${filterSql}
        ORDER BY d.position ASC`,
     )
-    .all(userId, pipelineId, ...scope.args)) as BoardDeal[];
+    .all(userId, pipelineId, ...scope.args, ...(filterSql ? [userId, ...fArgs] : []))) as Array<
+    BoardDeal & { vis_contact_owner: string | null; vis_company_owner: string | null; vis_company_id: string | null }
+  >;
+  // La tarjeta no nombra un contacto o empresa que la persona no ve.
+  const deals: BoardDeal[] = rawDeals.map(({ vis_contact_owner, vis_company_owner, vis_company_id, ...d }) => {
+    const out = { ...d } as BoardDeal;
+    if (ownerScope && d.contact_id && !ownerScope.includes(vis_contact_owner ?? userId)) {
+      Object.assign(out, { contact_id: null, contact_name: null });
+    }
+    if (ownerScope && vis_company_id && !ownerScope.includes(vis_company_owner ?? userId)) {
+      Object.assign(out, { company_name: null });
+    }
+    return out;
+  });
   return stages.map((stage) => {
     const stageDeals = deals.filter((d) => d.stage_id === stage.id);
     return {
@@ -2845,14 +2879,19 @@ export async function listLists(userId: string, ownerScope?: OwnerScope): Promis
   const lists = (await db
     .prepare('SELECT * FROM crm_lists WHERE user_id = ? ORDER BY created_at ASC')
     .all(userId)) as CrmListRow[];
-  const countStmt = db.prepare('SELECT COUNT(*) AS c FROM crm_list_members WHERE list_id = ?');
+  // Estáticas: cuenta solo los contactos que la persona ve (como la lista misma).
+  const listScope = scopeAnd('c', ownerScope);
+  const countStmt = db.prepare(
+    `SELECT COUNT(*) AS c FROM crm_list_members m JOIN crm_contacts c ON c.id = m.contact_id
+     WHERE m.list_id = ? AND c.user_id = ?${listScope.sql}`,
+  );
   return Promise.all(
     lists.map(async (list) => ({
       ...list,
       memberCount:
         list.kind === 'dynamic'
           ? await countDynamicList(userId, parseListFilter(list.filter), ownerScope)
-          : ((await countStmt.get(list.id)) as { c: number }).c,
+          : ((await countStmt.get(list.id, userId, ...listScope.args)) as { c: number }).c,
     })),
   );
 }
@@ -2888,16 +2927,18 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
       .get(...args)) as { n: number };
     return { list, members, memberCount: count.n };
   }
+  // Una lista estática también muestra solo los contactos que la persona ve.
+  const scope = scopeAnd('c', ownerScope);
   const members = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
        FROM crm_contacts c
        JOIN crm_list_members m ON m.contact_id = c.id
        LEFT JOIN crm_companies co ON co.id = c.company_id
-       WHERE m.list_id = ? AND c.user_id = ?
+       WHERE m.list_id = ? AND c.user_id = ?${scope.sql}
        ORDER BY c.created_at DESC`,
     )
-    .all(id, userId)) as ContactListRow[];
+    .all(id, userId, ...scope.args)) as ContactListRow[];
   return { list, members, memberCount: members.length };
 }
 
@@ -2999,39 +3040,8 @@ export async function removeListMember(
 }
 
 // ============================================================
-// SAVED VIEWS
+// SAVED VIEWS: lib/crm-views.ts (B2, con quién la ve y permisos)
 // ============================================================
-
-export async function listSavedViews(
-  userId: string,
-  entity: string,
-): Promise<CrmSavedViewRow[]> {
-  return (await getDb()
-    .prepare(
-      'SELECT * FROM crm_saved_views WHERE user_id = ? AND entity = ? ORDER BY created_at ASC',
-    )
-    .all(userId, entity)) as CrmSavedViewRow[];
-}
-
-export async function createSavedView(
-  userId: string,
-  data: { entity: string; name: string; query?: Record<string, unknown> },
-): Promise<CrmSavedViewRow> {
-  const db = getDb();
-  const id = crypto.randomUUID();
-  await db
-    .prepare('INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, ?, ?, ?)')
-    .run(id, userId, data.entity, data.name, JSON.stringify(data.query ?? {}));
-  return (await db.prepare('SELECT * FROM crm_saved_views WHERE id = ?').get(id)) as CrmSavedViewRow;
-}
-
-export async function deleteSavedView(userId: string, id: string): Promise<boolean> {
-  return (
-    (await getDb()
-      .prepare('DELETE FROM crm_saved_views WHERE id = ? AND user_id = ?')
-      .run(id, userId)).changes > 0
-  );
-}
 
 // ============================================================
 // SAVED REPORTS

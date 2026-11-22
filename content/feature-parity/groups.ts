@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-21',
+  lastReviewed: '2026-11-22',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -276,7 +276,11 @@ const parity: ProductParity = {
     }),
     row('keyboard-inbox', 'inbox', ['Keyboard-first inbox', 'Bandeja manejable con teclado', 'Caixa operável pelo teclado'], 'better', {
       competitorHas: false,
-      detail: ['J/K, R, N, E, A, T and Cmd+K across the suite', 'J/K, R, N, E, A, T y Cmd+K en toda la suite', 'J/K, R, N, E, A, T e Cmd+K em toda a suíte'],
+      detail: [
+        'J/K, R, N, E, A, T and Cmd+K across the suite. With a chat open, Cmd+K lists the actions of that chat first (assign, team, close, label, note, ticket, mute, pin, archive, details and more, with their options), the same as the / menu, plus Search messages',
+        'J/K, R, N, E, A, T y Cmd+K en toda la suite. Con un chat abierto, Cmd+K muestra primero las acciones de ese chat (asignar, equipo, cerrar, etiqueta, nota, ticket, silenciar, fijar, archivar, detalles y más, con sus opciones), las mismas del menú /, y Buscar mensajes',
+        'J/K, R, N, E, A, T e Cmd+K em toda a suíte. Com uma conversa aberta, o Cmd+K mostra primeiro as ações dessa conversa (atribuir, equipe, fechar, etiqueta, nota, ticket, silenciar, fixar, arquivar, detalhes e mais, com suas opções), as mesmas do menu /, e Pesquisar mensagens',
+      ],
     }),
     row('calls', 'inbox', ['Voice calls with recording', 'Llamadas de voz con grabación', 'Chamadas de voz com gravação'], 'partial', {
       detail: [

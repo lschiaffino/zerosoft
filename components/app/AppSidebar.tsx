@@ -11,7 +11,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { pendingWrites } from '@/lib/offline-fetch';
 import { useTranslations } from 'next-intl';
 import { TZ_CHANGED_EVENT } from '@/lib/tz-client';
-import { desktopBridge, type DesktopBridge } from '@/lib/desktop-bridge';
+import { desktopBridge, desktopHasSettings, type DesktopBridge } from '@/lib/desktop-bridge';
 import { collapsedFrom, denseRoute, storageKey } from '@/lib/sidebar-collapsed';
 import { Link, usePathname } from '@/i18n/navigation';
 import Icon from './icons';
@@ -878,7 +878,7 @@ export default function AppSidebar({
                 <Icon name={settingsItem.icon} size={14} />
                 {settingsItem.label}
               </Link>
-              {desktop && (
+              {desktopHasSettings(desktop) && (
                 <button type="button" role="menuitem" className="side-menu-item ws-switcher-item" onClick={() => desktop.openSettings()} data-testid="side-desktop-settings">
                   <Icon name={settingsItem.icon} size={14} />
                   {t('desktopSettings')}

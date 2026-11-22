@@ -6,7 +6,7 @@
  * referencias, historial de propiedades y eventos de workflows que editar a
  * mano. El cambio de etapa de deals va por moveDeal (semántica de cierre).
  */
-import { BULK_FIELDS, isBulkField, type BulkEntity } from './crm-bulk-fields';
+import { BULK_EMPTY_STRING, BULK_FIELDS, isBulkField, type BulkEntity } from './crm-bulk-fields';
 import { companyUpdateSchema, contactUpdateSchema, dealUpdateSchema } from './crm-schema';
 import { CrmRefError } from './crm-refs';
 import {
@@ -55,6 +55,7 @@ export function buildBulkPatch(
   if (entity === 'deal' && field === 'stageId') {
     return typeof value === 'string' && value.length > 0 && value.length <= 64 ? { kind: 'stage', stageId: value } : null;
   }
+  if (value === null && BULK_EMPTY_STRING.has(field)) value = '';
   const schema = entity === 'contact' ? contactUpdateSchema : entity === 'company' ? companyUpdateSchema : dealUpdateSchema;
   const parsed = schema.safeParse({ [field]: value });
   if (!parsed.success) return null;

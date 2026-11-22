@@ -13,6 +13,7 @@ import {
   rankPageItems,
   OPEN_SEARCH_EVENT,
   CMDK_CLOSED_EVENT,
+  CMDK_CONTEXT_EVENT,
   type CommandAction,
   type CommandAnchor,
   type OpenCommandDetail,
@@ -182,6 +183,7 @@ function useGroupOrder() {
         'crmQuotes',
         'crmApprovals',
         'crmScores',
+        'crmViews',
         'reports',
         'eventTypes',
         'bookings',
@@ -489,10 +491,14 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
         setOpen((v) => !v);
       }
     }
+    // La página avisa que sus acciones cambiaron (un chat que se silenció recién): la paleta se vuelve a dibujar.
+    const onContext = () => setTick((n) => n + 1);
     window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
+    window.addEventListener(CMDK_CONTEXT_EVENT, onContext);
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener(OPEN_SEARCH_EVENT, onOpen);
+      window.removeEventListener(CMDK_CONTEXT_EVENT, onContext);
       window.removeEventListener('keydown', onKey);
     };
   }, [rememberFocus]);
@@ -836,6 +842,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
                     aria-selected={i === sel}
                     tabIndex={-1}
                     className={`cmdk-item${i === sel ? ' sel' : ''}`}
+                    data-action={item.action?.id}
                     // Solo con el mouse en movimiento: una lista que cambia debajo del puntero quieto no cambia la elegida.
                     onMouseMove={() => (i === sel ? undefined : setSel(i))}
                     onClick={() => go(item)}

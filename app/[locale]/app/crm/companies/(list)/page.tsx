@@ -28,6 +28,8 @@ import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilte
 import { getUserTimeZone } from '@/lib/user-tz';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import ViewTabs from '@/components/crm/ViewTabs';
+import { loadListViews } from '@/components/crm/viewTabsData';
 import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -45,14 +47,11 @@ function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-function parseCustomFilter(
-  searchParams: Record<string, string | string[] | undefined>,
-): Record<string, string> {
+/** Filtros por custom field del estado del listado (`custom_<name>`). */
+function customFromState(state: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (key.startsWith('custom_') && typeof value === 'string' && value) {
-      out[key.slice(7)] = value;
-    }
+  for (const [key, value] of Object.entries(state)) {
+    if (key.startsWith('custom_') && value) out[key.slice(7)] = value;
   }
   return out;
 }
@@ -69,21 +68,26 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const q = one(searchParams.q) ?? '';
-  const industry = one(searchParams.industry) ?? '';
-  const lifecycle = one(searchParams.lifecycle) ?? '';
-  const owner = one(searchParams.owner) ?? '';
-  const createdFrom = one(searchParams.createdFrom) ?? '';
-  const createdTo = one(searchParams.createdTo) ?? '';
-  const tag = one(searchParams.tag) ?? '';
-  const custom = parseCustomFilter(searchParams);
-  const page = Number(one(searchParams.page) ?? '1') || 1;
-  const rawFilters = one(searchParams.filters) ?? '';
-
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
-  const customFieldDefs = (await fieldAccessFor(sessionFieldViewer(user), 'companies')).visible;
+  const fieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'companies');
+  const customFieldDefs = fieldAccess.visible;
   const customTypes = customFilterTypes(customFieldDefs);
-  const sortParam = one(searchParams.sort);
+
+  // Vista activa (pestaña): sus filtros, orden y columnas sirven de default y los params
+  // explícitos ganan. Lo que toca campos ocultos para esta persona ya viene quitado.
+  const views = await loadListViews(user, 'companies', searchParams, fieldAccess.hidden, (k) => t(k));
+  const { state } = views;
+  const q = state.q ?? '';
+  const industry = state.industry ?? '';
+  const lifecycle = state.lifecycle ?? '';
+  const owner = state.owner ?? '';
+  const createdFrom = state.createdFrom ?? '';
+  const createdTo = state.createdTo ?? '';
+  const tag = state.tag ?? '';
+  const custom = customFromState(state);
+  const page = Number(one(searchParams.page) ?? '1') || 1;
+  const rawFilters = state.filters ?? '';
+  const sortParam = state.sort;
   const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
   const sort: NonNullable<CompanyFilter['sort']> =
     COMPANY_SORTS.includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
@@ -236,6 +240,11 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   });
   if (filtersParam) query.filters = filtersParam;
   if (sort !== 'newest') query.sort = sort;
+  // Estado de la vista (para guardarla) y params que conservan los links del listado.
+  const viewState = { ...query };
+  if (state.cols) viewState.cols = state.cols;
+  if (state.freeze) viewState.freeze = state.freeze;
+  Object.assign(query, views.keep);
 
   const hasFilters =
     !!q ||
@@ -261,7 +270,20 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         }
       />
 
+      <ViewTabs
+        entity="companies"
+        pathname="/app/crm/companies"
+        tabs={views.tabs}
+        activeKey={views.activeKey}
+        defaultKey={views.defaultKey}
+        activeExtra={views.activeExtra}
+        modified={views.modified}
+        state={viewState}
+        teams={views.teams}
+      />
+
       <CompanyFilters
+        keep={views.keep}
         q={q}
         industry={industry}
         lifecycle={lifecycle}
@@ -289,11 +311,11 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
 
       {tableRows.length === 0 ? (
-        hasFilters || advancedCount > 0 ? (
+        hasFilters || advancedCount > 0 || views.activeKey !== 'all' ? (
           <EmptyState
             title={t('record.empty.noMatchTitle')}
             body={t('record.empty.noMatchBody')}
-            action={{ label: t('common.clear'), href: '/app/crm/companies' }}
+            action={{ label: t('common.clear'), href: '/app/crm/companies?sv=all' }}
           />
         ) : (
           <EmptyState
@@ -313,6 +335,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         <>
           <CompaniesTable
             rows={tableRows}
+            viewCols={state.cols}
+            viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             sort={sort}
             lifecycles={[...LIFECYCLE_STAGES]}

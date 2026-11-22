@@ -101,6 +101,80 @@ export function redactRow<T extends { custom: string }>(row: T, hidden: Readonly
   return hidden.size ? { ...row, custom: redactCustomJson(row.custom, hidden) } : row;
 }
 
+/** Entidades de custom fields de una ficha de contacto, empresa o deal. */
+export type RecordFieldEntity = 'contacts' | 'companies' | 'deals';
+
+/**
+ * Claves de una ficha (getContact, getCompany, getDeal) que traen filas con
+ * `custom`, y la entidad de sus campos: el registro y sus asociados.
+ */
+export const DETAIL_ENTITIES = {
+  contact: { contact: 'contacts', company: 'companies', companies: 'companies', deals: 'deals' },
+  company: { company: 'companies', contacts: 'contacts', deals: 'deals', children: 'companies' },
+  deal: { deal: 'deals', contacts: 'contacts', company: 'companies', companies: 'companies' },
+} as const satisfies Record<'contact' | 'company' | 'deal', Record<string, RecordFieldEntity>>;
+
+function redactValue(v: unknown, hidden: ReadonlySet<string>): unknown {
+  if (!hidden.size || !v || typeof v !== 'object') return v;
+  if (Array.isArray(v)) return v.map((x) => redactValue(x, hidden));
+  const row = v as Record<string, unknown>;
+  return typeof row.custom === 'string' ? { ...row, custom: redactCustomJson(row.custom, hidden) } : row;
+}
+
+/**
+ * Ficha sin los campos ocultos en el `custom` del registro ni en el de sus
+ * asociados (cada uno con las reglas de su entidad). Puro.
+ */
+export function redactDetailWith<T extends object>(
+  kind: keyof typeof DETAIL_ENTITIES,
+  detail: T,
+  hidden: Partial<Record<RecordFieldEntity, ReadonlySet<string>>>,
+): T {
+  const out: Record<string, unknown> = { ...(detail as unknown as Record<string, unknown>) };
+  for (const [key, entity] of Object.entries(DETAIL_ENTITIES[kind]) as Array<[string, RecordFieldEntity]>) {
+    const set = hidden[entity];
+    if (set?.size && key in out) out[key] = redactValue(out[key], set);
+  }
+  return out as unknown as T;
+}
+
+/** Campos ocultos para la persona en varias entidades a la vez. */
+export async function hiddenFieldSets<E extends string>(
+  viewer: FieldViewer,
+  entities: readonly E[],
+  db: Db = getDb(),
+): Promise<Record<E, Set<string>>> {
+  const out = {} as Record<E, Set<string>>;
+  for (const e of new Set(entities)) out[e] = await hiddenFieldsFor(viewer, e, db);
+  return out;
+}
+
+/** redactDetailWith con las reglas de la persona. */
+export async function redactRecordDetail<T extends object>(
+  viewer: FieldViewer,
+  kind: keyof typeof DETAIL_ENTITIES,
+  detail: T,
+  db: Db = getDb(),
+): Promise<T> {
+  if (isUnrestricted(viewer)) return detail;
+  return redactDetailWith(kind, detail, await hiddenFieldSets(viewer, ['contacts', 'companies', 'deals'] as const, db));
+}
+
+/**
+ * Filas sin los campos ocultos para la persona en `custom`. Sirve para
+ * cualquier lista de registros de una entidad (búsqueda, board, listas).
+ */
+export async function redactRowsFor<T extends { custom: string }>(
+  viewer: FieldViewer,
+  entity: string,
+  rows: T[],
+  db: Db = getDb(),
+): Promise<T[]> {
+  if (!rows.length || isUnrestricted(viewer)) return rows;
+  const hidden = await hiddenFieldsFor(viewer, entity, db);
+  return hidden.size ? rows.map((r) => redactRow(r, hidden)) : rows;
+}
+
 // ---------- Server ----------
 
 /** Persona de la sesión (lib/session.ts). */

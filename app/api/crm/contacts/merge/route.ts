@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope, visibleIds } from '@/lib/crm-visibility';
+import { hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { mergeContacts } from '@/lib/crm';
 import { contactMergeSchema } from '@/lib/crm-schema';
 import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -25,5 +26,6 @@ export async function POST(req: NextRequest) {
 
   const merged = await mergeContacts(user.id, keepId, dropId);
   if (!merged) return notFound();
-  return NextResponse.json(merged);
+  // La fusión junta los campos propios de los dos: sin los que la persona tiene ocultos.
+  return NextResponse.json(redactRow(merged, await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')));
 }

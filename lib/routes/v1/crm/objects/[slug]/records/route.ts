@@ -48,5 +48,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ slug: st
     createRecord(auth.user.id, object.id, { ...parsed.data, custom: guard.custom, ownerId: parsed.data.ownerId ?? auth.personId }),
   );
   if (record instanceof CrmRefError) return apiError(400, record.code, 'A referenced record does not exist.');
-  return NextResponse.json(cleanRow(record), { status: 201 });
+  return NextResponse.json(cleanRow(redactRow(record, await hiddenFieldsFor(apiFieldViewer(auth), objectEntity(object.id)))), { status: 201 });
 }
