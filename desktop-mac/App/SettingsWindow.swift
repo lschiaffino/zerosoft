@@ -51,7 +51,7 @@ extension SettingsSection {
         switch self {
         case .general: return .secGeneral
         case .tabs: return .secTabs
-        case .notifications: return .secNotifications
+        case .permissions: return .secPermissions
         case .voice: return .secVoice
         case .dictionary: return .secDictionary
         case .history: return .secHistory
@@ -63,7 +63,7 @@ extension SettingsSection {
         switch self {
         case .general: return "gearshape"
         case .tabs: return "square.on.square"
-        case .notifications: return "bell"
+        case .permissions: return "hand.raised"
         case .voice: return "mic"
         case .dictionary: return "character.book.closed"
         case .history: return "clock"
@@ -110,7 +110,7 @@ struct SettingsView: View {
         switch selection.section {
         case .general: GeneralSection(model: model)
         case .tabs: TabsSection(model: model)
-        case .notifications: NotificationsSection(model: model)
+        case .permissions: PermissionsSection(model: model)
         case .voice: VoiceSection(model: model)
         case .dictionary: DictionarySection(model: model)
         case .history: HistorySection(model: model)
@@ -278,34 +278,149 @@ private struct TabsSection: View {
     }
 }
 
-// MARK: Notifications
+// MARK: Permissions
 
-private struct NotificationsSection: View {
+/// Notifications, the microphone and Accessibility (paste), each with why it is used, its state
+/// and one button. A system prompt shows only from that button (or, for the microphone, the
+/// first dictation).
+private struct PermissionsSection: View {
     @ObservedObject var model: SettingsModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Help(model.t(.notifHelp))
-            Text(model.t(stateKey)).accessibilityIdentifier("zs-set-notif-state")
-            switch model.notifications.buttonAction {
-            case .ask:
-                Button(model.t(.notifTurnOn)) { model.notificationButton() }
-                    .accessibilityIdentifier("zs-set-notif")
-            case .openSystemSettings:
-                Button(model.t(.notifOpenSystem)) { model.notificationButton() }
-                    .accessibilityIdentifier("zs-set-notif")
-            case .none:
-                EmptyView()
+        VStack(alignment: .leading, spacing: 18) {
+            Help(model.t(.permHelp))
+            row(title: model.t(.secNotifications), help: model.t(.notifHelp)) {
+                Text(model.t(notificationKey)).accessibilityIdentifier("zs-set-notif-state")
+                switch model.notifications.buttonAction {
+                case .ask:
+                    Button(model.t(.notifTurnOn)) { model.notificationButton() }
+                        .accessibilityIdentifier("zs-set-notif")
+                case .openSystemSettings:
+                    Button(model.t(.notifOpenSystem)) { model.notificationButton() }
+                        .accessibilityIdentifier("zs-set-notif")
+                case .none:
+                    EmptyView()
+                }
             }
+            Divider()
+            row(title: model.t(.permMic), help: model.t(.permMicHelp)) {
+                Text(model.t(micKey)).accessibilityIdentifier("zs-set-mic-state")
+                switch model.microphone.buttonAction {
+                case .ask:
+                    Button(model.t(.micTurnOn)) { model.microphoneButton() }
+                        .accessibilityIdentifier("zs-set-mic")
+                case .openSystemSettings:
+                    Button(model.t(.notifOpenSystem)) { model.microphoneButton() }
+                        .accessibilityIdentifier("zs-set-mic")
+                case .none:
+                    EmptyView()
+                }
+            }
+            Divider()
+            row(title: model.t(.permAccess), help: model.t(.permAccessHelp)) {
+                switch model.pasteAccess {
+                case .allowed:
+                    Text(model.t(.accessAllowed)).accessibilityIdentifier("zs-set-paste-state")
+                case .notAllowed:
+                    Text(model.t(.accessOff)).accessibilityIdentifier("zs-set-paste-state")
+                    Button(model.t(.accessAllow)) { model.pasteButton() }
+                        .accessibilityIdentifier("zs-set-paste")
+                    Help(model.t(.accessAfter))
+                case .unavailable:
+                    Text(model.t(.accessUnavailable)).accessibilityIdentifier("zs-set-paste-state")
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Back from System Settings: show what changed there.
+            model.refreshDictationAccess()
         }
     }
 
-    private var stateKey: StringKey {
+    private func row<Content: View>(title: String, help: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.headline)
+            Help(help)
+            content()
+        }
+    }
+
+    private var notificationKey: StringKey {
         switch model.notifications {
         case .allowed: return .notifAllowed
         case .denied: return .notifDenied
         case .notDetermined: return .notifNotDetermined
         }
+    }
+
+    private var micKey: StringKey {
+        switch model.microphone {
+        case .allowed: return .micAllowed
+        case .denied: return .micDenied
+        case .notDetermined: return .micNotDetermined
+        }
+    }
+}
+
+// MARK: Dictation (this Mac)
+
+/// The dictation switches kept on this Mac (settings.json): the shortcut, how it is held, and
+/// what happens with the text.
+private struct DictationControls: View {
+    @ObservedObject var model: SettingsModel
+
+    private func toggle(_ key: WritableKeyPath<AppSettings, Bool>) -> Binding<Bool> {
+        Binding(get: { model.settings[keyPath: key] }, set: { on in model.update { $0[keyPath: key] = on } })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Picker(model.t(.dictShortcut), selection: Binding(get: { model.settings.shortcut }, set: { k in model.update { $0.shortcut = k } })) {
+                    ForEach(DictationShortcut.choices, id: \.self) { Text($0.label).tag($0) }
+                }
+                .frame(maxWidth: 320)
+                .accessibilityIdentifier("zs-dict-shortcut")
+                if model.shortcutTaken {
+                    Text(model.t(.dictShortcutTaken)).font(.callout).foregroundStyle(.red)
+                        .accessibilityIdentifier("zs-dict-shortcut-taken")
+                } else {
+                    if model.shortcutLabel != model.settings.shortcut.label {
+                        Help(model.t(.dictShortcutFallback, ["key": model.shortcutLabel]))
+                            .accessibilityIdentifier("zs-dict-shortcut-fallback")
+                    }
+                    Help(model.t(.dictShortcutHelp))
+                }
+            }
+            Picker(model.t(.dictMode), selection: Binding(get: { model.settings.mode }, set: { m in model.update { $0.mode = m } })) {
+                Text(model.t(.modeBoth)).tag(DictationMode.both)
+                Text(model.t(.modeHold)).tag(DictationMode.hold)
+                Text(model.t(.modeToggle)).tag(DictationMode.toggle)
+            }
+            .pickerStyle(.radioGroup)
+            .accessibilityIdentifier("zs-dict-mode")
+            if model.pasteAccess != .unavailable {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(model.t(.dictAutoPaste), isOn: toggle(\.autoPaste))
+                        .accessibilityIdentifier("zs-dict-autopaste")
+                    Help(model.t(.dictAutoPasteHelp))
+                }
+                Toggle(model.t(.dictRestore), isOn: toggle(\.restoreClipboard))
+                    .disabled(!model.settings.autoPaste)
+                    .accessibilityIdentifier("zs-dict-restore")
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(model.t(.dictSendApp), isOn: toggle(\.sendAppName))
+                    .accessibilityIdentifier("zs-dict-sendapp")
+                Help(model.t(.dictSendAppHelp))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(model.t(.dictKeep), isOn: toggle(\.keepFailedDictations))
+                    .accessibilityIdentifier("zs-dict-keep")
+                Help(model.t(.dictKeepHelp))
+            }
+        }
+        .task { model.dictationChanged() }
     }
 }
 
@@ -316,6 +431,9 @@ private struct VoiceSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            DictationControls(model: model)
+            Divider()
+            Text(model.t(.dictAccount)).font(.headline)
             Help(model.t(.voiceHelp))
             if case let .ok(voice)? = model.voice {
                 form(voice)
@@ -465,10 +583,21 @@ private struct DictionarySection: View {
 private struct HistorySection: View {
     @ObservedObject var model: SettingsModel
     @State private var copied: String?
+    @State private var pasted: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if model.pending > 0 {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.t(.pendingTitle)).font(.headline)
+                    Help(model.t(.pendingHelp, ["n": String(model.pending)]))
+                    Button(model.t(.pendingSend)) { model.retryPending() }
+                        .accessibilityIdentifier("zs-history-retry")
+                }
+                Divider()
+            }
             Help(model.t(.historyHelp))
+            if model.pasteAccess == .allowed && model.settings.autoPaste { Help(model.t(.historyPasteHelp)) }
             if case let .ok(items)? = model.history {
                 if items.isEmpty {
                     Text(model.t(.historyEmpty)).foregroundStyle(.secondary)
@@ -485,7 +614,10 @@ private struct HistorySection: View {
                 RemoteNote(model: model, state: model.history) { Task { await model.loadHistory() } }
             }
         }
-        .task(id: model.generation) { await model.loadHistory() }
+        .task(id: model.generation) {
+            model.dictationChanged()
+            await model.loadHistory()
+        }
     }
 
     private func meta(_ item: HistoryItem) -> String {
@@ -509,6 +641,12 @@ private struct HistorySection: View {
                 Text(meta(item)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
+            Button(pasted == item.id ? model.t(.hudPasted) : model.t(.historyPaste)) {
+                Task {
+                    if await model.pasteFromHistory(item.text) == .pasted { pasted = item.id }
+                }
+            }
+            .accessibilityIdentifier("zs-history-paste-\(item.id)")
             Button(copied == item.id ? model.t(.copied) : model.t(.menuCopy)) {
                 model.copy(item.text)
                 copied = item.id

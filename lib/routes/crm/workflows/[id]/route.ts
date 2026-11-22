@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { deleteWorkflow, getWorkflowForViewer, updateWorkflow } from '@/lib/crm-workflows';
+import { deleteWorkflow, getWorkflow, getWorkflowForViewer, updateWorkflow } from '@/lib/crm-workflows';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
-import { redactActionsForMember } from '@/lib/crm-workflow-rules';
+import { CRITERIA_TRIGGER, redactActionsForMember } from '@/lib/crm-workflow-rules';
 import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -30,6 +30,16 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = workflowUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
+  // "Cumple los criterios" necesita al menos un criterio, también contra lo guardado (W3).
+  if (parsed.data.triggers || parsed.data.settings) {
+    const current = await getWorkflow(user.id, params.id);
+    if (!current) return notFound();
+    const triggers = parsed.data.triggers ?? current.triggers;
+    const filters = parsed.data.settings?.filters ?? current.settings.filters;
+    if (triggers.some((t) => t.type === CRITERIA_TRIGGER) && !filters.length) {
+      return NextResponse.json({ error: 'criteria_required' }, { status: 400 });
+    }
+  }
   const workflow = await updateWorkflow(user.id, params.id, parsed.data, realUserId(user));
   if (!workflow) return notFound();
   return NextResponse.json(workflow);

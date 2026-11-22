@@ -13,6 +13,11 @@ import AppKit
 /// - Block 5: `zs-test-settings` (AppSettings.summary), `zs-test-prefs` (TabPrefs.summary),
 ///   `zs-test-loginitem` (the fake login item), `zs-test-notif` (how often the permission was
 ///   asked and its answer), `zs-test-requests` (the Settings window's requests, in order).
+/// - Block 6: `zs-test-dictation` (how many dictation events and the last one), `zs-test-phase`
+///   (idle, recording, working), `zs-test-hotkey` (the dictation shortcut's registration),
+///   `zs-test-mic` and `zs-test-paste` (the fake permissions: how often asked, the answer, the
+///   keystrokes), `zs-test-pending` (saved dictations), `zs-test-dictset`
+///   (AppSettings.dictationSummary), `zs-test-hud` (what the HUD shows).
 @MainActor
 final class TestPanel {
     private let panel: NSPanel
@@ -45,6 +50,9 @@ final class TestPanel {
             ("zs-test-deeplink", "none"), ("zs-test-tabs", "tabs end"), ("zs-test-session", "saved 0"),
             ("zs-test-settings", "none"), ("zs-test-prefs", "none"), ("zs-test-loginitem", "none"),
             ("zs-test-notif", "notif asked=0"), ("zs-test-requests", "requests end"),
+            ("zs-test-dictation", "events 0 none"), ("zs-test-phase", "phase idle"), ("zs-test-hotkey", "none"),
+            ("zs-test-mic", "mic asked=0"), ("zs-test-paste", "paste asked=0"), ("zs-test-pending", "pending 0"),
+            ("zs-test-dictset", "none"), ("zs-test-hud", "hidden"),
         ] {
             let label = NSTextField(labelWithString: initial)
             label.frame = NSRect(x: CGFloat(labels.count) * 5, y: 0, width: 4, height: 4)
@@ -101,6 +109,42 @@ final class TestPanel {
             requests.append(fact)
             set("zs-test-requests", (["requests"] + requests.suffix(12) + ["end"]).joined(separator: " | "))
         }
+    }
+
+    private var dictationEvents = 0
+
+    func watch(dictation: DictationController, mic: FakeMicrophonePermission, paste: FakePastePermission) {
+        let report = { [weak self, weak dictation] in
+            guard let self, let dictation else { return }
+            self.set("zs-test-phase", "phase \(dictation.machine.phase.rawValue)")
+            self.set("zs-test-pending", "pending \(dictation.pendingCount)")
+            self.set("zs-test-dictset", dictation.settings.dictationSummary)
+            self.set("zs-test-hud", dictation.hudSummary)
+        }
+        let onChange = dictation.onChange
+        dictation.onChange = {
+            onChange()
+            report()
+        }
+        dictation.onOutcome = { [weak self] what in
+            guard let self else { return }
+            if what.hasPrefix("hotkey ") {
+                set("zs-test-hotkey", what)
+                return
+            }
+            dictationEvents += 1
+            set("zs-test-dictation", "events \(dictationEvents) \(what)")
+            report()
+        }
+        set("zs-test-mic", "mic asked=0 \(mic.current().rawValue)")
+        mic.onChange = { [weak self] asked, access in self?.set("zs-test-mic", "mic asked=\(asked) \(access.rawValue)") }
+        let paint = { [weak self, weak paste] in
+            guard let self, let paste else { return }
+            self.set("zs-test-paste", "paste asked=\(paste.asked) \(paste.approved() ? "allowed" : "off") keys=\(paste.keys)")
+        }
+        paint()
+        paste.onChange = paint
+        report()
     }
 
     func deepLink(_ what: String) {

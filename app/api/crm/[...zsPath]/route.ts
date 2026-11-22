@@ -93,8 +93,10 @@ import * as m87 from '@/lib/routes/crm/voice/calls/[id]/route';
 import * as m88 from '@/lib/routes/crm/voice/calls/[id]/end/route';
 import * as m89 from '@/lib/routes/crm/voice/calls/[id]/recording/route';
 import * as m90 from '@/lib/routes/crm/workflows/[id]/route';
-import * as m91 from '@/lib/routes/crm/workflows/[id]/run/route';
-import * as m92 from '@/lib/routes/crm/workflows/[id]/toggle/route';
+import * as m91 from '@/lib/routes/crm/workflows/[id]/enroll-existing/route';
+import * as m92 from '@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route';
+import * as m93 from '@/lib/routes/crm/workflows/[id]/run/route';
+import * as m94 from '@/lib/routes/crm/workflows/[id]/toggle/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -191,8 +193,10 @@ const d = createDispatcher('zsPath', [
   { pattern: 'voice/calls/[id]/end', mod: m88 }, // lib/routes/crm/voice/calls/[id]/end
   { pattern: 'voice/calls/[id]/recording', mod: m89 }, // lib/routes/crm/voice/calls/[id]/recording
   { pattern: 'workflows/[id]', mod: m90 }, // lib/routes/crm/workflows/[id]
-  { pattern: 'workflows/[id]/run', mod: m91 }, // lib/routes/crm/workflows/[id]/run
-  { pattern: 'workflows/[id]/toggle', mod: m92 }, // lib/routes/crm/workflows/[id]/toggle
+  { pattern: 'workflows/[id]/enroll-existing', mod: m91 }, // lib/routes/crm/workflows/[id]/enroll-existing
+  { pattern: 'workflows/[id]/enrollments/[runId]', mod: m92 }, // lib/routes/crm/workflows/[id]/enrollments/[runId]
+  { pattern: 'workflows/[id]/run', mod: m93 }, // lib/routes/crm/workflows/[id]/run
+  { pattern: 'workflows/[id]/toggle', mod: m94 }, // lib/routes/crm/workflows/[id]/toggle
 ]);
 
 export const GET = d.GET;

@@ -170,13 +170,14 @@ public struct BridgeInfo: Equatable, Sendable {
     public static let tabs = true
 
     /// The reply to `info`: plain JSON types only (what WKScriptMessageHandlerWithReply sends back).
-    /// Features without a native side in this build report false.
+    /// Features without a native side in this build report false. `dictation` is true since
+    /// block 6 (dictation in any app from the shortcut; the page cannot start one).
     public var reply: [String: Any] {
         [
             "version": version,
             "platform": "darwin",
             "systemAudio": false,
-            "dictation": false,
+            "dictation": true,
             "recordingIndicator": false,
             "settingsWindow": Self.settingsWindow,
             "updateFeed": Self.updateFeed,

@@ -4,7 +4,7 @@ import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { userCanUseApp, workspaceTeamId } from '@/lib/workspace';
 import { listApprovals } from '@/lib/crm-approvals';
 import { getSplits } from '@/lib/crm-splits';
@@ -703,7 +703,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
       <RelatedObjectRecords workspaceId={user.id} entity="deal" entityId={deal.id} scope={scope} locale={locale} />
       <RecordCard id="deal.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
-        <RecordWorkflows enrollments={workflowEnrollments} />
+        <RecordWorkflows enrollments={workflowEnrollments} canEdit={isWorkspaceAdmin(user)} />
       </RecordCard>
     </>
   );

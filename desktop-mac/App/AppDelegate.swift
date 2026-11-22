@@ -4,8 +4,9 @@ import WebKit
 /// Windows with tabs, each tab a web view of the server with the navigation policy and the load
 /// watchdog (blocks 1, 2 and 4 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links,
 /// notifications and the Dock badge (block 3); the menu bar item, the Settings window, the
-/// onboarding and the login item (block 5). The app's own requests go only to the server: the
-/// token exchange, the badge poll and the Settings window's (NativeHTTP).
+/// onboarding and the login item (block 5); dictation in any app (block 6). The app's own
+/// requests go only to the server: the token exchange, the badge poll, the Settings window's
+/// and the dictation's (NativeHTTP).
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem: StatusItemController
     private var settingsWindow: SettingsWindowController?
     private var onboarding: OnboardingWindowController?
+    private var dictation: DictationController!
     /// The onboarding opens after the first window (`-ZSOnboarding YES` forces it in a test).
     private var showOnboarding = false
     private var server = Server.defaultOrigin
@@ -104,9 +106,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsStore = SessionStore.settings(testing: testing)
         var loginItems: LoginItemService = SystemLoginItem()
         var permission: NotificationPermission = SystemNotificationPermission()
+        // Dictation (block 6): nothing here asks for a permission; the microphone prompt waits
+        // for the first dictation or its button, Accessibility for its button.
+        var mic: MicrophonePermission = SystemMicrophonePermission()
+        var paste: PastePermission = SystemPastePermission(buildAllows: SystemPastePermission.flag)
+        var makeSource: () -> AudioSource = { EngineCapture() }
+        var pendingDir = SessionStore.standard(testing: false).url.deletingLastPathComponent().appendingPathComponent("pending", isDirectory: true)
         #if DEBUG
         var fakeLogin: FakeLoginItem?
         var fakePermission: FakeNotificationPermission?
+        var fakeMic: FakeMicrophonePermission?
+        var fakePaste: FakePastePermission?
         if testing {
             if !defaults.bool(forKey: "ZSKeepSettings") { settingsStore.remove() }
             let login = FakeLoginItem(on: false)
@@ -115,15 +125,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fakePermission = ask
             loginItems = login
             permission = ask
+            // CI has no microphone, cannot answer the prompts and must not post keystrokes.
+            let micAccess: MicrophoneAccess = defaults.bool(forKey: "ZSMicAllowed") ? .allowed : defaults.bool(forKey: "ZSMicDenied") ? .denied : .notDetermined
+            let m = FakeMicrophonePermission(micAccess)
+            let p = FakePastePermission(buildAllows: !defaults.bool(forKey: "ZSCopyOnly"), allowed: defaults.bool(forKey: "ZSPasteAllowed"))
+            fakeMic = m
+            fakePaste = p
+            mic = m
+            paste = p
+            makeSource = { FakeAudioSource() }
+            pendingDir = pendingDir.deletingLastPathComponent().appendingPathComponent("pending-uitest", isDirectory: true)
+            if !defaults.bool(forKey: "ZSKeepPending") { try? FileManager.default.removeItem(at: pendingDir) }
         }
         #endif
         let model = SettingsModel(
             lang: lang, server: server, lockdown: info.lockdown, store: settingsStore,
-            remote: SettingsRemote(server: server, http: http), loginItems: loginItems, permission: permission
+            remote: SettingsRemote(server: server, http: http), loginItems: loginItems, permission: permission,
+            mic: mic, paste: paste
         )
         self.model = model
+        #if DEBUG
+        // UI tests: a shortcut other than the default (Option-only shortcuts are a known
+        // problem on macOS 15, section 2.2), set as if chosen in Settings.
+        if testing, let name = defaults.string(forKey: "ZSTestShortcut"), let shortcut = DictationShortcut.named(name) {
+            model.update { $0.shortcut = shortcut }
+        }
+        #endif
+        // Dictation's own client: a long dictation with AI cleanup can keep the server quiet for
+        // most of its 60 seconds, longer than the other requests' idle timeout.
+        let dictation = DictationController(
+            server: server, lang: lang, http: NativeHTTP(server: server, timeout: 75), store: PendingStore(dir: pendingDir), settings: model.settings,
+            mic: mic, paste: paste, makeSource: makeSource
+        )
+        self.dictation = dictation
         model.onPrefs = { [weak tabs] prefs in tabs?.setPrefs(prefs) }
-        model.onSettings = { [weak self] settings in self?.statusItem.setShown(settings.menuBarItem) }
+        model.onSettings = { [weak self] settings in
+            self?.statusItem.setShown(settings.menuBarItem)
+            self?.dictation.apply(settings)
+        }
+        dictation.onChange = { [weak self] in
+            guard let self else { return }
+            self.statusItem.setRecording(self.dictation.machine.phase == .recording)
+            self.model.dictationChanged()
+        }
+        statusItem.dictation = { [weak dictation] in dictation?.menuState }
+        statusItem.shortcutLabel = { [weak dictation] in dictation?.shortcut.label ?? "" }
+        statusItem.onDictate = { [weak dictation] in dictation?.toggleFromMenu() }
+        statusItem.onPasteLast = { [weak dictation] in dictation?.pasteLast() }
+        statusItem.onRetry = { [weak dictation] in dictation?.retryPending() }
+        statusItem.onHistory = { [weak self] in self?.openSettings(section: .history) }
         model.onSignIn = { [weak self] in self?.signIn() }
         model.onSignedOut = { [weak tabs, weak notifier] in
             tabs?.signedIn()
@@ -165,10 +215,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let fakeLogin, let fakePermission {
                 panel.watch(settings: model, login: fakeLogin, permission: fakePermission)
                 let onSettings = model.onSettings
-                model.onSettings = { [weak panel] settings in
+                model.onSettings = { [weak panel, weak dictation] settings in
                     onSettings(settings)
                     panel?.set("zs-test-settings", settings.summary)
+                    panel?.set("zs-test-dictset", dictation?.settings.dictationSummary ?? "none")
                 }
+            }
+            if let fakeMic, let fakePaste {
+                panel.watch(dictation: dictation, mic: fakeMic, paste: fakePaste)
             }
             onDeepLink = { [weak panel] what in panel?.deepLink(what) }
             var saves = 0
@@ -192,6 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
 
+        model.dictation = dictation
+        dictation.start()
         NSApp.mainMenu = MainMenu.build(lang: lang, tabs: tabs, settings: self, settingsAction: #selector(openSettings(_:)))
         NSApp.activate(ignoringOtherApps: true)
         #if DEBUG
@@ -224,10 +280,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Cmd+, the menu bar item and the page's `openSettings()`.
     @objc func openSettings(_ sender: Any?) {
+        openSettings(section: nil)
+    }
+
+    private func openSettings(section: SettingsSection?) {
         let controller = settingsWindow ?? SettingsWindowController(model: model)
         settingsWindow = controller
         model.prefs = tabs.session.prefs
-        controller.show()
+        controller.show(section)
     }
 
     private func openOnboarding() {

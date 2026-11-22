@@ -74,6 +74,16 @@ final class FixtureServer {
         lock.lock(); defer { lock.unlock() }; return entries.compactMap { $0["id"] as? String }
     }
 
+    private var _dictations: [String] = []
+    /// One entry per request to /api/voice/dictate (block 6): "warm session=no",
+    /// "ok context=other app=yes capture=desktop fast=1 rate=16000 ms=1000", "signed-out",
+    /// "bad-origin" or "bad-body <why>". The app name itself is not recorded.
+    var dictations: [String] {
+        lock.lock(); defer { lock.unlock() }; return _dictations
+    }
+
+    static let dictatedText = "zs-dictated-text"
+
     private var listenFD: Int32 = -1
     private var held: [Int32] = []
     private var thread: Thread?
@@ -169,7 +179,7 @@ final class FixtureServer {
         setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, socklen_t(MemoryLayout<Int32>.size))
         var wait = timeval(tv_sec: 10, tv_usec: 0)
         setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
-        let request = readHead(client)
+        let (request, rawBody) = readRequest(client)
         if request.isEmpty {
             close(client)
             return
@@ -185,6 +195,9 @@ final class FixtureServer {
         let status: String, extra: String, bytes: [UInt8]
         if mode != .blank, path.hasPrefix("/fonts/fixture.ttf") {
             (status, extra, bytes) = Self.font()
+        } else if mode != .blank, path.hasPrefix("/api/voice/dictate") {
+            let (s, body, e) = dictate(request: request, body: rawBody)
+            (status, extra, bytes) = (s, e, Array(body.utf8))
         } else {
             let (s, body, e) = page(path: path, mode: mode, request: request)
             (status, extra, bytes) = (s, e, Array(body.utf8))
@@ -196,20 +209,98 @@ final class FixtureServer {
         close(client)
     }
 
-    /// The request head and, when it has a Content-Length, its body.
-    private func readHead(_ client: Int32) -> String {
+    /// The request (head and body, as text) and the body's bytes as they came (an upload is
+    /// binary: its length is counted in bytes, not in decoded characters).
+    private func readRequest(_ client: Int32) -> (String, [UInt8]) {
         var data = [UInt8]()
-        var buf = [UInt8](repeating: 0, count: 4096)
-        while data.count < 65_536 {
+        var buf = [UInt8](repeating: 0, count: 65_536)
+        var bodyStart: Int?
+        var length = 0
+        while data.count < 8 * 1024 * 1024 {
             let n = read(client, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0 ..< n])
-            let text = String(decoding: data, as: UTF8.self)
-            guard let end = text.range(of: "\r\n\r\n") else { continue }
-            let length = Self.header(text, "Content-Length").flatMap { Int($0) } ?? 0
-            if text[end.upperBound...].utf8.count >= length { break }
+            if bodyStart == nil, let end = Self.find(data, Array("\r\n\r\n".utf8)) {
+                bodyStart = end + 4
+                let head = String(decoding: data[0 ..< end], as: UTF8.self)
+                length = Self.header(head, "Content-Length").flatMap { Int($0) } ?? 0
+            }
+            if let start = bodyStart, data.count - start >= length { break }
+            if bodyStart == nil, data.count >= 65_536 { break }
         }
-        return String(decoding: data, as: UTF8.self)
+        let body = bodyStart.map { Array(data[min($0, data.count)...]) } ?? []
+        return (String(decoding: data, as: UTF8.self), body)
+    }
+
+    private static func find(_ data: [UInt8], _ needle: [UInt8], from: Int = 0) -> Int? {
+        guard !needle.isEmpty, data.count >= needle.count, from <= data.count - needle.count else { return nil }
+        var i = from
+        while i <= data.count - needle.count {
+            if data[i] == needle[0], Array(data[i ..< i + needle.count]) == needle { return i }
+            i += 1
+        }
+        return nil
+    }
+
+    /// POST /api/voice/dictate (app/api/voice/dictate/route.ts), reduced: the session, the same
+    /// origin, then the multipart fields and a real 16 kHz WAV. GET warms (204).
+    private func dictate(request: String, body: [UInt8]) -> (String, String, String) {
+        let method = request.split(separator: " ").first.map(String.init) ?? "GET"
+        func note(_ s: String) { lock.lock(); _dictations.append(s); lock.unlock() }
+        if method == "GET" {
+            note("warm session=\(Self.signedIn(request) ? "yes" : "no")")
+            return ("204 No Content", "", "Content-Type: text/plain\r\n")
+        }
+        if Self.header(request, "Origin") != origin {
+            note("bad-origin")
+            return ("403 Forbidden", #"{"error":"origin"}"#, Self.json)
+        }
+        guard Self.signedIn(request) else {
+            note("signed-out")
+            return ("401 Unauthorized", #"{"error":"unauthorized"}"#, Self.json)
+        }
+        let type = Self.header(request, "Content-Type") ?? ""
+        guard let range = type.range(of: "boundary=") else {
+            note("bad-body type")
+            return ("400 Bad Request", #"{"error":"audio_type"}"#, Self.json)
+        }
+        let parts = Self.multipart(body, boundary: String(type[range.upperBound...]))
+        let field = { (name: String) in parts[name].map { String(decoding: $0.data, as: UTF8.self) } }
+        guard let audio = parts["audio"], audio.head.contains("filename=\"dictation.wav\""), audio.head.contains("Content-Type: audio/wav"),
+              audio.data.count > 44, Array(audio.data[0 ..< 4]) == Array("RIFF".utf8) else {
+            note("bad-body audio")
+            return ("400 Bad Request", #"{"error":"empty_audio"}"#, Self.json)
+        }
+        let rate = Int(audio.data[24]) | Int(audio.data[25]) << 8 | Int(audio.data[26]) << 16 | Int(audio.data[27]) << 24
+        let app = field("sourceApp") ?? ""
+        note("ok context=\(field("context") ?? "-") app=\(app.isEmpty ? "none" : app == "desktop" ? "desktop" : "yes") capture=\(field("capture") ?? "-") fast=\(field("fast") ?? "-") rate=\(rate) ms=\(field("durationMs") ?? "-")")
+        let answer: [String: Any] = [
+            "text": Self.dictatedText, "raw": "zs dictated text", "ai": false,
+            "timings": ["transcribeMs": 5, "cleanupMs": 0, "totalMs": 7],
+        ]
+        return ("201 Created", Self.encode(answer), Self.json)
+    }
+
+    /// name -> (part head, part bytes).
+    private static func multipart(_ body: [UInt8], boundary: String) -> [String: (head: String, data: [UInt8])] {
+        let marker = Array("--\(boundary)".utf8)
+        var out: [String: (head: String, data: [UInt8])] = [:]
+        var at = find(body, marker) ?? body.count
+        while at < body.count {
+            let start = at + marker.count
+            guard let next = find(body, marker, from: start) else { break }
+            var part = Array(body[start ..< next])
+            if part.starts(with: Array("\r\n".utf8)) { part.removeFirst(2) }
+            if part.count >= 2, Array(part.suffix(2)) == Array("\r\n".utf8) { part.removeLast(2) }
+            if let split = find(part, Array("\r\n\r\n".utf8)) {
+                let head = String(decoding: part[0 ..< split], as: UTF8.self)
+                if let r = head.range(of: "name=\""), let end = head[r.upperBound...].firstIndex(of: "\"") {
+                    out[String(head[r.upperBound ..< end])] = (head, Array(part[(split + 4)...]))
+                }
+            }
+            at = next
+        }
+        return out
     }
 
     private static func header(_ request: String, _ name: String) -> String? {

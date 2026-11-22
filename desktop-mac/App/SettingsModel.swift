@@ -72,6 +72,12 @@ final class SettingsModel: ObservableObject {
     private let remote: SettingsRemote
     let loginItems: LoginItemService
     let permission: NotificationPermission
+    let mic: MicrophonePermission
+    let paste: PastePermission
+    /// Dictation (block 6): set by the app delegate once it exists.
+    weak var dictation: DictationController? {
+        didSet { dictationChanged() }
+    }
 
     @Published private(set) var settings: AppSettings
     @Published var prefs = TabPrefs() {
@@ -80,6 +86,13 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var loginItem: LoginItemState = .disabled
     @Published private(set) var loginItemFailed = false
     @Published private(set) var notifications: NotificationAccess = .notDetermined
+    @Published private(set) var microphone: MicrophoneAccess = .notDetermined
+    @Published private(set) var pasteAccess: PasteAccess = .unavailable
+    @Published private(set) var shortcutTaken = false
+    /// The shortcut in use (a fallback when the chosen default could not be registered).
+    @Published private(set) var shortcutLabel = DictationShortcut.standard.label
+    /// Saved dictations of this server waiting to be sent again.
+    @Published private(set) var pending = 0
     /// nil while loading.
     @Published private(set) var account: Remote<AccountInfo>?
     @Published private(set) var voice: Remote<VoiceSettings>?
@@ -102,7 +115,8 @@ final class SettingsModel: ObservableObject {
     var onRequest: ((String) -> Void)?
 
     init(lang: Lang, server: String, lockdown: Bool, store: SessionStore, remote: SettingsRemote,
-         loginItems: LoginItemService, permission: NotificationPermission) {
+         loginItems: LoginItemService, permission: NotificationPermission,
+         mic: MicrophonePermission, paste: PastePermission) {
         self.lang = lang
         self.server = server
         self.lockdown = lockdown
@@ -110,8 +124,12 @@ final class SettingsModel: ObservableObject {
         self.remote = remote
         self.loginItems = loginItems
         self.permission = permission
+        self.mic = mic
+        self.paste = paste
         settings = AppSettings.decode(store.read())
         loginItem = loginItems.state
+        microphone = mic.current()
+        pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
     }
 
     func t(_ key: StringKey, _ vars: [String: String] = [:]) -> String {
@@ -137,6 +155,52 @@ final class SettingsModel: ObservableObject {
     func refreshSystemState() async {
         loginItem = loginItems.state
         notifications = await permission.current()
+        refreshDictationAccess()
+        dictationChanged()
+    }
+
+    /// The microphone and paste permissions as the system has them now (the person may have
+    /// changed them in System Settings meanwhile).
+    func refreshDictationAccess() {
+        microphone = mic.current()
+        pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
+    }
+
+    /// The dictation's shortcut state and saved count changed.
+    func dictationChanged() {
+        guard let dictation else { return }
+        shortcutTaken = dictation.shortcutTaken
+        shortcutLabel = dictation.shortcut.label
+        pending = dictation.pendingCount
+        refreshDictationAccess()
+    }
+
+    /// "Turn on the microphone": the system prompt, only from this button or a dictation.
+    func microphoneButton() {
+        switch microphone.buttonAction {
+        case .ask:
+            Task {
+                microphone = await mic.request()
+            }
+        case .openSystemSettings:
+            mic.openSystemSettings()
+        case .none:
+            break
+        }
+    }
+
+    /// "Allow pasting": macOS's prompt the first time, System Settings after.
+    func pasteButton() {
+        paste.request()
+        refreshDictationAccess()
+    }
+
+    func pasteFromHistory(_ text: String) async -> PasteResult? {
+        await dictation?.pasteFromHistory(text)
+    }
+
+    func retryPending() {
+        dictation?.retryPending()
     }
 
     /// The "Turn on notifications" button: the only place the system prompt comes from.

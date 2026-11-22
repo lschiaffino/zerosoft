@@ -48,7 +48,7 @@ public enum BridgeScript {
             version: \(js(info.version)),
             platform: 'darwin',
             systemAudio: false,
-            dictation: false,
+            dictation: true,
             recordingIndicator: false,
             settingsWindow: \(BridgeInfo.settingsWindow),
             updateFeed: \(BridgeInfo.updateFeed),
