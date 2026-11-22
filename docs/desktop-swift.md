@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: blocks 1 to 4 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 5 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -583,6 +583,59 @@ capability is on. Where the code differs from the table above or from the Tauri 
 - A fresh session opens `/app`, as the Tauri app; blocks 1 to 3 opened the server root.
 - The tab preferences (suspend, minutes, restore, Cmd-click target) are read from `session.json`;
   the switches arrive with Settings in block 5. The recording dot waits for block 7.
+
+**Built in block 5** (`Sources/ZerosoftCore/AppSettings.swift`, `Sources/ZerosoftCore/SettingsAPI.swift`,
+`App/SettingsWindow.swift`, `App/SettingsModel.swift`, `App/OnboardingWindow.swift`,
+`App/StatusItemController.swift`, `App/SystemServices.swift`): the menu bar item, the SwiftUI
+Settings window in an AppKit window (app menu Settings, Cmd+,; the menu bar item; the page's
+`openSettings()`), the first-run window and the login item. The bridge `settingsWindow`
+capability is on and `openSettings` has its native side, so the web app's "Desktop app
+settings" buttons (`components/settings/DesktopAppSettings.tsx`, `components/app/AppSidebar.tsx`)
+show and open it. `openSettings` counts only from the tab in front of the window in front, while
+the app is in front, so a background page cannot pull the app over other apps. Where the code differs from the table above or from the Tauri app:
+
+- Sections: General (open at login, menu bar item, server and Lockdown state, "show the welcome
+  again", the web settings in a tab), Tabs (the `session.json` preferences block 4 left without
+  switches: suspend, minutes, restore, Cmd-click target), Notifications, Dictation (language,
+  style, depth, AI cleanup: `/api/voice/settings`), Dictionary (`/api/voice/dictionary`), History
+  (the last 50 dictations, `/api/voice/sessions`) and Account (from the badge route's `user`, sign
+  in and out). Permissions has only notifications: the microphone, camera, screen and Accessibility
+  rows come with the blocks that add those entitlements (6 to 8). Meetings, Privacy and Updates
+  come with blocks 7, 9 and 10. History copies; paste-back needs block 6's paste path.
+- The Tauri window also lists the server's settings groups (`/api/settings/nav`) and loads those
+  web sections inside itself. The Swift window opens `/app/settings` in a tab instead: one less
+  web view outside the tab model and its checks.
+- The custom server is shown, not edited: a change needs the origin of every check to move and a
+  relaunch, so the field (Settings › Advanced) waits for block 10, where the direct build needs it.
+- `settings.json` (next to `session.json`, mode 0600) holds two switches and a version:
+  `onboarded`, `menuBarItem`. A test checks it can hold nothing else. The tab
+  preferences stay in `session.json`; the login item's state is the system's
+  (`SMAppService.mainApp.status`), so the app keeps no copy. What the server sections load
+  (dictionary, history, the account's name and email) stays in memory.
+- The notification prompt shows only from the "Turn on notifications" button of the onboarding or
+  Settings, after a screen that says what the notifications are. Block 3 asked on the first
+  delivery; now nothing is handed to the system until the person allowed it, and the Dock badge
+  counts in the meantime.
+- Open at login is off by default and changes only from its switch (onboarding or Settings).
+  "Needs approval" sends the person to System Settings › Login Items. A fresh install can report
+  "not found" before its first registration on macOS 13 and 14, so the switch stays usable and
+  `register()` decides.
+- Sign-out from Settings or the menu bar item does next-auth's CSRF request and POST
+  (`/api/auth/csrf`, `/api/auth/signout`, as auth.rs `server_sign_out`), which also revokes the
+  session on the server, then deletes the session cookies from the web views' store. The web
+  app's own local data for the server (localStorage, IndexedDB) stays: block 9's "delete all"
+  removes it. The open server section reloads after a sign-in or sign-out from anywhere. Writes to
+  the voice routes carry the server as `Origin`. Every path is in `desktop/privacy-facts.json`
+  (a Swift test compares them).
+- The first-run window does not show the dictation shortcut yet (section 2.1): block 6 adds that
+  step. It opens once, never in a UI test unless `-ZSOnboarding YES` asks for it; closing it counts
+  as seen.
+- The menu bar item's menu: Open zerosoft, New Tab, New Window, the count of new items, Settings,
+  Sign in or Sign Out (once the badge poll knows), Quit. Its icon is an SF Symbol until block 11's
+  artwork. Dictation, history and the recording dot join it in blocks 6 and 7.
+- UI tests replace the login item and the notification permission with fakes (CI cannot answer
+  the system prompt, and an ad hoc build must not add itself to the runner's login items); the
+  mapping of the system states is unit tested.
 
 Parallel work: after block 2, blocks 4 and 5 can run at the same time; 6 and 7 at the same time
 after 5; block 10's signing setup any time after 1 once the owner's account exists. At most two blocks

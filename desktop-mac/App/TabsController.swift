@@ -390,8 +390,18 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         saveSoon()
     }
 
-    /// After a sign-in: the front tab goes to the home page, the other loaded tabs reload their
-    /// page with the new session (tabs.rs `reload_all`).
+    /// Settings › Tabs: the new preferences, saved right away. Restore off also drops the saved
+    /// windows from the file (TabSession.encoded).
+    func setPrefs(_ prefs: TabPrefs) {
+        guard prefs != session.prefs else { return }
+        session.prefs = prefs
+        changed()
+        saveNow()
+        suspendIdle()
+    }
+
+    /// After a sign-in or a sign-out: the front tab goes to the home page, the other loaded tabs
+    /// reload their page with the new session (tabs.rs `reload_all`).
     func signedIn() {
         let front = session.activeOf(keyLabel())
         if let home = URL(string: server + TabSession.home) { navigateActive(home) }

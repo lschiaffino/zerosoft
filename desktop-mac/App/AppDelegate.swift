@@ -3,14 +3,21 @@ import WebKit
 
 /// Windows with tabs, each tab a web view of the server with the navigation policy and the load
 /// watchdog (blocks 1, 2 and 4 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links,
-/// notifications and the Dock badge (block 3). The app's own requests go only to the server: the
-/// token exchange and the badge poll (NativeHTTP).
+/// notifications and the Dock badge (block 3); the menu bar item, the Settings window, the
+/// onboarding and the login item (block 5). The app's own requests go only to the server: the
+/// token exchange, the badge poll and the Settings window's (NativeHTTP).
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var tabs: TabsController!
     private var auth: AuthController!
     private var notifier: Notifier!
+    private var model: SettingsModel!
+    private let statusItem: StatusItemController
+    private var settingsWindow: SettingsWindowController?
+    private var onboarding: OnboardingWindowController?
+    /// The onboarding opens after the first window (`-ZSOnboarding YES` forces it in a test).
+    private var showOnboarding = false
     private var server = Server.defaultOrigin
     /// The tabs exist (a link that arrives before waits in `launchLink`).
     private var started = false
@@ -21,6 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let lang = Lang.pick(Locale.preferredLanguages)
     /// The page of the first window when there is no saved session.
     private var firstPath = TabSession.home
+
+    override init() {
+        statusItem = StatusItemController(lang: Lang.pick(Locale.preferredLanguages))
+        super.init()
+    }
     #if DEBUG
     private var testPanel: TestPanel?
     #endif
@@ -66,20 +78,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             WebController(server: server, lockdown: lockdown, info: info, lang: lang, openExternal: openExternal)
         }
         self.tabs = tabs
-        tabs.configure = { [weak auth, weak notifier] web in
+        tabs.configure = { [weak auth, weak notifier, weak self] web in
             // The sign-in sheet goes on the window of the tab that asked for it.
             web.onStartLogin = { [weak web] in
                 auth?.window = web?.webView.window
                 auth?.begin()
             }
             web.onNotify = { title, body in notifier?.pageNotification(title: title, body: body) }
+            // Only the tab in front of the window in front, while the app is in front: a page in
+            // a background tab cannot pull the app over other apps.
+            web.onOpenSettings = { [weak web] in
+                guard let self, let web, NSApp.isActive, self.tabs.activeWeb === web else { return }
+                self.openSettings(nil)
+            }
         }
-        auth.onSignedIn = { [weak tabs, weak notifier] in
+        auth.onSignedIn = { [weak tabs, weak notifier, weak self] in
             tabs?.signedIn()
             notifier?.restart()
+            self?.model?.sessionChanged()
         }
         notifier.openPath = { [weak tabs] url in tabs?.navigateActive(url) }
         notifier.onUnread = { [weak tabs] products in tabs?.setUnread(products) }
+
+        // Settings, onboarding, menu bar item (block 5).
+        let settingsStore = SessionStore.settings(testing: testing)
+        var loginItems: LoginItemService = SystemLoginItem()
+        var permission: NotificationPermission = SystemNotificationPermission()
+        #if DEBUG
+        var fakeLogin: FakeLoginItem?
+        var fakePermission: FakeNotificationPermission?
+        if testing {
+            if !defaults.bool(forKey: "ZSKeepSettings") { settingsStore.remove() }
+            let login = FakeLoginItem(on: false)
+            let ask = FakeNotificationPermission()
+            fakeLogin = login
+            fakePermission = ask
+            loginItems = login
+            permission = ask
+        }
+        #endif
+        let model = SettingsModel(
+            lang: lang, server: server, lockdown: info.lockdown, store: settingsStore,
+            remote: SettingsRemote(server: server, http: http), loginItems: loginItems, permission: permission
+        )
+        self.model = model
+        model.onPrefs = { [weak tabs] prefs in tabs?.setPrefs(prefs) }
+        model.onSettings = { [weak self] settings in self?.statusItem.setShown(settings.menuBarItem) }
+        model.onSignIn = { [weak self] in self?.signIn() }
+        model.onSignedOut = { [weak tabs, weak notifier] in
+            tabs?.signedIn()
+            notifier?.restart()
+        }
+        model.onOpenWebSettings = { [weak tabs, server] in
+            if let url = URL(string: server + "/app/settings") { tabs?.navigateActive(url) }
+        }
+        model.onShowOnboarding = { [weak self] in self?.openOnboarding() }
+        notifier.onSession = { [weak self] signedIn, total in
+            self?.statusItem.signedIn = signedIn
+            self?.statusItem.unread = total
+        }
+        statusItem.onOpen = { [weak tabs] in
+            NSApp.activate(ignoringOtherApps: true)
+            tabs?.showLast()
+        }
+        statusItem.onNewTab = { [weak tabs] in
+            NSApp.activate(ignoringOtherApps: true)
+            tabs?.newTab(nil)
+        }
+        statusItem.onNewWindow = { [weak tabs] in
+            NSApp.activate(ignoringOtherApps: true)
+            tabs?.newWindowAction(nil)
+        }
+        statusItem.onSettings = { [weak self] in self?.openSettings(nil) }
+        statusItem.onSignIn = { [weak self] in self?.signIn() }
+        statusItem.onSignOut = { [weak model] in model?.signOut() }
+        statusItem.setShown(model.settings.menuBarItem)
+        showOnboarding = OnboardingStep.shouldShow(model.settings, testing: testing, forced: defaults.bool(forKey: "ZSOnboarding"))
         #if DEBUG
         if testing, let panel = testPanel {
             let configure = tabs.configure
@@ -88,9 +162,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 panel?.watch(web)
             }
             panel.watch(auth: auth, notifier: notifier)
+            if let fakeLogin, let fakePermission {
+                panel.watch(settings: model, login: fakeLogin, permission: fakePermission)
+                let onSettings = model.onSettings
+                model.onSettings = { [weak panel] settings in
+                    onSettings(settings)
+                    panel?.set("zs-test-settings", settings.summary)
+                }
+            }
             onDeepLink = { [weak panel] what in panel?.deepLink(what) }
             var saves = 0
-            tabs.onChange = { [weak panel] session in panel?.set("zs-test-tabs", "tabs \(session.summary) end") }
+            tabs.onChange = { [weak panel] session in
+                panel?.set("zs-test-tabs", "tabs \(session.summary) end")
+                panel?.set("zs-test-prefs", session.prefs.summary)
+            }
             tabs.onSaved = { [weak panel] in
                 saves += 1
                 panel?.set("zs-test-session", "saved \(saves)")
@@ -107,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
 
-        NSApp.mainMenu = MainMenu.build(lang: lang, tabs: tabs)
+        NSApp.mainMenu = MainMenu.build(lang: lang, tabs: tabs, settings: self, settingsAction: #selector(openSettings(_:)))
         NSApp.activate(ignoringOtherApps: true)
         #if DEBUG
         if testing {
@@ -129,6 +214,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tabs.start(launchPath: first, firstPath: firstPath)
         started = true
         notifier.start()
+        if showOnboarding {
+            showOnboarding = false
+            openOnboarding()
+        }
+    }
+
+    // MARK: Settings, onboarding (block 5)
+
+    /// Cmd+, the menu bar item and the page's `openSettings()`.
+    @objc func openSettings(_ sender: Any?) {
+        let controller = settingsWindow ?? SettingsWindowController(model: model)
+        settingsWindow = controller
+        model.prefs = tabs.session.prefs
+        controller.show()
+    }
+
+    private func openOnboarding() {
+        let controller = onboarding ?? OnboardingWindowController(model: model)
+        onboarding = controller
+        controller.show()
+    }
+
+    /// Sign-in from Settings, the onboarding or the menu bar item: the browser sheet goes on the
+    /// window in front (a tab window is shown first when every window is closed).
+    private func signIn() {
+        if !tabs.hasVisibleWindow { tabs.showLast() }
+        auth.window = tabs.activeWeb?.webView.window ?? NSApp.keyWindow
+        auth.begin()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

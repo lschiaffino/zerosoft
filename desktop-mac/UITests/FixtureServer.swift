@@ -54,6 +54,25 @@ final class FixtureServer {
     }
 
     static let sessionToken = "fixture.session-token_value"
+    static let csrfToken = "fixture-csrf+token/1"
+    static let csrfCookie = "next-auth.csrf-token=fixturecsrfcookie"
+
+    /// The Settings window's server side (block 5): dictation settings, the dictionary, the
+    /// history and the sign-out, kept in memory.
+    private var voice: [String: Any] = ["language": "auto", "cleanupMode": "per_app", "cleanupDepth": "standard", "aiCleanup": true, "styles": [String: String]()]
+    private var entries: [[String: Any]] = [["id": "e1", "kind": "word", "phrase": "zerosoft", "replacement": ""]]
+    private var nextEntry = 2
+    private var _writes: [String] = []
+    /// Every write of the Settings window: "PATCH /api/voice/settings {body}", "POST ...",
+    /// "DELETE ...", "signout ok|bad"; "bad-origin <path>" when a write came without the
+    /// server as Origin.
+    var writes: [String] {
+        lock.lock(); defer { lock.unlock() }; return _writes
+    }
+
+    var dictionaryIDs: [String] {
+        lock.lock(); defer { lock.unlock() }; return entries.compactMap { $0["id"] as? String }
+    }
 
     private var listenFD: Int32 = -1
     private var held: [Int32] = []
@@ -256,7 +275,7 @@ final class FixtureServer {
         }
         if path.hasPrefix("/api/desktop/badge") {
             guard Self.signedIn(request) else { return ("401 Unauthorized", #"{"error":"unauthorized"}"#, "Content-Type: application/json\r\n") }
-            let body = #"{"total":3,"talk":1,"bell":2,"notifications":[],"byPath":{},"now":"2026-11-22T10:00:00.000Z","disabledApps":[]}"#
+            let body = #"{"total":3,"talk":1,"bell":2,"notifications":[],"byPath":{},"now":"2026-11-22T10:00:00.000Z","disabledApps":[],"user":{"email":"fixture@example.com","name":"Fixture"}}"#
             return ("200 OK", body, "Content-Type: application/json\r\n")
         }
         if path.hasPrefix("/app") || path.hasPrefix("/es/app") {
@@ -276,10 +295,71 @@ final class FixtureServer {
         return nil
     }
 
+    private static let json = "Content-Type: application/json\r\n"
+
+    private static func encode(_ object: Any) -> String {
+        (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+
+    /// The routes the Settings window calls (lib/routes and app/api/voice), reduced.
+    private func settings(path: String, request: String) -> (String, String, String)? {
+        let method = request.split(separator: " ").first.map(String.init) ?? "GET"
+        let route = path.split(separator: "?").first.map(String.init) ?? path
+        guard route.hasPrefix("/api/voice/") || route.hasPrefix("/api/auth/") else { return nil }
+        if method != "GET", Self.header(request, "Origin") != origin {
+            lock.lock(); _writes.append("bad-origin \(route)"); lock.unlock()
+            return ("403 Forbidden", #"{"error":"origin"}"#, Self.json)
+        }
+        if route == "/api/auth/csrf" {
+            return ("200 OK", #"{"csrfToken":"\#(Self.csrfToken)"}"#, "\(Self.json)Set-Cookie: \(Self.csrfCookie); Path=/; HttpOnly; SameSite=Lax\r\n")
+        }
+        if route == "/api/auth/signout", method == "POST" {
+            let cookie = Self.header(request, "Cookie") ?? ""
+            let form = Self.body(request)
+            let token = Self.csrfToken.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? ""
+            let ok = Self.signedIn(request) && cookie.contains(Self.csrfCookie) && form == "csrfToken=\(token)&json=true"
+            lock.lock(); _writes.append(ok ? "signout ok" : "signout bad"); lock.unlock()
+            return ("200 OK", #"{"url":"/"}"#, "\(Self.json)Set-Cookie: next-auth.session-token=; Path=/; Max-Age=0\r\n")
+        }
+        guard Self.signedIn(request) else { return ("401 Unauthorized", #"{"error":"unauthorized"}"#, Self.json) }
+        lock.lock(); defer { lock.unlock() }
+        if method != "GET" { _writes.append("\(method) \(route) \(Self.body(request))") }
+        switch (method, route) {
+        case ("GET", "/api/voice/settings"):
+            return ("200 OK", Self.encode(["settings": voice, "transcription": true, "ai": true]), Self.json)
+        case ("PATCH", "/api/voice/settings"):
+            let patch = (try? JSONSerialization.jsonObject(with: Data(Self.body(request).utf8))) as? [String: Any] ?? [:]
+            for (k, v) in patch { voice[k] = v }
+            return ("200 OK", Self.encode(["settings": voice]), Self.json)
+        case ("GET", "/api/voice/dictionary"):
+            return ("200 OK", Self.encode(["entries": entries, "canEditTeam": false]), Self.json)
+        case ("POST", "/api/voice/dictionary"):
+            var entry = (try? JSONSerialization.jsonObject(with: Data(Self.body(request).utf8))) as? [String: Any] ?? [:]
+            let id = "e\(nextEntry)"
+            nextEntry += 1
+            entry["id"] = id
+            if entry["replacement"] == nil { entry["replacement"] = "" }
+            entries.append(entry)
+            return ("201 Created", Self.encode(["id": id]), Self.json)
+        case ("GET", "/api/voice/sessions"):
+            let item: [String: Any] = ["id": "s1", "kind": "dictation", "text": "zs-history-text", "durationMs": 3000, "startedAt": "2026-11-22T10:00:00.000Z"]
+            return ("200 OK", Self.encode(["sessions": [item]]), Self.json)
+        default:
+            if method == "DELETE", route.hasPrefix("/api/voice/dictionary/") {
+                let id = String(route.dropFirst("/api/voice/dictionary/".count))
+                guard entries.contains(where: { $0["id"] as? String == id }) else { return ("404 Not Found", #"{"error":"not_found"}"#, Self.json) }
+                entries.removeAll { $0["id"] as? String == id }
+                return ("200 OK", #"{"ok":true}"#, Self.json)
+            }
+            return ("404 Not Found", #"{"error":"not_found"}"#, Self.json)
+        }
+    }
+
     /// (status line, body, extra headers; with extra headers the page sets its own type).
     private func page(path: String, mode: Mode, request: String) -> (String, String, String) {
         if path.hasPrefix("/favicon") { return ("404 Not Found", "", "") }
         if mode != .blank, let answer = signIn(path: path, request: request) { return answer }
+        if mode != .blank, let answer = settings(path: path, request: request) { return answer }
         if mode == .blank {
             return ("200 OK", "<!doctype html><html><head><title>blank</title></head><body><script>void 0</script></body></html>", "")
         }
@@ -323,6 +403,7 @@ final class FixtureServer {
         <p><button onclick="window.open()">Open blank</button></p>
         <p><button onclick="window.zerosoftDesktop.startLogin()">Sign in with Google</button></p>
         <p><button onclick="new Notification('zs-note', { body: 'zs-body' })">Notify</button></p>
+        <p><button onclick="window.zerosoftDesktop.openSettings()">Desktop settings</button></p>
         <p id="detect">detect pending</p>
         <p id="features">features</p>
         <script>
