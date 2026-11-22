@@ -10,7 +10,7 @@ final class NativeHTTP {
     private let server: String
     private let session: URLSession
 
-    init(server: String) {
+    init(server: String, timeout: TimeInterval = 20) {
         self.server = server
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = nil
@@ -18,7 +18,7 @@ final class NativeHTTP {
         config.httpCookieAcceptPolicy = .never
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForRequest = timeout
         session = URLSession(configuration: config, delegate: NoRedirects(), delegateQueue: nil)
     }
 

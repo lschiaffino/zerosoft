@@ -150,7 +150,7 @@ final class DictationUITests: XCTestCase {
         waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
         waitLabel(app, "zs-test-paste", "paste asked=0 off keys=0")
         // The default Option+Space: macOS 15 is reported to refuse some Option-only shortcuts
-        // (section 2.2). Recorded for the CI summary; the shortcut test below uses Control+Option.
+        // (section 2.2). Recorded for the CI summary; the shortcut test below uses Command+Shift+D.
         waitLabel(app, "zs-test-hotkey", { $0.hasPrefix("hotkey Alt+Space ") }, "the default shortcut registered or refused")
         let hotkey = XCTAttachment(string: "default shortcut on \(ProcessInfo.processInfo.operatingSystemVersionString): \(value(app, "zs-test-hotkey"))")
         hotkey.lifetime = .keepAlways
@@ -189,24 +189,24 @@ final class DictationUITests: XCTestCase {
     /// allowed, with the text on the clipboard at that moment, and puts the old clipboard back.
     /// Esc cancels without a request.
     func testShortcutPastesAndRestoresTheClipboard() throws {
-        let app = launch(["-ZSMicAllowed", "YES", "-ZSPasteAllowed", "YES", "-ZSTestShortcut", "Control+Alt+Space"])
+        let app = launch(["-ZSMicAllowed", "YES", "-ZSPasteAllowed", "YES", "-ZSTestShortcut", "CommandOrControl+Shift+D"])
         ready(app)
-        waitLabel(app, "zs-test-hotkey", "hotkey Control+Alt+Space ok")
+        waitLabel(app, "zs-test-hotkey", "hotkey CommandOrControl+Shift+D ok")
         signIn(app)
         let board = NSPasteboard.general
         board.clearContents()
         board.setString("zs-before", forType: .string)
 
-        app.typeKey(.space, modifierFlags: [.control, .option])
+        app.typeKey("d", modifierFlags: [.command, .shift])
         waitLabel(app, "zs-test-phase", "phase recording")
         pause(0.6)
-        app.typeKey(.space, modifierFlags: [.control, .option])
+        app.typeKey("d", modifierFlags: [.command, .shift])
         waitEvent(app, "dictation pasted clip=match restored=true")
         waitLabel(app, "zs-test-paste", "paste asked=0 allowed keys=1")
         XCTAssertEqual(server.dictations.filter { $0.hasPrefix("ok ") }.count, 1, "\(server.dictations)")
 
         // Esc cancels: nothing is sent.
-        app.typeKey(.space, modifierFlags: [.control, .option])
+        app.typeKey("d", modifierFlags: [.command, .shift])
         waitLabel(app, "zs-test-phase", "phase recording")
         app.typeKey(.escape, modifierFlags: [])
         waitEvent(app, "dictation cancelled")

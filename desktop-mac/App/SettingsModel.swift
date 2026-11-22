@@ -89,6 +89,8 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var microphone: MicrophoneAccess = .notDetermined
     @Published private(set) var pasteAccess: PasteAccess = .unavailable
     @Published private(set) var shortcutTaken = false
+    /// The shortcut in use (a fallback when the chosen default could not be registered).
+    @Published private(set) var shortcutLabel = DictationShortcut.standard.label
     /// Saved dictations of this server waiting to be sent again.
     @Published private(set) var pending = 0
     /// nil while loading.
@@ -168,6 +170,7 @@ final class SettingsModel: ObservableObject {
     func dictationChanged() {
         guard let dictation else { return }
         shortcutTaken = dictation.shortcutTaken
+        shortcutLabel = dictation.shortcut.label
         pending = dictation.pendingCount
         refreshDictationAccess()
     }

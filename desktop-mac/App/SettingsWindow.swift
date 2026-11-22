@@ -385,6 +385,10 @@ private struct DictationControls: View {
                     Text(model.t(.dictShortcutTaken)).font(.callout).foregroundStyle(.red)
                         .accessibilityIdentifier("zs-dict-shortcut-taken")
                 } else {
+                    if model.shortcutLabel != model.settings.shortcut.label {
+                        Help(model.t(.dictShortcutFallback, ["key": model.shortcutLabel]))
+                            .accessibilityIdentifier("zs-dict-shortcut-fallback")
+                    }
                     Help(model.t(.dictShortcutHelp))
                 }
             }

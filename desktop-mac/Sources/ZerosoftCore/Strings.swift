@@ -209,6 +209,7 @@ public enum StringKey: String, CaseIterable, Sendable {
     case dictShortcut
     case dictShortcutHelp
     case dictShortcutTaken
+    case dictShortcutFallback
     case dictMode
     case modeBoth
     case modeHold
@@ -427,7 +428,8 @@ public enum Strings {
             .accessAfter: "If you turned zerosoft on in the list, come back here: it is checked again when this window opens.",
             .dictShortcut: "Dictation shortcut",
             .dictShortcutHelp: "Hold it in any app, speak and let go: the clean text goes where the cursor is.",
-            .dictShortcutTaken: "Another app already uses this shortcut. Pick another one.",
+            .dictShortcutTaken: "This shortcut is not available: macOS or another app uses it. Pick another one.",
+            .dictShortcutFallback: "macOS did not accept this shortcut, so {key} is in use. Pick another one to change it.",
             .dictMode: "How to dictate",
             .modeBoth: "Hold to talk, or tap once to start and again to finish",
             .modeHold: "Only hold to talk",
@@ -643,7 +645,8 @@ public enum Strings {
             .accessAfter: "Si activaste zerosoft en la lista, volvé acá: se revisa de nuevo cuando se abre esta ventana.",
             .dictShortcut: "Atajo de dictado",
             .dictShortcutHelp: "Mantenelo en cualquier app, hablá y soltá: el texto limpio va donde está el cursor.",
-            .dictShortcutTaken: "Otra app ya usa este atajo. Elegí otro.",
+            .dictShortcutTaken: "Este atajo no está disponible: lo usa macOS u otra app. Elegí otro.",
+            .dictShortcutFallback: "macOS no aceptó este atajo, así que se usa {key}. Elegí otro para cambiarlo.",
             .dictMode: "Cómo dictar",
             .modeBoth: "Mantener para hablar, o un toque para empezar y otro para terminar",
             .modeHold: "Solo mantener para hablar",
@@ -859,7 +862,8 @@ public enum Strings {
             .accessAfter: "Se você ativou o zerosoft na lista, volte aqui: é verificado de novo quando esta janela abre.",
             .dictShortcut: "Atalho de ditado",
             .dictShortcutHelp: "Segure em qualquer app, fale e solte: o texto limpo vai onde está o cursor.",
-            .dictShortcutTaken: "Outro app já usa este atalho. Escolha outro.",
+            .dictShortcutTaken: "Este atalho não está disponível: o macOS ou outro app usa. Escolha outro.",
+            .dictShortcutFallback: "O macOS não aceitou este atalho, então {key} está em uso. Escolha outro para mudar.",
             .dictMode: "Como ditar",
             .modeBoth: "Segurar para falar, ou um toque para começar e outro para terminar",
             .modeHold: "Só segurar para falar",

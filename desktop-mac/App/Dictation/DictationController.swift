@@ -37,6 +37,13 @@ final class DictationController {
     private var lastText = ""
     /// The dictation shortcut could not be registered (another app holds it).
     private(set) var shortcutTaken = false
+    /// The shortcut in use: the chosen one, or a fallback when the default could not be
+    /// registered (macOS 15 refuses some Option-only shortcuts, section 2.2).
+    private(set) var shortcut = DictationShortcut.standard
+    /// A retry of the saved dictations is running (one at a time).
+    private var retrying = false
+    /// The microphone prompt is on screen.
+    private var askingMic = false
 
     /// The phase, the pending count or the shortcut changed: the menu bar item and Settings.
     var onChange: () -> Void = {}
@@ -54,6 +61,7 @@ final class DictationController {
         self.paste = paste
         self.makeSource = makeSource
         hotKeys.onKey = { [weak self] key, pressed in self?.key(key, pressed) }
+        hud.mayChange = { [weak self] in self?.machine.phase != .recording }
     }
 
     private func t(_ key: StringKey, _ vars: [String: String] = [:]) -> String {
@@ -81,14 +89,27 @@ final class DictationController {
     }
 
     private func registerShortcut() {
-        shortcutTaken = !hotKeys.register(.dictation, settings.shortcut)
-        onOutcome?("hotkey \(settings.shortcut.name) \(shortcutTaken ? "taken" : "ok")")
-        if shortcutTaken { Self.log.notice("dictation shortcut taken") }
+        shortcut = settings.shortcut
+        var ok = hotKeys.register(.dictation, shortcut)
+        var note = "hotkey \(shortcut.name) \(ok ? "ok" : "taken")"
+        // The default refused: fall back to one without Option, kept in memory only (the
+        // person's setting stays, and Settings shows the one in use).
+        if !ok, shortcut == .standard, let fallback = DictationShortcut.named("CommandOrControl+Shift+D"),
+           hotKeys.register(.dictation, fallback) {
+            shortcut = fallback
+            ok = true
+            note += " fallback \(fallback.name)"
+        }
+        shortcutTaken = !ok
+        onOutcome?(note)
+        if !ok { Self.log.notice("dictation shortcut taken") }
     }
 
     var menuState: DictationMenuState {
-        DictationMenuState(phase: machine.phase, mode: settings.mode, pending: pendingCount)
+        DictationMenuState(phase: machine.phase, mode: settings.mode, pending: retrying ? 0 : pendingCount)
     }
+
+    var isRetrying: Bool { retrying }
 
     var pendingCount: Int {
         store.list(now: Self.epochMs).filter { $0.sameServer(server) }.count
@@ -118,7 +139,7 @@ final class DictationController {
         case .stop: finish()
         case .cancel: cancel()
         case .becameHandsFree:
-            hud.show(.recording, t(.hudHandsFree), hint: t(.hudHandsFreeHint, ["key": settings.shortcut.label]), startedAt: recordingSince)
+            hud.show(.recording, t(.hudHandsFree), hint: t(.hudHandsFreeHint, ["key": shortcut.label]), startedAt: recordingSince)
         case .none: break
         }
     }
@@ -135,10 +156,13 @@ final class DictationController {
             // answers the prompt, then dictates.
             machine.finished(generation: generation)
             onChange()
+            guard !askingMic else { return }
+            askingMic = true
             Task {
                 let answer = await mic.request()
+                askingMic = false
                 if answer == .allowed {
-                    hud.flash(.done, t(.hudMicReady, ["key": settings.shortcut.label]))
+                    hud.flash(.done, t(.hudMicReady, ["key": shortcut.label]))
                     report("mic-allowed")
                 } else {
                     hud.flash(.error, t(.hudMicOff))
@@ -172,7 +196,7 @@ final class DictationController {
         sourceApp = settings.sendAppName ? (NSWorkspace.shared.frontmostApplication?.localizedName ?? "") : ""
         recordingSince = Date()
         if handsFree {
-            hud.show(.recording, t(.hudHandsFree), hint: t(.hudHandsFreeHint, ["key": settings.shortcut.label]), startedAt: recordingSince)
+            hud.show(.recording, t(.hudHandsFree), hint: t(.hudHandsFreeHint, ["key": shortcut.label]), startedAt: recordingSince)
         } else {
             hud.show(.recording, t(.hudListening), hint: t(.hudEscHint), startedAt: recordingSince)
         }
@@ -350,6 +374,7 @@ final class DictationController {
 
     /// Pastes the last dictation again: this session's, or the newest of the history.
     func pasteLast() {
+        guard machine.phase == .idle else { return }
         Task {
             var text = lastText
             if text.isEmpty, let request = SettingsEndpoint.history.request(server: server),
@@ -387,9 +412,17 @@ final class DictationController {
     /// Sends the saved dictations of this server again. The text is copied, never pasted: the
     /// person may be somewhere else by now.
     func retryPending() {
+        guard machine.phase == .idle, !retrying else { return }
+        retrying = true
+        onChange()
         Task {
-            let now = Self.epochMs
-            for meta in store.list(now: now) where meta.sameServer(server) {
+            defer {
+                retrying = false
+                onChange()
+            }
+            for meta in store.list(now: Self.epochMs) where meta.sameServer(server) {
+                guard machine.phase == .idle else { return }
+                let now = Self.epochMs
                 guard let audio = store.read(meta.id, now: now)?.1 else { continue }
                 hud.show(.working, t(.hudSending))
                 // With "send the app's name" off now, the saved one is not sent.
@@ -411,7 +444,8 @@ final class DictationController {
                     hud.flash(.error, failureLabel(failure, saved: failure.keepForRetry))
                     onOutcome?("retry failed:\(failure.rawValue)")
                     onChange()
-                    if failure == .offline { return }
+                    // The rest would fail the same way.
+                    if [.offline, .signedOut, .rateLimited].contains(failure) { return }
                 }
                 onChange()
             }

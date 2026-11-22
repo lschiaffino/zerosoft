@@ -34,7 +34,8 @@ private final class SampleSink: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         samples = []
-        samples.reserveCapacity(rate * 30)
+        // The dictation stops at two minutes: no reallocation on the audio thread before that.
+        samples.reserveCapacity(rate * Int(DictationMachine.maxSeconds) + rate)
         peak = 0
         self.rate = rate
         cap = rate * 600
@@ -46,9 +47,7 @@ private final class SampleSink: @unchecked Sendable {
         guard frames > 0, channels > 0, let data = buffer.floatChannelData else { return }
         let interleaved = buffer.format.isInterleaved
         var top: Float = 0
-        lock.lock()
-        defer { lock.unlock() }
-        guard samples.count < cap else { return }
+        var mono = [Float](repeating: 0, count: frames)
         for i in 0 ..< frames {
             var sum: Float = 0
             for c in 0 ..< channels {
@@ -56,9 +55,13 @@ private final class SampleSink: @unchecked Sendable {
             }
             let m = sum / Float(channels)
             top = max(top, abs(m))
-            samples.append(m)
+            mono[i] = m
         }
+        lock.lock()
+        defer { lock.unlock() }
         peak = top
+        guard samples.count < cap else { return }
+        samples.append(contentsOf: mono)
     }
 
     var level: Float {

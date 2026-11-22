@@ -151,8 +151,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model.update { $0.shortcut = shortcut }
         }
         #endif
+        // Dictation's own client: a long dictation with AI cleanup can keep the server quiet for
+        // most of its 60 seconds, longer than the other requests' idle timeout.
         let dictation = DictationController(
-            server: server, lang: lang, http: http, store: PendingStore(dir: pendingDir), settings: model.settings,
+            server: server, lang: lang, http: NativeHTTP(server: server, timeout: 75), store: PendingStore(dir: pendingDir), settings: model.settings,
             mic: mic, paste: paste, makeSource: makeSource
         )
         self.dictation = dictation
@@ -167,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.model.dictationChanged()
         }
         statusItem.dictation = { [weak dictation] in dictation?.menuState }
-        statusItem.shortcutLabel = { [weak dictation] in dictation?.settings.shortcut.label ?? "" }
+        statusItem.shortcutLabel = { [weak dictation] in dictation?.shortcut.label ?? "" }
         statusItem.onDictate = { [weak dictation] in dictation?.toggleFromMenu() }
         statusItem.onPasteLast = { [weak dictation] in dictation?.pasteLast() }
         statusItem.onRetry = { [weak dictation] in dictation?.retryPending() }

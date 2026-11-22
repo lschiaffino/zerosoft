@@ -650,7 +650,8 @@ dictation. Where the code differs from the table above or from the Tauri app:
   (`CGPreflightPostEventAccess`). Otherwise the text is copied and the HUD says "Copied. Paste
   with ⌘V" (the plan's copy-only baseline; no extra notification). Approval is asked for only
   from the "Allow pasting" button (onboarding or Settings › Permissions):
-  `CGRequestPostEventAccess` the first time, System Settings › Accessibility after. No
+  `CGRequestPostEventAccess`, and System Settings › Accessibility whenever macOS shows no prompt
+  (it prompts only once per app). No
   Accessibility (AX) API is used. `scripts/check-signature.sh` checks the built app has the flag
   on and a microphone usage string.
 - **Microphone.** `com.apple.security.device.audio-input` and `NSMicrophoneUsageDescription` are
@@ -661,22 +662,30 @@ dictation. Where the code differs from the table above or from the Tauri app:
 - **Shortcut.** `RegisterEventHotKey` for the dictation shortcut (the Tauri list, default
   Option+Space) and "paste last" (Control+Command+V); Esc is registered only while recording.
   Hold, tap (hands-free) and both modes are the Tauri state machine (`DictationMachine`), with
-  key repeats ignored and a lost release not blocking the next press. A shortcut another app holds
-  shows "Pick another one" in Settings and the onboarding. Option-only shortcuts on macOS 15 are
-  still to be checked on a real Mac: the UI tests record whether the default registers on the
-  runner and use Control+Option+Space for the shortcut test.
+  key repeats ignored and a lost release not blocking the next press. A shortcut that cannot be
+  registered shows "Pick another one" in Settings and the onboarding; when the default
+  Option+Space is refused (macOS 15 is reported to refuse some Option-only shortcuts), the app
+  uses Command+Shift+D for the session and says so in Settings. The UI tests record whether the
+  default registers on the runner and use Command+Shift+D for the shortcut test (Control+Option+
+  Space is a macOS input-source shortcut). While the microphone is open, paste last and the
+  resend of saved dictations do nothing and nothing replaces or hides the recording HUD.
 - **Clipboard.** The port of `clipboard.rs` keeps its rules, with two changes: the snapshot keeps
   every item and type (Tauri kept text or an image), and "is our text still there" compares the
-  pasteboard's change count instead of reading the text back. The clipboard is read only when the
+  pasteboard's change count instead of reading the text back. Contents marked concealed,
+  transient or auto-generated (password managers) are never read or put back: the clipboard is
+  cleared instead, so their auto-clear still works. A clipboard over 32 MB is left alone. The clipboard is read only when the
   keystroke will be posted and "put back the clipboard" is on; whether macOS 26's paste prompt
   shows for that read is still **(unconfirmed)**. Text the app writes is transient, concealed and
   this Mac only.
 - **Saved dictations.** `retry.rs` ported with its limits (20, a week): `<id>.audio` and
-  `<id>.json`, mode 0600, in the container's `Application Support/zerosoft/pending/`, only for
+  `<id>.json`, mode 0600, in the container's `Application Support/zerosoft/pending/` (0700,
+  excluded from backups), only for
   failures where the audio was fine and only with "Keep dictations that could not be sent" on (on
   by default, as the Tauri app and the privacy facts). They are sent only to the server they were
   recorded for, and the text that comes back is copied, never pasted. No transcript is ever
-  written to disk; the last text stays in memory for "Paste last dictation".
+  written to disk; the last text stays in memory for "Paste last dictation". One resend runs at
+  a time, and it stops at the first offline, signed-out or rate-limited answer. The dictation
+  request has its own client with a 75-second idle timeout (the server can think for 60).
 - **Settings and menus.** settings.json gains the shortcut and the mode (names from closed lists)
   and four switches (`autoPaste`, `restoreClipboard`, `sendAppName`, `keepFailedDictations`).
   Settings › Notifications became Permissions (notifications, microphone, Accessibility).

@@ -85,6 +85,10 @@ struct OnboardingView: View {
         .frame(width: 540, height: 440)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("zs-ob-step-\(state.step.rawValue)")
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Back from System Settings: show what changed there.
+            model.refreshDictationAccess()
+        }
     }
 
     @ViewBuilder private var page: some View {
@@ -94,7 +98,7 @@ struct OnboardingView: View {
             OBText(model.t(.obWelcomeBody))
         case .dictation:
             OBTitle(model.t(.obDictTitle))
-            OBText(model.t(.obDictBody, ["key": model.settings.shortcut.label]))
+            OBText(model.t(.obDictBody, ["key": model.shortcutLabel]))
                 .accessibilityIdentifier("zs-ob-dict-body")
             if model.shortcutTaken {
                 Text(model.t(.dictShortcutTaken)).foregroundStyle(.red)

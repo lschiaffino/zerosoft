@@ -112,6 +112,12 @@ public struct PendingStore: Sendable {
         let fm = FileManager.default
         do {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+            // Not in Time Machine or other backups: the limits (20, a week) must hold.
+            var dirURL = dir
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? dirURL.setResourceValues(values)
             let (a, j) = paths(meta.id)
             try Self.writePrivate(audio, to: a)
             try Self.writePrivate(json, to: j)

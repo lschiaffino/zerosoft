@@ -19,6 +19,9 @@ final class DictationHUD {
     private let model = HUDModel()
     /// Bumped by every show: a hide scheduled for an older message does nothing.
     private var shown = 0
+    /// False while the microphone is open: nothing replaces or hides the recording bar then
+    /// (guideline 2.5.14).
+    var mayChange: () -> Bool = { true }
 
     init() {
         panel = NSPanel(
@@ -57,12 +60,13 @@ final class DictationHUD {
 
     /// Shows a result, then hides it (1.1 s, errors 3.2 s), unless something else showed meanwhile.
     func flash(_ phase: Phase, _ label: String) {
+        guard mayChange() else { return }
         show(phase, label)
         let mine = shown
         let seconds = phase == .error ? 3.2 : 1.1
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-            guard let self, self.shown == mine else { return }
+            guard let self, self.shown == mine, self.mayChange() else { return }
             self.hide()
         }
     }
