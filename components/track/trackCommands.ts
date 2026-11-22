@@ -9,6 +9,7 @@ import { addDays, type IssuePatch, type IssuePriority } from '@/lib/track-tasks'
 import { glyphColor, safeHexColor } from '@/lib/track-color';
 import { pushNotice } from './trackUndo';
 import { activeRowElement } from './kbCursor';
+import { fetchAllTrackTeams } from './fetchAllTeams';
 
 /**
  * Track — acciones sobre issues para la paleta ⌘K y los atajos de una tecla
@@ -613,8 +614,7 @@ export function buildIssueActions(
       icon: { kind: 'glyph', name: 'team' },
       children: () => [],
       load: async (q) => {
-        const res = await fetch('/api/track/projects?pageSize=100').catch(() => null);
-        const rows = res?.ok ? ((await res.json()) as { rows: Array<{ id: string; name: string; slug: string; status: string; icon: string | null }> }).rows : [];
+        const rows = (await fetchAllTrackTeams<{ id: string; name: string; slug: string; status: string; icon: string | null }>()) ?? [];
         const needle = q.trim().toLowerCase();
         return rows
           .filter((r) => r.status === 'active' && !targets.every((i) => i.project_id === r.id))

@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { htmlLiteToText, type NoteDetail } from '@/lib/notes-types';
 import { hasIssueLink } from '@/lib/notes-issue-links';
 import NotesIcon from './NotesIcon';
+import { fetchAllTrackTeams } from '@/components/track/fetchAllTeams';
 
 interface ProjectOption {
   id: string;
@@ -62,13 +63,12 @@ export default function NoteTrackDrawer({
       setPicked(new Set(open.map((b) => b.id)));
       if (!fresh.content.some((b) => b.type === 'todo')) setMode('note');
     })();
-    void fetch('/api/track/projects?pageSize=100')
-      .then(async (res) => {
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as { rows: ProjectOption[] };
+    void fetchAllTrackTeams<ProjectOption>()
+      .then((rows) => {
+        if (!rows) throw new Error('track_projects');
         if (!alive) return;
-        setProjects(data.rows.map((p) => ({ id: p.id, name: p.name })));
-        setProjectId((cur) => cur || data.rows[0]?.id || '');
+        setProjects(rows.map((p) => ({ id: p.id, name: p.name })));
+        setProjectId((cur) => cur || rows[0]?.id || '');
       })
       .catch(() => alive && setProjects([]));
     return () => {

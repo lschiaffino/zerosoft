@@ -8,6 +8,7 @@ import type { BoardTrackCard } from '@/lib/board-track';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import NotesIcon from '@/components/notes/NotesIcon';
 import { usePopover } from '@/components/notes/usePopover';
+import { fetchAllTrackTeams } from '@/components/track/fetchAllTeams';
 
 interface ProjectOption {
   id: string;
@@ -55,13 +56,12 @@ export default function BoardTrackTool({
     }
     pop.setOpen(true);
     if (projects === null) {
-      const res = await fetch('/api/track/projects?pageSize=100').catch(() => null);
-      if (!res?.ok) {
+      const rows = await fetchAllTrackTeams<ProjectOption & { status?: string }>();
+      if (!rows) {
         setProjects([]);
         return;
       }
-      const data = (await res.json()) as { rows: Array<ProjectOption & { status?: string }> };
-      const list = data.rows.map((p) => ({ id: p.id, name: p.name }));
+      const list = rows.map((p) => ({ id: p.id, name: p.name }));
       setProjects(list);
       setProjectId((cur) => cur || list[0]?.id || '');
     }

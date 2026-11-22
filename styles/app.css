@@ -465,6 +465,9 @@ html:has(.app-frame) { scroll-padding-top: calc(48px + 8px); }
     display: block;
     flex: none;
     height: 20px;
+    /* Encima del final de la lista, sin sumar alto: si sumaba, al llegar abajo la flecha se iba,
+       el contenido medía 20px menos y la lista saltaba 20px (y un arrastre soltaba en el team de arriba). */
+    margin-top: -20px;
     font-size: 0.875rem;
     line-height: 10px;
     text-align: center;
