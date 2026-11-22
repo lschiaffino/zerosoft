@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   // No se vincula un registro que la key no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
   if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
-  const contact = await catchContactWrite(updateContact(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
+  const contact = await catchContactWrite(updateContact(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email, { linkScope: scope }));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, refErrorMessage(contact.code));
   if (contact instanceof ContactEmailTakenError) return apiEmailTakenResponse(contact, scope);
   if (!contact) return apiError(404, 'not_found', 'Contact not found.');

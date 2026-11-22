@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canAccessConversation } from '@/lib/chat-access';
+import { withViewerCrmContact } from '@/lib/chat-crm-contact';
 import {
   getChatConversationWithVisitor,
   getChatWidget,
@@ -23,7 +24,8 @@ export async function GET(_req: Request, props: { params: Promise<{ id: string }
   const { ok, conversation } = await canAccessConversation(params.id, user);
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   // Con visitante y agente asignado (el inbox la refresca con este GET).
-  return NextResponse.json((await getChatConversationWithVisitor(params.id)) ?? conversation);
+  const withVisitor = await getChatConversationWithVisitor(params.id);
+  return NextResponse.json(withVisitor ? await withViewerCrmContact(withVisitor, user) : conversation);
 }
 
 export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
@@ -93,5 +95,5 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
   }
 
   const withVisitor = await getChatConversationWithVisitor(params.id);
-  return NextResponse.json(withVisitor ?? updated);
+  return NextResponse.json(withVisitor ? await withViewerCrmContact(withVisitor, user) : updated);
 }

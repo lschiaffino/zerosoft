@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { TrashEntity } from '@/lib/crm-trash';
+import PrivateRecord from './PrivateRecord';
 
 export interface TrashTableRow {
   id: string;
@@ -14,7 +15,8 @@ export interface TrashTableRow {
   deletedAt: string;
   daysLeft: number;
   /** Merge: empresa en la que se fusionó (null si fue un borrado común). */
-  mergedInto?: { id: string; name: string | null } | null;
+  /** `private`: una empresa que la persona no ve (sin id ni nombre). */
+  mergedInto?: { id: string | null; name: string | null; private?: boolean } | null;
 }
 
 interface TrashTableProps {
@@ -143,7 +145,9 @@ export default function TrashTable({ rows, canPurge }: TrashTableProps) {
                     <span className="muted cell-sub trash-merged">
                       {' '}
                       {t('trash.mergedInto')}{' '}
-                      {row.mergedInto.name ? (
+                      {row.mergedInto.private ? (
+                        <PrivateRecord label={t('common.privateRecord')} />
+                      ) : row.mergedInto.name && row.mergedInto.id ? (
                         <Link href={`/app/crm/companies/${row.mergedInto.id}`}>{row.mergedInto.name}</Link>
                       ) : (
                         '—'

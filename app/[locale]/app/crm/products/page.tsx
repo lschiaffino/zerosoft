@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listProducts } from '@/lib/crm-products';
 import { getCrmSettings } from '@/lib/crm-currency';
 import ProductQuickCreate from '@/components/crm/ProductQuickCreate';
@@ -32,6 +32,8 @@ export default async function ProductsPage(props: ProductsPageProps) {
     pageSize: 200,
   });
   const { baseCurrency } = await getCrmSettings(user.id);
+  // El catálogo es de todo el workspace: lo editan el dueño y los admins; el resto lo consulta.
+  const canEdit = isWorkspaceAdmin(user);
 
   return (
     <div className="app-page">
@@ -40,7 +42,7 @@ export default async function ProductsPage(props: ProductsPageProps) {
           <h1 className="app-title">{t('products.title')}</h1>
           <p className="muted app-sub">{t('products.subtitle')}</p>
         </div>
-        <ProductQuickCreate defaultCurrency={baseCurrency} />
+        {canEdit && <ProductQuickCreate defaultCurrency={baseCurrency} />}
       </div>
 
       <form className="prod-toolbar" method="get">
@@ -85,6 +87,7 @@ export default async function ProductsPage(props: ProductsPageProps) {
           }))}
           locale={locale}
           defaultCurrency={baseCurrency}
+          canEdit={canEdit}
         />
       )}
     </div>

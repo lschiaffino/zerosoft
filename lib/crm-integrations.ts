@@ -10,6 +10,7 @@ import { getDb } from './db';
 import { createActivity, createContact, updateActivity, updateContact } from './crm';
 import { isValidPhone, parseQuestions } from './calendar-questions';
 import { isWorkspacePerson } from './crm-refs';
+import { canSeeOwner, type OwnerScope } from './crm-visibility';
 import { assignNewLead, type AssignmentSource } from './crm-assignment';
 import { catchEmailTaken, ContactEmailTakenError, findContactByEmail as findByEmail } from './crm-contact-email';
 import type { CalendarBookingRow, ChatMessageRow, ChatVisitorRow, CrmContactRow } from './db';
@@ -43,6 +44,8 @@ export async function findOrCreateContact(
     assign?: AssignmentSource;
     /** Teléfono conocido: va al contacto nuevo o completa uno existente que no tenía. */
     phone?: string | null;
+    /** Alcance de la persona que lo pide: la empresa por dominio de un contacto nuevo tiene que ser una que ve. */
+    linkScope?: OwnerScope;
   },
 ): Promise<{ contact: CrmContactRow; created: boolean }> {
   const phone = input.phone?.trim() ?? '';
@@ -58,7 +61,7 @@ export async function findOrCreateContact(
         ...(phone ? { phone } : {}),
         source: input.source ?? 'other',
         ownerId,
-      }),
+      }, undefined, input.linkScope === undefined ? {} : { linkScope: input.linkScope }),
     );
     if (made instanceof ContactEmailTakenError) existing = made.existing;
     else contact = made;
@@ -229,10 +232,20 @@ export async function logChatToCrm(
     actorId?: string | null;
     /** El agente confirmó la identidad de un visitante con email sin verificar. */
     confirmed?: boolean;
+    /**
+     * Alcance del CRM de quien guarda (undefined = sin persona). Un contacto
+     * con ese email que no ve no se toca ni se nombra: la respuesta es la de
+     * un email ya tomado, sin id (como el alta de un contacto).
+     */
+    scope?: OwnerScope;
   },
-): Promise<{ contact: CrmContactRow; created: boolean } | { error: 'missing_email' | 'unverified_email' }> {
+): Promise<{ contact: CrmContactRow; created: boolean } | { error: 'missing_email' | 'unverified_email' | 'contact_email_taken' }> {
   const email = input.visitor.email?.trim();
   if (!email) return { error: 'missing_email' };
+  if (input.scope) {
+    const found = await findContactByEmail(workspaceId, email);
+    if (found && !canSeeOwner(input.scope, found.owner_id, found.user_id)) return { error: 'contact_email_taken' };
+  }
   // Un email sin verificar (lo escribió cualquiera en el widget) no se asocia
   // solo a un contacto que ya existe: hace falta que el agente lo confirme.
   // Si esta conversación ya se guardó en un contacto, eso ya fue confirmado.
@@ -247,6 +260,7 @@ export async function logChatToCrm(
     name: input.visitor.name,
     ownerId: input.actorId,
     assign: 'chat',
+    ...(input.scope === undefined ? {} : { linkScope: input.scope }),
   });
 
   const transcript = input.messages

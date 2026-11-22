@@ -702,19 +702,36 @@ function domainOf(email: string): string {
   return at < 0 ? '' : email.slice(at + 1).trim().toLowerCase();
 }
 
-/** Id de la empresa del usuario con ese dominio (null si no hay / es freemail). */
-async function findCompanyByDomain(userId: string, domain: string, db: Db): Promise<string | null> {
+/**
+ * Id de la empresa del usuario con ese dominio (null si no hay / es freemail).
+ * Con `scope` (quien crea o edita el contacto), solo una empresa que esa
+ * persona ve: si no ve ninguna con ese dominio, el contacto queda sin empresa
+ * (no se crea otra ni se dice que existe).
+ */
+async function findCompanyByDomain(userId: string, domain: string, db: Db, scope?: OwnerScope): Promise<string | null> {
   if (!domain || FREE_EMAIL_DOMAINS.has(domain)) return null;
+  const cond = ownerScopeSql('crm_companies', scope);
   const row = (await db
-    .prepare('SELECT id FROM crm_companies WHERE user_id = ? AND lower(domain) = ?')
-    .get(userId, domain)) as { id: string } | undefined;
+    .prepare(`SELECT id FROM crm_companies WHERE user_id = ? AND lower(domain) = ?${cond.sql ? ` AND ${cond.sql}` : ''} ORDER BY created_at ASC, id ASC LIMIT 1`)
+    .get(userId, domain, ...cond.args)) as { id: string } | undefined;
   return row?.id ?? null;
+}
+
+/** Opciones de una alta o edición de contacto hecha por una persona. */
+export interface ContactWriteOpts {
+  /**
+   * Alcance de quien escribe: la empresa que se vincula sola por el dominio
+   * del email tiene que ser una que ve. undefined = sin persona (formularios,
+   * integraciones, flows): cualquier empresa del workspace.
+   */
+  linkScope?: OwnerScope;
 }
 
 export async function createContact(
   userId: string,
   data: ContactInput,
   db: Db = getDb(),
+  opts: ContactWriteOpts = {},
 ): Promise<CrmContactRow> {
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   await assertUniqueCustom(userId, 'contacts', null, data.custom, {}, db);
@@ -722,7 +739,7 @@ export async function createContact(
   const email = cleanContactEmail(data.email);
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
   const companyId =
-    data.companyId ?? (await findCompanyByDomain(userId, domainOf(email), db));
+    data.companyId ?? (await findCompanyByDomain(userId, domainOf(email), db, opts.linkScope));
   // El email es la identidad del contacto (lib/crm-contact-email.ts): el
   // NOT EXISTS va en la misma sentencia para que dos altas a la vez no pasen.
   const inserted = await db
@@ -772,6 +789,7 @@ export async function updateContact(
   data: ContactInput,
   db: Db = getDb(),
   actorEmail = '',
+  opts: ContactWriteOpts = {},
 ): Promise<CrmContactRow | null> {
   const existing = (await db
     .prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?')
@@ -788,7 +806,7 @@ export async function updateContact(
   // Auto-link: si cambia el email, no vino companyId explícito y el contacto
   // no tiene empresa, intentamos vincular por dominio del email nuevo.
   if (data.email !== undefined && data.companyId === undefined && !existing.company_id) {
-    const linked = await findCompanyByDomain(userId, domainOf(data.email), db);
+    const linked = await findCompanyByDomain(userId, domainOf(data.email), db, opts.linkScope);
     if (linked) sets.push(['company_id', linked]);
   }
   const setSql = sets.map(([c]) => `${c} = ?`).join(', ');

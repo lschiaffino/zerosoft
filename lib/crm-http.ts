@@ -160,6 +160,16 @@ export function forbidden(): NextResponse {
 }
 
 /**
+ * API v1: lo compartido por todo el workspace (catálogo de productos, renombrar
+ * o borrar un tag) solo lo cambian el dueño y los admins, como en la app.
+ * null = puede seguir.
+ */
+export function apiAdminOnly(auth: { role: string }): NextResponse | null {
+  if (auth.role === 'owner' || auth.role === 'admin') return null;
+  return NextResponse.json({ error: { code: 'forbidden', message: 'Only the workspace owner or an admin can do this.' } }, { status: 403 });
+}
+
+/**
  * Rate limit por persona para acciones caras o abusables (envío de emails,
  * import, ejecución manual de workflows). null = puede seguir.
  */

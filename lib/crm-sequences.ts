@@ -469,6 +469,8 @@ export async function setEnrollmentState(
   if (action === 'pause' && enr.status === 'active') {
     await db.prepare("UPDATE crm_sequence_enrollments SET status = 'paused', updated_at = ? WHERE id = ?").run(ts, id);
   } else if (action === 'resume' && enr.status === 'paused') {
+    // Sigue sin remitente del workspace: no se reanuda (se quita y se inscribe con otra persona).
+    if (enr.exit_reason === SENDER_LEFT && !(await isWorkspacePersonId(userId, enr.sender_id))) return enr;
     await db
       .prepare(
         "UPDATE crm_sequence_enrollments SET status = 'active', exit_reason = NULL, next_run_at = CASE WHEN next_run_at IS NULL OR next_run_at < ? THEN ? ELSE next_run_at END, updated_at = ? WHERE id = ?",
@@ -592,6 +594,38 @@ async function saveEnrollment(
 
 export type ProcessOutcome = 'waiting' | 'finished' | 'exited' | 'paused' | 'retry' | 'skipped';
 
+/** Motivo de pausa de una inscripción cuyo remitente salió del workspace. */
+export const SENDER_LEFT = 'sender_left';
+
+/**
+ * Aviso al dueño del workspace (siempre admin) de que una secuencia quedó con
+ * inscripciones pausadas porque quien enviaba salió. Uno por secuencia
+ * mientras no lo lea, aunque se pausen varias inscripciones.
+ */
+async function notifySenderLeft(workspaceId: string, sequence: CrmSequenceRow): Promise<void> {
+  const db = getDb();
+  const pending = await db
+    .prepare("SELECT 1 FROM notifications WHERE user_id = ? AND type = 'crm_sequence' AND source_type = 'crm_sequence' AND source_id = ? AND read_at IS NULL LIMIT 1")
+    .get(workspaceId, sequence.id);
+  if (pending) return;
+  try {
+    const { createNotification } = await import('./notifications');
+    const { localized } = await import('./notification-copy');
+    await createNotification({
+      userId: workspaceId,
+      type: 'crm_sequence',
+      title: localized('sequenceSenderLeft', { sequence: sequence.name }),
+      body: localized('sequenceSenderLeftBody'),
+      href: `/app/crm/sequences/${sequence.id}`,
+      sourceType: 'crm_sequence',
+      sourceId: sequence.id,
+      meta: { reason: SENDER_LEFT },
+    });
+  } catch {
+    /* sin aviso la inscripción igual queda pausada */
+  }
+}
+
 /** Avanza una inscripción ya bloqueada. Exportado para tests. */
 export async function processEnrollment(
   enr: CrmSequenceEnrollmentRow,
@@ -608,6 +642,13 @@ export async function processEnrollment(
     .prepare('SELECT id, email, company_id FROM crm_contacts WHERE id = ? AND user_id = ?')
     .get(enr.contact_id, enr.user_id)) as { id: string; email: string; company_id: string | null } | undefined;
   if (!contact) return 'skipped';
+  // Quien envía ya no es parte del workspace: no sale nada más en su nombre.
+  // La inscripción se pausa y se avisa al dueño del workspace.
+  if (!(await isWorkspacePersonId(enr.user_id, enr.sender_id))) {
+    await saveEnrollment(enr.id, { status: 'paused', exit_reason: SENDER_LEFT }, now);
+    await notifySenderLeft(enr.user_id, seq.sequence);
+    return 'paused';
+  }
   const cfg = scheduleOf(seq.sequence);
   const state = { ...enr };
 

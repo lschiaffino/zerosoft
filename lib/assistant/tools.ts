@@ -14,7 +14,7 @@ import { canManage } from '../teams-http';
 import { getMemberRole, removeMember } from '../teams';
 import { inviteMany } from '../workspace-invites';
 import { createContact, createDeal, createPipeline, createStage, deleteContact, listPipelinesWithStages, listTasks, searchAll } from '../crm';
-import { canSeeEntity, scopeAnd, sessionScope } from '../crm-visibility';
+import { canSeeEntity, ownerScopeSql, scopeAnd, sessionScope } from '../crm-visibility';
 import { catchEmailTaken, ContactEmailTakenError, emailTakenInfo, findContactByEmail } from '../crm-contact-email';
 import { listImportJobs as listCrmImportJobs } from '../crm-import-jobs';
 import { listWorkspaceImportJobs } from '../import-jobs';
@@ -292,13 +292,19 @@ const platform: AssistantTool[] = [
             .all(team.id)
             .catch(() => [])) as Array<Record<string, unknown>>)
         : [];
+      // Salidas de secuencias del workspace (las secuencias las ve todo el CRM) solo de
+      // contactos que quien pregunta ve, con la misma regla que la lista de inscripciones.
+      const contactScope = ownerScopeSql('c', userCanUseApp(ctx.user, 'crm') ? await crmScope(ctx) : null);
       const sequences = userCanUseApp(ctx.user, 'crm')
         ? ((await getDb()
             .prepare(
-              `SELECT e.status, e.exit_reason, e.updated_at, s.name AS sequence FROM crm_sequence_enrollments e LEFT JOIN crm_sequences s ON s.id = e.sequence_id
-               WHERE e.user_id = ? AND e.exit_reason IS NOT NULL AND e.exit_reason != '' ORDER BY e.updated_at DESC LIMIT 20`,
+              `SELECT e.status, e.exit_reason, e.updated_at, s.name AS sequence FROM crm_sequence_enrollments e
+               JOIN crm_sequences s ON s.id = e.sequence_id AND s.user_id = e.user_id
+               JOIN crm_contacts c ON c.id = e.contact_id AND c.user_id = e.user_id
+               WHERE e.user_id = ? AND e.exit_reason IS NOT NULL AND e.exit_reason != ''${contactScope.sql ? ` AND ${contactScope.sql}` : ''}
+               ORDER BY e.updated_at DESC LIMIT 20`,
             )
-            .all(ctx.workspaceId)
+            .all(ctx.workspaceId, ...contactScope.args)
             .catch(() => [])) as Array<Record<string, unknown>>)
         : [];
       return { invitations: invites, sequenceExits: sequences };
@@ -473,7 +479,7 @@ const crm: AssistantTool[] = [
       };
     },
     execute: async (ctx, input) => {
-      const c = await catchEmailTaken(createContact(ctx.workspaceId, { ...(input as Record<string, string>), ownerId: ctx.personId }));
+      const c = await catchEmailTaken(createContact(ctx.workspaceId, { ...(input as Record<string, string>), ownerId: ctx.personId }, undefined, { linkScope: await crmScope(ctx) }));
       if (c instanceof ContactEmailTakenError) {
         const info = emailTakenInfo(c.existing, await sessionScope(ctx.user));
         return info.existing

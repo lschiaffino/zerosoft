@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { deleteTag, updateTag } from '@/lib/crm-tags';
 import { tagUpdateSchema } from '@/lib/crm-schema';
-import { cleanRow, zodErrorCode } from '@/lib/crm-http';
+import { apiAdminOnly, cleanRow, zodErrorCode } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,9 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  // Renombrar o borrar un tag compartido: solo el dueño y los admins (como en la app).
+  const notAdmin = apiAdminOnly(auth);
+  if (notAdmin) return notAdmin;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = tagUpdateSchema.safeParse(body);
@@ -31,6 +34,9 @@ export async function DELETE(req: NextRequest, props: Ctx) {
   const { id } = await props.params;
   const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  // Renombrar o borrar un tag compartido: solo el dueño y los admins (como en la app).
+  const notAdmin = apiAdminOnly(auth);
+  if (notAdmin) return notAdmin;
   if (!(await deleteTag(auth.user.id, id))) return apiError(404, 'not_found', 'Tag not found.');
   return new NextResponse(null, { status: 204 });
 }

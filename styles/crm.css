@@ -2410,6 +2410,8 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 .prod-table .num, .li-table .num, .crm-table .num { text-align: right; white-space: nowrap; }
 .prod-name { border: none; background: none; padding: 0; font: inherit; font-weight: 500; color: var(--ink); cursor: pointer; text-align: left; }
 .prod-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.prod-name-static { cursor: default; }
+.prod-name-static:hover { text-decoration: none; }
 .prod-desc { display: block; font-size: 12px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prod-actions-cell { text-align: right; }
 .prod-actions { display: flex; gap: 12px; justify-content: flex-end; white-space: nowrap; }
@@ -2621,6 +2623,12 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   cursor: pointer;
 }
 .tag-swatch.is-on { outline: 1px solid var(--ink); outline-offset: 2px; }
+/* Táctil: cada color es un objetivo de 40px con el cuadrado de siempre en el centro. */
+@media (pointer: coarse) {
+  .tag-swatches { gap: 0; }
+  .tag-swatch { width: 40px; height: 40px; padding: 12px; border-width: 0; background-clip: content-box !important; }
+  .tag-swatch.is-on { outline-offset: -10px; }
+}
 .tags-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .tags-row {
   display: grid;
@@ -2631,6 +2639,9 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--line);
 }
 .tags-name { padding: 4px 6px; }
+/* Sin permiso para renombrar o borrar: punto, nombre y cantidades. */
+.tags-row.tags-row-static { grid-template-columns: 8px minmax(0, 1fr) auto; }
+.tags-name-static { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tags-count { text-align: right; }
 .tags-confirm { display: inline-flex; gap: 6px; }
 
@@ -2647,6 +2658,7 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .tags-row { grid-template-columns: 8px minmax(0, 1fr) auto; }
   .tags-row .tag-swatches, .tags-row .tags-count { grid-column: 2 / span 2; }
+  .tags-row.tags-row-static .tags-count { grid-column: auto; }
 }
 
 /* ============================================================
