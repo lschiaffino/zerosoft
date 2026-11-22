@@ -778,8 +778,10 @@ from the table above or from the Tauri app:
   bubble is an `AVCaptureVideoPreviewLayer` of a capture session with no output, so no frame is
   kept or written anywhere; the page's screen recording records the bubble on screen. The
   computer's audio of a Rec recording is block 7's capture, started by the page from the tab in
-  use. The ready report gained a `display` key (`getDisplayMedia` present) and the Rec UI test
-  attaches what the macos-15 runner's WebKit offers; a real screen recording needs a real Mac.
+  use. The ready report gained a `display` key (`getDisplayMedia` present). Measured on the
+  macos-15 runner: with the camera entitlement, `getUserMedia` and `getDisplayMedia` are both
+  present in the server page without Lockdown restrictions (`media=true display=true`) and both
+  absent with them; a real screen recording still needs a real Mac.
 - **Start rule (section 4.3, rule 4, plus block 7's rule).** A recording's bar starts only from the
   tab in use. Rec reports its first state after the screen picker closes, and macOS's picker can
   take the app out of the front, so the tab that was in use when the app lost the front may

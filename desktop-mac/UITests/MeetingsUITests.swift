@@ -163,7 +163,7 @@ final class MeetingsUITests: XCTestCase {
     private func reveal(_ app: XCUIApplication, _ el: XCUIElement, click: Bool = true, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(el.waitForExistence(timeout: 15), "missing \(el)", file: file, line: line)
         let scroll = settingsWindow(app).scrollViews.firstMatch
-        for delta in [-120.0, -120, -120, -120, 120, 120, 120, 120, 120, 120, 120, 120] where !el.isHittable {
+        for delta in [-120.0, -120, -120, -120] + Array(repeating: 120.0, count: 16) where !el.isHittable {
             scroll.scroll(byDeltaX: 0, deltaY: CGFloat(delta))
         }
         XCTAssertTrue(el.isHittable, "\(el) is not visible", file: file, line: line)

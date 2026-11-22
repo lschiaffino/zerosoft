@@ -43,6 +43,9 @@ final class RecBubble {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.identifier = NSUserInterfaceItemIdentifier("zs-recbubble-panel")
+        // The panel carries the name; its two buttons are plain children.
+        panel.setAccessibilityIdentifier("zs-recbubble")
+        panel.setAccessibilityLabel(Strings.text(.recBubble, lang))
         view = BubbleView(frame: NSRect(x: 0, y: 0, width: side, height: side), lang: lang)
         panel.contentView = view
         view.onSize = { [weak self] in self?.onAction(.size) }
@@ -125,10 +128,6 @@ private final class BubbleView: NSView {
         face.borderColor = NSColor.white.withAlphaComponent(0.85).cgColor
         face.borderWidth = 3
         layer?.addSublayer(face)
-        setAccessibilityElement(true)
-        setAccessibilityRole(.image)
-        setAccessibilityLabel(Strings.text(.recBubble, lang))
-        setAccessibilityIdentifier("zs-recbubble")
         toolTip = Strings.text(.recBubble, lang)
         for (b, name, id, action) in [
             (size, "arrow.up.left.and.arrow.down.right", "zs-recbubble-size", #selector(tapSize)),
@@ -154,8 +153,6 @@ private final class BubbleView: NSView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not used") }
-
-    override func accessibilityChildren() -> [Any]? { [size, hide] }
 
     func setCamera(_ layer: CALayer?) {
         guard layer !== camera else { return }
