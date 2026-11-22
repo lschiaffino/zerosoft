@@ -45,7 +45,7 @@ export const SYNC_READ_SCOPES = [
   'crm.schemas.deals.read',
 ] as const;
 
-/** Lo que va a hacer falta para escribir en HubSpot (todavía no se usa). */
+/** Lo que hace falta para escribir en HubSpot (la salida, lib/crm-hubspot-sync/outbound.ts). */
 export const SYNC_WRITE_SCOPES = ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write'] as const;
 
 export const SYNC_DIRECTIONS = ['hubspot_to_zerosoft', 'zerosoft_to_hubspot', 'both'] as const;
@@ -348,6 +348,8 @@ export async function disconnectSync(ws: string, actor = ''): Promise<boolean> {
   await db
     .prepare('UPDATE crm_hubspot_sync_settings SET enabled = 0, updated_by = ?, updated_at = ? WHERE user_id = ?')
     .run(actor, new Date().toISOString(), ws);
+  // La escritura en HubSpot también se apaga: al reconectar, un admin la vuelve a prender después de mirar la vista previa.
+  await db.prepare(`UPDATE crm_hubspot_outbound SET mode = 'off', updated_at = ? WHERE user_id = ?`).run(new Date().toISOString(), ws);
   await dropPreview(ws);
   return res.changes > 0;
 }

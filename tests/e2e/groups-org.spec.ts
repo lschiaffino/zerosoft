@@ -182,7 +182,7 @@ test('plantillas: crear, usar con variables y encontrarla con ⌘K', async ({ pa
   await expect(use.getByText('1 of 1 group created.')).toBeVisible({ timeout: 20_000 });
   await use.getByRole('link', { name: `${company} · Support` }).click();
   await expect(page.getByRole('heading', { level: 1, name: `${company} · Support` })).toBeVisible();
-  await expect(page.getByText('+15550005003').first()).toBeVisible();
+  await expect(page.getByText('+1 555 000 5003').first()).toBeVisible();
   await expect(page.getByText('Hi ' + company + ', welcome.')).toBeVisible();
 
   await page.keyboard.press('ControlOrMeta+k');

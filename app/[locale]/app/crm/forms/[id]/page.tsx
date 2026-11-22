@@ -4,7 +4,8 @@ import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { getForm, listSubmissions } from '@/lib/crm-forms';
-import { listCustomFields, listLists, listPipelinesWithStages } from '@/lib/crm';
+import { listLists, listPipelinesWithStages } from '@/lib/crm';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { captchaConfigured } from '@/lib/crm-forms';
 import { listTags } from '@/lib/crm-tags';
 import { listSequences } from '@/lib/crm-sequences';
@@ -42,8 +43,8 @@ export default async function FormDetailPage(props: {
   let body: React.ReactNode;
   if (tab === 'build') {
     const [contactFields, companyFields, lists, tags, sequences, pipelines] = await Promise.all([
-      listCustomFields(user.id, 'contacts'),
-      listCustomFields(user.id, 'companies'),
+      fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
+      fieldAccessFor(sessionFieldViewer(user), 'companies').then((a) => a.visible),
       listLists(user.id),
       listTags(user.id),
       listSequences(user.id),

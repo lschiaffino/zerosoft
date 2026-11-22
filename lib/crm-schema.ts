@@ -9,7 +9,6 @@ import { MAX_REQUIRED_FIELDS } from './crm-stage-rules';
 import { CALL_CHANNELS, MAX_CALL_OUTCOMES } from './crm-calls';
 import {
   ACTIVITY_TYPES,
-  CONTACT_COMPANY_LABELS,
   DEAL_TYPES,
   LIFECYCLE_STAGES,
   LEAD_STATUSES,
@@ -367,8 +366,11 @@ export const associationSchema = z.object({
   toId: id,
   /** Empresa primaria (contact ↔ company, deal ↔ company). */
   primary: z.boolean().optional(),
-  /** Label de contact ↔ company ('' o null = sin label). */
-  label: z.union([z.enum(CONTACT_COMPANY_LABELS), z.literal('')]).nullish(),
+  /**
+   * Label de contact ↔ company o deal ↔ contact ('' o null = sin label): una
+   * clave de fábrica o `custom:<id>` (lib/crm-assoc-labels.ts lo valida).
+   */
+  label: z.string().trim().max(80).nullish(),
 });
 
 export const associationRemoveSchema = associationSchema.omit({ primary: true, label: true });

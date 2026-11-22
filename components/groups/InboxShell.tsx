@@ -45,6 +45,7 @@ import Avatar from './wa/Avatar';
 import { useGroupEventText } from './wa/GroupEvent';
 import { decodeSysPreview } from '@/lib/wa-group-events';
 import { duration, listTime } from './wa/format';
+import { nameOrPhone } from '@/components/inbox/wa/util';
 import { plainWa } from './wa/rich';
 import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, ClockIcon, Close, Download, FilterIcon, FolderIcon, InfoIcon, Mic, MuteIcon, PinIcon, Plus, ReadIcon, Retry, Search, Ticks, Trash, UnreadIcon, UserPlus, WindowIcon } from './wa/icons';
 import { MessageMenu, type MenuItem } from './ThreadParts';
@@ -1128,7 +1129,7 @@ export default function InboxShell({
                 ) : (
                   <>
                     {c.lastDirection === 'out' && c.lastStatus && c.lastStatus !== 'received' && <Ticks status={c.lastStatus} label={t(c.lastStatus === 'read' && c.readHidden ? 'status.readHidden' : `status.${c.lastStatus}`)} />}
-                    {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{c.lastSender}:</span>}
+                    {c.kind === 'group' && c.lastDirection === 'in' && c.lastSender && <span className="gr-row-sender">{nameOrPhone(c.lastSender)}:</span>}
                     {c.lastKind === 'voice' || c.lastMessagePreview === '[voice]' ? (
                       <span className="gr-row-voice">
                         <Mic size={15} /> {c.lastDuration ? duration(c.lastDuration) : t('media.audio')}
