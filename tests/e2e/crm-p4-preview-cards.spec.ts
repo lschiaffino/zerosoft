@@ -51,8 +51,9 @@ async function openPreview(page: Page, pipelineId: string, name: string) {
   await page.goto(`/en/app/crm/deals?pipeline=${pipelineId}`, { waitUntil: 'networkidle' });
   // Click en la card (no en el nombre, que lleva a la ficha).
   const card = page.locator('.kb-card', { hasText: name });
+  await card.scrollIntoViewIfNeeded();
   const box = (await card.boundingBox())!;
-  await page.mouse.click(box.x + box.width - 12, box.y + box.height - 8);
+  await card.click({ position: { x: box.width - 12, y: box.height - 8 } });
   const preview = page.getByTestId('record-preview');
   await expect(preview.getByRole('heading', { name })).toBeVisible();
   return preview;
@@ -254,9 +255,10 @@ test('vista previa y ajustes a 390: sin scroll horizontal, acciones de 40px', as
   await page.setViewportSize({ width: 390, height: 844 });
   const preview = await openPreview(page, p.id, name);
   for (const k of ['note', 'email', 'call', 'task', 'meeting']) {
-    const b = (await preview.getByTestId(`preview-quick-${k}`).boundingBox())!;
-    expect(b.height).toBeGreaterThanOrEqual(40);
-    expect(b.x + b.width).toBeLessThanOrEqual(390);
+    const btn = preview.getByTestId(`preview-quick-${k}`);
+    // El panel entra deslizándose: se mide cuando terminó.
+    await expect.poll(async () => { const b = (await btn.boundingBox())!; return b.x + b.width; }).toBeLessThanOrEqual(390);
+    expect((await btn.boundingBox())!.height).toBeGreaterThanOrEqual(40);
   }
   await preview.getByTestId('preview-quick-email').click();
   await expect(preview.getByTestId('preview-composer')).toBeVisible();

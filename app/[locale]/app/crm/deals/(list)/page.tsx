@@ -596,7 +596,7 @@ export default async function DealsPage(props: DealsPageProps) {
               {isWorkspaceAdmin(user) && (
                 <Link
                   href={`/app/crm/settings?tab=sales&pipeline=${encodeURIComponent(pipeline.id)}#board-cards`}
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-secondary btn-sm"
                   data-testid="deals-edit-cards"
                 >
                   {t('layouts.editCards')}

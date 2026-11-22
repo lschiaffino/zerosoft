@@ -87,3 +87,7 @@
   .preview-panel .assoc-add-btn, .preview-composer-actions .btn, .preview-customize { min-height: 40px; }
   .preview-panel .assoc-remove { min-width: 40px; min-height: 40px; }
 }
+/* En el teléfono el formulario de alta baja sus herramientas a otra fila; acá no hay casilla y entran al lado. */
+@media (max-width: 520px) {
+  .layout-row .create-form-tools { grid-column: auto; justify-content: flex-end; }
+}
