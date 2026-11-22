@@ -40,6 +40,10 @@ interface DealsFiltersProps {
   extraSorts?: Array<{ value: string; label: string }>;
   /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
   children?: React.ReactNode;
+  /** Params que se conservan al filtrar (vista activa, columnas; lib/crm-views-shared.ts). */
+  keep?: Record<string, string>;
+  /** En el board no hay filtro por etapa (las columnas son las etapas), ni orden ni columnas. */
+  layout?: 'table' | 'board';
 }
 
 /** Filtros de la vista tabla de deals (server-side vía query params). */
@@ -65,6 +69,8 @@ export default function DealsFilters({
   customFields,
   extraSorts = [],
   children,
+  keep = {},
+  layout = 'table',
 }: DealsFiltersProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -75,7 +81,7 @@ export default function DealsFilters({
     const params = new URLSearchParams();
     const current: Record<string, string | undefined> = {
       pipeline,
-      view: 'table',
+      view: layout === 'table' ? 'table' : undefined,
       q: q || undefined,
       stageId: stageId || undefined,
       priority: priority || undefined,
@@ -87,6 +93,7 @@ export default function DealsFilters({
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
+      ...keep,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {
@@ -139,19 +146,21 @@ export default function DealsFilters({
             aria-label={t('deals.table.searchPlaceholder')}
           />
         </form>
-        <select
-          className={`filter-select${stageId ? ' on' : ''}`}
-          value={stageId}
-          onChange={(e) => go({ stageId: e.target.value || undefined })}
-          aria-label={t('deals.table.stage')}
-        >
-          <option value="">{t('deals.table.stage')}</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        {layout === 'table' && (
+          <select
+            className={`filter-select${stageId ? ' on' : ''}`}
+            value={stageId}
+            onChange={(e) => go({ stageId: e.target.value || undefined })}
+            aria-label={t('deals.table.stage')}
+          >
+            <option value="">{t('deals.table.stage')}</option>
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           className={`filter-select${priority ? ' on' : ''}`}
           value={priority}
@@ -236,30 +245,34 @@ export default function DealsFilters({
               {t('common.clear')}
             </button>
           )}
-          <select
-            className="filter-select filter-sort"
-            value={sort}
-            onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
-            aria-label={t('common.sortBy')}
-          >
-            <option value="newest">{t('deals.sortNewest')}</option>
-            <option value="oldest">{t('deals.sortOldest')}</option>
-            <option value="amount">{t('deals.sortAmount')}</option>
-            <option value="amount_asc">{t('deals.sortAmountAsc')}</option>
-            <option value="close_date">{t('deals.sortCloseDate')}</option>
-            <option value="close_date_desc">{t('deals.sortCloseDesc')}</option>
-            {ACTIVITY_DATE_SORTS.map((v) => (
-              <option key={v} value={v}>
-                {t(`activityDates.sort.${v}`)}
-              </option>
-            ))}
-            {extraSorts.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <ColumnsSlot />
+          {layout === 'table' && (
+            <>
+              <select
+                className="filter-select filter-sort"
+                value={sort}
+                onChange={(e) => go({ sort: e.target.value === 'newest' ? undefined : e.target.value })}
+                aria-label={t('common.sortBy')}
+              >
+                <option value="newest">{t('deals.sortNewest')}</option>
+                <option value="oldest">{t('deals.sortOldest')}</option>
+                <option value="amount">{t('deals.sortAmount')}</option>
+                <option value="amount_asc">{t('deals.sortAmountAsc')}</option>
+                <option value="close_date">{t('deals.sortCloseDate')}</option>
+                <option value="close_date_desc">{t('deals.sortCloseDesc')}</option>
+                {ACTIVITY_DATE_SORTS.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`activityDates.sort.${v}`)}
+                  </option>
+                ))}
+                {extraSorts.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <ColumnsSlot />
+            </>
+          )}
         </div>
       </div>
 

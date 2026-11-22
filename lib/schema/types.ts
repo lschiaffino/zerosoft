@@ -447,7 +447,12 @@ export interface CrmSavedViewRow {
   entity: string;
   name: string;
   query: string; // JSON object
+  /** Quien la creó (NULL = vistas de antes: cuentan como del dueño del workspace). */
+  person_id: string | null;
+  visibility: 'private' | 'team' | 'everyone';
+  team_id: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface CrmSavedReportRow {

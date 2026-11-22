@@ -302,14 +302,6 @@ export const listMembersSchema = z.object({
   contactIds: z.array(id).min(1).max(1000),
 });
 
-// ---------- Saved views ----------
-
-export const savedViewCreateSchema = z.object({
-  entity: z.enum(['contacts', 'companies', 'deals', 'tasks']),
-  name,
-  query: z.record(z.unknown()).optional(),
-});
-
 // ---------- Saved reports ----------
 
 export const REPORT_TYPES = [
@@ -587,7 +579,6 @@ export type TaskProjectUpdatePayload = z.infer<typeof taskProjectUpdateSchema>;
 export type ListCreatePayload = z.infer<typeof listCreateSchema>;
 export type ListUpdatePayload = z.infer<typeof listUpdateSchema>;
 export type ListMembersPayload = z.infer<typeof listMembersSchema>;
-export type SavedViewCreatePayload = z.infer<typeof savedViewCreateSchema>;
 export type CustomFieldCreatePayload = z.infer<typeof customFieldCreateSchema>;
 export type CustomFieldUpdatePayload = z.infer<typeof customFieldUpdateSchema>;
 export type ImportContactsPayload = z.infer<typeof importContactsSchema>;

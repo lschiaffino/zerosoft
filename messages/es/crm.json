@@ -1302,7 +1302,8 @@
       "contactCount": "Cantidad de contactos",
       "forecastCategory": "Categoría de forecast",
       "lostReason": "Motivo de pérdida",
-      "closedAt": "Fecha de cierre real"
+      "closedAt": "Fecha de cierre real",
+      "dealStatus": "Estado del deal"
     },
     "panelHint": "Un registro entra en un grupo cuando cumple todos sus filtros. Los grupos se suman con O.",
     "addFilter": "Agregar filtro",
@@ -1387,6 +1388,11 @@
       "next_days": "es en {count, plural, one {el próximo día} other {los próximos # días}}",
       "less_days_ago": "es hace menos de {count, plural, one {# día} other {# días}}",
       "more_days_ago": "es hace más de {count, plural, one {# día} other {# días}}"
+    },
+    "dealStatus": {
+      "open": "Abierto",
+      "won": "Ganado",
+      "lost": "Perdido"
     }
   },
   "meetings": {
@@ -4538,5 +4544,97 @@
     "help": "Los miembros solo ven las propiedades personalizadas que pueden editar, y solo esas les resultan obligatorias.",
     "saved": "Guardado",
     "missing": "Completá los campos obligatorios: {fields}"
+  },
+  "views": {
+    "tabsLabel": "Vistas",
+    "unsaved": "Cambios sin guardar",
+    "tabOptions": "Opciones de {name}",
+    "pin": "Fijar pestaña",
+    "unpin": "Soltar pestaña",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "edit": "Renombrar y compartir",
+    "saveAs": "Guardar como vista nueva",
+    "close": "Cerrar pestaña",
+    "delete": "Borrar vista",
+    "more": "Más ({count})",
+    "addView": "Agregar vista",
+    "create": "Crear vista con este listado",
+    "allViews": "Todas las vistas",
+    "reset": "Restablecer",
+    "save": "Guardar",
+    "deleteTitle": "¿Borrar la vista \"{name}\"?",
+    "deleteShared": "La vista está compartida. Desaparece para todas las personas que la tienen como pestaña. Los registros quedan como están.",
+    "deleteBody": "Los registros quedan como están. Solo se borran los filtros, el orden y las columnas guardados.",
+    "editTitle": "Renombrar y compartir la vista",
+    "createTitle": "Guardar vista",
+    "name": "Nombre de la vista",
+    "visibility": {
+      "label": "Quién la ve",
+      "private": "Privada",
+      "privateHint": "Solo vos.",
+      "team": "Mi equipo",
+      "teamHint": "Las personas de tu equipo de ventas.",
+      "noTeam": "No estás en un equipo de ventas.",
+      "chooseTeam": "Equipo",
+      "everyone": "Todos",
+      "everyoneHint": "Todo el workspace."
+    },
+    "errors": {
+      "generic": "No se pudo guardar el cambio. Probá de nuevo.",
+      "forbidden": "Solo quien creó esta vista o un admin la puede cambiar.",
+      "notFound": "Esta vista ya no existe."
+    },
+    "defaults": {
+      "allContacts": "Todos los contactos",
+      "myContacts": "Mis contactos",
+      "unassignedContacts": "Contactos sin asignar",
+      "allCompanies": "Todas las empresas",
+      "myCompanies": "Mis empresas",
+      "unassignedCompanies": "Empresas sin asignar",
+      "allDeals": "Todos los deals",
+      "myDeals": "Mis deals",
+      "openDeals": "Deals abiertos"
+    },
+    "columns": {
+      "button": "Editar columnas",
+      "title": "Editar columnas",
+      "available": "Propiedades",
+      "search": "Buscar propiedades",
+      "noMatch": "Ninguna propiedad coincide.",
+      "selected": "Columnas elegidas",
+      "selectedCount": "Columnas elegidas ({count})",
+      "locked": "Siempre primera",
+      "moveUp": "Subir {name}",
+      "moveDown": "Bajar {name}",
+      "remove": "Quitar {name}",
+      "freeze": "Fijar la primera columna",
+      "reset": "Columnas por defecto",
+      "apply": "Aplicar"
+    },
+    "all": {
+      "title": "Todas las vistas",
+      "description": "Las vistas guardadas que podés abrir. Las privadas de otras personas no aparecen.",
+      "entity": "Objeto",
+      "entities": {
+        "contacts": "Contactos",
+        "companies": "Empresas",
+        "deals": "Deals"
+      },
+      "you": "Vos",
+      "formerMember": "Ex miembro",
+      "sharedTeam": "Equipo: {team}",
+      "emptyTitle": "Todavía no hay vistas guardadas",
+      "emptyBody": "Filtrá el listado y usá Agregar vista para guardar los filtros, el orden y las columnas.",
+      "backToList": "Ir al listado",
+      "search": "Buscar vistas",
+      "createdBy": "Creada por",
+      "anyone": "Cualquiera",
+      "sharedWith": "Compartida con",
+      "anySharing": "Cualquier acceso",
+      "createdByMe": "Creadas por mí",
+      "noMatch": "Ninguna vista coincide con estos filtros.",
+      "updated": "Actualizada"
+    }
   }
 }
