@@ -1485,6 +1485,44 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "people": {
+      "intro": {
+        "title": "Welcome to People",
+        "body": "People is your team directory, with the org chart, time off and reviews. This tour points out the main parts."
+      },
+      "person": {
+        "title": "Profiles",
+        "body": "Everyone in the workspace has a profile. Open one to see their role, manager, time off and documents."
+      },
+      "filters": {
+        "title": "Search and filter",
+        "body": "Find someone by name, title or team, or filter by department, location and type."
+      },
+      "add": {
+        "title": "Add a person",
+        "body": "Add someone by hand or import a CSV. People who join the workspace show up on their own."
+      },
+      "org": {
+        "title": "Org chart",
+        "body": "Who reports to whom, built from the manager on each profile."
+      },
+      "timeOff": {
+        "title": "Time off",
+        "body": "Request days off and see your balances. Managers approve their team's requests here."
+      },
+      "reviews": {
+        "title": "Reviews",
+        "body": "Review cycles with self, manager and peer reviews, plus team surveys."
+      },
+      "settings": {
+        "title": "People settings",
+        "body": "Time off policies, holidays, custom fields, who sees what and HR admins."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "send": {
       "intro": {
         "title": "Welcome to Send",
