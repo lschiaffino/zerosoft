@@ -308,4 +308,35 @@ private func json(_ object: Any) -> Data {
     let root = try! JSONSerialization.jsonObject(with: s.encoded()) as! [String: Any]
     #expect((root["windows"] as? [Any])?.isEmpty == true)
     #expect((root["prefs"] as? [String: Any])?["restore"] as? Bool == false)
+    // The check above sees paths as written (slashes are not escaped).
+    s.prefs.restore = true
+    #expect(String(decoding: s.encoded(), as: UTF8.self).contains("\"/app/track\""))
+}
+
+/// Public pages carry capability tokens in the path and a query can carry one too: the file
+/// keeps app pages only, without query or fragment, never an invite, and restore refuses the rest.
+@Test func savedPathsHoldNoTokens() {
+    var s = TabSession(server: server)
+    let (_, a) = s.newWindow("/app/crm/deals?view=2&token=abc#top")!
+    s.addTab(main, path: "/invite/tok_123456789", place: .end)
+    s.addTab(main, path: "/es/app/docs/invite/tok_987654321", place: .end)
+    s.addTab(main, path: "/sign/tok_555", place: .end)
+    s.addTab(main, path: "/r/short", place: .end)
+    let (l2, _) = s.newWindow("/view/tok_777")!
+    s.activate(a, now: 1)
+    let text = String(decoding: s.encoded(), as: UTF8.self)
+    for secret in ["tok_", "token=", "view=", "#top", "/r/short", l2] {
+        #expect(!text.contains(secret), "\(secret)")
+    }
+    let back = TabSession.decode(s.encoded(), server: server)
+    #expect(back.summary == "main=*/app/crm/deals~")
+    #expect(TabSession.savedPath("/es/app/track/issue/ZS-1?x=1") == "/es/app/track/issue/ZS-1")
+    #expect(TabSession.savedPath("/pricing") == nil)
+
+    // A file written by hand with token pages, queries or redirect routes restores none of them.
+    let raw: [String: Any] = ["windows": [["label": "main", "active": 1, "tabs": [
+        ["id": 1, "path": "/invite/tok_1"], ["id": 2, "path": "/app/a?token=x"], ["id": 3, "path": "/r/x"],
+        ["id": 4, "path": "/app/docs/invite/tok_2"], ["id": 5, "path": "/app/b"],
+    ]]]]
+    #expect(TabSession.decode(json(raw), server: server).summary == "main=*/app/b~")
 }

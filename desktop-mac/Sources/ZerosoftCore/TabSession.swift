@@ -166,6 +166,15 @@ public struct TabSession: Equatable, Sendable {
         return url
     }
 
+    /// path + query + fragment of a URL (as the page's location reports them).
+    public static func pathOf(_ url: URL) -> String {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return home }
+        var p = parts.percentEncodedPath.isEmpty ? "/" : parts.percentEncodedPath
+        if let q = parts.percentEncodedQuery { p += "?" + q }
+        if let f = parts.percentEncodedFragment { p += "#" + f }
+        return p
+    }
+
     public func url(of id: Int) -> URL? {
         get(id).flatMap { Self.url(for: $0.path, server: server) }
     }
@@ -482,21 +491,40 @@ public struct TabSession: Equatable, Sendable {
     /// The file contents. Without "restore at launch" nothing about what was open is written,
     /// only the preferences. Titles are never written (they are page contents).
     public func encoded() -> Data {
-        let wins: [[String: Any]] = prefs.restore ? windows.map { w in
+        let wins: [[String: Any]] = prefs.restore ? windows.compactMap { w in
+            let tabs = w.tabs.compactMap { t in Self.savedPath(t.path).map { (id: t.id, path: $0) } }
+            guard let first = tabs.first else { return nil }
             var o: [String: Any] = [
                 "label": w.label,
-                "active": w.active,
-                "tabs": w.tabs.map { ["id": $0.id, "path": $0.path] as [String: Any] },
+                "active": tabs.contains { $0.id == w.active } ? w.active : first.id,
+                "tabs": tabs.map { ["id": $0.id, "path": $0.path] as [String: Any] },
             ]
             if let b = w.bounds { o["bounds"] = ["x": b.x, "y": b.y, "w": b.w, "h": b.h] }
             return o
         } : []
         let root: [String: Any] = ["version": Self.fileVersion, "windows": wins, "prefs": prefs.json]
-        return (try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])) ?? Data("{}".utf8)
+        return (try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])) ?? Data("{}".utf8)
+    }
+
+    /// Segments of app pages whose next segment is a capability token (`/app/docs/invite/<token>`).
+    static let tokenSegments: Set<String> = ["invite"]
+
+    /// What a tab path becomes in session.json, or nil when it is not saved. Only app pages
+    /// (`/app...` or `/<locale>/app...`) are saved, without query or fragment, and never one
+    /// under a token segment: public pages of the server carry capability tokens in the path
+    /// (`/invite/<token>`, `/sign/<token>`, `/view/<token>`...) and a query can carry one too,
+    /// so those stay out of the file. Such a tab stays open until the app quits.
+    public static func savedPath(_ path: String) -> String? {
+        let pathOnly = path.split(whereSeparator: { $0 == "?" || $0 == "#" }).first.map(String.init) ?? ""
+        guard let app = DeepLink.safeAppPath(pathOnly) else { return nil }
+        let segments = app.lowercased().split(separator: "/").map(String.init)
+        guard !segments.contains(where: tokenSegments.contains) else { return nil }
+        return app
     }
 
     /// A session from session.json (or anything else): every path is checked with `allowedPath`
-    /// against `server`, tabs that fail are dropped, empty windows are dropped, and at most
+    /// against `server` and must be one the app would save (`savedPath`); tabs that fail are
+    /// dropped, empty windows are dropped, and at most
     /// `maxWindows` windows of `maxTabs` tabs are kept. Window labels are made again (the first
     /// is "main"), ids are new, nothing is loaded. Titles in the file (the Tauri app writes them)
     /// are ignored. Without `restore`, only the preferences.
@@ -510,7 +538,7 @@ public struct TabSession: Equatable, Sendable {
             let activeID = (w["active"] as? NSNumber).map(\.doubleValue)
             let kept: [(path: String, active: Bool)] = tabs.compactMap { item in
                 guard let t = item as? [String: Any], let path = t["path"] as? String,
-                      allowedPath(path, server: server) else { return nil }
+                      allowedPath(path, server: server), savedPath(path) == path else { return nil }
                 let id = (t["id"] as? NSNumber).map(\.doubleValue)
                 return (path, id != nil && id == activeID)
             }.prefix(maxTabs).map { $0 }

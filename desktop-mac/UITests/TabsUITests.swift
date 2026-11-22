@@ -76,7 +76,8 @@ final class TabsUITests: XCTestCase {
         let app = launch()
         ready(app)
         // The strip shows the page's own title.
-        XCTAssertTrue(element(app, "zs-tab-0").label.contains("fixture"), element(app, "zs-tab-0").label)
+        let titled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "fixture"), object: element(app, "zs-tab-0"))
+        XCTAssertEqual(XCTWaiter().wait(for: [titled], timeout: 10), .completed, element(app, "zs-tab-0").label)
 
         app.typeKey("t", modifierFlags: .command)
         waitTabs(app, "main=/,*/app")
@@ -186,8 +187,9 @@ final class TabsUITests: XCTestCase {
         app.typeKey("t", modifierFlags: [.command, .shift])
         waitTabs(app, "main=*/,/app/one,/app/two,/app/two w2=*/app/two,/app")
 
-        // Nothing loaded another origin inside the app.
-        XCTAssertFalse(server.requests.contains { $0.hasPrefix("localhost:") }, server.requests.joined(separator: " "))
+        // Nothing loaded another origin as a page of the app (the fixture's cross-origin iframe
+        // is a frame inside the page, which the policy leaves to the page).
+        XCTAssertFalse(server.requests.contains { $0.hasPrefix("localhost:") && !$0.contains("/frame?") }, server.requests.joined(separator: " "))
     }
 
     /// Quit and open again: the windows and tabs come back, only the tab in front of each window
@@ -204,13 +206,15 @@ final class TabsUITests: XCTestCase {
         app.typeKey("q", modifierFlags: .command)
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 15), "the app did not quit")
 
+        // Only app pages are saved: the fixture's root page ("/") is not.
         app = launch(["-ZSKeepSession", "YES"])
-        waitTabs(app, "main=/~,/app/two~,*/app w1=*/app")
+        waitTabs(app, "main=/app/two~,*/app w1=*/app")
         XCTAssertTrue(text(app, "zs-fixture-app").waitForExistence(timeout: 20))
         // The first window has the keyboard; its first tab loads when picked.
         app.typeKey("1", modifierFlags: .command)
-        waitTabs(app, "main=*/,/app/two~,/app w1=*/app")
-        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+        waitTabs(app, "main=*/app/two,/app w1=*/app")
+        let page = app.staticTexts.matching(NSPredicate(format: "value BEGINSWITH %@ OR label BEGINSWITH %@", "app path=/app/two ", "app path=/app/two ")).firstMatch
+        XCTAssertTrue(page.waitForExistence(timeout: 20), "the picked tab did not load its page")
     }
 
     /// A session file is outside the app's control between launches. Paths of another origin,
@@ -228,6 +232,8 @@ final class TabsUITests: XCTestCase {
                     ["id": 4, "path": "javascript:alert(1)"],
                     ["id": 5, "path": "http://localhost:\(server.port)/x"],
                     ["id": 6, "path": "/app/../api/integrations/demo/start"],
+                    ["id": 8, "path": "/invite/tok_secret_value"],
+                    ["id": 9, "path": "/app/kept?token=secret"],
                 ]],
                 ["label": "w1", "active": 7, "tabs": [["id": 7, "path": "\(other)/w1"]]],
             ],
@@ -242,7 +248,7 @@ final class TabsUITests: XCTestCase {
         XCTAssertEqual(value(app, "zs-test-external"), "none")
         let requests = server.requests
         XCTAssertFalse(requests.contains { $0.hasPrefix("localhost:") }, requests.joined(separator: " "))
-        XCTAssertFalse(requests.contains { $0.contains("/api/desktop/login") || $0.contains("/api/integrations") }, requests.joined(separator: " "))
+        XCTAssertFalse(requests.contains { $0.contains("/api/desktop/login") || $0.contains("/api/integrations") || $0.contains("/invite/") || $0.contains("token=") }, requests.joined(separator: " "))
         XCTAssertEqual(server.tokenRequests, [])
     }
 }

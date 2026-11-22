@@ -214,6 +214,12 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
             decisionHandler(.cancel, preferences)
             return
         }
+        // A new window (target=_blank): a page of the server goes on to createWebViewWith, which
+        // opens a tab; it is not this tab's page, so it does not become its Retry target.
+        if action.targetFrame == nil, NavigationPolicy.classify(url, server: server) == .allow {
+            decisionHandler(.allow, preferences)
+            return
+        }
         if route(url) {
             decisionHandler(.allow, preferences)
         } else {
@@ -333,10 +339,16 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         guard let url = action.request.url else { return nil }
-        if let onOpenInNewTab, NavigationPolicy.classify(url, server: server) == .allow {
-            onOpenInNewTab(url)
-        } else if route(url) {
-            webView.load(action.request)
+        if NavigationPolicy.classify(url, server: server) == .allow {
+            // A server URL that cannot be a tab (an API route, an export or a download) goes to
+            // the browser, as downloads do.
+            if let onOpenInNewTab, TabSession.allowedPath(TabSession.pathOf(url), server: server) {
+                onOpenInNewTab(url)
+            } else {
+                openExternal(url)
+            }
+        } else {
+            _ = route(url)
         }
         return nil
     }

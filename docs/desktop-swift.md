@@ -569,8 +569,14 @@ capability is on. Where the code differs from the table above or from the Tauri 
   bounds, prefs) but holds no titles, which are page contents; it reads a Tauri file and drops its
   titles. Every path read from it goes through `TabSession.allowedPath`: `session::valid_path`,
   no dot segment (plain or percent-encoded), no `/api/` route, and the server plus the path must
-  be the server origin and pass the navigation policy. Tabs that fail are dropped, and so are
-  windows left without tabs.
+  be the server origin and pass the navigation policy. Only app pages (`/app...`, also after a
+  locale) are saved, without query or fragment and never under `invite/`: public pages carry
+  capability tokens in the path (`/invite/<token>`, `/sign/<token>`...) and a query can carry one.
+  Restore takes only paths in that saved form. Tabs that fail are dropped, and so are windows left
+  without tabs.
+- A link or `target=_blank` to a server URL that cannot be a tab (an `/api/` export or download)
+  goes to the browser, as downloads do; the bridge script leaves `/api/` links to the page.
+- A tab with the camera or microphone on is never suspended, whatever the page told the bridge.
 - Bridge `tabs` actions other than `state` count only from the tab in front of its window.
 - Deep links and notification clicks load their page in the tab in front of the last focused
   window, as `navigate_active` in tabs.rs (section 4.7 said "opens the tab of the notification").

@@ -107,6 +107,8 @@ public enum BridgeScript {
             try {
               var u = new URL(a.getAttribute('href'), location.href);
               var p = u.pathname + u.search + u.hash;
+              // API routes (exports, downloads) are not tabs: the page and the policy handle them.
+              if (u.pathname === '/api' || u.pathname.indexOf('/api/') === 0) return null;
               return u.origin === location.origin && p.length <= \(Bridge.maxPath) ? p : null;
             } catch (e) { return null; }
           };

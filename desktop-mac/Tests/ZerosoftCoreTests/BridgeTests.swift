@@ -234,6 +234,7 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     // Tabs: the page reports its path and title, and only same-origin links become tab actions.
     #expect(script.contains("tabs({ action: 'state', path: p, title: t })"))
     #expect(script.contains("u.origin === location.origin && p.length <= \(Bridge.maxPath)"))
+    #expect(script.contains("u.pathname.indexOf('/api/') === 0) return null"))
     #expect(script.contains("action: e.altKey ? 'open-window' : e.shiftKey ? 'open-tab' : 'open'"))
     // The JS regex keeps its backslashes (\s, not s).
     #expect(script.contains("/^zerosoft(\\s*[·|]|$)/i"))

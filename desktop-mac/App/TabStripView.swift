@@ -270,7 +270,7 @@ final class TabStripView: NSView {
 /// (`zs-tab-<index>`) whose value is 1 when it is in front.
 @MainActor
 final class TabItemView: NSView {
-    private unowned let strip: TabStripView
+    private weak var strip: TabStripView?
     private let lang: Lang
     private let icon = NSTextField(labelWithString: "")
     private let label = NSTextField(labelWithString: "")
@@ -322,7 +322,7 @@ final class TabItemView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     @objc private func closeTab() {
-        strip.close(self)
+        strip?.close(self)
     }
 
     private var extras: [String] {
@@ -391,19 +391,19 @@ final class TabItemView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.control) {
-            strip.menu(self, event)
+            strip?.menu(self, event)
             return
         }
-        strip.select(self)
-        strip.track(self, from: event)
+        strip?.select(self)
+        strip?.track(self, from: event)
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        strip.menu(self, event)
+        strip?.menu(self, event)
     }
 
     override func otherMouseUp(with event: NSEvent) {
-        if event.buttonNumber == 2 { strip.close(self) }
+        if event.buttonNumber == 2 { strip?.close(self) }
     }
 
     // MARK: Accessibility
@@ -415,12 +415,12 @@ final class TabItemView: NSView {
     override func isAccessibilitySelected() -> Bool { item.active }
 
     override func accessibilityPerformPress() -> Bool {
-        strip.select(self)
+        strip?.select(self)
         return true
     }
 
     override func accessibilityPerformShowMenu() -> Bool {
-        strip.menu(self, nil)
+        strip?.menu(self, nil)
         return true
     }
 }

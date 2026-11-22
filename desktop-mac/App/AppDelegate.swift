@@ -67,7 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.tabs = tabs
         tabs.configure = { [weak auth, weak notifier] web in
-            web.onStartLogin = { auth?.begin() }
+            // The sign-in sheet goes on the window of the tab that asked for it.
+            web.onStartLogin = { [weak web] in
+                auth?.window = web?.webView.window
+                auth?.begin()
+            }
             web.onNotify = { title, body in notifier?.pageNotification(title: title, body: body) }
         }
         auth.onSignedIn = { [weak tabs, weak notifier] in

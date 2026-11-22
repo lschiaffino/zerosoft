@@ -51,11 +51,12 @@ enum MainMenu {
         window.addItem(.separator())
         item(window, t(.menuNextTab), #selector(TabsController.nextTab(_:)), "\t", tabs, [.control])
         item(window, t(.menuPrevTab), #selector(TabsController.previousTab(_:)), "\t", tabs, [.control, .shift])
-        // Hidden items that keep their shortcut: Cmd+Shift+] and Cmd+Shift+[, Cmd+1...Cmd+9.
-        let next = item(window, t(.menuNextTab), #selector(TabsController.nextTab(_:)), "]", tabs, [.command, .shift])
+        // Hidden items that keep their shortcut: Cmd+Shift+] and Cmd+Shift+[ (as Safari, the shifted
+        // characters "}" and "{"), Cmd+1...Cmd+9.
+        let next = item(window, t(.menuNextTab), #selector(TabsController.nextTab(_:)), "}", tabs, [.command])
         next.isHidden = true
         next.allowsKeyEquivalentWhenHidden = true
-        let prev = item(window, t(.menuPrevTab), #selector(TabsController.previousTab(_:)), "[", tabs, [.command, .shift])
+        let prev = item(window, t(.menuPrevTab), #selector(TabsController.previousTab(_:)), "{", tabs, [.command])
         prev.isHidden = true
         prev.allowsKeyEquivalentWhenHidden = true
         for n in 1 ... 9 {

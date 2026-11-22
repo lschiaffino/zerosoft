@@ -165,6 +165,24 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         windows.values.contains { $0.window?.isVisible == true }
     }
 
+    /// Closes a window; the only one hides with its tabs. Hiding is done here and not through a
+    /// refused performClose, which would beep.
+    private func closeWindow(_ label: String) {
+        guard let window = windows[label]?.window else { return }
+        if session.windows.count <= 1 {
+            window.orderOut(nil)
+        } else {
+            window.performClose(nil)
+        }
+    }
+
+    /// The window the menu acts on, when one is on screen. With every window hidden, Close Tab,
+    /// Close Window and the tab switches do nothing (they would act on tabs nobody sees).
+    private var visibleLabel: String? {
+        let label = keyLabel()
+        return windows[label]?.window?.isVisible == true ? label : nil
+    }
+
     func windowShouldClose(_ label: String) -> Bool {
         // The only window hides instead (as before: dictation and the menu bar item keep going).
         if session.windows.count <= 1 {
@@ -274,7 +292,7 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         guard let label = session.windowOf(id), let w = session.window(label) else { return }
         if w.tabs.count == 1 {
             // The last tab closes the window (and the last window hides).
-            windows[label]?.window?.performClose(nil)
+            closeWindow(label)
             return
         }
         dropWeb(id)
@@ -339,6 +357,9 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         guard !ids.isEmpty else { return }
         var touched = Set<String>()
         for id in ids {
+            // A call or a recording with the camera or the microphone on is never suspended,
+            // whatever the page told the bridge.
+            if let web = webs[id], web.webView.cameraCaptureState != .none || web.webView.microphoneCaptureState != .none { continue }
             dropWeb(id)
             session.update(id) { $0.loaded = false }
             if let label = session.windowOf(id) { touched.insert(label) }
@@ -474,11 +495,7 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
 
     /// path + query + fragment of a URL of the server.
     static func path(of url: URL) -> String {
-        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return TabSession.home }
-        var p = parts.percentEncodedPath.isEmpty ? "/" : parts.percentEncodedPath
-        if let q = parts.percentEncodedQuery { p += "?" + q }
-        if let f = parts.percentEncodedFragment { p += "#" + f }
-        return p
+        TabSession.pathOf(url)
     }
 
     // MARK: Strip
@@ -601,7 +618,7 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
             other.performClose(nil)
             return
         }
-        if let id = session.activeOf(keyLabel()) { closeTab(id) }
+        if let label = visibleLabel, let id = session.activeOf(label) { closeTab(id) }
     }
 
     @objc func closeWindowAction(_ sender: Any?) {
@@ -609,20 +626,20 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
             other.performClose(nil)
             return
         }
-        windows[keyLabel()]?.window?.performClose(nil)
+        if let label = visibleLabel { closeWindow(label) }
     }
 
     @objc func nextTab(_ sender: Any?) {
-        cycle(keyLabel(), 1)
+        if let label = visibleLabel { cycle(label, 1) }
     }
 
     @objc func previousTab(_ sender: Any?) {
-        cycle(keyLabel(), -1)
+        if let label = visibleLabel { cycle(label, -1) }
     }
 
     /// Cmd+1...Cmd+9 (the item's tag).
     @objc func selectTabByNumber(_ sender: NSMenuItem) {
-        select(keyLabel(), sender.tag)
+        if let label = visibleLabel { select(label, sender.tag) }
     }
 
     @objc func reloadPage(_ sender: Any?) {
@@ -640,9 +657,13 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
         case #selector(reopenClosedTab(_:)): return !session.closed.isEmpty
-        case #selector(goBack(_:)): return activeWeb?.webView.canGoBack == true
-        case #selector(goForward(_:)): return activeWeb?.webView.canGoForward == true
-        case #selector(nextTab(_:)), #selector(previousTab(_:)): return (session.window(keyLabel())?.tabs.count ?? 0) > 1
+        case #selector(goBack(_:)): return visibleLabel != nil && activeWeb?.webView.canGoBack == true
+        case #selector(goForward(_:)): return visibleLabel != nil && activeWeb?.webView.canGoForward == true
+        case #selector(nextTab(_:)), #selector(previousTab(_:)):
+            return visibleLabel.flatMap { session.window($0)?.tabs.count }.map { $0 > 1 } ?? false
+        case #selector(closeTabAction(_:)), #selector(closeWindowAction(_:)):
+            return foreignKeyWindow != nil || visibleLabel != nil
+        case #selector(selectTabByNumber(_:)), #selector(reloadPage(_:)): return visibleLabel != nil
         default: return true
         }
     }
