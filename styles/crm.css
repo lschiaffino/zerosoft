@@ -3777,7 +3777,7 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 .deals-filter-bar .filter-right { flex-wrap: wrap; gap: 8px; min-width: 0; }
 .pipe-menu-items { display: flex; flex-direction: column; }
 /* La flecha sigue el tema (en oscuro la fija del select base no se ve). */
-.pipe-menu-btn, .dr-filter-btn { background-image: var(--select-chevron); }
+.filter-select.filter-btn:is(.pipe-menu-btn, .dr-filter-btn) { background-image: var(--select-chevron); }
 .filter-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .filter-quick .filter-clear { margin-left: 4px; }
 @media (max-width: 640px) {
