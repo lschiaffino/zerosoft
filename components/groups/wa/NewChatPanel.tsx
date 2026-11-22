@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation';
 import { formatPhone } from '@/components/inbox/wa/util';
 import { looksLikePhone, parseNewChatPhone } from '@/lib/groups-new-chat-shared';
 import { newChatLetter, type NewChatDirectory, type NewChatEntry } from '@/lib/wa-new-chat';
+import SearchClear from '@/components/app/SearchClear';
 import Avatar from './Avatar';
 import { ArrowLeft, CheckIcon, Close, Plus, Search } from './icons';
 
@@ -61,6 +62,7 @@ type Option =
 export default function NewChatPanel(props: NewChatPanelProps) {
   const { open, onClose, sourceKey, load, onPick, onPhone, canStart, header, notice, actions, createGroup } = props;
   const t = useTranslations('inboxWa.newChat');
+  const tw = useTranslations('groups.wa');
   const uid = useId().replace(/:/g, '');
   const ref = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -434,6 +436,17 @@ export default function NewChatPanel(props: NewChatPanelProps) {
                   placeholder={t('placeholder')}
                   autoComplete="off"
                   spellCheck={false}
+                  data-clearable=""
+                />
+                <SearchClear
+                  shown={text !== ''}
+                  onClear={() => {
+                    setText('');
+                    setError('');
+                    setTried(false);
+                    setActive(0);
+                  }}
+                  label={tw('clearSearch')}
                 />
               </div>
               {mode === 'pick' && picked.size > 0 && (

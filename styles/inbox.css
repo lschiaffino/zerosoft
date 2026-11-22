@@ -51,6 +51,7 @@ body:has(.ib-composer) #zs-chat-root { display: none !important; }
   .ib-list-title .ib-compose-btn { display: none; }
   .ib-list-title:not(.has-folder) { display: none; }
 }
+.ib-search { position: relative; }
 .ib-search .input { width: 100%; }
 .ib-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; }
 .ib-tabs::-webkit-scrollbar { display: none; }

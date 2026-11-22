@@ -1524,6 +1524,45 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "social": {
+      "intro": {
+        "title": "Te damos la bienvenida a Social",
+        "body": "Social planifica y publica tus posteos en redes sociales, y junta los comentarios y mensajes que reciben. Este tour te muestra las partes principales."
+      },
+      "accounts": {
+        "title": "Conectá tus cuentas",
+        "body": "Vinculá las redes donde publicás, como Instagram, LinkedIn o X. Tus publicaciones salen de las cuentas que conectes."
+      },
+      "newPost": {
+        "title": "Escribí una publicación",
+        "body": "Elegí las cuentas, escribí el texto una vez o ajustalo por red, y sumá imágenes o video. Después publicala ya, programala o guardala como borrador."
+      },
+      "calendar": {
+        "title": "Tu calendario",
+        "body": "Todo lo planificado y publicado, por mes o por semana. Usá + en un día para planificar una publicación ahí, o arrastrá una publicación a otro día para moverla.",
+        "bodyTouch": "Todo lo planificado y publicado, por mes o por semana. Usá + en un día para planificar una publicación ahí."
+      },
+      "posts": {
+        "title": "Publicaciones",
+        "body": "Todas las publicaciones en una lista: borradores, las que esperan aprobación, programadas y publicadas. Filtrá por estado, red o cuenta."
+      },
+      "inbox": {
+        "title": "Bandeja",
+        "body": "Comentarios, menciones y mensajes directos de tus cuentas, en un solo lugar. Respondelos y marcalos como listos."
+      },
+      "analytics": {
+        "title": "Métricas",
+        "body": "Impresiones, alcance, interacción y clics de lo que publicaste, y seguidores por cuenta."
+      },
+      "settings": {
+        "title": "Quién publica",
+        "body": "Elegí quién publica por su cuenta y quién manda las publicaciones a aprobar primero."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "hiring": {
       "intro": {
         "title": "Te damos la bienvenida a Hiring",

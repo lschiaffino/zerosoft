@@ -16,20 +16,33 @@ import { ownerScopeFor, canSeeEntity, type OwnerScope } from './crm-visibility';
 import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, redactCustomJson, type FieldViewer } from './crm-field-perms';
 import { visibleRecordIds } from './crm-record-scope';
 import {
+  BACKFILL_BATCH,
   BRANCH_OPS,
+  CRITERIA_TRIGGER,
+  MAX_BACKFILL_ENROLL,
+  MAX_BACKFILL_SCAN,
   MAX_ENROLLMENTS_PER_DAY,
   MAX_RUN_STEPS,
   STUCK_RUN_MINUTES,
+  actionLog,
   addMinutes,
+  compareCondition,
+  conditionsReachOtherEntity,
+  criteriaChanged,
+  criteriaEntity,
+  criteriaEventTypes,
   dbTime,
   delayMinutes,
+  eventChangedFields,
   parseWorkflowSettings,
   pickRotation,
   propertyChangeMatches,
+  rowValue,
   safeWebhookHeaders,
   triggerValueCondition,
   webhookBody,
   workflowUsesHiddenField,
+  type ActionLogEntry,
   type EnrollCondition,
   type WorkflowSettings,
 } from './crm-workflow-rules';
@@ -51,12 +64,18 @@ import {
   type CrmWorkflowRow,
   type CrmWorkflowTriggerRow,
   type CrmWorkflowActionRow,
-  type CrmWorkflowRunRow,
+  type CrmWorkflowRunRow as BaseWorkflowRunRow,
   type CrmEmailRow,
   type Db,
 } from './db';
 
 // ---------- Tipos públicos ----------
+
+/** Una inscripción (fila de crm_workflow_runs), con lo que suma W3: sacada a mano y por quién. */
+export type CrmWorkflowRunRow = Omit<BaseWorkflowRunRow, 'status'> & {
+  status: BaseWorkflowRunRow['status'] | 'unenrolled';
+  unenrolled_by?: string | null;
+};
 
 export const TRIGGER_TYPES = [
   'contact_created',
@@ -77,6 +96,8 @@ export const TRIGGER_TYPES = [
   'form_submitted',
   'score_changed',
   'manual',
+  // W3: el registro cumple los criterios (los filtros de inscripción), revisados al crearse o cambiar.
+  'criteria_met',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];
 
@@ -499,6 +520,10 @@ export interface WorkflowRunView {
   ok: number;
   total: number;
   record: { entity: RecordEntity; id: string; label: string } | null;
+  /** Registro por acción: solo para owner y admins (W3). Sin valores ni salida. */
+  log?: ActionLogEntry[];
+  /** Quién la sacó a mano (solo owner y admins). */
+  unenrolledBy?: string | null;
 }
 
 function runCounts(output: string | null): { ok: number; total: number } {
@@ -535,8 +560,14 @@ export async function listWorkflowRunViews(
   workflowId: string,
   scope: OwnerScope | undefined,
   limit = 20,
+  /** Con el registro por acción (owner y admins: quien llama lo comprueba). */
+  opts: { log?: boolean } = {},
 ): Promise<WorkflowRunView[]> {
   const rows = await listWorkflowRuns(workspaceId, workflowId, scope ? 200 : limit);
+  // Criterios o ramas sobre otro registro: a quien no ve todo no se le muestra la inscripción (W3).
+  const wf = scope ? await getWorkflow(workspaceId, workflowId) : null;
+  const log = !!opts.log && !scope;
+  const people = log ? await personLabels(rows.map((r) => r.unenrolled_by ?? '').filter(Boolean)) : new Map<string, string>();
   const byEntity: Record<RecordEntity, string[]> = { contact: [], company: [], deal: [] };
   for (const r of rows) if (isRecordEntity(r.trigger_entity) && r.trigger_entity_id) byEntity[r.trigger_entity].push(r.trigger_entity_id);
   const visible: Record<RecordEntity, Set<string>> = { contact: new Set(), company: new Set(), deal: new Set() };
@@ -552,7 +583,8 @@ export async function listWorkflowRunViews(
     const seen = hasRecord && visible[entity as RecordEntity].has(r.trigger_entity_id);
     // Sin registro visible: un miembro con alcance no ve la corrida (salvo una manual, que no tiene registro).
     if (scope && !seen && r.trigger_entity_id) continue;
-    out.push({
+    if (scope && r.trigger_entity_id && (!wf || conditionsReachOtherEntity(wf, entity))) continue;
+    const view: WorkflowRunView = {
       id: r.id,
       status: r.status,
       started_at: r.started_at,
@@ -560,10 +592,156 @@ export async function listWorkflowRunViews(
       resume_at: r.status === 'waiting' ? r.resume_at ?? null : null,
       ...runCounts(r.output),
       record: seen ? { entity: entity as RecordEntity, id: r.trigger_entity_id, label: labels[entity as RecordEntity].get(r.trigger_entity_id) ?? '' } : null,
-    });
+    };
+    if (log) {
+      view.log = actionLog(parseJsonObject(r.output).results);
+      view.unenrolledBy = r.unenrolled_by ? people.get(r.unenrolled_by) ?? '' : null;
+    }
+    out.push(view);
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/** Nombre (o email) de personas, para "la sacó X" en el registro por acción. */
+async function personLabels(ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = [...new Set(ids)];
+  if (!unique.length) return out;
+  const rows = (await getDb()
+    .prepare(`SELECT id, COALESCE(NULLIF(trim(name), ''), email) AS label FROM users WHERE id IN (${unique.map(() => '?').join(',')})`)
+    .all(...unique)) as Array<{ id: string; label: string | null }>;
+  for (const r of rows) out.set(r.id, r.label ?? '');
+  return out;
+}
+
+/**
+ * Saca a mano un registro de un workflow (como "Unenroll" de HubSpot): la
+ * inscripción que espera o corre termina como 'unenrolled' y no corre nada
+ * más (el runner lo revisa antes de cada acción). Compare-and-set: si ya
+ * terminó, no cambia nada. Quien llama comprueba que es owner o admin. Sin
+ * reinscripción, el registro no vuelve a entrar.
+ */
+export async function unenrollRun(workspaceId: string, workflowId: string, runId: string, actorId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare(
+      `UPDATE crm_workflow_runs SET status = 'unenrolled', finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}', unenrolled_by = ?
+       WHERE id = ? AND workflow_id = ? AND user_id = ? AND status IN ('waiting', 'running', 'pending')`,
+    )
+    .run(now(), actorId, runId, workflowId, workspaceId);
+  return res.changes > 0;
+}
+
+/** Entidades de los disparadores "cumple los criterios" del workflow (en orden). */
+export function criteriaTriggerEntities(workflow: Pick<Workflow, 'triggers'>): RecordEntity[] {
+  return [...new Set(workflow.triggers.filter((x) => x.type === CRITERIA_TRIGGER).map((x) => criteriaEntity(x.config)))];
+}
+
+/** Por dónde sigue una pasada que se cortó en un tope: entidad y el último registro revisado. */
+export interface BackfillCursor {
+  entity: RecordEntity;
+  createdAt: string;
+  id: string;
+}
+
+export interface BackfillResult {
+  /** Registros revisados. */
+  checked: number;
+  /** Inscriptos ahora (entran por el cron de cada minuto, de a tandas). */
+  enrolled: number;
+  /** Se cortó en un tope (revisados o inscriptos): quedan registros sin revisar. */
+  capped: boolean;
+  /** Para seguir con los registros siguientes (solo si `capped`). */
+  next?: BackfillCursor;
+  /** El workspace ya tiene MAX_BACKFILL_ENROLL inscripciones de estas pasadas esperando turno: no se agregan más. */
+  busy?: boolean;
+}
+
+/**
+ * "Inscribir los registros que ya cumplen los criterios" (como la pregunta de
+ * HubSpot al prender un workflow). Revisa hasta MAX_BACKFILL_SCAN registros
+ * (de cada entidad de sus disparadores por criterios, desde `after`),
+ * inscribe hasta MAX_BACKFILL_ENROLL y los deja esperando para que el cron
+ * de cada minuto los corra de a BACKFILL_BATCH (la pasada no corre acciones).
+ * Si se corta en un tope devuelve `next` para seguir con los siguientes.
+ * Nunca inscribe un registro que ya estuvo en el workflow, aunque tenga
+ * reinscripción: repetir la pasada no duplica nada. Un workspace nunca tiene
+ * más de MAX_BACKFILL_ENROLL de estas inscripciones esperando su primer
+ * turno, así no tapa la cola del cron para los demás. Quien llama comprueba
+ * que es owner o admin.
+ */
+export async function enrollExistingRecords(
+  workspaceId: string,
+  workflowId: string,
+  after?: BackfillCursor,
+): Promise<BackfillResult | null> {
+  const workflow = await getWorkflow(workspaceId, workflowId);
+  if (!workflow) return null;
+  let entities = criteriaTriggerEntities(workflow);
+  const filters = workflow.settings.filters;
+  if (!entities.length || !filters.length || !workflow.enabled) return { checked: 0, enrolled: 0, capped: false };
+  const db = getDb();
+  // Inscripciones de pasadas anteriores que todavía no arrancaron, en todo el workspace.
+  const queued = (await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM crm_workflow_runs WHERE user_id = ? AND status = 'waiting' AND trigger_type = ? AND steps = 0`,
+    )
+    .get(workspaceId, CRITERIA_TRIGGER)) as { n: number };
+  const room = MAX_BACKFILL_ENROLL - Number(queued?.n ?? 0);
+  if (room <= 0) return { checked: 0, enrolled: 0, capped: true, busy: true, ...(after ? { next: after } : {}) };
+  if (after) {
+    const at = entities.indexOf(after.entity);
+    if (at < 0) return { checked: 0, enrolled: 0, capped: false };
+    entities = entities.slice(at);
+  }
+  const start = new Date();
+  let enrolled = 0;
+  let checked = 0;
+  let lastCursor: BackfillCursor | null = null;
+  for (const [n, entity] of entities.entries()) {
+    const cursor = n === 0 && after ? after : null;
+    const rows = (await db
+      .prepare(
+        `SELECT * FROM ${RECORD_TABLE[entity]} t WHERE t.user_id = ?
+           ${cursor ? 'AND (t.created_at < ? OR (t.created_at = ? AND t.id > ?))' : ''}
+           AND NOT EXISTS (SELECT 1 FROM crm_workflow_runs r WHERE r.workflow_id = ? AND r.trigger_entity = ? AND r.trigger_entity_id = t.id)
+         ORDER BY t.created_at DESC, t.id ASC LIMIT ?`,
+      )
+      .all(
+        workspaceId,
+        ...(cursor ? [cursor.createdAt, cursor.createdAt, cursor.id] : []),
+        workflowId,
+        entity,
+        MAX_BACKFILL_SCAN - checked + 1,
+      )) as Array<Record<string, unknown> & { id: string; created_at: string }>;
+    const own = filters.filter((f) => f.entity === entity);
+    const other = filters.length > own.length;
+    for (const row of rows) {
+      if (checked >= MAX_BACKFILL_SCAN || enrolled >= Math.min(MAX_BACKFILL_ENROLL, room)) {
+        // Sigue desde el registro anterior (este todavía no se revisó).
+        return { checked, enrolled, capped: true, next: lastCursor ?? { entity, createdAt: row.created_at, id: '' } };
+      }
+      checked++;
+      lastCursor = { entity, createdAt: row.created_at, id: row.id };
+      // Las condiciones de la propia entidad, en memoria; las de otra (la empresa del contacto), con el contexto.
+      if (!own.every((f) => compareCondition(rowValue(row, f.field), f.op, f.value))) continue;
+      const event: WorkflowEvent = { type: CRITERIA_TRIGGER, entity, entityId: row.id, payload: { existing: true } };
+      if (other && !(await meetsConditions(workspaceId, filters, event, await loadContext(workspaceId, event)))) continue;
+      const state: RunState = { event, branch: null, results: [], chain: { depth: 1, seen: [workflowId] } };
+      // De a BACKFILL_BATCH por minuto, así una pasada grande no llena el cron de una vez.
+      const resumeAt = dbTime(addMinutes(start, Math.floor(enrolled / BACKFILL_BATCH)));
+      const res = await db
+        .prepare(
+          `INSERT INTO crm_workflow_runs
+           (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at, resume_at, next_position, state, steps)
+           SELECT ?, ?, ?, ?, ?, ?, 'waiting', '{}', ?, ?, 0, ?, 0
+           WHERE NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE workflow_id = ? AND trigger_entity = ? AND trigger_entity_id = ?)`,
+        )
+        .run(crypto.randomUUID(), workflowId, workspaceId, entity, row.id, CRITERIA_TRIGGER, dbTime(start), resumeAt, JSON.stringify(state), workflowId, entity, row.id);
+      if (res.changes > 0) enrolled++;
+    }
+  }
+  return { checked, enrolled, capped: false };
 }
 
 /** Campos propios ocultos para la persona, de contactos, empresas y deals juntos. */
@@ -630,12 +808,17 @@ export async function listRecordEnrollments(
     .all(workspaceId, entity, recordId, Math.min(Math.max(limit, 1), 100))) as RecordEnrollment[];
   if (!viewer || isUnrestricted(viewer) || !rows.length) return rows;
   const hidden = await hiddenAnywhere(viewer);
-  if (!hidden.size) return rows;
+  // Quien no ve todo: tampoco las inscripciones cuyos criterios o ramas miran
+  // otro registro (el deal o la empresa de este), que puede no ver (W3).
+  const scoped = (await ownerScopeFor(viewer)) !== null;
+  if (!hidden.size && !scoped) return rows;
   // Solo los workflows de estas inscripciones (no todos los del workspace).
   const allowed = new Set<string>();
   for (const id of new Set(rows.map((r) => r.workflow_id))) {
     const wf = await getWorkflow(workspaceId, id);
-    if (wf && !workflowUsesHiddenField(wf, hidden)) allowed.add(id);
+    if (!wf || workflowUsesHiddenField(wf, hidden)) continue;
+    if (scoped && conditionsReachOtherEntity(wf, entity)) continue;
+    allowed.add(id);
   }
   return rows.filter((r) => allowed.has(r.workflow_id));
 }
@@ -873,6 +1056,9 @@ interface ActionResult {
   type: ActionType;
   result?: unknown;
   error?: string;
+  /** Cuándo corrió y en qué posición (registro por acción, W3). */
+  at?: string;
+  position?: number;
 }
 
 /**
@@ -1342,6 +1528,11 @@ async function executeAction(
 // ---------- Matching de triggers ----------
 
 function triggerMatches(trigger: WorkflowTrigger, event: WorkflowEvent): boolean {
+  if (trigger.type === CRITERIA_TRIGGER) {
+    // Criterios: se revisan cuando un registro de esa entidad se crea o cambia.
+    const entity = criteriaEntity(trigger.config);
+    return event.entity === entity && !!event.entityId && criteriaEventTypes(entity).includes(event.type);
+  }
   if (trigger.type !== event.type) return false;
   if (event.type === 'deal_stage_changed') {
     const cfg = trigger.config;
@@ -1395,7 +1586,6 @@ export async function evaluateBranch(
   const entity = (safeString(cfg.entity) || 'contact') as 'contact' | 'company' | 'deal';
   const field = safeString(cfg.field);
   const op = (BRANCH_OPS as readonly string[]).includes(safeString(cfg.op)) ? safeString(cfg.op) : 'equals';
-  const expected = safeString(cfg.value).trim().toLowerCase();
   const id =
     entity === event.entity ? event.entityId : entity === 'contact' ? ctx.contact?.id : entity === 'company' ? ctx.company?.id : ctx.deal?.id;
   if (!id || !field) return false;
@@ -1404,32 +1594,7 @@ export async function evaluateBranch(
     | Record<string, unknown>
     | undefined;
   if (!row) return false;
-  let actualRaw: unknown;
-  if (field.startsWith('custom.')) actualRaw = parseJsonObject((row.custom as string) ?? '{}')[field.slice(7)];
-  else {
-    const col = field.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
-    actualRaw = /^[a-z_]+$/.test(col) ? row[col] : undefined;
-  }
-  const actual = actualRaw === undefined || actualRaw === null ? '' : String(actualRaw).trim().toLowerCase();
-  switch (op) {
-    case 'not_equals':
-      return actual !== expected;
-    case 'contains':
-      return expected !== '' && actual.includes(expected);
-    case 'gt':
-    case 'lt': {
-      const a = Number(actual);
-      const b = Number(expected);
-      if (actual === '' || Number.isNaN(a) || Number.isNaN(b)) return false;
-      return op === 'gt' ? a > b : a < b;
-    }
-    case 'is_set':
-      return actual !== '';
-    case 'is_not_set':
-      return actual === '';
-    default:
-      return actual === expected;
-  }
+  return compareCondition(rowValue(row, field), op, cfg.value);
 }
 
 // ---------- Runner ----------
@@ -1468,7 +1633,7 @@ async function meetsConditions(userId: string, conditions: EnrollCondition[], ev
  * - con reinscripción, hasta MAX_ENROLLMENTS_PER_DAY veces en 24 horas.
  * Las corridas manuales (sin registro) no pasan por acá.
  */
-async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent): Promise<string | null> {
+async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent, reenroll: boolean): Promise<string | null> {
   const runId = crypto.randomUUID();
   const at = new Date();
   const stuck = dbTime(addMinutes(at, -STUCK_RUN_MINUTES));
@@ -1495,7 +1660,7 @@ async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent):
       dbTime(at),
       ...key,
       stuck,
-      workflow.settings.reenroll ? 1 : 0,
+      reenroll ? 1 : 0,
       ...key,
       ...key,
       dayAgo,
@@ -1528,31 +1693,40 @@ async function executeRun(
   // con config.when = 'yes' | 'no' corren solo en esa rama (las demás siempre).
   let branch = state.branch;
   const actions = [...workflow.actions].sort((a, b) => a.position - b.position).filter((a) => a.position >= fromPosition);
+  const push = (r: ActionResult, position: number) => results.push({ ...r, at: now(), position });
   for (const [i, action] of actions.entries()) {
     if (steps >= MAX_RUN_STEPS) {
-      results.push({ ok: false, type: action.type, error: 'step_cap' });
+      push({ ok: false, type: action.type, error: 'step_cap' }, action.position);
       failed = true;
       break;
+    }
+    // Sacada a mano (owner o admin) mientras corría: no corre nada más, y
+    // lo que ya corrió queda en su registro por acción.
+    if (!(await stillRunning(runId))) {
+      await db
+        .prepare("UPDATE crm_workflow_runs SET output = ?, steps = ? WHERE id = ? AND status = 'unenrolled'")
+        .run(JSON.stringify({ event, results }), steps, runId);
+      return;
     }
     steps++;
     if (action.type === 'branch') {
       branch = await evaluateBranch(userId, action.config, event, ctx).catch(() => false);
-      results.push({ ok: true, type: action.type, result: { branch: branch ? 'yes' : 'no' } });
+      push({ ok: true, type: action.type, result: { branch: branch ? 'yes' : 'no' } }, action.position);
       continue;
     }
     const when = safeString(action.config.when);
     if ((when === 'yes' || when === 'no') && branch !== null && (when === 'yes') !== branch) {
-      results.push({ ok: true, type: action.type, result: { skipped: true } });
+      push({ ok: true, type: action.type, result: { skipped: true } }, action.position);
       continue;
     }
     if (action.type === 'delay') {
       const minutes = delayMinutes(action.config);
       if (minutes === null) {
-        results.push({ ok: false, type: action.type, error: 'invalid_delay' });
+        push({ ok: false, type: action.type, error: 'invalid_delay' }, action.position);
         failed = true;
         continue;
       }
-      results.push({ ok: true, type: action.type, result: { minutes } });
+      push({ ok: true, type: action.type, result: { minutes } }, action.position);
       const next = actions[i + 1];
       if (!next) continue;
       const store = chain.getStore();
@@ -1562,31 +1736,44 @@ async function executeRun(
         results,
         chain: { depth: store?.depth ?? 1, seen: [...new Set([...(store?.seen ?? []), workflow.id])] },
       };
+      // Solo si sigue corriendo: una inscripción sacada a mano no vuelve a esperar.
       await db
         .prepare(
           `UPDATE crm_workflow_runs SET status = 'waiting', resume_at = ?, next_position = ?, state = ?, steps = ?, output = ?
-           WHERE id = ?`,
+           WHERE id = ? AND status = 'running'`,
         )
         .run(dbTime(addMinutes(new Date(), minutes)), next.position, JSON.stringify(nextState), steps, JSON.stringify({ event, results }), runId);
       return;
     }
     const result = await executeAction(userId, workflow.id, runId, action, event, ctx);
-    results.push(result);
+    push(result, action.position);
     if (!result.ok) failed = true;
   }
 
   await db
     .prepare(
       `UPDATE crm_workflow_runs SET status = ?, output = ?, finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}', steps = ?
-       WHERE id = ?`,
+       WHERE id = ? AND status = 'running'`,
     )
     .run(failed ? 'failed' : 'done', JSON.stringify({ event, results }), now(), steps, runId);
 }
 
-async function runSingleWorkflow(userId: string, workflow: Workflow, event: WorkflowEvent, ctx: ActionContext): Promise<void> {
+/** ¿La inscripción sigue corriendo? (no la sacaron a mano ni la cerró el cron por colgada). */
+async function stillRunning(runId: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT status FROM crm_workflow_runs WHERE id = ?').get(runId)) as { status: string } | undefined;
+  return row?.status === 'running';
+}
+
+async function runSingleWorkflow(
+  userId: string,
+  workflow: Workflow,
+  event: WorkflowEvent,
+  ctx: ActionContext,
+  reenroll = workflow.settings.reenroll,
+): Promise<void> {
   let runId: string | null;
   if (event.entityId) {
-    runId = await enroll(userId, workflow, event);
+    runId = await enroll(userId, workflow, event, reenroll);
     if (!runId) return;
   } else {
     runId = crypto.randomUUID();
@@ -1670,25 +1857,38 @@ export async function runWorkflowsForEvent(userId: string, event: WorkflowEvent)
 
   // Filtros de inscripción (AND) y, si el disparador pide un valor nuevo, que
   // alguno de los disparadores que coinciden lo cumpla.
-  const matching: Workflow[] = [];
+  // Criterios (W3): el disparador solo dice "revisar"; los filtros son los
+  // criterios y sin ninguno no inscribe nada. Con reinscripción, un registro
+  // que ya estuvo vuelve a entrar solo si cambió una propiedad de los criterios.
+  const matching: Array<{ wf: Workflow; reenroll: boolean }> = [];
   for (const wf of candidates) {
     const triggers = wf.triggers.filter((t) => triggerMatches(t, event));
-    let triggerOk = false;
+    let byEvent = false;
+    let byCriteria = false;
     for (const t of triggers) {
+      if (t.type === CRITERIA_TRIGGER) {
+        if (wf.settings.filters.length) byCriteria = true;
+        continue;
+      }
       const cond = PROPERTY_TRIGGERS.includes(t.type) ? triggerValueCondition(event.entity, t.config) : null;
       if (!cond || (await meetsConditions(userId, [cond], event, ctx))) {
-        triggerOk = true;
+        byEvent = true;
         break;
       }
     }
-    if (triggerOk && (await meetsConditions(userId, wf.settings.filters, event, ctx))) matching.push(wf);
+    if (!byEvent && !byCriteria) continue;
+    if (!(await meetsConditions(userId, wf.settings.filters, event, ctx))) continue;
+    const reenroll = byEvent
+      ? wf.settings.reenroll
+      : wf.settings.reenroll && isRecordEntity(event.entity) && criteriaChanged(wf.settings.filters, event.entity, eventChangedFields(event.type, event.payload));
+    matching.push({ wf, reenroll });
   }
 
   await Promise.all(
-    matching.map((wf) =>
+    matching.map(({ wf, reenroll }) =>
       chain
         .run({ depth: (parent?.depth ?? 0) + 1, seen: new Set([...(parent?.seen ?? []), wf.id]) }, () =>
-          runSingleWorkflow(userId, wf, event, ctx),
+          runSingleWorkflow(userId, wf, event, ctx, reenroll),
         )
         .catch(() => null),
     ),
