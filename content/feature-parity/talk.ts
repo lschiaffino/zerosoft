@@ -28,7 +28,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'Slack',
-  lastReviewed: '2026-11-17',
+  lastReviewed: '2026-11-22',
   areas: [
     { id: 'channels', label: loc(['Channels', 'Canales', 'Canais']) },
     { id: 'dms', label: loc(['Direct messages', 'Mensajes directos', 'Mensagens diretas']) },
@@ -324,7 +324,7 @@ const BUILT: Record<string, Built> = {
     ],
   },
   'direct-messages': { status: 'have', detail: ['Including a DM with yourself', 'También el DM con vos mismo', 'Também a DM com você mesmo'] },
-  'group-dms': { status: 'have', detail: ['Up to 9 people plus you. Converting a group into a private channel is not there yet', 'Hasta 9 personas más vos. Todavía no se convierte un grupo en canal privado', 'Até 9 pessoas mais você. Ainda não dá para converter um grupo em canal privado'] },
+  'group-dms': { status: 'have', detail: ['Up to 9 people plus you. A group can be changed into a private channel keeping its messages and members', 'Hasta 9 personas más vos. Un grupo se puede pasar a canal privado conservando mensajes y miembros', 'Até 9 pessoas mais você. Um grupo pode virar canal privado mantendo mensagens e membros'] },
   'realtime-messages': {
     status: 'have',
     detail: [
