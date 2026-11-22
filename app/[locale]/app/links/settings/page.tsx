@@ -107,7 +107,7 @@ export default async function LinkSettingsPage(props: {
   -d '{"customerExternalId":"user_123","amount":4900,"currency":"USD","invoiceId":"inv_1"}'`;
     body = (
       <div className="lk-conv-setup" data-testid="link-conversions-setup">
-        <FormSection id="conv-how" title={tl('conversions.howTitle')} description={tl('conversions.howDesc')}>
+        <FormSection setting="link-conversions" id="conv-how" title={tl('conversions.howTitle')} description={tl('conversions.howDesc')}>
           <ol className="lk-steps">
             <li>{tl('conversions.step1')}</li>
             <li>{tl('conversions.step2')}</li>
@@ -123,7 +123,7 @@ export default async function LinkSettingsPage(props: {
             {tl.rich('conversions.apiKeys', { a: (chunks) => <Link href="/app/settings/api#api-keys">{chunks}</Link> })}
           </p>
         </FormSection>
-        <FormSection id="conv-stripe" title={tl('conversions.stripeTitle')} description={tl('conversions.stripeDesc')}>
+        <FormSection setting="link-stripe" id="conv-stripe" title={tl('conversions.stripeTitle')} description={tl('conversions.stripeDesc')}>
           <p className="ui-help">
             <span className={`badge ${stripe?.connected ? 'badge-ok' : ''}`}>
               {stripe?.connected ? tl('integrations.status.connected') : tl('integrations.status.off')}
@@ -132,7 +132,7 @@ export default async function LinkSettingsPage(props: {
           </p>
           <CodeBlock code={`client_reference_id: "zs_id_" + clickId`} label={tl('conversions.stripeLabel')} />
         </FormSection>
-        <FormSection id="conv-shopify" title={tl('integrations.shopify.name')} description={tl('integrations.shopify.desc')}>
+        <FormSection setting="link-shopify" id="conv-shopify" title={tl('integrations.shopify.name')} description={tl('integrations.shopify.desc')}>
           <LinkIntegrationsPanel initial={integrations} canEdit={admin} only={['shopify']} />
         </FormSection>
         <FormSection id="conv-deferred" title={tl('conversions.deferredTitle')} description={tl('conversions.deferredDesc')}>
@@ -167,7 +167,7 @@ export default async function LinkSettingsPage(props: {
             />
           </ClientMessages>
         </FormSection>
-        <FormSection id="int-segment" title={tl('integrations.segment.name')} description={tl('integrations.segment.desc')}>
+        <FormSection setting="link-segment" id="int-segment" title={tl('integrations.segment.name')} description={tl('integrations.segment.desc')}>
           <LinkIntegrationsPanel initial={integrations} canEdit={admin} only={['segment']} />
         </FormSection>
         <FormSection id="int-mcp" title={tl('integrations.mcp.title')} description={tl('integrations.mcp.desc')}>
@@ -199,7 +199,7 @@ export default async function LinkSettingsPage(props: {
     }
   } else {
     body = (
-      <FormSection id="export" title={t('link.exportTitle')} description={t('link.exportDesc')}>
+      <FormSection setting="link-export" id="export" title={t('link.exportTitle')} description={t('link.exportDesc')}>
         {admin ? (
           <div className="st-actions">
             <a className="btn btn-secondary btn-sm" href="/api/links/export?format=csv" download>

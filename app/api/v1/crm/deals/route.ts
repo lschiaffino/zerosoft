@@ -4,7 +4,7 @@ import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createDeal, listDeals } from '@/lib/crm';
 import { dealCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, refErrorMessage, defaultPipelineId, pageParams, zodErrorCode } from '@/lib/crm-http';
-import { apiScope } from '@/lib/crm-visibility';
+import { apiScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 
 export const runtime = 'nodejs';
@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
 
   const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'deal', null, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  // No se vincula un registro que la key no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
+  if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
   const result = await catchRef(createDeal(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (result instanceof CrmRefError) return apiError(400, result.code, refErrorMessage(result.code));
   if (!result.ok) {

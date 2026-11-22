@@ -1100,9 +1100,9 @@
       "status": "partial",
       "competitorHas": true,
       "detail": {
-        "en": "Paths can collapse numeric and long ids into :id; there are no regex or alias rules",
-        "es": "Los caminos pueden juntar ids numéricos y largos en :id; no hay reglas de regex ni alias",
-        "pt": "Os caminhos podem juntar ids numéricos e longos em :id; não há regras de regex nem alias"
+        "en": "Paths can collapse numeric and long ids into :id and group pages with * wildcards; there are no regex or alias rules",
+        "es": "Los caminos pueden juntar ids numéricos y largos en :id y agrupar páginas con comodines *; no hay reglas de regex ni alias",
+        "pt": "Os caminhos podem juntar ids numéricos e longos em :id e agrupar páginas com curingas *; não há regras de regex nem alias"
       }
     },
     {
@@ -2354,8 +2354,13 @@
         "es": "Excluir un ítem del camino",
         "pt": "Excluir um item do caminho"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "Pages or events can be skipped from the insight form, with * as a wildcard; not from a step menu in the diagram",
+        "es": "Se pueden saltear páginas o eventos desde el formulario del insight, con * como comodín; no desde un menú del paso en el diagrama",
+        "pt": "Dá para pular páginas ou eventos no formulário do insight, com * como curinga; não por um menu da etapa no diagrama"
+      }
     },
     {
       "id": "paths-view-funnel",
@@ -2452,8 +2457,13 @@
         "es": "Grupos con comodín",
         "pt": "Grupos com curinga"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "have",
+      "competitorHas": true,
+      "detail": {
+        "en": "Up to 20 patterns per insight with * as a wildcard (/blog/*); every page that matches counts as one step, and the path can start or end at the group",
+        "es": "Hasta 20 patrones por insight con * como comodín (/blog/*); cada página que coincide cuenta como un solo paso, y el camino puede empezar o terminar en el grupo",
+        "pt": "Até 20 padrões por insight com * como curinga (/blog/*); cada página que bate conta como uma só etapa, e o caminho pode começar ou terminar no grupo"
+      }
     },
     {
       "id": "paths-cleaning-toggle",
@@ -3890,8 +3900,13 @@
         "es": "Destinos de alertas",
         "pt": "Destinos de alertas"
       },
-      "status": "missing",
-      "competitorHas": true
+      "status": "partial",
+      "competitorHas": true,
+      "detail": {
+        "en": "In-app notices, plus an email to each subscriber when the alert is set to email; no Slack, Discord, Teams or webhooks",
+        "es": "Avisos en la app y, si la alerta tiene el email activado, un email a cada persona suscripta; sin Slack, Discord, Teams ni webhooks",
+        "pt": "Avisos no app e, se o alerta tiver o email ativado, um email para cada pessoa inscrita; sem Slack, Discord, Teams nem webhooks"
+      }
     },
     {
       "id": "alert-skip-weekends",

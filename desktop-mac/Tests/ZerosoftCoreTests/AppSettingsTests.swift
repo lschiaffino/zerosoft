@@ -18,11 +18,16 @@ import Testing
 @Test func settingsFileHoldsOnlyItsSwitches() throws {
     var s = AppSettings()
     s.onboarded = true
+    s.indicatorPosition = IndicatorPosition(x: 10, y: 20)
     let raw = try #require(try JSONSerialization.jsonObject(with: s.encoded()) as? [String: Any])
     #expect(Set(raw.keys) == AppSettings.keys)
-    // Switches, the version and two names from closed lists only: nothing that could be a
-    // token, an address or page text.
-    for (key, value) in raw where !["version", "shortcut", "mode"].contains(key) {
+    // Switches, the version, two names from closed lists and one point only: nothing that could
+    // be a token, an address or page text.
+    #expect((raw["indicatorPosition"] as? [Double]) == [10, 20])
+    // Without a position the key is not written.
+    let plain = try #require(try JSONSerialization.jsonObject(with: AppSettings().encoded()) as? [String: Any])
+    #expect(Set(plain.keys) == AppSettings.keys.subtracting(["indicatorPosition"]))
+    for (key, value) in raw where !["version", "shortcut", "mode", "indicatorPosition"].contains(key) {
         let n = try #require(value as? NSNumber, "\(key)")
         #expect(CFGetTypeID(n) == CFBooleanGetTypeID(), "\(key)")
     }
@@ -132,5 +137,5 @@ import Testing
 }
 
 @Test func settingsSectionsOrder() {
-    #expect(SettingsSection.allCases.map(\.rawValue) == ["general", "tabs", "permissions", "voice", "dictionary", "history", "account"])
+    #expect(SettingsSection.allCases.map(\.rawValue) == ["general", "tabs", "meetings", "permissions", "voice", "dictionary", "history", "account"])
 }

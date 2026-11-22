@@ -74,6 +74,10 @@ final class SettingsModel: ObservableObject {
     let permission: NotificationPermission
     let mic: MicrophonePermission
     let paste: PastePermission
+    /// Meetings (block 7): Screen Recording and the computer's audio.
+    let capture: CapturePermissions
+    /// Rec (block 8): the camera, for the page and the bubble.
+    let camera: CameraPermission
     /// Dictation (block 6): set by the app delegate once it exists.
     weak var dictation: DictationController? {
         didSet { dictationChanged() }
@@ -88,6 +92,10 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var notifications: NotificationAccess = .notDetermined
     @Published private(set) var microphone: MicrophoneAccess = .notDetermined
     @Published private(set) var pasteAccess: PasteAccess = .unavailable
+    @Published private(set) var screenAccess = false
+    @Published private(set) var cameraAccess: PermissionAccess = .notDetermined
+    /// What records now (the menu bar item's state), for Settings › Meetings.
+    @Published private(set) var captureNow = CaptureState()
     @Published private(set) var shortcutTaken = false
     /// The shortcut in use (a fallback when the chosen default could not be registered).
     @Published private(set) var shortcutLabel = DictationShortcut.standard.label
@@ -111,12 +119,15 @@ final class SettingsModel: ObservableObject {
     var onSignedOut: () -> Void = {}
     var onOpenWebSettings: () -> Void = {}
     var onShowOnboarding: () -> Void = {}
+    /// Settings › Meetings: Voice's meetings in a tab, and Stop.
+    var onOpenVoice: () -> Void = {}
+    var onStopRecording: () -> Void = {}
     /// UI tests: each request the window made, by endpoint fact.
     var onRequest: ((String) -> Void)?
 
     init(lang: Lang, server: String, lockdown: Bool, store: SessionStore, remote: SettingsRemote,
          loginItems: LoginItemService, permission: NotificationPermission,
-         mic: MicrophonePermission, paste: PastePermission) {
+         mic: MicrophonePermission, paste: PastePermission, capture: CapturePermissions, camera: CameraPermission) {
         self.lang = lang
         self.server = server
         self.lockdown = lockdown
@@ -126,10 +137,14 @@ final class SettingsModel: ObservableObject {
         self.permission = permission
         self.mic = mic
         self.paste = paste
+        self.capture = capture
+        self.camera = camera
         settings = AppSettings.decode(store.read())
         loginItem = loginItems.state
         microphone = mic.current()
         pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
+        screenAccess = capture.screenAllowed()
+        cameraAccess = camera.current()
     }
 
     func t(_ key: StringKey, _ vars: [String: String] = [:]) -> String {
@@ -164,6 +179,44 @@ final class SettingsModel: ObservableObject {
     func refreshDictationAccess() {
         microphone = mic.current()
         pasteAccess = PasteAccess.of(buildAllows: paste.buildAllows, approved: paste.approved())
+        screenAccess = capture.screenAllowed()
+        cameraAccess = camera.current()
+    }
+
+    /// "Turn on the camera": the system prompt, only from this button or a first use (a page's
+    /// camera, Rec's bubble).
+    func cameraButton() {
+        switch cameraAccess.buttonAction {
+        case .ask:
+            Task {
+                cameraAccess = await camera.request()
+            }
+        case .openSystemSettings:
+            camera.openSystemSettings()
+        case .none:
+            break
+        }
+    }
+
+    // MARK: Meetings (block 7)
+
+    /// The computer's audio can be offered here at all (a backend on this macOS, no forced
+    /// Lockdown restrictions); the switch decides the rest.
+    var systemAudioPossible: Bool {
+        SystemAudioRules.available(allowed: true, lockdown: lockdown, backend: capture.backend)
+    }
+
+    func captureChanged(_ now: CaptureState) {
+        if captureNow != now { captureNow = now }
+    }
+
+    /// "Allow screen recording": macOS's prompt the first time, System Settings after.
+    func screenButton() {
+        if screenAccess {
+            return
+        }
+        capture.requestScreen()
+        screenAccess = capture.screenAllowed()
     }
 
     /// The dictation's shortcut state and saved count changed.

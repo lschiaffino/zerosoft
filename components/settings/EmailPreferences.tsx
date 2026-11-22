@@ -24,7 +24,7 @@ export default function EmailPreferences({ initial }: { initial: EmailPrefs }) {
     );
 
   return (
-    <FormSection
+    <FormSection setting="notifications-email"
       id="emails"
       title={t('title')}
       description={t('desc')}

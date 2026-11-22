@@ -152,8 +152,9 @@ final class MainWindowUITests: XCTestCase {
         let ready = readyLine(app)
         if Self.mode == "on" {
             // Section 3.1. Measured on macos-15: WebAssembly, IndexedDB, WebRTC, Web Audio and
-            // Notification go; service workers stay with the per-web-view switch. getUserMedia is
-            // absent in both modes here (no camera entitlement yet), so it proves nothing.
+            // Notification go; service workers stay with the per-web-view switch. getUserMedia was
+            // absent in both modes before the camera entitlement (block 8); with it, it is present
+            // only without the restrictions (Rec's test attaches the measure).
             XCTAssertTrue(line.contains("wasm=undefined"), "Lockdown restrictions not active: \(line)")
             for gone in ["wasm", "idb", "rtc", "audio", "notification"] {
                 XCTAssertTrue(ready.contains("\(gone)=false"), "\(gone) still on with Lockdown: \(ready)")
@@ -207,8 +208,9 @@ final class MainWindowUITests: XCTestCase {
     }
 
     /// The bridge answers the server's main frame and refuses everything else: an unknown
-    /// command, an oversize or mistyped message, a command without a native side yet, and any
-    /// frame (another origin, the same origin, a sandboxed one).
+    /// command, an oversize or mistyped message, and any frame (another origin, the same origin,
+    /// a sandboxed one). Since block 8 every command has a native side: Rec's "not recording"
+    /// from a tab without a recording is answered and does nothing.
     func testBridgeAnswersOnlyTheServerMainFrame() throws {
         try server.start()
         let app = launch()
@@ -220,7 +222,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(bridge.contains("unknown=denied:unknownCommand "), bridge)
         XCTAssertTrue(bridge.contains("oversize=denied:tooLarge "), bridge)
         XCTAssertTrue(bridge.contains("badargs=denied:badArgs "), bridge)
-        XCTAssertTrue(bridge.contains("unimplemented=denied:unavailable "), bridge)
+        XCTAssertTrue(bridge.contains("recoff=ok "), bridge)
         XCTAssertTrue(bridge.contains("malformed=denied:malformed "), bridge)
         XCTAssertTrue(bridge.contains("frozen=true "), bridge)
         XCTAssertTrue(bridge.contains("fields=darwin,false,\(lockdown) "), bridge)
@@ -242,7 +244,7 @@ final class MainWindowUITests: XCTestCase {
         // The native side counted each refusal under its reason.
         let native = element(app, "zs-test-bridge")
         let origin = refused == 0 ? "" : "origin=\(refused) "
-        let want = "rejected \(origin)malformed=1 tooLarge=1 unknownCommand=1 badArgs=1 unavailable=1 end"
+        let want = "rejected \(origin)malformed=1 tooLarge=1 unknownCommand=1 badArgs=1 end"
         let done = expectation(for: NSPredicate { obj, _ in
             ((obj as? XCUIElement)?.value as? String) == want
         }, evaluatedWith: native)

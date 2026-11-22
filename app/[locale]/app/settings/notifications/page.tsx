@@ -24,7 +24,7 @@ export default async function NotificationsSettingsPage(props: { params: Promise
   return (
     <div className="st-stack">
       <EmailPreferences initial={prefs} />
-      <FormSection title={t('appsTitle')} description={t('appsDesc')}>
+      <FormSection setting="notifications-apps" title={t('appsTitle')} description={t('appsDesc')}>
         <ul className="st-links">
           <li>
             <Link href="/app/track/settings?tab=notifications" className="st-link" prefetch={false}>

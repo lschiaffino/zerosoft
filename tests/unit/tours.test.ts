@@ -152,6 +152,24 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.social, { audience: null, admin: true, touch: true }))).toEqual(['intro', 'accounts', 'newPost', 'calendar', 'posts', 'inbox', 'analytics', 'done']);
   });
 
+  it('el tour de Flow arranca en la lista y sigue en el editor del flow que se abre; es igual para todos', () => {
+    expect(tourForPath('/app/flow')?.key).toBe('flow');
+    expect(tourForPath('/es/app/flow/flw_abc123')?.key).toBe('flow');
+    expect(tourForPath('/app/flow/runs')?.key).toBe('flow');
+    expect(tourForPath('/app/flows')).toBeNull();
+    expect(atTourStart(TOURS.flow, '/pt/app/flow')).toBe(true);
+    expect(atTourStart(TOURS.flow, '/app/flow/flw_abc123')).toBe(false);
+    expect(atTourStart(TOURS.flow, '/app/flow/credentials')).toBe(false);
+    // Lista y lateral primero; abrir un flow (un clic en una fila) va antes del editor.
+    const steps = ids([...TOURS.flow.steps]);
+    expect(steps).toEqual(['intro', 'newFlow', 'templates', 'runs', 'credentials', 'openFlow', 'trigger', 'addStep', 'test', 'done']);
+    expect(TOURS.flow.steps.find((s) => s.id === 'openFlow')).toMatchObject({ advanceOn: 'click' });
+    // En el teléfono el historial señala el link de la lista (el lateral es un cajón).
+    expect(TOURS.flow.steps.find((s) => s.id === 'runs')?.targets).toEqual(['flow-runs', 'flow-history']);
+    expect(ids(stepsFor(TOURS.flow, { audience: 'team', admin: false }))).toEqual(steps);
+    expect(ids(stepsFor(TOURS.flow, { audience: null, admin: true, touch: true }))).toEqual(steps);
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');

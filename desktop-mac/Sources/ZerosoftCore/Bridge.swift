@@ -6,8 +6,8 @@ import Foundation
 // 1. Origin: only the main frame of the configured server origin (scheme, host, port).
 // 2. Allowlist: `cmd` must be a `BridgeCommand`.
 // 3. Typed arguments: each command parses its own keys and types and rejects anything else.
-// The app adds the context checks of the commands that need them (the tab in front, the tab that
-// owns a recording) when those commands get their native side.
+// The app adds the context checks of the commands that need them (the tab in use for the
+// computer's audio and for a Rec start, the tab that owns a recording for the rest).
 
 /// Where a message came from: `WKScriptMessage.frameInfo` reduced to what the origin check reads.
 /// `port` is `securityOrigin.port`: 0 means the scheme's default port.
@@ -42,9 +42,10 @@ public enum BridgeCommand: String, CaseIterable, Sendable {
     case recLevel
     case tabs
 
-    /// Commands with a native side in this build. The others are valid messages that answer
-    /// `unavailable` until their block lands.
-    public static let implemented: Set<BridgeCommand> = [.info, .ready, .startLogin, .openSettings, .notify, .tabs]
+    /// Commands with a native side in this build: every one since block 8 (`recOverlay` and
+    /// `recLevel`). A command whose handler is gone (a closed or suspended tab) answers
+    /// `unavailable`.
+    public static let implemented: Set<BridgeCommand> = Set(allCases)
 }
 
 /// Why a message was refused. The raw value is the error the page's promise rejects with and the
@@ -67,7 +68,8 @@ public enum BridgeRejection: String, Error, Equatable, Sendable {
 /// What the bridge script measured when the DOM was ready. Under forced Lockdown restrictions
 /// WebKit removes most of these: the UI tests read them to prove the switch reached WebKit.
 public struct ReadyReport: Equatable, Sendable {
-    public static let featureKeys = ["wasm", "idb", "sw", "media", "rtc", "audio", "notification"]
+    /// `display` is `getDisplayMedia` (Rec's screen capture, block 8).
+    public static let featureKeys = ["wasm", "idb", "sw", "media", "display", "rtc", "audio", "notification"]
 
     /// Visible children of `<body>` at DOMContentLoaded (same rule as the paint check).
     public var content: Int
@@ -150,12 +152,18 @@ public struct BridgeInfo: Equatable, Sendable {
     public var lockdown: Bool
     /// The `-ZSLockdown` setting itself: on, off or system.
     public var lockdownSetting: String
+    /// The app can capture the computer's audio for meetings (block 7): a backend exists on
+    /// this macOS and the web views are not under forced Lockdown restrictions (the page needs
+    /// Web Audio to play the samples). Settings › Meetings can still turn the capture off;
+    /// `systemAudioStart` then answers `unsupported` and the page records the microphone only.
+    public var systemAudio: Bool
 
-    public init(version: String, store: Bool, lockdown: LockdownSetting) {
+    public init(version: String, store: Bool, lockdown: LockdownSetting, systemAudio: Bool = false) {
         self.version = version
         self.store = store
         self.lockdown = lockdown == .on
         lockdownSetting = lockdown.rawValue
+        self.systemAudio = systemAudio && lockdown != .on
     }
 
     /// Capability fields of `lib/desktop-bridge.ts` that the Tauri app leaves out (meaning yes):
@@ -171,14 +179,18 @@ public struct BridgeInfo: Equatable, Sendable {
 
     /// The reply to `info`: plain JSON types only (what WKScriptMessageHandlerWithReply sends back).
     /// Features without a native side in this build report false. `dictation` is true since
-    /// block 6 (dictation in any app from the shortcut; the page cannot start one).
+    /// block 6 (dictation in any app from the shortcut; the page cannot start one), and
+    /// `recordingIndicator` since block 7 (the page's `recording()` drives the floating
+    /// indicator, the tab's dot and the menu bar item's dot).
+    public static let recordingIndicator = true
+
     public var reply: [String: Any] {
         [
             "version": version,
             "platform": "darwin",
-            "systemAudio": false,
+            "systemAudio": systemAudio,
             "dictation": true,
-            "recordingIndicator": false,
+            "recordingIndicator": Self.recordingIndicator,
             "settingsWindow": Self.settingsWindow,
             "updateFeed": Self.updateFeed,
             "tabs": Self.tabs,

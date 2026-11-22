@@ -124,7 +124,7 @@ export default async function LeadPage(props: {
 
   if (tab === 'activity') {
     // Sin la cola ni el recordatorio de las tareas (la cola puede ser privada de otra persona).
-    const timeline = (await listTimeline(user.id, { leadId: lead.id, limit: 100, chatReader: await sessionChatReader(user, locale) })).map((a) => ({
+    const timeline = (await listTimeline(user.id, { leadId: lead.id, limit: 100, chatReader: await sessionChatReader(user, locale), ownerScope: scope })).map((a) => ({
       ...a,
       queue_id: null,
       reminder_at: null,

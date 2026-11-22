@@ -508,7 +508,14 @@
     "removeCohortBreakdown": "Stop breaking down by {name}",
     "breakdownBins": "In ranges",
     "breakdownBinCount": "Number of ranges",
-    "subscribe": "Subscribe"
+    "subscribe": "Subscribe",
+    "pathExclude": "Skip",
+    "pathExcludeHelp": "Pages or events that do not count as a step. Use * as a wildcard (/admin/*).",
+    "pathGroups": "Group",
+    "pathGroupsHelp": "Pages that match one pattern count as one step (/blog/* for every blog post).",
+    "pathAdd": "Add",
+    "pathRemove": "Remove {value}",
+    "pathListFull": "Up to 20."
   },
   "sql": {
     "title": "SQL",
@@ -876,7 +883,7 @@
   },
   "alerts": {
     "title": "Alerts",
-    "description": "Get a notice in the app when a trends insight crosses a threshold. Create them from the insight.",
+    "description": "Get a notice in the app, and an email if you want, when a trends insight crosses a threshold. Create them from the insight.",
     "new": "New alert",
     "emptyTitle": "No alerts yet",
     "emptyBody": "Open a saved trends insight and add an alert below the chart.",
@@ -884,7 +891,7 @@
     "meta": "State and insight",
     "deleteTitle": "Delete \"{name}\"?",
     "deleteBody": "It stops checking and notifying. The insight stays.",
-    "help": "Checked every hour or day on the last closed period. It notifies you in the app when it starts firing, once until it clears.",
+    "help": "Checked every hour or day on the last closed period. It notifies you in the app when it starts firing, and by email if you turn it on, once until it clears.",
     "none": "No alerts on this insight.",
     "line": "{condition} {value}, {frequency}",
     "lastValue": "last value {value}",
@@ -913,7 +920,9 @@
       "firing": "Firing",
       "error": "Error",
       "off": "Paused"
-    }
+    },
+    "emailNew": "Also send me an email",
+    "email": "Email"
   },
   "correlation": {
     "title": "What drives conversion",

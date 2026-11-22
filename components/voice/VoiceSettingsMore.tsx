@@ -222,7 +222,7 @@ export function MeetingsSettings({
 
   return (
     <>
-      <FormSection
+      <FormSection setting="voice-reminders"
         title={t('remindersTitle')}
         description={t('remindersDesc')}
         onSubmit={(fd) => save({ reminders: fd.get('reminders') === 'on', reminderMinutes: Number(fd.get('reminderMinutes')) })}
@@ -265,7 +265,7 @@ export function MeetingsSettings({
           </p>
         ) : null}
       </FormSection>
-      <FormSection title={t('retentionTitle')} description={t('retentionDesc')} onSubmit={(fd) => save({ retentionDays: Number(fd.get('retentionDays')) })}>
+      <FormSection setting="voice-retention" title={t('retentionTitle')} description={t('retentionDesc')} onSubmit={(fd) => save({ retentionDays: Number(fd.get('retentionDays')) })}>
         <div className="ui-field">
           <label className="label" htmlFor="vc-retention">
             {t('retention')}

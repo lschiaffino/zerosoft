@@ -2,17 +2,19 @@ import Foundation
 
 // The app's own settings (block 5 of docs/desktop-swift.md): what the Settings window, the
 // onboarding and the menu bar item read and write. Saved as settings.json next to session.json
-// in the app's container. It holds switches only: never a token, an email, a title, a query or
-// anything the page showed. The tab preferences stay in session.json (TabPrefs), where the Tauri
-// app keeps them; the login item lives in the system (SMAppService), so neither is copied here.
+// in the app's container. It holds switches, two names from closed lists and where the recording
+// indicator was left: never a token, an email, a title, a query or anything the page showed.
+// The tab preferences stay in session.json (TabPrefs), where the Tauri app keeps them; the login
+// item lives in the system (SMAppService), so neither is copied here.
 
 public struct AppSettings: Equatable, Sendable {
     public static let fileVersion = 1
     /// Every key the file may hold. A test checks that nothing else is ever written: switches,
-    /// and two names from closed lists (the shortcut and the dictation mode).
+    /// two names from closed lists (the shortcut and the dictation mode) and one point (the
+    /// indicator's position).
     public static let keys: Set<String> = [
         "version", "onboarded", "menuBarItem", "shortcut", "mode", "autoPaste", "restoreClipboard",
-        "sendAppName", "keepFailedDictations",
+        "sendAppName", "keepFailedDictations", "recordingIndicator", "allowSystemAudio", "indicatorPosition",
     ]
 
     /// The first-run window was finished or closed (it does not open again by itself).
@@ -37,6 +39,18 @@ public struct AppSettings: Equatable, Sendable {
     /// Keep the audio of a dictation that could not be sent, to send it again (PendingStore).
     public var keepFailedDictations = true
 
+    // Meetings (block 7). The names and defaults of the Tauri app's settings.json (config.rs).
+
+    /// The floating indicator while a meeting records and its tab is not in front. The
+    /// computer's audio is marked by it whatever this says.
+    public var recordingIndicator = true
+    /// Meetings may capture the computer's audio (the bridge's `systemAudioStart`). Off: the
+    /// page records the microphone only.
+    public var allowSystemAudio = true
+    /// Where the person left the indicator (bottom-left of the closed indicator, in screen
+    /// points). nil: top right of the screen.
+    public var indicatorPosition: IndicatorPosition?
+
     public init() {}
 
     /// Reads settings.json. Anything missing, of the wrong type or unreadable keeps its default.
@@ -52,11 +66,17 @@ public struct AppSettings: Equatable, Sendable {
         if let b = bool(raw["restoreClipboard"]) { s.restoreClipboard = b }
         if let b = bool(raw["sendAppName"]) { s.sendAppName = b }
         if let b = bool(raw["keepFailedDictations"]) { s.keepFailedDictations = b }
+        if let b = bool(raw["recordingIndicator"]) { s.recordingIndicator = b }
+        if let b = bool(raw["allowSystemAudio"]) { s.allowSystemAudio = b }
+        if let pair = raw["indicatorPosition"] as? [Any], pair.count == 2,
+           let x = number(pair[0]), let y = number(pair[1]) {
+            s.indicatorPosition = IndicatorPosition(x: x, y: y)
+        }
         return s
     }
 
     public func encoded() -> Data {
-        let root: [String: Any] = [
+        var root: [String: Any] = [
             "version": Self.fileVersion,
             "onboarded": onboarded,
             "menuBarItem": menuBarItem,
@@ -66,7 +86,10 @@ public struct AppSettings: Equatable, Sendable {
             "restoreClipboard": restoreClipboard,
             "sendAppName": sendAppName,
             "keepFailedDictations": keepFailedDictations,
+            "recordingIndicator": recordingIndicator,
+            "allowSystemAudio": allowSystemAudio,
         ]
+        if let p = indicatorPosition { root["indicatorPosition"] = [p.x, p.y] }
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
 
@@ -80,9 +103,32 @@ public struct AppSettings: Equatable, Sendable {
         "shortcut=\(shortcut.name) mode=\(mode.rawValue) paste=\(autoPaste) restore=\(restoreClipboard) app=\(sendAppName) keep=\(keepFailedDictations)"
     }
 
+    /// "indicator=true sysaudio=true", for the UI tests.
+    public var meetingsSummary: String {
+        "indicator=\(recordingIndicator) sysaudio=\(allowSystemAudio)"
+    }
+
+    /// A finite number (not a JSON boolean) within the coordinates any screen setup has.
+    private static func number(_ v: Any?) -> Double? {
+        guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+        let d = n.doubleValue
+        return d.isFinite && abs(d) < 100_000 ? d : nil
+    }
+
     private static func bool(_ v: Any?) -> Bool? {
         guard let n = v as? NSNumber, CFGetTypeID(n) == CFBooleanGetTypeID() else { return nil }
         return n.boolValue
+    }
+}
+
+/// A point on the screens (AppKit coordinates), rounded to whole points when saved.
+public struct IndicatorPosition: Equatable, Sendable {
+    public var x: Double
+    public var y: Double
+
+    public init(x: Double, y: Double) {
+        self.x = x.rounded()
+        self.y = y.rounded()
     }
 }
 
@@ -94,11 +140,13 @@ extension TabPrefs {
 }
 
 /// The sections of the Settings window, in order (the Tauri window's native sections that have
-/// a native side in this build; meetings, privacy and updates come with their blocks).
-/// Permissions holds notifications, the microphone and Accessibility (block 6).
+/// a native side in this build; privacy and updates come with their blocks). Permissions holds
+/// notifications, the microphone and Accessibility (block 6), the computer's audio and Screen
+/// Recording (block 7).
 public enum SettingsSection: String, CaseIterable, Sendable {
     case general
     case tabs
+    case meetings
     case permissions
     case voice
     case dictionary
@@ -198,6 +246,18 @@ public struct DictationMenuState: Equatable, Sendable {
 
 /// The menu of the menu bar item, as data: the app builds the NSMenu from it.
 public enum StatusMenuItem: Equatable, Sendable {
+    /// What is capturing now (a line that does nothing), as the Tauri tray's `capture-now`.
+    case capturing(CaptureState)
+    /// Bring the tab that records a meeting to the front.
+    case openRecording
+    /// Ask the recording page to stop (`zerosoft:stop-recording`).
+    case stopRecording
+    /// Stop capturing the computer's audio, natively, whatever the page does.
+    case stopSystemAudio
+    /// Rec (block 8): bring the recording tab to the front, or finish the recording (the page
+    /// gets the `stop` control).
+    case openRec
+    case stopRec
     case open
     case newTab
     case newWindow
@@ -219,8 +279,14 @@ public enum StatusMenuItem: Equatable, Sendable {
 
     /// The items for a state. `signedIn` nil means unknown (not asked yet, or offline): no
     /// account item. `unread` is the badge total.
-    public static func items(signedIn: Bool?, unread: Int, dictation: DictationMenuState? = nil) -> [StatusMenuItem] {
+    public static func items(signedIn: Bool?, unread: Int, dictation: DictationMenuState? = nil, capture: CaptureState = CaptureState()) -> [StatusMenuItem] {
         var list: [StatusMenuItem] = [.open, .newTab, .newWindow]
+        if capture.forcesMenuBarItem {
+            list += [.separator, .capturing(capture)]
+            if capture.meeting { list += [.openRecording, .stopRecording] }
+            if capture.rec { list += [.openRec, .stopRec] }
+            if capture.systemAudio { list.append(.stopSystemAudio) }
+        }
         if let d = dictation {
             list += [.separator, .dictate(recording: d.phase == .recording)]
             if d.mode != .toggle, d.phase == .idle { list.append(.dictateHint) }

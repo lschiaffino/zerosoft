@@ -29,12 +29,12 @@ export default async function NotesSettingsPage(props: { params: Promise<{ local
       <div className="st-stack">
         {/* Sin dominio de entrada no hay nada que la persona pueda hacer: no se ofrece. */}
         {inboundDomain() && (
-          <FormSection title={tNotes('email.title')}>
+          <FormSection setting="notes-email" title={tNotes('email.title')}>
             <NotesEmailPanel />
           </FormSection>
         )}
         {admin && (
-          <FormSection title={tNotes('admin.title')}>
+          <FormSection setting="notes-admin" title={tNotes('admin.title')}>
             <NotesAdminPanel selfId={user.actingUser?.id ?? user.id} />
           </FormSection>
         )}

@@ -12,15 +12,26 @@
  *   contexto del CRM; la persona lo revisa, edita y envía desde la corrida.
  *
  * Nada se escribe solo: cada ítem queda "ready" y se aplica o envía a mano
- * (uno o todos). Los ítems se procesan con claim por fila (claimed_at) desde
+ * (uno o todos).
+ *
+ * Privacidad: lo que propone un ítem (el borrador, los cambios y su fuente)
+ * lo lee cualquiera que ve el registro, así que se arma con lo que ve
+ * cualquiera que lo abre (aiStepScope), y solo si quien creó la corrida
+ * todavía ve el registro. Sin campos propios. Una persona con restricciones
+ * ve sus corridas y las de otros en las que ve algún registro, con los
+ * conteos de lo que ve; una corrida armada desde una lista que no ve no le
+ * aparece. Los ítems se procesan con claim por fila (claimed_at) desde
  * el request que mira la corrida y desde el cron de cada minuto. Server-only.
  */
 import { z } from 'zod';
 import { getDb, type CrmCompanyRow, type CrmContactRow } from './db';
-import { buildRecordContext, crmGenerateObject, LOCALE_NAME } from './crm-ai';
+import { aiStepScope, buildRecordContext, crmGenerateObject, LOCALE_NAME } from './crm-ai';
 import { crmAiFakeActive } from './crm-ai-fake';
 import { safeFetch } from './safe-fetch';
-import { canSeeEntity, scopeAnd, type OwnerScope } from './crm-visibility';
+import { canSeeEntity, canSeeRecord, scopeAnd, sessionScope, type OwnerScope } from './crm-visibility';
+import { isUnrestricted, sessionFieldViewer } from './crm-field-perms';
+import type { TeamRole } from './teams';
+import { subscriberFor } from './crm-event-privacy';
 import { updateCompany, updateContact } from './crm';
 
 export const AI_AGENTS = ['enrich_companies', 'enrich_contacts', 'outreach'] as const;
@@ -278,10 +289,77 @@ async function readyCount(runId: string): Promise<number> {
   return Number(r.n);
 }
 
-export async function listRuns(workspaceId: string, limit = 100): Promise<RunView[]> {
+/** Quién mira las corridas: su id y su alcance (null = sin restricciones). */
+export interface RunViewer {
+  personId: string;
+  scope: OwnerScope | undefined;
+  /** ¿Puede ver la lista de la que salió la corrida? Sin esto no se mira. */
+  canSeeList?: (listId: string) => Promise<boolean>;
+}
+
+/** El viewer de la sesión: su alcance y las listas que ve. */
+export async function sessionRunViewer(user: { id: string; role: TeamRole; actingUser?: { id: string } | null }): Promise<RunViewer> {
+  const fieldViewer = sessionFieldViewer(user);
+  if (isUnrestricted(fieldViewer)) return { personId: fieldViewer.personId, scope: null };
+  const { canSeeList } = await import('./crm-list-access');
+  // Una lista que ya no existe no oculta la corrida: queda el control por ítem.
+  const exists = async (listId: string) => !!(await getDb().prepare('SELECT 1 FROM crm_lists WHERE id = ? AND user_id = ?').get(listId, fieldViewer.workspaceId));
+  return {
+    personId: fieldViewer.personId,
+    scope: await sessionScope(user),
+    canSeeList: async (listId) => !(await exists(listId)) || canSeeList(fieldViewer, listId),
+  };
+}
+
+/**
+ * ¿Puede renombrar, cancelar o borrar la corrida? Quien la creó, u owner y
+ * admins (viewer sin restricciones). false si no existe.
+ */
+export async function canManageRun(workspaceId: string, id: string, viewer: RunViewer): Promise<boolean> {
+  const row = await getRunRow(workspaceId, id);
+  if (!row) return false;
+  return row.created_by === viewer.personId || (!viewer.scope && !viewer.canSeeList);
+}
+
+/** Ítems de la corrida que el viewer ve (todos sin alcance). */
+async function visibleItems(workspaceId: string, items: CrmAiRunItemRow[], scope: OwnerScope | undefined): Promise<CrmAiRunItemRow[]> {
+  if (!scope) return items;
+  const out: CrmAiRunItemRow[] = [];
+  for (const it of items) if (await canSeeEntity(workspaceId, it.entity, it.entity_id, scope)) out.push(it);
+  return out;
+}
+
+/** La corrida con los conteos de lo que el viewer ve; null si no le corresponde verla. */
+async function runFor(row: CrmAiRunRow, items: CrmAiRunItemRow[], viewer: RunViewer | undefined): Promise<{ run: RunView; items: CrmAiRunItemRow[] } | null> {
+  const visible = await visibleItems(row.user_id, items, viewer?.scope);
+  if (viewer?.scope && row.created_by !== viewer.personId) {
+    if (!visible.length) return null;
+  }
+  if (viewer?.canSeeList && row.created_by !== viewer.personId) {
+    const listId = parseJson<{ listId?: string | null }>(row.target, {}).listId;
+    if (listId && !(await viewer.canSeeList(listId))) return null;
+  }
+  const view = toView(row, visible.filter((i) => i.status === 'ready').length);
+  if (viewer?.scope) {
+    view.total = visible.length;
+    view.processed = visible.filter((i) => i.status !== 'pending').length;
+  }
+  return { run: view, items: visible };
+}
+
+export async function listRuns(workspaceId: string, viewer?: RunViewer, limit = 100): Promise<RunView[]> {
   const rows = (await getDb()
     .prepare('SELECT * FROM crm_ai_runs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?')
     .all(workspaceId, limit)) as CrmAiRunRow[];
+  if (viewer?.scope || viewer?.canSeeList) {
+    const out: RunView[] = [];
+    for (const r of rows) {
+      const items = (await getDb().prepare('SELECT * FROM crm_ai_run_items WHERE run_id = ? AND user_id = ?').all(r.id, workspaceId)) as CrmAiRunItemRow[];
+      const v = await runFor(r, items, viewer);
+      if (v) out.push(v.run);
+    }
+    return out;
+  }
   const counts = new Map<string, number>();
   if (rows.length) {
     const c = (await getDb()
@@ -294,11 +372,26 @@ export async function listRuns(workspaceId: string, limit = 100): Promise<RunVie
   return rows.map((r) => toView(r, counts.get(r.id) ?? 0));
 }
 
-export async function searchRuns(workspaceId: string, q: string, limit = 5): Promise<Array<{ id: string; name: string; agent: AiAgent }>> {
+export async function searchRuns(
+  workspaceId: string,
+  q: string,
+  limit = 5,
+  viewer?: RunViewer,
+): Promise<Array<{ id: string; name: string; agent: AiAgent }>> {
   const like = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-  return (await getDb()
-    .prepare(`SELECT id, name, agent FROM crm_ai_runs WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`)
-    .all(workspaceId, like, limit)) as Array<{ id: string; name: string; agent: AiAgent }>;
+  const rows = (await getDb()
+    .prepare(`SELECT * FROM crm_ai_runs WHERE user_id = ? AND name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?`)
+    .all(workspaceId, like, viewer?.scope || viewer?.canSeeList ? limit * 4 : limit)) as CrmAiRunRow[];
+  const out: Array<{ id: string; name: string; agent: AiAgent }> = [];
+  for (const r of rows) {
+    if (out.length >= limit) break;
+    if (viewer?.scope || viewer?.canSeeList) {
+      const items = (await getDb().prepare('SELECT * FROM crm_ai_run_items WHERE run_id = ? AND user_id = ?').all(r.id, workspaceId)) as CrmAiRunItemRow[];
+      if (!(await runFor(r, items, viewer))) continue;
+    }
+    out.push({ id: r.id, name: r.name, agent: r.agent });
+  }
+  return out;
 }
 
 async function getRunRow(workspaceId: string, id: string): Promise<CrmAiRunRow | null> {
@@ -320,19 +413,17 @@ function itemView(r: CrmAiRunItemRow): RunItemView {
 export async function getRun(
   workspaceId: string,
   id: string,
-  scope?: OwnerScope,
+  viewer?: RunViewer,
 ): Promise<{ run: RunView; items: RunItemView[] } | null> {
   const row = await getRunRow(workspaceId, id);
   if (!row) return null;
   const items = (await getDb()
-    .prepare('SELECT * FROM crm_ai_run_items WHERE run_id = ? ORDER BY position ASC')
-    .all(id)) as CrmAiRunItemRow[];
-  // Ítems de registros que el viewer no ve quedan fuera de la vista.
-  const visible: CrmAiRunItemRow[] = [];
-  for (const it of items) {
-    if (!scope || (await canSeeEntity(workspaceId, it.entity, it.entity_id, scope))) visible.push(it);
-  }
-  return { run: toView(row, items.filter((i) => i.status === 'ready').length), items: visible.map(itemView) };
+    .prepare('SELECT * FROM crm_ai_run_items WHERE run_id = ? AND user_id = ? ORDER BY position ASC')
+    .all(id, workspaceId)) as CrmAiRunItemRow[];
+  // Ítems de registros que el viewer no ve quedan fuera de la vista y de los conteos.
+  const out = await runFor(row, items, viewer);
+  if (!out) return null;
+  return { run: out.run, items: out.items.map(itemView) };
 }
 
 export async function updateRun(workspaceId: string, id: string, patch: z.infer<typeof runUpdateSchema>): Promise<RunView | null> {
@@ -445,23 +536,53 @@ export function namesFromEmail(email: string): [string, string] {
   return [cap(parts[0]), cap(parts.slice(1).join(' '))];
 }
 
-async function processEnrichContact(ws: string, item: CrmAiRunItemRow): Promise<EnrichOutput> {
+/**
+ * Alcance con el que se arma lo que propone un ítem: lo que ve cualquiera
+ * que abre el registro (aiStepScope), porque el ítem lo lee todo quien ve el
+ * registro. Error not_found si el registro no existe o si quien creó la
+ * corrida ya no es parte del workspace o no ve el registro.
+ */
+export async function itemScope(run: Pick<CrmAiRunRow, 'user_id' | 'created_by'>, item: Pick<CrmAiRunItemRow, 'entity' | 'entity_id'>): Promise<OwnerScope> {
+  const ws = run.user_id;
+  // Una corrida vieja sin creador cuenta como del dueño del workspace (como el remitente del borrador).
+  const creator = await subscriberFor(ws, run.created_by ?? ws);
+  if (!creator) throw new Error('not_found');
+  if (!creator.unrestricted && !(await canSeeEntity(ws, item.entity, item.entity_id, creator.scope))) throw new Error('not_found');
+  const audience = await aiStepScope(ws, { entity: item.entity, id: item.entity_id });
+  if (!audience) throw new Error('not_found');
+  return audience.scope;
+}
+
+/** Empresa del workspace dentro del alcance (null si no está o no se ve). */
+async function scopedCompany(ws: string, where: { id?: string; domain?: string }, scope: OwnerScope): Promise<CrmCompanyRow | undefined> {
+  const s = scopeAnd('co', scope);
+  if (where.id) {
+    return (await getDb().prepare(`SELECT co.* FROM crm_companies co WHERE co.id = ? AND co.user_id = ?${s.sql}`).get(where.id, ws, ...s.args)) as
+      | CrmCompanyRow
+      | undefined;
+  }
+  return (await getDb()
+    .prepare(`SELECT co.* FROM crm_companies co WHERE co.user_id = ? AND lower(co.domain) = ?${s.sql} ORDER BY co.created_at ASC LIMIT 1`)
+    .get(ws, where.domain ?? '', ...s.args)) as CrmCompanyRow | undefined;
+}
+
+async function processEnrichContact(ws: string, run: CrmAiRunRow, item: CrmAiRunItemRow): Promise<EnrichOutput> {
   const db = getDb();
   const c = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?').get(item.entity_id, ws)) as CrmContactRow | undefined;
   if (!c) throw new Error('not_found');
+  const scope = await itemScope(run, item);
   const changes: FieldChange[] = [];
   const [first, last] = namesFromEmail(c.email);
   if (!c.first_name && first) changes.push({ field: 'firstName', value: first });
   if (!c.last_name && last) changes.push({ field: 'lastName', value: last });
   let company: CrmCompanyRow | undefined;
+  // Solo empresas que ve cualquiera que abre el contacto: su nombre sale como fuente y sus datos se copian.
   if (c.company_id) {
-    company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ? AND user_id = ?').get(c.company_id, ws)) as CrmCompanyRow | undefined;
+    company = await scopedCompany(ws, { id: c.company_id }, scope);
   } else {
     const domain = (c.email.split('@')[1] ?? '').toLowerCase();
     if (domain) {
-      company = (await db
-        .prepare("SELECT * FROM crm_companies WHERE user_id = ? AND lower(domain) = ? ORDER BY created_at ASC LIMIT 1")
-        .get(ws, domain)) as CrmCompanyRow | undefined;
+      company = await scopedCompany(ws, { domain }, scope);
       if (company) changes.push({ field: 'companyId', value: company.id });
     }
   }
@@ -484,12 +605,11 @@ const outreachSchema = z.object({
  */
 const FREE_MAIL = new Set(['gmail.com', 'googlemail.com', 'hotmail.com', 'outlook.com', 'live.com', 'yahoo.com', 'icloud.com', 'me.com', 'proton.me', 'protonmail.com', 'aol.com', 'gmx.com']);
 
-async function companySiteText(ws: string, c: CrmContactRow): Promise<{ url: string; text: string } | null> {
+async function companySiteText(ws: string, c: CrmContactRow, scope: OwnerScope): Promise<{ url: string; text: string } | null> {
   if (await crmAiFakeActive()) return null;
   let co: Pick<CrmCompanyRow, 'domain' | 'website'> | undefined;
-  if (c.company_id) {
-    co = (await getDb().prepare('SELECT domain, website FROM crm_companies WHERE id = ? AND user_id = ?').get(c.company_id, ws)) as CrmCompanyRow | undefined;
-  }
+  // La empresa del contacto solo si está en el alcance del borrador; si no, el dominio de su email.
+  if (c.company_id) co = await scopedCompany(ws, { id: c.company_id }, scope);
   if (!co?.domain && !co?.website) {
     const domain = (c.email.split('@')[1] ?? '').toLowerCase();
     if (!domain || FREE_MAIL.has(domain)) return null;
@@ -511,7 +631,9 @@ async function processOutreach(ws: string, run: CrmAiRunRow, item: CrmAiRunItemR
   const c = (await getDb().prepare('SELECT * FROM crm_contacts WHERE id = ? AND user_id = ?').get(item.entity_id, ws)) as CrmContactRow | undefined;
   if (!c) throw new Error('not_found');
   if (!c.email) throw new Error('missing_email');
-  const ctx = await buildRecordContext(ws, 'contact', c.id, null);
+  // El borrador lo lee quien ve el contacto: contexto con lo que ve cualquiera que lo abre, nunca todo el workspace.
+  const scope = await itemScope(run, item);
+  const ctx = await buildRecordContext(ws, 'contact', c.id, scope);
   if (!ctx) throw new Error('not_found');
   const sender = (await getDb()
     .prepare('SELECT name, email FROM users WHERE id = ?')
@@ -519,7 +641,7 @@ async function processOutreach(ws: string, run: CrmAiRunRow, item: CrmAiRunItemR
   const target = parseJson<{ locale?: string }>(run.target, {});
   const locale = target.locale ?? 'en';
   const senderName = (sender?.name || sender?.email || '').split(/[\s@]/)[0] || 'the team';
-  const site = await companySiteText(ws, c);
+  const site = await companySiteText(ws, c, scope);
   const res = await crmGenerateObject({
     workspaceId: ws,
     feature: 'crm_prospecting_agent',
@@ -576,7 +698,7 @@ async function processItem(run: CrmAiRunRow, item: CrmAiRunItemRow): Promise<'ok
   try {
     let output: EnrichOutput | OutreachOutput;
     if (run.agent === 'enrich_companies') output = await processEnrichCompany(run.user_id, item);
-    else if (run.agent === 'enrich_contacts') output = await processEnrichContact(run.user_id, item);
+    else if (run.agent === 'enrich_contacts') output = await processEnrichContact(run.user_id, run, item);
     else output = await processOutreach(run.user_id, run, item);
     const empty = 'changes' in output && output.changes.length === 0;
     await db
@@ -667,6 +789,10 @@ export async function applyItem(opts: {
   } else {
     const allowed = ['firstName', 'lastName', 'companyId', 'city', 'country'];
     const data = Object.fromEntries(Object.entries(patch).filter(([k]) => allowed.includes(k)));
+    // No se vincula una empresa que quien aplica no ve (o que ya no es del workspace).
+    if (typeof data.companyId === 'string' && !(await canSeeRecord(opts.workspaceId, 'crm_companies', data.companyId, opts.scope))) {
+      delete data.companyId;
+    }
     await updateContact(opts.workspaceId, item.entity_id, data, undefined, opts.actorEmail);
   }
   await getDb().prepare("UPDATE crm_ai_run_items SET status = 'applied', updated_at = ? WHERE id = ?").run(nowIso(), item.id);

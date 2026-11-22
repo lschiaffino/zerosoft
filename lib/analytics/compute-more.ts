@@ -264,6 +264,28 @@ export function collapsePath(path: string): string {
     .join('/');
 }
 
+/** Un patrón con * (cualquier texto, barras incluidas) como expresión exacta. Sin *, igualdad. */
+export function pathPattern(pattern: string): (path: string) => boolean {
+  if (!pattern.includes('*')) return (path) => path === pattern;
+  const re = new RegExp(`^${pattern.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+  return (path) => re.test(path);
+}
+
+/**
+ * Limpieza de caminos: el primer grupo que coincide reemplaza el paso por su
+ * patrón (/blog/* para todas las páginas del blog), y lo excluido se saca del
+ * camino (null). La exclusión mira el paso ya agrupado y el original.
+ */
+export function pathCleaner(opts: { groups?: string[] | null; exclude?: string[] | null }): (path: string) => string | null {
+  const groups = (opts.groups ?? []).map((g) => ({ label: g, test: pathPattern(g) }));
+  const exclude = (opts.exclude ?? []).map(pathPattern);
+  if (!groups.length && !exclude.length) return (path) => path;
+  return (path) => {
+    const label = groups.find((g) => g.test(path))?.label ?? path;
+    return exclude.some((test) => test(label) || test(path)) ? null : label;
+  };
+}
+
 // ---------- Experimentos ----------
 
 /** Generador con semilla (mulberry32): el mismo resultado en cada corrida. */

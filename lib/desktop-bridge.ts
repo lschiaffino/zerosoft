@@ -46,9 +46,11 @@ export interface DesktopBridge {
    * no salió de la app (pegado en Talk, un mail) devuelve false.
    */
   /**
-   * Audio del sistema nativo (ScreenCaptureKit en Mac, macOS 13 o más). start devuelve
-   * ok | denied | unsupported | failed; read, el PCM de 16 bits, 16 kHz, mono, en base64 que se
-   * acumuló desde la lectura anterior; stop corta. Desde la 0.4.0.
+   * Audio del sistema nativo (Tauri: ScreenCaptureKit en Mac, macOS 13 o más; Swift, desde el
+   * bloque 7: Core Audio taps en macOS 14.2 o más y ScreenCaptureKit en 13 a 14.1). start devuelve
+   * ok | denied | unsupported | failed y solo empieza desde la pestaña que se está usando; read, el
+   * PCM de 16 bits, 16 kHz, mono, en base64 que se acumuló desde la lectura anterior (solo para la
+   * pestaña que la empezó); stop corta. Si la página deja de leer 30 s, la app corta sola. Desde la 0.4.0.
    */
   systemAudioStart?: () => Promise<string>;
   systemAudioRead?: () => Promise<string>;
@@ -57,7 +59,9 @@ export interface DesktopBridge {
   /**
    * Rec (como Loom): mientras se graba, la app muestra una barra flotante (reloj, micrófono,
    * pausa, terminar, reiniciar, descartar) y, con `camera`, la burbuja de la cámara encima de
-   * todo. Lo que se toca ahí llega como DESKTOP_REC_CONTROL_EVENT. Desde la 0.3.4.
+   * todo. Lo que se toca ahí llega como DESKTOP_REC_CONTROL_EVENT. Desde la 0.3.4 (Tauri) y el
+   * bloque 8 (Swift: la barra solo la empieza la pestaña que se está usando y queda fuera de la
+   * captura; la burbuja es nativa y abre la cámara por su nombre).
    */
   recOverlay?: (state: RecOverlayState) => Promise<void>;
   /** Nivel del micrófono (0 a 1) para la barra flotante. */

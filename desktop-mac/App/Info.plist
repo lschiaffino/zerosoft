@@ -59,6 +59,18 @@
 	     microphone", never at launch. -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>zerosoft records your voice while you dictate: from the shortcut until you let go, tap again or reach 2 minutes. The audio goes to your zerosoft server to become text.</string>
+	<!-- Meetings (block 7): the computer's audio, captured only while a meeting the person started
+	     records. macOS 14.2 and later ask for system audio recording (Core Audio taps) the first
+	     time; macOS 13 to 14.1 need Screen Recording (ScreenCaptureKit), asked for on the first
+	     capture or from Settings › Permissions. Never at launch. -->
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>zerosoft captures the computer's audio only while a meeting you started records, so its notes include the other people on the call. The audio goes to your zerosoft server.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Rec records your screen from its page, only after you start a recording and pick what to share. On macOS 14.1 and earlier, zerosoft also needs Screen Recording to capture the computer's audio while a meeting you started records.</string>
+	<!-- Rec (block 8): the camera for the page (Talk, Rec) and for Rec's camera bubble, which
+	     only previews it on screen. Asked on first use or from Settings › Permissions. -->
+	<key>NSCameraUsageDescription</key>
+	<string>zerosoft uses the camera for video calls and for Rec recordings with your camera, only after you start one. During a Rec recording your camera shows in a round bubble on top of other apps.</string>
 	<!-- Auto-paste of dictated text (decision 7.1, section 5.1): YES posts Command+V once the
 	     person allows it in Privacy & Security › Accessibility; NO only copies. From the
 	     ZS_AUTO_PASTE build setting (project.yml). -->

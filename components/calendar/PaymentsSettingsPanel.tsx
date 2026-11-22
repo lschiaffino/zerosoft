@@ -59,7 +59,7 @@ export default function PaymentsSettingsPanel({ initial, origin, canEdit }: { in
   const status = view.configured && view.keyHint ? t('payments.connected', { hint: view.keyHint, mode: view.mode ?? '' }) : t('payments.notConnected');
 
   return (
-    <FormSection
+    <FormSection setting="cal-payments"
       title={t('payments.settingsTitle')}
       description={t('payments.settingsSub')}
       onSubmit={canEdit ? save : undefined}

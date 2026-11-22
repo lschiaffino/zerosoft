@@ -51,6 +51,7 @@ extension SettingsSection {
         switch self {
         case .general: return .secGeneral
         case .tabs: return .secTabs
+        case .meetings: return .secMeetings
         case .permissions: return .secPermissions
         case .voice: return .secVoice
         case .dictionary: return .secDictionary
@@ -63,6 +64,7 @@ extension SettingsSection {
         switch self {
         case .general: return "gearshape"
         case .tabs: return "square.on.square"
+        case .meetings: return "record.circle"
         case .permissions: return "hand.raised"
         case .voice: return "mic"
         case .dictionary: return "character.book.closed"
@@ -110,6 +112,7 @@ struct SettingsView: View {
         switch selection.section {
         case .general: GeneralSection(model: model)
         case .tabs: TabsSection(model: model)
+        case .meetings: MeetingsSection(model: model)
         case .permissions: PermissionsSection(model: model)
         case .voice: VoiceSection(model: model)
         case .dictionary: DictionarySection(model: model)
@@ -278,11 +281,60 @@ private struct TabsSection: View {
     }
 }
 
+// MARK: Meetings
+
+/// The floating indicator and the computer's audio (block 7), what records now, and Voice's
+/// meetings in a tab. The meetings themselves live in the page.
+private struct MeetingsSection: View {
+    @ObservedObject var model: SettingsModel
+
+    private func toggle(_ key: WritableKeyPath<AppSettings, Bool>) -> Binding<Bool> {
+        Binding(get: { model.settings[keyPath: key] }, set: { on in model.update { $0[keyPath: key] = on } })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Help(model.t(.meetIntro))
+            HStack(spacing: 10) {
+                Circle().fill(model.captureNow.forcesMenuBarItem ? Color.red : Color.secondary.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(model.t(stateKey)).accessibilityIdentifier("zs-set-meeting-state")
+                if model.captureNow.forcesMenuBarItem {
+                    Button(model.t(.meetStop)) { model.onStopRecording() }
+                        .accessibilityIdentifier("zs-set-meeting-stop")
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(model.t(.meetIndicator), isOn: toggle(\.recordingIndicator))
+                    .accessibilityIdentifier("zs-set-indicator")
+                Help(model.t(.meetIndicatorHelp))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(model.t(.meetSysAudio), isOn: toggle(\.allowSystemAudio))
+                    .disabled(!model.systemAudioPossible)
+                    .accessibilityIdentifier("zs-set-sysaudio")
+                Help(model.t(model.lockdown ? .meetSysAudioLockdown : .meetSysAudioHelp))
+            }
+            Button(model.t(.meetOpenVoice)) { model.onOpenVoice() }
+                .accessibilityIdentifier("zs-set-open-voice")
+        }
+    }
+
+    private var stateKey: StringKey {
+        if model.captureNow.meeting { return .meetRecording }
+        if model.captureNow.rec { return .recCapturing }
+        if model.captureNow.systemAudio { return .meetCapturing }
+        return .meetIdle
+    }
+}
+
 // MARK: Permissions
 
-/// Notifications, the microphone and Accessibility (paste), each with why it is used, its state
-/// and one button. A system prompt shows only from that button (or, for the microphone, the
-/// first dictation).
+/// Notifications, the microphone, Accessibility (paste), the camera, the computer's audio and
+/// Screen Recording, each with why it is used, its state and one button. A system prompt shows
+/// only from that button (or the first dictation, the first meeting capture, the first camera
+/// use).
 private struct PermissionsSection: View {
     @ObservedObject var model: SettingsModel
 
@@ -330,6 +382,47 @@ private struct PermissionsSection: View {
                     Text(model.t(.accessUnavailable)).accessibilityIdentifier("zs-set-paste-state")
                 }
             }
+            // Block 8: the camera, for the page (Talk, Rec) and Rec's bubble.
+            Divider()
+            row(title: model.t(.permCamera), help: model.t(.permCameraHelp)) {
+                Text(model.t(cameraKey)).accessibilityIdentifier("zs-set-camera-state")
+                switch model.cameraAccess.buttonAction {
+                case .ask:
+                    Button(model.t(.camTurnOn)) { model.cameraButton() }
+                        .accessibilityIdentifier("zs-set-camera")
+                case .openSystemSettings:
+                    Button(model.t(.notifOpenSystem)) { model.cameraButton() }
+                        .accessibilityIdentifier("zs-set-camera")
+                case .none:
+                    EmptyView()
+                }
+            }
+            // Block 7: the computer's audio for meetings, and Screen Recording behind it on
+            // macOS 13 to 14.1. Audio taps have no state macOS reports, so their row explains
+            // when macOS asks and where to change it.
+            Divider()
+            row(title: model.t(.permAudio), help: model.t(.permAudioHelp)) {
+                if model.capture.backend == .processTap {
+                    Text(model.t(.permAudioTap)).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("zs-set-audio-state")
+                    Button(model.t(.notifOpenSystem)) { model.capture.openAudioSettings() }
+                        .accessibilityIdentifier("zs-set-audio")
+                } else {
+                    Text(model.t(.permAudioViaScreen)).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("zs-set-audio-state")
+                }
+            }
+            // Screen Recording: Rec's page records the screen (getDisplayMedia) on every macOS
+            // (block 8), and the computer's audio needs it on macOS 13 to 14.1.
+            Divider()
+            row(title: model.t(.permScreen), help: model.t(.permScreenHelp)) {
+                Text(model.t(model.screenAccess ? .screenAllowed : .screenOff)).accessibilityIdentifier("zs-set-screen-state")
+                if !model.screenAccess {
+                    Button(model.t(.screenAllow)) { model.screenButton() }
+                        .accessibilityIdentifier("zs-set-screen")
+                    Help(model.t(.screenAfter))
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             // Back from System Settings: show what changed there.
@@ -350,6 +443,14 @@ private struct PermissionsSection: View {
         case .allowed: return .notifAllowed
         case .denied: return .notifDenied
         case .notDetermined: return .notifNotDetermined
+        }
+    }
+
+    private var cameraKey: StringKey {
+        switch model.cameraAccess {
+        case .allowed: return .camAllowed
+        case .denied: return .camDenied
+        case .notDetermined: return .camNotDetermined
         }
     }
 

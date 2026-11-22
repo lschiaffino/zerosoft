@@ -3,7 +3,7 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
 import { invalidBody, limitAction, unauthorized } from '@/lib/crm-http';
 import { getDb } from '@/lib/db';
-import { createRun, defaultRunName, listRuns, runCreateSchema, stepRun } from '@/lib/crm-ai-agents';
+import { createRun, defaultRunName, listRuns, runCreateSchema, sessionRunViewer, stepRun } from '@/lib/crm-ai-agents';
 import { crmAiAvailable } from '@/lib/crm-ai';
 import { aiErrorResponse, aiLocale } from '@/lib/crm-ai-http';
 import { canSeeList } from '@/lib/crm-list-access';
@@ -16,7 +16,7 @@ export const maxDuration = 60;
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ rows: await listRuns(user.id) });
+  return NextResponse.json({ rows: await listRuns(user.id, await sessionRunViewer(user)) });
 }
 
 /** Crea una corrida de un agente (datos o prospección) y empieza a procesarla. */

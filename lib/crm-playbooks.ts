@@ -6,6 +6,8 @@
 import { getDb, type CrmPlaybookRow, type CrmPlaybookRunRow, type Db } from './db';
 import { createActivity, listCustomFields, parseCustom, updateCompany, updateContact, updateDeal } from './crm';
 import { coerceCustomFieldValue } from './crm-custom-fields';
+import { fieldAccessFor, fieldsHiddenForAnyone, hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { canSeeEntity, type OwnerScope } from './crm-visibility';
 import {
   answersText,
   parseEntities,
@@ -138,6 +140,7 @@ export async function runPlaybook(
   input: PlaybookRunInput,
   actor: { id: string; email: string },
   db: Db = getDb(),
+  viewer?: FieldViewer,
 ): Promise<RunResult> {
   const playbook = await getPlaybook(workspaceId, playbookId, db);
   if (!playbook) return { ok: false, reason: 'not_found' };
@@ -154,7 +157,10 @@ export async function runPlaybook(
   if (Object.keys(custom).length) {
     const defs = await listCustomFields(workspaceId, `${input.entity === 'company' ? 'companies' : `${input.entity}s`}`);
     mergedCustom = parseCustom(record.custom);
+    // Campos que quien responde no puede editar (solo lectura u ocultos): la respuesta no se escribe.
+    const restricted = viewer ? (await fieldAccessFor(viewer, FIELD_ENTITY_OF[input.entity], db)).restricted : new Map<string, string>();
     for (const [name, value] of Object.entries(custom)) {
+      if (restricted.has(name)) continue;
       const def = defs.find((d) => d.name === name);
       const v = def ? coerceCustomFieldValue(def, value) : undefined;
       if (v === undefined) continue;
@@ -170,7 +176,8 @@ export async function runPlaybook(
   }
 
   // Timeline: nota o llamada con el guion respondido.
-  const transcript = answersText(playbook.questions, input.answers);
+  // La nota la lee todo quien ve el registro: sin las respuestas a campos que alguien tiene ocultos.
+  const transcript = answersText(await sharedQuestions(workspaceId, playbook.questions, input.entity, db), input.answers);
   const callNote = input.call?.note?.trim() ?? '';
   const body = [callNote, transcript].filter(Boolean).join('\n\n').slice(0, 5000);
   const refs =
@@ -204,6 +211,60 @@ export async function runPlaybook(
     .run(runId, workspaceId, playbook.id, playbook.name, input.entity, input.entityId, activity.id, JSON.stringify(input.answers), actor.id, now());
   const run = (await db.prepare('SELECT * FROM crm_playbook_runs WHERE id = ?').get(runId)) as CrmPlaybookRunRow;
   return { ok: true, run, activityId: activity.id, updated };
+}
+
+const FIELD_ENTITY_OF: Record<PlaybookEntity, 'contacts' | 'companies' | 'deals'> = { contact: 'contacts', company: 'companies', deal: 'deals' };
+
+/** Preguntas sin las que van a un campo propio que algún rol o equipo tiene oculto. */
+async function sharedQuestions(workspaceId: string, questions: Playbook['questions'], entity: PlaybookEntity, db: Db): Promise<Playbook['questions']> {
+  const hidden = await fieldsHiddenForAnyone(workspaceId, FIELD_ENTITY_OF[entity], db);
+  if (!hidden.size) return questions;
+  return questions.filter((q) => !(q.property.startsWith(`${entity}:custom.`) && hidden.has(q.property.slice(entity.length + 8))));
+}
+
+/**
+ * Usos para la persona: solo los de registros que ve, y sin las respuestas a
+ * preguntas que van a campos propios que tiene ocultos (sin el playbook, sin
+ * respuestas si tiene alguno oculto).
+ */
+export async function runsForViewer(
+  viewer: FieldViewer,
+  scope: OwnerScope | undefined,
+  rows: CrmPlaybookRunRow[],
+  db: Db = getDb(),
+): Promise<CrmPlaybookRunRow[]> {
+  if (!scope && isUnrestricted(viewer)) return rows;
+  const hiddenBy = new Map<string, Set<string>>();
+  const questionsBy = new Map<string, Playbook['questions'] | null>();
+  const out: CrmPlaybookRunRow[] = [];
+  for (const r of rows) {
+    if (scope && !(await canSeeEntity(viewer.workspaceId, r.entity, r.entity_id, scope))) continue;
+    const ent = FIELD_ENTITY_OF[r.entity];
+    if (!hiddenBy.has(ent)) hiddenBy.set(ent, await hiddenFieldsFor(viewer, ent, db));
+    const hidden = hiddenBy.get(ent)!;
+    if (!hidden.size) {
+      out.push(r);
+      continue;
+    }
+    const pid = r.playbook_id ?? '';
+    if (!questionsBy.has(pid)) questionsBy.set(pid, pid ? ((await getPlaybook(viewer.workspaceId, pid, db))?.questions ?? null) : null);
+    const questions = questionsBy.get(pid);
+    if (!questions) {
+      out.push({ ...r, answers: '{}' });
+      continue;
+    }
+    const drop = new Set(
+      questions.filter((q) => q.property.startsWith(`${r.entity}:custom.`) && hidden.has(q.property.slice(r.entity.length + 8))).map((q) => q.id),
+    );
+    let answers: Record<string, unknown> = {};
+    try {
+      answers = JSON.parse(r.answers || '{}') as Record<string, unknown>;
+    } catch {
+      answers = {};
+    }
+    out.push({ ...r, answers: JSON.stringify(Object.fromEntries(Object.entries(answers).filter(([k]) => !drop.has(k)))) });
+  }
+  return out;
 }
 
 /** Usos de un playbook (o en un registro), del más nuevo al más viejo. */

@@ -223,6 +223,10 @@ export const pathsQuerySchema = z.object({
   source: z.enum(['pageviews', 'all']).optional(),
   /** Junta las URLs que solo cambian en un id numérico o largo (/orders/123 → /orders/:id). */
   collapseIds: z.boolean().optional(),
+  /** Páginas o eventos que no cuentan como paso: el camino sigue como si no estuvieran. Admiten * como comodín. */
+  exclude: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
+  /** Grupos con comodín: /blog/* junta todas las páginas del blog en un solo paso. */
+  groups: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
   /** Solo la gente de un paso de un embudo, y lo que hizo en relación a ese paso. */
   funnel: z.object({ query: funnelQuerySchema, step: z.number().int().min(0).max(9), mode: z.enum(FUNNEL_PATH_MODES) }).nullable().optional(),
 });
@@ -679,6 +683,8 @@ export const alertInputSchema = z.object({
   frequency: z.enum(['hourly', 'daily']).default('daily'),
   enabled: z.boolean().default(true),
   subscribers: z.array(z.string().max(64)).max(25).default([]),
+  /** Además del aviso en la app, un email a cada persona suscripta. */
+  email: z.boolean().default(false),
 });
 export type AlertInput = z.infer<typeof alertInputSchema>;
 export interface AlertDto extends AlertInput {

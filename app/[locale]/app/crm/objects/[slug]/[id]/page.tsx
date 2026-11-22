@@ -89,12 +89,12 @@ export default async function ObjectRecordPage(props: {
 
   if (tab === 'activity') {
     const [timeline, links] = await Promise.all([
-      sessionChatReader(user, locale).then((chatReader) => listTimeline(user.id, { objectRecordId: record.id, limit: 100, chatReader }).then((rows) =>
+      sessionChatReader(user, locale).then((chatReader) => listTimeline(user.id, { objectRecordId: record.id, limit: 100, chatReader, ownerScope: scope }).then((rows) =>
           // Sin la cola ni el recordatorio de las tareas (la cola puede ser privada de otra persona).
           rows.map((a) => ({ ...a, queue_id: null, reminder_at: null, reminder_sent_at: null })),
         ),
       ),
-      recordLinks(user.id, record.id),
+      recordLinks(user.id, record.id, scope),
     ]);
     const items = await withActivityFiles(timeline);
     // Próxima tarea abierta del registro (la de vencimiento más cercano).
@@ -194,7 +194,7 @@ export default async function ObjectRecordPage(props: {
   // ---------- Relacionados ----------
   const db = getDb();
   const [links, contactRows, companyRows, dealRows] = await Promise.all([
-    recordLinks(user.id, record.id),
+    recordLinks(user.id, record.id, scope),
     db
       .prepare(`SELECT id, first_name, last_name, email FROM crm_contacts WHERE user_id = ?${scopeAnd('crm_contacts', scope).sql} ORDER BY created_at DESC LIMIT 200`)
       .all(user.id, ...scopeAnd('crm_contacts', scope).args) as Promise<Array<{ id: string; first_name: string; last_name: string; email: string }>>,

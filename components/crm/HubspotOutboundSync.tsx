@@ -23,7 +23,7 @@ function formatDate(raw: string | null, locale: string): string {
   return Number.isNaN(d.getTime()) ? raw : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
 }
 
-type Busy = '' | 'preview' | 'enable' | 'disable';
+type Busy = '' | 'preview' | 'enable' | 'disable' | 'retry_failed';
 
 export default function HubspotOutboundSync({ locale }: { locale: string }) {
   const t = useTranslations('crm.hubspotSync.outbound');
@@ -33,6 +33,7 @@ export default function HubspotOutboundSync({ locale }: { locale: string }) {
   const [busy, setBusy] = useState<Busy>('');
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   const turnOnRef = useRef<HTMLButtonElement>(null);
 
@@ -109,12 +110,14 @@ export default function HubspotOutboundSync({ locale }: { locale: string }) {
     if (busy) return;
     setBusy(kind);
     setError(null);
+    setNotice(null);
     const res = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: kind }) }).catch(() => null);
     setBusy('');
-    const data = res ? ((await res.json().catch(() => null)) as { outbound?: OutboundView; error?: string } | null) : null;
+    const data = res ? ((await res.json().catch(() => null)) as { outbound?: OutboundView; error?: string; retried?: number } | null) : null;
     if (res && res.ok && data?.outbound) {
       setView(data.outbound);
       setConfirming(false);
+      setNotice(kind === 'retry_failed' ? t('retried', { n: data.retried ?? 0 }) : null);
       return;
     }
     setError(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}`) : t('errors.generic'));
@@ -227,8 +230,20 @@ export default function HubspotOutboundSync({ locale }: { locale: string }) {
         </div>
       )}
       {view.enabled && view.failedItems > 0 && (
-        <p className="ui-help" data-testid="hubspot-sync-outbound-failed">
-          {t('failedItems', { n: view.failedItems })}
+        <div className="hsync-progress">
+          <p className="ui-help" data-testid="hubspot-sync-outbound-failed">
+            {t('failedItems', { n: view.failedItems })}
+          </p>
+          <div className="form-actions hsync-actions">
+            <button type="button" className="btn btn-small" onClick={() => void act('retry_failed')} disabled={Boolean(busy)} aria-busy={busy === 'retry_failed'} data-testid="hubspot-sync-outbound-retry-failed">
+              {busy === 'retry_failed' ? t('retrying') : t('retryFailed')}
+            </button>
+          </div>
+        </div>
+      )}
+      {notice && (
+        <p className="ui-help" role="status" data-testid="hubspot-sync-outbound-notice">
+          {notice}
         </p>
       )}
 

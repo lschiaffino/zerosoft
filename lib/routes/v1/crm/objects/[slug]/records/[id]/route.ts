@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
   if (!found) return notFound();
   const [hidden, links] = await Promise.all([
     hiddenFieldsFor(apiFieldViewer(auth), objectEntity(found.object.id)),
-    recordLinks(auth.user.id, id),
+    recordLinks(auth.user.id, id, await apiScope(auth)),
   ]);
   return NextResponse.json({
     ...cleanRow(redactRow(found.record, hidden)),

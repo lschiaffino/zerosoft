@@ -4,7 +4,10 @@ import AppKit
 /// AppKit menu built from `StatusMenuItem.items` each time it opens, so it reflects the session
 /// and the count of new items. Dictation (start or stop, paste last, the saved dictations and
 /// history) joined in block 6; while the microphone is open the icon changes and the tooltip
-/// says so. The recording dot of meetings joins in block 7. Settings › General hides it.
+/// says so. Block 7: while a meeting records or the computer's audio is captured, the icon is a
+/// red dot, the menu starts with what is capturing (open, stop) and the item shows even when
+/// Settings › General hides it (guideline 2.5.14). Block 8: the same for a Rec recording, with
+/// Open and Finish.
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private var item: NSStatusItem?
@@ -26,7 +29,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     var onPasteLast: () -> Void = {}
     var onRetry: () -> Void = {}
     var onHistory: () -> Void = {}
-    private var recording = false
+    /// Meetings (block 7).
+    var onOpenRecording: () -> Void = {}
+    var onStopRecording: () -> Void = {}
+    var onStopSystemAudio: () -> Void = {}
+    /// Rec (block 8).
+    var onOpenRec: () -> Void = {}
+    var onStopRec: () -> Void = {}
+    private var capture = CaptureState()
+    /// Settings › General's switch; a capture shows the item whatever it says.
+    private var wanted = true
 
     init(lang: Lang) {
         self.lang = lang
@@ -34,7 +46,22 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     var isShown: Bool { item != nil }
 
+    /// Settings › General's switch.
     func setShown(_ shown: Bool) {
+        wanted = shown
+        sync()
+    }
+
+    /// What captures now: the icon, the tooltip, the first items, and whether the item must show.
+    func setCapture(_ new: CaptureState) {
+        guard new != capture else { return }
+        capture = new
+        sync()
+        drawIcon()
+    }
+
+    private func sync() {
+        let shown = wanted || capture.forcesMenuBarItem
         if shown, item == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             if let button = item.button {
@@ -52,18 +79,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
-    /// The microphone is open for a dictation: the icon and tooltip say so (guideline 2.5.14).
-    func setRecording(_ on: Bool) {
-        guard on != recording else { return }
-        recording = on
-        drawIcon()
-    }
-
+    /// The icon and tooltip say what records (guideline 2.5.14): a red dot for a meeting or the
+    /// computer's audio, the microphone for a dictation.
     private func drawIcon() {
         guard let button = item?.button else { return }
-        let tip = recording ? Strings.text(.statusRecording, lang) : "zerosoft"
-        let image = NSImage(systemSymbolName: recording ? "mic.circle.fill" : "z.square", accessibilityDescription: tip)
-        image?.isTemplate = true
+        let tip = capture.statusKey.map { Strings.text($0, lang) } ?? "zerosoft"
+        let image: NSImage?
+        if capture.forcesMenuBarItem {
+            let red = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
+            image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: tip)?.withSymbolConfiguration(red)
+            image?.isTemplate = false
+        } else {
+            image = NSImage(systemSymbolName: capture.dictation ? "mic.circle.fill" : "z.square", accessibilityDescription: tip)
+            image?.isTemplate = true
+        }
         button.image = image
         button.setAccessibilityLabel(tip)
         button.toolTip = tip
@@ -73,10 +102,23 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.removeAllItems()
         let t = { (key: StringKey) in Strings.text(key, self.lang) }
         let state = dictation()
-        for entry in StatusMenuItem.items(signedIn: signedIn, unread: unread, dictation: state) {
+        for entry in StatusMenuItem.items(signedIn: signedIn, unread: unread, dictation: state, capture: capture) {
             switch entry {
             case .separator:
                 menu.addItem(.separator())
+            case let .capturing(now):
+                let item = add(menu, t(now.meeting ? .meetRecording : now.rec ? .recCapturing : .meetCapturing), "capturing", #selector(openRecording(_:)))
+                item.isEnabled = false
+            case .openRecording:
+                add(menu, t(.statusOpenRecording), "open-recording", #selector(openRecording(_:)))
+            case .stopRecording:
+                add(menu, t(.statusStopRecording), "stop-recording", #selector(stopRecording(_:)))
+            case .stopSystemAudio:
+                add(menu, t(.statusStopSystemAudio), "stop-sysaudio", #selector(stopSystemAudio(_:)))
+            case .openRec:
+                add(menu, t(.statusOpenRec), "open-rec", #selector(openRec(_:)))
+            case .stopRec:
+                add(menu, t(.statusStopRec), "stop-rec", #selector(stopRec(_:)))
             case let .dictate(recording):
                 let item = add(menu, t(recording ? .statusDictateStop : .statusDictate), "dictate", #selector(dictate(_:)))
                 item.isEnabled = state?.phase != .working
@@ -125,6 +167,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func pasteLast(_ sender: Any?) { onPasteLast() }
     @objc private func retry(_ sender: Any?) { onRetry() }
     @objc private func history(_ sender: Any?) { onHistory() }
+    @objc private func openRecording(_ sender: Any?) { onOpenRecording() }
+    @objc private func stopRecording(_ sender: Any?) { onStopRecording() }
+    @objc private func stopSystemAudio(_ sender: Any?) { onStopSystemAudio() }
+    @objc private func openRec(_ sender: Any?) { onOpenRec() }
+    @objc private func stopRec(_ sender: Any?) { onStopRec() }
 
     @objc private func open(_ sender: Any?) { onOpen() }
     @objc private func newTab(_ sender: Any?) { onNewTab() }
