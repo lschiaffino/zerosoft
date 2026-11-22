@@ -302,7 +302,23 @@ export async function sessionRunViewer(user: { id: string; role: TeamRole; actin
   const fieldViewer = sessionFieldViewer(user);
   if (isUnrestricted(fieldViewer)) return { personId: fieldViewer.personId, scope: null };
   const { canSeeList } = await import('./crm-list-access');
-  return { personId: fieldViewer.personId, scope: await sessionScope(user), canSeeList: (listId) => canSeeList(fieldViewer, listId) };
+  // Una lista que ya no existe no oculta la corrida: queda el control por ítem.
+  const exists = async (listId: string) => !!(await getDb().prepare('SELECT 1 FROM crm_lists WHERE id = ? AND user_id = ?').get(listId, fieldViewer.workspaceId));
+  return {
+    personId: fieldViewer.personId,
+    scope: await sessionScope(user),
+    canSeeList: async (listId) => !(await exists(listId)) || canSeeList(fieldViewer, listId),
+  };
+}
+
+/**
+ * ¿Puede renombrar, cancelar o borrar la corrida? Quien la creó, u owner y
+ * admins (viewer sin restricciones). false si no existe.
+ */
+export async function canManageRun(workspaceId: string, id: string, viewer: RunViewer): Promise<boolean> {
+  const row = await getRunRow(workspaceId, id);
+  if (!row) return false;
+  return row.created_by === viewer.personId || (!viewer.scope && !viewer.canSeeList);
 }
 
 /** Ítems de la corrida que el viewer ve (todos sin alcance). */
@@ -528,7 +544,8 @@ export function namesFromEmail(email: string): [string, string] {
  */
 export async function itemScope(run: Pick<CrmAiRunRow, 'user_id' | 'created_by'>, item: Pick<CrmAiRunItemRow, 'entity' | 'entity_id'>): Promise<OwnerScope> {
   const ws = run.user_id;
-  const creator = await subscriberFor(ws, run.created_by);
+  // Una corrida vieja sin creador cuenta como del dueño del workspace (como el remitente del borrador).
+  const creator = await subscriberFor(ws, run.created_by ?? ws);
   if (!creator) throw new Error('not_found');
   if (!creator.unrestricted && !(await canSeeEntity(ws, item.entity, item.entity_id, creator.scope))) throw new Error('not_found');
   const audience = await aiStepScope(ws, { entity: item.entity, id: item.entity_id });

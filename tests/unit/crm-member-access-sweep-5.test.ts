@@ -250,6 +250,12 @@ describe('agente de prospección y de datos', () => {
     expect((await runRoute.DELETE(new NextRequest('http://localhost/x'), ctx(run.id))).status).toBe(404);
     session.user = stranger(s);
     expect((await runRoute.GET(new NextRequest('http://localhost/x'), ctx(run.id))).status).toBe(404);
+    // Renombrar: quien la creó o un admin.
+    const rename = () => new NextRequest('http://localhost/x', { method: 'PATCH', body: JSON.stringify({ name: 'Renamed' }), headers: { 'content-type': 'application/json' } });
+    session.user = member(s);
+    expect((await runRoute.PATCH(rename(), ctx(run.id))).status).toBe(200);
+    session.user = admin(s);
+    expect((await runRoute.PATCH(rename(), ctx(run.id))).status).toBe(200);
   });
 
   it('si quien creó la corrida ya no ve el contacto, el ítem no se arma', async () => {
@@ -342,6 +348,12 @@ describe('borrador de email y vista previa de plantillas', () => {
       access: { scope: await scopeOf(s, s.w.member.id), viewer: { workspaceId: s.ws, personId: s.w.member.id, role: 'member' }, recipient: true },
     });
     expect(renderEmailTemplate('{{contact.first_name}}', ctxSeq).text).toBe('Hidden');
+    // Si envía el owner, igual no sale un campo que alguien tiene oculto (el email queda en el timeline).
+    const ctxOwner = await loadTemplateContext(s.ws, {
+      contactId: s.memberContact.id,
+      access: { scope: null, viewer: { workspaceId: s.ws, personId: s.ws, role: 'owner' }, recipient: true, shared: true },
+    });
+    expect(renderEmailTemplate('{{contact.first_name}}|{{contact.custom.secret}}', ctxOwner).text).toBe('Zeta|');
   });
 });
 
@@ -354,9 +366,11 @@ describe('escrituras y lecturas de la pasada', () => {
     const stage = (await createStage(s.ws, pl.id, { name: 'Open' }))!;
     const ownerCo = await createCompany(s.ws, { name: 'Owner co', ownerId: s.ws });
     session.user = member(s);
-    const deal = await dealsRoute.POST(post('/api/crm/deals', { name: 'X', pipelineId: pl.id, stageId: stage.id, contactIds: [s.ownerContact.id] }));
-    expect(deal.status).toBe(400);
-    expect((await json<{ error: string }>(deal)).error).toBe('invalid_contact');
+    // Un contacto que no ve se descarta igual que uno que no existe (no se asocia ni se confirma).
+    const deal = await dealsRoute.POST(post('/api/crm/deals', { name: 'X', pipelineId: pl.id, stageId: stage.id, contactIds: [s.ownerContact.id, 'missing-id'] }));
+    expect(deal.status).toBe(201);
+    const dealId = (await json<{ id: string }>(deal)).id;
+    expect(await getDb().prepare('SELECT 1 FROM crm_deal_contacts WHERE deal_id = ?').get(dealId)).toBeUndefined();
     const contact = await contactsRoute.POST(post('/api/crm/contacts', { firstName: 'New', companyId: ownerCo.id }));
     expect(contact.status).toBe(400);
     session.user = owner(s);
@@ -365,7 +379,10 @@ describe('escrituras y lecturas de la pasada', () => {
     const lead = await createLead(s.ws, { name: 'L', ownerId: s.ws });
     const memberScope = await scopeOf(s, s.w.member.id);
     await expect(assertVisibleRefs(s.ws, { leadId: lead.id }, memberScope)).rejects.toBeInstanceOf(CrmRefError);
-    await expect(assertVisibleRefs(s.ws, { contactIds: [s.memberContact.id] }, memberScope)).resolves.toBeUndefined();
+    const refs = { contactIds: [s.memberContact.id, s.ownerContact.id] };
+    await assertVisibleRefs(s.ws, refs, memberScope);
+    expect(refs.contactIds).toEqual([s.memberContact.id]);
+    await expect(assertVisibleRefs(s.ws, { contactId: s.ownerContact.id }, memberScope)).rejects.toBeInstanceOf(CrmRefError);
     await expect(assertVisibleRefs(s.ws, { leadId: lead.id }, null)).resolves.toBeUndefined();
   });
 
@@ -441,6 +458,8 @@ describe('escrituras y lecturas de la pasada', () => {
     const row = { custom: '{}', score_breakdown: JSON.stringify([{ ruleId: 'r', name: 'Secret rule', points: 5, detail: 'mc-secret' }]) };
     expect(redactRow(row, new Set(['secret'])).score_breakdown).not.toContain('mc-secret');
     expect(redactRow(row, new Set()).score_breakdown).toContain('mc-secret');
+    const act = { custom: '{}', score_breakdown: JSON.stringify([{ ruleId: 'a', name: 'Calls', points: 3, detail: '3 / 30d' }]) };
+    expect(redactRow(act, new Set(['secret'])).score_breakdown).toContain('3 / 30d');
   });
 
   it('no se manda ni se registra un email en un registro que la persona no ve', async () => {

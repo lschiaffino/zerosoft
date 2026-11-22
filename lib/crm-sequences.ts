@@ -21,12 +21,17 @@ import {
   sendCrmEmail,
 } from './crm-email';
 
-/** Acceso de quien envía una secuencia (si ya no es parte del workspace: sin registros ni campos propios). */
+/**
+ * Acceso con que se resuelven las variables de un paso: el de quien envía, y
+ * sin los campos que alguien tiene ocultos (el email queda en el timeline del
+ * contacto). Si quien envía ya no es parte del workspace: sin registros ni
+ * campos propios.
+ */
 async function senderAccess(workspaceId: string, senderId: string | null): Promise<import('./crm-email').TemplateAccess> {
   const { subscriberFor } = await import('./crm-event-privacy');
   const sub = await subscriberFor(workspaceId, senderId);
   if (!sub) return { scope: [], viewer: null, recipient: true };
-  return { scope: sub.scope, viewer: sub.viewer, recipient: true };
+  return { scope: sub.scope, viewer: sub.viewer, recipient: true, shared: true };
 }
 
 export const STEP_TYPES = ['email', 'task', 'wait'] as const;

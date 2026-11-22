@@ -6,7 +6,7 @@
 import { getDb, type CrmPlaybookRow, type CrmPlaybookRunRow, type Db } from './db';
 import { createActivity, listCustomFields, parseCustom, updateCompany, updateContact, updateDeal } from './crm';
 import { coerceCustomFieldValue } from './crm-custom-fields';
-import { fieldAccessFor, hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { fieldAccessFor, fieldsHiddenForAnyone, hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
 import { canSeeEntity, type OwnerScope } from './crm-visibility';
 import {
   answersText,
@@ -217,14 +217,7 @@ const FIELD_ENTITY_OF: Record<PlaybookEntity, 'contacts' | 'companies' | 'deals'
 
 /** Preguntas sin las que van a un campo propio que algún rol o equipo tiene oculto. */
 async function sharedQuestions(workspaceId: string, questions: Playbook['questions'], entity: PlaybookEntity, db: Db): Promise<Playbook['questions']> {
-  const hidden = new Set(
-    ((await db
-      .prepare(
-        `SELECT DISTINCT f.name FROM crm_field_permissions p JOIN crm_custom_fields f ON f.id = p.field_id
-         WHERE p.user_id = ? AND p.access = 'hidden' AND f.entity = ?`,
-      )
-      .all(workspaceId, FIELD_ENTITY_OF[entity])) as Array<{ name: string }>).map((r) => r.name),
-  );
+  const hidden = await fieldsHiddenForAnyone(workspaceId, FIELD_ENTITY_OF[entity], db);
   if (!hidden.size) return questions;
   return questions.filter((q) => !(q.property.startsWith(`${entity}:custom.`) && hidden.has(q.property.slice(entity.length + 8))));
 }

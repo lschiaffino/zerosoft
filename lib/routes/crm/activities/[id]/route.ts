@@ -43,12 +43,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const reader = await sessionChatReader(user, locale);
   const textEdit = parsed.data.subject !== undefined || parsed.data.body !== undefined;
   if (textEdit && (await isChatHidden(user.id, params.id, reader))) return crmError(403, 'chat_private');
-  const before = await getActivity(user.id, params.id);
-  // Una sola fijada por registro (como en HubSpot): fijar esta desfija las otras de sus registros.
-  if (parsed.data.pinned === true) await unpinSiblings(user.id, params.id);
   // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
   if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
+  const before = await getActivity(user.id, params.id);
+  // Una sola fijada por registro (como en HubSpot): fijar esta desfija las otras de sus registros.
+  if (parsed.data.pinned === true) await unpinSiblings(user.id, params.id);
   const updated = await catchRef(updateActivity(user.id, params.id, parsed.data));
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();

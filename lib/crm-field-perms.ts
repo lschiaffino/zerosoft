@@ -97,14 +97,16 @@ export function redactCustomJson(json: string | null | undefined, hidden: Readon
 }
 
 /**
- * Desglose del score sin el detalle de cada regla: para una regla de
- * propiedad el detalle es el valor del campo, que puede ser uno oculto. Puro.
+ * Desglose del score sin el detalle de las reglas de propiedad: ese detalle
+ * es el valor del campo, que puede ser uno oculto. El de una regla de
+ * actividad ("3 / 30d") queda. Puro.
  */
 export function redactScoreBreakdown(json: string): string {
   try {
     const v: unknown = JSON.parse(json || '[]');
     if (!Array.isArray(v)) return '[]';
-    return JSON.stringify(v.map((b) => (b && typeof b === 'object' ? { ...(b as Record<string, unknown>), detail: '' } : b)));
+    const activity = (d: unknown) => typeof d === 'string' && /^\d+ \/ \d+d$/.test(d);
+    return JSON.stringify(v.map((b) => (b && typeof b === 'object' && !activity((b as Record<string, unknown>).detail) ? { ...(b as Record<string, unknown>), detail: '' } : b)));
   } catch {
     return '[]';
   }
@@ -331,6 +333,21 @@ export async function fieldDefinitionAccess(viewer: FieldViewer, fieldId: string
 export async function canSeeFieldDefinition(viewer: FieldViewer, fieldId: string, db: Db = getDb()): Promise<boolean> {
   const access = await fieldDefinitionAccess(viewer, fieldId, db);
   return access !== null && access !== 'hidden';
+}
+
+/**
+ * Campos propios de la entidad que algún rol o equipo tiene ocultos: lo que
+ * no puede ir en algo que lee cualquiera que ve el registro (una nota, un
+ * email registrado en el timeline).
+ */
+export async function fieldsHiddenForAnyone(workspaceId: string, entity: string, db: Db = getDb()): Promise<Set<string>> {
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT f.name FROM crm_field_permissions p JOIN crm_custom_fields f ON f.id = p.field_id
+       WHERE p.user_id = ? AND f.user_id = ? AND p.access = 'hidden' AND f.entity = ?`,
+    )
+    .all(workspaceId, workspaceId, entity)) as Array<{ name: string }>;
+  return new Set(rows.map((r) => r.name));
 }
 
 /** Campos ocultos para la persona en la entidad (para redactar filas). */

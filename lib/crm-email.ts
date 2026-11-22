@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import sanitizeHtml from 'sanitize-html';
 import { getDb, type CrmEmailRow, type CrmEmailTemplateRow, type UserRow } from './db';
 import { createActivity, parseCustom } from './crm';
-import { hiddenFieldsFor, redactCustomJson, type FieldViewer } from './crm-field-perms';
+import { fieldsHiddenForAnyone, hiddenFieldsFor, redactCustomJson, type FieldViewer } from './crm-field-perms';
 import { scopeAnd, type OwnerScope } from './crm-visibility';
 import { sendEmail } from './email';
 import { emitEvent } from './events';
@@ -137,6 +137,12 @@ export interface TemplateAccess {
    * deal siguen el alcance.
    */
   recipient?: boolean;
+  /**
+   * Lo renderizado queda a la vista de cualquiera que ve el registro (un
+   * email registrado en el timeline): tampoco salen los campos que algún rol
+   * o equipo tiene ocultos.
+   */
+  shared?: boolean;
 }
 
 /**
@@ -163,6 +169,7 @@ export async function loadTemplateContext(
     if (contact) {
       if (access) {
         const hidden = access.viewer ? await hiddenFieldsFor(access.viewer, 'contacts', db) : null;
+        if (hidden && access.shared) for (const f of await fieldsHiddenForAnyone(userId, 'contacts', db)) hidden.add(f);
         contact.custom = hidden ? redactCustomJson(contact.custom, hidden) : '{}';
       }
       ctx.contact = contact;

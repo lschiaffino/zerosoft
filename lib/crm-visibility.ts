@@ -467,9 +467,9 @@ export function scopeDealDetail<T extends { contacts: Owned[]; company: Owned | 
 /** Registros que nombra una escritura (alta o edición) por id. */
 export interface WriteRefs {
   contactId?: string | null;
-  contactIds?: readonly string[] | null;
-  addContactIds?: readonly string[] | null;
-  removeContactIds?: readonly string[] | null;
+  contactIds?: string[] | null;
+  addContactIds?: string[] | null;
+  removeContactIds?: string[] | null;
   companyId?: string | null;
   companyIds?: readonly string[] | null;
   parentCompanyId?: string | null;
@@ -479,10 +479,13 @@ export interface WriteRefs {
 }
 
 /**
- * Una escritura no puede vincular un registro que la persona no ve: lanza el
- * mismo CrmRefError que un id que no existe (así la respuesta no confirma que
- * existe). Sin alcance (todo visible) no hace nada; la existencia la valida
- * después assertRefs.
+ * Una escritura no puede vincular un registro que la persona no ve, y la
+ * respuesta no confirma que existe: un id suelto (contacto, empresa, deal,
+ * lead, registro) lanza el mismo CrmRefError que un id que no existe; de las
+ * listas de contactos (contactIds, addContactIds, removeContactIds) se sacan,
+ * como la escritura ya descarta los ids que no existen (modifica esos arrays).
+ * Sin alcance (todo visible) no hace nada; la existencia la valida después
+ * assertRefs.
  */
 export async function assertVisibleRefs(
   workspaceId: string,
@@ -497,7 +500,15 @@ export async function assertVisibleRefs(
     const ok = new Set(await visibleIds(workspaceId, table, list, scope, db));
     if (list.some((id) => !ok.has(id))) throw new CrmRefError(code);
   };
-  await all('crm_contacts', [refs.contactId, ...(refs.contactIds ?? []), ...(refs.addContactIds ?? []), ...(refs.removeContactIds ?? [])], 'invalid_contact');
+  await all('crm_contacts', [refs.contactId], 'invalid_contact');
+  for (const key of ['contactIds', 'addContactIds', 'removeContactIds'] as const) {
+    const list = refs[key];
+    if (!list?.length) continue;
+    const ok = new Set(await visibleIds(workspaceId, 'crm_contacts', list, scope, db));
+    // En el mismo array: la ruta puede haber copiado el objeto antes (el array es el mismo).
+    const keep = list.filter((id) => ok.has(id));
+    list.splice(0, list.length, ...keep);
+  }
   await all('crm_companies', [refs.companyId, ...(refs.companyIds ?? [])], 'invalid_company');
   await all('crm_companies', [refs.parentCompanyId], 'invalid_company');
   await all('crm_deals', [refs.dealId], 'invalid_deal');

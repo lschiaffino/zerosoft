@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRecordDetail, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser } from '@/lib/session';
 import { deleteContact, getContact, updateContact } from '@/lib/crm';
@@ -7,7 +6,7 @@ import { contactUpdateSchema } from '@/lib/crm-schema';
 import { catchContactWrite, catchRef, crmError, CrmRefError, emailTakenResponse, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { sessionScope, scopeContactDetail, assertVisibleRefs } from '@/lib/crm-visibility';
-import { maskDetailRefs } from '@/lib/crm-record-scope';
+import { maskDetailRefs, maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
