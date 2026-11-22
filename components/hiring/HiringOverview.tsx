@@ -41,13 +41,14 @@ export default function HiringOverview({
               </a>
             )}
             {canCreate && (
-              <Link className="btn btn-primary" href="/app/hiring/jobs/new">
+              <Link className="btn btn-primary" href="/app/hiring/jobs/new" data-tour="hiring-new-job">
                 {t('jobs.new')}
               </Link>
             )}
           </>
         }
       />
+      {/* Anclajes del tour de Hiring (lib/tours/hiring.ts): Nuevo puesto, puestos abiertos, evaluaciones y candidatos recientes. */}
       {approvals.length > 0 && (
         <section className="panel hr-approvals" aria-labelledby="hr-approvals" data-testid="hiring-approvals">
           <h2 id="hr-approvals" className="hr-panel-title">
@@ -66,7 +67,7 @@ export default function HiringOverview({
         </section>
       )}
       <div className="hr-overview">
-        <section className="panel" aria-labelledby="hr-open-jobs">
+        <section className="panel" aria-labelledby="hr-open-jobs" data-tour="hiring-jobs">
           <h2 id="hr-open-jobs" className="hr-panel-title">
             {t('overview.openJobs')}
           </h2>
@@ -88,7 +89,7 @@ export default function HiringOverview({
             </ul>
           )}
         </section>
-        <section className="panel" aria-labelledby="hr-pending">
+        <section className="panel" aria-labelledby="hr-pending" data-tour="hiring-pending">
           <h2 id="hr-pending" className="hr-panel-title">
             {t('overview.pending')}
           </h2>
@@ -109,7 +110,7 @@ export default function HiringOverview({
             </ul>
           )}
         </section>
-        <section className="panel hr-span-2" aria-labelledby="hr-recent">
+        <section className="panel hr-span-2" aria-labelledby="hr-recent" data-tour="hiring-recent">
           <h2 id="hr-recent" className="hr-panel-title">
             {t('overview.recent')}
           </h2>
