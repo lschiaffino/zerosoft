@@ -308,21 +308,29 @@ final class MainWindowUITests: XCTestCase {
     /// for through its sign-in window is ignored (no token request).
     func testDeepLinksOpenOnlyAppPagesOfTheServer() throws {
         try server.start()
+        // One link per launch: XCUIApplication.open delivers only the first URL to an app it did
+        // not just open (measured on macos-15), so each case gets a fresh app.
+        let cases: [(link: String, want: String)] = [
+            ("zerosoft://open?path=//localhost:\(server.port)/app", "refused"),
+            ("zerosoft://open?path=/blog", "refused"),
+            ("zerosoft://open?path=/app/%2e%2e/blog", "refused"),
+            ("zerosoft://auth/callback?code=\(String(repeating: "c", count: 43))&state=\(String(repeating: "S", count: 32))", "ignored auth"),
+        ]
+        for (raw, want) in cases {
+            let app = launch()
+            XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
+            try openLink(app, raw)
+            waitForLabel(app, "zs-test-deeplink", equals: want == "refused" ? "link 1 refused \(raw)" : "link 1 \(want)")
+            XCTAssertTrue(text(app, "zs-fixture-ok").exists, "a refused link changed the page: \(raw)")
+            XCTAssertFalse(element(app, "zs-error-view").exists, raw)
+            app.terminate()
+        }
+        XCTAssertEqual(server.tokenRequests, [], "a link started a token exchange")
+
         let app = launch()
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
-
-        let foreign = "zerosoft://open?path=//localhost:\(server.port)/app"
-        try openLink(app, foreign)
-        waitForLabel(app, "zs-test-deeplink", equals: "link 1 refused \(foreign)")
-        try openLink(app, "zerosoft://open?path=/blog")
-        waitForLabel(app, "zs-test-deeplink", equals: "link 2 refused zerosoft://open?path=/blog")
-        try openLink(app, "zerosoft://auth/callback?code=\(String(repeating: "c", count: 43))&state=\(String(repeating: "S", count: 32))")
-        waitForLabel(app, "zs-test-deeplink", equals: "link 3 ignored auth")
-        XCTAssertEqual(server.tokenRequests, [])
-        XCTAssertTrue(text(app, "zs-fixture-ok").exists, "a refused link changed the page")
-
         try openLink(app, "zerosoft://open?path=/app/deep")
-        waitForLabel(app, "zs-test-deeplink", equals: "link 4 open /app/deep")
+        waitForLabel(app, "zs-test-deeplink", equals: "link 1 open /app/deep")
         let page = line(app, prefix: "app path=")
         XCTAssertTrue(page.contains("app path=/app/deep "), page)
     }
