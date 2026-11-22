@@ -159,6 +159,7 @@
     "groupCrmQuotes": "Orçamentos",
     "groupCrmApprovals": "Aprovações pendentes",
     "groupCrmScores": "Scores de leads",
+    "groupCrmViews": "Visualizações do CRM",
     "openForecast": "Abrir o forecast",
     "openApprovals": "Abrir aprovações",
     "openForms": "Abrir formulários",
@@ -1479,6 +1480,44 @@
       "insights": {
         "title": "Análises",
         "body": "Quem assistiu, por quanto tempo e quantas pessoas chegaram a cada momento do vídeo."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
+    "people": {
+      "intro": {
+        "title": "Boas-vindas ao People",
+        "body": "O People é o diretório da sua equipe, com o organograma, as ausências e as avaliações. Este tour mostra as partes principais."
+      },
+      "person": {
+        "title": "Perfis",
+        "body": "Cada pessoa do workspace tem um perfil. Abra um para ver o cargo, o gestor, as ausências e os documentos."
+      },
+      "filters": {
+        "title": "Busque e filtre",
+        "body": "Encontre alguém por nome, cargo ou equipe, ou filtre por área, local e tipo."
+      },
+      "add": {
+        "title": "Adicione uma pessoa",
+        "body": "Adicione alguém manualmente ou importe um CSV. Quem entra no workspace aparece automaticamente."
+      },
+      "org": {
+        "title": "Organograma",
+        "body": "Quem se reporta a quem, montado com o gestor de cada perfil."
+      },
+      "timeOff": {
+        "title": "Ausências",
+        "body": "Peça dias de folga e veja seus saldos. Os gestores aprovam aqui os pedidos da equipe."
+      },
+      "reviews": {
+        "title": "Avaliações",
+        "body": "Ciclos de avaliação com autoavaliação, a do gestor e a dos pares, e pesquisas com a equipe."
+      },
+      "settings": {
+        "title": "Ajustes do People",
+        "body": "Políticas de ausência, feriados, campos próprios, quem vê o quê e quem administra o RH."
       },
       "done": {
         "title": "Fim do tour",

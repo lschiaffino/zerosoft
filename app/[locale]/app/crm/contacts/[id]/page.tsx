@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import CrmTrackRequests from '@/components/track/triage/CrmTrackRequests';
 import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
 import RelatedLeads from '@/components/crm/RelatedLeads';
-import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, hiddenFieldsFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
@@ -16,7 +16,6 @@ import { getDb } from '@/lib/db';
 import {
   LEAD_STATUSES,
   LIFECYCLE_STAGES,
-  PRIORITIES,
   SOURCES,
   getContact,
   listCompanies,
@@ -143,6 +142,9 @@ export default async function ContactDetailPage(props: {
 
   const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));
 
+  // Los valores para las condiciones del playbook llegan al cliente: sin los campos ocultos.
+  const playbookCustom = parseCustom(redactCustomJson(contact.custom, await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')));
+
   const actions = (
     <>
       {contact.phone && <PhoneTouch phone={contact.phone} contactId={contact.id} name={name} />}
@@ -157,7 +159,7 @@ export default async function ContactDetailPage(props: {
           city: contact.city,
           country: contact.country,
           website: contact.website,
-          ...Object.fromEntries(Object.entries(parseCustom(contact.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+          ...Object.fromEntries(Object.entries(playbookCustom).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
         }}
       />
       {userCanUseApp(user, 'sign') && user.role !== 'guest' && (
@@ -502,8 +504,6 @@ export default async function ContactDetailPage(props: {
   const defaultPipeline = pipelines[0];
   const firstOpenStage =
     defaultPipeline?.stages.find((s) => !s.is_won && !s.is_lost) ?? defaultPipeline?.stages[0];
-  const priorities = PRIORITIES.map((value) => ({ value, label: t(`enums.priority.${value}`) }));
-  const sourceOpts = SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }));
 
   const right = (
     <>
@@ -569,8 +569,6 @@ export default async function ContactDetailPage(props: {
                 pipelineId={defaultPipeline.id}
                 stageId={firstOpenStage.id}
                 contactId={contact.id}
-                priorities={priorities}
-                sources={sourceOpts}
               />
             ) : undefined
           }

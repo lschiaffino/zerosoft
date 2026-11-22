@@ -159,6 +159,7 @@
     "groupCrmQuotes": "Cotizaciones",
     "groupCrmApprovals": "Aprobaciones pendientes",
     "groupCrmScores": "Scores de leads",
+    "groupCrmViews": "Vistas del CRM",
     "openForecast": "Abrir el forecast",
     "openApprovals": "Abrir aprobaciones",
     "openForms": "Abrir formularios",
@@ -1479,6 +1480,44 @@
       "insights": {
         "title": "Analítica",
         "body": "Quién lo vio, cuánto tiempo y cuántas personas llegaron a cada momento del video."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
+    "people": {
+      "intro": {
+        "title": "Te damos la bienvenida a People",
+        "body": "People es el directorio de tu equipo, con el organigrama, las ausencias y las evaluaciones. Este tour te muestra las partes principales."
+      },
+      "person": {
+        "title": "Fichas",
+        "body": "Cada persona del workspace tiene su ficha. Abrí una para ver su puesto, su manager, sus ausencias y sus documentos."
+      },
+      "filters": {
+        "title": "Buscá y filtrá",
+        "body": "Encontrá a alguien por nombre, puesto o equipo, o filtrá por área, ubicación y tipo."
+      },
+      "add": {
+        "title": "Agregá una persona",
+        "body": "Sumá a alguien a mano o importá un CSV. Quienes entran al workspace aparecen solos."
+      },
+      "org": {
+        "title": "Organigrama",
+        "body": "Quién reporta a quién, armado con el manager de cada ficha."
+      },
+      "timeOff": {
+        "title": "Ausencias",
+        "body": "Pedí días libres y mirá tus saldos. Los managers aprueban acá los pedidos de su equipo."
+      },
+      "reviews": {
+        "title": "Evaluaciones",
+        "body": "Ciclos de evaluación con autoevaluación, la del manager y la de pares, y encuestas al equipo."
+      },
+      "settings": {
+        "title": "Ajustes de People",
+        "body": "Políticas de ausencias, feriados, campos propios, quién ve qué y quiénes administran RR. HH."
       },
       "done": {
         "title": "Listo el tour",

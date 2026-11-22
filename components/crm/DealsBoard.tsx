@@ -43,7 +43,8 @@ interface DealsBoardProps {
   /** Moneda base del workspace: los totales de columna se muestran en ella. */
   baseCurrency?: string;
   priorities: Array<{ value: string; label: string }>;
-  sources: Array<{ value: string; label: string }>;
+  /** Ya no se usa (el alta inline sigue el formulario de alta); se acepta por compatibilidad. */
+  sources?: Array<{ value: string; label: string }>;
 }
 
 interface DragState {
@@ -109,7 +110,7 @@ function applyMove(cols: BoardStage[], dealId: string, stageId: string, beforeId
   });
 }
 
-export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities, sources }: DealsBoardProps) {
+export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities }: DealsBoardProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [cols, setCols] = useState<BoardStage[]>(stages);
@@ -756,8 +757,6 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                 <DealForm
                   pipelineId={pipelineId}
                   stageId={col.stage.id}
-                  priorities={priorities}
-                  sources={sources}
                   onDone={() => {
                     setAddStageId(null);
                     router.refresh();

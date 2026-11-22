@@ -59,6 +59,7 @@ jobs:
       real: ${{ steps.plan.outputs.real }}
       quarantine: ${{ steps.plan.outputs.quarantine }}
       docker: ${{ steps.plan.outputs.docker }}
+      mac: ${{ steps.plan.outputs.mac }}
       shards: ${{ steps.plan.outputs.shards }}
       shard_total: ${{ steps.plan.outputs.shard_total }}
       specs: ${{ steps.plan.outputs.specs }}
@@ -242,12 +243,19 @@ jobs:
             test-results/
           retention-days: 7
 
+  # La app de Mac en Swift (desktop-mac.yml, en macOS): solo si el PR toca lo suyo (salida `mac` del plan),
+  # así un PR solo de la web no la espera. En main corre desde su propio workflow.
+  desktop-mac:
+    needs: changes
+    if: needs.changes.outputs.mac == 'true'
+    uses: ./.github/workflows/desktop-mac.yml
+
   # Nombre estable para exigir un solo check, sea cual sea la cantidad de partes.
   # Verde solo si cada job que el plan pidió terminó bien. Un job que el plan no pidió queda salteado y
   # cuenta como bien; uno fallado o cancelado, nunca.
   ci-result:
     name: CI result
-    needs: [check, changes, build, e2e, e2e-real, docker]
+    needs: [check, changes, build, e2e, e2e-real, docker, desktop-mac]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -259,12 +267,14 @@ jobs:
           E2E: ${{ needs.e2e.result }}
           REAL: ${{ needs.e2e-real.result }}
           DOCKER: ${{ needs.docker.result }}
+          MAC: ${{ needs.desktop-mac.result }}
           WANT_BUILD: ${{ needs.changes.outputs.build }}
           WANT_E2E: ${{ needs.changes.outputs.e2e }}
           WANT_REAL: ${{ needs.changes.outputs.real }}
           WANT_DOCKER: ${{ needs.changes.outputs.docker }}
+          WANT_MAC: ${{ needs.changes.outputs.mac }}
         run: |
-          echo "check=$CHECK changes=$CHANGES build=$BUILD($WANT_BUILD) e2e=$E2E($WANT_E2E) e2e-real=$REAL($WANT_REAL) docker=$DOCKER($WANT_DOCKER)"
+          echo "check=$CHECK changes=$CHANGES build=$BUILD($WANT_BUILD) e2e=$E2E($WANT_E2E) e2e-real=$REAL($WANT_REAL) docker=$DOCKER($WANT_DOCKER) desktop-mac=$MAC($WANT_MAC)"
           ok=0
           # gate <job> <resultado> <pedido>: pedido → success; no pedido → skipped (o success).
           gate() {
@@ -282,6 +292,7 @@ jobs:
           gate e2e "$E2E" "$WANT_E2E"
           gate e2e-real "$REAL" "$WANT_REAL"
           gate docker "$DOCKER" "$WANT_DOCKER"
+          gate desktop-mac "$MAC" "$WANT_MAC"
           exit $ok
 
   # main o la corrida nocturna en rojo: queda un issue abierto (uno solo, se actualiza con cada falla) y se

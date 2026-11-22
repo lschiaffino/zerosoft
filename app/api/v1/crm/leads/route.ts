@@ -47,5 +47,5 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
   const lead = await catchRef(createLead(auth.user.id, { ...parsed.data, custom: guard.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (lead instanceof CrmRefError) return apiError(400, lead.code, 'A referenced record does not exist or a field is missing.');
-  return NextResponse.json(cleanRow(lead), { status: 201 });
+  return NextResponse.json(cleanRow(redactRow(lead, await hiddenFieldsFor(apiFieldViewer(auth), 'leads'))), { status: 201 });
 }

@@ -3,7 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
-import { listPipelinesWithStages, PRIORITIES, SOURCES } from '@/lib/crm';
+import { listPipelinesWithStages } from '@/lib/crm';
+import { createFormData } from '@/lib/crm-create-form';
 import DealFullForm from '@/components/crm/DealFullForm';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,7 @@ export default async function NewDealPage(props: NewDealPageProps) {
   }));
 
   const contactId = typeof searchParams.contactId === 'string' ? searchParams.contactId : undefined;
+  const createForm = await createFormData(user, 'deals', { more: true });
 
   return (
     <div className="ui-page ui-page-narrow">
@@ -47,8 +49,11 @@ export default async function NewDealPage(props: NewDealPageProps) {
       ) : (
         <DealFullForm
           pipelines={pipelines}
-          priorities={PRIORITIES.map((value) => ({ value, label: t(`enums.priority.${value}`) }))}
-          sources={SOURCES.map((value) => ({ value, label: t(`enums.source.${value}`) }))}
+          form={createForm.fields}
+          more={createForm.more}
+          people={createForm.people}
+          me={createForm.me}
+          baseCurrency={createForm.baseCurrency}
           fixedContactId={contactId}
         />
       )}

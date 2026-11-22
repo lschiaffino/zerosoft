@@ -13,6 +13,7 @@ import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
 import InboxHubspotCard from './InboxHubspotCard';
+import { GroupDescriptionEdit, GroupNameEdit } from './GroupInfoEdit';
 import GroupMembers, { type GroupMember } from '@/components/groups/wa/GroupMembers';
 import type { ParticipantDto } from '@/lib/inbox/types';
 import type { MemberTargetResult } from '@/lib/wa-group-members';
@@ -81,6 +82,8 @@ export default function ContactPanel({
   const locale = useLocale();
   const group = thread.kind === 'group';
   const name = chatName(thread, w('group'));
+  // Nombre y descripción del grupo con su lápiz (se cambian en WhatsApp).
+  const editable = group && thread.channel === 'whatsapp';
   const [tab, setTab] = useState<SharedKind>('media');
   const [shared, setShared] = useState<Record<string, SharedItem[] | null>>({});
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -181,9 +184,13 @@ export default function ContactPanel({
           <button type="button" className="ib-wa-hero-photo" onClick={() => thread.avatar && setPhotoOpen(true)} aria-label={w('viewPhoto')} disabled={!thread.avatar}>
             <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={176} />
           </button>
-          <p className="ib-wa-hero-name" dir="auto">
-            {name}
-          </p>
+          {editable ? (
+            <GroupNameEdit threadId={thread.id} value={name} onSaved={onChanged} onToast={onToast} onError={onError} />
+          ) : (
+            <p className="ib-wa-hero-name" dir="auto">
+              {name}
+            </p>
+          )}
           <p className="ib-wa-hero-sub">
             {group ? (
               wa?.size || wa?.participants.length ? w('groupMembers', { n: wa?.size || wa?.participants.length || 0 }) : w('group')
@@ -198,7 +205,9 @@ export default function ContactPanel({
         {(wa?.about || group) && (
           <section className="ib-wa-card">
             <h3 className="ib-wa-card-title">{group ? w('description') : w('about')}</h3>
-            {wa?.about ? (
+            {editable ? (
+              <GroupDescriptionEdit threadId={thread.id} value={wa?.about ?? ''} onSaved={onChanged} onToast={onToast} onError={onError} />
+            ) : wa?.about ? (
               <p className="ib-wa-about" dir="auto">
                 <RichText text={wa.about} />
               </p>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { crmError, guardRecord, limitAction, notFound, unauthorized } from '@/lib/crm-http';
 import { enrichCompany } from '@/lib/crm-enrich';
 
@@ -26,5 +27,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     actorEmail: user.actingUser?.email ?? user.email,
   });
   if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(400, 'no_domain');
-  return NextResponse.json({ company: res.company, filled: res.filled, sources: res.sources });
+  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'companies');
+  return NextResponse.json({ company: redactRow(res.company, hiddenFields), filled: res.filled, sources: res.sources });
 }

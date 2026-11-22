@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { guardRecordCustomWrite, hiddenFieldsFor, redactRecordDetail, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser } from '@/lib/session';
 import { deleteContact, getContact, updateContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
@@ -20,8 +20,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const detail = await getContact(user.id, params.id);
   if (!detail) return notFound();
   const scoped = scopeContactDetail(detail, scope);
-  const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'contacts');
-  return NextResponse.json({ ...scoped, contact: redactRow(scoped.contact, hiddenFields) });
+  // Sin campos ocultos ni en el registro ni en sus asociados.
+  return NextResponse.json(await redactRecordDetail(sessionFieldViewer(user), 'contact', scoped));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {

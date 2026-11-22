@@ -336,6 +336,71 @@ test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen c
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('info del grupo: el lápiz cambia el nombre y la descripción en WhatsApp; Esc cancela sin cerrar el panel', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const acc = await linkWhatsapp(request);
+  const title = `Club ${uid()}`;
+  await seedGroup(request, acc, title);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  await page.locator('.ib-item', { hasText: title }).locator('.ib-row-btn').click();
+  await page.locator('.ib-wa-thread .wa-head-who').click();
+  const panel = page.locator('.ib-wa-details');
+  await expect(panel).toBeVisible();
+
+  // Esc en el campo deja el nombre como estaba y el panel sigue abierto.
+  await panel.getByTestId('group-name-edit').click();
+  const nameField = panel.getByTestId('group-name-form').locator('input');
+  await expect(nameField).toBeFocused();
+  // Sin el micrófono flotante de dictado: caía afuera del panel, sobre la conversación.
+  await expect(page.locator('.vc-bar')).toHaveCount(0);
+  await nameField.fill('No va');
+  await nameField.press('Escape');
+  await expect(panel.getByTestId('group-name-form')).toHaveCount(0);
+  await expect(panel.getByTestId('group-name')).toHaveText(title);
+  await expect(panel).toBeVisible();
+
+  // Un nombre vacío no se guarda: avisa y el campo queda abierto.
+  await panel.getByTestId('group-name-edit').click();
+  await nameField.fill('   ');
+  await nameField.press('Enter');
+  await expect(page.locator('.ib-toast')).toBeVisible();
+  await expect(panel.getByTestId('group-name-form')).toBeVisible();
+
+  // Enter guarda: el nombre nuevo en el panel, la cabecera y la lista.
+  const renamed = `${title} 2027`;
+  await nameField.fill(renamed);
+  await nameField.press('Enter');
+  await expect(panel.getByTestId('group-name')).toHaveText(renamed);
+  await expect(page.locator('.ib-wa-thread .wa-head-who h2')).toHaveText(renamed);
+  await expect(page.locator('.ib-item', { hasText: renamed })).toBeVisible();
+
+  // Descripción: sin descripción, "Agregar" es el botón (sin lápiz de más); ⌘/Ctrl+Enter guarda (Enter solo es otra línea), y el tilde también.
+  await expect(panel.getByTestId('group-description-edit')).toHaveCount(0);
+  await panel.getByTestId('group-description-add').click();
+  const desc = panel.getByTestId('group-description-form').locator('textarea');
+  await desc.fill('Asado el sábado');
+  await desc.press('Enter');
+  await desc.pressSequentially('Traer hielo');
+  await desc.press('ControlOrMeta+Enter');
+  await expect(panel.getByTestId('group-description')).toContainText('Traer hielo');
+  await panel.getByTestId('group-description-edit').click();
+  await desc.fill('Solo los sábados');
+  await panel.getByTestId('group-edit-save').click();
+  await expect(panel.getByTestId('group-description')).toContainText('Solo los sábados');
+
+  // A 390 px: el campo entra sin scroll lateral.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await panel.getByTestId('group-name-edit').click();
+  await expect(nameField).toBeVisible();
+  const box = (await nameField.boundingBox())!;
+  expect(box.x >= 0 && box.x + box.width <= 390).toBe(true);
+  expect(await page.evaluate(() => document.scrollingElement!.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await panel.getByTestId('group-edit-cancel').click();
+  await expect(panel.getByTestId('group-name')).toHaveText(renamed);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('teléfono: deslizar un mensaje responde y deslizar una fila la archiva', async ({ page, request }) => {
   const acc = await linkWhatsapp(request);
   const name = `Olga ${uid()}`;

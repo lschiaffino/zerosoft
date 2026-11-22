@@ -43,9 +43,12 @@ targets:
         ENABLE_APP_SANDBOX: YES
         ENABLE_HARDENED_RUNTIME: YES
         ENABLE_TESTABILITY: NO
+        # See App/Info.plist: zerosoft:// stays the Tauri app's until the Swift app replaces it.
+        ZS_URL_SCHEME: zerosoft-mac
       configs:
         Debug:
           ENABLE_TESTABILITY: YES
+          ZS_URL_SCHEME: zerosoft
         Release:
           # Xcode adds get-task-allow to ad hoc builds; a release keeps exactly the entitlements file.
           CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO

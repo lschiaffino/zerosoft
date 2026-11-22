@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/session';
 import { addListMembers, getList, removeListMember } from '@/lib/crm';
 import { listMembersSchema } from '@/lib/crm-schema';
 import { crmError, notFound, unauthorized } from '@/lib/crm-http';
+import { canSeeRecord, sessionScope, visibleIds } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   if (!(await getList(user.id, params.id))) return notFound();
-  const added = await addListMembers(user.id, params.id, parsed.data.contactIds);
+  // Solo contactos que la persona ve.
+  const ids = await visibleIds(user.id, 'crm_contacts', parsed.data.contactIds, await sessionScope(user));
+  const added = await addListMembers(user.id, params.id, ids);
   return NextResponse.json({ count: added });
 }
 
@@ -34,6 +37,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   if (!(await getList(user.id, params.id))) return notFound();
+  if (!(await canSeeRecord(user.id, 'crm_contacts', parsed.data.contactId, await sessionScope(user)))) return notFound();
   if (!(await removeListMember(user.id, params.id, parsed.data.contactId))) return notFound();
   return new NextResponse(null, { status: 204 });
 }

@@ -1073,15 +1073,14 @@ test('CRM: el alta completa de contacto muestra lo básico y guarda el resto en 
   await expect(page.getByText('CTO').first()).toBeVisible();
 });
 
-test('CRM: el alta completa de deal pide nombre, monto y etapa; la moneda acompaña al monto', async ({ page }) => {
+test('CRM: el alta completa de deal pide nombre, monto y etapa; la moneda va en "More fields"', async ({ page }) => {
   const name = `FullDeal ${uid()}`;
   await page.goto('/en/app/crm/deals/new?full=1');
   await expect(page.getByLabel('Currency')).toBeHidden();
   await page.getByLabel('Name').fill(name);
   await page.getByLabel('Amount').fill('2500');
   await page.getByRole('button', { name: /More fields/ }).click();
-  await page.getByLabel('Currency').fill('eur');
-  await expect(page.locator('.ui-addon')).toHaveText('EUR');
+  await page.getByLabel('Currency').selectOption('EUR');
   await page.getByRole('button', { name: 'Create deal' }).click();
   await expect(page).toHaveURL(/\/en\/app\/crm\/deals\/[0-9a-f-]{36}$/, { timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { isMenuKey, newWindowModifiers, nextIndex, placeMenu, placeSubmenu, type MenuBox } from '@/lib/context-menu';
-import { desktopBridge } from '@/lib/desktop-bridge';
+import { desktopBridge, desktopHasTabs } from '@/lib/desktop-bridge';
 
 /**
  * Menú contextual en el puntero (clic derecho sobre un chat, como WhatsApp).
@@ -153,7 +153,7 @@ export function useRowContextMenu() {
  */
 export function openInNewWindow(path: string) {
   const bridge = desktopBridge();
-  if (bridge) {
+  if (desktopHasTabs(bridge)) {
     const a = document.createElement('a');
     a.href = path;
     a.style.display = 'none';

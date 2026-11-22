@@ -1155,7 +1155,10 @@
       "priority": "Priority",
       "description": "Description",
       "contactEmail": "Contact email(s)",
-      "fullName": "Full name"
+      "fullName": "Full name",
+      "dealType": "Deal type",
+      "nextStep": "Next step",
+      "wonReason": "Closed won reason"
     },
     "preset": "Mapping preset",
     "presetAuto": "Auto-detect",
@@ -1299,7 +1302,8 @@
       "contactCount": "Number of contacts",
       "forecastCategory": "Forecast category",
       "lostReason": "Closed lost reason",
-      "closedAt": "Closed date"
+      "closedAt": "Closed date",
+      "dealStatus": "Deal status"
     },
     "panelHint": "A record matches a group when it meets every filter in it. Groups are joined with OR.",
     "addFilter": "Add filter",
@@ -1384,6 +1388,11 @@
       "next_days": "is in the next {count, plural, one {# day} other {# days}}",
       "less_days_ago": "is less than {count, plural, one {# day} other {# days}} ago",
       "more_days_ago": "is more than {count, plural, one {# day} other {# days}} ago"
+    },
+    "dealStatus": {
+      "open": "Open",
+      "won": "Won",
+      "lost": "Lost"
     }
   },
   "meetings": {
@@ -4517,6 +4526,115 @@
     "placeholders": {
       "contact_company": "For example, Billing contact",
       "deal_contact": "For example, Decision maker"
+    }
+  },
+  "createForm": {
+    "title": "Create form",
+    "desc": "Choose which properties people fill in when they create a contact, company or deal, in what order, and which are required. It applies to the quick create window and the full forms. Imports, public forms, the API and the HubSpot sync don't ask for them.",
+    "object": "Object",
+    "always": "Always shown",
+    "custom": "Custom",
+    "required": "Required",
+    "remove": "Remove from the form",
+    "add": "Add",
+    "addLabel": "Property to add",
+    "pick": "Pick a property",
+    "none": "Every property is already in the form",
+    "reset": "Reset to default",
+    "help": "Members only see the custom properties they are allowed to edit, and only those are required for them.",
+    "saved": "Saved",
+    "missing": "Fill in the required fields: {fields}"
+  },
+  "views": {
+    "tabsLabel": "Views",
+    "unsaved": "Unsaved changes",
+    "tabOptions": "Options for {name}",
+    "pin": "Pin tab",
+    "unpin": "Unpin tab",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "edit": "Rename and share",
+    "saveAs": "Save as new view",
+    "close": "Close tab",
+    "delete": "Delete view",
+    "more": "More ({count})",
+    "addView": "Add view",
+    "create": "Create view from this list",
+    "allViews": "All views",
+    "reset": "Reset",
+    "save": "Save",
+    "deleteTitle": "Delete the view \"{name}\"?",
+    "deleteShared": "The view is shared. It disappears for everyone who has it as a tab. The records stay as they are.",
+    "deleteBody": "The records stay as they are. Only the saved filters, sort and columns are deleted.",
+    "editTitle": "Rename and share view",
+    "createTitle": "Save view",
+    "name": "View name",
+    "visibility": {
+      "label": "Who can see it",
+      "private": "Private",
+      "privateHint": "Only you.",
+      "team": "My team",
+      "teamHint": "People in your sales team.",
+      "noTeam": "You are not in a sales team.",
+      "chooseTeam": "Team",
+      "everyone": "Everyone",
+      "everyoneHint": "Everyone in the workspace."
+    },
+    "errors": {
+      "generic": "Could not save the change. Try again.",
+      "forbidden": "Only the person who created this view or an admin can change it.",
+      "notFound": "This view no longer exists."
+    },
+    "defaults": {
+      "allContacts": "All contacts",
+      "myContacts": "My contacts",
+      "unassignedContacts": "Unassigned contacts",
+      "allCompanies": "All companies",
+      "myCompanies": "My companies",
+      "unassignedCompanies": "Unassigned companies",
+      "allDeals": "All deals",
+      "myDeals": "My deals",
+      "openDeals": "Open deals"
+    },
+    "columns": {
+      "button": "Edit columns",
+      "title": "Edit columns",
+      "available": "Properties",
+      "search": "Search properties",
+      "noMatch": "No property matches.",
+      "selected": "Selected columns",
+      "selectedCount": "Selected columns ({count})",
+      "locked": "Always first",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "remove": "Remove {name}",
+      "freeze": "Freeze the first column",
+      "reset": "Default columns",
+      "apply": "Apply"
+    },
+    "all": {
+      "title": "All views",
+      "description": "Saved views you can open. Private views of other people are not listed.",
+      "entity": "Object",
+      "entities": {
+        "contacts": "Contacts",
+        "companies": "Companies",
+        "deals": "Deals"
+      },
+      "you": "You",
+      "formerMember": "Former member",
+      "sharedTeam": "Team: {team}",
+      "emptyTitle": "No saved views yet",
+      "emptyBody": "Filter the list and use Add view to save the filters, sort and columns.",
+      "backToList": "Go to the list",
+      "search": "Search views",
+      "createdBy": "Created by",
+      "anyone": "Anyone",
+      "sharedWith": "Shared with",
+      "anySharing": "Any sharing",
+      "createdByMe": "Created by me",
+      "noMatch": "No view matches these filters.",
+      "updated": "Updated"
     }
   }
 }

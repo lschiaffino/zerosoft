@@ -7,11 +7,12 @@
  */
 import { phoneDigits, isValidPhone, splitPhones, ProviderError, type MemberRole } from '../groups-provider';
 import { getDb } from '../db';
-import { listAccounts, type AccountRow, type ThreadRow } from './core';
+import { listAccounts, nowIso, type AccountRow, type ThreadRow } from './core';
 import { InboxError, type ParticipantDto } from './types';
 import { waProviderFor } from './whatsapp';
 import { applyChatInfo, groupParticipants, parseThreadInfo, refreshChatInfo } from './wa-meta';
 import { MAX_MEMBER_TARGETS, participantError, type MemberAction, type MemberTargetResult } from '../wa-group-members';
+import { GROUP_DESCRIPTION_MAX, GROUP_NAME_MAX } from '../wa-group-limits';
 
 async function groupThread(owner: string, threadId: string): Promise<{ thread: ThreadRow; account: AccountRow }> {
   const thread = (await getDb().prepare('SELECT * FROM inbox_threads WHERE id = ? AND owner_id = ? AND removed_at IS NULL').get(threadId, owner)) as ThreadRow | undefined;
@@ -87,6 +88,60 @@ export async function updateGroupMembers(
   const participants = await reconcile(owner, thread, account, action, done);
   const size = parseThreadInfo(((await getDb().prepare('SELECT info FROM inbox_threads WHERE id = ?').get(thread.id)) as { info: string } | undefined)?.info).size;
   return { results, participants, size: size || participants.length };
+}
+
+/**
+ * Lo que se pide cambiar del grupo, limpio: nombre sin espacios de más (no
+ * vacío) y descripción (puede quedar vacía, como en WhatsApp). invalid_name si
+ * el nombre queda vacío; invalid_input si no viene ninguno de los dos.
+ */
+export function cleanGroupInfoPatch(raw: { name?: unknown; description?: unknown }): { name?: string; description?: string } {
+  const out: { name?: string; description?: string } = {};
+  if (typeof raw.name === 'string') {
+    const name = raw.name.replace(/\s+/g, ' ').trim().slice(0, GROUP_NAME_MAX);
+    if (!name) throw new InboxError('invalid_name', 400);
+    out.name = name;
+  }
+  if (typeof raw.description === 'string') out.description = raw.description.trim().slice(0, GROUP_DESCRIPTION_MAX);
+  if (out.name === undefined && out.description === undefined) throw new InboxError('invalid_input', 400);
+  return out;
+}
+
+/**
+ * Cambia el nombre o la descripción del grupo en WhatsApp, como el lápiz de
+ * la info del grupo en WhatsApp Web, y deja el aviso "Cambiaste…" en el chat
+ * (WhatsApp no avisa a los dispositivos vinculados lo que hace uno). Si el
+ * grupo solo deja editar a los admins, lo decide WhatsApp: not_group_admin.
+ */
+export async function updateGroupInfo(owner: string, threadId: string, raw: { name?: unknown; description?: unknown }): Promise<{ title: string; about: string }> {
+  const { thread, account } = await groupThread(owner, threadId);
+  const patch = cleanGroupInfoPatch(raw);
+  const info = parseThreadInfo(thread.info);
+  if (patch.name === thread.title) delete patch.name;
+  if (patch.description === info.about) delete patch.description;
+  if (patch.name === undefined && patch.description === undefined) return { title: thread.title, about: info.about };
+  try {
+    await waProviderFor(account).updateGroup(thread.external_id, patch);
+  } catch (err) {
+    if (err instanceof ProviderError && err.code === 'not_group_admin') throw new InboxError('not_group_admin', 403);
+    if (err instanceof ProviderError && err.code === 'not_connected') throw new InboxError('not_connected', 409);
+    throw new InboxError('send_failed', 502);
+  }
+  const title = patch.name ?? thread.title;
+  const about = patch.description ?? info.about;
+  let stored: Record<string, unknown> = {};
+  try {
+    stored = thread.info ? (JSON.parse(thread.info) as Record<string, unknown>) : {};
+  } catch {
+    stored = {};
+  }
+  await getDb()
+    .prepare('UPDATE inbox_threads SET title = ?, info = ?, updated_at = ? WHERE id = ? AND owner_id = ?')
+    .run(title, JSON.stringify({ ...stored, about }), nowIso(), thread.id, owner);
+  const { addInboxGroupEvent } = await import('../wa-group-system');
+  if (patch.name !== undefined) await addInboxGroupEvent(thread, { t: 'subject', by: { p: 'me' }, subject: title }, nowIso()).catch(() => false);
+  if (patch.description !== undefined) await addInboxGroupEvent(thread, { t: 'description', by: { p: 'me' } }, nowIso()).catch(() => false);
+  return { title, about };
 }
 
 /** El link de invitación del grupo (con `revoke`, uno nuevo y el anterior deja de andar). */

@@ -103,7 +103,21 @@
     "forbidden": "Solo se pueden cambiar tus propios mensajes.",
     "client_upload_unavailable": "Los archivos de más de 4 MB no se pueden mandar desde este servidor.",
     "nothing_to_summarize": "Todavía no hay mensajes para resumir.",
-    "voice_too_short": "Grabá al menos un segundo para programarla."
+    "voice_too_short": "Grabá al menos un segundo para programarla.",
+    "invalid_name": "El grupo necesita un nombre.",
+    "not_group_admin": "Solo los admins del grupo pueden cambiar esto, y tu número no es admin del grupo."
+  },
+  "groupEdit": {
+    "editName": "Editar el nombre del grupo",
+    "editDescription": "Editar la descripción del grupo",
+    "addDescription": "Agregar descripción del grupo",
+    "nameLabel": "Nombre del grupo",
+    "descriptionLabel": "Descripción del grupo",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "nameSaved": "Cambió el nombre del grupo",
+    "descriptionSaved": "Cambió la descripción del grupo",
+    "left": "Quedan {n}"
   },
   "viewPhoto": "Ver la foto",
   "groupMembers": "{n, plural, one {Grupo · # integrante} other {Grupo · # integrantes}}",

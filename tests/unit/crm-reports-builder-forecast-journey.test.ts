@@ -28,7 +28,7 @@ import {
   deleteCustomReport,
   filterCondition,
   listCustomReports,
-  runReport,
+  runReport as runReportFor,
   searchCustomReports,
   updateCustomReport,
   ReportError,
@@ -51,6 +51,9 @@ async function pipelineWithStages(userId: string) {
 }
 
 const db = () => getDb();
+/** Corre el reporte como el owner del workspace (sin restricciones por campo). */
+const runReport = (ws: string, cfg: Parameters<typeof runReportFor>[1], opts: Omit<Parameters<typeof runReportFor>[2], 'viewer'> = {}) =>
+  runReportFor(ws, cfg, { ...opts, viewer: { workspaceId: ws, personId: ws, role: 'owner' } });
 
 describe('historial de etapas', () => {
   it('createDeal abre la primera etapa y moveDeal cierra la anterior', async () => {

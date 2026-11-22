@@ -159,6 +159,14 @@
 .gr-inbox .gr-search:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 0; }
 .gr-inbox .gr-filters { gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .gr-inbox .gr-filters::-webkit-scrollbar { display: none; }
+/* Pestañas de filtro que se deslizan (Lines e Inbox, components/groups/wa/useScrollEdges.ts): el borde con más para
+   ver se esfuma, así una pestaña cortada se lee como "hay más" y no como texto roto. */
+.gr-inbox .gr-filters[data-more-right], .ib-tabs[data-more-right] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+.gr-inbox .gr-filters[data-more-left], .ib-tabs[data-more-left] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
+.gr-inbox .gr-filters[data-more-left][data-more-right], .ib-tabs[data-more-left][data-more-right] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+}
 .gr-inbox .gr-filter { flex: none; height: var(--wa-chip-h); padding: 0 10px; font-size: var(--wa-fs-preview); color: var(--wa-text-2); background: var(--wa-chip-bg); border: 0; border-radius: var(--radius-1); }
 .gr-inbox .gr-filter:hover { color: var(--wa-text); background: var(--wa-row-active); }
 .gr-inbox .gr-filter.is-on { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); font-weight: 500; }
@@ -185,7 +193,9 @@
 .gr-inbox .gr-row-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; font-size: var(--wa-fs-preview); line-height: 18px; color: var(--wa-text-2); }
 .gr-inbox .gr-row-preview > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-row-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gr-row-sender { flex: none; }
+/* Quién mandó en un grupo: un nombre largo se corta con "…" y el mensaje siempre se ve (como WhatsApp). */
+.gr-row-sender { flex: 0 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-row-sender ~ :last-child { flex: 1 1 auto; min-width: 3em; }
 .gr-row-icons { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--wa-text-2); }
 /* Pospuesto: el reloj en la fila de Archivados (la hora va en el title y en la etiqueta del ícono). */
 .gr-row-snoozed { display: inline-flex; align-items: center; }

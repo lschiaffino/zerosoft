@@ -75,6 +75,7 @@ import { useOnChatSent } from '@/lib/ui/chat-sent';
 import AgentsRow, { type AgentsRowProps } from '@/components/fleet/AgentsRow';
 import { KanbanToggle, useKanbanView } from './KanbanToggle';
 import InboxKanban from './InboxKanban';
+import { useScrollEdges } from './wa/useScrollEdges';
 
 /** El color de cada etiqueta (los de .gr-label-* en styles/groups.css), para el punto de la opción en el panel de filtros. */
 const LABEL_HEX: Record<string, string> = {
@@ -241,6 +242,8 @@ export default function InboxShell({
 }) {
   const t = useTranslations('groups');
   const tf = useTranslations('common.ui.filter');
+  // Las pestañas de filtro se deslizan de costado: el borde con más para ver se esfuma.
+  const filtersEdges = useScrollEdges<HTMLDivElement>();
   const { style: chatStyle } = useChatStyle();
   const errText = useErrorText();
   const [toast, showToast] = useToast();
@@ -1564,7 +1567,7 @@ export default function InboxShell({
               </button>
             </FilterChips>
             {/* Cada pestaña es un atajo de un campo del panel: marcada cuando ese filtro está puesto, también si se puso desde el panel. */}
-            <div className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')} data-tour="lines-filters">
+            <div ref={filtersEdges} className="gr-filters" role="tablist" aria-multiselectable="true" aria-label={t('inbox.filters')} data-tour="lines-filters">
               {LINES_TABS.map((tab) => {
                 const on = tabsOn.includes(tab);
                 return (

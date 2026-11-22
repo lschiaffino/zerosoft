@@ -51,5 +51,5 @@ export async function POST(req: NextRequest) {
     const companyId = company.id;
     after(() => enrichCompany(auth.user.id, companyId, { actorEmail: auth.user.email }).then(() => undefined).catch(() => undefined));
   }
-  return NextResponse.json(cleanRow(company), { status: 201 });
+  return NextResponse.json(cleanRow(redactRow(company, await hiddenFieldsFor(apiFieldViewer(auth), 'companies'))), { status: 201 });
 }

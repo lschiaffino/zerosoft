@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import RelatedObjectRecords from '@/components/crm/RelatedObjectRecords';
 import RelatedLeads from '@/components/crm/RelatedLeads';
-import { fieldAccessFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, hiddenFieldsFor, redactCustomJson, sessionFieldViewer } from '@/lib/crm-field-perms';
 import ActivityDateFacts from '@/components/crm/ActivityDateFacts';
 import { notFound } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
@@ -169,6 +169,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       </nav>
     ) : null;
 
+  // Los valores para las condiciones del playbook llegan al cliente: sin los campos ocultos.
+  const playbookCustom = parseCustom(redactCustomJson(company.custom, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')));
+
   const actions = (
     <>
       {siteDomain && <CompanyEnrichButton companyId={company.id} domain={siteDomain} enriched={!!company.enriched_at} />}
@@ -184,7 +187,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
           country: company.country,
           website: company.website,
           lifecycleStage: company.lifecycle_stage,
-          ...Object.fromEntries(Object.entries(parseCustom(company.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+          ...Object.fromEntries(Object.entries(playbookCustom).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
         }}
       />
       <CrmQuickCreate

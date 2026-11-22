@@ -9,8 +9,6 @@ interface ContactAddDealProps {
   pipelineId: string;
   stageId: string;
   contactId: string;
-  priorities: Array<{ value: string; label: string }>;
-  sources: Array<{ value: string; label: string }>;
 }
 
 /** Botón "Crear deal" en el detalle de contacto: abre DealForm con el contacto pre-vinculado. */
@@ -18,8 +16,6 @@ export default function ContactAddDeal({
   pipelineId,
   stageId,
   contactId,
-  priorities,
-  sources,
 }: ContactAddDealProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -31,8 +27,6 @@ export default function ContactAddDeal({
         <DealForm
           pipelineId={pipelineId}
           stageId={stageId}
-          priorities={priorities}
-          sources={sources}
           fixedContactId={contactId}
           onDone={() => {
             setOpen(false);

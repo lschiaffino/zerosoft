@@ -55,5 +55,5 @@ export async function POST(req: NextRequest) {
     const assigned = await assignNewLead(auth.user.id, contact.id, 'api');
     if (assigned) contact.owner_id = assigned;
   }
-  return NextResponse.json(cleanRow(contact), { status: 201 });
+  return NextResponse.json(cleanRow(redactRow(contact, await hiddenFieldsFor(apiFieldViewer(auth), 'contacts'))), { status: 201 });
 }
