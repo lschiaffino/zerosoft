@@ -1,6 +1,6 @@
 // Solo tipos: este módulo lo usa el editor (cliente) y crm-workflows toca la DB.
 import type { ActionType, TriggerType, WorkflowInput } from './crm-workflows';
-import { delayMinutes } from './crm-workflow-rules';
+import { delayMissing } from './crm-workflow-rules';
 
 /**
  * Catálogo del editor de workflows: triggers y acciones agrupados (para los
@@ -102,7 +102,7 @@ export function defaultActionConfig(type: ActionType): Record<string, unknown> {
     case 'ai_step':
       return { mode: 'prompt', prompt: '', output: 'note' };
     case 'delay':
-      return { amount: 1, unit: 'days' };
+      return { mode: 'duration', amount: 1, unit: 'days' };
     case 'rotate_owner':
       return { ownerIds: [] };
     case 'create_deal':
@@ -175,7 +175,7 @@ export function actionMissing(type: ActionType, config: Record<string, unknown> 
     case 'remove_from_list':
       return need('listId');
     case 'delay':
-      return delayMinutes(config) === null ? ['amount'] : [];
+      return delayMissing(config);
     case 'rotate_owner':
       return Array.isArray(config.ownerIds) && config.ownerIds.length ? [] : ['ownerIds'];
     case 'create_deal':

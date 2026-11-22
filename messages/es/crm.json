@@ -808,7 +808,9 @@
       "label": "Correr cuando",
       "always": "Siempre",
       "yes": "Si sí",
-      "no": "Si no"
+      "no": "Si no",
+      "met": "Si pasó",
+      "timedOut": "Si se venció el tiempo"
     },
     "trigger": "Trigger",
     "subtitle": "Cuando pasa algo en el CRM, hacé lo que harías a mano: crear tareas, avisar, mandar emails.",
@@ -983,8 +985,66 @@
       "summary": {
         "minutes": "{n, plural, one {# minuto} other {# minutos}}",
         "hours": "{n, plural, one {# hora} other {# horas}}",
-        "days": "{n, plural, one {# día} other {# días}}"
-      }
+        "days": "{n, plural, one {# día} other {# días}}",
+        "event": "hasta: {event}",
+        "property": "hasta {date} a las {time}",
+        "calendar": "hasta el {date} a las {time}",
+        "weekday": "hasta el día elegido a las {time}"
+      },
+      "mode": "Tipo de espera",
+      "modes": {
+        "duration": "Un tiempo",
+        "date": "Hasta una fecha",
+        "weekday": "Hasta un día y hora",
+        "event": "Hasta que pase un evento"
+      },
+      "time": "Hora",
+      "timeZone": "Zona horaria",
+      "dateSource": "Fecha de",
+      "sources": {
+        "property": "Una propiedad de fecha del registro",
+        "calendar": "Una fecha del calendario"
+      },
+      "date": "Fecha",
+      "dateField": "Propiedad de fecha",
+      "dateFieldHint": "Del registro inscripto, como close_date o custom.renewal_date.",
+      "offsetDays": "Días",
+      "offsetDir": "Antes o después",
+      "dirs": {
+        "before": "Antes de la fecha",
+        "after": "Después de la fecha"
+      },
+      "dateHint": "Si la fecha ya pasó o el registro no tiene valor, las acciones siguientes corren enseguida. Hasta 2 años adelante.",
+      "days": "Días de la semana",
+      "weekdays": {
+        "1": "Lunes",
+        "2": "Martes",
+        "3": "Miércoles",
+        "4": "Jueves",
+        "5": "Viernes",
+        "6": "Sábado",
+        "7": "Domingo"
+      },
+      "weekdayHint": "Las acciones siguientes corren el próximo día que elegiste, a esa hora.",
+      "event": "Evento",
+      "events": {
+        "email_opened": "Abre un email",
+        "email_clicked": "Hace clic en un link de un email",
+        "email_received": "Responde por email",
+        "form_submitted": "Envía un formulario",
+        "meeting_booked": "Reserva una reunión",
+        "contact_updated": "Cambia una propiedad del contacto",
+        "company_updated": "Cambia una propiedad de la empresa",
+        "deal_updated": "Cambia una propiedad del deal",
+        "deal_stage_changed": "El deal cambia de etapa",
+        "deal_won": "El deal se gana",
+        "deal_lost": "El deal se pierde",
+        "quote_accepted": "Se acepta una cotización"
+      },
+      "eventField": "Propiedad (opcional)",
+      "eventFieldHint": "Dejala vacía para cualquier propiedad.",
+      "timeout": "Dejar de esperar después de",
+      "eventHint": "Las acciones de abajo pueden correr solo si pasó o solo si se venció el tiempo. El evento tiene que pasar en el registro inscripto o en su contacto, empresa o deal. Hasta 30 días."
     },
     "rotate": {
       "eventRecord": "El registro inscripto",
@@ -1050,7 +1110,15 @@
       "unenrollConfirm": "Sacarlo de este workflow",
       "unenrollError": "No se pudo sacar el registro. Puede que ya haya terminado.",
       "unenrolled": "Lo sacaron del workflow a mano.",
-      "unenrolledBy": "Lo sacó del workflow {name}."
+      "unenrolledBy": "Lo sacó del workflow {name}.",
+      "wait": {
+        "date": "Esperó hasta una fecha",
+        "weekday": "Esperó hasta un día y hora",
+        "event": "Esperando el evento",
+        "met": "Pasó el evento",
+        "timedOut": "Se venció el tiempo",
+        "passed": "La fecha ya había pasado, siguió"
+      }
     }
   },
   "history": {

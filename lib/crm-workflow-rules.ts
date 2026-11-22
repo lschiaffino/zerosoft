@@ -380,6 +380,12 @@ export function conditionsReachOtherEntity(
 ): boolean {
   for (const f of workflow.settings?.filters ?? []) if (f.entity !== entity) return true;
   for (const a of workflow.actions) {
+    // W2: una espera por un evento que pasa en otro registro (el email del contacto de un deal).
+    if (a.type === 'delay' && delayMode(a.config) === 'event') {
+      const ev = a.config.event;
+      if (isWaitEvent(ev) && WAIT_EVENTS[ev] !== entity) return true;
+      continue;
+    }
     if (a.type !== 'branch') continue;
     const e = str(a.config.entity) || 'contact';
     if (e !== entity) return true;
@@ -399,6 +405,12 @@ export interface ActionLogEntry {
   branch?: 'yes' | 'no';
   /** Minutos de una espera. */
   minutes?: number;
+  /** W2: qué esperó (sin la fecha: puede venir de una propiedad). */
+  wait?: 'date' | 'weekday' | 'event';
+  /** W2: la fecha ya había pasado o el registro no tenía la propiedad: siguió sin esperar. */
+  passed?: boolean;
+  /** W2: espera por evento: pasó (true) o se venció el tope (false). Sin dato mientras espera. */
+  met?: boolean;
   at?: string;
 }
 
@@ -427,6 +439,9 @@ export function actionLog(results: unknown): ActionLogEntry[] {
       entry.outcome = 'waited';
       const m = Number(result.minutes);
       if (Number.isFinite(m) && m > 0) entry.minutes = m;
+      if (result.wait === 'date' || result.wait === 'weekday' || result.wait === 'event') entry.wait = result.wait;
+      if (result.passed === true) entry.passed = true;
+      if (typeof result.met === 'boolean') entry.met = result.met;
     }
     if (type === 'branch' && (result.branch === 'yes' || result.branch === 'no')) entry.branch = result.branch;
     const at = str(r.at);
@@ -434,4 +449,235 @@ export function actionLog(results: unknown): ActionLogEntry[] {
     out.push(entry);
   }
   return out;
+}
+
+// ---------- W2: esperar hasta una fecha, un día y hora, o un evento ----------
+
+/**
+ * Modos de la acción de espera (como los "Delay" de HubSpot):
+ * - duration: minutos, horas o días (lo de W1; sin `mode` es este);
+ * - date: hasta una fecha (una propiedad de fecha del registro inscripto o
+ *   una fecha del calendario), con días antes o después y una hora;
+ * - weekday: hasta el próximo de los días de la semana elegidos, a una hora;
+ * - event: hasta que pasa un evento en el registro, con un tope de tiempo.
+ *   Después, la rama Sí corre si pasó y la rama No si se venció el tope.
+ */
+export const DELAY_MODES = ['duration', 'date', 'weekday', 'event'] as const;
+export type DelayMode = (typeof DELAY_MODES)[number];
+
+/** Una espera hasta una fecha no puede ir más lejos que esto (2 años). */
+export const MAX_DATE_WAIT_DAYS = 730;
+/** Días antes o después de la fecha, como máximo. */
+export const MAX_DATE_OFFSET_DAYS = 365;
+/** Tope por defecto de una espera por evento. */
+export const DEFAULT_EVENT_TIMEOUT = { amount: 3, unit: 'days' as DelayUnit };
+
+/**
+ * Eventos que se pueden esperar y la entidad del registro en el que pasan.
+ * Los de email, formulario y reunión pasan en el contacto.
+ */
+export const WAIT_EVENTS = {
+  email_opened: 'contact',
+  email_clicked: 'contact',
+  email_received: 'contact',
+  form_submitted: 'contact',
+  meeting_booked: 'contact',
+  contact_updated: 'contact',
+  company_updated: 'company',
+  deal_updated: 'deal',
+  deal_stage_changed: 'deal',
+  deal_won: 'deal',
+  deal_lost: 'deal',
+  quote_accepted: 'deal',
+} as const satisfies Record<string, ConditionEntity>;
+export type WaitEvent = keyof typeof WAIT_EVENTS;
+
+export function isWaitEvent(v: unknown): v is WaitEvent {
+  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(WAIT_EVENTS, v);
+}
+
+/** Eventos "registro actualizado" que aceptan una propiedad elegida. */
+export function waitEventTakesField(event: string): boolean {
+  return event === 'contact_updated' || event === 'company_updated' || event === 'deal_updated';
+}
+
+export function delayMode(cfg: Record<string, unknown>): DelayMode {
+  const m = str(cfg.mode);
+  return (DELAY_MODES as readonly string[]).includes(m) ? (m as DelayMode) : 'duration';
+}
+
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})/;
+
+/** 'HH:MM' válida o la hora por defecto (9:00). */
+export function waitTime(v: unknown): string {
+  const s = str(v).trim();
+  return HHMM_RE.test(s) ? s : '09:00';
+}
+
+/** Zona IANA válida o UTC. */
+export function waitTimeZone(v: unknown): string {
+  const tz = str(v).trim();
+  if (!tz || tz.length > 64) return 'UTC';
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** Desfase (minutos) de una zona respecto de UTC en ese instante. */
+function tzOffset(timeZone: string, at: Date): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(at);
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? '0');
+    const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+    return Math.round((asUtc - at.getTime()) / 60_000);
+  } catch {
+    return 0;
+  }
+}
+
+/** Instante de un día (y, m, d en el calendario) a la hora `hhmm` en la zona `tz`. */
+export function zonedInstant(y: number, m: number, d: number, hhmm: string, tz: string): Date {
+  const [h, mi] = waitTime(hhmm).split(':').map(Number);
+  const wall = Date.UTC(y, m - 1, d, h, mi, 0);
+  const first = tzOffset(tz, new Date(wall));
+  return new Date(wall - tzOffset(tz, new Date(wall - first * 60_000)) * 60_000);
+}
+
+/** Día del calendario de un valor de fecha ('YYYY-MM-DD…'), o null. */
+export function calendarDay(v: unknown): { y: number; m: number; d: number } | null {
+  const match = YMD_RE.exec(str(v).trim());
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  const check = new Date(Date.UTC(y, m - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
+  return { y, m, d };
+}
+
+/** Días de la semana elegidos (1 = lunes … 7 = domingo), sin repetir. */
+export function waitWeekdays(v: unknown): number[] {
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 7))].sort();
+}
+
+/** Próximo de los días elegidos a la hora `hhmm` en `tz`, estrictamente después de `after`. */
+export function nextWeekdayAt(after: Date, days: readonly number[], hhmm: string, tz: string): Date | null {
+  if (!days.length) return null;
+  const offset = tzOffset(tz, after);
+  const local = new Date(after.getTime() + offset * 60_000);
+  for (let add = 0; add <= 7; add++) {
+    const day = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + add));
+    const dow = ((day.getUTCDay() + 6) % 7) + 1;
+    if (!days.includes(dow)) continue;
+    const at = zonedInstant(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate(), hhmm, tz);
+    if (at.getTime() > after.getTime()) return at;
+  }
+  return null;
+}
+
+/** Qué hace una espera en este momento. */
+export type WaitPlan =
+  /** Espera hasta `at`. */
+  | { kind: 'until'; mode: 'duration' | 'date' | 'weekday'; at: Date; minutes?: number }
+  /** Espera el evento hasta `at` (el tope). */
+  | { kind: 'event'; at: Date; event: WaitEvent; field: string }
+  /** No espera: la fecha ya pasó o el registro no tiene la propiedad (sigue, como en HubSpot). */
+  | { kind: 'pass'; reason: 'past' | 'missing' }
+  /** Config que no sirve: la acción falla con este código. */
+  | { kind: 'invalid'; error: 'invalid_delay' | 'date_too_far' };
+
+function offsetDays(cfg: Record<string, unknown>): number {
+  const n = Math.trunc(Number(cfg.offsetDays) || 0);
+  const clamped = Math.min(Math.max(Math.abs(n), 0), MAX_DATE_OFFSET_DAYS);
+  return str(cfg.offsetDir) === 'before' ? -clamped : clamped;
+}
+
+/**
+ * Plan de una espera. `record` es la fila del registro inscripto (para una
+ * fecha de una de sus propiedades); nunca se mira otro registro. Puro.
+ */
+export function planWait(cfg: Record<string, unknown>, now: Date, record?: Record<string, unknown> | null): WaitPlan {
+  const mode = delayMode(cfg);
+  if (mode === 'duration') {
+    const minutes = delayMinutes(cfg);
+    return minutes === null ? { kind: 'invalid', error: 'invalid_delay' } : { kind: 'until', mode, at: addMinutes(now, minutes), minutes };
+  }
+  if (mode === 'event') {
+    if (!isWaitEvent(cfg.event)) return { kind: 'invalid', error: 'invalid_delay' };
+    const minutes = delayMinutes({ amount: cfg.timeoutAmount ?? DEFAULT_EVENT_TIMEOUT.amount, unit: cfg.timeoutUnit ?? DEFAULT_EVENT_TIMEOUT.unit });
+    if (minutes === null) return { kind: 'invalid', error: 'invalid_delay' };
+    const field = waitEventTakesField(cfg.event) ? str(cfg.eventField).trim().slice(0, 100) : '';
+    return { kind: 'event', at: addMinutes(now, minutes), event: cfg.event, field };
+  }
+  const tz = waitTimeZone(cfg.tz);
+  const time = waitTime(cfg.time);
+  let at: Date | null;
+  if (mode === 'weekday') {
+    at = nextWeekdayAt(now, waitWeekdays(cfg.days), time, tz);
+    if (!at) return { kind: 'invalid', error: 'invalid_delay' };
+  } else {
+    const fromProperty = str(cfg.dateSource) !== 'calendar';
+    const field = str(cfg.field).trim();
+    if (fromProperty && !field) return { kind: 'invalid', error: 'invalid_delay' };
+    const day = calendarDay(fromProperty ? (record ? rowValue(record, field) : undefined) : cfg.date);
+    if (!day) return fromProperty ? { kind: 'pass', reason: 'missing' } : { kind: 'invalid', error: 'invalid_delay' };
+    const shifted = new Date(Date.UTC(day.y, day.m - 1, day.d + offsetDays(cfg)));
+    at = zonedInstant(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate(), time, tz);
+  }
+  if (at.getTime() <= now.getTime()) return { kind: 'pass', reason: 'past' };
+  if (at.getTime() - now.getTime() > MAX_DATE_WAIT_DAYS * 24 * 60 * 60_000) return { kind: 'invalid', error: 'date_too_far' };
+  return { kind: 'until', mode, at };
+}
+
+/** ¿La config de la espera está completa? Lista de claves que faltan (para el editor y el servidor). */
+export function delayMissing(cfg: Record<string, unknown>): string[] {
+  const mode = delayMode(cfg);
+  if (mode === 'duration') return delayMinutes(cfg) === null ? ['amount'] : [];
+  if (mode === 'event') {
+    const out: string[] = [];
+    if (!isWaitEvent(cfg.event)) out.push('event');
+    if (delayMinutes({ amount: cfg.timeoutAmount ?? DEFAULT_EVENT_TIMEOUT.amount, unit: cfg.timeoutUnit ?? DEFAULT_EVENT_TIMEOUT.unit }) === null) out.push('timeoutAmount');
+    return out;
+  }
+  if (mode === 'weekday') return waitWeekdays(cfg.days).length ? [] : ['days'];
+  if (str(cfg.dateSource) === 'calendar') return calendarDay(cfg.date) ? [] : ['date'];
+  return str(cfg.field).trim() ? [] : ['field'];
+}
+
+/** Clave de la espera por evento (columna wait_key): evento + registro en el que tiene que pasar. */
+export function waitKey(event: string, entity: string, id: string): string {
+  return `${event}:${entity}:${id}`;
+}
+
+/**
+ * ¿El evento cumple la espera? Mismo tipo y, para "registro actualizado" con
+ * una propiedad, que esa propiedad esté entre las que cambiaron. Sin
+ * propiedad, cuenta cualquier cambio menos los de campos ocultos para alguien
+ * del workspace (`hiddenCustom`): un miembro no puede deducir por el
+ * historial que cambió un campo que no ve. Puro.
+ */
+export function waitEventMatches(
+  wait: { event: string; field?: string },
+  event: { type: string; payload?: Record<string, unknown> },
+  hiddenCustom: ReadonlySet<string> = new Set(),
+): boolean {
+  if (wait.event !== event.type) return false;
+  if (!waitEventTakesField(wait.event)) return true;
+  if (wait.field) return propertyChangeMatches({ field: wait.field }, event.payload);
+  const changed = Array.isArray(event.payload?.changed) ? (event.payload!.changed as unknown[]).map(str) : [];
+  return changed.some((f) => !(f.startsWith('custom.') && hiddenCustom.has(f.slice(7))));
 }
