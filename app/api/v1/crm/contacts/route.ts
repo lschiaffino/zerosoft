@@ -51,7 +51,9 @@ export async function POST(req: NextRequest) {
   // No se vincula un registro que la key no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
   if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
-  const contact = await catchContactWrite(createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
+  const contact = await catchContactWrite(
+    createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }, undefined, { linkScope: await apiScope(auth) }),
+  );
   if (contact instanceof CrmRefError) return apiError(400, contact.code, refErrorMessage(contact.code));
   // El email es la identidad del contacto: 409 con el id del existente solo si la key lo ve.
   if (contact instanceof ContactEmailTakenError) return apiEmailTakenResponse(contact, await apiScope(auth));

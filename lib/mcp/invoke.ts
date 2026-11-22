@@ -306,7 +306,7 @@ export async function invokeOperation(outer: Request, caller: McpCaller, op: Ope
   }
   // 2. La persona, ahora: si salió del workspace o ya no tiene la app, se corta acá.
   const person = await resolvePerson(caller);
-  if (!person) throw new OperationError('workspace_access_lost', 'You are no longer part of this workspace. Reconnect and pick another one.');
+  if (!person) throw new OperationError('workspace_access_lost', 'You are no longer part of this workspace, or it requires two-step verification this connection has not passed. Reconnect.');
   if (!personCanUseApp(person, op.app)) {
     if (op.app !== 'workspace' && isComingSoon(op.app) && person.blockedApps.includes(op.app)) {
       throw new OperationError('coming_soon', `${op.app} is not available yet. It is coming soon.`);

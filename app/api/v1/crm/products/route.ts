@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createProduct, listProducts } from '@/lib/crm-products';
 import { productCreateSchema } from '@/lib/crm-schema';
-import { cleanRow, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiAdminOnly, cleanRow, pageParams, zodErrorCode } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireApiUser(req, 'crm:write');
   if ('res' in auth) return auth.res;
+  const notAdmin = apiAdminOnly(auth);
+  if (notAdmin) return notAdmin;
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = productCreateSchema.safeParse(body);

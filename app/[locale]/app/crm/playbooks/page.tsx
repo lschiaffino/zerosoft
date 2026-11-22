@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { listPlaybooks } from '@/lib/crm-playbooks';
+import { listPlaybooks, playbooksForViewer } from '@/lib/crm-playbooks';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { formatDate } from '@/lib/utils';
 import PlaybooksIndex from '@/components/crm/PlaybooksIndex';
 
@@ -10,7 +11,8 @@ export default async function PlaybooksPage(props: { params: Promise<{ locale: s
   const { locale } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const rows = await listPlaybooks(user.id);
+  // Sin las preguntas que van a campos propios que la persona tiene ocultos.
+  const rows = await playbooksForViewer(sessionFieldViewer(user), await listPlaybooks(user.id));
   return (
     <div className="app-page ui-page">
       <PlaybooksIndex

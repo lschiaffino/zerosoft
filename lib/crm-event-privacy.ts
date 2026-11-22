@@ -21,7 +21,7 @@
  * - quote.*: el quote se manda si ve su deal.
  */
 import { getDb, type Db } from './db';
-import { hiddenFieldsFor, isUnrestricted, redactCustomJson, type FieldViewer } from './crm-field-perms';
+import { hiddenFieldsFor, isUnrestricted, redactCustomJson, redactScoreBreakdown, type FieldViewer } from './crm-field-perms';
 import { canSeeActivityRefs, canSeeEntity, canSeeOwner, ownerScopeFor, type ActivityRefs, type OwnerScope } from './crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS, visibleRecordIds } from './crm-record-scope';
 import { normalizeRole } from './teams';
@@ -117,6 +117,8 @@ export async function recordEventFor(
   const hidden = await hiddenFieldsFor(sub.viewer, FIELD_ENTITY[entity], db);
   let out: EventData = { ...data };
   if ('custom' in out) out.custom = withoutHidden(out.custom, hidden);
+  // El desglose del score de un contacto: sin las reglas sobre campos ocultos (mismo helper que las filas).
+  if (hidden.size && typeof out.score_breakdown === 'string') out.score_breakdown = redactScoreBreakdown(out.score_breakdown, hidden.scoreRules);
   if (isObj(out.change) && 'changed' in out.change) out.change = { ...out.change, changed: changedWithoutHidden(out.change.changed, hidden) };
   out = ((await maskPrivateRef(ws, out, [PRIVATE_REFS.company([]), PRIVATE_REFS.parent()], sub.scope, db)) ?? out) as EventData;
   return out;

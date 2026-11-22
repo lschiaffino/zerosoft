@@ -504,7 +504,8 @@ function hiddenCustomField(field: string, hidden: ReadonlySet<string>): boolean 
 
 /**
  * Scores del contacto. Con `viewer`, el desglose no trae las reglas sobre
- * campos propios que la persona tiene ocultos (el detalle es el valor del campo).
+ * campos propios que la persona tiene ocultos (ni su nombre ni sus puntos),
+ * con el mismo helper que las filas de listas, API y MCP (redactRow).
  */
 export async function contactScores(
   workspaceId: string,
@@ -512,16 +513,13 @@ export async function contactScores(
   db: Db = getDb(),
   viewer?: import('./crm-field-perms').FieldViewer,
 ): Promise<ContactScoreView[]> {
-  let dropRules = new Set<string>();
+  let shown = (items: ScoreBreakdownItem[]) => items;
   if (viewer) {
-    const { hiddenFieldsFor } = await import('./crm-field-perms');
+    const { hiddenFieldsFor, visibleBreakdownItems } = await import('./crm-field-perms');
     const hidden = await hiddenFieldsFor(viewer, 'contacts', db);
-    if (hidden.size) {
-      const rules = await listScoreRules(workspaceId, db);
-      dropRules = new Set(rules.filter((r) => r.kind === 'property' && hiddenCustomField((r.config as PropertyRuleConfig).field, hidden)).map((r) => r.id));
-    }
+    const rules = hidden.scoreRules;
+    if (hidden.size && rules) shown = (items) => visibleBreakdownItems(items, rules);
   }
-  const shown = (items: ScoreBreakdownItem[]) => (dropRules.size ? items.filter((b) => !dropRules.has(b.ruleId)) : items);
   const { scoreTier } = await import('./crm-scoring-schema');
   const scores = await listScores(workspaceId, db);
   const rows = (await db

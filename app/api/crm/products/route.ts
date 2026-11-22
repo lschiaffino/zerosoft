@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { createProduct, listProducts } from '@/lib/crm-products';
 import { productCreateSchema } from '@/lib/crm-schema';
-import { invalidBody, unauthorized } from '@/lib/crm-http';
+import { forbidden, invalidBody, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,9 +23,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ rows, total, page, pageSize });
 }
 
+/** Nuevo producto del catálogo compartido: solo el dueño y los admins. */
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
+  if (!isWorkspaceAdmin(user)) return forbidden();
   const body: unknown = await req.json().catch(() => null);
   const parsed = productCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);

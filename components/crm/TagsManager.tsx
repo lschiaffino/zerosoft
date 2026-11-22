@@ -38,8 +38,12 @@ function Swatches({ value, onPick, disabled }: { value: string; onPick: (c: stri
   );
 }
 
-/** Ajustes › Tags: crear, renombrar, cambiar color y borrar. */
-export default function TagsManager({ initialTags }: { initialTags: ManagedTag[] }) {
+/**
+ * Ajustes › Tags: crear, renombrar, cambiar color y borrar. Renombrar, el color
+ * y borrar cambian los tags de todo el workspace: solo con `canEdit` (dueño y
+ * admins); el resto crea tags y los ve.
+ */
+export default function TagsManager({ initialTags, canEdit = false }: { initialTags: ManagedTag[]; canEdit?: boolean }) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [tags, setTags] = useState<ManagedTag[]>(initialTags);
@@ -117,24 +121,28 @@ export default function TagsManager({ initialTags }: { initialTags: ManagedTag[]
       ) : (
         <ul className="tags-list">
           {tags.map((tag) => (
-            <li className="tags-row" key={tag.id}>
+            <li className={canEdit ? 'tags-row' : 'tags-row tags-row-static'} key={tag.id}>
               <span className="tag-dot-mark" style={{ background: tagColorVar(tag.color) }} aria-hidden />
-              <input
-                className="input tags-name"
-                defaultValue={tag.name}
-                aria-label={t('tags.name')}
-                maxLength={60}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== tag.name) void patch(tag.id, { name: v });
-                  else e.target.value = tag.name;
-                }}
-              />
-              <Swatches value={tag.color} onPick={(c) => patch(tag.id, { color: c })} />
+              {canEdit ? (
+                <input
+                  className="input tags-name"
+                  defaultValue={tag.name}
+                  aria-label={t('tags.name')}
+                  maxLength={60}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== tag.name) void patch(tag.id, { name: v });
+                    else e.target.value = tag.name;
+                  }}
+                />
+              ) : (
+                <span className="tags-name tags-name-static">{tag.name}</span>
+              )}
+              {canEdit && <Swatches value={tag.color} onPick={(c) => patch(tag.id, { color: c })} />}
               <span className="ui-help tags-count">
                 {t('tags.counts', { contacts: tag.contacts, companies: tag.companies, deals: tag.deals })}
               </span>
-              {confirmId === tag.id ? (
+              {!canEdit ? null : confirmId === tag.id ? (
                 <span className="tags-confirm">
                   <button type="button" className="btn btn-small btn-danger" onClick={() => remove(tag.id)}>
                     {t('tags.confirmDelete')}

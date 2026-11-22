@@ -31,6 +31,7 @@ import {
   updateCompany,
   updateContact,
   updateDeal,
+  type ContactWriteOpts,
 } from './crm';
 import {
   ensureMigrated,
@@ -482,6 +483,7 @@ export async function importContacts(
   userId: string,
   rows: MappedContactRow[],
   mode: ImportMode,
+  opts: ContactWriteOpts = {},
 ): Promise<ImportResult> {
   const result = emptyResult(rows.length);
   const people = await workspacePeople(userId, getDb());
@@ -529,14 +531,14 @@ export async function importContacts(
       };
       if (existing) {
         const custom = await mergedCustom(tdb, 'crm_contacts', existing.id, customVals);
-        const updated = await catchUnique(updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb));
+        const updated = await catchUnique(updateContact(userId, existing.id, { ...data, ...(custom ? { custom } : {}) }, tdb, '', opts));
         if (updated instanceof CrmUniqueValueError) {
           result.errors.push(uniqueRowError(rowNo, updated));
           continue;
         }
         result.updated++;
       } else {
-        const created = await catchUnique(catchEmailTaken(createContact(userId, { ...data, custom: customVals }, tdb)));
+        const created = await catchUnique(catchEmailTaken(createContact(userId, { ...data, custom: customVals }, tdb, opts)));
         if (created instanceof CrmUniqueValueError) {
           result.errors.push(uniqueRowError(rowNo, created));
           continue;
@@ -654,7 +656,7 @@ export async function importCompanies(
  * y etapa por nombre (default: el primer pipeline y su primera etapa). En mode
  * 'update' se actualiza el deal con el mismo nombre en el mismo pipeline.
  */
-export async function importDeals(userId: string, rows: MappedDealRow[], mode: ImportMode): Promise<ImportResult> {
+export async function importDeals(userId: string, rows: MappedDealRow[], mode: ImportMode, opts: ContactWriteOpts = {}): Promise<ImportResult> {
   const result = emptyResult(rows.length);
   const db = getDb();
   const people = await workspacePeople(userId, db);
@@ -748,7 +750,7 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
             firstName: firstName ?? '',
             lastName: rest.join(' '),
             ...(company ? { companyId: company.id } : {}),
-          }),
+          }, undefined, opts),
         );
         contactIds.push(contact instanceof ContactEmailTakenError ? contact.existing.id : contact.id);
       }

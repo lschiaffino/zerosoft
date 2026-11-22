@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { sessionScope } from '@/lib/crm-visibility';
 import {
   importCompanies,
   importContacts,
@@ -90,13 +91,15 @@ export async function POST(req: NextRequest) {
           return custom ? { ...r, custom: Object.fromEntries(Object.entries(custom).filter(([k]) => !restricted.has(k))) } : r;
         })
       : list;
+  // La empresa que se vincula sola por el dominio del email tiene que ser una que la persona ve.
+  const linkScope = await sessionScope(user);
   try {
     const result =
       entity === 'contacts'
-        ? await importContacts(user.id, allowed(sanitizeRows(rows, importContactRowSchema)) as MappedContactRow[], mode)
+        ? await importContacts(user.id, allowed(sanitizeRows(rows, importContactRowSchema)) as MappedContactRow[], mode, { linkScope })
         : entity === 'companies'
           ? await importCompanies(user.id, allowed(sanitizeRows(rows, importCompanyRowSchema)) as MappedCompanyRow[], mode)
-          : await importDeals(user.id, allowed(sanitizeRows(rows, importDealRowSchema)) as MappedDealRow[], mode);
+          : await importDeals(user.id, allowed(sanitizeRows(rows, importDealRowSchema)) as MappedDealRow[], mode, { linkScope });
     return NextResponse.json(result);
   } catch {
     return crmError(500, 'import_failed');
