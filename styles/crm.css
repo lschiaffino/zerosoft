@@ -2623,6 +2623,12 @@ button.cell-name.link-btn:hover { text-decoration: underline; }
   cursor: pointer;
 }
 .tag-swatch.is-on { outline: 1px solid var(--ink); outline-offset: 2px; }
+/* Táctil: cada color es un objetivo de 40px con el cuadrado de siempre en el centro. */
+@media (pointer: coarse) {
+  .tag-swatches { gap: 0; }
+  .tag-swatch { width: 40px; height: 40px; padding: 12px; border-width: 0; background-clip: content-box !important; }
+  .tag-swatch.is-on { outline-offset: -10px; }
+}
 .tags-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .tags-row {
   display: grid;
