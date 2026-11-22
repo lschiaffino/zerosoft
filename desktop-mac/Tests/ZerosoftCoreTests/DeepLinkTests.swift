@@ -78,6 +78,7 @@ private let server = "https://zerosoft.ai"
 @Test func badgeParsing() throws {
     let json = """
     {"total": 7, "talk": 2, "bell": 5, "now": "2026-11-22T10:00:00.123Z",
+     "byPath": {"talk": 2, "crm": 0, "track": 1, "Bad Key": 3, "docs": true, "../x": 1},
      "notifications": [
        {"id": "a", "title": "Ana · #general", "body": "the message text", "href": "/app/talk/c/1"},
        {"id": "b", "title": "", "body": null, "href": "https://evil.com/app"},
@@ -90,6 +91,8 @@ private let server = "https://zerosoft.ai"
     #expect(update.total == 7)
     #expect(update.now == "2026-11-22T10:00:00.123Z")
     #expect(update.notifications.count == Badge.maxNotifications)
+    // Tab dots: products with a positive count and a plain key.
+    #expect(update.unread == ["talk", "track"])
     #expect(update.notifications[0] == BadgeNotification(id: "a", title: "Ana · #general", path: "/app/talk/c/1"))
     // No title: the app name. A foreign href: no path.
     #expect(update.notifications[1] == BadgeNotification(id: "b", title: "zerosoft", path: nil))

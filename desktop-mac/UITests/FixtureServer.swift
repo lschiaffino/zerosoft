@@ -47,6 +47,12 @@ final class FixtureServer {
         lock.lock(); defer { lock.unlock() }; return _tokenRequests
     }
 
+    private var _requests: [String] = []
+    /// Every request, as host + path ("127.0.0.1:4100/app"), in order.
+    var requests: [String] {
+        lock.lock(); defer { lock.unlock() }; return _requests
+    }
+
     static let sessionToken = "fixture.session-token_value"
 
     private var listenFD: Int32 = -1
@@ -150,6 +156,8 @@ final class FixtureServer {
             return
         }
         let path = request.split(separator: " ").dropFirst().first.map(String.init) ?? "/"
+        let host = Self.header(request, "Host") ?? ""
+        lock.lock(); _requests.append("\(host)\(path)"); lock.unlock()
         let mode = self.mode
         if mode == .hang {
             lock.lock(); held.append(client); lock.unlock()
@@ -309,6 +317,9 @@ final class FixtureServer {
         <p><a href="/second">Same origin</a></p>
         <p><a href="/api/integrations/demo/start">Connect demo</a></p>
         <p><a href="/files/report.csv">Download report</a></p>
+        <p><a href="/app/two">App two</a></p>
+        <p><a href="/app/one" target="_blank">Blank same</a></p>
+        <p><a href="\(otherOrigin)/blank-other" target="_blank">Blank other</a></p>
         <p><button onclick="window.open()">Open blank</button></p>
         <p><button onclick="window.zerosoftDesktop.startLogin()">Sign in with Google</button></p>
         <p><button onclick="new Notification('zs-note', { body: 'zs-body' })">Notify</button></p>

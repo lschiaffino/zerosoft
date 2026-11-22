@@ -2,11 +2,12 @@ import AppKit
 import Network
 import WebKit
 
-/// The web view of the server plus everything that keeps it honest: the navigation policy
+/// The web view of one tab plus everything that keeps it honest: the navigation policy
 /// (NavigationPolicy), the load and paint watchdog (LoadWatchdog) and the process-crash handler.
 /// The bridge (BridgeHandler) answers only the server's main frame; its `ready` message is the
 /// watchdog's second paint signal. Iframes load (the policy is for the main frame) but cannot
-/// use the bridge.
+/// use the bridge. Every tab gets its own controller built the same way (TabsController), so
+/// each has the same policy, bridge checks and Lockdown setting as the first.
 @MainActor
 final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let webView: WKWebView
@@ -33,6 +34,14 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Bridge commands with a native side outside the web view (sign-in, notifications).
     var onStartLogin: (() -> Void)?
     var onNotify: ((String, String?) -> Void)?
+    /// Tabs (block 4): the bridge's `tabs` messages, and a page of the server that asked for a
+    /// new window (target=_blank, window.open), which opens as a tab next to this one.
+    var onTabs: ((TabsAction, String?, String?, Int?) -> Void)?
+    var onOpenInNewTab: ((URL) -> Void)?
+    /// The page finished loading (the tabs controller opens the search of a new tab, Cmd+T).
+    var onFinished: (() -> Void)?
+    /// The web view with the native overlay on top: what a window shows for this tab.
+    private(set) var content: TabContentView!
 
     init(server: String, lockdown: LockdownSetting, info: BridgeInfo, lang: Lang, openExternal: @escaping (URL) -> Void) {
         self.server = server
@@ -67,6 +76,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         bridge.onReject = { [weak self] reason in self?.onBridgeReject?(reason) }
         bridge.onStartLogin = { [weak self] in self?.onStartLogin?() }
         bridge.onNotify = { [weak self] title, body in self?.onNotify?(title, body) }
+        bridge.onTabs = { [weak self] action, path, title, n in self?.onTabs?(action, path, title, n) }
         model.onOpenInBrowser = { [weak self] in
             guard let self else { return }
             self.openExternal(self.lastRequested ?? self.serverURL)
@@ -76,10 +86,36 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
             Task { @MainActor in self?.send(.networkAvailable) }
         }
         pathMonitor.start(queue: DispatchQueue.global(qos: .utility))
+        content = TabContentView(frame: .zero)
+        content.install(self)
     }
 
     deinit {
         pathMonitor.cancel()
+    }
+
+    /// The tab was closed or suspended: stop loading, drop the bridge and the delegates so the
+    /// WebContent process goes away with the view.
+    func teardown() {
+        pathMonitor.cancel()
+        webView.stopLoading()
+        bridge.detach(from: webView.configuration.userContentController)
+        webView.navigationDelegate = nil
+        webView.uiDelegate = nil
+        onTabs = nil
+        onOpenInNewTab = nil
+        onFinished = nil
+        onStartLogin = nil
+        onNotify = nil
+        content.removeFromSuperview()
+    }
+
+    func goBack() {
+        if webView.canGoBack { webView.goBack() }
+    }
+
+    func goForward() {
+        if webView.canGoForward { webView.goForward() }
     }
 
     /// The first load: the server, or the page of a deep link that launched the app.
@@ -252,6 +288,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard isCurrent(navigation) else { return }
         send(.finished)
+        onFinished?()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -284,16 +321,21 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     // MARK: UI delegate
 
-    /// target=_blank and window.open: the server's pages load here (tabs arrive in block 4),
-    /// everything else goes through the policy. window.open() without a URL (about:blank) is
-    /// blocked by the policy and leaves the page alone.
+    /// target=_blank and window.open: a page of the server opens in a new tab next to this one
+    /// (as the Tauri app does), everything else goes through the policy. The app never hands
+    /// WebKit a web view for it, so a page cannot get a handle on another tab (`window.opener`).
+    /// window.open() without a URL (about:blank) is blocked by the policy and leaves the page
+    /// alone.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
         for action: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if let url = action.request.url, route(url) {
+        guard let url = action.request.url else { return nil }
+        if let onOpenInNewTab, NavigationPolicy.classify(url, server: server) == .allow {
+            onOpenInNewTab(url)
+        } else if route(url) {
             webView.load(action.request)
         }
         return nil
