@@ -64,6 +64,7 @@ function StepCard({
       data-status={data.status}
       data-trigger={trigger || undefined}
       data-named={named || undefined}
+      data-tour={trigger ? 'flow-trigger' : undefined}
     >
       {!trigger && <Handle type="target" position={Position.Top} className="flow-handle flow-handle-in" />}
       <div className="flow-node-body">

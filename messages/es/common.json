@@ -1524,6 +1524,48 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "flow": {
+      "intro": {
+        "title": "Te damos la bienvenida a Flow",
+        "body": "Flow automatiza trabajo entre tus apps: cuando pasa algo, hace los pasos que armaste. Este tour te muestra las partes principales."
+      },
+      "newFlow": {
+        "title": "Creá un flow",
+        "body": "Empezá en un lienzo en blanco, o usá Armar con IA y contá con tus palabras lo que querés."
+      },
+      "templates": {
+        "title": "Empezá con una plantilla",
+        "body": "Flows listos para tareas comunes. Usá uno y cambiá los detalles para que te sirva."
+      },
+      "runs": {
+        "title": "Historial",
+        "body": "Cada vez que un flow corre aparece acá, con cada paso, lo que recibió y si hubo un error. Podés volver a correr uno que falló."
+      },
+      "credentials": {
+        "title": "Credenciales",
+        "body": "Claves y accesos de los servicios que usan tus flows, como Slack, Google o Stripe. Las guardás una vez y las elegís en cualquier paso."
+      },
+      "openFlow": {
+        "title": "Abrí un flow",
+        "body": "Abrí uno de tus flows para ver cómo está armado."
+      },
+      "trigger": {
+        "title": "El disparador",
+        "body": "Todo flow empieza acá: algo que pasa en una app de zerosoft, un horario, un webhook o un arranque a mano. Seleccionalo para elegir qué lo pone en marcha."
+      },
+      "addStep": {
+        "title": "Sumá pasos",
+        "body": "Los pasos son lo que hace el flow: mandar un mail, crear un issue en Track, llamar a una API y más. Sumalos desde acá y conectá cada uno con el paso anterior."
+      },
+      "test": {
+        "title": "Probalo",
+        "body": "Probar corre el flow para que veas qué hizo cada paso. Cuando ande, publicalo y prendelo con el interruptor."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "social": {
       "intro": {
         "title": "Te damos la bienvenida a Social",

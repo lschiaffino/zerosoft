@@ -407,12 +407,13 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
   const current = shown ? steps[shown.idx] : null;
   const ask = !!current?.askAudience && !audience;
   const last = shown ? shown.idx === steps.length - 1 : false;
-  // Cuántos faltan: los que no buscan nada, los que ya están a la vista y los que aparecen después de un clic.
+  // Cuántos faltan: los que no buscan nada, los que ya están a la vista y los que aparecen después de un clic
+  // (si el paso del clic se saltea porque no hay qué tocar, como una lista vacía, los de después tampoco cuentan).
   const remaining = shown
     ? steps.slice(shown.idx + 1).reduce(
         (acc, s) => {
           const counts = acc.unlocked || !s.targets?.length || s.ifMissing === 'center' || !!findTarget(s);
-          return { n: acc.n + (counts ? 1 : 0), unlocked: acc.unlocked || s.advanceOn === 'click' };
+          return { n: acc.n + (counts ? 1 : 0), unlocked: acc.unlocked || (s.advanceOn === 'click' && counts) };
         },
         { n: 0, unlocked: !!current?.advanceOn },
       ).n
