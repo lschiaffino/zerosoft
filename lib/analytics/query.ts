@@ -26,7 +26,7 @@ import {
   type FunnelRow,
 } from './compute';
 import { actionSql, cohortSql, filtersSql, groupKeySql, needsPerson, numericProp, personJoins, PERSON_KEY, propText, type Arg, type Frag } from './sql-build';
-import { applyFormula, collapsePath, computeLifecycle, correlate, formulaValue, parseFormula, percentile, PERCENTILE_OF, round2, stickinessHistogram } from './compute-more';
+import { applyFormula, collapsePath, computeLifecycle, correlate, formulaValue, parseFormula, pathCleaner, percentile, PERCENTILE_OF, round2, stickinessHistogram } from './compute-more';
 import { parseTestFilters } from './projects';
 import { fromLocal, offsetMsAt, projectTz, tzShiftSql } from './tz';
 import { checkSql, SQL_MAX_ROWS, wrapSql } from './sql-safe';
@@ -950,11 +950,18 @@ export async function runPaths(project: ProjectRow, q: PathsQuery, now = Date.no
         return w !== undefined && Number(x.ts) >= w.from && Number(x.ts) <= w.to;
       })
     : rows.slice(0, ROW_CAP);
+  const clean = pathCleaner({ groups: q.groups, exclude: q.exclude });
   const nodes = kept.map((x) => {
     const raw = String(x.event) === '$pageview' ? String(x.path ?? '') : String(x.event);
-    return { session: String(x.session), path: q.collapseIds && String(x.event) === '$pageview' ? collapsePath(raw) : raw, ts: Number(x.ts) };
+    return { session: String(x.session), path: clean(q.collapseIds && String(x.event) === '$pageview' ? collapsePath(raw) : raw), ts: Number(x.ts) };
   });
-  const r = computePaths(nodes.filter((n) => n.path), q.steps, q.startPath || null, 30, q.endPath || null);
+  const r = computePaths(
+    nodes.filter((n): n is { session: string; path: string; ts: number } => Boolean(n.path)),
+    q.steps,
+    q.startPath || null,
+    30,
+    q.endPath || null,
+  );
   return { kind: 'paths', ...r, truncated };
 }
 

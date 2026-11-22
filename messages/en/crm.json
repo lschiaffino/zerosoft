@@ -808,7 +808,9 @@
       "label": "Run when",
       "always": "Always",
       "yes": "If yes",
-      "no": "If no"
+      "no": "If no",
+      "met": "If it happened",
+      "timedOut": "If time ran out"
     },
     "trigger": "Trigger",
     "subtitle": "When something happens in the CRM, do what you would do by hand: create tasks, notify, send emails.",
@@ -983,8 +985,66 @@
       "summary": {
         "minutes": "{n, plural, one {# minute} other {# minutes}}",
         "hours": "{n, plural, one {# hour} other {# hours}}",
-        "days": "{n, plural, one {# day} other {# days}}"
-      }
+        "days": "{n, plural, one {# day} other {# days}}",
+        "event": "until: {event}",
+        "property": "until {date} at {time}",
+        "calendar": "until {date} at {time}",
+        "weekday": "until the chosen day at {time}"
+      },
+      "mode": "Wait type",
+      "modes": {
+        "duration": "For a set time",
+        "date": "Until a date",
+        "weekday": "Until a day and time",
+        "event": "Until an event happens"
+      },
+      "time": "Time",
+      "timeZone": "Time zone",
+      "dateSource": "Date from",
+      "sources": {
+        "property": "A date property of the record",
+        "calendar": "A calendar date"
+      },
+      "date": "Date",
+      "dateField": "Date property",
+      "dateFieldHint": "Of the enrolled record, like close_date or custom.renewal_date.",
+      "offsetDays": "Days",
+      "offsetDir": "Before or after",
+      "dirs": {
+        "before": "Before the date",
+        "after": "After the date"
+      },
+      "dateHint": "If the date already passed or the record has no value, the next actions run right away. Up to 2 years ahead.",
+      "days": "Days of the week",
+      "weekdays": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      },
+      "weekdayHint": "The next actions run on the next chosen day at that time.",
+      "event": "Event",
+      "events": {
+        "email_opened": "Opens an email",
+        "email_clicked": "Clicks a link in an email",
+        "email_received": "Replies by email",
+        "form_submitted": "Submits a form",
+        "meeting_booked": "Books a meeting",
+        "contact_updated": "A contact property changes",
+        "company_updated": "A company property changes",
+        "deal_updated": "A deal property changes",
+        "deal_stage_changed": "The deal changes stage",
+        "deal_won": "The deal is won",
+        "deal_lost": "The deal is lost",
+        "quote_accepted": "A quote is accepted"
+      },
+      "eventField": "Property (optional)",
+      "eventFieldHint": "Leave it empty for any property.",
+      "timeout": "Stop waiting after",
+      "eventHint": "Actions below can run only if it happened or only if time ran out. The event has to happen on the enrolled record or on its related contact, company or deal. Up to 30 days."
     },
     "rotate": {
       "eventRecord": "The enrolled record",
@@ -1050,7 +1110,15 @@
       "unenrollConfirm": "Remove from this workflow",
       "unenrollError": "Couldn't unenroll the record. It may have finished already.",
       "unenrolled": "Removed from the workflow by hand.",
-      "unenrolledBy": "Removed from the workflow by {name}."
+      "unenrolledBy": "Removed from the workflow by {name}.",
+      "wait": {
+        "date": "Waited until a date",
+        "weekday": "Waited until a day and time",
+        "event": "Waiting for the event",
+        "met": "The event happened",
+        "timedOut": "Time ran out",
+        "passed": "Date already passed, continued"
+      }
     }
   },
   "history": {

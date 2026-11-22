@@ -235,6 +235,38 @@ public enum StringKey: String, CaseIterable, Sendable {
     case next
     case back
     case done
+    case secMeetings
+    case meetIntro
+    case meetIndicator
+    case meetIndicatorHelp
+    case meetSysAudio
+    case meetSysAudioHelp
+    case meetSysAudioLockdown
+    case meetIdle
+    case meetRecording
+    case meetCapturing
+    case meetOpenVoice
+    case meetStop
+    case permAudio
+    case permAudioHelp
+    case permAudioTap
+    case permAudioViaScreen
+    case permScreen
+    case permScreenHelp
+    case screenAllowed
+    case screenOff
+    case screenAllow
+    case screenAfter
+    case statusMeeting
+    case statusSystemAudio
+    case statusOpenRecording
+    case statusStopRecording
+    case statusStopSystemAudio
+    case indRecording
+    case indOpen
+    case indStop
+    case indHide
+    case indClick
 }
 
 public enum Strings {
@@ -455,6 +487,38 @@ public enum Strings {
             .next: "Continue",
             .back: "Back",
             .done: "Done",
+            .secMeetings: "Meetings",
+            .meetIntro: "Meetings record in a zerosoft tab (Voice). While one records, its tab and the menu bar item show a red dot, and while the tab is not in front a small black indicator stays on top of other apps.",
+            .meetIndicator: "Show a small recording indicator on top of other apps while a meeting records and its tab is not in front",
+            .meetIndicatorHelp: "Click it to open the meeting. Hover to see the time. Right-click to stop or hide it. Drag it anywhere: it stays where you leave it. While zerosoft captures the computer's audio it always shows.",
+            .meetSysAudio: "Let meetings capture the computer's audio (the other people on a call)",
+            .meetSysAudioHelp: "Only while a meeting you started records, and only for its page, which turns it into notes. zerosoft keeps none of it on this Mac. Off: meetings record your microphone only.",
+            .meetSysAudioLockdown: "Not available while the web views run with Lockdown Mode restrictions.",
+            .meetIdle: "Nothing is recording now.",
+            .meetRecording: "A meeting is recording.",
+            .meetCapturing: "zerosoft is capturing the computer's audio.",
+            .meetOpenVoice: "Open meetings in Voice",
+            .meetStop: "Stop recording",
+            .permAudio: "Computer audio",
+            .permAudioHelp: "For meeting notes: what the other people on a call say. Captured only while a meeting you started records.",
+            .permAudioTap: "macOS asks the first time a meeting captures it. If you said no, turn zerosoft on in System Settings › Privacy & Security › Screen & System Audio Recording.",
+            .permAudioViaScreen: "On this version of macOS the computer's audio needs Screen Recording, below.",
+            .permScreen: "Screen recording",
+            .permScreenHelp: "For the computer's audio on macOS 14.1 and earlier. zerosoft does not record your screen. macOS asks to reopen zerosoft after you allow it.",
+            .screenAllowed: "Screen recording is on.",
+            .screenOff: "Screen recording is off.",
+            .screenAllow: "Allow screen recording",
+            .screenAfter: "If you turned zerosoft on in the list, reopen zerosoft so macOS applies it.",
+            .statusMeeting: "zerosoft: recording a meeting",
+            .statusSystemAudio: "zerosoft: capturing the computer's audio",
+            .statusOpenRecording: "Open the recording",
+            .statusStopRecording: "Stop recording",
+            .statusStopSystemAudio: "Stop capturing the computer's audio",
+            .indRecording: "Recording",
+            .indOpen: "Open",
+            .indStop: "Stop",
+            .indHide: "Hide until the next recording",
+            .indClick: "Click to open the recording",
         ],
         .es: [
             .errorTitle: "zerosoft no pudo abrir",
@@ -672,6 +736,38 @@ public enum Strings {
             .next: "Continuar",
             .back: "Atrás",
             .done: "Listo",
+            .secMeetings: "Reuniones",
+            .meetIntro: "Las reuniones se graban en una pestaña de zerosoft (Voice). Mientras una se graba, su pestaña y el ítem de la barra de menú muestran un punto rojo, y mientras la pestaña no está adelante un indicador negro chico queda encima de las otras apps.",
+            .meetIndicator: "Mostrar un indicador chico encima de las otras apps mientras se graba una reunión y su pestaña no está adelante",
+            .meetIndicatorHelp: "Un clic abre la reunión. Con el mouse encima muestra el tiempo. Clic derecho para cortar u ocultarlo. Se arrastra a cualquier lado y queda donde lo dejás. Mientras zerosoft captura el audio de la computadora se muestra siempre.",
+            .meetSysAudio: "Dejar que las reuniones capturen el audio de la computadora (la otra gente de una llamada)",
+            .meetSysAudioHelp: "Solo mientras se graba una reunión que empezaste vos, y solo para su página, que lo pasa a notas. zerosoft no guarda nada de eso en esta Mac. Apagado: las reuniones graban solo tu micrófono.",
+            .meetSysAudioLockdown: "No está disponible mientras las vistas web corren con las restricciones del Modo de Aislamiento.",
+            .meetIdle: "No se está grabando nada.",
+            .meetRecording: "Se está grabando una reunión.",
+            .meetCapturing: "zerosoft está capturando el audio de la computadora.",
+            .meetOpenVoice: "Abrir las reuniones en Voice",
+            .meetStop: "Cortar la grabación",
+            .permAudio: "Audio de la computadora",
+            .permAudioHelp: "Para las notas de reunión: lo que dice la otra gente de una llamada. Se captura solo mientras se graba una reunión que empezaste vos.",
+            .permAudioTap: "macOS pregunta la primera vez que una reunión lo captura. Si dijiste que no, activá zerosoft en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
+            .permAudioViaScreen: "En esta versión de macOS el audio de la computadora necesita Grabación de pantalla, abajo.",
+            .permScreen: "Grabación de pantalla",
+            .permScreenHelp: "Para el audio de la computadora en macOS 14.1 o anterior. zerosoft no graba tu pantalla. macOS pide reabrir zerosoft después de permitirlo.",
+            .screenAllowed: "La grabación de pantalla está activada.",
+            .screenOff: "La grabación de pantalla está desactivada.",
+            .screenAllow: "Permitir grabación de pantalla",
+            .screenAfter: "Si activaste zerosoft en la lista, reabrí zerosoft para que macOS lo aplique.",
+            .statusMeeting: "zerosoft: grabando una reunión",
+            .statusSystemAudio: "zerosoft: capturando el audio de la computadora",
+            .statusOpenRecording: "Abrir la grabación",
+            .statusStopRecording: "Cortar la grabación",
+            .statusStopSystemAudio: "Dejar de capturar el audio de la computadora",
+            .indRecording: "Grabando",
+            .indOpen: "Abrir",
+            .indStop: "Cortar",
+            .indHide: "Ocultar hasta la próxima grabación",
+            .indClick: "Clic para abrir la grabación",
         ],
         .pt: [
             .errorTitle: "O zerosoft não conseguiu abrir",
@@ -889,6 +985,38 @@ public enum Strings {
             .next: "Continuar",
             .back: "Voltar",
             .done: "Concluir",
+            .secMeetings: "Reuniões",
+            .meetIntro: "As reuniões são gravadas numa aba do zerosoft (Voice). Enquanto uma é gravada, a aba e o item da barra de menus mostram um ponto vermelho, e enquanto a aba não está na frente um indicador preto pequeno fica sobre os outros apps.",
+            .meetIndicator: "Mostrar um indicador pequeno sobre os outros apps enquanto uma reunião é gravada e a aba dela não está na frente",
+            .meetIndicatorHelp: "Um clique abre a reunião. Com o mouse em cima mostra o tempo. Clique direito para parar ou ocultar. Arraste para qualquer lugar: ele fica onde você deixar. Enquanto o zerosoft captura o áudio do computador ele sempre aparece.",
+            .meetSysAudio: "Deixar as reuniões capturarem o áudio do computador (as outras pessoas de uma chamada)",
+            .meetSysAudioHelp: "Só enquanto grava uma reunião que você começou, e só para a página dela, que transforma em notas. O zerosoft não guarda nada disso neste Mac. Desligado: as reuniões gravam só o seu microfone.",
+            .meetSysAudioLockdown: "Não está disponível enquanto as visualizações web rodam com as restrições do Modo de Isolamento.",
+            .meetIdle: "Nada está sendo gravado agora.",
+            .meetRecording: "Uma reunião está sendo gravada.",
+            .meetCapturing: "O zerosoft está capturando o áudio do computador.",
+            .meetOpenVoice: "Abrir as reuniões no Voice",
+            .meetStop: "Parar a gravação",
+            .permAudio: "Áudio do computador",
+            .permAudioHelp: "Para as notas de reunião: o que as outras pessoas de uma chamada dizem. Capturado só enquanto grava uma reunião que você começou.",
+            .permAudioTap: "O macOS pergunta na primeira vez que uma reunião captura. Se você disse não, ative o zerosoft em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema.",
+            .permAudioViaScreen: "Nesta versão do macOS o áudio do computador precisa de Gravação de tela, abaixo.",
+            .permScreen: "Gravação de tela",
+            .permScreenHelp: "Para o áudio do computador no macOS 14.1 ou anterior. O zerosoft não grava sua tela. O macOS pede para reabrir o zerosoft depois de permitir.",
+            .screenAllowed: "A gravação de tela está ativada.",
+            .screenOff: "A gravação de tela está desativada.",
+            .screenAllow: "Permitir gravação de tela",
+            .screenAfter: "Se você ativou o zerosoft na lista, reabra o zerosoft para o macOS aplicar.",
+            .statusMeeting: "zerosoft: gravando uma reunião",
+            .statusSystemAudio: "zerosoft: capturando o áudio do computador",
+            .statusOpenRecording: "Abrir a gravação",
+            .statusStopRecording: "Parar a gravação",
+            .statusStopSystemAudio: "Parar de capturar o áudio do computador",
+            .indRecording: "Gravando",
+            .indOpen: "Abrir",
+            .indStop: "Parar",
+            .indHide: "Ocultar até a próxima gravação",
+            .indClick: "Clique para abrir a gravação",
         ],
     ]
 

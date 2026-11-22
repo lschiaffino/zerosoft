@@ -152,7 +152,13 @@ export default function WorkflowRuns({ runs, workflowId, canEdit = false }: { ru
                                         ? t(`runLog.branch.${s.branch}`)
                                         : s.outcome === 'waited' && s.minutes
                                           ? waited(s.minutes)
-                                          : t(`runLog.outcome.${s.outcome}`)}
+                                          : s.outcome === 'waited' && s.passed
+                                            ? t('runLog.wait.passed')
+                                            : s.outcome === 'waited' && s.wait === 'event'
+                                              ? t(s.met === true ? 'runLog.wait.met' : s.met === false ? 'runLog.wait.timedOut' : 'runLog.wait.event')
+                                              : s.outcome === 'waited' && s.wait
+                                                ? t(`runLog.wait.${s.wait}`)
+                                                : t(`runLog.outcome.${s.outcome}`)}
                                       {s.error && <span className="data"> {s.error}</span>}
                                     </span>
                                     {s.at && (

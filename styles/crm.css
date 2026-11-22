@@ -2947,6 +2947,10 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-people-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; }
 .wf-people-list .ui-check { min-height: 32px; overflow-wrap: anywhere; }
 .wf-delay { display: grid; grid-template-columns: 110px 160px; gap: 12px; }
+/* W2: esperas hasta una fecha, un día y hora o un evento. */
+.wf-delay-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 560px; }
+.wf-days-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.wf-days-list .ui-check { min-height: 32px; }
 .wf-secret { font-family: var(--font-data); }
 .wf-runs-record { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wf-runs-resume { white-space: nowrap; }
@@ -3086,6 +3090,8 @@ td.crm-row-actions > * + * { margin-left: 4px; }
   /* Toques de al menos 40px en el celular. */
   .wf-runs-toggle, .wf-run-actions .btn, .wf-backfill .btn, .crm-record-workflow-actions .btn { min-height: 40px; }
   .wf-backfill-opt .ui-check { min-height: 40px; }
+  .wf-delay-grid { grid-template-columns: minmax(0, 1fr); }
+  .wf-days-list .ui-check, .wf-people-list .ui-check { min-height: 40px; }
 }
 
 /* ---------- Ajustes de la revisión: listas, señalética y celular ---------- */
