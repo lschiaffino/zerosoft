@@ -352,6 +352,8 @@ test('info del grupo: el lápiz cambia el nombre y la descripción en WhatsApp; 
   await panel.getByTestId('group-name-edit').click();
   const nameField = panel.getByTestId('group-name-form').locator('input');
   await expect(nameField).toBeFocused();
+  // Sin el micrófono flotante de dictado: caía afuera del panel, sobre la conversación.
+  await expect(page.locator('.vc-bar')).toHaveCount(0);
   await nameField.fill('No va');
   await nameField.press('Escape');
   await expect(panel.getByTestId('group-name-form')).toHaveCount(0);
@@ -373,8 +375,9 @@ test('info del grupo: el lápiz cambia el nombre y la descripción en WhatsApp; 
   await expect(page.locator('.ib-wa-thread .wa-head-who h2')).toHaveText(renamed);
   await expect(page.locator('.ib-item', { hasText: renamed })).toBeVisible();
 
-  // Descripción: ⌘/Ctrl+Enter guarda (Enter solo es otra línea), y el tilde también.
-  await panel.getByTestId('group-description-edit').click();
+  // Descripción: sin descripción, "Agregar" es el botón (sin lápiz de más); ⌘/Ctrl+Enter guarda (Enter solo es otra línea), y el tilde también.
+  await expect(panel.getByTestId('group-description-edit')).toHaveCount(0);
+  await panel.getByTestId('group-description-add').click();
   const desc = panel.getByTestId('group-description-form').locator('textarea');
   await desc.fill('Asado el sábado');
   await desc.press('Enter');

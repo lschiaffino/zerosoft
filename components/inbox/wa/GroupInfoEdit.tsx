@@ -95,7 +95,8 @@ export function GroupNameEdit({ threadId, value, onSaved, onToast, onError }: Pr
     );
   }
   return (
-    <div className="ib-wa-edit-row" data-testid="group-name-form">
+    // Sin el micrófono flotante de dictado (caía afuera del panel, sobre la conversación).
+    <div className="ib-wa-edit-row" data-testid="group-name-form" data-voice-off>
       <input
         ref={input}
         className="input ib-wa-edit-input"
@@ -147,14 +148,17 @@ export function GroupDescriptionEdit({ threadId, value, onSaved, onToast, onErro
             {t('addDescription')}
           </button>
         )}
-        <button type="button" className="wa-icon-btn ib-wa-edit-btn" onClick={f.start} aria-label={t('editDescription')} title={t('editDescription')} data-testid="group-description-edit">
-          <PencilIcon size={18} />
-        </button>
+        {/* Sin descripción, "Agregar descripción" ya es el botón (como WhatsApp): sin lápiz de más. */}
+        {f.shown && (
+          <button type="button" className="wa-icon-btn ib-wa-edit-btn" onClick={f.start} aria-label={t('editDescription')} title={t('editDescription')} data-testid="group-description-edit">
+            <PencilIcon size={18} />
+          </button>
+        )}
       </div>
     );
   }
   return (
-    <div className="ib-wa-edit-row is-block" data-testid="group-description-form">
+    <div className="ib-wa-edit-row is-block" data-testid="group-description-form" data-voice-off>
       <textarea
         className="input ib-wa-edit-input"
         value={f.draft}
