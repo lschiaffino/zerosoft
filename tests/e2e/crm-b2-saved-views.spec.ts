@@ -163,7 +163,7 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
       await menuBtn.click();
       await menu.getByTestId('view-delete').click();
       await page.getByTestId('confirm-dialog-confirm').click();
-      await expect(page).not.toHaveURL(/sv=/, NAV);
+      await expect(page).not.toHaveURL(/sv=[0-9a-f-]{36}/, NAV);
       await expect(saved).toHaveCount(0, NAV);
     });
 

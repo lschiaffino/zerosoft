@@ -125,6 +125,10 @@ describe('vistas: reglas puras', () => {
     expect(closeTab([{ key: 'all' }], 'all')).toEqual([{ key: 'all' }]);
     expect(togglePin(tabs, 'mine')).toEqual([{ key: 'v1', pinned: true }, { key: 'mine', pinned: true }, { key: 'all' }]);
     expect(addTab(tabs, 'v2').map((t) => t.key)).toEqual(['v1', 'all', 'mine', 'v2']);
+    const full = Array.from({ length: 50 }, (_, i) => ({ key: `k${i}` }));
+    const added = addTab(full, 'new');
+    expect(added).toHaveLength(50);
+    expect(added.at(-1)).toEqual({ key: 'new' });
     // Una sin fijar no pasa delante de las fijadas.
     expect(moveTab(tabs, 'mine', 0).map((t) => t.key)).toEqual(['v1', 'mine', 'all']);
     expect(moveTab(tabs, 'all', 9).map((t) => t.key)).toEqual(['v1', 'mine', 'all']);
@@ -322,6 +326,17 @@ describe('vistas: API y permisos', () => {
     await viewRoute.DELETE(get('http://x'), ctx(v.id));
     const gone = await tabsRoute.GET(get('http://x/api/crm/views/tabs?entity=deals'));
     expect(((await gone.json()) as { tabs: Array<{ key: string }> }).tabs.map((t) => t.key)).toEqual(['open']);
+  });
+
+  it('una vista vieja de otro objeto (tasks) no rompe el listado', async () => {
+    const w = await workspaceWithMember('b2-legacy');
+    await getDb()
+      .prepare("INSERT INTO crm_saved_views (id, user_id, entity, name, query) VALUES (?, ?, 'tasks', 'Old', '{\"q\":\"x\"}')")
+      .run(crypto.randomUUID(), w.owner.id);
+    session.user = asOwner(w.owner);
+    const res = await viewsRoute.GET(get('http://x/api/crm/views'));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { rows: unknown[] }).rows).toEqual([]);
   });
 
   it('valida el cuerpo', async () => {

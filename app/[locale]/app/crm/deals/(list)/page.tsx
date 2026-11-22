@@ -200,7 +200,9 @@ export default async function DealsPage(props: DealsPageProps) {
   const { state } = views;
   const q = state.q ?? '';
   const stageParam = state.stageId ?? '';
-  const stageId = view === 'table' && pipeline.stages.some((s) => s.id === stageParam) ? stageParam : '';
+  // La etapa de la vista se conserva en el board (para guardarla), pero solo filtra la tabla.
+  const viewStageId = pipeline.stages.some((s) => s.id === stageParam) ? stageParam : '';
+  const stageId = view === 'table' ? viewStageId : '';
   const priorityParam = state.priority ?? '';
   const priority = (PRIORITIES as readonly string[]).includes(priorityParam) ? priorityParam : '';
   const sourceParam = state.source ?? '';
@@ -243,7 +245,7 @@ export default async function DealsPage(props: DealsPageProps) {
   const query: Record<string, string> = viewQuery(pipeline.id, view);
   const viewState: Record<string, string> = {};
   if (q) viewState.q = q;
-  if (stageId) viewState.stageId = stageId;
+  if (viewStageId) viewState.stageId = viewStageId;
   if (priority) viewState.priority = priority;
   if (source) viewState.source = source;
   if (owner) viewState.owner = owner;
@@ -280,7 +282,7 @@ export default async function DealsPage(props: DealsPageProps) {
         layout={view}
         pipeline={pipeline.id}
         q={q}
-        stageId={stageId}
+        stageId={viewStageId}
         priority={priority}
         source={source}
         owner={owner}

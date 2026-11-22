@@ -20,6 +20,7 @@ import {
   canEditView,
   canSeeView,
   isDefaultViewKey,
+  isViewEntity,
   normalizeTabs,
   normalizeVisibility,
   parseTabs,
@@ -118,7 +119,8 @@ async function visibleRows(viewer: ViewViewer, entity: ViewEntity | null, db: Db
     : db
         .prepare('SELECT * FROM crm_saved_views WHERE user_id = ? ORDER BY created_at ASC, id ASC')
         .all(viewer.workspaceId))) as CrmSavedViewRow[];
-  return rows.filter((r) => canSeeView(r, viewer));
+  // Solo los objetos con vistas (filas viejas con otra entidad, como 'tasks', se ignoran).
+  return rows.filter((r) => isViewEntity(r.entity) && canSeeView(r, viewer));
 }
 
 export interface ViewListFilter {

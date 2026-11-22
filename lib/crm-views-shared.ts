@@ -301,7 +301,14 @@ export function parseTabs(raw: string | null | undefined): TabPref[] | null {
 
 export function addTab(tabs: readonly TabPref[], key: string): TabPref[] {
   if (tabs.some((t) => t.key === key)) return [...tabs];
-  return [...tabs, { key }].slice(0, MAX_TABS);
+  const next = [...tabs];
+  // Con el tope lleno, la nueva reemplaza a la última sin fijar.
+  if (next.length >= MAX_TABS) {
+    const i = next.map((t) => !!t.pinned).lastIndexOf(false);
+    if (i < 0) return next;
+    next.splice(i, 1);
+  }
+  return [...next, { key }];
 }
 
 /** Cerrar: una fijada no se cierra, y siempre queda al menos una pestaña. */
