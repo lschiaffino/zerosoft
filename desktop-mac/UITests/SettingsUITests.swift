@@ -38,8 +38,12 @@ final class SettingsUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
+    /// Label, title or a string value (a switch's value is a number, so no format predicate).
     private func showing(_ text: String) -> NSPredicate {
-        NSPredicate(format: "label == %@ OR title == %@ OR value == %@", text, text, text)
+        NSPredicate { obj, _ in
+            guard let el = obj as? XCUIElementAttributes else { return false }
+            return el.label == text || el.title == text || (el.value as? String) == text
+        }
     }
 
     private func text(_ app: XCUIApplication, _ text: String) -> XCUIElement {
@@ -231,7 +235,7 @@ final class SettingsUITests: XCTestCase {
         let cleanup = app.popUpButtons.matching(identifier: "zs-voice-cleanup").firstMatch
         XCTAssertTrue(cleanup.waitForExistence(timeout: 15), "voice settings did not load")
         cleanup.click()
-        app.menuItems["Formal"].click()
+        cleanup.menuItems["Formal"].click()
         waitServer("patch") { self.server.writes.contains(#"PATCH /api/voice/settings {"cleanupMode":"formal"}"#) }
         XCTAssertTrue(element(app, "zs-voice-saved").waitForExistence(timeout: 10))
 

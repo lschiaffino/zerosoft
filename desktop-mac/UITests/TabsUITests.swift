@@ -113,7 +113,8 @@ final class TabsUITests: XCTestCase {
         let file = app.menuBars.menuBarItems["File"]
         XCTAssertTrue(file.waitForExistence(timeout: 10))
         file.click()
-        let newTab = app.menuItems["New Tab"]
+        // The File menu's item: the menu bar item's menu (block 5) has one with the same title.
+        let newTab = file.menuItems["New Tab"]
         XCTAssertTrue(newTab.waitForExistence(timeout: 10))
         newTab.click()
         waitTabs(app, "main=/,*/app")
