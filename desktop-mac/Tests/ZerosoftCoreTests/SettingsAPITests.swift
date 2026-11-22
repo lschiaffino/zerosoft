@@ -106,6 +106,10 @@ private func data(_ s: String) -> Data { Data(s.utf8) }
     #expect(list[1].shared && !list[0].shared)
     #expect(list[1].replacement == "zerosoft")
     #expect(DictionaryEntry.parseList(data(#"{"entries":"x"}"#)) == nil)
+    let member = try #require(DictionaryList.parse(data(#"{"entries":[{"id":"t1","kind":"word","phrase":"x","shared":true},{"id":"o1","kind":"word","phrase":"y"}],"canEditTeam":false}"#)))
+    #expect(!member.canDelete(member.entries[0]) && member.canDelete(member.entries[1]))
+    let admin = try #require(DictionaryList.parse(data(#"{"entries":[{"id":"t1","kind":"word","phrase":"x","shared":true}],"canEditTeam":true}"#)))
+    #expect(admin.canDelete(admin.entries[0]))
 }
 
 @Test func dictionaryAddBody() throws {

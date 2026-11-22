@@ -84,9 +84,12 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var account: Remote<AccountInfo>?
     @Published private(set) var voice: Remote<VoiceSettings>?
     @Published private(set) var voiceSave: Bool?
-    @Published private(set) var dictionary: Remote<[DictionaryEntry]>?
+    @Published private(set) var dictionary: Remote<DictionaryList>?
     @Published private(set) var dictionaryFailed = false
     @Published private(set) var history: Remote<[HistoryItem]>?
+    /// Bumped when the session changes (sign-in or sign-out from anywhere): the visible server
+    /// section loads again (`.task(id:)`).
+    @Published private(set) var generation = 0
 
     /// Wired by the app delegate.
     var onSettings: (AppSettings) -> Void = { _ in }
@@ -140,7 +143,6 @@ final class SettingsModel: ObservableObject {
     func notificationButton() {
         switch notifications.buttonAction {
         case .ask:
-            update { $0.notificationsAsked = true }
             Task {
                 notifications = await permission.request()
             }
@@ -155,6 +157,12 @@ final class SettingsModel: ObservableObject {
 
     private func record(_ endpoint: SettingsEndpoint) {
         onRequest?(endpoint.fact)
+    }
+
+    /// A sign-in or sign-out: the account and the visible section load again.
+    func sessionChanged() {
+        generation += 1
+        Task { await loadAccount() }
     }
 
     func loadAccount() async {
@@ -179,8 +187,10 @@ final class SettingsModel: ObservableObject {
                 voice = .ok(saved)
                 voiceSave = true
             } else {
-                voice = .ok(old)
+                // What the server has now (a later change may have been saved meanwhile).
                 voiceSave = false
+                let fresh = await remote.call(.voiceSettings, VoiceSettings.parse)
+                if case .ok = fresh { voice = fresh }
             }
         }
     }
@@ -189,22 +199,20 @@ final class SettingsModel: ObservableObject {
         dictionary = nil
         dictionaryFailed = false
         record(.dictionary)
-        dictionary = await remote.call(.dictionary, DictionaryEntry.parseList)
+        dictionary = await remote.call(.dictionary, DictionaryList.parse)
     }
 
-    /// Returns false when the entry is not valid (nothing is sent).
-    @discardableResult
-    func addEntry(kind: DictionaryKind, phrase: String, replacement: String) -> Bool {
+    /// Returns true once the server added the entry (the window clears its fields only then).
+    func addEntry(kind: DictionaryKind, phrase: String, replacement: String) async -> Bool {
         guard let body = DictionaryEntry.addBody(kind: kind, phrase: phrase, replacement: replacement) else { return false }
-        Task {
-            record(.addDictionaryEntry)
-            let added = await remote.call(.addDictionaryEntry, body: body, DictionaryEntry.parseAdded)
-            if case .ok = added {
-                await loadDictionary()
-            } else {
-                dictionaryFailed = true
-            }
+        dictionaryFailed = false
+        record(.addDictionaryEntry)
+        let added = await remote.call(.addDictionaryEntry, body: body, DictionaryEntry.parseAdded)
+        guard case .ok = added else {
+            dictionaryFailed = true
+            return false
         }
+        await loadDictionary()
         return true
     }
 
@@ -214,7 +222,10 @@ final class SettingsModel: ObservableObject {
             record(.deleteDictionaryEntry(id))
             let done: Remote<Bool> = await remote.call(.deleteDictionaryEntry(id)) { _ in true }
             if case .ok = done {
-                if case let .ok(list)? = dictionary { dictionary = .ok(list.filter { $0.id != id }) }
+                if case var .ok(list)? = dictionary {
+                    list.entries.removeAll { $0.id == id }
+                    dictionary = .ok(list)
+                }
             } else {
                 dictionaryFailed = true
             }
@@ -242,10 +253,11 @@ final class SettingsModel: ObservableObject {
             record(.signOut)
             await remote.signOut()
             account = .signedOut
-            voice = nil
-            dictionary = nil
-            history = nil
+            voice = .signedOut
+            dictionary = .signedOut
+            history = .signedOut
             onSignedOut()
+            sessionChanged()
         }
     }
 }

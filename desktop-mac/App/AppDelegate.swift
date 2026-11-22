@@ -85,11 +85,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 auth?.begin()
             }
             web.onNotify = { title, body in notifier?.pageNotification(title: title, body: body) }
-            web.onOpenSettings = { self?.openSettings(nil) }
+            // Only the tab in front of the window in front, while the app is in front: a page in
+            // a background tab cannot pull the app over other apps.
+            web.onOpenSettings = { [weak web] in
+                guard let self, let web, NSApp.isActive, self.tabs.activeWeb === web else { return }
+                self.openSettings(nil)
+            }
         }
-        auth.onSignedIn = { [weak tabs, weak notifier] in
+        auth.onSignedIn = { [weak tabs, weak notifier, weak self] in
             tabs?.signedIn()
             notifier?.restart()
+            self?.model?.sessionChanged()
         }
         notifier.openPath = { [weak tabs] url in tabs?.navigateActive(url) }
         notifier.onUnread = { [weak tabs] products in tabs?.setUnread(products) }

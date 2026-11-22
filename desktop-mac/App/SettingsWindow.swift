@@ -168,6 +168,7 @@ private struct RemoteNote<T: Equatable & Sendable>: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(model.t(.remoteSignedOut)).accessibilityIdentifier("zs-remote-state")
                 Button(model.t(.signIn)) { model.signIn() }
+                    .accessibilityIdentifier("zs-remote-signin")
             }
         case .offline?, .failed?:
             VStack(alignment: .leading, spacing: 8) {
@@ -322,7 +323,7 @@ private struct VoiceSection: View {
                 RemoteNote(model: model, state: model.voice) { Task { await model.loadVoice() } }
             }
         }
-        .task { await model.loadVoice() }
+        .task(id: model.generation) { await model.loadVoice() }
     }
 
     private func binding<V>(_ voice: VoiceSettings, _ key: WritableKeyPath<VoiceSettings, V>) -> Binding<V> {
@@ -378,7 +379,8 @@ private struct DictionarySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Help(model.t(.dictHelp))
-            if case let .ok(entries)? = model.dictionary {
+            if case let .ok(list)? = model.dictionary {
+                let entries = list.entries
                 add
                 if model.dictionaryFailed { Text(model.t(.remoteFailed)).foregroundStyle(.red).font(.callout) }
                 if entries.isEmpty {
@@ -386,7 +388,7 @@ private struct DictionarySection: View {
                 } else {
                     VStack(spacing: 0) {
                         ForEach(entries) { entry in
-                            row(entry)
+                            row(entry, canDelete: list.canDelete(entry))
                             if entry.id != entries.last?.id { Divider() }
                         }
                     }
@@ -396,7 +398,7 @@ private struct DictionarySection: View {
                 RemoteNote(model: model, state: model.dictionary) { Task { await model.loadDictionary() } }
             }
         }
-        .task { await model.loadDictionary() }
+        .task(id: model.generation) { await model.loadDictionary() }
     }
 
     private var add: some View {
@@ -419,9 +421,13 @@ private struct DictionarySection: View {
                         .accessibilityIdentifier("zs-dict-replacement")
                 }
                 Button(model.t(.dictAdd)) {
-                    if model.addEntry(kind: kind, phrase: phrase, replacement: replacement) {
-                        phrase = ""
-                        replacement = ""
+                    let (k, p, r) = (kind, phrase, replacement)
+                    Task {
+                        // Cleared only once the server has it: a refusal keeps what was typed.
+                        if await model.addEntry(kind: k, phrase: p, replacement: r), phrase == p, replacement == r {
+                            phrase = ""
+                            replacement = ""
+                        }
                     }
                 }
                 .disabled(DictionaryEntry.addBody(kind: kind, phrase: phrase, replacement: replacement) == nil)
@@ -431,7 +437,7 @@ private struct DictionarySection: View {
         }
     }
 
-    private func row(_ entry: DictionaryEntry) -> some View {
+    private func row(_ entry: DictionaryEntry, canDelete: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(entry.phrase).lineLimit(2)
             if entry.kind != .word {
@@ -442,8 +448,10 @@ private struct DictionarySection: View {
                 Text(model.t(.dictTeam)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button(model.t(.dictDelete)) { model.deleteEntry(entry.id) }
-                .accessibilityIdentifier("zs-dict-delete-\(entry.id)")
+            if canDelete {
+                Button(model.t(.dictDelete)) { model.deleteEntry(entry.id) }
+                    .accessibilityIdentifier("zs-dict-delete-\(entry.id)")
+            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
@@ -477,7 +485,7 @@ private struct HistorySection: View {
                 RemoteNote(model: model, state: model.history) { Task { await model.loadHistory() } }
             }
         }
-        .task { await model.loadHistory() }
+        .task(id: model.generation) { await model.loadHistory() }
     }
 
     private func meta(_ item: HistoryItem) -> String {
@@ -533,6 +541,6 @@ private struct AccountSection: View {
                 RemoteNote(model: model, state: model.account) { Task { await model.loadAccount() } }
             }
         }
-        .task { await model.loadAccount() }
+        .task(id: model.generation) { await model.loadAccount() }
     }
 }

@@ -98,14 +98,20 @@ final class SettingsUITests: XCTestCase {
     func testSettingsOpensAndSwitchesPersist() throws {
         var app = launch()
         ready(app)
-        waitLabel(app, "zs-test-settings", "onboarded=false menubar=true asked=false")
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=true")
         waitLabel(app, "zs-test-prefs", "suspend=true minutes=30 restore=true links=tab")
+        let statusItem = app.statusItems.matching(identifier: "zs-status-item").firstMatch
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 10), "no menu bar item")
+        // Nothing asks the server for Settings data before Settings opens.
+        waitLabel(app, "zs-test-requests", "requests end")
         openSettings(app)
 
         let menubar = checkbox(app, "zs-set-menubar")
         XCTAssertTrue(isOn(menubar))
         menubar.click()
-        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false asked=false")
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false")
+        let hidden = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: statusItem)
+        wait(for: [hidden], timeout: 10)
         let login = checkbox(app, "zs-set-loginitem")
         XCTAssertFalse(isOn(login), "open at login must start off")
         login.click()
@@ -122,8 +128,9 @@ final class SettingsUITests: XCTestCase {
         app.terminate()
         app = launch(["-ZSKeepSession", "YES", "-ZSKeepSettings", "YES"])
         ready(app)
-        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false asked=false")
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false")
         waitLabel(app, "zs-test-prefs", "suspend=false minutes=30 restore=true links=window")
+        XCTAssertFalse(app.statusItems.matching(identifier: "zs-status-item").firstMatch.exists, "the hidden menu bar item came back")
         openSettings(app)
         XCTAssertFalse(isOn(checkbox(app, "zs-set-menubar")))
         section(app, "tabs")
@@ -182,7 +189,7 @@ final class SettingsUITests: XCTestCase {
         done.click()
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: onboarding)
         wait(for: [gone], timeout: 10)
-        waitLabel(app, "zs-test-settings", "onboarded=true menubar=true asked=true")
+        waitLabel(app, "zs-test-settings", "onboarded=true menubar=true")
         // Settings shows the same answer, without a second prompt.
         openSettings(app)
         section(app, "notifications")
@@ -199,11 +206,11 @@ final class SettingsUITests: XCTestCase {
         section(app, "dictionary")
         XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "signed out state missing")
 
-        app.windows.matching(identifier: "zs-settings").firstMatch.typeKey("w", modifierFlags: .command)
-        app.buttons.matching(showing("Sign in with Google")).firstMatch.click()
+        // Sign in from Settings itself: the open section loads with the new session.
+        element(app, "zs-remote-signin").click()
         waitLabel(app, "zs-test-login", "login 1 ok")
+        XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the open section did not reload after sign-in")
 
-        openSettings(app)
         section(app, "account")
         XCTAssertTrue(text(app, "Signed in as fixture@example.com").waitForExistence(timeout: 15), "account missing")
 
@@ -237,6 +244,8 @@ final class SettingsUITests: XCTestCase {
         signOut.click()
         waitServer("sign-out") { self.server.writes.contains("signout ok") }
         XCTAssertTrue(text(app, "Not signed in.").waitForExistence(timeout: 10))
+        section(app, "dictionary")
+        XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "the dictionary still shows after sign-out")
         waitLabel(app, "zs-test-badge", "badge 0")
         XCTAssertFalse(server.writes.contains { $0.hasPrefix("bad-origin") || $0 == "signout bad" }, "\(server.writes)")
     }

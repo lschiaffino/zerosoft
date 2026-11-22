@@ -19,8 +19,9 @@ final class SystemLoginItem: LoginItemService {
         switch SMAppService.mainApp.status {
         case .enabled: return .enabled
         case .requiresApproval: return .needsApproval
-        case .notFound: return .unavailable
-        case .notRegistered: return .disabled
+        // A fresh install that never registered can report notFound on macOS 13 and 14:
+        // the switch stays usable and register() decides.
+        case .notFound, .notRegistered: return .disabled
         @unknown default: return .disabled
         }
     }
@@ -71,7 +72,8 @@ final class SystemNotificationPermission: NotificationPermission {
 
     func openSystemSettings() {
         // The Notifications pane; System Settings shows the app's row in it.
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+        let id = Bundle.main.bundleIdentifier ?? "ai.zerosoft.mac"
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
             NSWorkspace.shared.open(url)
         }
     }

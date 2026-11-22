@@ -6,14 +6,13 @@ import Testing
 
 @Test func settingsDefaultsAndRoundTrip() {
     let fresh = AppSettings.decode(nil)
-    #expect(!fresh.onboarded && fresh.menuBarItem && !fresh.notificationsAsked)
+    #expect(!fresh.onboarded && fresh.menuBarItem)
     var s = AppSettings()
     s.onboarded = true
     s.menuBarItem = false
-    s.notificationsAsked = true
     let back = AppSettings.decode(s.encoded())
     #expect(back == s)
-    #expect(back.summary == "onboarded=true menubar=false asked=true")
+    #expect(back.summary == "onboarded=true menubar=false")
 }
 
 @Test func settingsFileHoldsOnlyItsSwitches() throws {
@@ -30,7 +29,7 @@ import Testing
 }
 
 @Test func settingsIgnoreWrongTypesAndJunk() {
-    let wrong = Data(#"{"onboarded":"yes","menuBarItem":0,"notificationsAsked":null,"token":"x"}"#.utf8)
+    let wrong = Data(#"{"onboarded":"yes","menuBarItem":0,"token":"x"}"#.utf8)
     #expect(AppSettings.decode(wrong) == AppSettings())
     #expect(AppSettings.decode(Data("not json".utf8)) == AppSettings())
     #expect(AppSettings.decode(Data("[true]".utf8)) == AppSettings())

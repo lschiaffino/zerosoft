@@ -9,16 +9,13 @@ import Foundation
 public struct AppSettings: Equatable, Sendable {
     public static let fileVersion = 1
     /// Every key the file may hold. A test checks that nothing else is ever written.
-    public static let keys: Set<String> = ["version", "onboarded", "menuBarItem", "notificationsAsked"]
+    public static let keys: Set<String> = ["version", "onboarded", "menuBarItem"]
 
     /// The first-run window was finished or closed (it does not open again by itself).
     public var onboarded = false
     /// The item in the menu bar. On by default: it is how the app is reached with every window
     /// closed, and dictation (block 6) lives there.
     public var menuBarItem = true
-    /// The person pressed "Turn on notifications" at least once (onboarding or Settings), so the
-    /// system prompt was shown or its answer is known. The app never asks on its own.
-    public var notificationsAsked = false
 
     public init() {}
 
@@ -29,7 +26,6 @@ public struct AppSettings: Equatable, Sendable {
               let raw = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return s }
         if let b = bool(raw["onboarded"]) { s.onboarded = b }
         if let b = bool(raw["menuBarItem"]) { s.menuBarItem = b }
-        if let b = bool(raw["notificationsAsked"]) { s.notificationsAsked = b }
         return s
     }
 
@@ -38,14 +34,13 @@ public struct AppSettings: Equatable, Sendable {
             "version": Self.fileVersion,
             "onboarded": onboarded,
             "menuBarItem": menuBarItem,
-            "notificationsAsked": notificationsAsked,
         ]
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
 
-    /// "onboarded=true menubar=false asked=false": closed keys and values, for the UI tests.
+    /// "onboarded=true menubar=false": closed keys and values, for the UI tests.
     public var summary: String {
-        "onboarded=\(onboarded) menubar=\(menuBarItem) asked=\(notificationsAsked)"
+        "onboarded=\(onboarded) menubar=\(menuBarItem)"
     }
 
     private static func bool(_ v: Any?) -> Bool? {
@@ -81,7 +76,8 @@ public enum LoginItemState: String, Sendable {
     case disabled
     /// Registered, but the person has to allow it in System Settings › Login Items.
     case needsApproval
-    /// The system could not find the app (for example it runs from a disk image).
+    /// Registering failed (for example the app runs from a disk image). Shown only after a
+    /// failed attempt: a fresh install may report "not found" before its first registration.
     case unavailable
 
     /// The switch is on for a registered item, also while it waits for approval.

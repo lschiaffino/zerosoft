@@ -185,6 +185,25 @@ public enum DictionaryKind: String, CaseIterable, Sendable {
     case snippet
 }
 
+/// The dictionary as the window shows it: the entries and whether the person may delete the
+/// team's (only workspace admins can; the server answers 404 otherwise).
+public struct DictionaryList: Equatable, Sendable {
+    public var entries: [DictionaryEntry]
+    public var canEditTeam: Bool
+
+    public static func parse(_ data: Data) -> DictionaryList? {
+        guard let entries = DictionaryEntry.parseList(data) else { return nil }
+        let flag = SettingsJSON.object(data)?["canEditTeam"] as? NSNumber
+        let team = flag.map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false
+        return DictionaryList(entries: entries, canEditTeam: team)
+    }
+
+    /// Delete is offered for the person's own entries, and for the team's only to admins.
+    public func canDelete(_ entry: DictionaryEntry) -> Bool {
+        !entry.shared || canEditTeam
+    }
+}
+
 public struct DictionaryEntry: Equatable, Sendable, Identifiable {
     public let id: String
     public let kind: DictionaryKind

@@ -591,7 +591,8 @@ Settings window in an AppKit window (app menu Settings, Cmd+,; the menu bar item
 `openSettings()`), the first-run window and the login item. The bridge `settingsWindow`
 capability is on and `openSettings` has its native side, so the web app's "Desktop app
 settings" buttons (`components/settings/DesktopAppSettings.tsx`, `components/app/AppSidebar.tsx`)
-show and open it. Where the code differs from the table above or from the Tauri app:
+show and open it. `openSettings` counts only from the tab in front of the window in front, while
+the app is in front, so a background page cannot pull the app over other apps. Where the code differs from the table above or from the Tauri app:
 
 - Sections: General (open at login, menu bar item, server and Lockdown state, "show the welcome
   again", the web settings in a tab), Tabs (the `session.json` preferences block 4 left without
@@ -606,8 +607,8 @@ show and open it. Where the code differs from the table above or from the Tauri 
   web view outside the tab model and its checks.
 - The custom server is shown, not edited: a change needs the origin of every check to move and a
   relaunch, so the field (Settings › Advanced) waits for block 10, where the direct build needs it.
-- `settings.json` (next to `session.json`, mode 0600) holds three switches and a version:
-  `onboarded`, `menuBarItem`, `notificationsAsked`. A test checks it can hold nothing else. The tab
+- `settings.json` (next to `session.json`, mode 0600) holds two switches and a version:
+  `onboarded`, `menuBarItem`. A test checks it can hold nothing else. The tab
   preferences stay in `session.json`; the login item's state is the system's
   (`SMAppService.mainApp.status`), so the app keeps no copy. What the server sections load
   (dictionary, history, the account's name and email) stays in memory.
@@ -616,10 +617,14 @@ show and open it. Where the code differs from the table above or from the Tauri 
   delivery; now nothing is handed to the system until the person allowed it, and the Dock badge
   counts in the meantime.
 - Open at login is off by default and changes only from its switch (onboarding or Settings).
-  "Needs approval" sends the person to System Settings › Login Items.
+  "Needs approval" sends the person to System Settings › Login Items. A fresh install can report
+  "not found" before its first registration on macOS 13 and 14, so the switch stays usable and
+  `register()` decides.
 - Sign-out from Settings or the menu bar item does next-auth's CSRF request and POST
   (`/api/auth/csrf`, `/api/auth/signout`, as auth.rs `server_sign_out`), which also revokes the
-  session on the server, then deletes the session cookies from the web views' store. Writes to
+  session on the server, then deletes the session cookies from the web views' store. The web
+  app's own local data for the server (localStorage, IndexedDB) stays: block 9's "delete all"
+  removes it. The open server section reloads after a sign-in or sign-out from anywhere. Writes to
   the voice routes carry the server as `Origin`. Every path is in `desktop/privacy-facts.json`
   (a Swift test compares them).
 - The first-run window does not show the dictation shortcut yet (section 2.1): block 6 adds that

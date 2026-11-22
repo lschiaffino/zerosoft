@@ -36,7 +36,9 @@ final class NativeHTTP {
         guard let url = request.url, Server.origin(of: url) == server else { return nil }
         var request = request
         request.httpShouldHandleCookies = false
-        let cookies = (withSession ? await Self.cookies(for: url) : []) + extra
+        // A fresh cookie replaces a stored one of the same name (one CSRF cookie, not two).
+        let fresh = Set(extra.map(\.name))
+        let cookies = (withSession ? await Self.cookies(for: url) : []).filter { !fresh.contains($0.name) } + extra
         if !cookies.isEmpty {
             for (key, value) in HTTPCookie.requestHeaderFields(with: cookies) {
                 request.setValue(value, forHTTPHeaderField: key)
