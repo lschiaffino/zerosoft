@@ -2155,12 +2155,17 @@ export interface TrackProjectMeta {
  * Proyectos activos accesibles con sus status y miembros, para las vistas
  * que mezclan issues de varios proyectos (Issues, My tasks).
  */
+/** Tope de seguridad de listProjectMetas (muy por encima de lo que tiene un workspace). */
+export const PROJECT_METAS_MAX = 2000;
+
 export async function listProjectMetas(teamId: string | null, ownerId: string): Promise<TrackProjectMeta[]> {
   const db = getDb();
   const scope = await projectScope(teamId, ownerId);
   const projects = (await db
     .prepare(
-      `SELECT p.id, p.name, p.icon FROM track_projects p WHERE ${scope.where} AND p.status = 'active' ORDER BY p.name ASC LIMIT 100`,
+      // Todos los teams activos (el selector de team de "Nuevo issue" los necesita a todos): con
+      // LIMIT 100 los que venían después en el orden por nombre no se podían elegir.
+      `SELECT p.id, p.name, p.icon FROM track_projects p WHERE ${scope.where} AND p.status = 'active' ORDER BY p.name ASC LIMIT ${PROJECT_METAS_MAX}`,
     )
     .all(...scope.args)) as Array<{ id: string; name: string; icon: string | null }>;
   if (projects.length === 0) return [];
