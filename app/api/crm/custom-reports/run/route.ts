@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { listReportOwners } from '@/lib/crm-dashboards';
 import { runReport, ReportError } from '@/lib/crm-custom-reports';
 import { reportRunSchema } from '@/lib/crm-report-builder';
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
     const result = await runReport(user.id, parsed.data.config, {
       scope,
       people: owners.map((o) => ({ id: o.id, name: o.name || o.email })),
+      viewer: sessionFieldViewer(user),
     });
     return NextResponse.json(result);
   } catch (e) {

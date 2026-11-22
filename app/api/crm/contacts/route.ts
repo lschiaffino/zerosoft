@@ -61,5 +61,5 @@ export async function POST(req: NextRequest) {
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   // El email es la identidad del contacto: 409 con el existente solo si quien pide lo ve.
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, await sessionScope(user));
-  return NextResponse.json(contact, { status: 201 });
+  return NextResponse.json(redactRow(contact, await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')), { status: 201 });
 }

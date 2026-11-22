@@ -62,5 +62,5 @@ export async function POST(req: NextRequest) {
     const companyId = company.id;
     after(() => enrichCompany(user.id, companyId, { actorEmail: user.actingUser?.email ?? user.email }).then(() => undefined).catch(() => undefined));
   }
-  return NextResponse.json(company, { status: 201 });
+  return NextResponse.json(redactRow(company, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')), { status: 201 });
 }

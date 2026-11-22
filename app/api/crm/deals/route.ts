@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
   if (sp.get('board') === '1') {
     const pipelineId = sp.get('pipelineId');
     if (!pipelineId) return crmError(400, 'invalid_input');
-    return NextResponse.json({ rows: await listDealsForBoard(user.id, pipelineId, await sessionScope(user)) });
+    const board = await listDealsForBoard(user.id, pipelineId, await sessionScope(user));
+    const hidden = await hiddenFieldsFor(sessionFieldViewer(user), 'deals');
+    return NextResponse.json({ rows: board.map((col) => ({ ...col, deals: col.deals.map((d) => redactRow(d, hidden)) })) });
   }
 
   const pipelineId = sp.get('pipelineId') ?? (await defaultPipelineId(user.id));
@@ -70,5 +72,5 @@ export async function POST(req: NextRequest) {
   if (!result.ok) {
     return crmError(400, result.reason === 'invalid_stage' ? 'invalid_stage' : 'invalid_input');
   }
-  return NextResponse.json(result.deal, { status: 201 });
+  return NextResponse.json(redactRow(result.deal, await hiddenFieldsFor(sessionFieldViewer(user), 'deals')), { status: 201 });
 }

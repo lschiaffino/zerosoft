@@ -7,6 +7,7 @@ import { CrmRefError } from '@/lib/crm-refs';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { cleanRow, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
+import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,15 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   const body: unknown = await req.json().catch(() => null);
   const parsed = dealMoveSchema.safeParse(body);
   if (!parsed.success) return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
-  const { stageId, lostReason, fields } = parsed.data;
+  const { stageId, lostReason } = parsed.data;
+  // Permisos por campo de la persona de la key: los mismos que en el PATCH.
+  const fieldViewer = apiFieldViewer(auth);
+  let fields = parsed.data.fields;
+  if (fields?.custom) {
+    const fp = await guardRecordCustomWrite(fieldViewer, 'deal', params.id, fields.custom);
+    if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+    fields = { ...fields, custom: fp.custom };
+  }
 
   const detail = await getDeal(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Deal not found.');
@@ -42,12 +51,15 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   if (!result.ok) {
     if (result.reason === 'missing_required') {
+      // Sin nombrar propiedades que la key tiene ocultas.
+      const hiddenFields = await hiddenFieldsFor(fieldViewer, 'deals');
+      const missing = result.missing.filter((k) => !k.startsWith('custom:') || !hiddenFields.has(k.slice(7)));
       return NextResponse.json(
         {
           error: {
             code: 'missing_required',
-            message: `The stage "${stage.name}" requires these properties: ${result.missing.join(', ')}. Send them in "fields" or set them first.`,
-            missing: result.missing,
+            message: `The stage "${stage.name}" requires these properties: ${missing.join(', ')}. Send them in "fields" or set them first.`,
+            missing,
           },
         },
         { status: 422 },
@@ -70,5 +82,5 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       ? apiError(404, 'not_found', 'Deal not found.')
       : apiError(400, 'invalid_stage', "That stage doesn't belong to the deal's pipeline.");
   }
-  return NextResponse.json(cleanRow(result.deal));
+  return NextResponse.json(cleanRow(redactRow(result.deal, await hiddenFieldsFor(fieldViewer, 'deals'))));
 }

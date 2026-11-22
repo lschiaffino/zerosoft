@@ -2888,16 +2888,18 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
       .get(...args)) as { n: number };
     return { list, members, memberCount: count.n };
   }
+  // Una lista estática también muestra solo los contactos que la persona ve.
+  const scope = scopeAnd('c', ownerScope);
   const members = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
        FROM crm_contacts c
        JOIN crm_list_members m ON m.contact_id = c.id
        LEFT JOIN crm_companies co ON co.id = c.company_id
-       WHERE m.list_id = ? AND c.user_id = ?
+       WHERE m.list_id = ? AND c.user_id = ?${scope.sql}
        ORDER BY c.created_at DESC`,
     )
-    .all(id, userId)) as ContactListRow[];
+    .all(id, userId, ...scope.args)) as ContactListRow[];
   return { list, members, memberCount: members.length };
 }
 

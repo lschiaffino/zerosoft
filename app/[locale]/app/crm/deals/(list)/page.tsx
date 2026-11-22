@@ -1,7 +1,7 @@
 import { dealScoresFor } from '@/lib/crm-ai';
 import ScoreDealsButton from '@/components/crm/ScoreDealsButton';
 import { getTranslations } from 'next-intl/server';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
@@ -430,10 +430,12 @@ export default async function DealsPage(props: DealsPageProps) {
   const rawBoard = view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope)) : null;
   // Score con IA guardado de cada deal (badge en la tarjeta).
   const aiScores = rawBoard ? await dealScoresFor(user.id, rawBoard.flatMap((c) => c.deals.map((d) => d.id))) : null;
+  // Las tarjetas son filas enteras que llegan al cliente: sin los campos ocultos para la persona.
+  const hiddenDealFields = (await fieldAccessP).hidden;
   const boardStages = rawBoard
     ? rawBoard.map((col) => ({
         ...col,
-        deals: col.deals.map((d) => ({ ...d, ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
+        deals: col.deals.map((d) => ({ ...redactRow(d, hiddenDealFields), ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
       }))
     : null;
   const openStages = boardStages?.filter((c) => !c.stage.is_won && !c.stage.is_lost) ?? [];

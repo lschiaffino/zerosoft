@@ -193,7 +193,10 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   };
 
   // La copia lleva solo las propiedades propias que la persona puede editar.
-  const cloneRestricted = (await fieldAccessFor(sessionFieldViewer(user), 'deals')).restricted;
+  const headerFieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'deals');
+  const cloneRestricted = headerFieldAccess.restricted;
+  // Los valores para las condiciones del playbook llegan al cliente: sin los campos ocultos.
+  const playbookCustom = parseCustom(redactCustomJson(deal.custom, headerFieldAccess.hidden));
   const cloneBody = buildDealCloneBody(
     { ...deal, custom: redactCustomJson(deal.custom, new Set(cloneRestricted.keys())) },
     stages,
@@ -217,7 +220,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
           closeDate: deal.close_date ? deal.close_date.slice(0, 10) : '',
           priority: deal.priority,
           description: deal.description,
-          ...Object.fromEntries(Object.entries(parseCustom(deal.custom)).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
+          ...Object.fromEntries(Object.entries(playbookCustom).map(([k, v]) => [`custom.${k}`, Array.isArray(v) ? v.join(', ') : String(v ?? '')])),
         }}
       />
       {userCanUseApp(user, 'sign') && user.role !== 'guest' && (

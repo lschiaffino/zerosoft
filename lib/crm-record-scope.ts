@@ -67,3 +67,27 @@ export async function scopedCompanyRollup(
     childCount: descendants.length,
   };
 }
+
+/**
+ * Ficha de empresa (ya pasada por scopeCompanyDetail) con lo que la persona
+ * ve también en el valor de deals y en la cadena de madres: el rollup solo
+ * cuenta deals e hijas de su alcance, y las madres que no ve no salen ni por
+ * nombre. Sin restricción devuelve la ficha tal cual.
+ */
+export async function scopedCompanyDetail<
+  T extends {
+    company: { id: string };
+    parent: { id: string; name: string } | null;
+    ancestors: Array<{ id: string; name: string }>;
+    rollup: CompanyRollup;
+  },
+>(workspaceId: string, detail: T, scope: OwnerScope | undefined, db: Db = getDb()): Promise<T> {
+  if (!scope) return detail;
+  const visible = await visibleRecordIds(workspaceId, 'crm_companies', detail.ancestors.map((a) => a.id), scope, db);
+  return {
+    ...detail,
+    rollup: await scopedCompanyRollup(workspaceId, detail.company.id, scope, db),
+    ancestors: detail.ancestors.filter((a) => visible.has(a.id)),
+    parent: detail.parent && visible.has(detail.parent.id) ? detail.parent : null,
+  };
+}
