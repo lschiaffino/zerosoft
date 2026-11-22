@@ -3,12 +3,13 @@ import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
-import { sessionScope } from '@/lib/crm-visibility';
+import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
   ACTIVITY_DATE_SORTS,
   LIFECYCLE_STAGES,
   listCompanies,
+  listIndustries,
   type CompanyFilter,
   parseCustom,
 } from '@/lib/crm';
@@ -94,15 +95,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       ? (sortParam as NonNullable<CompanyFilter['sort']>)
       : 'newest';
 
-  // Industrias presentes para el filtro (select).
-  const industries = (
-    (await getDb()
-      .prepare(
-        `SELECT DISTINCT industry FROM crm_companies
-         WHERE user_id = ? AND industry != '' ORDER BY industry COLLATE NOCASE`,
-      )
-      .all(user.id)) as Array<{ industry: string }>
-  ).map((r) => r.industry);
+  // Industrias presentes para el filtro (select): solo las de empresas que la persona ve.
+  const industries = await listIndustries(user.id, scope);
 
   const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
 
@@ -148,7 +142,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     pageSize: PAGE_SIZE,
   });
 
-  // Deals por empresa (asociaciones deal ↔ company), solo para la página actual.
+  // Deals por empresa (asociaciones deal ↔ company), solo para la página actual y solo los que la persona ve.
+  const dealScope = scopeAnd('d', scope);
   const dealCounts = new Map<string, number>();
   if (rows.length) {
     const ids = rows.map((r) => r.id);
@@ -158,10 +153,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         `SELECT dc.company_id AS cid, COUNT(DISTINCT d.id) AS c
          FROM crm_deal_companies dc
          JOIN crm_deals d ON d.id = dc.deal_id
-         WHERE dc.company_id IN (${ph}) AND d.user_id = ?
+         WHERE dc.company_id IN (${ph}) AND d.user_id = ?${dealScope.sql}
          GROUP BY dc.company_id`,
       )
-      .all(...ids, user.id)) as Array<{ cid: string; c: number }>;
+      .all(...ids, user.id, ...dealScope.args)) as Array<{ cid: string; c: number }>;
     for (const r of counts) dealCounts.set(r.cid, r.c);
   }
   const rowTags = await tagsForRecords(user.id, 'company', rows.map((r) => r.id));
@@ -212,6 +207,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     tags: rowTags.get(c.id) ?? [],
     custom: customCells(customFieldDefs, parseCustom(c.custom), cellCtx),
     parentName: c.parent_company_id ? parentNames.get(c.parent_company_id) ?? null : null,
+    parentPrivate: !!c.parent_private,
   }));
 
   // Propiedades de la edición en masa (owner primero: es la acción más común).

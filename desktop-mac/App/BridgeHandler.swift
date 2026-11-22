@@ -5,8 +5,9 @@ import WebKit
 /// The `zerosoft` script message handler (docs/desktop-swift.md, section 4.3). Every message goes
 /// through `Bridge.validate` (origin, allowlist, typed arguments, size) before anything native
 /// runs; refusals reject the page's promise with a closed reason and are logged with that reason
-/// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`. The
-/// other commands answer `unavailable` until their blocks add the native side.
+/// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`;
+/// block 4 adds `tabs`. The other commands answer `unavailable` until their blocks add the
+/// native side.
 @MainActor
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "bridge")
@@ -21,6 +22,9 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     /// `startLogin` and `notify` from the server's main frame.
     var onStartLogin: (() -> Void)?
     var onNotify: ((String, String?) -> Void)?
+    /// `tabs` from the server's main frame of this web view (block 4). The path, when there is
+    /// one, already passed `Bridge.validPath`; the tabs controller checks it again.
+    var onTabs: ((TabsAction, String?, String?, Int?) -> Void)?
 
     init(server: String, info: BridgeInfo) {
         self.server = server
@@ -46,6 +50,18 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     /// Only messages from this web view count (set once the web view exists).
     func attach(to webView: WKWebView) {
         self.webView = webView
+    }
+
+    /// A suspended or closed tab: no message reaches the app any more.
+    func detach(from controller: WKUserContentController) {
+        controller.removeScriptMessageHandler(forName: Bridge.handlerName, contentWorld: .page)
+        controller.removeAllUserScripts()
+        webView = nil
+        onReady = nil
+        onReject = nil
+        onStartLogin = nil
+        onNotify = nil
+        onTabs = nil
     }
 
     func userContentController(
@@ -85,6 +101,9 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             reply(nil, nil)
         case let .notify(title, body):
             onNotify?(title, body)
+            reply(nil, nil)
+        case let .tabs(action, path, title, n):
+            onTabs?(action, path, title, n)
             reply(nil, nil)
         default:
             // Valid, but this build has no native side for it yet.

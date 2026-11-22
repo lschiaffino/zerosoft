@@ -4,7 +4,9 @@ import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
-import { getList, LIFECYCLE_STAGES, parseListFilter } from '@/lib/crm';
+import { LIFECYCLE_STAGES, parseListFilter } from '@/lib/crm';
+import { listForViewer } from '@/lib/crm-list-access';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { sessionScope } from '@/lib/crm-visibility';
 import DynamicListFilter from '@/components/crm/DynamicListFilter';
 import { listFieldsFor } from '@/components/crm/listFieldsData';
@@ -28,7 +30,8 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  const detail = await getList(user.id, id, await sessionScope(user));
+  // Una lista que filtra por un campo que la persona tiene oculto no se le muestra (lib/crm-list-access.ts).
+  const detail = await listForViewer(sessionFieldViewer(user), id, await sessionScope(user));
   if (!detail) notFound();
   const { list, members, memberCount } = detail;
 
@@ -39,7 +42,7 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
     id: c.id,
     name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
     email: c.email,
-    company: c.company_name ?? '',
+    company: c.company_private ? t('common.privateRecord') : c.company_name ?? '',
     lifecycle: c.lifecycle_stage,
     lifecycleLabel: lifecycleLabel(c.lifecycle_stage),
     created: formatDate(c.created_at, locale),

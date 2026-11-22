@@ -65,6 +65,7 @@ import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCo
 import RecordCard from '@/components/crm/RecordCard';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
+import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,7 +94,7 @@ export default async function ContactDetailPage(props: {
   const t = await getTranslations({ locale, namespace: 'crm' });
   const rawDetail = await getContact(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.contact.owner_id, user.id)) notFound();
-  const detail = scopeContactDetail(rawDetail, scope);
+  const detail = await maskDetailRefs(user.id, 'contact', scopeContactDetail(rawDetail, scope), scope);
 
   const { contact, company, companies: contactCompanies, deals, lists } = detail;
   const base = `/app/crm/contacts/${contact.id}`;
@@ -320,10 +321,17 @@ export default async function ContactDetailPage(props: {
       ],
     },
     // `company` ya pasó por el alcance de la persona. Si la empresa principal existe pero no se
-    // le muestra, la propiedad queda vacía y sin selector: no ve cuál es ni puede pisarla.
+    // le muestra, la propiedad dice "Registro privado" y no tiene selector: no ve cuál es ni puede pisarla.
     // Si es visible pero no entró en las 100 primeras del selector, se suma para leer su nombre.
-    contact.company_id && !company
-      ? { key: 'companyId', label: t('contacts.form.company'), type: 'select', value: '', options: [], readOnly: true }
+    (contact.company_id || (contact as { company_private?: boolean }).company_private) && !company
+      ? {
+          key: 'companyId',
+          label: t('contacts.form.company'),
+          type: 'select',
+          value: 'private',
+          options: [{ value: 'private', label: t('common.privateRecord') }],
+          readOnly: true,
+        }
       : {
           key: 'companyId',
           label: t('contacts.form.company'),

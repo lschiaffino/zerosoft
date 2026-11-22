@@ -293,8 +293,12 @@ export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
                 <dt>{t('tasks.form.contact')}</dt>
                 <dd>
                   <Link href={`/app/crm/contacts/${task.contact.id}`}>{task.contact.name}</Link>
-                  {(task.contact.job_title || task.contact.company_name) && (
-                    <span className="muted">{[task.contact.job_title, task.contact.company_name].filter(Boolean).join(' · ')}</span>
+                  {(task.contact.job_title || task.contact.company_name || task.contact.company_private) && (
+                    <span className="muted">
+                      {[task.contact.job_title, task.contact.company_name ?? (task.contact.company_private ? t('common.privateRecord') : null)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                   )}
                   {task.contact.email && <a href={`mailto:${task.contact.email}`}>{task.contact.email}</a>}
                   {task.contact.phone && (

@@ -1,4 +1,7 @@
-import { listLists, listPipelinesWithStages } from './crm';
+import { listPipelinesWithStages } from './crm';
+import { listsForViewer } from './crm-list-access';
+import { sessionFieldViewer } from './crm-field-perms';
+import { sessionScope } from './crm-visibility';
 import { listSequences } from './crm-sequences';
 import { listForms } from './crm-forms';
 import { listScores } from './crm-scoring';
@@ -10,7 +13,8 @@ import { workspaceTeamId } from './workspace';
 /** Todo lo que el editor de workflows necesita para sus selects, en paralelo. */
 export async function loadWorkflowEditorData(user: SessionUser) {
   const [lists, sequences, forms, flows, pipelines, members, scores] = await Promise.all([
-    listLists(user.id),
+    // Las listas y sus conteos como los ve la persona.
+    sessionScope(user).then((scope) => listsForViewer(sessionFieldViewer(user), scope)),
     listSequences(user.id),
     listForms(user.id),
     listFlows(user.id),

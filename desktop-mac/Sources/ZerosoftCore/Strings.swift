@@ -52,6 +52,28 @@ public enum StringKey: String, CaseIterable, Sendable {
     case menuWindow
     case menuMinimize
     case menuClose
+    case menuFile
+    case menuNewTab
+    case menuNewWindow
+    case menuReopenTab
+    case menuCloseTab
+    case menuCloseWindow
+    case menuNextTab
+    case menuPrevTab
+    case menuZoom
+    case menuBack
+    case menuForward
+    case menuDuplicateTab
+    case menuMoveToNewWindow
+    case menuCloseOtherTabs
+    case menuOpenInNewTab
+    case menuOpenInNewWindow
+    case menuCopyLink
+    case tabSuspended
+    case tabRecording
+    case tabUnread
+    case tabsLabel
+    case tabNewTitle
 }
 
 public enum Strings {
@@ -89,6 +111,28 @@ public enum Strings {
             .menuWindow: "Window",
             .menuMinimize: "Minimize",
             .menuClose: "Close",
+            .menuFile: "File",
+            .menuNewTab: "New Tab",
+            .menuNewWindow: "New Window",
+            .menuReopenTab: "Reopen Closed Tab",
+            .menuCloseTab: "Close Tab",
+            .menuCloseWindow: "Close Window",
+            .menuNextTab: "Show Next Tab",
+            .menuPrevTab: "Show Previous Tab",
+            .menuZoom: "Zoom",
+            .menuBack: "Back",
+            .menuForward: "Forward",
+            .menuDuplicateTab: "Duplicate Tab",
+            .menuMoveToNewWindow: "Move Tab to New Window",
+            .menuCloseOtherTabs: "Close Other Tabs",
+            .menuOpenInNewTab: "Open in New Tab",
+            .menuOpenInNewWindow: "Open in New Window",
+            .menuCopyLink: "Copy Link",
+            .tabSuspended: "Asleep to save memory. Opens again when you click it.",
+            .tabRecording: "Recording",
+            .tabUnread: "New activity",
+            .tabsLabel: "Tabs",
+            .tabNewTitle: "New tab",
         ],
         .es: [
             .errorTitle: "zerosoft no pudo abrir",
@@ -123,6 +167,28 @@ public enum Strings {
             .menuWindow: "Ventana",
             .menuMinimize: "Minimizar",
             .menuClose: "Cerrar",
+            .menuFile: "Archivo",
+            .menuNewTab: "Pestaña nueva",
+            .menuNewWindow: "Ventana nueva",
+            .menuReopenTab: "Volver a abrir la pestaña cerrada",
+            .menuCloseTab: "Cerrar pestaña",
+            .menuCloseWindow: "Cerrar ventana",
+            .menuNextTab: "Pestaña siguiente",
+            .menuPrevTab: "Pestaña anterior",
+            .menuZoom: "Zoom",
+            .menuBack: "Atrás",
+            .menuForward: "Adelante",
+            .menuDuplicateTab: "Duplicar pestaña",
+            .menuMoveToNewWindow: "Mover a una ventana nueva",
+            .menuCloseOtherTabs: "Cerrar las otras pestañas",
+            .menuOpenInNewTab: "Abrir en pestaña nueva",
+            .menuOpenInNewWindow: "Abrir en ventana nueva",
+            .menuCopyLink: "Copiar link",
+            .tabSuspended: "En pausa para ahorrar memoria. Vuelve a cargar al tocarla.",
+            .tabRecording: "Grabando",
+            .tabUnread: "Hay novedades",
+            .tabsLabel: "Pestañas",
+            .tabNewTitle: "Pestaña nueva",
         ],
         .pt: [
             .errorTitle: "O zerosoft não conseguiu abrir",
@@ -157,6 +223,28 @@ public enum Strings {
             .menuWindow: "Janela",
             .menuMinimize: "Minimizar",
             .menuClose: "Fechar",
+            .menuFile: "Arquivo",
+            .menuNewTab: "Nova aba",
+            .menuNewWindow: "Nova janela",
+            .menuReopenTab: "Reabrir aba fechada",
+            .menuCloseTab: "Fechar aba",
+            .menuCloseWindow: "Fechar janela",
+            .menuNextTab: "Próxima aba",
+            .menuPrevTab: "Aba anterior",
+            .menuZoom: "Zoom",
+            .menuBack: "Voltar",
+            .menuForward: "Avançar",
+            .menuDuplicateTab: "Duplicar aba",
+            .menuMoveToNewWindow: "Mover para uma nova janela",
+            .menuCloseOtherTabs: "Fechar as outras abas",
+            .menuOpenInNewTab: "Abrir em nova aba",
+            .menuOpenInNewWindow: "Abrir em nova janela",
+            .menuCopyLink: "Copiar link",
+            .tabSuspended: "Em pausa para economizar memória. Carrega de novo quando você clica.",
+            .tabRecording: "Gravando",
+            .tabUnread: "Há novidades",
+            .tabsLabel: "Abas",
+            .tabNewTitle: "Nova aba",
         ],
     ]
 

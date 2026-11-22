@@ -6,6 +6,7 @@ import { contactUpdateSchema } from '@/lib/crm-schema';
 import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { apiScope } from '@/lib/crm-visibility';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,12 +15,15 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const params = await props.params;
   const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
-  const hidden = await apiGuardRecord(auth.user.id, 'contact', params.id, await apiScope(auth));
+  const scope = await apiScope(auth);
+  const hidden = await apiGuardRecord(auth.user.id, 'contact', params.id, scope);
   if (hidden) return hidden;
 
   const detail = await getContact(auth.user.id, params.id);
   if (!detail) return apiError(404, 'not_found', 'Contact not found.');
-  return NextResponse.json(cleanRow(redactRow(detail.contact, await hiddenFieldsFor(apiFieldViewer(auth), 'contacts'))));
+  // La empresa primaria que la key no ve no sale ni por id.
+  const contact = (await maskPrivateRef(auth.user.id, detail.contact, [PRIVATE_REFS.company([])], scope))!;
+  return NextResponse.json(cleanRow(redactRow(contact, await hiddenFieldsFor(apiFieldViewer(auth), 'contacts'))));
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {

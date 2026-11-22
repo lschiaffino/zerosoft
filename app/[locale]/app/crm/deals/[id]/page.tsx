@@ -58,6 +58,7 @@ import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCo
 import RecordCard from '@/components/crm/RecordCard';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { parseDbUtc } from '@/lib/utils';
+import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +78,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
   const rawDetail = await getDeal(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.deal.owner_id, user.id)) notFound();
-  const detail = scopeDealDetail(rawDetail, scope);
+  const detail = await maskDetailRefs(user.id, 'deal', scopeDealDetail(rawDetail, scope), scope);
   const { deal, pipeline, contacts, company, companies: dealCompanies } = detail;
   const base = `/app/crm/deals/${deal.id}`;
   const [currencyCtx, allTags, recordTags, teamMembers, eventTypes, stages, approvals, splits, assocLabels] = await Promise.all([

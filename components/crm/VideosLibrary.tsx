@@ -3,6 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import PrivateRecord from './PrivateRecord';
 import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -18,6 +19,8 @@ export interface VideoItem {
   token: string;
   contact_id: string | null;
   contact_name: string | null;
+  /** El contacto es un registro que la persona no ve. */
+  contact_private?: boolean;
   duration_sec: number;
   views: number;
   last_viewed_at: string | null;
@@ -27,6 +30,7 @@ export interface VideoItem {
 /** Videos 1:1: grabar, subir, buscar, copiar el link, renombrar y borrar. */
 export default function VideosLibrary({ initial, direct, baseUrl }: { initial: VideoItem[]; direct: boolean; baseUrl: string }) {
   const t = useTranslations('crm.media');
+  const tc = useTranslations('crm');
   const locale = useLocale();
   const router = useRouter();
   const [rows, setRows] = useState(initial);
@@ -200,6 +204,8 @@ export default function VideosLibrary({ initial, direct, baseUrl }: { initial: V
                       <td data-label={t('contact')}>
                         {v.contact_id ? (
                           <Link href={`/app/crm/contacts/${v.contact_id}`}>{v.contact_name || t('contact')}</Link>
+                        ) : v.contact_private ? (
+                          <PrivateRecord label={tc('common.privateRecord')} />
                         ) : (
                           <span className="muted">{t('anyone')}</span>
                         )}

@@ -78,7 +78,8 @@
     "moreFilters": "More filters",
     "sortBy": "Sort by",
     "activityType": "Activity type",
-    "preview": "Preview"
+    "preview": "Preview",
+    "privateRecord": "Private record"
   },
   "assoc": {
     "noneToAdd": "Nothing left to link. Create a record first.",
@@ -2353,7 +2354,8 @@
   },
   "mentions": {
     "suggestions": "People to mention",
-    "placeholder": "Notes. Type @ to mention a teammate"
+    "placeholder": "Notes. Type @ to mention a teammate",
+    "notNotified": "{count, plural, one {{names} can't see this record, so they weren't notified.} other {{names} can't see this record, so they weren't notified.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2378,8 @@
     "needContacts": "Associate at least one contact with the deal.",
     "openDeal": "Open the deal",
     "saveAndMove": "Save and move",
-    "bulkBlocked": "{count, plural, one {# deal stayed put because the stage needs properties it doesn't have.} other {# deals stayed put because the stage needs properties they don't have.}}"
+    "bulkBlocked": "{count, plural, one {# deal stayed put because the stage needs properties it doesn't have.} other {# deals stayed put because the stage needs properties they don't have.}}",
+    "adminRequired": "This stage needs a property that only an admin can fill in. Ask an admin to complete it, then move the deal."
   },
   "calls": {
     "call": "Call",
@@ -3363,7 +3366,8 @@
       "invalid_field": "One of the fields no longer exists. Remove it and try again.",
       "invalid_metric": "Sum, average, minimum and maximum need a number field.",
       "invalid_input": "This combination of objects isn't available for the data source.",
-      "network": "Couldn't reach the server. Check your connection."
+      "network": "Couldn't reach the server. Check your connection.",
+      "report_restricted": "This report uses a property you can't see. Ask an admin to change it."
     },
     "fields": {
       "contact": {
@@ -4635,6 +4639,7 @@
       "createdByMe": "Created by me",
       "noMatch": "No view matches these filters.",
       "updated": "Updated"
-    }
+    },
+    "partialFilters": "Some filters in this view don't apply to you."
   }
 }

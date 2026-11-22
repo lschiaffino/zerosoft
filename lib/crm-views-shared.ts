@@ -209,6 +209,23 @@ export function redactViewQuery(query: ViewQuery, hidden: ReadonlySet<string>): 
   return out;
 }
 
+/**
+ * ¿La vista filtra por algún campo oculto para quien mira? Entonces esos
+ * filtros no se le aplican (redactViewQuery los quita) y la UI lo avisa, sin
+ * nombrarlos. Puro.
+ */
+export function viewQueryDropsFilters(query: ViewQuery, hidden: ReadonlySet<string>): boolean {
+  if (!hidden.size) return false;
+  for (const [key, value] of Object.entries(query)) {
+    const custom = CUSTOM_KEY.exec(key);
+    if (custom && hidden.has(custom[1]) && value) return true;
+    if (key === 'filters' && parseFilterModel(value).groups.some((g) => g.rules.some((r) => r.f.startsWith('custom:') && hidden.has(r.f.slice(7))))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function dropHiddenRules(model: FilterModel, hidden: ReadonlySet<string>): FilterModel {
   return {
     v: 1,

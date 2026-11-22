@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: blocks 1 to 3 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 4 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -552,6 +552,37 @@ workflow runs on its own for pushes that touch the app.
 | 9 | Privacy and data | Activity log (closed schema, 500 events, 30 days), stores inventory and delete, delete-all flow, privacy page in Settings; `privacy-facts.json` gains per-app code paths; `tests/unit/desktop-privacy.test.ts` scans Swift sources; Swift test compares ids and limits; runtime host check | Vitest + XCTest + a UI run that records hosts contacted | 3 to 8 |
 | 10 | Distribution | Developer ID signing, notarization and stapling, Sparkle 2 in the direct build, Store configuration (provisioning, `PrivacyInfo.xcprivacy`, export compliance), TestFlight upload with the App Store Connect API key on a tag `mac-vX.Y.Z`; `/download` and the download route serve the new build | CI dry run with a throwaway certificate (like today's `signing_selftest`); `spctl --assess` on the notarized app; `codesign -d --entitlements` matches the expected list | 1 (signing parts can start early, in parallel), needs the owner's account |
 | 11 | 1.0 hardening | VoiceOver labels on native UI, en/es/pt strings from `desktop/strings.json`, memory and launch timings against the Tauri numbers in `desktop/README.md`, the nightly real-web-app Lockdown run, review notes and screenshots | Full UI suite on both Lockdown modes; nightly run green 5 nights in a row | all |
+
+**Built in block 4** (`Sources/ZerosoftCore/TabSession.swift`, `App/TabsController.swift`,
+`App/BrowserWindowController.swift`, `App/TabStripView.swift`): windows with their own tab strip,
+one `WebController` per loaded tab built by the same factory as the first (same navigation policy,
+bridge checks, watchdog and Lockdown setting), the shortcuts and menus of `docs/desktop-tabs.md`,
+link handling in the bridge script (Cmd-click, Cmd+Shift-click, Cmd+Option-click, middle click,
+right click), `target=_blank` of the server as a tab next to the page, drag to reorder, drop on
+another window's strip or away from it, lazy restore and idle suspension. The bridge `tabs`
+capability is on. Where the code differs from the table above or from the Tauri app:
+
+- The strip is AppKit views in the title bar of a full-size content window, not SwiftUI: dragging a
+  tab across windows, the middle button and accessibility tab buttons need event tracking that
+  SwiftUI does not give.
+- `session.json` keeps the Tauri shape (version, windows, tabs with id and path, the tab in front,
+  bounds, prefs) but holds no titles, which are page contents; it reads a Tauri file and drops its
+  titles. Every path read from it goes through `TabSession.allowedPath`: `session::valid_path`,
+  no dot segment (plain or percent-encoded), no `/api/` route, and the server plus the path must
+  be the server origin and pass the navigation policy. Only app pages (`/app...`, also after a
+  locale) are saved, without query or fragment and never under `invite/`: public pages carry
+  capability tokens in the path (`/invite/<token>`, `/sign/<token>`...) and a query can carry one.
+  Restore takes only paths in that saved form. Tabs that fail are dropped, and so are windows left
+  without tabs.
+- A link or `target=_blank` to a server URL that cannot be a tab (an `/api/` export or download)
+  goes to the browser, as downloads do; the bridge script leaves `/api/` links to the page.
+- A tab with the camera or microphone on is never suspended, whatever the page told the bridge.
+- Bridge `tabs` actions other than `state` count only from the tab in front of its window.
+- Deep links and notification clicks load their page in the tab in front of the last focused
+  window, as `navigate_active` in tabs.rs (section 4.7 said "opens the tab of the notification").
+- A fresh session opens `/app`, as the Tauri app; blocks 1 to 3 opened the server root.
+- The tab preferences (suspend, minutes, restore, Cmd-click target) are read from `session.json`;
+  the switches arrive with Settings in block 5. The recording dot waits for block 7.
 
 Parallel work: after block 2, blocks 4 and 5 can run at the same time; 6 and 7 at the same time
 after 5; block 10's signing setup any time after 1 once the owner's account exists. At most two blocks
