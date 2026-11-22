@@ -10,7 +10,7 @@ beforeEach(() => resetFakeProvider());
 describe('proveedor falso: fotos mandadas', () => {
   it('fetchMedia devuelve los mismos bytes de una foto mandada en base64, también con menciones', async () => {
     const p = fakeProvider('fake-sent-media', { instantConnect: true });
-    await p.connect();
+    await p.connect('http://localhost/webhook');
     const bytes = Buffer.from('foto editada');
     const chat = '120363000000000001@g.us';
     const plain = await p.sendMedia(chat, { url: '', mimetype: 'image/jpeg', filename: 'a.jpg', kind: 'image', base64: bytes.toString('base64') });
