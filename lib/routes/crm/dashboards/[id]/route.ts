@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import {
-  deleteDashboard,
-  getDashboard,
-  renameDashboard,
-  updateWidgetLayout,
-} from '@/lib/crm-dashboards';
+import { deleteDashboard, getDashboardFor, updateDashboard } from '@/lib/crm-dashboards';
 import { dashboardPatchSchema } from '@/lib/crm-dashboards-schema';
+import { dashboardErrorResponse, sessionViewer } from '@/lib/crm-dashboards-session';
 import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const user = await getCurrentUser();
+  if (!user) return unauthorized();
+  const d = await getDashboardFor(sessionViewer(user), params.id);
+  return d ? NextResponse.json(d) : notFound();
+}
+
+/** Nombre, orden y tamaño de tiles, filtros guardados, acceso (dueño o admin) y default de la persona. */
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
@@ -21,15 +26,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = dashboardPatchSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  if (parsed.data.name !== undefined) {
-    const renamed = await renameDashboard(user.id, params.id, parsed.data.name);
-    if (!renamed) return notFound();
+  try {
+    return NextResponse.json(await updateDashboard(sessionViewer(user), params.id, parsed.data));
+  } catch (e) {
+    return dashboardErrorResponse(e);
   }
-  if (parsed.data.layout !== undefined) {
-    const ok = await updateWidgetLayout(user.id, params.id, parsed.data.layout);
-    if (!ok) return notFound();
-  }
-  return NextResponse.json(await getDashboard(user.id, params.id));
 }
 
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -37,7 +38,10 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const ok = await deleteDashboard(user.id, params.id);
-  if (!ok) return notFound();
-  return new NextResponse(null, { status: 204 });
+  try {
+    await deleteDashboard(sessionViewer(user), params.id);
+    return new NextResponse(null, { status: 204 });
+  } catch (e) {
+    return dashboardErrorResponse(e);
+  }
 }

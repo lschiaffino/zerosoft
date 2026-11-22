@@ -1,1215 +1,1714 @@
 'use client';
 
-import LocalText from '@/components/ui/LocalText';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import type { CrmDashboardWidgetRow } from '@/lib/db';
-import type { CrmDashboardWithWidgets } from '@/lib/crm-dashboards';
-import {
-  DASHBOARD_MENU_TYPES,
-  KPI_METRICS,
-  WIDGET_MIN_SIZE,
-  type DashboardInitialData,
-  type DashboardWidgetConfig,
-  type DashboardWidgetType,
-  type KpiMetric,
-  type WidgetDataMap,
-} from '@/lib/crm-dashboards-schema';
-import { formatAxis, formatDate, formatNumber } from '@/lib/utils';
 import { Link } from '@/i18n/navigation';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import MenuSelect from '@/components/ui/MenuSelect';
+import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from '@/components/ui/ContextMenu';
+import RecordPreview from './RecordPreview';
 import ReportChart from './ReportChart';
-import { bucketLabel, monthLabel } from '@/lib/crm-buckets';
+import DashChart, { ChartTable, type ChartText } from './dash/DashChart';
+import { bucketLabel } from '@/lib/crm-buckets';
+import { LIFECYCLE_STAGES, SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { toCsv } from '@/lib/crm-report-builder';
+import type { DashboardView } from '@/lib/crm-dashboards';
+import type { DashboardVisibility, DashboardAccess, TileData } from '@/lib/crm-dashboards-schema';
+import {
+  DATE_PRESETS,
+  LIBRARY,
+  REPORT_CATEGORIES,
+  legacyReportKey,
+  libraryReport,
+  parseDashboardFilters,
+  resolveRange,
+  sizeFromCols,
+  type DashboardFilters,
+  type DrillResult,
+  type DrillRow,
+  type DrillSegment,
+  type TileResult,
+  type TileSize,
+  type TileViz,
+  type ValueFormat,
+} from '@/lib/crm-dashboard-library';
 
-const GRID_COLS = 12;
-const ROW_H = 64; // px por fila del grid (ver .dash-grid en crm.css)
-const GRID_GAP = 16;
-const DRAG_THRESHOLD = 6; // px antes de activar el drag (permite clicks normales)
-const DEFAULT_RANGE = '30d';
-
-interface DashboardsViewProps {
-  dashboards: CrmDashboardWithWidgets[];
+interface Props {
+  dashboards: DashboardView[];
+  activeId: string | null;
+  initialTiles: Record<string, TileData>;
   pipelines: Array<{ id: string; name: string }>;
-  defaultPipelineId: string | null;
-  initialData: DashboardInitialData;
+  owners: Array<{ id: string; name: string }>;
+  teams: Array<{ id: string; name: string }>;
+  customReports: Array<{ id: string; name: string }>;
   locale: string;
-  /** Moneda base del workspace (montos convertidos). */
   baseCurrency?: string;
-  /** Monedas usadas sin tipo de cambio (se suman 1:1). */
   missingRates?: string[];
 }
 
-interface DragState {
-  pointerId: number;
+type Widget = DashboardView['widgets'][number];
+type TileState = TileData | { kind: 'loading' };
+type PreviewTarget = { type: 'contact' | 'company' | 'deal'; id: string };
+
+interface DrillState {
   widgetId: string;
-  widgetType: DashboardWidgetType;
-  mode: 'move' | 'resize';
-  startX: number;
-  startY: number;
-  dragging: boolean;
-  cardEl: HTMLElement | null;
-  ghostEl: HTMLElement | null;
-  offsetX: number;
-  offsetY: number;
-  origX: number;
-  origY: number;
-  origW: number;
-  origH: number;
-  targetX: number;
-  targetY: number;
-  targetW: number;
-  targetH: number;
+  title: string;
+  subtitle: string | null;
+  status: 'loading' | 'error' | 'ready';
+  result?: DrillResult;
+  returnFocus: HTMLElement | null;
 }
 
-interface LItem {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+type Dialog = null | 'create' | 'rename' | 'share' | 'delete' | 'library' | { edit: string };
 
-type DataState =
-  | { status: 'loading' }
-  | { status: 'error' }
-  | { status: 'ready'; data: WidgetDataMap[DashboardWidgetType] };
+const SIZE_W: Record<TileSize, number> = { small: 3, medium: 6, wide: 12 };
 
-function clamp(v: number, min: number, max: number): number {
-  return Math.min(Math.max(v, min), max);
-}
-
-function parseConfig(raw: string): DashboardWidgetConfig {
+function cfgOf(raw: string): { reportKey?: string; reportId?: string; title?: string; viz?: TileViz; metric?: string } {
   try {
     const v: unknown = JSON.parse(raw);
-    return v && typeof v === 'object' ? (v as DashboardWidgetConfig) : {};
+    return v && typeof v === 'object' ? (v as Record<string, never>) : {};
   } catch {
     return {};
   }
 }
 
-/** Montos de reportes: siempre en la moneda base del workspace (los deals se convierten en SQL). */
-function formatMoney(n: number, locale: string, currency = 'USD'): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(n);
+function tileKey(w: { type: string; config: string }): string | null {
+  const c = cfgOf(w.config);
+  if (w.type === 'library') return libraryReport(c.reportKey)?.key ?? null;
+  if (w.type === 'custom_report') return null;
+  return legacyReportKey(w.type, c);
 }
 
-function niceCeil(max: number): number {
-  if (max <= 1) return 1;
-  const pow = Math.pow(10, Math.floor(Math.log10(max)));
-  const n = max / pow;
-  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-  return nice * pow;
+function sameFilters(a: DashboardFilters, b: DashboardFilters): boolean {
+  const n = (f: DashboardFilters) =>
+    JSON.stringify([f.range, f.range === 'custom' ? f.from ?? '' : '', f.range === 'custom' ? f.to ?? '' : '', f.ownerId ?? '', f.teamId ?? '', f.pipelineId ?? '']);
+  return n(a) === n(b);
 }
 
-
-// ---------- Layout: resolución de colisiones (empuja hacia abajo) ----------
-
-function collides(a: LItem, b: LItem): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+function setUrlDashboard(id: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('d', id);
+  window.history.replaceState(window.history.state, '', url.toString());
 }
 
-/** Coloca items en orden; el primero queda fijo y el resto baja si choca. */
-function placeAll(items: LItem[]): LItem[] {
-  const placed: LItem[] = [];
-  for (const item of items) {
-    const next = { ...item };
-    while (placed.some((p) => collides(next, p))) next.y += 1;
-    placed.push(next);
-  }
-  return placed;
+/** Cerrar al hacer clic afuera o con Esc (popovers propios). */
+function useDismiss(open: boolean, refs: Array<React.RefObject<HTMLElement | null>>, onClose: (restore: boolean) => void) {
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: PointerEvent) => {
+      if (refs.some((r) => r.current?.contains(e.target as Node))) return;
+      onClose(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose(true);
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('keydown', key);
+    };
+  }, [open, refs, onClose]);
 }
 
-/** Layout tras mover/redimensionar un widget, con position = orden de lectura. */
-function layoutAfterChange(
-  widgets: CrmDashboardWidgetRow[],
-  movedId: string,
-  target: { x: number; y: number; w: number; h: number },
-): Array<LItem & { position: number }> {
-  const rest = widgets
-    .filter((w) => w.id !== movedId)
-    .map((w) => ({ id: w.id, x: w.x, y: w.y, w: w.w, h: w.h }))
-    .sort((a, b) => a.y - b.y || a.x - b.x);
-  const placed = placeAll([{ id: movedId, ...target }, ...rest]);
-  return [...placed]
-    .sort((a, b) => a.y - b.y || a.x - b.x)
-    .map((item, i) => ({ ...item, position: i }));
-}
-
-// ---------- Charts inline (SVG, monocromo, sin deps) ----------
-
-function TimeseriesChart({
-  data,
-  locale,
-  labels,
-}: {
-  data: WidgetDataMap['timeseries']['timeseries'];
-  locale: string;
-  labels: { contacts: string; deals: string; ariaLabel: string };
-}) {
-  const W = 560;
-  const H = 190;
-  const pad = { t: 10, r: 8, b: 22, l: 30 };
-  const iw = W - pad.l - pad.r;
-  const ih = H - pad.t - pad.b;
-  const baseline = pad.t + ih;
-
-  // Conteos: máximo múltiplo de 3 (tres tramos) para que el eje marque enteros (0, 1, 2, 3), no 3.3.
-  const max = Math.max(3, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.contacts, d.deals)), 1)) / 3) * 3);
-  const stepX = data.length > 0 ? iw / data.length : iw;
-  const bw = Math.min(9, stepX / 4);
-  const labelEvery = Math.max(1, Math.ceil(36 / Math.max(stepX, 1)));
-
-  return (
-    <>
-      <svg
-        className="link-chart"
-        viewBox={`0 0 ${W} ${H}`}
-        role="img"
-        aria-label={labels.ariaLabel}
-        preserveAspectRatio="none"
-      >
-        {[0, 1, 2, 3].map((k) => {
-          const value = (max * k) / 3;
-          const y = pad.t + ih - (value / max) * ih;
-          return (
-            <g key={k}>
-              <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
-              <text className="chart-ylabel" x={pad.l - 6} y={y + 4} textAnchor="end">
-                {formatAxis(value, locale)}
-              </text>
-            </g>
-          );
-        })}
-        {data.map((d, i) => {
-          const cx = pad.l + stepX * (i + 0.5);
-          const cH = (d.contacts / max) * ih;
-          const dH = (d.deals / max) * ih;
-          return (
-            <g key={d.bucket}>
-              {d.contacts > 0 && (
-                <rect
-                  className="chart-bar"
-                  x={cx - bw - 1}
-                  y={baseline - cH}
-                  width={bw}
-                  height={cH}
-                >
-                  <title>{`${bucketLabel(d.bucket, locale)} · ${labels.contacts}: ${d.contacts}`}</title>
-                </rect>
-              )}
-              {d.deals > 0 && (
-                <rect
-                  className="chart-bar-lost"
-                  x={cx + 1}
-                  y={baseline - dH}
-                  width={bw}
-                  height={dH}
-                >
-                  <title>{`${bucketLabel(d.bucket, locale)} · ${labels.deals}: ${d.deals}`}</title>
-                </rect>
-              )}
-              {i % labelEvery === 0 && (
-                <text className="chart-xlabel" x={cx} y={H - 6} textAnchor="middle">
-                  {bucketLabel(d.bucket, locale)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      <p className="chart-legend mono">
-        <span className="legend-item">
-          <span className="legend-swatch" aria-hidden /> {labels.contacts}
-        </span>
-        <span className="legend-item">
-          <span className="legend-swatch legend-swatch-lost" aria-hidden /> {labels.deals}
-        </span>
-      </p>
-    </>
-  );
-}
-
-function WonLostChart({
-  data,
-  locale,
-  labels,
-}: {
-  data: WidgetDataMap['wonlost']['wonLost'];
-  locale: string;
-  labels: { won: string; lost: string; ariaLabel: string };
-}) {
-  const W = 560;
-  const H = 190;
-  const pad = { t: 10, r: 8, b: 22, l: 30 };
-  const iw = W - pad.l - pad.r;
-  const ih = H - pad.t - pad.b;
-  const baseline = pad.t + ih;
-
-  const max = Math.max(3, Math.ceil(niceCeil(Math.max(...data.map((d) => Math.max(d.won, d.lost)), 0)) / 3) * 3);
-  const stepX = data.length > 0 ? iw / data.length : iw;
-  const bw = Math.min(14, stepX / 4);
-
-  return (
-    <>
-      <svg
-        className="link-chart"
-        viewBox={`0 0 ${W} ${H}`}
-        role="img"
-        aria-label={labels.ariaLabel}
-        preserveAspectRatio="none"
-      >
-        {[0, 1, 2, 3].map((k) => {
-          const value = (max * k) / 3;
-          const y = pad.t + ih - (value / max) * ih;
-          return (
-            <g key={k}>
-              <line className="chart-grid" x1={pad.l} x2={pad.l + iw} y1={y} y2={y} />
-              <text className="chart-ylabel" x={pad.l - 6} y={y + 4} textAnchor="end">
-                {formatAxis(value, locale)}
-              </text>
-            </g>
-          );
-        })}
-        {data.map((d, i) => {
-          const cx = pad.l + stepX * (i + 0.5);
-          const wH = (d.won / max) * ih;
-          const lH = (d.lost / max) * ih;
-          return (
-            <g key={d.month}>
-              {d.won > 0 && (
-                <rect className="chart-bar" x={cx - bw - 2} y={baseline - wH} width={bw} height={wH}>
-                  <title>{`${monthLabel(d.month, locale)} · ${labels.won}: ${d.won}`}</title>
-                </rect>
-              )}
-              {d.lost > 0 && (
-                <rect
-                  className="chart-bar-lost"
-                  x={cx + 2}
-                  y={baseline - lH}
-                  width={bw}
-                  height={lH}
-                >
-                  <title>{`${monthLabel(d.month, locale)} · ${labels.lost}: ${d.lost}`}</title>
-                </rect>
-              )}
-              <text className="chart-xlabel" x={cx} y={H - 6} textAnchor="middle">
-                {monthLabel(d.month, locale)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <p className="chart-legend mono">
-        <span className="legend-item">
-          <span className="legend-swatch" aria-hidden /> {labels.won}
-        </span>
-        <span className="legend-item">
-          <span className="legend-swatch legend-swatch-lost" aria-hidden /> {labels.lost}
-        </span>
-      </p>
-    </>
-  );
-}
-
-// ---------- View ----------
-
+/**
+ * Dashboards del CRM como los de HubSpot: selector de dashboards, filtros
+ * que aplican a todos los tiles, grilla de reportes (arrastrar para
+ * reordenar, tamaño chico/mediano/ancho, menú por tile), biblioteca de
+ * reportes listos y drill-down a los registros con su vista previa.
+ */
 export default function DashboardsView({
+  dashboards,
+  activeId: initialActive,
+  initialTiles,
+  pipelines,
+  owners,
+  teams,
+  customReports,
+  locale,
   baseCurrency = 'USD',
   missingRates = [],
-  dashboards,
-  pipelines,
-  defaultPipelineId,
-  initialData,
-  locale,
-}: DashboardsViewProps) {
-  const t = useTranslations('crm.dashboards');
-  const tc = useTranslations('crm');
-  const tCrm = useTranslations('crm');
-
-  const [boards, setBoards] = useState<CrmDashboardWithWidgets[]>(dashboards);
-  const [activeId, setActiveId] = useState<string>(dashboards[0]?.id ?? '');
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [renameValue, setRenameValue] = useState(dashboards[0]?.name ?? '');
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cache, setCache] = useState<Record<string, WidgetDataMap[DashboardWidgetType] | null>>({});
-
-  const dragRef = useRef<DragState | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const addMenuRef = useRef<HTMLDivElement>(null);
-  const pendingRef = useRef<Set<string>>(new Set());
-
+}: Props) {
+  const t = useTranslations('crm');
+  const [boards, setBoards] = useState(dashboards);
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
+  const [activeId, setActiveId] = useState<string | null>(initialActive);
   const active = boards.find((b) => b.id === activeId) ?? null;
+  const [filters, setFilters] = useState<DashboardFilters>(() => parseDashboardFilters(active?.filters ?? '{}'));
+  const [tiles, setTiles] = useState<Record<string, TileState>>(initialTiles);
+  const [asTable, setAsTable] = useState<Set<string>>(new Set());
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [drill, setDrill] = useState<DrillState | null>(null);
+  const [preview, setPreview] = useState<PreviewTarget | null>(null);
+  const [menu, setMenu] = useState<{ anchor: ContextMenuAnchor; items: ContextMenuItem[] } | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [customDraft, setCustomDraft] = useState<{ from: string; to: string } | null>(null);
+  const requestRef = useRef(0);
 
-  // Sync del input de rename al cambiar de dashboard o de nombre.
-  useEffect(() => {
-    setRenameValue(active?.name ?? '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.name]);
-
-  // Cierra el menú "Add widget" al clickar fuera.
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
-        setAddMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+  const flash = useCallback((msg: string) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice((v) => (v === msg ? null : v)), 2400);
   }, []);
 
-  // Limpieza del DOM de drag si el componente se desmonta a mitad de un drag.
-  useEffect(() => {
-    return () => {
-      cleanupDragDom(dragRef.current);
-      dragRef.current = null;
-    };
+  // ---------- Formato ----------
+
+  const money = useMemo(() => new Intl.NumberFormat(locale, { style: 'currency', currency: baseCurrency, maximumFractionDigits: 0 }), [locale, baseCurrency]);
+  const moneyCompact = useMemo(
+    () => new Intl.NumberFormat(locale, { style: 'currency', currency: baseCurrency, notation: 'compact', maximumFractionDigits: 1 }),
+    [locale, baseCurrency],
+  );
+  const num = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
+  const numCompact = useMemo(() => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }), [locale]);
+  const dateFmt = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }), [locale]);
+
+  const fmtValue = useCallback(
+    (n: number, format: ValueFormat = 'number') => {
+      if (format === 'money') return money.format(n);
+      if (format === 'percent') return `${num.format(n)}%`;
+      if (format === 'days') return t('dash.tile.days', { value: num.format(n) });
+      if (format === 'moneyPerDay') return t('dash.tile.perDay', { value: money.format(n) });
+      return num.format(n);
+    },
+    [money, num, t],
+  );
+  const fmtAxis = useCallback(
+    (n: number, format: ValueFormat = 'number') => {
+      const big = Math.abs(n) >= 10_000;
+      if (format === 'money' || format === 'moneyPerDay') return big ? moneyCompact.format(n) : money.format(n);
+      return big ? numCompact.format(n) : num.format(n);
+    },
+    [money, moneyCompact, num, numCompact],
+  );
+  const fmtDate = useCallback(
+    (iso: string | null) => {
+      if (!iso) return '';
+      const s = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00Z` : /[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso.replace(' ', 'T') : `${iso.replace(' ', 'T')}Z`;
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? '' : dateFmt.format(d);
+    },
+    [dateFmt],
+  );
+
+  const enumLabel = useCallback(
+    (kind: string | null, key: string, label: string | null): string => {
+      if (kind === 'bucket') return bucketLabel(key, locale);
+      if (kind === 'source') return (SOURCES as readonly string[]).includes(key) ? t(`enums.source.${key}`) : key;
+      if (kind === 'lifecycle') return (LIFECYCLE_STAGES as readonly string[]).includes(key) ? t(`enums.lifecycle.${key}`) : key;
+      if (kind === 'forecastCategory') return ['closed_won', 'commit', 'best_case', 'pipeline'].includes(key) ? t(`dash.forecastCat.${key}`) : key;
+      if (kind === 'activityType') return (ACTIVITY_TYPES as readonly string[]).includes(key) ? t(`enums.activityType.${key}`) : key;
+      if (kind === 'outcome') return ['won', 'lost', 'call', 'email', 'meeting', 'task', 'value'].includes(key) ? t(`dash.series.${key}`) : key;
+      return label ?? t('dash.tile.formerMember');
+    },
+    [locale, t],
+  );
+
+  const chartText = useCallback(
+    (data: Extract<TileResult, { kind: 'chart' }>): ChartText => ({
+      category: (key, label) => enumLabel(data.categoryKind, key, label),
+      series: (key, label) => (data.seriesKind ? enumLabel('outcome', key, label) : t('dash.tile.total')),
+      value: fmtValue,
+      axis: fmtAxis,
+      extra: (n, kind) => (n === null ? null : kind === 'count' ? t('dash.tile.deals', { count: n }) : t('dash.tile.conversion', { value: n })),
+      aria: (parts) => parts.join(', '),
+      total: t('dash.tile.total'),
+    }),
+    [enumLabel, fmtAxis, fmtValue, t],
+  );
+
+  // ---------- Carga de tiles ----------
+
+  const loadTiles = useCallback(async (dashboardId: string, f: DashboardFilters, widgetIds?: string[]) => {
+    const req = widgetIds ? requestRef.current : ++requestRef.current;
+    const ids = widgetIds ?? boardsRef.current.find((b) => b.id === dashboardId)?.widgets.map((w) => w.id) ?? [];
+    setTiles((prev) => {
+      const next = { ...prev };
+      for (const id of ids) next[id] = { kind: 'loading' };
+      return next;
+    });
+    const res = await fetch('/api/crm/dashboards/data', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dashboardId, filters: f, widgetIds }),
+    }).catch(() => null);
+    // Una respuesta vieja (cambiaron los filtros mientras tanto) no pisa la nueva.
+    if (req !== requestRef.current) return;
+    if (!res || !res.ok) {
+      setTiles((prev) => {
+        const next = { ...prev };
+        for (const id of ids) next[id] = { kind: 'error', code: 'report_failed' };
+        return next;
+      });
+      return;
+    }
+    const data = (await res.json()) as { tiles: Record<string, TileData> };
+    setTiles((prev) => ({ ...prev, ...data.tiles }));
   }, []);
 
-  // ---------- Data por widget ----------
-
-  /** Widgets con config no-default se fetchean a /api/crm/dashboards/data. */
-  function needsCustomData(w: CrmDashboardWidgetRow): boolean {
-    const cfg = parseConfig(w.config);
-    if (w.type === 'custom_report') return true;
-    if (w.type === 'funnel' || w.type === 'forecast') {
-      return !!cfg.pipelineId && cfg.pipelineId !== defaultPipelineId;
-    }
-    if (['kpi', 'timeseries', 'source', 'owner', 'leaderboard'].includes(w.type)) {
-      return !!cfg.range && cfg.range !== DEFAULT_RANGE;
-    }
-    return false;
+  function selectBoard(id: string, list = boardsRef.current) {
+    const b = list.find((x) => x.id === id);
+    if (!b) return;
+    setActiveId(id);
+    setSwitcherOpen(false);
+    setCustomDraft(null);
+    setAsTable(new Set());
+    const f = parseDashboardFilters(b.filters);
+    setFilters(f);
+    setUrlDashboard(id);
+    if (b.widgets.length) void loadTiles(id, f);
   }
 
-  function dataStateFor(w: CrmDashboardWidgetRow): DataState {
-    if (!needsCustomData(w)) {
-      return { status: 'ready', data: initialData[w.type as DashboardWidgetType] };
-    }
-    const cached = cache[`${w.id}:${w.config}`];
-    if (cached === undefined) return { status: 'loading' };
-    if (cached === null) return { status: 'error' };
-    return { status: 'ready', data: cached };
+  function applyFilters(next: DashboardFilters) {
+    setFilters(next);
+    if (active) void loadTiles(active.id, next);
   }
 
-  // Fetch de datasets custom (config ≠ default) de los widgets visibles.
-  useEffect(() => {
-    if (!active) return;
-    for (const w of active.widgets) {
-      if (!needsCustomData(w)) continue;
-      const key = `${w.id}:${w.config}`;
-      if (cache[key] !== undefined || pendingRef.current.has(key)) continue;
-      pendingRef.current.add(key);
-      const cfg = parseConfig(w.config);
-      fetch('/api/crm/dashboards/data', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          type: w.type,
-          pipelineId: cfg.pipelineId ?? defaultPipelineId,
-          range: cfg.range ?? DEFAULT_RANGE,
-          reportId: cfg.reportId,
-        }),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error('bad status');
-          const data = (await res.json()) as WidgetDataMap[DashboardWidgetType];
-          setCache((prev) => ({ ...prev, [key]: data }));
-        })
-        .catch(() => {
-          setCache((prev) => ({ ...prev, [key]: null }));
-        })
-        .finally(() => {
-          pendingRef.current.delete(key);
-        });
+  const savedFilters = active ? parseDashboardFilters(active.filters) : null;
+  const filtersDirty = !!savedFilters && !sameFilters(filters, savedFilters);
+
+  // ---------- Llamadas ----------
+
+  async function patchBoard(id: string, body: Record<string, unknown>): Promise<DashboardView | null> {
+    setError(null);
+    const res = await fetch(`/api/crm/dashboards/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      setError(t('errors.generic'));
+      return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boards, activeId, cache]);
+    const updated = (await res.json()) as DashboardView;
+    setBoards((prev) => prev.map((b) => (b.id === id ? updated : body.isDefault ? { ...b, isDefault: false } : b)));
+    return updated;
+  }
 
-  // ---------- Mutations ----------
-
-  async function submitCreate() {
-    const name = newName.trim();
-    setCreating(false);
-    setNewName('');
-    if (!name) return;
+  async function createBoard(body: { name: string; template?: 'blank' | 'sales'; cloneFrom?: string }) {
     setError(null);
     const res = await fetch('/api/crm/dashboards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     }).catch(() => null);
-    if (res && res.ok) {
-      const dash = (await res.json()) as CrmDashboardWithWidgets;
-      setBoards((prev) => [...prev, dash]);
-      setActiveId(dash.id);
-    } else {
-      setError(tCrm('errors.generic'));
-    }
-  }
-
-  async function submitRename() {
-    if (!active) return;
-    const name = renameValue.trim();
-    if (!name || name === active.name) {
-      setRenameValue(active.name);
+    if (!res || !res.ok) {
+      setError(t('errors.generic'));
       return;
     }
-    setError(null);
-    const snapshot = boards;
-    setBoards((prev) => prev.map((b) => (b.id === active.id ? { ...b, name } : b)));
-    const res = await fetch(`/api/crm/dashboards/${active.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name }),
-    }).catch(() => null);
-    if (!res || !res.ok) {
-      setBoards(snapshot);
-      setError(tCrm('errors.generic'));
-    }
+    const created = (await res.json()) as DashboardView;
+    const list = [...boardsRef.current, created];
+    setBoards(list);
+    boardsRef.current = list;
+    setDialog(null);
+    selectBoard(created.id, list);
   }
 
-  async function confirmDeleteDashboard() {
+  async function deleteBoard() {
     if (!active) return;
-    setConfirmingDelete(false);
-    setError(null);
-    const snapshot = boards;
-    const remaining = boards.filter((b) => b.id !== active.id);
-    setBoards(remaining);
-    setActiveId(remaining[0]?.id ?? '');
-    const res = await fetch(`/api/crm/dashboards/${active.id}`, { method: 'DELETE' }).catch(
-      () => null,
-    );
+    const res = await fetch(`/api/crm/dashboards/${active.id}`, { method: 'DELETE' }).catch(() => null);
+    setDialog(null);
     if (!res || !res.ok) {
-      setBoards(snapshot);
-      setActiveId(active.id);
-      setError(tCrm('errors.generic'));
+      setError(t('errors.generic'));
+      return;
     }
+    const rest = boards.filter((b) => b.id !== active.id);
+    setBoards(rest);
+    boardsRef.current = rest;
+    const next = rest.find((b) => b.isDefault) ?? rest[0];
+    if (next) selectBoard(next.id, rest);
+    else setActiveId(null);
   }
 
-  async function addNewWidget(type: DashboardWidgetType) {
-    setAddMenuOpen(false);
-    if (!active) return;
-    setError(null);
+  async function addTile(body: Record<string, unknown>): Promise<boolean> {
+    if (!active) return false;
     const res = await fetch(`/api/crm/dashboards/${active.id}/widgets`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type }),
-    }).catch(() => null);
-    if (res && res.ok) {
-      const widget = (await res.json()) as CrmDashboardWidgetRow;
-      setBoards((prev) =>
-        prev.map((b) => (b.id === active.id ? { ...b, widgets: [...b.widgets, widget] } : b)),
-      );
-    } else {
-      setError(tCrm('errors.generic'));
-    }
-  }
-
-  async function removeWidget(widget: CrmDashboardWidgetRow) {
-    if (!active) return;
-    setError(null);
-    const snapshot = boards;
-    setBoards((prev) =>
-      prev.map((b) =>
-        b.id === active.id ? { ...b, widgets: b.widgets.filter((w) => w.id !== widget.id) } : b,
-      ),
-    );
-    const res = await fetch(`/api/crm/dashboards/widgets/${widget.id}`, {
-      method: 'DELETE',
+      body: JSON.stringify(body),
     }).catch(() => null);
     if (!res || !res.ok) {
-      setBoards(snapshot);
-      setError(tCrm('errors.generic'));
+      setError(t('errors.generic'));
+      return false;
     }
+    const w = (await res.json()) as Widget;
+    const dup = typeof body.duplicateOf === 'string';
+    setBoards((prev) =>
+      prev.map((b) => {
+        if (b.id !== active.id) return b;
+        const shifted = dup ? b.widgets.map((x) => (x.position >= w.position ? { ...x, position: x.position + 1 } : x)) : b.widgets;
+        return { ...b, widgets: [...shifted, w].sort((a, c) => a.position - c.position) };
+      }),
+    );
+    void loadTiles(active.id, filters, [w.id]);
+    return true;
   }
 
-  async function changeConfig(widget: CrmDashboardWidgetRow, config: DashboardWidgetConfig) {
+  async function patchTile(id: string, body: Record<string, unknown>) {
     if (!active) return;
-    setError(null);
-    const snapshot = boards;
-    setBoards((prev) =>
-      prev.map((b) =>
-        b.id === active.id
-          ? {
-              ...b,
-              widgets: b.widgets.map((w) =>
-                w.id === widget.id ? { ...w, config: JSON.stringify(config) } : w,
-              ),
-            }
-          : b,
-      ),
-    );
-    const res = await fetch(`/api/crm/dashboards/widgets/${widget.id}`, {
+    const res = await fetch(`/api/crm/dashboards/widgets/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ config }),
+      body: JSON.stringify(body),
     }).catch(() => null);
     if (!res || !res.ok) {
-      setBoards(snapshot);
-      setError(tCrm('errors.generic'));
-    }
-  }
-
-  // ---------- Drag & drop (pointer events, sin deps; patrón de DealsBoard) ----------
-
-  function cleanupDragDom(d: DragState | null) {
-    if (!d) return;
-    d.ghostEl?.remove();
-    d.cardEl?.classList.remove('dragging');
-    if (previewRef.current) previewRef.current.style.display = 'none';
-  }
-
-  function handleGripDown(
-    e: ReactPointerEvent<HTMLElement>,
-    widget: CrmDashboardWidgetRow,
-    mode: 'move' | 'resize',
-  ) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    // En <960px el grid colapsa a columna: el drag por celdas no aplica.
-    if (window.matchMedia('(max-width: 960px)').matches) return;
-    const target = e.target as HTMLElement;
-    // Elementos interactivos dentro del header no inician drag.
-    if (mode === 'move' && target.closest('a, button, select, input, textarea, [data-no-drag]')) {
+      setError(t('errors.generic'));
       return;
     }
-    const handle = e.currentTarget;
+    const w = (await res.json()) as Widget;
+    setBoards((prev) => prev.map((b) => (b.id === active.id ? { ...b, widgets: b.widgets.map((x) => (x.id === id ? w : x)) } : b)));
+  }
+
+  async function removeTile(id: string) {
+    if (!active) return;
+    const snapshot = boards;
+    setBoards((prev) => prev.map((b) => (b.id === active.id ? { ...b, widgets: b.widgets.filter((x) => x.id !== id) } : b)));
+    const res = await fetch(`/api/crm/dashboards/widgets/${id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res || !res.ok) {
+      setBoards(snapshot);
+      setError(t('errors.generic'));
+    }
+  }
+
+  /** Mueve un tile a otra posición (arrastre, menú o teclado) y guarda el orden. */
+  async function moveTile(id: string, toIndex: number) {
+    if (!active) return;
+    const list = [...active.widgets];
+    const from = list.findIndex((w) => w.id === id);
+    if (from < 0) return;
+    const [item] = list.splice(from, 1);
+    list.splice(Math.max(0, Math.min(list.length, toIndex)), 0, item);
+    const snapshot = boards;
+    setBoards((prev) => prev.map((b) => (b.id === active.id ? { ...b, widgets: list.map((w, i) => ({ ...w, position: i })) } : b)));
+    const ok = await patchBoard(active.id, { order: list.map((w, i) => ({ id: w.id, position: i })) });
+    if (!ok) setBoards(snapshot);
+  }
+
+  async function resizeTile(id: string, size: TileSize) {
+    if (!active) return;
+    setBoards((prev) => prev.map((b) => (b.id === active.id ? { ...b, widgets: b.widgets.map((w) => (w.id === id ? { ...w, w: SIZE_W[size] } : w)) } : b)));
+    await patchTile(id, { size });
+  }
+
+  // ---------- Drill-down ----------
+
+  async function openDrill(widgetId: string, segment: DrillSegment, title: string, subtitle: string | null) {
+    if (!active) return;
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDrill({ widgetId, title, subtitle, status: 'loading', returnFocus });
+    const res = await fetch('/api/crm/dashboards/drill', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dashboardId: active.id, widgetId, filters, segment }),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      setDrill((d) => (d && d.widgetId === widgetId ? { ...d, status: 'error' } : d));
+      return;
+    }
+    const result = (await res.json()) as DrillResult;
+    setDrill((d) => (d && d.widgetId === widgetId ? { ...d, status: 'ready', result } : d));
+  }
+
+  // ---------- Títulos ----------
+
+  function tileTitle(w: Widget): string {
+    const c = cfgOf(w.config);
+    if (c.title) return c.title;
+    if (w.type === 'custom_report') {
+      const d = tiles[w.id];
+      if (d?.kind === 'custom') return d.report.name;
+      return customReports.find((r) => r.id === c.reportId)?.name ?? t('dashboards.widgets.custom_report');
+    }
+    const key = tileKey(w);
+    return key ? t(`dash.reports.${key}.name`) : t('dashboards.widgets.custom_report');
+  }
+
+  function rangeLabel(f: DashboardFilters): string {
+    if (f.range !== 'custom') return t(`dash.ranges.${f.range}`);
+    const r = resolveRange(f);
+    return `${fmtDate(r.from)} – ${fmtDate(r.to)}`;
+  }
+
+  function tileSubtitle(w: Widget): string {
+    if (w.type === 'custom_report') return t('dash.tile.allDates');
+    const def = libraryReport(tileKey(w));
+    if (def?.rangeMode === 'snapshot') return t('dash.tile.current');
+    if (def?.rangeMode === 'this_month') return t('dash.tile.thisMonth');
+    return rangeLabel(filters);
+  }
+
+  function statusLabel(r: DrillRow): string {
+    if (!r.status) return '';
+    if (r.statusKind === 'stage') return r.status;
+    return enumLabel(r.statusKind, r.status, r.status);
+  }
+
+  // ---------- Menús ----------
+
+  function anchorFrom(el: HTMLElement, label: string): ContextMenuAnchor {
+    const r = el.getBoundingClientRect();
+    return { x: r.left, y: r.bottom + 4, label, returnFocus: el };
+  }
+
+  function openBoardMenu(el: HTMLElement) {
+    if (!active) return;
+    const items: ContextMenuItem[] = [];
+    if (active.canEdit) items.push({ key: 'rename', label: t('dash.actions.rename'), onSelect: () => setDialog('rename') });
+    items.push({
+      key: 'clone',
+      label: t('dash.actions.clone'),
+      onSelect: () => void createBoard({ name: t('dash.cloneName', { name: active.name }).slice(0, 200), cloneFrom: active.id }),
+    });
+    if (active.canManage) items.push({ key: 'share', label: t('dash.actions.share'), onSelect: () => setDialog('share') });
+    if (!active.isDefault) items.push({ key: 'default', label: t('dash.actions.setDefault'), onSelect: () => void patchBoard(active.id, { isDefault: true }) });
+    if (active.canManage) items.push({ key: 'delete', label: t('dash.actions.delete'), danger: true, divider: true, onSelect: () => setDialog('delete') });
+    setMenu({ anchor: anchorFrom(el, t('dash.actions.menu')), items });
+  }
+
+  function openTileMenu(el: HTMLElement, w: Widget, index: number) {
+    if (!active) return;
+    const title = tileTitle(w);
+    const data = tiles[w.id];
+    const items: ContextMenuItem[] = [];
+    if (active.canEdit) items.push({ key: 'edit', label: t('dash.tile.edit'), onSelect: () => setDialog({ edit: w.id }) });
+    if (data?.kind === 'chart') {
+      const on = asTable.has(w.id);
+      items.push({
+        key: 'table',
+        label: on ? t('dash.tile.viewChart') : t('dash.tile.viewTable'),
+        onSelect: () =>
+          setAsTable((prev) => {
+            const next = new Set(prev);
+            if (on) next.delete(w.id);
+            else next.add(w.id);
+            return next;
+          }),
+      });
+    }
+    if (data && data.kind !== 'loading' && data.kind !== 'error') items.push({ key: 'csv', label: t('dash.tile.exportCsv'), onSelect: () => exportCsv(w, title) });
+    const rid = w.type === 'custom_report' ? cfgOf(w.config).reportId : undefined;
+    if (rid) items.push({ key: 'open', label: t('dash.tile.openReport'), onSelect: () => window.location.assign(`/${locale}/app/crm/reports/custom/${rid}`) });
+    if (active.canEdit) {
+      const size = sizeFromCols(w.w);
+      items.push({ key: 'dup', label: t('dash.tile.duplicate'), onSelect: () => void addTile({ type: 'library', duplicateOf: w.id }) });
+      items.push({
+        key: 'size',
+        label: t('dash.tile.size'),
+        submenu: (['small', 'medium', 'wide'] as const).map((s) => ({
+          key: s,
+          label: `${s === size ? '✓ ' : ''}${t(`dash.tile.${s}`)}`,
+          onSelect: () => void resizeTile(w.id, s),
+        })),
+      });
+      if (index > 0) items.push({ key: 'up', label: t('dash.tile.moveEarlier'), onSelect: () => void moveTile(w.id, index - 1) });
+      if (index < active.widgets.length - 1) items.push({ key: 'down', label: t('dash.tile.moveLater'), onSelect: () => void moveTile(w.id, index + 1) });
+      items.push({ key: 'remove', label: t('dash.tile.remove'), danger: true, divider: true, onSelect: () => void removeTile(w.id) });
+    }
+    setMenu({ anchor: anchorFrom(el, t('dash.tile.menu', { name: title })), items });
+  }
+
+  function exportCsv(w: Widget, title: string) {
+    const data = tiles[w.id];
+    if (!data || data.kind === 'loading' || data.kind === 'error') return;
+    let header: string[] = [];
+    let rows: Array<Array<string | number | null>> = [];
+    if (data.kind === 'kpi') {
+      header = [title, t('dash.tile.vsPrev')];
+      rows = [[data.value, data.prev]];
+    } else if (data.kind === 'chart') {
+      const text = chartText(data);
+      header = ['', ...data.series.map((s) => text.series(s.key, s.label))];
+      rows = data.categories.map((c, i) => [text.category(c.key, c.label), ...data.series.map((s) => s.values[i])]);
+    } else if (data.kind === 'records') {
+      header = [t('dash.drill.cols.name'), t('dash.drill.cols.amount'), t('dash.drill.cols.status'), t('dash.drill.cols.owner'), t('dash.drill.cols.date')];
+      rows = data.rows.map((r) => [r.name, r.amount, statusLabel(r), r.owner ?? '', r.date ?? '']);
+    } else {
+      const res = data.report.result;
+      if (res.kind === 'aggregate') {
+        header = [...res.dimensions.map((d) => d.label ?? d.key), title];
+        rows = res.rows.map((r) => [...r.keys.map((k) => (k ? res.labels[`owner:${k}`] ?? res.labels[`stage:${k}`] ?? res.labels[`pipeline:${k}`] ?? k : '')), r.value]);
+      } else {
+        header = res.columns.map((c) => c.label ?? c.key);
+        rows = res.rows.map((r) => r.cells);
+      }
+    }
+    const blob = new Blob([`﻿${toCsv(header, rows)}`], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${title.replace(/[^\p{L}\p{N}\- _]/gu, '').slice(0, 80) || 'report'}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ---------- Arrastrar para reordenar ----------
+
+  const dragRef = useRef<{ id: string; pointerId: number; x: number; y: number; active: boolean } | null>(null);
+  const dropRef = useRef<{ id: string; after: boolean } | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null);
+
+  function setDrop(v: { id: string; after: boolean } | null) {
+    dropRef.current = v;
+    setDropAt(v);
+  }
+
+  function gripDown(e: ReactPointerEvent<HTMLElement>, id: string) {
+    if (!active?.canEdit || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (window.matchMedia('(max-width: 640px)').matches) return;
     try {
-      handle.setPointerCapture(e.pointerId);
+      e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
       return;
     }
-    dragRef.current = {
-      pointerId: e.pointerId,
-      widgetId: widget.id,
-      widgetType: widget.type as DashboardWidgetType,
-      mode,
-      startX: e.clientX,
-      startY: e.clientY,
-      dragging: false,
-      cardEl: handle.closest('.dash-widget'),
-      ghostEl: null,
-      offsetX: 0,
-      offsetY: 0,
-      origX: widget.x,
-      origY: widget.y,
-      origW: widget.w,
-      origH: widget.h,
-      targetX: widget.x,
-      targetY: widget.y,
-      targetW: widget.w,
-      targetH: widget.h,
+    dragRef.current = { id, pointerId: e.pointerId, x: e.clientX, y: e.clientY, active: false };
+  }
+
+  function gripMove(e: ReactPointerEvent<HTMLElement>) {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (!d.active) {
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+      d.active = true;
+      setDragging(d.id);
+    }
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-tile-id]');
+    const over = el?.dataset.tileId;
+    if (!el || !over || over === d.id) {
+      setDrop(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    setDrop({ id: over, after: e.clientX > r.left + r.width / 2 });
+  }
+
+  function gripUp(e: ReactPointerEvent<HTMLElement>) {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragging(null);
+    const target = dropRef.current;
+    setDrop(null);
+    if (!d.active || !target || !active) return;
+    const rest = active.widgets.filter((w) => w.id !== d.id);
+    const idx = rest.findIndex((w) => w.id === target.id);
+    if (idx < 0) return;
+    void moveTile(d.id, idx + (target.after ? 1 : 0));
+  }
+
+  function gripCancel() {
+    dragRef.current = null;
+    setDragging(null);
+    setDrop(null);
+  }
+
+  function gripKey(e: ReactKeyboardEvent<HTMLElement>, id: string, index: number) {
+    if (!active?.canEdit) return;
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && index > 0) {
+      e.preventDefault();
+      void moveTile(id, index - 1).then(() => focusGrip(id));
+    }
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && index < active.widgets.length - 1) {
+      e.preventDefault();
+      void moveTile(id, index + 1).then(() => focusGrip(id));
+    }
+  }
+
+  function focusGrip(id: string) {
+    document.querySelector<HTMLElement>(`[data-tile-id="${id}"] .cdb-grip`)?.focus();
+  }
+
+  useEffect(() => {
+    if (!dragging) return;
+    const cancel = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') gripCancel();
     };
-  }
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, [dragging]);
 
-  function gridMetrics(): { rect: DOMRect; stepX: number; stepY: number } | null {
-    const grid = gridRef.current;
-    if (!grid) return null;
-    const rect = grid.getBoundingClientRect();
-    const colW = (rect.width - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
-    return { rect, stepX: colW + GRID_GAP, stepY: ROW_H + GRID_GAP };
-  }
+  // ---------- Cuerpo de un tile ----------
 
-  function startDrag(d: DragState, e: ReactPointerEvent<HTMLElement>) {
-    d.dragging = true;
-    const cardEl = d.cardEl;
-    if (cardEl) {
-      const rect = cardEl.getBoundingClientRect();
-      d.offsetX = e.clientX - rect.left;
-      d.offsetY = e.clientY - rect.top;
-      if (d.mode === 'move') {
-        const ghost = cardEl.cloneNode(true) as HTMLElement;
-        ghost.classList.add('dash-widget-ghost');
-        ghost.style.width = `${rect.width}px`;
-        ghost.style.height = `${rect.height}px`;
-        ghost.style.left = `${rect.left}px`;
-        ghost.style.top = `${rect.top}px`;
-        document.body.appendChild(ghost);
-        d.ghostEl = ghost;
-      }
-      cardEl.classList.add('dragging');
+  function renderBody(w: Widget): ReactNode {
+    const data = tiles[w.id];
+    const title = tileTitle(w);
+    const subtitle = tileSubtitle(w);
+    if (!data || data.kind === 'loading') {
+      return (
+        <div className="cdb-skeleton" aria-busy="true" aria-label={t('dash.tile.loading')}>
+          <span />
+          <span />
+          <span />
+        </div>
+      );
     }
-  }
-
-  function updateDrag(d: DragState, e: ReactPointerEvent<HTMLElement>) {
-    const m = gridMetrics();
-    if (!m) return;
-    if (d.mode === 'move') {
-      if (d.ghostEl) {
-        d.ghostEl.style.left = `${e.clientX - d.offsetX}px`;
-        d.ghostEl.style.top = `${e.clientY - d.offsetY}px`;
-      }
-      const left = e.clientX - d.offsetX - m.rect.left;
-      const top = e.clientY - d.offsetY - m.rect.top;
-      d.targetX = clamp(Math.round(left / m.stepX), 0, GRID_COLS - d.origW);
-      d.targetY = clamp(Math.round(top / m.stepY), 0, 999);
-    } else {
-      const min = WIDGET_MIN_SIZE[d.widgetType];
-      const dw = Math.round((e.clientX - d.startX) / m.stepX);
-      const dh = Math.round((e.clientY - d.startY) / m.stepY);
-      d.targetW = clamp(d.origW + dw, min.w, GRID_COLS - d.origX);
-      d.targetH = clamp(d.origH + dh, min.h, 24);
+    if (data.kind === 'error') {
+      const msg = data.code === 'report_missing' ? t('dash.tile.reportMissing') : data.code === 'invalid_field' ? t('dash.tile.fieldHidden') : t('dash.tile.error');
+      return <p className="cdb-empty">{msg}</p>;
     }
-    const preview = previewRef.current;
-    if (preview) {
-      preview.style.display = 'block';
-      preview.style.left = `${d.targetX * m.stepX}px`;
-      preview.style.top = `${d.targetY * m.stepY}px`;
-      preview.style.width = `${d.targetW * m.stepX - GRID_GAP}px`;
-      preview.style.height = `${d.targetH * m.stepY - GRID_GAP}px`;
+    if (data.kind === 'custom') {
+      return (
+        <div className="cdb-custom">
+          <ReportChart result={data.report.result} viz={data.report.config.viz} locale={locale} baseCurrency={baseCurrency} compact />
+        </div>
+      );
     }
-  }
-
-  function handlePointerMove(e: ReactPointerEvent<HTMLElement>) {
-    const d = dragRef.current;
-    if (!d || e.pointerId !== d.pointerId) return;
-    if (!d.dragging) {
-      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_THRESHOLD) return;
-      startDrag(d, e);
-    }
-    updateDrag(d, e);
-  }
-
-  function handlePointerUp(e: ReactPointerEvent<HTMLElement>) {
-    const d = dragRef.current;
-    if (!d || e.pointerId !== d.pointerId) return;
-    if (d.dragging) finishDrag(d);
-    cleanupDragDom(d);
-    dragRef.current = null;
-  }
-
-  function handlePointerCancel(e: ReactPointerEvent<HTMLElement>) {
-    const d = dragRef.current;
-    if (!d || e.pointerId !== d.pointerId) return;
-    cleanupDragDom(d);
-    dragRef.current = null;
-  }
-
-  function finishDrag(d: DragState) {
-    if (!active) return;
-    const unchanged =
-      d.targetX === d.origX && d.targetY === d.origY && d.targetW === d.origW && d.targetH === d.origH;
-    if (unchanged) return;
-    const layout = layoutAfterChange(active.widgets, d.widgetId, {
-      x: d.targetX,
-      y: d.targetY,
-      w: d.targetW,
-      h: d.targetH,
-    });
-    void persistLayout(layout);
-  }
-
-  async function persistLayout(layout: Array<LItem & { position: number }>) {
-    if (!active) return;
-    setError(null);
-    const snapshot = boards;
-    setBoards((prev) =>
-      prev.map((b) =>
-        b.id === active.id
-          ? {
-              ...b,
-              widgets: b.widgets
-                .map((w) => {
-                  const item = layout.find((l) => l.id === w.id);
-                  return item
-                    ? { ...w, x: item.x, y: item.y, w: item.w, h: item.h, position: item.position }
-                    : w;
-                })
-                .sort((a, b) => a.position - b.position),
-            }
-          : b,
-      ),
-    );
-    const res = await fetch(`/api/crm/dashboards/${active.id}`, {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ layout }),
-    }).catch(() => null);
-    if (!res || !res.ok) {
-      setBoards(snapshot);
-      setError(tCrm('errors.generic'));
-    }
-  }
-
-  // ---------- Widget bodies ----------
-
-  function widgetTitle(w: CrmDashboardWidgetRow): string {
-    const cfg = parseConfig(w.config);
-    if (w.type === 'kpi') return tCrm(`reports.kpi.${cfg.metric ?? 'newContacts'}`);
-    if (w.type === 'custom_report') {
-      const state = dataStateFor(w);
-      const report = state.status === 'ready' ? (state.data as WidgetDataMap['custom_report']).report : null;
-      return report?.name ?? t('widgets.custom_report');
-    }
-    return t(`widgets.${w.type}`);
-  }
-
-  function renderBody(w: CrmDashboardWidgetRow): ReactNode {
-    const state = dataStateFor(w);
-    if (state.status === 'loading') return <p className="muted dash-loading">{t('loading')}</p>;
-    if (state.status === 'error') return <p className="muted dash-loading">{t('loadError')}</p>;
-    const data = state.data;
-    const empty = <p className="muted breakdown-empty">{t('emptyData')}</p>;
-
-    switch (w.type as DashboardWidgetType) {
-      case 'kpi': {
-        const { kpis } = data as WidgetDataMap['kpi'];
-        const metric = (parseConfig(w.config).metric ?? 'newContacts') as KpiMetric;
-        const value = kpis[metric];
-        const delta = kpis[`${metric}Delta` as keyof typeof kpis];
-        return (
-          <div className="dash-kpi">
-            <span className="stat-num dash-kpi-value">
-              {metric === 'wonAmount' ? formatMoney(value, locale, baseCurrency) : formatNumber(value, locale)}
-            </span>
-            <span className={`stat-delta ${delta >= 0 ? 'up' : 'down'}`}>
-              {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}%
-            </span>
-          </div>
-        );
-      }
-      case 'funnel': {
-        const { funnel } = data as WidgetDataMap['funnel'];
-        if (funnel.length === 0) return empty;
-        const max = Math.max(...funnel.map((s) => s.count), 1);
-        return (
-          <div className="breakdown">
-            {funnel.map((stage) => (
-              <div className="breakdown-row funnel-row" key={stage.id}>
-                <span className="breakdown-name" title={stage.name}>
-                  {stage.name}
-                </span>
-                <span
-                  className="breakdown-track"
-                  title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
-                >
-                  <span
-                    className="breakdown-bar"
-                    style={{ width: `${Math.max((stage.count / max) * 100, 2)}%` }}
-                  />
-                </span>
-                <span className="funnel-stats mono">
-                  {formatNumber(stage.count, locale)}
-                  {stage.conversionRate !== null && (
-                    <span className="funnel-conv" title={tCrm('reports.vsPrev')}>
-                      {stage.conversionRate}%
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      }
-      case 'forecast': {
-        const { forecast } = data as WidgetDataMap['forecast'];
-        if (forecast.length === 0) return empty;
-        const total = forecast.reduce((s, f) => s + f.forecast, 0);
-        const max = Math.max(...forecast.map((f) => f.forecast), 1);
-        return (
-          <>
-            <div className="report-total">
-              <span className="stat-num dash-total-num">{formatMoney(total, locale, baseCurrency)}</span>
-              <span className="stat-label">
-                {tCrm('reports.total')} · {tCrm('reports.forecast')}
+    if (data.kind === 'kpi') {
+      const pct = data.prev !== null && data.prev !== 0 ? Math.round(((data.value - data.prev) / Math.abs(data.prev)) * 100) : null;
+      const valueText = fmtValue(data.value, data.format);
+      const key = tileKey(w);
+      const detail =
+        data.detail?.closed !== undefined
+          ? t('dash.tile.winDetail', { won: data.detail.won ?? 0, closed: data.detail.closed })
+          : data.detail?.count !== undefined
+            ? key === 'sales_velocity'
+              ? t('dash.tile.openDeals', { count: data.detail.count })
+              : t('dash.tile.deals', { count: data.detail.count })
+            : null;
+      return (
+        <div className="cdb-kpi">
+          {data.drill ? (
+            <button type="button" className="cdb-kpi-value" data-testid="cdb-kpi-value" aria-label={`${title}: ${valueText}`} onClick={() => void openDrill(w.id, {}, title, subtitle)}>
+              {valueText}
+            </button>
+          ) : (
+            <span className="cdb-kpi-value">{valueText}</span>
+          )}
+          <div className="cdb-kpi-meta">
+            {pct !== null ? (
+              <span className={`cdb-delta ${pct > 0 ? 'is-up' : pct < 0 ? 'is-down' : 'is-flat'}`}>
+                <span aria-hidden>{pct > 0 ? '▲' : pct < 0 ? '▼' : '='}</span> {Math.abs(pct)}% <span className="cdb-muted">{t('dash.tile.vsPrev')}</span>
               </span>
-            </div>
-            <div className="breakdown">
-              {forecast.map((stage) => (
-                <div className="breakdown-row funnel-row" key={stage.id}>
-                  <span className="breakdown-name" title={stage.name}>
-                    {stage.name}
-                  </span>
-                  <span
-                    className="breakdown-track"
-                    title={`${formatNumber(stage.count, locale)} · ${formatMoney(stage.amount, locale, baseCurrency)}`}
-                  >
-                    <span
-                      className="breakdown-bar"
-                      style={{ width: `${Math.max((stage.forecast / max) * 100, 2)}%` }}
-                    />
-                  </span>
-                  <span className="funnel-stats mono">{formatMoney(stage.forecast, locale, baseCurrency)}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        );
-      }
-      case 'timeseries': {
-        const { timeseries } = data as WidgetDataMap['timeseries'];
-        if (timeseries.length === 0) return empty;
-        return (
-          <TimeseriesChart
-            data={timeseries}
-            locale={locale}
-            labels={{
-              contacts: tCrm('reports.contacts'),
-              deals: tCrm('reports.deals'),
-              ariaLabel: t('chartActivity'),
-            }}
-          />
-        );
-      }
-      case 'wonlost': {
-        const { wonLost } = data as WidgetDataMap['wonlost'];
-        return (
-          <WonLostChart
-            data={wonLost}
-            locale={locale}
-            labels={{
-              won: tCrm('reports.wonDeals'),
-              lost: tCrm('reports.lostDeals'),
-              ariaLabel: t('chartWonLost'),
-            }}
-          />
-        );
-      }
-      case 'source': {
-        const { sourcePerformance } = data as WidgetDataMap['source'];
-        if (sourcePerformance.length === 0) return empty;
-        const max = Math.max(...sourcePerformance.map((s) => s.deals), 1);
-        return (
-          <div className="breakdown">
-            {sourcePerformance.map((s) => (
-              <div className="breakdown-row" key={s.source}>
-                <span className="breakdown-name" title={s.source}>
-                  {tCrm(`enums.source.${s.source}`)}
-                </span>
-                <span
-                  className="breakdown-track"
-                  title={`${formatNumber(s.contacts, locale)} · ${formatMoney(s.amount, locale, baseCurrency)}`}
-                >
-                  <span
-                    className="breakdown-bar"
-                    style={{ width: `${Math.max((s.deals / max) * 100, 2)}%` }}
-                  />
-                </span>
-                <span className="breakdown-count mono">{formatNumber(s.deals, locale)}</span>
-              </div>
-            ))}
+            ) : data.prev === 0 ? (
+              <span className="cdb-muted">
+                {t('dash.tile.vsPrev')}: {fmtValue(0, data.format)}
+              </span>
+            ) : (
+              <span className="cdb-muted">{t('dash.tile.noPrev')}</span>
+            )}
+            {detail && <span className="cdb-muted">{detail}</span>}
           </div>
-        );
-      }
-      case 'owner': {
-        const { byOwner } = data as WidgetDataMap['owner'];
-        if (byOwner.length === 0) return empty;
-        return (
-          <table className="table owner-table">
-            <thead>
-              <tr>
-                <th>{tCrm('contacts.form.owner')}</th>
-                <th className="th-num">{tCrm('reports.contacts')}</th>
-                <th className="th-num">{tCrm('reports.deals')}</th>
-                <th className="th-num">{tCrm('reports.kpi.wonAmount')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byOwner.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.name ?? o.email}</td>
-                  <td className="mono td-num">{formatNumber(o.contacts, locale)}</td>
-                  <td className="mono td-num">{formatNumber(o.deals, locale)}</td>
-                  <td className="mono td-num">{formatMoney(o.wonAmount, locale, baseCurrency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        );
-      }
-      case 'leaderboard': {
-        const { leaderboard } = data as WidgetDataMap['leaderboard'];
-        if (leaderboard.length === 0) return empty;
-        const max = Math.max(...leaderboard.map((l) => l.completed), 1);
-        return (
-          <div className="breakdown">
-            {leaderboard.map((l, i) => (
-              <div className="breakdown-row" key={l.id}>
-                <span className="breakdown-name" title={l.email}>
-                  <span className="mono dash-rank">{i + 1}.</span> {l.name ?? l.email}
-                </span>
-                <span className="breakdown-track">
-                  <span
-                    className="breakdown-bar"
-                    style={{ width: `${Math.max((l.completed / max) * 100, 2)}%` }}
-                  />
-                </span>
-                <span className="breakdown-count mono">{formatNumber(l.completed, locale)}</span>
-              </div>
-            ))}
-          </div>
-        );
-      }
-      case 'tasks': {
-        const { tasks } = data as WidgetDataMap['tasks'];
-        if (tasks.length === 0) return empty;
-        return (
-          <ul className="dash-list">
-            {tasks.map((task) => (
-              <li className="dash-list-row" key={task.id}>
-                <span className="dash-list-main" title={task.subject}>
-                  {task.subject || tCrm('enums.activityType.task')}
-                </span>
-                <span className="dash-list-meta mono">
-                  <LocalText>{task.due_at ? formatDate(task.due_at, locale) : '—'}</LocalText>
-                  {task.contact_name || task.company_name || task.deal_name
-                    ? ` · ${task.contact_name ?? task.company_name ?? task.deal_name}`
-                    : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        );
-      }
-      case 'custom_report': {
-        const { report } = data as WidgetDataMap['custom_report'];
-        if (!report) return <p className="muted dash-loading">{t('reportMissing')}</p>;
-        return (
-          <div className="dash-report" data-no-drag>
-            <ReportChart result={report.result} viz={report.config.viz} locale={locale} baseCurrency={baseCurrency} compact />
-            <p className="dash-report-open">
-              <Link href={`/app/crm/reports/custom/${report.id}`}>{t('openReport')}</Link>
-            </p>
-          </div>
-        );
-      }
-      case 'recent_activity': {
-        const { activities } = data as WidgetDataMap['recent_activity'];
-        if (activities.length === 0) return empty;
-        return (
-          <ul className="dash-list">
-            {activities.map((a) => (
-              <li className="dash-list-row" key={a.id}>
-                <span className="dash-list-main" title={a.subject}>
-                  <span className="badge">{tCrm(`enums.activityType.${a.type}`)}</span> {a.subject}
-                </span>
-                <span className="dash-list-meta mono"><LocalText>{formatDate(a.created_at, locale)}</LocalText></span>
-              </li>
-            ))}
-          </ul>
-        );
-      }
+        </div>
+      );
     }
+    if (data.kind === 'records') {
+      if (!data.rows.length) return <p className="cdb-empty">{t('dash.tile.noData')}</p>;
+      return (
+        <div className="cdb-records">
+          <ul className="cdb-rec-list">
+            {data.rows.slice(0, 8).map((r) => (
+              <li key={r.id}>
+                <RecordLink row={r} onPreview={setPreview} />
+                <span className="cdb-rec-meta">
+                  {r.amount !== null ? fmtValue(r.amount, 'money') : statusLabel(r)}
+                  {r.date ? ` · ${fmtDate(r.date)}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="cdb-rec-foot">
+            <span className="cdb-muted">
+              {t('dash.tile.records', { count: data.total })}
+              {data.sum !== null ? ` · ${fmtValue(data.sum, 'money')}` : ''}
+            </span>
+            <button type="button" className="cdb-link" onClick={() => void openDrill(w.id, {}, title, subtitle)}>
+              {t('dash.tile.seeAll')}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    const def = libraryReport(tileKey(w));
+    const cfg = cfgOf(w.config);
+    const viz: TileViz = asTable.has(w.id) ? 'table' : cfg.viz && def?.vizOptions.includes(cfg.viz) ? cfg.viz : def?.viz ?? 'bar';
+    const hasData = data.series.some((s) => s.values.some((v) => v !== 0));
+    if (!data.categories.length || !hasData) return <p className="cdb-empty">{t('dash.tile.noData')}</p>;
+    const text = chartText(data);
+    const onDrill = data.drill
+      ? (seg: DrillSegment) => {
+          const parts = [
+            seg.category ? text.category(seg.category, data.categories.find((c) => c.key === seg.category)?.label ?? null) : null,
+            seg.series ? text.series(seg.series, null) : null,
+            subtitle,
+          ].filter(Boolean);
+          void openDrill(w.id, seg, title, parts.join(' · '));
+        }
+      : null;
+    return (
+      <>
+        {data.total !== null && data.format !== 'days' && viz !== 'table' && viz !== 'donut' && (
+          <p className="cdb-total">
+            <span className="cdb-total-num">{fmtValue(data.total, data.format)}</span> <span className="cdb-muted">{t('dash.tile.total')}</span>
+          </p>
+        )}
+        {viz === 'table' ? <ChartTable data={data} text={text} onDrill={onDrill} /> : <DashChart data={data} viz={viz} text={text} onDrill={onDrill} title={title} />}
+      </>
+    );
   }
 
-  // ---------- Render ----------
+  const allEmpty = useMemo(() => {
+    if (!active || !active.widgets.length) return false;
+    const vals = active.widgets.map((w) => tiles[w.id]);
+    return vals.every((v) => {
+      if (!v) return false;
+      if (v.kind === 'kpi') return v.value === 0;
+      if (v.kind === 'chart') return v.series.every((s) => s.values.every((x) => x === 0));
+      if (v.kind === 'records') return v.total === 0;
+      return false;
+    });
+  }, [active, tiles]);
+
+  // ---------- Selector ----------
+
+  const switcherBtn = useRef<HTMLButtonElement>(null);
+  const switcherPanel = useRef<HTMLDivElement>(null);
+  const closeSwitcher = useCallback((restore: boolean) => {
+    setSwitcherOpen(false);
+    if (restore) switcherBtn.current?.focus();
+  }, []);
+  const switcherRefs = useMemo(() => [switcherBtn, switcherPanel], []);
+  useDismiss(switcherOpen, switcherRefs, closeSwitcher);
+
+  const visibilityLabel = (b: DashboardView) =>
+    b.visibility === 'private'
+      ? t('dash.visibility.private')
+      : b.visibility === 'team'
+        ? t('dash.visibility.team', { team: teams.find((x) => x.id === b.team_id)?.name ?? t('dash.visibility.teamPlain') })
+        : t('dash.visibility.everyone');
+
+  const rangeOptions = DATE_PRESETS.map((p) => ({ value: p, label: t(`dash.ranges.${p}`) }));
+  const ownerOptions = [{ value: '', label: t('dash.filters.allOwners') }, ...owners.map((o) => ({ value: o.id, label: o.name }))];
+  const teamOptions = [{ value: '', label: t('dash.filters.allTeams') }, ...teams.map((o) => ({ value: o.id, label: o.name }))];
+  const pipelineOptions = [{ value: '', label: t('dash.filters.allPipelines') }, ...pipelines.map((o) => ({ value: o.id, label: o.name }))];
+  const editing = dialog && typeof dialog === 'object' && active ? active.widgets.find((x) => x.id === dialog.edit) ?? null : null;
 
   return (
-    <div className="dash">
-      {error && <p className="form-error">{error}</p>}
-      {missingRates.length > 0 && (
-        <p className="muted currency-note">{tc('currency.missing', { list: missingRates.join(', ') })}</p>
+    <div className="cdb">
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
       )}
+      {missingRates.length > 0 && <p className="muted currency-note">{t('currency.missing', { list: missingRates.join(', ') })}</p>}
 
-      <div className="dash-tabs">
-        {boards.map((b) => (
+      <div className="cdb-head">
+        <div className="cdb-switcher">
           <button
-            key={b.id}
+            ref={switcherBtn}
             type="button"
-            className={`dash-tab${b.id === activeId ? ' active' : ''}`}
-            onClick={() => setActiveId(b.id)}
+            className="cdb-switcher-btn"
+            aria-haspopup="dialog"
+            aria-expanded={switcherOpen}
+            data-testid="cdb-switcher"
+            onClick={() => setSwitcherOpen((v) => !v)}
           >
-            {b.name}
+            <span className="cdb-switcher-name">{active?.name ?? t('dashboards.title')}</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden>
+              <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
           </button>
-        ))}
-        {creating ? (
-          <input
-            className="input dash-tab-input"
-            autoFocus
-            value={newName}
-            placeholder={t('namePh')}
-            maxLength={200}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void submitCreate();
-              if (e.key === 'Escape') {
-                setCreating(false);
-                setNewName('');
-              }
-            }}
-            onBlur={() => void submitCreate()}
-          />
-        ) : (
-          <button
-            type="button"
-            className="dash-tab dash-tab-new"
-            onClick={() => setCreating(true)}
-          >
-            + {t('newDashboard')}
-          </button>
-        )}
+          {switcherOpen && (
+            <SwitcherPanel
+              panelRef={switcherPanel}
+              boards={boards}
+              activeId={activeId}
+              onPick={(id) => selectBoard(id)}
+              onCreate={() => {
+                setSwitcherOpen(false);
+                setDialog('create');
+              }}
+              t={t}
+              visibilityLabel={visibilityLabel}
+            />
+          )}
+          {active && (
+            <p className="cdb-meta">
+              <span>{visibilityLabel(active)}</span>
+              {active.ownerName && !active.isOwner && <span>{t('dash.switcher.ownedBy', { name: active.ownerName })}</span>}
+              {!active.canEdit && <span>{t('dash.viewOnly')}</span>}
+              {active.isDefault && <span>{t('dash.switcher.default')}</span>}
+            </p>
+          )}
+        </div>
+        <div className="cdb-head-actions">
+          {active?.canEdit && (
+            <button type="button" className="btn btn-sm btn-primary" data-testid="cdb-add-report" onClick={() => setDialog('library')}>
+              {t('dash.addReport')}
+            </button>
+          )}
+          {active ? (
+            <button type="button" className="btn btn-sm" aria-haspopup="menu" data-testid="cdb-actions" onClick={(e) => openBoardMenu(e.currentTarget)}>
+              {t('dash.actions.menu')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => setDialog('create')}>
+              {t('dash.switcher.create')}
+            </button>
+          )}
+        </div>
       </div>
 
-      {active ? (
-        <>
-          <div className="dash-toolbar">
-            <input
-              className="dash-name-input"
-              value={renameValue}
-              maxLength={200}
-              aria-label={t('renameDashboard')}
-              title={t('renameDashboard')}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') setRenameValue(active.name);
+      {active && (
+        <div className="cdb-filters" role="group" aria-label={t('dash.filters.label')} data-testid="cdb-filters">
+          <MenuSelect
+            label={t('dash.filters.range')}
+            testId="cdb-filter-range"
+            value={customDraft ? 'custom' : filters.range}
+            options={rangeOptions}
+            onChange={(v) => {
+              if (v === 'custom') {
+                const r = resolveRange(filters);
+                setCustomDraft({ from: filters.from ?? r.from, to: filters.to ?? r.to });
+                return;
+              }
+              setCustomDraft(null);
+              applyFilters({ ...filters, range: v as DashboardFilters['range'], from: undefined, to: undefined });
+            }}
+          />
+          {(customDraft || filters.range === 'custom') && (
+            <form
+              className="cdb-custom-range"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!customDraft?.from || !customDraft.to) return;
+                const d = customDraft;
+                setCustomDraft(null);
+                applyFilters({ ...filters, range: 'custom', from: d.from, to: d.to });
               }}
-              onBlur={() => void submitRename()}
-            />
-            <div className="dash-toolbar-actions">
-              <div className="dash-add-wrap" ref={addMenuRef}>
-                <button
-                  type="button"
-                  className="btn btn-small"
-                  onClick={() => setAddMenuOpen((v) => !v)}
-                  aria-haspopup="menu"
-                  aria-expanded={addMenuOpen}
-                >
-                  {t('addWidget')}
+            >
+              <input
+                type="date"
+                className="input cdb-date"
+                aria-label={t('dash.filters.from')}
+                value={customDraft?.from ?? filters.from ?? ''}
+                onChange={(e) => setCustomDraft((d) => ({ from: e.target.value, to: d?.to ?? filters.to ?? '' }))}
+              />
+              <input
+                type="date"
+                className="input cdb-date"
+                aria-label={t('dash.filters.to')}
+                value={customDraft?.to ?? filters.to ?? ''}
+                onChange={(e) => setCustomDraft((d) => ({ from: d?.from ?? filters.from ?? '', to: e.target.value }))}
+              />
+              {customDraft && (
+                <button type="submit" className="btn btn-sm">
+                  {t('dash.filters.apply')}
                 </button>
-                {addMenuOpen && (
-                  <div className="dash-add-menu" role="menu">
-                    {DASHBOARD_MENU_TYPES.map((type) => (
-                      <button key={type} type="button" onClick={() => void addNewWidget(type)}>
-                        {t(`widgets.${type}`)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
+            </form>
+          )}
+          {owners.length > 1 && (
+            <MenuSelect
+              label={t('dash.filters.owner')}
+              testId="cdb-filter-owner"
+              value={filters.ownerId ?? ''}
+              options={ownerOptions}
+              onChange={(v) => applyFilters({ ...filters, ownerId: v || null, teamId: v ? null : filters.teamId })}
+            />
+          )}
+          {teams.length > 0 && (
+            <MenuSelect
+              label={t('dash.filters.team')}
+              testId="cdb-filter-team"
+              value={filters.teamId ?? ''}
+              options={teamOptions}
+              onChange={(v) => applyFilters({ ...filters, teamId: v || null, ownerId: v ? null : filters.ownerId })}
+            />
+          )}
+          {pipelines.length > 1 && (
+            <MenuSelect
+              label={t('dash.filters.pipeline')}
+              testId="cdb-filter-pipeline"
+              value={filters.pipelineId ?? ''}
+              options={pipelineOptions}
+              onChange={(v) => applyFilters({ ...filters, pipelineId: v || null })}
+            />
+          )}
+          {filtersDirty && savedFilters && (
+            <span className="cdb-filter-actions">
               <button
                 type="button"
-                className="btn btn-ghost btn-small"
-                onClick={() => setConfirmingDelete(true)}
+                className="btn btn-sm btn-ghost"
+                onClick={() => {
+                  setCustomDraft(null);
+                  applyFilters(savedFilters);
+                }}
               >
-                {t('deleteDashboard')}
+                {t('dash.filters.reset')}
               </button>
-            </div>
-          </div>
-
-          {active.widgets.length === 0 ? (
-            <div className="panel dash-empty">
-              <p className="dash-empty-title">{t('emptyTitle')}</p>
-              <p className="muted">{t('emptyDesc')}</p>
-            </div>
-          ) : (
-            <div className="dash-grid" ref={gridRef}>
-              <div className="dash-drop-preview" ref={previewRef} aria-hidden="true" />
-              {active.widgets.map((w) => {
-                const cfg = parseConfig(w.config);
-                return (
-                  <section
-                    className="dash-widget"
-                    key={w.id}
-                    style={{
-                      gridColumn: `${w.x + 1} / span ${w.w}`,
-                      gridRow: `${w.y + 1} / span ${w.h}`,
-                    }}
-                  >
-                    <header
-                      className="dash-widget-head"
-                      onPointerDown={(e) => handleGripDown(e, w, 'move')}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerCancel}
-                    >
-                      <span className="dash-widget-grip" aria-hidden="true">
-                        ⠿
-                      </span>
-                      {/* En un KPI el título y el select dicen lo mismo: el select hace de título. */}
-                      {w.type !== 'kpi' && (
-                        <span className="dash-widget-title" title={widgetTitle(w)}>
-                          {widgetTitle(w)}
-                        </span>
-                      )}
-                      <span className={`dash-widget-actions${w.type === 'kpi' ? ' dash-widget-actions-grow' : ''}`}>
-                        {w.type === 'kpi' && (
-                          <select
-                            className="dash-widget-select"
-                            data-no-drag
-                            value={cfg.metric ?? 'newContacts'}
-                            aria-label={tCrm('reports.title')}
-                            onChange={(e) =>
-                              void changeConfig(w, { ...cfg, metric: e.target.value as KpiMetric })
-                            }
-                          >
-                            {KPI_METRICS.map((m) => (
-                              <option key={m} value={m}>
-                                {tCrm(`reports.kpi.${m}`)}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        {(w.type === 'funnel' || w.type === 'forecast') &&
-                          pipelines.length > 1 && (
-                            <select
-                              className="dash-widget-select"
-                              data-no-drag
-                              value={cfg.pipelineId ?? defaultPipelineId ?? ''}
-                              aria-label={tCrm('reports.pipeline')}
-                              onChange={(e) =>
-                                void changeConfig(w, {
-                                  ...cfg,
-                                  pipelineId: e.target.value || null,
-                                })
-                              }
-                            >
-                              {pipelines.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        <button
-                          type="button"
-                          className="dash-widget-x"
-                          data-no-drag
-                          aria-label={tCrm('common.delete')}
-                          onClick={() => void removeWidget(w)}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    </header>
-                    <div className="dash-widget-body">{renderBody(w)}</div>
-                    <span
-                      className="dash-resize"
-                      data-no-drag
-                      aria-hidden="true"
-                      onPointerDown={(e) => handleGripDown(e, w, 'resize')}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerCancel}
-                    />
-                  </section>
-                );
-              })}
-            </div>
+              {active.canEdit && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={async () => {
+                    if (await patchBoard(active.id, { filters })) flash(t('dash.filters.saved'));
+                  }}
+                >
+                  {t('dash.filters.save')}
+                </button>
+              )}
+            </span>
           )}
-        </>
-      ) : (
-        <div className="panel dash-empty">
-          <p className="dash-empty-title">{t('noDashboardsTitle')}</p>
-          <p className="muted">{t('noDashboardsDesc')}</p>
         </div>
       )}
 
+      <p className="cdb-notice" role="status" aria-live="polite">
+        {notice ?? ''}
+      </p>
+
+      {!active ? (
+        <EmptyState
+          title={t('dash.empty.noDashTitle')}
+          body={t('dash.empty.noDashBody')}
+          product="crm"
+          action={
+            <button type="button" className="btn btn-primary" onClick={() => setDialog('create')}>
+              {t('dash.switcher.create')}
+            </button>
+          }
+        />
+      ) : active.widgets.length === 0 ? (
+        <EmptyState
+          title={t('dash.empty.title')}
+          body={t('dash.empty.body')}
+          product="crm"
+          action={
+            active.canEdit ? (
+              <button type="button" className="btn btn-primary" onClick={() => setDialog('library')}>
+                {t('dash.addReport')}
+              </button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <>
+          {allEmpty && <p className="cdb-nodata">{t('dash.empty.noData')}</p>}
+          <div className={`cdb-grid${dragging ? ' is-dragging' : ''}`} data-testid="cdb-grid">
+            {active.widgets.map((w, index) => {
+              const title = tileTitle(w);
+              const data = tiles[w.id];
+              const kind = data ? data.kind : 'loading';
+              const drop = dropAt?.id === w.id ? (dropAt.after ? ' drop-after' : ' drop-before') : '';
+              return (
+                <section
+                  key={w.id}
+                  className={`cdb-tile cdb-tile-${kind}${dragging === w.id ? ' is-dragged' : ''}${drop}`}
+                  data-size={sizeFromCols(w.w)}
+                  data-tile-id={w.id}
+                  data-testid="cdb-tile"
+                  aria-label={title}
+                >
+                  <header className="cdb-tile-head">
+                    {active.canEdit && (
+                      <button
+                        type="button"
+                        className="cdb-grip"
+                        aria-label={t('dash.tile.drag', { name: title })}
+                        data-testid="cdb-grip"
+                        onPointerDown={(e) => gripDown(e, w.id)}
+                        onPointerMove={gripMove}
+                        onPointerUp={gripUp}
+                        onPointerCancel={gripCancel}
+                        onKeyDown={(e) => gripKey(e, w.id, index)}
+                      >
+                        <svg width="10" height="14" viewBox="0 0 10 14" aria-hidden>
+                          {[2, 7, 12].map((y) => (
+                            <g key={y}>
+                              <circle cx="2.5" cy={y} r="1.2" />
+                              <circle cx="7.5" cy={y} r="1.2" />
+                            </g>
+                          ))}
+                        </svg>
+                      </button>
+                    )}
+                    <div className="cdb-tile-titles">
+                      <h2 className="cdb-tile-title dash-widget-title" title={title}>
+                        {title}
+                      </h2>
+                      <p className="cdb-tile-sub">{tileSubtitle(w)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="cdb-tile-menu"
+                      aria-label={t('dash.tile.menu', { name: title })}
+                      aria-haspopup="menu"
+                      data-testid="cdb-tile-menu"
+                      onClick={(e) => openTileMenu(e.currentTarget, w, index)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                        <circle cx="3" cy="7" r="1.3" />
+                        <circle cx="7" cy="7" r="1.3" />
+                        <circle cx="11" cy="7" r="1.3" />
+                      </svg>
+                    </button>
+                  </header>
+                  <div className="cdb-tile-body">{renderBody(w)}</div>
+                </section>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {menu && <ContextMenu anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />}
+
+      {dialog === 'create' && <CreateDialog t={t} onClose={() => setDialog(null)} onCreate={(body) => void createBoard(body)} />}
+      {dialog === 'rename' && active && (
+        <NameDialog
+          t={t}
+          initial={active.name}
+          onClose={() => setDialog(null)}
+          onSave={async (name) => {
+            if (await patchBoard(active.id, { name })) setDialog(null);
+          }}
+        />
+      )}
+      {dialog === 'share' && active && (
+        <ShareDialog
+          t={t}
+          board={active}
+          teams={teams}
+          onClose={() => setDialog(null)}
+          onSave={async (body) => {
+            if (await patchBoard(active.id, body)) setDialog(null);
+          }}
+        />
+      )}
+      {editing && (
+        <EditTileDialog
+          t={t}
+          title={cfgOf(editing.config).title ?? ''}
+          placeholder={tileTitle(editing)}
+          viz={cfgOf(editing.config).viz ?? libraryReport(tileKey(editing))?.viz ?? null}
+          vizOptions={libraryReport(tileKey(editing))?.vizOptions ?? []}
+          customHref={editing.type === 'custom_report' && cfgOf(editing.config).reportId ? `/app/crm/reports/custom/${cfgOf(editing.config).reportId}` : null}
+          onClose={() => setDialog(null)}
+          onSave={async (body) => {
+            await patchTile(editing.id, { config: body });
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog === 'library' && active && (
+        <LibraryDrawer t={t} customReports={customReports} onClose={() => setDialog(null)} onAdd={addTile} onAdded={(msg) => flash(msg)} />
+      )}
+
       <ConfirmDialog
-        open={confirmingDelete && !!active}
+        open={dialog === 'delete' && !!active}
         danger
-        title={t('confirmDeleteTitle')}
-        body={active ? t('confirmDelete', { name: active.name, count: active.widgets.length }) : null}
-        confirmLabel={tCrm('common.delete')}
-        cancelLabel={tCrm('common.cancel')}
-        onConfirm={() => void confirmDeleteDashboard()}
-        onCancel={() => setConfirmingDelete(false)}
+        title={t('dashboards.confirmDeleteTitle')}
+        body={active ? t('dashboards.confirmDelete', { name: active.name, count: active.widgets.length }) : null}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => void deleteBoard()}
+        onCancel={() => setDialog(null)}
       />
+
+      {drill && (
+        <DrillPanel
+          t={t}
+          drill={drill}
+          previewOpen={!!preview}
+          fmtValue={fmtValue}
+          fmtDate={fmtDate}
+          statusLabel={statusLabel}
+          onPreview={setPreview}
+          onClose={() => {
+            const back = drill.returnFocus;
+            setDrill(null);
+            back?.focus?.();
+          }}
+        />
+      )}
+      {preview && <RecordPreview type={preview.type} id={preview.id} locale={locale} onClose={() => setPreview(null)} />}
+    </div>
+  );
+}
+
+type T = ReturnType<typeof useTranslations<'crm'>>;
+
+function RecordLink({ row, onPreview }: { row: DrillRow; onPreview: (p: PreviewTarget) => void }) {
+  const name = row.name || '…';
+  if (row.previewType && row.previewId) {
+    const target: PreviewTarget = { type: row.previewType, id: row.previewId };
+    return (
+      <button type="button" className="cdb-rec-name" data-testid="cdb-record" onClick={() => onPreview(target)}>
+        {name}
+      </button>
+    );
+  }
+  if (row.href) {
+    return (
+      <Link href={row.href} className="cdb-rec-name" data-testid="cdb-record">
+        {name}
+      </Link>
+    );
+  }
+  return <span className="cdb-rec-name">{name}</span>;
+}
+
+function SwitcherPanel({
+  panelRef,
+  boards,
+  activeId,
+  onPick,
+  onCreate,
+  t,
+  visibilityLabel,
+}: {
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  boards: DashboardView[];
+  activeId: string | null;
+  onPick: (id: string) => void;
+  onCreate: () => void;
+  t: T;
+  visibilityLabel: (b: DashboardView) => string;
+}) {
+  const [q, setQ] = useState('');
+  const [cursor, setCursor] = useState(0);
+  const list = boards.filter((b) => b.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => inputRef.current?.focus(), []);
+  return (
+    <div className="cdb-switcher-panel" ref={panelRef} role="dialog" aria-label={t('dash.switcher.label')} data-testid="cdb-switcher-panel">
+      <input
+        ref={inputRef}
+        className="input cdb-switcher-search"
+        placeholder={t('dash.switcher.searchPh')}
+        aria-label={t('dash.switcher.searchPh')}
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setCursor(0);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setCursor((c) => Math.min(list.length - 1, c + 1));
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setCursor((c) => Math.max(0, c - 1));
+          }
+          if (e.key === 'Enter' && list[cursor]) {
+            e.preventDefault();
+            onPick(list[cursor].id);
+          }
+        }}
+      />
+      <ul className="cdb-switcher-list" aria-label={t('dashboards.title')}>
+        {list.map((b, i) => (
+          <li key={b.id}>
+            <button
+              type="button"
+              className={`cdb-switcher-item${i === cursor ? ' is-cursor' : ''}${b.id === activeId ? ' is-active' : ''}`}
+              aria-current={b.id === activeId ? 'true' : undefined}
+              onClick={() => onPick(b.id)}
+              onMouseEnter={() => setCursor(i)}
+            >
+              <span className="cdb-switcher-item-name">{b.name}</span>
+              <span className="cdb-switcher-item-meta">
+                {b.isDefault ? `${t('dash.switcher.default')} · ` : ''}
+                {visibilityLabel(b)}
+              </span>
+            </button>
+          </li>
+        ))}
+        {!list.length && <li className="cdb-muted cdb-switcher-none">{t('dash.switcher.noMatch')}</li>}
+      </ul>
+      <button type="button" className="cdb-switcher-create" onClick={onCreate}>
+        + {t('dash.switcher.create')}
+      </button>
+    </div>
+  );
+}
+
+/** <dialog class="ui-modal"> con foco atrapado, Esc y clic en el telón para cerrar. */
+function Modal({ title, onClose, children, foot, testId }: { title: string; onClose: () => void; children: ReactNode; foot: ReactNode; testId?: string }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+    return () => back?.focus?.();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="ui-modal"
+      aria-label={title}
+      data-testid={testId}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="ui-modal-head">
+        <h2 className="ui-modal-title">{title}</h2>
+      </div>
+      <div className="ui-modal-body">{children}</div>
+      <div className="ui-modal-foot">{foot}</div>
+    </dialog>
+  );
+}
+
+function CreateDialog({ t, onClose, onCreate }: { t: T; onClose: () => void; onCreate: (b: { name: string; template: 'blank' | 'sales' }) => void }) {
+  const [name, setName] = useState('');
+  const [template, setTemplate] = useState<'blank' | 'sales'>('sales');
+  return (
+    <Modal
+      title={t('dash.create.title')}
+      onClose={onClose}
+      testId="cdb-create"
+      foot={
+        <>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
+            {t('dash.create.cancel')}
+          </button>
+          <button type="submit" form="cdb-create-form" className="btn btn-sm btn-primary" disabled={!name.trim()}>
+            {t('dash.create.submit')}
+          </button>
+        </>
+      }
+    >
+      <form
+        id="cdb-create-form"
+        className="cdb-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onCreate({ name: name.trim(), template });
+        }}
+      >
+        <label className="ui-field">
+          <span className="label">{t('dash.create.name')}</span>
+          <input className="input" autoFocus maxLength={200} value={name} placeholder={t('dash.create.namePh')} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <fieldset className="cdb-choice">
+          <legend className="label">{t('dash.create.startWith')}</legend>
+          {(['sales', 'blank'] as const).map((k) => (
+            <label key={k} className={`cdb-choice-item${template === k ? ' is-on' : ''}`}>
+              <input type="radio" name="cdb-template" value={k} checked={template === k} onChange={() => setTemplate(k)} />
+              <span className="cdb-choice-text">
+                <strong>{t(`dash.create.${k}`)}</strong>
+                <span className="cdb-muted">{t(`dash.create.${k}Hint`)}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      </form>
+    </Modal>
+  );
+}
+
+function NameDialog({ t, initial, onClose, onSave }: { t: T; initial: string; onClose: () => void; onSave: (name: string) => void }) {
+  const [name, setName] = useState(initial);
+  return (
+    <Modal
+      title={t('dash.rename.title')}
+      onClose={onClose}
+      testId="cdb-rename"
+      foot={
+        <>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
+            {t('dash.create.cancel')}
+          </button>
+          <button type="submit" form="cdb-name-form" className="btn btn-sm btn-primary" disabled={!name.trim()}>
+            {t('dash.rename.save')}
+          </button>
+        </>
+      }
+    >
+      <form
+        id="cdb-name-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onSave(name.trim());
+        }}
+      >
+        <label className="ui-field">
+          <span className="label">{t('dash.create.name')}</span>
+          <input className="input" autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} onFocus={(e) => e.currentTarget.select()} />
+        </label>
+      </form>
+    </Modal>
+  );
+}
+
+function ShareDialog({
+  t,
+  board,
+  teams,
+  onClose,
+  onSave,
+}: {
+  t: T;
+  board: DashboardView;
+  teams: Array<{ id: string; name: string }>;
+  onClose: () => void;
+  onSave: (b: { visibility: DashboardVisibility; teamId: string | null; access: DashboardAccess }) => void;
+}) {
+  const [visibility, setVisibility] = useState<DashboardVisibility>(board.visibility as DashboardVisibility);
+  const [teamId, setTeamId] = useState<string>(board.team_id ?? teams[0]?.id ?? '');
+  const [access, setAccess] = useState<DashboardAccess>(board.access === 'view' ? 'view' : 'edit');
+  const canSave = visibility !== 'team' || !!teamId;
+  return (
+    <Modal
+      title={t('dash.share.title')}
+      onClose={onClose}
+      testId="cdb-share"
+      foot={
+        <>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
+            {t('dash.create.cancel')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            disabled={!canSave}
+            onClick={() => onSave({ visibility, teamId: visibility === 'team' ? teamId : null, access })}
+          >
+            {t('dash.share.save')}
+          </button>
+        </>
+      }
+    >
+      <div className="cdb-form">
+        <fieldset className="cdb-choice">
+          <legend className="label">{t('dash.share.who')}</legend>
+          {(['private', 'team', 'everyone'] as const).map((v) => (
+            <label key={v} className={`cdb-choice-item${visibility === v ? ' is-on' : ''}`}>
+              <input type="radio" name="cdb-vis" value={v} checked={visibility === v} disabled={v === 'team' && !teams.length} onChange={() => setVisibility(v)} />
+              <span>{v === 'team' ? t('dash.visibility.teamPlain') : t(`dash.visibility.${v}`)}</span>
+            </label>
+          ))}
+        </fieldset>
+        {visibility === 'team' && (
+          <label className="ui-field">
+            <span className="label">{t('dash.share.team')}</span>
+            <select className="select" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+              {teams.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!teams.length && <p className="ui-help">{t('dash.share.noTeams')}</p>}
+        {visibility !== 'private' && (
+          <fieldset className="cdb-choice">
+            <legend className="label">{t('dash.share.what')}</legend>
+            {(['view', 'edit'] as const).map((v) => (
+              <label key={v} className={`cdb-choice-item${access === v ? ' is-on' : ''}`}>
+                <input type="radio" name="cdb-access" value={v} checked={access === v} onChange={() => setAccess(v)} />
+                <span>{t(`dash.access.${v}`)}</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <p className="ui-help">{t('dash.share.hint')}</p>
+      </div>
+    </Modal>
+  );
+}
+
+function EditTileDialog({
+  t,
+  title,
+  placeholder,
+  viz,
+  vizOptions,
+  customHref,
+  onClose,
+  onSave,
+}: {
+  t: T;
+  title: string;
+  placeholder: string;
+  viz: TileViz | null;
+  vizOptions: TileViz[];
+  customHref: string | null;
+  onClose: () => void;
+  onSave: (b: { title: string; viz?: TileViz }) => void;
+}) {
+  const [name, setName] = useState(title);
+  const [v, setV] = useState<TileViz | null>(viz);
+  return (
+    <Modal
+      title={t('dash.edit.title')}
+      onClose={onClose}
+      testId="cdb-edit"
+      foot={
+        <>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
+            {t('dash.edit.cancel')}
+          </button>
+          <button type="submit" form="cdb-edit-form" className="btn btn-sm btn-primary">
+            {t('dash.edit.save')}
+          </button>
+        </>
+      }
+    >
+      <form
+        id="cdb-edit-form"
+        className="cdb-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave({ title: name.trim(), ...(v && vizOptions.length > 1 ? { viz: v } : {}) });
+        }}
+      >
+        <label className="ui-field">
+          <span className="label">{t('dash.edit.name')}</span>
+          <input className="input" autoFocus maxLength={120} value={name} placeholder={placeholder} onChange={(e) => setName(e.target.value)} />
+        </label>
+        {vizOptions.length > 1 && (
+          <fieldset className="cdb-choice cdb-viz-choice">
+            <legend className="label">{t('dash.edit.viz')}</legend>
+            {vizOptions.map((o) => (
+              <label key={o} className={`cdb-choice-item${v === o ? ' is-on' : ''}`}>
+                <input type="radio" name="cdb-viz" value={o} checked={v === o} onChange={() => setV(o)} />
+                <span>{t(`dash.viz.${o}`)}</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+        {customHref && (
+          <p className="ui-help">
+            <Link href={customHref}>{t('dash.tile.openReport')}</Link>
+          </p>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function LibraryDrawer({
+  t,
+  customReports,
+  onClose,
+  onAdd,
+  onAdded,
+}: {
+  t: T;
+  customReports: Array<{ id: string; name: string }>;
+  onClose: () => void;
+  onAdd: (b: Record<string, unknown>) => Promise<boolean>;
+  onAdded: (msg: string) => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState<'all' | 'mine' | (typeof REPORT_CATEGORIES)[number]>('all');
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+    return () => back?.focus?.();
+  }, []);
+  const query = q.trim().toLowerCase();
+  const lib = cat === 'mine' ? [] : LIBRARY.filter((r) => (cat === 'all' || r.category === cat) && (!query || `${t(`dash.reports.${r.key}.name`)} ${t(`dash.reports.${r.key}.desc`)}`.toLowerCase().includes(query)));
+  const mine = cat === 'all' || cat === 'mine' ? customReports.filter((r) => !query || r.name.toLowerCase().includes(query)) : [];
+
+  async function add(id: string, body: Record<string, unknown>) {
+    setBusy(id);
+    const ok = await onAdd(body);
+    setBusy(null);
+    if (ok) {
+      setAdded((s) => new Set(s).add(id));
+      onAdded(t('dash.library.added'));
+    }
+  }
+
+  const item = (id: string, name: string, desc: string | null, meta: string, body: Record<string, unknown>, report?: string) => (
+    <li key={id} className="cdb-lib-item" data-testid="cdb-lib-item" data-report={report}>
+      <div className="cdb-lib-text">
+        <span className="cdb-lib-name">{name}</span>
+        {desc && <span className="cdb-lib-desc">{desc}</span>}
+        <span className="cdb-lib-meta">{meta}</span>
+      </div>
+      <button type="button" className="btn btn-sm" disabled={busy === id} aria-label={`${t('dash.library.add')}: ${name}`} onClick={() => void add(id, body)}>
+        {added.has(id) ? `✓ ${t('dash.library.added')}` : t('dash.library.add')}
+      </button>
+    </li>
+  );
+
+  return (
+    <dialog
+      ref={ref}
+      className="ui-drawer cdb-library"
+      aria-label={t('dash.library.title')}
+      data-testid="cdb-library"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="ui-drawer-head">
+        <h2 className="ui-drawer-title">{t('dash.library.title')}</h2>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>
+          {t('dash.drill.close')}
+        </button>
+      </div>
+      <div className="ui-drawer-body cdb-lib-body">
+        <input className="input" autoFocus placeholder={t('dash.library.searchPh')} aria-label={t('dash.library.searchPh')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="cdb-lib-cats" role="group" aria-label={t('dash.library.title')}>
+          {(['all', ...REPORT_CATEGORIES, 'mine'] as const).map((c) => (
+            <button key={c} type="button" aria-pressed={cat === c} className={`cdb-lib-cat${cat === c ? ' is-on' : ''}`} onClick={() => setCat(c)}>
+              {c === 'all' ? t('dash.library.all') : c === 'mine' ? t('dash.library.mine') : t(`dash.library.categories.${c}`)}
+            </button>
+          ))}
+        </div>
+        <ul className="cdb-lib-list">
+          {lib.map((r) =>
+            item(
+              r.key,
+              t(`dash.reports.${r.key}.name`),
+              t(`dash.reports.${r.key}.desc`),
+              `${t(`dash.library.categories.${r.category}`)} · ${t(`dash.viz.${r.viz}`)}`,
+              { type: 'library', config: { reportKey: r.key } },
+              r.key,
+            ),
+          )}
+          {mine.map((r) => item(r.id, r.name, null, t('dash.library.mine'), { type: 'custom_report', config: { reportId: r.id } }))}
+          {cat === 'mine' && !mine.length && <li className="cdb-muted cdb-lib-none">{t('dash.library.noCustom')}</li>}
+          {cat !== 'mine' && !lib.length && !mine.length && <li className="cdb-muted cdb-lib-none">{t('dash.library.noResults')}</li>}
+        </ul>
+      </div>
+      <div className="ui-drawer-foot">
+        <Link href="/app/crm/reports/custom/new" className="btn btn-sm">
+          {t('dash.library.createCustom')}
+        </Link>
+      </div>
+    </dialog>
+  );
+}
+
+function DrillPanel({
+  t,
+  drill,
+  previewOpen,
+  fmtValue,
+  fmtDate,
+  statusLabel,
+  onPreview,
+  onClose,
+}: {
+  t: T;
+  drill: DrillState;
+  previewOpen: boolean;
+  fmtValue: (n: number, f?: ValueFormat) => string;
+  fmtDate: (iso: string | null) => string;
+  statusLabel: (r: DrillRow) => string;
+  onPreview: (p: PreviewTarget) => void;
+  onClose: () => void;
+}) {
+  const closeBtn = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const previewRef = useRef(previewOpen);
+  previewRef.current = previewOpen;
+  useEffect(() => {
+    closeBtn.current?.focus();
+  }, []);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      // Con la vista previa de un registro abierta, Esc cierra solo esa.
+      if (previewRef.current) return;
+      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Tab') return;
+      const items = Array.from(panel.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? []);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const at = document.activeElement;
+      if (e.shiftKey && (at === first || !panel.current?.contains(at))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (at === last || !panel.current?.contains(at))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [onClose]);
+  const res = drill.result;
+  const statusHead = res?.object === 'deal' ? t('dash.drill.cols.stage') : res?.object === 'activity' ? t('dash.drill.cols.type') : t('dash.drill.cols.status');
+  return (
+    <div
+      className="cdb-drill-overlay"
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget && !previewRef.current) onClose();
+      }}
+    >
+      <div className="cdb-drill" ref={panel} role="dialog" aria-modal="true" aria-label={drill.title} data-testid="cdb-drill">
+        <div className="cdb-drill-head">
+          <div className="cdb-drill-titles">
+            <h2 className="cdb-drill-title">{drill.title}</h2>
+            {drill.subtitle && <p className="cdb-tile-sub">{drill.subtitle}</p>}
+            {res && (
+              <p className="cdb-drill-count" data-testid="cdb-drill-count">
+                {t('dash.tile.records', { count: res.total })}
+                {res.sum !== null ? ` · ${t('dash.drill.sum')}: ${fmtValue(res.sum, 'money')}` : ''}
+              </p>
+            )}
+          </div>
+          <button ref={closeBtn} type="button" className="btn btn-sm btn-ghost" onClick={onClose}>
+            {t('dash.drill.close')}
+          </button>
+        </div>
+        <div className="cdb-drill-body">
+          {drill.status === 'loading' && (
+            <div className="cdb-skeleton" aria-busy="true" aria-label={t('dash.tile.loading')}>
+              <span />
+              <span />
+              <span />
+            </div>
+          )}
+          {drill.status === 'error' && <p className="cdb-empty">{t('dash.tile.error')}</p>}
+          {res && !res.rows.length && <p className="cdb-empty">{t('dash.drill.empty')}</p>}
+          {res && res.rows.length > 0 && (
+            <table className="table cdb-drill-table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('dash.drill.cols.name')}</th>
+                  {res.object === 'deal' && (
+                    <th scope="col" className="num">
+                      {t('dash.drill.cols.amount')}
+                    </th>
+                  )}
+                  <th scope="col">{statusHead}</th>
+                  <th scope="col" className="cdb-col-owner">
+                    {t('dash.drill.cols.owner')}
+                  </th>
+                  <th scope="col">{t('dash.drill.cols.date')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {res.rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <RecordLink row={r} onPreview={onPreview} />
+                    </td>
+                    {res.object === 'deal' && <td className="num">{r.amount !== null ? fmtValue(r.amount, 'money') : ''}</td>}
+                    <td>{statusLabel(r)}</td>
+                    <td className="cdb-col-owner">{r.owner ?? ''}</td>
+                    <td className="cdb-nowrap">{fmtDate(r.date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {res?.truncated && <p className="cdb-muted">{t('dash.drill.truncated', { count: res.rows.length })}</p>}
+        </div>
+      </div>
     </div>
   );
 }

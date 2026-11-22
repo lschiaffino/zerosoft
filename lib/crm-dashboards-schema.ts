@@ -4,17 +4,8 @@
  * Los tipos de datasets se importan como type-only (se borran al compilar).
  */
 import { z } from 'zod';
-import type { ActivityListRow, WonLostMonth } from './crm';
+import { DATE_PRESETS, LIBRARY_KEYS, TILE_SIZES, TILE_VIZ, dashboardFiltersSchema, drillSegmentSchema, type DrillResult, type TileResult } from './crm-dashboard-library';
 import type { ReportConfig, ReportResult } from './crm-report-builder';
-import type {
-  ActivityLeaderboard,
-  ForecastReportStage,
-  FunnelReportStage,
-  Kpis,
-  OwnerMetric,
-  SourcePerformance,
-  TimeseriesPoint,
-} from './crm-reports';
 
 export const DASHBOARD_WIDGET_TYPES = [
   'kpi',
@@ -28,12 +19,12 @@ export const DASHBOARD_WIDGET_TYPES = [
   'tasks',
   'recent_activity',
   'custom_report',
+  /** Reporte de la biblioteca (config.reportKey, lib/crm-dashboard-library.ts). */
+  'library',
 ] as const;
 
 export type DashboardWidgetType = (typeof DASHBOARD_WIDGET_TYPES)[number];
 
-/** Tipos del menú "Add widget": los reportes propios se agregan desde el reporte. */
-export const DASHBOARD_MENU_TYPES = DASHBOARD_WIDGET_TYPES.filter((t) => t !== 'custom_report');
 
 export const KPI_METRICS = ['newContacts', 'newDeals', 'wonAmount', 'activities'] as const;
 export type KpiMetric = (typeof KPI_METRICS)[number];
@@ -50,13 +41,30 @@ export const dashboardWidgetConfigSchema = z.object({
   range: z.enum(RANGE_LABELS).optional(),
   /** Widget custom_report: el reporte propio que muestra (lib/crm-custom-reports.ts). */
   reportId: id.optional(),
+  /** Widget library: clave del reporte de la biblioteca. */
+  reportKey: z.enum(LIBRARY_KEYS).optional(),
+  /** Título propio del tile (si no, el del reporte). */
+  title: z.string().trim().max(120).optional(),
+  /** Visualización elegida (una de las que admite el reporte). */
+  viz: z.enum(TILE_VIZ).optional(),
 });
 
 export type DashboardWidgetConfig = z.infer<typeof dashboardWidgetConfigSchema>;
 
 // ---------- Dashboards ----------
 
-export const dashboardCreateSchema = z.object({ name });
+export const DASHBOARD_VISIBILITIES = ['private', 'team', 'everyone'] as const;
+export type DashboardVisibility = (typeof DASHBOARD_VISIBILITIES)[number];
+export const DASHBOARD_ACCESS = ['view', 'edit'] as const;
+export type DashboardAccess = (typeof DASHBOARD_ACCESS)[number];
+
+/** POST /api/crm/dashboards: nuevo (vacío o con la plantilla de ventas) o copia de otro. */
+export const dashboardCreateSchema = z.object({
+  name,
+  template: z.enum(['blank', 'sales']).optional(),
+  cloneFrom: id.optional(),
+  visibility: z.enum(DASHBOARD_VISIBILITIES).optional(),
+});
 
 export const dashboardLayoutItemSchema = z.object({
   id,
@@ -67,13 +75,26 @@ export const dashboardLayoutItemSchema = z.object({
   position: z.number().int().min(0).max(99999),
 });
 
-/** PATCH /api/crm/dashboards/[id]: rename y/o layout bulk de widgets. */
+/** Orden y tamaño de los tiles (tras arrastrar o cambiar el tamaño). */
+export const dashboardOrderItemSchema = z.object({
+  id,
+  position: z.number().int().min(0).max(99999),
+  size: z.enum(TILE_SIZES).optional(),
+});
+
+/** PATCH /api/crm/dashboards/[id]: nombre, layout, acceso, filtros guardados o default. */
 export const dashboardPatchSchema = z
   .object({
     name: name.optional(),
     layout: z.array(dashboardLayoutItemSchema).min(1).max(200).optional(),
+    order: z.array(dashboardOrderItemSchema).min(1).max(200).optional(),
+    visibility: z.enum(DASHBOARD_VISIBILITIES).optional(),
+    teamId: id.nullish(),
+    access: z.enum(DASHBOARD_ACCESS).optional(),
+    filters: dashboardFiltersSchema.optional(),
+    isDefault: z.literal(true).optional(),
   })
-  .refine((v) => v.name !== undefined || v.layout !== undefined, {
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: 'invalid_input',
   });
 
@@ -87,12 +108,16 @@ export const dashboardReorderSchema = z.object({
 export const dashboardWidgetCreateSchema = z.object({
   type: z.enum(DASHBOARD_WIDGET_TYPES),
   config: dashboardWidgetConfigSchema.optional(),
+  size: z.enum(TILE_SIZES).optional(),
+  /** Copia de un tile del mismo dashboard (Duplicar). */
+  duplicateOf: id.optional(),
   w: z.number().int().min(1).max(12).optional(),
   h: z.number().int().min(1).max(24).optional(),
 });
 
 export const dashboardWidgetPatchSchema = z.object({
   config: dashboardWidgetConfigSchema.optional(),
+  size: z.enum(TILE_SIZES).optional(),
   x: z.number().int().min(0).max(11).optional(),
   y: z.number().int().min(0).max(9999).optional(),
   w: z.number().int().min(1).max(12).optional(),
@@ -100,43 +125,41 @@ export const dashboardWidgetPatchSchema = z.object({
   position: z.number().int().min(0).max(99999).optional(),
 });
 
-// ---------- Data endpoint ----------
 
-export const dashboardDataRequestSchema = z.object({
-  type: z.enum(DASHBOARD_WIDGET_TYPES),
-  pipelineId: id.nullish(),
-  range: z.enum(RANGE_LABELS).optional(),
-  reportId: id.optional(),
+/** POST /api/crm/dashboards/data: todos los tiles de un dashboard con sus filtros. */
+export const dashboardTilesRequestSchema = z.object({
+  dashboardId: id,
+  filters: dashboardFiltersSchema.optional(),
+  /** Solo estos tiles (p. ej. el que se acaba de agregar). */
+  widgetIds: z.array(id).max(200).optional(),
 });
+
+/** POST /api/crm/dashboards/drill: registros detrás de un número o segmento. */
+export const dashboardDrillRequestSchema = z.object({
+  dashboardId: id,
+  widgetId: id,
+  filters: dashboardFiltersSchema.optional(),
+  segment: drillSegmentSchema.default({}),
+});
+
+export { DATE_PRESETS };
+
+/** Lo que muestra un tile: un reporte de la biblioteca, un reporte propio o un error. */
+export type TileData =
+  | TileResult
+  | {
+      kind: 'custom';
+      report: { id: string; name: string; config: ReportConfig; result: ReportResult };
+    }
+  | { kind: 'error'; code: string };
+
+export type { DrillResult };
 
 export type DashboardCreatePayload = z.infer<typeof dashboardCreateSchema>;
 export type DashboardPatchPayload = z.infer<typeof dashboardPatchSchema>;
 export type DashboardReorderPayload = z.infer<typeof dashboardReorderSchema>;
 export type DashboardWidgetCreatePayload = z.infer<typeof dashboardWidgetCreateSchema>;
 export type DashboardWidgetPatchPayload = z.infer<typeof dashboardWidgetPatchSchema>;
-export type DashboardDataRequest = z.infer<typeof dashboardDataRequestSchema>;
-
-// ---------- Datasets por widget (respuestas de /api/crm/dashboards/data) ----------
-
-export interface WidgetDataMap {
-  kpi: { kpis: Kpis };
-  funnel: { funnel: FunnelReportStage[] };
-  forecast: { forecast: ForecastReportStage[] };
-  timeseries: { timeseries: TimeseriesPoint[] };
-  wonlost: { wonLost: WonLostMonth[] };
-  source: { sourcePerformance: SourcePerformance[] };
-  owner: { byOwner: OwnerMetric[] };
-  leaderboard: { leaderboard: ActivityLeaderboard[] };
-  tasks: { tasks: ActivityListRow[] };
-  recent_activity: { activities: ActivityListRow[] };
-  /** null si el reporte ya no existe; error si falló al correr. */
-  custom_report: { report: { id: string; name: string; config: ReportConfig; result: ReportResult } | null; error?: string };
-}
-
-export type WidgetData = WidgetDataMap[DashboardWidgetType];
-
-/** Bundle que la página prefetch-ea para el pipeline default + rango 30d. */
-export type DashboardInitialData = WidgetDataMap;
 
 // ---------- Tamaños de grid (12 columnas) ----------
 
@@ -152,18 +175,5 @@ export const WIDGET_DEFAULT_SIZE: Record<DashboardWidgetType, { w: number; h: nu
   tasks: { w: 4, h: 5 },
   recent_activity: { w: 4, h: 5 },
   custom_report: { w: 6, h: 5 },
-};
-
-export const WIDGET_MIN_SIZE: Record<DashboardWidgetType, { w: number; h: number }> = {
-  kpi: { w: 2, h: 2 },
-  funnel: { w: 3, h: 3 },
-  forecast: { w: 3, h: 3 },
-  timeseries: { w: 4, h: 3 },
-  wonlost: { w: 4, h: 3 },
-  source: { w: 3, h: 3 },
-  owner: { w: 4, h: 3 },
-  leaderboard: { w: 3, h: 3 },
-  tasks: { w: 3, h: 3 },
-  recent_activity: { w: 3, h: 3 },
-  custom_report: { w: 3, h: 2 },
+  library: { w: 6, h: 5 },
 };

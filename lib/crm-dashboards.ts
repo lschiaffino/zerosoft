@@ -1,41 +1,60 @@
 /**
- * CRM — dashboards custom con widgets en grid drag&drop.
- * Usado por /app/crm/dashboards y app/api/crm/dashboards.
+ * CRM — dashboards como los de HubSpot. Usado por /app/crm/dashboards y
+ * app/api/crm/dashboards.
+ *
+ * Acceso (crm_dashboards.owner_id / visibility / team_id / access):
+ * - 'private': solo su dueño.
+ * - 'team': su dueño, quienes están en el equipo de ventas `team_id` y los admins.
+ * - 'everyone': todo el workspace.
+ * El dueño y los admins (en uno que no es privado) editan y comparten. El
+ * resto edita los tiles si `access` es 'edit'; si es 'view', solo mira.
+ *
+ * Los datos de cada tile se calculan con la persona que mira (su alcance y
+ * sus campos ocultos), nunca con quien creó el dashboard.
  */
-import { getDb, type CrmDashboardRow, type CrmDashboardWidgetRow } from './db';
-import type { OwnerScope } from './crm-visibility';
-import type { ChatReader } from './crm-chat-privacy';
+import { getDb, type CrmDashboardRow, type CrmDashboardWidgetRow, type Db } from './db';
+import type { OwnerScope, Viewer } from './crm-visibility';
 import type { FieldViewer } from './crm-field-perms';
-import { listTasks, listTimeline, wonLostByMonth } from './crm';
-import { defaultPipelineId } from './crm-http';
-import {
-  defaultBucket,
-  reportActivityLeaderboard,
-  reportByOwner,
-  reportForecast,
-  reportFunnel,
-  reportKpis,
-  reportSourcePerformance,
-  reportTimeseries,
-  reportRange,
-  type ReportFilters,
-} from './crm-reports';
-import { listMembers } from './teams';
+import { listMembers, roleAtLeast } from './teams';
 import { getCustomReport, reportForViewer, runReport, ReportError } from './crm-custom-reports';
+import type { ReportConfig } from './crm-report-builder';
 import type { SessionUser } from './session';
 import { workspaceTeamId } from './workspace';
 import {
+  SALES_TEMPLATE,
+  SIZE_COLS,
+  legacyReportKey,
+  libraryReport,
+  parseDashboardFilters,
+  resolveRange,
+  type DashboardFilters,
+  type DrillResult,
+  type DrillSegment,
+  type TileSize,
+} from './crm-dashboard-library';
+import { computeLibraryReport, drillLibraryReport, type ReportContext } from './crm-dashboard-reports';
+import {
   WIDGET_DEFAULT_SIZE,
-  type DashboardDataRequest,
+  type DashboardAccess,
+  type DashboardVisibility,
   type DashboardWidgetConfig,
   type DashboardWidgetType,
-  type WidgetData,
+  type TileData,
 } from './crm-dashboards-schema';
 
 export type { CrmDashboardRow, CrmDashboardWidgetRow };
 
 export interface CrmDashboardWithWidgets extends CrmDashboardRow {
   widgets: CrmDashboardWidgetRow[];
+}
+
+/** Dashboard como lo ve una persona: con lo que puede hacer. */
+export interface DashboardView extends CrmDashboardWithWidgets {
+  canEdit: boolean;
+  canManage: boolean;
+  isOwner: boolean;
+  isDefault: boolean;
+  ownerName: string | null;
 }
 
 /** Item de layout bulk (tras drag/resize). Coincide con dashboardLayoutItemSchema. */
@@ -48,216 +67,369 @@ export interface DashboardLayoutItem {
   position: number;
 }
 
-// ---------- Dashboards ----------
-
-export async function listDashboards(userId: string): Promise<CrmDashboardRow[]> {
-  return (await getDb()
-    .prepare(
-      'SELECT * FROM crm_dashboards WHERE user_id = ? ORDER BY position ASC, created_at ASC',
-    )
-    .all(userId)) as CrmDashboardRow[];
-}
-
-export async function listDashboardWidgets(
-  dashboardId: string,
-): Promise<CrmDashboardWidgetRow[]> {
-  return (await getDb()
-    .prepare(
-      'SELECT * FROM crm_dashboard_widgets WHERE dashboard_id = ? ORDER BY position ASC, created_at ASC',
-    )
-    .all(dashboardId)) as CrmDashboardWidgetRow[];
-}
-
-export async function getDashboard(
-  userId: string,
-  id: string,
-): Promise<CrmDashboardWithWidgets | null> {
-  const row = (await getDb()
-    .prepare('SELECT * FROM crm_dashboards WHERE id = ? AND user_id = ?')
-    .get(id, userId)) as CrmDashboardRow | undefined;
-  if (!row) return null;
-  return { ...row, widgets: await listDashboardWidgets(row.id) };
-}
-
-export async function listDashboardsWithWidgets(
-  userId: string,
-): Promise<CrmDashboardWithWidgets[]> {
-  const rows = await listDashboards(userId);
-  const out: CrmDashboardWithWidgets[] = [];
-  for (const row of rows) {
-    out.push({ ...row, widgets: await listDashboardWidgets(row.id) });
+export class DashboardError extends Error {
+  constructor(public readonly code: 'not_found' | 'forbidden' | 'invalid_input') {
+    super(code);
   }
+}
+
+// ---------- Acceso ----------
+
+export function isAdminViewer(viewer: Viewer): boolean {
+  return roleAtLeast(viewer.role, 'admin') || viewer.personId === viewer.workspaceId;
+}
+
+/** Equipos de ventas de la persona. */
+async function salesTeamsOf(viewer: Viewer, db: Db): Promise<Set<string>> {
+  const rows = (await db
+    .prepare('SELECT team_id FROM crm_sales_team_members WHERE user_id = ? AND person_id = ?')
+    .all(viewer.workspaceId, viewer.personId)) as Array<{ team_id: string }>;
+  return new Set(rows.map((r) => r.team_id));
+}
+
+/** Qué puede hacer la persona con un dashboard. Puro (recibe sus equipos de ventas). */
+export function dashboardRights(
+  row: Pick<CrmDashboardRow, 'owner_id' | 'visibility' | 'team_id' | 'access' | 'user_id'>,
+  viewer: Viewer,
+  teams: ReadonlySet<string>,
+): { canView: boolean; canEdit: boolean; canManage: boolean; isOwner: boolean } {
+  if (row.user_id !== viewer.workspaceId) return { canView: false, canEdit: false, canManage: false, isOwner: false };
+  const owner = row.owner_id ?? row.user_id;
+  const isOwner = owner === viewer.personId;
+  const admin = isAdminViewer(viewer);
+  const vis = row.visibility || 'everyone';
+  let canView = isOwner;
+  if (!canView && vis === 'everyone') canView = true;
+  if (!canView && vis === 'team') canView = admin || (!!row.team_id && teams.has(row.team_id));
+  const canManage = isOwner || (canView && admin);
+  const canEdit = canManage || (canView && row.access === 'edit');
+  return { canView, canEdit, canManage, isOwner };
+}
+
+async function personNames(workspaceId: string, db: Db): Promise<Map<string, string>> {
+  const rows = (await db
+    .prepare(
+      `SELECT u.id, COALESCE(NULLIF(u.name, ''), u.email) AS n FROM users u
+       WHERE u.id = ? OR u.id IN (SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?)`,
+    )
+    .all(workspaceId, workspaceId)) as Array<{ id: string; n: string }>;
+  return new Map(rows.map((r) => [r.id, r.n]));
+}
+
+async function widgetsFor(ids: string[], db: Db): Promise<Map<string, CrmDashboardWidgetRow[]>> {
+  const out = new Map<string, CrmDashboardWidgetRow[]>(ids.map((id) => [id, []]));
+  if (!ids.length) return out;
+  const rows = (await db
+    .prepare(
+      `SELECT * FROM crm_dashboard_widgets WHERE dashboard_id IN (${ids.map(() => '?').join(',')})
+       ORDER BY position ASC, created_at ASC`,
+    )
+    .all(...ids)) as CrmDashboardWidgetRow[];
+  for (const r of rows) out.get(r.dashboard_id)?.push(r);
   return out;
 }
 
-export async function createDashboard(
-  userId: string,
-  name: string,
-): Promise<CrmDashboardWithWidgets> {
-  const db = getDb();
+async function defaultDashboardId(viewer: Viewer, db: Db): Promise<string | null> {
+  const row = (await db
+    .prepare('SELECT default_dashboard_id AS id FROM crm_dashboard_prefs WHERE user_id = ? AND person_id = ?')
+    .get(viewer.workspaceId, viewer.personId)) as { id: string | null } | undefined;
+  return row?.id ?? null;
+}
+
+/** Los dashboards que la persona ve, con sus tiles (una consulta para todos los tiles). */
+export async function listVisibleDashboards(viewer: Viewer, db: Db = getDb()): Promise<DashboardView[]> {
+  const rows = (await db
+    .prepare('SELECT * FROM crm_dashboards WHERE user_id = ? ORDER BY position ASC, created_at ASC')
+    .all(viewer.workspaceId)) as CrmDashboardRow[];
+  const teams = await salesTeamsOf(viewer, db);
+  const visible = rows.map((r) => ({ r, rights: dashboardRights(r, viewer, teams) })).filter((x) => x.rights.canView);
+  const widgets = await widgetsFor(visible.map((x) => x.r.id), db);
+  const def = await defaultDashboardId(viewer, db);
+  const names = await personNames(viewer.workspaceId, db);
+  return visible.map(({ r, rights }) => ({
+    ...r,
+    widgets: widgets.get(r.id) ?? [],
+    canEdit: rights.canEdit,
+    canManage: rights.canManage,
+    isOwner: rights.isOwner,
+    isDefault: r.id === def,
+    ownerName: names.get(r.owner_id ?? r.user_id) ?? null,
+  }));
+}
+
+/** Un dashboard si la persona lo ve (null si no existe o no lo ve: no confirma que existe). */
+export async function getDashboardFor(viewer: Viewer, id: string, db: Db = getDb()): Promise<DashboardView | null> {
+  const row = (await db.prepare('SELECT * FROM crm_dashboards WHERE id = ? AND user_id = ?').get(id, viewer.workspaceId)) as
+    | CrmDashboardRow
+    | undefined;
+  if (!row) return null;
+  const rights = dashboardRights(row, viewer, await salesTeamsOf(viewer, db));
+  if (!rights.canView) return null;
+  const widgets = await widgetsFor([row.id], db);
+  const names = await personNames(viewer.workspaceId, db);
+  return {
+    ...row,
+    widgets: widgets.get(row.id) ?? [],
+    canEdit: rights.canEdit,
+    canManage: rights.canManage,
+    isOwner: rights.isOwner,
+    isDefault: (await defaultDashboardId(viewer, db)) === row.id,
+    ownerName: names.get(row.owner_id ?? row.user_id) ?? null,
+  };
+}
+
+/** Dashboards que la persona ve cuyo nombre contiene `q` (⌘K). */
+export async function searchDashboards(viewer: Viewer, q: string, limit = 5, db: Db = getDb()): Promise<Array<{ id: string; name: string }>> {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return [];
+  return (await listVisibleDashboards(viewer, db))
+    .filter((d) => d.name.toLowerCase().includes(needle))
+    .slice(0, limit)
+    .map((d) => ({ id: d.id, name: d.name }));
+}
+
+/** Dashboards donde la persona puede agregar tiles (para "Agregar al dashboard" del constructor). */
+export async function listEditableDashboards(viewer: Viewer, db: Db = getDb()): Promise<Array<{ id: string; name: string }>> {
+  return (await listVisibleDashboards(viewer, db)).filter((d) => d.canEdit).map((d) => ({ id: d.id, name: d.name }));
+}
+
+async function requireRight(viewer: Viewer, id: string, right: 'canEdit' | 'canManage', db: Db): Promise<DashboardView> {
+  const d = await getDashboardFor(viewer, id, db);
+  if (!d) throw new DashboardError('not_found');
+  if (!d[right]) throw new DashboardError('forbidden');
+  return d;
+}
+
+// ---------- Dashboards ----------
+
+async function insertWidgetRow(
+  db: Db,
+  dashboardId: string,
+  data: { type: DashboardWidgetType; config: DashboardWidgetConfig; w: number; h: number; position: number },
+): Promise<CrmDashboardWidgetRow> {
   const id = crypto.randomUUID();
-  const maxPos = (
-    (await db
-      .prepare('SELECT COALESCE(MAX(position), -1) AS p FROM crm_dashboards WHERE user_id = ?')
-      .get(userId)) as { p: number }
-  ).p;
   await db
     .prepare(
-      `INSERT INTO crm_dashboards (id, user_id, name, position, created_at, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
+      `INSERT INTO crm_dashboard_widgets (id, dashboard_id, type, config, x, y, w, h, position, created_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, datetime('now'))`,
     )
-    .run(id, userId, name, maxPos + 1);
-  const row = (await db
-    .prepare('SELECT * FROM crm_dashboards WHERE id = ?')
-    .get(id)) as CrmDashboardRow;
-  return { ...row, widgets: [] };
+    .run(id, dashboardId, data.type, JSON.stringify(data.config), data.position, data.w, data.h, data.position);
+  return (await db.prepare('SELECT * FROM crm_dashboard_widgets WHERE id = ?').get(id)) as CrmDashboardWidgetRow;
 }
 
-export async function renameDashboard(
-  userId: string,
-  id: string,
-  name: string,
-): Promise<CrmDashboardRow | null> {
-  const db = getDb();
-  const res = await db
+export async function createDashboard(
+  viewer: Viewer,
+  input: { name: string; template?: 'blank' | 'sales'; visibility?: DashboardVisibility; cloneFrom?: string },
+  db: Db = getDb(),
+): Promise<DashboardView> {
+  let source: DashboardView | null = null;
+  if (input.cloneFrom) {
+    source = await getDashboardFor(viewer, input.cloneFrom, db);
+    if (!source) throw new DashboardError('not_found');
+  }
+  const id = crypto.randomUUID();
+  const maxPos = (
+    (await db.prepare('SELECT COALESCE(MAX(position), -1) AS p FROM crm_dashboards WHERE user_id = ?').get(viewer.workspaceId)) as {
+      p: number;
+    }
+  ).p;
+  // Uno nuevo (y una copia) arranca privado salvo que se pida otra cosa.
+  const visibility: DashboardVisibility = input.visibility ?? 'private';
+  await db
     .prepare(
-      `UPDATE crm_dashboards SET name = ?, updated_at = datetime('now')
-       WHERE id = ? AND user_id = ?`,
+      `INSERT INTO crm_dashboards (id, user_id, name, position, owner_id, visibility, team_id, access, filters, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, 'edit', ?, datetime('now'), datetime('now'))`,
     )
-    .run(name, id, userId);
-  if (res.changes === 0) return null;
-  return (await db
-    .prepare('SELECT * FROM crm_dashboards WHERE id = ?')
-    .get(id)) as CrmDashboardRow;
+    .run(id, viewer.workspaceId, input.name, maxPos + 1, viewer.personId, visibility, source ? source.filters : '{}');
+  if (source) {
+    for (const w of source.widgets) {
+      await insertWidgetRow(db, id, { type: w.type as DashboardWidgetType, config: parseConfig(w.config), w: w.w, h: w.h, position: w.position });
+    }
+  } else if (input.template === 'sales') {
+    for (let i = 0; i < SALES_TEMPLATE.length; i++) {
+      const t = SALES_TEMPLATE[i];
+      await insertWidgetRow(db, id, { type: 'library', config: { reportKey: t.reportKey }, w: SIZE_COLS[t.size], h: 1, position: i });
+    }
+  }
+  return (await getDashboardFor(viewer, id, db))!;
 }
 
-export async function deleteDashboard(userId: string, id: string): Promise<boolean> {
-  // Los widgets caen por ON DELETE CASCADE.
-  return (
-    (await getDb()
-      .prepare('DELETE FROM crm_dashboards WHERE id = ? AND user_id = ?')
-      .run(id, userId)).changes > 0
-  );
+/**
+ * Un workspace sin ningún dashboard arranca con "Sales" (plantilla de
+ * ventas, visible para todos). Si ya hay dashboards no crea nada.
+ */
+export async function ensureStarterDashboard(viewer: Viewer, name: string, db: Db = getDb()): Promise<void> {
+  const any = await db.prepare('SELECT 1 AS x FROM crm_dashboards WHERE user_id = ? LIMIT 1').get(viewer.workspaceId);
+  if (any) return;
+  await createDashboard(viewer, { name, template: 'sales', visibility: 'everyone' }, db);
 }
 
-export async function reorderDashboards(userId: string, ids: string[]): Promise<void> {
-  const db = getDb();
-  for (let i = 0; i < ids.length; i++) {
+export interface DashboardPatch {
+  name?: string;
+  visibility?: DashboardVisibility;
+  teamId?: string | null;
+  access?: DashboardAccess;
+  filters?: DashboardFilters;
+  isDefault?: true;
+  order?: Array<{ id: string; position: number; size?: TileSize }>;
+  layout?: DashboardLayoutItem[];
+}
+
+export async function updateDashboard(viewer: Viewer, id: string, patch: DashboardPatch, db: Db = getDb()): Promise<DashboardView> {
+  const current = await getDashboardFor(viewer, id, db);
+  if (!current) throw new DashboardError('not_found');
+  const sharing = patch.visibility !== undefined || patch.teamId !== undefined || patch.access !== undefined;
+  const editing = patch.name !== undefined || patch.order !== undefined || patch.layout !== undefined || patch.filters !== undefined;
+  if (sharing && !current.canManage) throw new DashboardError('forbidden');
+  if (editing && !current.canEdit) throw new DashboardError('forbidden');
+
+  const sets: string[] = [];
+  const args: Array<string | null> = [];
+  if (patch.name !== undefined) {
+    sets.push('name = ?');
+    args.push(patch.name);
+  }
+  if (patch.visibility !== undefined) {
+    sets.push('visibility = ?');
+    args.push(patch.visibility);
+  }
+  if (patch.teamId !== undefined || patch.visibility !== undefined) {
+    const vis = patch.visibility ?? current.visibility;
+    let team = patch.teamId !== undefined ? patch.teamId : current.team_id;
+    if (vis !== 'team') team = null;
+    if (team) {
+      const ok = await db.prepare('SELECT 1 AS x FROM crm_sales_teams WHERE id = ? AND user_id = ?').get(team, viewer.workspaceId);
+      if (!ok) throw new DashboardError('invalid_input');
+    } else if (vis === 'team') throw new DashboardError('invalid_input');
+    sets.push('team_id = ?');
+    args.push(team ?? null);
+  }
+  if (patch.access !== undefined) {
+    sets.push('access = ?');
+    args.push(patch.access);
+  }
+  if (patch.filters !== undefined) {
+    sets.push('filters = ?');
+    args.push(JSON.stringify(parseDashboardFilters(patch.filters)));
+  }
+  if (sets.length) {
     await db
-      .prepare('UPDATE crm_dashboards SET position = ? WHERE id = ? AND user_id = ?')
-      .run(i, ids[i], userId);
+      .prepare(`UPDATE crm_dashboards SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ? AND user_id = ?`)
+      .run(...args, id, viewer.workspaceId);
+  }
+  for (const item of patch.order ?? []) {
+    if (item.size) {
+      await db
+        .prepare('UPDATE crm_dashboard_widgets SET position = ?, w = ? WHERE id = ? AND dashboard_id = ?')
+        .run(item.position, SIZE_COLS[item.size], item.id, id);
+    } else {
+      await db.prepare('UPDATE crm_dashboard_widgets SET position = ? WHERE id = ? AND dashboard_id = ?').run(item.position, item.id, id);
+    }
+  }
+  for (const item of patch.layout ?? []) {
+    await db
+      .prepare('UPDATE crm_dashboard_widgets SET x = ?, y = ?, w = ?, h = ?, position = ? WHERE id = ? AND dashboard_id = ?')
+      .run(item.x, item.y, item.w, item.h, item.position, item.id, id);
+  }
+  if (patch.isDefault) {
+    await db
+      .prepare(
+        `INSERT INTO crm_dashboard_prefs (user_id, person_id, default_dashboard_id, updated_at) VALUES (?, ?, ?, datetime('now'))
+         ON CONFLICT(user_id, person_id) DO UPDATE SET default_dashboard_id = excluded.default_dashboard_id, updated_at = excluded.updated_at`,
+      )
+      .run(viewer.workspaceId, viewer.personId, id);
+  }
+  return (await getDashboardFor(viewer, id, db))!;
+}
+
+export async function deleteDashboard(viewer: Viewer, id: string, db: Db = getDb()): Promise<void> {
+  await requireRight(viewer, id, 'canManage', db);
+  await db.prepare('DELETE FROM crm_dashboard_widgets WHERE dashboard_id = ?').run(id);
+  await db.prepare('DELETE FROM crm_dashboards WHERE id = ? AND user_id = ?').run(id, viewer.workspaceId);
+  // Quien lo tenía de default vuelve al primero que ve.
+  await db
+    .prepare('UPDATE crm_dashboard_prefs SET default_dashboard_id = NULL WHERE user_id = ? AND default_dashboard_id = ?')
+    .run(viewer.workspaceId, id);
+}
+
+/** Orden de los dashboards en el selector (solo los que la persona ve). */
+export async function reorderDashboards(viewer: Viewer, ids: string[], db: Db = getDb()): Promise<void> {
+  const visible = new Set((await listVisibleDashboards(viewer, db)).map((d) => d.id));
+  for (let i = 0; i < ids.length; i++) {
+    if (!visible.has(ids[i])) continue;
+    await db.prepare('UPDATE crm_dashboards SET position = ? WHERE id = ? AND user_id = ?').run(i, ids[i], viewer.workspaceId);
   }
 }
 
 // ---------- Widgets ----------
 
-async function ownsWidget(userId: string, widgetId: string): Promise<boolean> {
-  const row = await getDb()
+export function parseConfig(raw: string): DashboardWidgetConfig {
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as DashboardWidgetConfig) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function editableWidget(viewer: Viewer, widgetId: string, db: Db): Promise<CrmDashboardWidgetRow> {
+  const widget = (await db
     .prepare(
-      `SELECT w.id FROM crm_dashboard_widgets w
-       JOIN crm_dashboards d ON d.id = w.dashboard_id
+      `SELECT w.* FROM crm_dashboard_widgets w JOIN crm_dashboards d ON d.id = w.dashboard_id
        WHERE w.id = ? AND d.user_id = ?`,
     )
-    .get(widgetId, userId);
-  return row !== undefined;
+    .get(widgetId, viewer.workspaceId)) as CrmDashboardWidgetRow | undefined;
+  if (!widget) throw new DashboardError('not_found');
+  await requireRight(viewer, widget.dashboard_id, 'canEdit', db);
+  return widget;
 }
 
 export async function addWidget(
-  userId: string,
+  viewer: Viewer,
   dashboardId: string,
-  data: {
-    type: DashboardWidgetType;
-    config?: DashboardWidgetConfig;
-    w?: number;
-    h?: number;
-    x?: number;
-    y?: number;
-    position?: number;
-  },
-): Promise<CrmDashboardWidgetRow | null> {
-  const db = getDb();
-  const dashboard = (await db
-    .prepare('SELECT id FROM crm_dashboards WHERE id = ? AND user_id = ?')
-    .get(dashboardId, userId)) as { id: string } | undefined;
-  if (!dashboard) return null;
-
-  const agg = (await db
-    .prepare(
-      `SELECT COALESCE(MAX(position), -1) AS p, COALESCE(MAX(y + h), 0) AS bottom
-       FROM crm_dashboard_widgets WHERE dashboard_id = ?`,
-    )
-    .get(dashboardId)) as { p: number; bottom: number };
-
-  const id = crypto.randomUUID();
-  const size = WIDGET_DEFAULT_SIZE[data.type];
-  await db
-    .prepare(
-      `INSERT INTO crm_dashboard_widgets (id, dashboard_id, type, config, x, y, w, h, position, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-    )
-    .run(
-      id,
-      dashboardId,
-      data.type,
-      JSON.stringify(data.config ?? {}),
-      data.x ?? 0,
-      data.y ?? agg.bottom,
-      data.w ?? size.w,
-      data.h ?? size.h,
-      data.position ?? agg.p + 1,
-    );
-  return (await db
-    .prepare('SELECT * FROM crm_dashboard_widgets WHERE id = ?')
-    .get(id)) as CrmDashboardWidgetRow;
-}
-
-/** Layout bulk (tras drag/resize): x/y/w/h/position de cada widget del dashboard. */
-export async function updateWidgetLayout(
-  userId: string,
-  dashboardId: string,
-  items: DashboardLayoutItem[],
-): Promise<boolean> {
-  const db = getDb();
-  const dashboard = (await db
-    .prepare('SELECT id FROM crm_dashboards WHERE id = ? AND user_id = ?')
-    .get(dashboardId, userId)) as { id: string } | undefined;
-  if (!dashboard) return false;
-  for (const item of items) {
-    await db
-      .prepare(
-        `UPDATE crm_dashboard_widgets SET x = ?, y = ?, w = ?, h = ?, position = ?
-         WHERE id = ? AND dashboard_id = ?`,
-      )
-      .run(item.x, item.y, item.w, item.h, item.position, item.id, dashboardId);
+  data: { type: DashboardWidgetType; config?: DashboardWidgetConfig; size?: TileSize; duplicateOf?: string; w?: number; h?: number },
+  db: Db = getDb(),
+): Promise<CrmDashboardWidgetRow> {
+  const dashboard = await requireRight(viewer, dashboardId, 'canEdit', db);
+  let type = data.type;
+  let config = data.config ?? {};
+  let w = data.size ? SIZE_COLS[data.size] : data.w;
+  let position = dashboard.widgets.length ? Math.max(...dashboard.widgets.map((x) => x.position)) + 1 : 0;
+  if (data.duplicateOf) {
+    const src = dashboard.widgets.find((x) => x.id === data.duplicateOf);
+    if (!src) throw new DashboardError('not_found');
+    type = src.type as DashboardWidgetType;
+    config = parseConfig(src.config);
+    w = src.w;
+    // La copia queda al lado del original.
+    position = src.position + 1;
+    await db.prepare('UPDATE crm_dashboard_widgets SET position = position + 1 WHERE dashboard_id = ? AND position >= ?').run(dashboardId, position);
   }
-  await db
-    .prepare(`UPDATE crm_dashboards SET updated_at = datetime('now') WHERE id = ?`)
-    .run(dashboardId);
-  return true;
-}
-
-export async function updateWidgetConfig(
-  userId: string,
-  widgetId: string,
-  config: DashboardWidgetConfig,
-): Promise<CrmDashboardWidgetRow | null> {
-  if (!(await ownsWidget(userId, widgetId))) return null;
-  const db = getDb();
-  await db
-    .prepare('UPDATE crm_dashboard_widgets SET config = ? WHERE id = ?')
-    .run(JSON.stringify(config), widgetId);
-  return (await db
-    .prepare('SELECT * FROM crm_dashboard_widgets WHERE id = ?')
-    .get(widgetId)) as CrmDashboardWidgetRow;
+  if (type === 'library') {
+    const def = libraryReport(config.reportKey);
+    if (!def) throw new DashboardError('invalid_input');
+    w ??= SIZE_COLS[def.size];
+    if (config.viz && !def.vizOptions.includes(config.viz)) config = { ...config, viz: undefined };
+  }
+  if (type === 'custom_report') {
+    if (!config.reportId || !(await getCustomReport(viewer.workspaceId, config.reportId, db))) throw new DashboardError('invalid_input');
+  }
+  return insertWidgetRow(db, dashboardId, {
+    type,
+    config,
+    w: w ?? WIDGET_DEFAULT_SIZE[type].w,
+    h: data.h ?? WIDGET_DEFAULT_SIZE[type].h,
+    position,
+  });
 }
 
 export async function updateWidget(
-  userId: string,
+  viewer: Viewer,
   widgetId: string,
-  data: Partial<DashboardLayoutItem> & { config?: DashboardWidgetConfig },
-): Promise<CrmDashboardWidgetRow | null> {
-  if (!(await ownsWidget(userId, widgetId))) return null;
-  const db = getDb();
+  data: { config?: DashboardWidgetConfig; size?: TileSize; x?: number; y?: number; w?: number; h?: number; position?: number },
+  db: Db = getDb(),
+): Promise<CrmDashboardWidgetRow> {
+  const widget = await editableWidget(viewer, widgetId, db);
   const sets: string[] = [];
   const args: Array<string | number> = [];
   for (const key of ['x', 'y', 'w', 'h', 'position'] as const) {
@@ -267,32 +439,30 @@ export async function updateWidget(
       args.push(v);
     }
   }
+  if (data.size) {
+    sets.push('w = ?');
+    args.push(SIZE_COLS[data.size]);
+  }
   if (data.config !== undefined) {
+    let config: DashboardWidgetConfig = { ...parseConfig(widget.config), ...data.config };
+    const key = widget.type === 'library' ? config.reportKey : legacyReportKey(widget.type, config as { metric?: string });
+    const def = libraryReport(key);
+    if (config.viz && (!def || !def.vizOptions.includes(config.viz))) config = { ...config, viz: undefined };
+    if (!config.title) delete config.title;
     sets.push('config = ?');
-    args.push(JSON.stringify(data.config));
+    args.push(JSON.stringify(config));
   }
-  if (sets.length > 0) {
-    args.push(widgetId);
-    await db
-      .prepare(`UPDATE crm_dashboard_widgets SET ${sets.join(', ')} WHERE id = ?`)
-      .run(...args);
-  }
-  return (await db
-    .prepare('SELECT * FROM crm_dashboard_widgets WHERE id = ?')
-    .get(widgetId)) as CrmDashboardWidgetRow;
+  if (sets.length) await db.prepare(`UPDATE crm_dashboard_widgets SET ${sets.join(', ')} WHERE id = ?`).run(...args, widgetId);
+  return (await db.prepare('SELECT * FROM crm_dashboard_widgets WHERE id = ?').get(widgetId)) as CrmDashboardWidgetRow;
 }
 
-export async function deleteWidget(userId: string, widgetId: string): Promise<boolean> {
-  if (!(await ownsWidget(userId, widgetId))) return false;
-  return (
-    (await getDb()
-      .prepare('DELETE FROM crm_dashboard_widgets WHERE id = ?')
-      .run(widgetId)).changes > 0
-  );
+export async function deleteWidget(viewer: Viewer, widgetId: string, db: Db = getDb()): Promise<void> {
+  await editableWidget(viewer, widgetId, db);
+  await db.prepare('DELETE FROM crm_dashboard_widgets WHERE id = ?').run(widgetId);
 }
 
 // ============================================================
-// DATASETS POR WIDGET (página + /api/crm/dashboards/data)
+// DATOS DE LOS TILES (página + /api/crm/dashboards/data y /drill)
 // ============================================================
 
 export interface DashboardOwner {
@@ -311,63 +481,137 @@ export async function listReportOwners(user: SessionUser, scope?: OwnerScope): P
     .map((m) => ({ id: m.user_id, email: m.email, name: m.name }));
 }
 
-/** Dataset de un widget. Reusa las funciones de lib/crm-reports (rango default 30d). */
-export async function getWidgetData(
-  userId: string,
-  req: DashboardDataRequest,
-  owners: DashboardOwner[],
-  scope: OwnerScope | undefined,
-  /** Tareas de chats de Lines que quien mira no ve: sin su texto (lib/crm-chat-privacy.ts). */
-  chatReader: ChatReader | null | undefined,
-  /** Quién mira: un reporte propio no usa los campos que tiene ocultos. */
-  viewer: FieldViewer,
-): Promise<WidgetData> {
-  const rangeLabel = req.range ?? '30d';
-  const range = reportRange(rangeLabel);
-  const filters: ReportFilters = { pipelineId: req.pipelineId ?? undefined, ownerIds: scope ?? undefined };
+/** Quién mira los tiles: su alcance, sus campos ocultos y las personas que puede nombrar. */
+export interface TileViewer {
+  viewer: Viewer;
+  scope: OwnerScope | undefined;
+  fieldViewer: FieldViewer;
+  owners: DashboardOwner[];
+  locale: string;
+  now?: Date;
+}
 
-  switch (req.type) {
-    case 'kpi':
-      return { kpis: await reportKpis(userId, range, filters) };
-    case 'funnel': {
-      const pipelineId = req.pipelineId ?? (await defaultPipelineId(userId));
-      return { funnel: await reportFunnel(userId, pipelineId, scope ?? undefined) };
-    }
-    case 'forecast': {
-      const pipelineId = req.pipelineId ?? (await defaultPipelineId(userId));
-      return { forecast: await reportForecast(userId, pipelineId, scope ?? undefined) };
-    }
-    case 'timeseries':
-      return {
-        timeseries: await reportTimeseries(userId, range, defaultBucket(rangeLabel), filters),
-      };
-    case 'wonlost':
-      return { wonLost: await wonLostByMonth(userId, scope) };
-    case 'source':
-      return { sourcePerformance: await reportSourcePerformance(userId, range, filters) };
-    case 'owner':
-      return { byOwner: await reportByOwner(userId, range, filters, owners) };
-    case 'leaderboard':
-      return { leaderboard: await reportActivityLeaderboard(userId, range, owners) };
-    case 'tasks':
-      return { tasks: (await listTasks(userId, { bucket: 'upcoming', ownerScope: scope, chatReader })).slice(0, 8) };
-    case 'recent_activity':
-      return { activities: await listTimeline(userId, { limit: 8, ownerScope: scope, chatReader }) };
-    case 'custom_report': {
-      const report = req.reportId ? await getCustomReport(userId, req.reportId) : null;
-      if (!report) return { report: null };
-      try {
-        const result = await runReport(userId, report.config, {
-          scope,
-          people: owners.map((o) => ({ id: o.id, name: o.name || o.email })),
-          viewer,
-        });
-        // La config sale como la ve la persona (sin campos ocultos).
-        const shown = await reportForViewer(viewer, report);
-        return { report: { id: report.id, name: report.name, config: shown.config, result } };
-      } catch (e) {
-        return { report: null, error: e instanceof ReportError ? e.code : 'report_failed' };
-      }
-    }
+/** Contexto de los reportes: filtros del dashboard ya validados contra el workspace. */
+export async function reportContext(tv: TileViewer, filters: DashboardFilters, db: Db = getDb()): Promise<ReportContext> {
+  const ws = tv.viewer.workspaceId;
+  const pipelines = (await db
+    .prepare('SELECT id FROM crm_pipelines WHERE user_id = ? ORDER BY position ASC, created_at ASC')
+    .all(ws)) as Array<{ id: string }>;
+  // Un pipeline de otro workspace no existe acá: no se lee ni el nombre de sus etapas.
+  const pipelineId = filters.pipelineId && pipelines.some((p) => p.id === filters.pipelineId) ? filters.pipelineId : null;
+  let ownerIds: string[] | null = null;
+  if (filters.ownerId) ownerIds = [filters.ownerId];
+  else if (filters.teamId) {
+    const rows = (await db
+      .prepare(
+        `SELECT m.person_id FROM crm_sales_team_members m JOIN crm_sales_teams t ON t.id = m.team_id
+         WHERE t.id = ? AND t.user_id = ? AND m.user_id = ?`,
+      )
+      .all(filters.teamId, ws, ws)) as Array<{ person_id: string }>;
+    ownerIds = rows.map((r) => r.person_id);
   }
+  return {
+    workspaceId: ws,
+    scope: tv.scope,
+    ownerIds,
+    pipelineId,
+    defaultPipelineId: pipelines[0]?.id ?? null,
+    range: resolveRange(filters, tv.now ?? new Date()),
+    people: new Map(tv.owners.map((o) => [o.id, o.name || o.email])),
+    locale: tv.locale,
+    now: tv.now,
+    db,
+  };
+}
+
+/** Clave de la biblioteca de un tile (los widgets de antes se traducen). */
+export function widgetReportKey(w: Pick<CrmDashboardWidgetRow, 'type' | 'config'>): string | null {
+  const cfg = parseConfig(w.config);
+  if (w.type === 'library') return libraryReport(cfg.reportKey)?.key ?? null;
+  if (w.type === 'custom_report') return null;
+  return legacyReportKey(w.type, cfg as { metric?: string });
+}
+
+/** Alcance para un reporte propio: el de quien mira, recortado al filtro de owner/equipo. */
+export function narrowScope(scope: OwnerScope | undefined, ownerIds: string[] | null): OwnerScope | undefined {
+  if (!ownerIds) return scope;
+  if (!scope) return ownerIds;
+  return ownerIds.filter((id) => scope.includes(id));
+}
+
+async function tileData(w: CrmDashboardWidgetRow, ctx: ReportContext, tv: TileViewer, db: Db): Promise<TileData> {
+  try {
+    if (w.type === 'custom_report') {
+      const cfg = parseConfig(w.config);
+      const report = cfg.reportId ? await getCustomReport(tv.viewer.workspaceId, cfg.reportId, db) : null;
+      if (!report) return { kind: 'error', code: 'report_missing' };
+      let config: ReportConfig = report.config;
+      if (ctx.pipelineId && config.source === 'deals') {
+        config = { ...config, filters: [...config.filters, { f: 'deal.pipeline', o: 'is', v: ctx.pipelineId }] };
+      }
+      const result = await runReport(
+        tv.viewer.workspaceId,
+        config,
+        {
+          scope: narrowScope(tv.scope, ctx.ownerIds),
+          people: tv.owners.map((o) => ({ id: o.id, name: o.name || o.email })),
+          viewer: tv.fieldViewer,
+        },
+        db,
+      );
+      // La config sale como la ve la persona (sin campos ocultos).
+      const shown = await reportForViewer(tv.fieldViewer, report, db);
+      return { kind: 'custom', report: { id: report.id, name: report.name, config: shown.config, result } };
+    }
+    const key = widgetReportKey(w);
+    if (!key) return { kind: 'error', code: 'unknown_report' };
+    return await computeLibraryReport(key, ctx);
+  } catch (e) {
+    return { kind: 'error', code: e instanceof ReportError ? e.code : 'report_failed' };
+  }
+}
+
+/** Datos de los tiles de un dashboard que la persona ve, con los filtros dados (o los guardados). */
+export async function computeDashboardTiles(
+  tv: TileViewer,
+  dashboardId: string,
+  filters: DashboardFilters | undefined,
+  widgetIds?: string[],
+  db: Db = getDb(),
+): Promise<Record<string, TileData>> {
+  const d = await getDashboardFor(tv.viewer, dashboardId, db);
+  if (!d) throw new DashboardError('not_found');
+  return tilesOf(tv, d, filters ?? parseDashboardFilters(d.filters), widgetIds, db);
+}
+
+/** Igual que computeDashboardTiles con el dashboard ya cargado (la página lo tiene). */
+export async function tilesOf(
+  tv: TileViewer,
+  d: Pick<DashboardView, 'widgets'>,
+  filters: DashboardFilters,
+  widgetIds?: string[],
+  db: Db = getDb(),
+): Promise<Record<string, TileData>> {
+  const ctx = await reportContext(tv, filters, db);
+  const widgets = widgetIds ? d.widgets.filter((w) => widgetIds.includes(w.id)) : d.widgets;
+  const entries = await Promise.all(widgets.map(async (w) => [w.id, await tileData(w, ctx, tv, db)] as const));
+  return Object.fromEntries(entries);
+}
+
+/** Registros detrás de un segmento de un tile (solo los que la persona ve). */
+export async function drillTile(
+  tv: TileViewer,
+  dashboardId: string,
+  widgetId: string,
+  filters: DashboardFilters | undefined,
+  segment: DrillSegment,
+  db: Db = getDb(),
+): Promise<DrillResult> {
+  const d = await getDashboardFor(tv.viewer, dashboardId, db);
+  const w = d?.widgets.find((x) => x.id === widgetId);
+  if (!d || !w) throw new DashboardError('not_found');
+  const key = widgetReportKey(w);
+  if (!key) throw new DashboardError('invalid_input');
+  const ctx = await reportContext(tv, filters ?? parseDashboardFilters(d.filters), db);
+  return drillLibraryReport(key, ctx, segment);
 }
