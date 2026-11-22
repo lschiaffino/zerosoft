@@ -8,14 +8,34 @@ import Foundation
 
 public struct AppSettings: Equatable, Sendable {
     public static let fileVersion = 1
-    /// Every key the file may hold. A test checks that nothing else is ever written.
-    public static let keys: Set<String> = ["version", "onboarded", "menuBarItem"]
+    /// Every key the file may hold. A test checks that nothing else is ever written: switches,
+    /// and two names from closed lists (the shortcut and the dictation mode).
+    public static let keys: Set<String> = [
+        "version", "onboarded", "menuBarItem", "shortcut", "mode", "autoPaste", "restoreClipboard",
+        "sendAppName", "keepFailedDictations",
+    ]
 
     /// The first-run window was finished or closed (it does not open again by itself).
     public var onboarded = false
     /// The item in the menu bar. On by default: it is how the app is reached with every window
     /// closed, and dictation (block 6) lives there.
     public var menuBarItem = true
+
+    // Dictation (block 6). The same names and defaults as the Tauri app's settings.json
+    // (config.rs) and desktop/privacy-facts.json (controls).
+
+    /// The global shortcut, one of `DictationShortcut.choices`.
+    public var shortcut = DictationShortcut.standard
+    public var mode = DictationMode.both
+    /// Paste into the app in front (needs Accessibility, and a build that allows it). Off: the
+    /// text is copied and the person presses Command+V.
+    public var autoPaste = true
+    /// After pasting, put back what was on the clipboard.
+    public var restoreClipboard = true
+    /// Send the name of the app in front with each dictation. Off: the app does not read it.
+    public var sendAppName = true
+    /// Keep the audio of a dictation that could not be sent, to send it again (PendingStore).
+    public var keepFailedDictations = true
 
     public init() {}
 
@@ -26,6 +46,12 @@ public struct AppSettings: Equatable, Sendable {
               let raw = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return s }
         if let b = bool(raw["onboarded"]) { s.onboarded = b }
         if let b = bool(raw["menuBarItem"]) { s.menuBarItem = b }
+        if let k = DictationShortcut.named(raw["shortcut"] as? String) { s.shortcut = k }
+        if let m = (raw["mode"] as? String).flatMap(DictationMode.init(rawValue:)) { s.mode = m }
+        if let b = bool(raw["autoPaste"]) { s.autoPaste = b }
+        if let b = bool(raw["restoreClipboard"]) { s.restoreClipboard = b }
+        if let b = bool(raw["sendAppName"]) { s.sendAppName = b }
+        if let b = bool(raw["keepFailedDictations"]) { s.keepFailedDictations = b }
         return s
     }
 
@@ -34,6 +60,12 @@ public struct AppSettings: Equatable, Sendable {
             "version": Self.fileVersion,
             "onboarded": onboarded,
             "menuBarItem": menuBarItem,
+            "shortcut": shortcut.name,
+            "mode": mode.rawValue,
+            "autoPaste": autoPaste,
+            "restoreClipboard": restoreClipboard,
+            "sendAppName": sendAppName,
+            "keepFailedDictations": keepFailedDictations,
         ]
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
@@ -41,6 +73,11 @@ public struct AppSettings: Equatable, Sendable {
     /// "onboarded=true menubar=false": closed keys and values, for the UI tests.
     public var summary: String {
         "onboarded=\(onboarded) menubar=\(menuBarItem)"
+    }
+
+    /// "shortcut=Alt+Space mode=both paste=true restore=true app=true keep=true", for the UI tests.
+    public var dictationSummary: String {
+        "shortcut=\(shortcut.name) mode=\(mode.rawValue) paste=\(autoPaste) restore=\(restoreClipboard) app=\(sendAppName) keep=\(keepFailedDictations)"
     }
 
     private static func bool(_ v: Any?) -> Bool? {
@@ -57,11 +94,12 @@ extension TabPrefs {
 }
 
 /// The sections of the Settings window, in order (the Tauri window's native sections that have
-/// a native side in this build; dictation, meetings, privacy and updates come with their blocks).
+/// a native side in this build; meetings, privacy and updates come with their blocks).
+/// Permissions holds notifications, the microphone and Accessibility (block 6).
 public enum SettingsSection: String, CaseIterable, Sendable {
     case general
     case tabs
-    case notifications
+    case permissions
     case voice
     case dictionary
     case history
@@ -85,14 +123,22 @@ public enum LoginItemState: String, Sendable {
 }
 
 /// Notification permission as the system reports it, reduced.
-public enum NotificationAccess: String, Sendable {
+public typealias NotificationAccess = PermissionAccess
+/// Microphone permission (AVCaptureDevice.authorizationStatus(for: .audio)), reduced. The system
+/// prompt shows only when the person starts a dictation or presses "Turn on the microphone",
+/// never at launch.
+public typealias MicrophoneAccess = PermissionAccess
+
+/// A permission macOS asks for once (notifications, the microphone), reduced.
+public enum PermissionAccess: String, Sendable {
     case notDetermined
     case allowed
     case denied
 
-    /// What the "Turn on notifications" button does. The system prompt shows only from that
-    /// button (onboarding or Settings), never at launch or because something arrived: a prompt
-    /// out of nowhere is the one people deny.
+    /// What the "Turn on notifications" (or microphone) button does. The system prompt shows
+    /// only from that button (onboarding or Settings) or, for the microphone, the first
+    /// dictation; never at launch or because something arrived: a prompt out of nowhere is the
+    /// one people deny.
     public enum Action: Equatable, Sendable {
         /// Show the system prompt.
         case ask
@@ -118,6 +164,8 @@ public enum NotificationAccess: String, Sendable {
 public enum OnboardingStep: Int, CaseIterable, Sendable {
     /// What the app does that the browser does not.
     case welcome
+    /// Dictation: the shortcut, the microphone (with its button) and pasting (Accessibility).
+    case dictation
     /// Notifications, with the reason before the system prompt.
     case notifications
     /// Open at login and the menu bar item (both optional).
@@ -134,11 +182,34 @@ public enum OnboardingStep: Int, CaseIterable, Sendable {
     }
 }
 
+/// The dictation part of the menu bar item's menu.
+public struct DictationMenuState: Equatable, Sendable {
+    public var phase: DictationPhase
+    public var mode: DictationMode
+    /// Saved dictations waiting to be sent again.
+    public var pending: Int
+
+    public init(phase: DictationPhase, mode: DictationMode, pending: Int) {
+        self.phase = phase
+        self.mode = mode
+        self.pending = pending
+    }
+}
+
 /// The menu of the menu bar item, as data: the app builds the NSMenu from it.
 public enum StatusMenuItem: Equatable, Sendable {
     case open
     case newTab
     case newWindow
+    /// Start a dictation, or stop the one that records (`recording`).
+    case dictate(recording: Bool)
+    /// "Dictate: hold ⌥Space" (not in toggle mode, where holding does nothing special).
+    case dictateHint
+    case pasteLast
+    /// Send the saved dictations again.
+    case retry(Int)
+    /// Settings › History.
+    case history
     case unread(Int)
     case settings
     case signIn
@@ -148,8 +219,15 @@ public enum StatusMenuItem: Equatable, Sendable {
 
     /// The items for a state. `signedIn` nil means unknown (not asked yet, or offline): no
     /// account item. `unread` is the badge total.
-    public static func items(signedIn: Bool?, unread: Int) -> [StatusMenuItem] {
+    public static func items(signedIn: Bool?, unread: Int, dictation: DictationMenuState? = nil) -> [StatusMenuItem] {
         var list: [StatusMenuItem] = [.open, .newTab, .newWindow]
+        if let d = dictation {
+            list += [.separator, .dictate(recording: d.phase == .recording)]
+            if d.mode != .toggle, d.phase == .idle { list.append(.dictateHint) }
+            list.append(.pasteLast)
+            if d.pending > 0 { list.append(.retry(d.pending)) }
+            list.append(.history)
+        }
         if unread > 0 { list += [.separator, .unread(unread)] }
         list += [.separator, .settings]
         switch signedIn {

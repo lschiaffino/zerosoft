@@ -20,12 +20,15 @@ import Testing
     s.onboarded = true
     let raw = try #require(try JSONSerialization.jsonObject(with: s.encoded()) as? [String: Any])
     #expect(Set(raw.keys) == AppSettings.keys)
-    // Switches and the version only: nothing that could be a token, an address or page text.
-    for (key, value) in raw where key != "version" {
+    // Switches, the version and two names from closed lists only: nothing that could be a
+    // token, an address or page text.
+    for (key, value) in raw where !["version", "shortcut", "mode"].contains(key) {
         let n = try #require(value as? NSNumber, "\(key)")
         #expect(CFGetTypeID(n) == CFBooleanGetTypeID(), "\(key)")
     }
     #expect(raw["version"] as? Int == AppSettings.fileVersion)
+    #expect(DictationShortcut.choices.map(\.name).contains(try #require(raw["shortcut"] as? String)))
+    #expect(DictationMode.allCases.map(\.rawValue).contains(try #require(raw["mode"] as? String)))
 }
 
 @Test func settingsIgnoreWrongTypesAndJunk() {
@@ -80,7 +83,8 @@ import Testing
     s.onboarded = true
     #expect(!OnboardingStep.shouldShow(s, testing: false, forced: false))
     #expect(OnboardingStep.shouldShow(s, testing: false, forced: true))
-    #expect(OnboardingStep.welcome.next == .notifications && OnboardingStep.done.next == nil)
+    #expect(OnboardingStep.welcome.next == .dictation && OnboardingStep.dictation.next == .notifications)
+    #expect(OnboardingStep.done.next == nil)
     #expect(OnboardingStep.welcome.previous == nil && OnboardingStep.done.previous == .startup)
 }
 
@@ -91,8 +95,42 @@ import Testing
     ])
     #expect(StatusMenuItem.items(signedIn: false, unread: 0).contains(.signIn))
     #expect(!StatusMenuItem.items(signedIn: false, unread: 0).contains(.signOut))
+    // Dictation (block 6): start or stop, the hint while idle, paste last, the saved ones, history.
+    let idle = DictationMenuState(phase: .idle, mode: .both, pending: 0)
+    #expect(StatusMenuItem.items(signedIn: true, unread: 0, dictation: idle) == [
+        .open, .newTab, .newWindow, .separator, .dictate(recording: false), .dictateHint, .pasteLast, .history,
+        .separator, .settings, .signOut, .separator, .quit,
+    ])
+    let recording = DictationMenuState(phase: .recording, mode: .both, pending: 2)
+    let list = StatusMenuItem.items(signedIn: nil, unread: 0, dictation: recording)
+    #expect(list.contains(.dictate(recording: true)) && !list.contains(.dictateHint) && list.contains(.retry(2)))
+    #expect(!StatusMenuItem.items(signedIn: nil, unread: 0, dictation: DictationMenuState(phase: .idle, mode: .toggle, pending: 0)).contains(.dictateHint))
+}
+
+@Test func dictationSettingsRoundTripAndDefaults() {
+    let fresh = AppSettings()
+    // The Tauri app's defaults (config.rs) and the privacy facts' controls.
+    #expect(fresh.shortcut.name == "Alt+Space" && fresh.mode == .both)
+    #expect(fresh.autoPaste && fresh.restoreClipboard && fresh.sendAppName && fresh.keepFailedDictations)
+    var s = fresh
+    s.shortcut = DictationShortcut.named("F5")!
+    s.mode = .toggle
+    s.autoPaste = false
+    s.keepFailedDictations = false
+    let back = AppSettings.decode(s.encoded())
+    #expect(back == s)
+    #expect(back.dictationSummary == "shortcut=F5 mode=toggle paste=false restore=true app=true keep=false")
+    // Names outside the closed lists keep the defaults.
+    let junk = AppSettings.decode(Data(#"{"shortcut":"Command+Q","mode":"always","autoPaste":"no"}"#.utf8))
+    #expect(junk.shortcut == .standard && junk.mode == .both && junk.autoPaste)
+}
+
+@Test func microphonePromptOnlyFromTheButtonOrADictation() {
+    #expect(MicrophoneAccess.notDetermined.buttonAction == .ask)
+    #expect(MicrophoneAccess.denied.buttonAction == .openSystemSettings)
+    #expect(MicrophoneAccess.allowed.buttonAction == .none)
 }
 
 @Test func settingsSectionsOrder() {
-    #expect(SettingsSection.allCases.map(\.rawValue) == ["general", "tabs", "notifications", "voice", "dictionary", "history", "account"])
+    #expect(SettingsSection.allCases.map(\.rawValue) == ["general", "tabs", "permissions", "voice", "dictionary", "history", "account"])
 }

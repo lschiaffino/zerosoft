@@ -108,6 +108,18 @@ final class SettingsUITests: XCTestCase {
         "\(box.value ?? "")" == "1"
     }
 
+    /// Scrolls Settings until `el` can be clicked (the sections are scroll views taller than
+    /// the window), then clicks it.
+    private func reveal(_ app: XCUIApplication, _ el: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(el.waitForExistence(timeout: 15), "missing \(el)", file: file, line: line)
+        let scroll = app.windows.matching(identifier: "zs-settings").firstMatch.scrollViews.firstMatch
+        for delta in [-120.0, -120, -120, -120, 120, 120, 120, 120, 120, 120, 120, 120] where !el.isHittable {
+            scroll.scroll(byDeltaX: 0, deltaY: CGFloat(delta))
+        }
+        XCTAssertTrue(el.isHittable, "\(el) is not visible", file: file, line: line)
+        el.click()
+    }
+
     /// Cmd+, opens Settings; the app's switches go to settings.json and the tab preferences to
     /// session.json, and both are there again after a relaunch.
     func testSettingsOpensAndSwitchesPersist() throws {
@@ -188,6 +200,12 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(onboarding.waitForExistence(timeout: 20), "no onboarding window")
         waitLabel(app, "zs-test-notif", "notif asked=0")
         button(app, "zs-ob-next").click()
+        // Block 6: the dictation step shows the shortcut and explains the microphone before
+        // anything asks for it.
+        XCTAssertTrue(button(app, "zs-ob-mic").waitForExistence(timeout: 10), "no dictation step")
+        XCTAssertTrue(element(app, "zs-ob-dict-body").exists)
+        waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
+        button(app, "zs-ob-next").click()
         XCTAssertTrue(button(app, "zs-ob-notif").waitForExistence(timeout: 10))
         // Still not asked: the step explains first.
         waitLabel(app, "zs-test-notif", "notif asked=0")
@@ -207,8 +225,10 @@ final class SettingsUITests: XCTestCase {
         waitLabel(app, "zs-test-settings", "onboarded=true menubar=true")
         // Settings shows the same answer, without a second prompt.
         openSettings(app)
-        section(app, "notifications")
+        section(app, "permissions")
         XCTAssertTrue(text(app, "Notifications are on.").waitForExistence(timeout: 10))
+        // Nothing in the onboarding asked for the microphone.
+        waitLabel(app, "zs-test-mic", "mic asked=0 notDetermined")
         waitLabel(app, "zs-test-notif", "notif asked=1 allowed")
     }
 
@@ -245,9 +265,10 @@ final class SettingsUITests: XCTestCase {
         wait(for: [removed], timeout: 10)
 
         section(app, "voice")
+        // Block 6 put the dictation controls of this Mac above the account's settings.
         let cleanup = app.popUpButtons.matching(identifier: "zs-voice-cleanup").firstMatch
         XCTAssertTrue(cleanup.waitForExistence(timeout: 15), "voice settings did not load")
-        press(cleanup)
+        reveal(app, cleanup)
         cleanup.menuItems["Formal"].click()
         waitServer("patch") { self.server.writes.contains(#"PATCH /api/voice/settings {"cleanupMode":"formal"}"#) }
         XCTAssertTrue(element(app, "zs-voice-saved").waitForExistence(timeout: 10))
