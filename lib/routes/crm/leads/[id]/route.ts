@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, type SessionUser } from '@/lib/session';
 import { canSeeEntity, canSeeOwner, sessionScope } from '@/lib/crm-visibility';
-import { deleteLead, getLead, updateLead } from '@/lib/crm-leads';
+import { deleteLead, getLead, maskLeadRefs, updateLead } from '@/lib/crm-leads';
 import { leadUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 import { guardCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
@@ -10,8 +10,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function visibleLead(user: SessionUser, id: string) {
-  const lead = await getLead(user.id, id);
-  if (!lead || !canSeeOwner(await sessionScope(user), lead.owner_id, user.id)) return null;
+  const scope = await sessionScope(user);
+  const lead = await getLead(user.id, id, scope);
+  if (!lead || !canSeeOwner(scope, lead.owner_id, user.id)) return null;
   return lead;
 }
 
@@ -41,7 +42,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const updated = await catchRef(updateLead(user.id, id, { ...parsed.data, custom: guard.custom }));
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();
-  return NextResponse.json(redactRow(updated, await hiddenFieldsFor(viewer, 'leads')));
+  return NextResponse.json(redactRow(await maskLeadRefs(user.id, updated, scope), await hiddenFieldsFor(viewer, 'leads')));
 }
 
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {

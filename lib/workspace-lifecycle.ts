@@ -175,6 +175,17 @@ const STEPS: Step[] = [
     },
   },
   {
+    // CRM: sus vistas privadas y sus pestañas de vistas son solo suyas: se van, y no vuelven si la
+    // suman de nuevo. Las vistas que compartió con su equipo o con todos quedan (son del workspace).
+    name: 'crm_views',
+    run: async (e) => {
+      await db().prepare('DELETE FROM crm_view_tabs WHERE user_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      await db()
+        .prepare("DELETE FROM crm_saved_views WHERE user_id = ? AND person_id = ? AND visibility = 'private'")
+        .run(e.ownerId, e.userId);
+    },
+  },
+  {
     // Track: accesos a proyectos privados del workspace.
     name: 'track',
     run: (e) =>

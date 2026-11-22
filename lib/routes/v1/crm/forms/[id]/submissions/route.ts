@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
-import { getForm, listSubmissions } from '@/lib/crm-forms';
+import { getForm, listSubmissions, redactSubmissionsFor } from '@/lib/crm-forms';
+import { apiFieldViewer } from '@/lib/crm-field-perms';
 import { pageParams } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
 
@@ -23,7 +24,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const form = await getForm(auth.user.id, id);
   if (!form) return apiError(404, 'not_found', 'Form not found.');
   const { page, pageSize } = pageParams(req.nextUrl.searchParams);
-  const { rows, total } = await listSubmissions(auth.user.id, id, { page, pageSize, ownerScope: await apiScope(auth) });
+  const listed = await listSubmissions(auth.user.id, id, { page, pageSize, ownerScope: await apiScope(auth) });
+  // Sin lo que se cargó en campos propios que la persona de la key tiene ocultos.
+  const rows = await redactSubmissionsFor(apiFieldViewer(auth), form, listed.rows);
+  const total = listed.total;
   return NextResponse.json({
     submissions: rows.map((r) => ({
       id: r.id,

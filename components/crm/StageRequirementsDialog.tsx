@@ -21,6 +21,8 @@ export interface MissingField {
 export interface StageRequirements {
   stage: string;
   missing: MissingField[];
+  /** La etapa pide un campo que la persona no puede completar (oculto o de solo lectura): lo completa un admin. */
+  adminRequired?: boolean;
 }
 
 interface MoveRequest {
@@ -60,19 +62,31 @@ export async function checkStageMove(
   const body = (await res.json().catch(() => null)) as {
     stage?: string;
     missing?: MissingField[];
+    adminRequired?: boolean;
     closeDate?: string | null;
     approval?: ApprovalInfo | null;
   } | null;
   if (!body || !Array.isArray(body.missing)) return null;
-  return { stage: body.stage ?? '', missing: body.missing, closeDate: body.closeDate ?? null, approval: body.approval ?? null };
+  return {
+    stage: body.stage ?? '',
+    missing: body.missing,
+    ...(body.adminRequired ? { adminRequired: true } : {}),
+    closeDate: body.closeDate ?? null,
+    approval: body.approval ?? null,
+  };
 }
 
 /** Lee el cuerpo de un 422 de /move; null si es otro error. */
 export async function readRequirements(res: Response | null): Promise<StageRequirements | null> {
   if (!res || res.status !== 422) return null;
-  const body = (await res.clone().json().catch(() => null)) as { error?: string; stage?: string; missing?: MissingField[] } | null;
+  const body = (await res.clone().json().catch(() => null)) as {
+    error?: string;
+    stage?: string;
+    missing?: MissingField[];
+    adminRequired?: boolean;
+  } | null;
   return body?.error === 'missing_required' && Array.isArray(body.missing)
-    ? { stage: body.stage ?? '', missing: body.missing }
+    ? { stage: body.stage ?? '', missing: body.missing, ...(body.adminRequired ? { adminRequired: true } : {}) }
     : null;
 }
 
@@ -102,6 +116,8 @@ export default function StageRequirementsDialog({
   const set = (key: string, v: unknown) => setValues((prev) => ({ ...prev, [key]: v }));
   const labelOf = (f: MissingField) => f.label ?? t(`stageRules.fields.${f.key}` as 'stageRules.fields.amount');
   const assocOnly = req.missing.every((f) => f.type === 'company' || f.type === 'contacts');
+  // Si falta un campo que solo un admin puede completar, el deal no se puede mover desde acá.
+  const canSubmit = !assocOnly && !req.adminRequired;
 
   function payload(): Record<string, unknown> {
     const fields: Record<string, unknown> = {};
@@ -139,7 +155,8 @@ export default function StageRequirementsDialog({
     const again = await readRequirements(res);
     if (again) {
       setReq(again);
-      setError(t('stageRules.stillMissing'));
+      // Con el aviso de admin a la vista, "todavía falta" sobra.
+      setError(again.adminRequired ? null : t('stageRules.stillMissing'));
       return;
     }
     const body = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
@@ -254,7 +271,7 @@ export default function StageRequirementsDialog({
     >
       <form className="modal-card" onSubmit={submit}>
         <h2 className="modal-title">{heading}</h2>
-        <p className="muted">{sub ?? t('stageRules.dialogSub')}</p>
+        {req.missing.length > 0 && <p className="muted">{sub ?? t('stageRules.dialogSub')}</p>}
         {req.missing.map((f, i) => (
           <div className="field" key={f.key}>
             <label className="prop-label" htmlFor={`req-${f.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`}>
@@ -264,14 +281,20 @@ export default function StageRequirementsDialog({
             {i === 0 ? <AutoFocus>{input(f)}</AutoFocus> : input(f)}
           </div>
         ))}
+        {req.adminRequired && (
+          <p className="form-error" role="alert" data-testid="stage-req-admin">
+            {t('stageRules.adminRequired')}
+          </p>
+        )}
         {error && <p className="form-error">{error}</p>}
         <div className="form-actions">
-          {!assocOnly && (
+          {canSubmit && (
             <button type="submit" className="btn btn-solid btn-small" disabled={busy} data-testid="stage-req-submit">
               {submitLabel ?? t('stageRules.saveAndMove')}
             </button>
           )}
-          <button type="button" className="btn btn-ghost btn-small" onClick={onCancel}>
+          {/* Sin nada para completar, el foco queda en Cancelar (Esc y Enter cierran). */}
+          <button type="button" className="btn btn-ghost btn-small" onClick={onCancel} autoFocus={req.missing.length === 0} data-testid="stage-req-cancel">
             {t('common.cancel')}
           </button>
         </div>

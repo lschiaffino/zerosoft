@@ -868,7 +868,8 @@
     "flow": "Flow can also send a WhatsApp message with the step Lines: send WhatsApp message.",
     "docs": "Every endpoint with examples is in",
     "docsLink": "the API docs",
-    "webhooksManage": "Create endpoints, see the delivery log and resend from"
+    "webhooksManage": "Create endpoints, see the delivery log and resend from",
+    "hubspotWorkflow": "To send WhatsApp from a HubSpot workflow, add a \"Send a webhook\" action that POSTs to /api/v1/groups/hubspot/send with an API key in the Authorization header (Bearer zs_…) and ?text= with your message."
   },
   "crmBlock": {
     "title": "WhatsApp",
@@ -1725,6 +1726,7 @@
     "action": "Go to inbox"
   },
   "wa": {
+    "leftGroupBar": "You can't send messages to this group because you're no longer a member.",
     "chatSearch": {
       "open": "Search messages",
       "shortcut": "Ctrl+Shift+F",

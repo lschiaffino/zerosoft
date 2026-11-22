@@ -4,6 +4,8 @@ import { getCurrentUser, realUserId } from '@/lib/session';
 import { canSeeEntity, sessionScope } from '@/lib/crm-visibility';
 import { cancelApproval, decideApproval, getApproval } from '@/lib/crm-approvals';
 import { crmError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { splitMissingForViewer } from '@/lib/crm-stage-move';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,5 +34,8 @@ export async function POST(req: NextRequest, props: Ctx) {
     if (res.reason === 'not_found') return notFound();
     return crmError(400, 'not_pending');
   }
-  return NextResponse.json({ approval: res.approval, moved: res.moved, missing: res.missing ?? [] });
+  // Sin nombrar campos que la persona tiene ocultos ni pedirle los que no puede completar.
+  const { restricted } = await fieldAccessFor(sessionFieldViewer(user), 'deals');
+  const { fillable, adminRequired } = splitMissingForViewer(res.missing ?? [], restricted);
+  return NextResponse.json({ approval: res.approval, moved: res.moved, missing: fillable, adminRequired });
 }

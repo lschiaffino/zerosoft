@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import type { SessionUser } from '@/lib/session';
-import { listLists } from '@/lib/crm';
+import { listsForViewer } from '@/lib/crm-list-access';
 import { listTags } from '@/lib/crm-tags';
 import { sessionScope } from '@/lib/crm-visibility';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
@@ -17,7 +17,7 @@ export async function listFieldsFor(user: SessionUser, locale: string, exceptLis
     getTranslations({ locale, namespace: 'crm' }),
     ownerOptions(user),
     listTags(user.id, undefined, scope),
-    listLists(user.id, scope),
+    listsForViewer(sessionFieldViewer(user), scope),
     fieldAccessFor(sessionFieldViewer(user), 'contacts'),
   ]);
   return listRuleFields({

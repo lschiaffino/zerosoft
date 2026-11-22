@@ -26,6 +26,8 @@ export interface ViewTabItem {
   canEdit: boolean;
   visibility?: ViewVisibility;
   teamId?: string | null;
+  /** Filtra por campos que la persona tiene ocultos: esos filtros no se le aplican. */
+  partial?: boolean;
 }
 
 interface ViewTabsProps {
@@ -414,7 +416,8 @@ export default function ViewTabs({ entity, pathname, baseQuery = {}, tabs, activ
           <Link href={href(active?.key ?? 'all')} className="btn btn-sm btn-ghost" data-testid="view-reset">
             {t('views.reset')}
           </Link>
-          {active?.saved && active.canEdit && (
+          {/* Guardar sobre una vista con filtros que no se le aplican los borraría: solo "Guardar como". */}
+          {active?.saved && active.canEdit && !active.partial && (
             <button type="button" className="btn btn-sm" onClick={saveChanges} disabled={busy} data-testid="view-save">
               {t('views.save')}
             </button>
@@ -423,6 +426,12 @@ export default function ViewTabs({ entity, pathname, baseQuery = {}, tabs, activ
             {t('views.saveAs')}
           </button>
         </div>
+      )}
+
+      {active?.partial && (
+        <p className="muted views-notice" data-testid="view-partial">
+          {t('views.partialFilters')}
+        </p>
       )}
 
       {notice && (

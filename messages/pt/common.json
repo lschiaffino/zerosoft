@@ -1524,6 +1524,48 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "hiring": {
+      "intro": {
+        "title": "Boas-vindas ao Hiring",
+        "body": "O Hiring leva uma vaga da publicação até a oferta, com um pipeline de candidatos, scorecards e relatórios. Este tour mostra as partes principais."
+      },
+      "newJob": {
+        "title": "Crie uma vaga",
+        "body": "Comece de um modelo ou de uma vaga em branco, com as etapas, o formulário de candidatura e a equipe de contratação. Publique na sua página de vagas."
+      },
+      "jobs": {
+        "title": "Vagas e o pipeline",
+        "body": "Suas vagas abertas. Abra uma para ver o pipeline: adicione candidatos manualmente ou com um CSV, e arraste um cartão ou escolha a etapa para avançar."
+      },
+      "pending": {
+        "title": "Seus scorecards",
+        "body": "Candidatos esperando a sua avaliação depois de uma entrevista. Quem entrevista vê só os candidatos que pediram para avaliar."
+      },
+      "recent": {
+        "title": "Último movimento",
+        "body": "Quem se moveu por último nas suas vagas. Abra um para ver o currículo, as notas, os e-mails, as entrevistas e as ofertas."
+      },
+      "candidates": {
+        "title": "Candidatos",
+        "body": "Todos os candidatos das suas vagas. Busque, filtre por vaga, origem ou etiqueta, e mova, etiquete ou rejeite vários de uma vez."
+      },
+      "reports": {
+        "title": "Relatórios",
+        "body": "Tempo de contratação, conversão por etapa, desempenho de cada origem e motivos de rejeição, com download em CSV."
+      },
+      "templates": {
+        "title": "Modelos",
+        "body": "E-mails para candidatos e a carta de oferta, prontos para reutilizar."
+      },
+      "settings": {
+        "title": "Ajustes do Hiring",
+        "body": "Sua página de vagas, os e-mails para candidatos, os motivos de rejeição, as aprovações e a retenção de dados."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "send": {
       "intro": {
         "title": "Boas-vindas ao Send",

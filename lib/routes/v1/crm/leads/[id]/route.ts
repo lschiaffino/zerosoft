@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiError, requireApiUser, type ApiKeyAuth } from '@/lib/api-auth';
 import { apiScope, canSeeEntity, canSeeOwner } from '@/lib/crm-visibility';
-import { deleteLead, getLead, updateLead } from '@/lib/crm-leads';
+import { deleteLead, getLead, maskLeadRefs, updateLead } from '@/lib/crm-leads';
 import { leadUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 import { apiFieldViewer, guardCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
@@ -10,8 +10,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function visibleLead(auth: ApiKeyAuth, id: string) {
-  const lead = await getLead(auth.user.id, id);
-  if (!lead || !canSeeOwner(await apiScope(auth), lead.owner_id, auth.user.id)) return null;
+  const scope = await apiScope(auth);
+  const lead = await getLead(auth.user.id, id, scope);
+  if (!lead || !canSeeOwner(scope, lead.owner_id, auth.user.id)) return null;
   return lead;
 }
 
@@ -47,7 +48,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const updated = await catchRef(updateLead(auth.user.id, id, { ...parsed.data, custom: guard.custom }));
   if (updated instanceof CrmRefError) return apiError(400, updated.code, 'A referenced record does not exist.');
   if (!updated) return notFound();
-  return NextResponse.json(cleanRow(redactRow(updated, await hiddenFieldsFor(viewer, 'leads'))));
+  return NextResponse.json(cleanRow(redactRow(await maskLeadRefs(auth.user.id, updated, scope), await hiddenFieldsFor(viewer, 'leads'))));
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {

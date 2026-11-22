@@ -3,12 +3,12 @@ import { getCurrentUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { dealMissingForStage, getDeal } from '@/lib/crm';
-import { describeMissing, moveDealWithFields } from '@/lib/crm-stage-move';
+import { describeMissing, moveDealWithFields, splitMissingForViewer } from '@/lib/crm-stage-move';
 import { checkApproval, getApproval } from '@/lib/crm-approvals';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope } from '@/lib/crm-visibility';
-import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, guardRecordCustomWrite, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 
 import { listMembers } from '@/lib/teams';
 import type { SessionUser } from '@/lib/session';
@@ -39,8 +39,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   // Permisos por campo: las propiedades que completa la etapa pasan por las mismas reglas que el PATCH.
   const fieldViewer = sessionFieldViewer(user);
-  const hiddenFields = await hiddenFieldsFor(fieldViewer, 'deals');
-  const visibleMissing = (keys: string[]) => keys.filter((k) => !k.startsWith('custom:') || !hiddenFields.has(k.slice(7)));
+  const { hidden: hiddenFields, restricted } = await fieldAccessFor(fieldViewer, 'deals');
+  // Lo que pide la etapa y la persona no puede completar (un campo oculto o de solo lectura) no se le
+  // pregunta: la UI avisa que lo tiene que completar un admin, sin nombrar los ocultos.
+  const forViewer = (keys: string[]) => splitMissingForViewer(keys, restricted);
   let payload = parsed.data;
   if (payload.fields?.custom) {
     const fp = await guardRecordCustomWrite(fieldViewer, 'deal', params.id, payload.fields.custom);
@@ -60,7 +62,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   // Pregunta previa de la UI (p. ej. antes del diálogo de ganado): qué pediría
   // la etapa, sin mover. Responde 200 para que el caso esperado no sea un error.
   if (parsed.data.dryRun) {
-    const missing = detail.deal.stage_id === stageId ? [] : visibleMissing(await dealMissingForStage(user.id, detail.deal, stage));
+    const { fillable: missing, adminRequired } =
+      detail.deal.stage_id === stageId ? { fillable: [], adminRequired: false } : forViewer(await dealMissingForStage(user.id, detail.deal, stage));
     const check = detail.deal.stage_id === stageId ? null : await checkApproval(user.id, detail.deal, stageId, user.actingUser?.id ?? user.id);
     let approval: Record<string, unknown> | null = null;
     if (check?.needed) {
@@ -80,6 +83,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       stage: stage.name,
       closeDate: detail.deal.close_date ?? null,
       approval,
+      adminRequired,
       missing: missing.length
         ? await describeMissing(user.id, missing, missing.includes('ownerId') || missing.some((k) => k.startsWith('custom:')) ? await peopleOptions(user) : [])
         : [],
@@ -98,11 +102,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!result.ok) {
     if (result.reason === 'missing_required') {
       // La etapa pide propiedades: la UI abre el diálogo para completarlas.
+      const { fillable, adminRequired } = forViewer(result.missing);
       return NextResponse.json(
         {
           error: 'missing_required',
           stage: stage.name,
-          missing: await describeMissing(user.id, visibleMissing(result.missing), await peopleOptions(user)),
+          adminRequired,
+          missing: await describeMissing(user.id, fillable, await peopleOptions(user)),
         },
         { status: 422 },
       );

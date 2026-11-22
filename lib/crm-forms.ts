@@ -35,6 +35,7 @@ import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
+import { hiddenFieldSets, isUnrestricted, type FieldViewer } from './crm-field-perms';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 
 export interface CrmForm {
@@ -378,6 +379,82 @@ export async function listSubmissions(
   return { rows, total };
 }
 
+// ---------- Envíos: campos que guardan en propiedades ocultas ----------
+
+/**
+ * Ids de los campos del form que guardan en un campo propio de contactos
+ * ('custom.<name>') o de empresas ('company.custom.<name>') de estos
+ * conjuntos. Puro.
+ */
+export function formFieldIdsFor(
+  fields: Array<Pick<FormField, 'id' | 'property'>>,
+  hidden: { contacts?: ReadonlySet<string>; companies?: ReadonlySet<string> },
+): Set<string> {
+  const out = new Set<string>();
+  for (const f of fields) {
+    const p = f.property ?? '';
+    if (p.startsWith('company.custom.') && hidden.companies?.has(p.slice('company.custom.'.length))) out.add(f.id);
+    else if (p.startsWith('custom.') && hidden.contacts?.has(p.slice('custom.'.length))) out.add(f.id);
+  }
+  return out;
+}
+
+/** El JSON de un envío sin esos campos. Puro. */
+export function redactSubmissionData(json: string, ids: ReadonlySet<string>): string {
+  if (!ids.size) return json;
+  const data = (parseJson(json) as Record<string, unknown> | null) ?? {};
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return '{}';
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) if (!ids.has(k)) out[k] = v;
+  return JSON.stringify(out);
+}
+
+/**
+ * Envíos como los ve la persona: sin lo que se cargó en un campo propio que
+ * tiene oculto (en la tabla, el CSV y la API). Owner y admins ven todo.
+ */
+export async function redactSubmissionsFor<T extends { data: string }>(
+  viewer: FieldViewer,
+  form: Pick<CrmForm, 'fields'>,
+  rows: T[],
+  db: Db = getDb(),
+): Promise<T[]> {
+  if (!rows.length || isUnrestricted(viewer)) return rows;
+  const ids = formFieldIdsFor(form.fields, await hiddenFieldSets(viewer, ['contacts', 'companies'] as const, db));
+  return ids.size ? rows.map((r) => ({ ...r, data: redactSubmissionData(r.data, ids) })) : rows;
+}
+
+/**
+ * El form como lo ve la persona: los campos que guardan en una propiedad que
+ * tiene oculta salen sin destino (no la nombran). `hiddenTargets` dice si
+ * había alguno: entonces no lo puede editar (perdería ese destino sin verlo).
+ */
+export async function formForViewer(viewer: FieldViewer, form: CrmForm, db: Db = getDb()): Promise<{ form: CrmForm; hiddenTargets: boolean }> {
+  if (isUnrestricted(viewer)) return { form, hiddenTargets: false };
+  const ids = formFieldIdsFor(form.fields, await hiddenFieldSets(viewer, ['contacts', 'companies'] as const, db));
+  if (!ids.size) return { form, hiddenTargets: false };
+  return { form: { ...form, fields: form.fields.map((f) => (ids.has(f.id) ? { ...f, property: '' } : f)) }, hiddenTargets: true };
+}
+
+/** formForViewer para una lista de forms. */
+export async function formsForViewer(viewer: FieldViewer, forms: CrmForm[], db: Db = getDb()): Promise<CrmForm[]> {
+  if (isUnrestricted(viewer) || !forms.length) return forms;
+  return Promise.all(forms.map(async (f) => (await formForViewer(viewer, f, db)).form));
+}
+
+/** Campos propios que alguna regla oculta a alguien (para no copiarlos en notas y avisos que ve todo el equipo). */
+async function fieldsHiddenToAnyone(workspaceId: string, db: Db): Promise<{ contacts: Set<string>; companies: Set<string> }> {
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT f.entity, f.name FROM crm_field_permissions p JOIN crm_custom_fields f ON f.id = p.field_id
+       WHERE p.user_id = ? AND p.access = 'hidden' AND f.entity IN ('contacts', 'companies')`,
+    )
+    .all(workspaceId)) as Array<{ entity: string; name: string }>;
+  const out = { contacts: new Set<string>(), companies: new Set<string>() };
+  for (const r of rows) (r.entity === 'contacts' ? out.contacts : out.companies).add(r.name);
+  return out;
+}
+
 /** CSV de envíos: fecha, contacto, una columna por campo y UTM. */
 export function submissionsCsv(form: CrmForm, rows: SubmissionRow[]): string {
   const utmKeys = new Set<string>();
@@ -591,9 +668,12 @@ export async function submitForm(
       );
     await db.prepare('UPDATE crm_forms SET submission_count = submission_count + 1 WHERE id = ?').run(form.id);
   };
-  // Los valores del envío, para la nota y los avisos.
+  // Los valores del envío, para la nota y los avisos. Lo que va a un campo propio que alguien tiene
+  // oculto no se copia: la nota la ve todo el equipo. El valor queda en la propiedad (si se escribe) y
+  // siempre en el envío, que owner y admins ven entero.
+  const restrictedIds = formFieldIdsFor(form.fields, await fieldsHiddenToAnyone(workspaceId, db));
   const lines = form.fields
-    .filter((f) => values[f.id] !== '' && values[f.id] !== undefined)
+    .filter((f) => values[f.id] !== '' && values[f.id] !== undefined && !restrictedIds.has(f.id))
     .map((f) => `${f.label || f.id}: ${typeof values[f.id] === 'boolean' ? (values[f.id] ? 'yes' : 'no') : String(values[f.id])}`);
   if (Object.keys(utm).length) lines.push('', ...Object.entries(utm).map(([k, v]) => `${k}: ${v}`));
   if (body.pageUrl) lines.push('', `Page: ${body.pageUrl}`);

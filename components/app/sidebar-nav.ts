@@ -1044,17 +1044,18 @@ export function buildNav(
           items: [
             { href: '/app/hiring', label: h.home, active: pathname === '/app/hiring', icon: 'overview' },
             { href: '/app/hiring/jobs', label: h.jobs, active: at('/app/hiring/jobs'), icon: 'hiring' },
-            { href: '/app/hiring/candidates', label: h.candidates, active: at('/app/hiring/candidates'), icon: 'contacts' },
+            // Anclajes del tour de Hiring (lib/tours/hiring.ts).
+            { href: '/app/hiring/candidates', label: h.candidates, active: at('/app/hiring/candidates'), icon: 'contacts', tour: 'hiring-candidates' },
           ],
         },
         {
           section: labels.insights,
-          items: [{ href: '/app/hiring/reports', label: h.reports, active: at('/app/hiring/reports'), icon: 'reports' }],
+          items: [{ href: '/app/hiring/reports', label: h.reports, active: at('/app/hiring/reports'), icon: 'reports', tour: 'hiring-reports' }],
         },
         {
           items: [
-            { href: '/app/hiring/templates', label: h.templates, active: at('/app/hiring/templates'), icon: 'templates' },
-            { href: '/app/hiring/settings', label: labels.appSettings, active: at('/app/hiring/settings'), icon: 'settings' },
+            { href: '/app/hiring/templates', label: h.templates, active: at('/app/hiring/templates'), icon: 'templates', tour: 'hiring-templates' },
+            { href: '/app/hiring/settings', label: labels.appSettings, active: at('/app/hiring/settings'), icon: 'settings', tour: 'hiring-settings' },
           ],
         },
       ];

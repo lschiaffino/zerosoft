@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal } from '@/lib/crm';
-import { moveDealWithFields } from '@/lib/crm-stage-move';
+import { moveDealWithFields, splitMissingForViewer } from '@/lib/crm-stage-move';
 import { CrmRefError } from '@/lib/crm-refs';
 import { dealMoveSchema } from '@/lib/crm-schema';
 import { cleanRow, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { apiScope } from '@/lib/crm-visibility';
-import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
+import { apiFieldViewer, fieldAccessFor, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,15 +51,19 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   }
   if (!result.ok) {
     if (result.reason === 'missing_required') {
-      // Sin nombrar propiedades que la key tiene ocultas.
-      const hiddenFields = await hiddenFieldsFor(fieldViewer, 'deals');
-      const missing = result.missing.filter((k) => !k.startsWith('custom:') || !hiddenFields.has(k.slice(7)));
+      // Sin nombrar propiedades que la key tiene ocultas; las que no puede completar las completa un admin.
+      const { restricted } = await fieldAccessFor(fieldViewer, 'deals');
+      const { fillable: missing, adminRequired } = splitMissingForViewer(result.missing, restricted);
+      const base = missing.length
+        ? `The stage "${stage.name}" requires these properties: ${missing.join(', ')}. Send them in "fields" or set them first.`
+        : `The stage "${stage.name}" requires properties.`;
       return NextResponse.json(
         {
           error: {
             code: 'missing_required',
-            message: `The stage "${stage.name}" requires these properties: ${missing.join(', ')}. Send them in "fields" or set them first.`,
+            message: adminRequired ? `${base} A required property must be filled in by an admin.` : base,
             missing,
+            adminRequired,
           },
         },
         { status: 422 },

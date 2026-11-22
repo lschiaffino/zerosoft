@@ -18,7 +18,8 @@ import { isFileUrlPath } from './files/url';
 import { localized } from './notification-copy';
 import { createHash, randomBytes } from 'crypto';
 import { getDb } from './db';
-import { visibleIds, type OwnerScope } from './crm-visibility';
+import type { OwnerScope } from './crm-visibility';
+import { maskPrivateRefs, PRIVATE_REFS } from './crm-record-scope';
 import { deleteUploads } from './uploads';
 import { clampSeconds, fmtDuration, mergePages, topPages, watchedPct } from './crm-media-schema';
 
@@ -149,25 +150,22 @@ export interface DocumentLinkView {
   seconds: number;
   pages: Record<string, number>;
   created_at: string;
+  /** El contacto es un registro que la persona no ve. */
+  contact_private?: boolean;
 }
 
 /**
  * Visibilidad del CRM ('mine'/'team'): el contacto vinculado a un link o a un
- * video que la persona no ve queda sin id, nombre ni email (el link y el video
- * se siguen viendo: son del workspace). Sin scope no cambia nada.
+ * video que la persona no ve queda sin id, nombre ni email y marcado como
+ * privado (el link y el video se siguen viendo: son del workspace). Sin scope
+ * no cambia nada.
  */
 export async function hideUnseenContacts<T extends { contact_id: string | null; contact_name: string | null; contact_email?: string | null }>(
   userId: string,
   rows: T[],
   scope: OwnerScope | undefined,
-): Promise<T[]> {
-  if (!scope) return rows;
-  const ids = [...new Set(rows.map((r) => r.contact_id).filter((id): id is string => Boolean(id)))];
-  const seen = new Set(await visibleIds(userId, 'crm_contacts', ids, scope));
-  return rows.map((r) => {
-    if (!r.contact_id || seen.has(r.contact_id)) return r;
-    return ('contact_email' in r ? { ...r, contact_id: null, contact_name: null, contact_email: null } : { ...r, contact_id: null, contact_name: null }) as T;
-  });
+): Promise<Array<T & { contact_private?: boolean }>> {
+  return maskPrivateRefs(userId, rows, [PRIVATE_REFS.contact()], scope);
 }
 
 export async function listDocumentLinks(userId: string, documentId: string, scope?: OwnerScope): Promise<DocumentLinkView[]> {
@@ -377,7 +375,7 @@ export interface VideoRow {
   updated_at: string;
 }
 
-export type VideoListItem = VideoRow & { contact_name: string | null };
+export type VideoListItem = VideoRow & { contact_name: string | null; contact_private?: boolean };
 
 export async function listVideos(userId: string, q = '', scope?: OwnerScope): Promise<VideoListItem[]> {
   const like = `%${q.trim().replace(/[%_\\]/g, (c) => `\\${c}`)}%`;

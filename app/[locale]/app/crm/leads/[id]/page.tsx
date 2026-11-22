@@ -27,6 +27,7 @@ import LeadActions, { LeadStagePath } from '@/components/crm/LeadActions';
 import { customPropFields } from '@/components/crm/customPropFields';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
 import { clearLeadCompany, clearLeadContact, setLeadCompany, setLeadContact } from '@/components/crm/leadServerActions';
+import PrivateRecord from '@/components/crm/PrivateRecord';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function LeadPage(props: {
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const scope = await sessionScope(user);
-  const lead = await getLead(user.id, id);
+  const lead = await getLead(user.id, id, scope);
   if (!lead || !canSeeOwner(scope, lead.owner_id, user.id)) notFound();
 
   const base = `/app/crm/leads/${lead.id}`;
@@ -58,6 +59,7 @@ export default async function LeadPage(props: {
           leadId={lead.id}
           leadName={lead.name}
           dealId={lead.deal_id}
+          dealPrivate={!!lead.deal_private}
           stageKind={kind}
           disqualifiedStageId={stages.find((s) => s.kind === 'disqualified')?.id ?? null}
           firstOpenStageId={stages.find((s) => s.kind === 'open')?.id ?? null}
@@ -104,7 +106,9 @@ export default async function LeadPage(props: {
           <span className="record-meta">
             <span className={`badge lead-kind-${kind}`}>{stage?.name ?? '—'}</span>
             {lead.contact_id && <Link href={`/app/crm/contacts/${lead.contact_id}`}>{lead.contact_name ?? lead.contact_email}</Link>}
+            {lead.contact_private && <PrivateRecord label={t('common.privateRecord')} />}
             {lead.company_id && <Link href={`/app/crm/companies/${lead.company_id}`}>{lead.company_name}</Link>}
+            {lead.company_private && <PrivateRecord label={t('common.privateRecord')} />}
             <span>{ownerLabel}</span>
             {lead.converted_at && <span>{<TextAroundDate text={t('leads.converted', { date: DATE_SLOT })}><LocalDate value={lead.converted_at} locale={locale} kind="date" /></TextAroundDate>}</span>}
             {kind === 'disqualified' && lead.disqualify_reason && (
@@ -152,6 +156,8 @@ export default async function LeadPage(props: {
                   <dd>
                     {lead.contact_id ? (
                       <Link href={`/app/crm/contacts/${lead.contact_id}`}>{lead.contact_name ?? lead.contact_email}</Link>
+                    ) : lead.contact_private ? (
+                      <PrivateRecord label={t('common.privateRecord')} />
                     ) : (
                       t('leads.none')
                     )}
@@ -160,12 +166,26 @@ export default async function LeadPage(props: {
                 <div>
                   <dt>{t('leads.summaryCompany')}</dt>
                   <dd>
-                    {lead.company_id ? <Link href={`/app/crm/companies/${lead.company_id}`}>{lead.company_name}</Link> : t('leads.none')}
+                    {lead.company_id ? (
+                      <Link href={`/app/crm/companies/${lead.company_id}`}>{lead.company_name}</Link>
+                    ) : lead.company_private ? (
+                      <PrivateRecord label={t('common.privateRecord')} />
+                    ) : (
+                      t('leads.none')
+                    )}
                   </dd>
                 </div>
                 <div>
                   <dt>{t('leads.summaryDeal')}</dt>
-                  <dd>{lead.deal_id ? <Link href={`/app/crm/deals/${lead.deal_id}`}>{lead.deal_name}</Link> : t('leads.none')}</dd>
+                  <dd>
+                    {lead.deal_id ? (
+                      <Link href={`/app/crm/deals/${lead.deal_id}`}>{lead.deal_name}</Link>
+                    ) : lead.deal_private ? (
+                      <PrivateRecord label={t('common.privateRecord')} />
+                    ) : (
+                      t('leads.none')
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt>{t('leads.form.source')}</dt>
@@ -256,22 +276,22 @@ export default async function LeadPage(props: {
                   ? [{ id: lead.contact_id, name: lead.contact_name ?? lead.contact_email ?? '', href: `/app/crm/contacts/${lead.contact_id}`, meta: lead.contact_email ?? undefined }]
                   : []
               }
-              options={lead.contact_id ? [] : contacts.map((c) => ({ id: c.id, value: contactName(c) }))}
+              options={lead.contact_id || lead.contact_private ? [] : contacts.map((c) => ({ id: c.id, value: contactName(c) }))}
               onAssociate={setLeadContact.bind(null, lead.id)}
               onRemove={clearLeadContact.bind(null, lead.id)}
               addLabel={t('assoc.pickContact')}
-              emptyLabel={t('leads.none')}
+              emptyLabel={lead.contact_private ? t('common.privateRecord') : t('leads.none')}
             />
           </section>
           <section className="record-block">
             <AssociationPanel
               title={t('leads.summaryCompany')}
               records={lead.company_id ? [{ id: lead.company_id, name: lead.company_name ?? '', href: `/app/crm/companies/${lead.company_id}` }] : []}
-              options={lead.company_id ? [] : companies.map((c) => ({ id: c.id, value: c.name }))}
+              options={lead.company_id || lead.company_private ? [] : companies.map((c) => ({ id: c.id, value: c.name }))}
               onAssociate={setLeadCompany.bind(null, lead.id)}
               onRemove={clearLeadCompany.bind(null, lead.id)}
               addLabel={t('objects.pickCompany')}
-              emptyLabel={t('leads.none')}
+              emptyLabel={lead.company_private ? t('common.privateRecord') : t('leads.none')}
             />
           </section>
           <section className="record-block">
@@ -282,6 +302,8 @@ export default async function LeadPage(props: {
               <p>
                 <Link href={`/app/crm/deals/${lead.deal_id}`}>{lead.deal_name}</Link>
               </p>
+            ) : lead.deal_private ? (
+              <p><PrivateRecord label={t('common.privateRecord')} /></p>
             ) : (
               <p className="muted">{t('leads.none')}</p>
             )}

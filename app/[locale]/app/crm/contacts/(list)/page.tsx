@@ -196,6 +196,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     phone: c.phone,
     companyName: c.company_name,
     companyId: c.company_id,
+    companyPrivate: !!c.company_private,
     lifecycle: c.lifecycle_stage,
     leadStatus: c.lead_status,
     source: c.source,

@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
-import { getForm, listSubmissions } from '@/lib/crm-forms';
+import { formForViewer, getForm, listSubmissions, redactSubmissionsFor } from '@/lib/crm-forms';
 import { listLists, listPipelinesWithStages } from '@/lib/crm';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { captchaConfigured } from '@/lib/crm-forms';
@@ -42,22 +42,28 @@ export default async function FormDetailPage(props: {
 
   let body: React.ReactNode;
   if (tab === 'build') {
-    const [contactFields, companyFields, lists, tags, sequences, pipelines] = await Promise.all([
-      fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
-      fieldAccessFor(sessionFieldViewer(user), 'companies').then((a) => a.visible),
+    const [contactAccess, companyAccess, lists, tags, sequences, pipelines] = await Promise.all([
+      fieldAccessFor(sessionFieldViewer(user), 'contacts'),
+      fieldAccessFor(sessionFieldViewer(user), 'companies'),
       listLists(user.id),
       listTags(user.id),
       listSequences(user.id),
       listPipelinesWithStages(user.id),
     ]);
+    const contactFields = contactAccess.visible;
+    const companyFields = companyAccess.visible;
+    // Un campo del form que guarda en una propiedad que la persona tiene oculta no la nombra, y el form
+    // no se le deja guardar (perdería ese destino sin verlo).
+    const { form: shown, hiddenTargets } = await formForViewer(sessionFieldViewer(user), form);
+    const shownFields = shown.fields;
     const members = workspaceTeamId(user)
       ? await listMembers(workspaceTeamId(user)!)
       : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
     body = (
       <FormBuilder
         formId={form.id}
-        initial={{ name: form.name, slug: form.slug ?? '', status: form.status, fields: form.fields, settings: form.settings }}
-        canEdit={canEdit}
+        initial={{ name: form.name, slug: form.slug ?? '', status: form.status, fields: shownFields, settings: form.settings }}
+        canEdit={canEdit && !hiddenTargets}
         hostedUrl={hostedUrl}
         contactCustomFields={contactFields.map((f) => ({ name: f.name, label: f.label }))}
         companyCustomFields={companyFields.map((f) => ({ name: f.name, label: f.label }))}
@@ -71,11 +77,14 @@ export default async function FormDetailPage(props: {
     );
   } else if (tab === 'submissions') {
     const page = Math.max(Number(typeof sp.page === 'string' ? sp.page : '1') || 1, 1);
-    const { rows, total } = await listSubmissions(user.id, form.id, {
+    const listed = await listSubmissions(user.id, form.id, {
       page,
       pageSize: PAGE_SIZE,
       ownerScope: await sessionScope(user),
     });
+    // Sin lo que se cargó en campos propios que la persona tiene ocultos.
+    const rows = await redactSubmissionsFor(sessionFieldViewer(user), form, listed.rows);
+    const total = listed.total;
     body = (
       <FormSubmissions
         formId={form.id}
