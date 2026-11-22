@@ -195,7 +195,10 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
         let body: [String: Any] = ["cmd": command.rawValue, "args": minimal[command] ?? [:]]
         #expect(accepted(body)?.command == command, "\(command)")
     }
-    #expect(BridgeCommand.implemented == [.info, .ready, .startLogin, .openSettings, .notify, .tabs])
+    #expect(BridgeCommand.implemented == [
+        .info, .ready, .startLogin, .openSettings, .notify, .tabs, .recording, .systemAudioStart, .systemAudioRead, .systemAudioStop,
+    ])
+    #expect(Set(BridgeCommand.allCases).subtracting(BridgeCommand.implemented) == [.recOverlay, .recLevel])
 }
 
 // MARK: info and the script
@@ -212,6 +215,8 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(info.reply["updateFeed"] as? Bool == false)
     #expect(info.reply["tabs"] as? Bool == true)
     #expect(info.reply["settingsWindow"] as? Bool == true)
+    #expect(info.reply["recordingIndicator"] as? Bool == true)
+    #expect(info.reply["dictation"] as? Bool == true)
     #expect(JSONSerialization.isValidJSONObject(info.reply))
     #expect(!BridgeInfo(version: "1", store: true, lockdown: .system).lockdown)
     #expect(BridgeInfo(version: "1", store: true, lockdown: .off).reply["store"] as? Bool == true)
@@ -240,4 +245,10 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(script.contains("action: e.altKey ? 'open-window' : e.shiftKey ? 'open-tab' : 'open'"))
     // The JS regex keeps its backslashes (\s, not s).
     #expect(script.contains("/^zerosoft(\\s*[·|]|$)/i"))
+    // Meetings (block 7): forced Lockdown has no Web Audio, so no computer audio is offered.
+    #expect(script.contains("systemAudio: false") && script.contains("recordingIndicator: true"))
+    #expect(script.contains("systemAudioStart: function () { return call('systemAudioStart'); }"))
+    #expect(script.contains("recording: function (s) {"))
+    let open = BridgeScript.source(server: "http://127.0.0.1:3000", info: BridgeInfo(version: "1", store: false, lockdown: .off, systemAudio: true))
+    #expect(open.contains("systemAudio: true"))
 }

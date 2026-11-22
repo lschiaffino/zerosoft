@@ -1,10 +1,11 @@
 import { getTranslations } from 'next-intl/server';
+import { sessionScope } from '@/lib/crm-visibility';
 import { notFound } from 'next/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { getDb } from '@/lib/db';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
-import { getPlaybook, listPlaybookRuns } from '@/lib/crm-playbooks';
+import { getPlaybook, listPlaybookRuns, runsForViewer } from '@/lib/crm-playbooks';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
@@ -36,7 +37,7 @@ export default async function PlaybookPage(props: { params: Promise<{ locale: st
     fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
     fieldAccessFor(sessionFieldViewer(user), 'companies').then((a) => a.visible),
     fieldAccessFor(sessionFieldViewer(user), 'deals').then((a) => a.visible),
-    listPlaybookRuns(user.id, { playbookId: id, limit: 20 }),
+    sessionScope(user).then(async (scope) => runsForViewer(sessionFieldViewer(user), scope, await listPlaybookRuns(user.id, { playbookId: id, limit: 20 }))),
     workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : Promise.resolve([{ user_id: user.id, email: user.email, name: user.name ?? null }]),
   ]);
   // Nombre de cada registro donde se usó (si todavía existe).

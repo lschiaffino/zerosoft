@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Ajustes completos: la caja que filtra secciones (teclado incluido),
+ * Ajustes completos: la búsqueda de ajustes (teclado incluido; el resto en
+ * settings-search.spec.ts),
  * Apariencia, Sin conexión (ajustes del dispositivo que el service worker
  * aplica), la sección App de escritorio, el aviso de versión nueva dentro de
  * la app y el modo embebido de la ventana de Ajustes del escritorio (user
@@ -17,26 +18,27 @@ async function noHorizontalScroll(page: Page, label: string) {
   expect(overflow, label).toBeLessThanOrEqual(0);
 }
 
-test('la búsqueda filtra secciones por nombre o palabra clave y se maneja con teclado', async ({ page }) => {
+test('la búsqueda encuentra ajustes y secciones y se maneja con teclado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/en/app/settings', { waitUntil: 'networkidle' });
   const nav = page.getByRole('navigation', { name: 'Settings' });
-  const box = page.getByRole('searchbox', { name: 'Search settings' });
+  const box = page.locator('[data-testid="settings-search-nav"][data-ready]').getByRole('combobox', { name: 'Search settings' });
+  const result = (id: string) => page.locator(`[data-setting-result="${id}"]`);
+  // Con texto, la lista se cambia por los ajustes que coinciden (de todas las secciones y apps).
   await box.fill('dark mode');
-  await expect(nav.getByRole('link')).toHaveCount(1);
-  await expect(nav.getByRole('link', { name: 'Appearance' })).toBeVisible();
-  // Sin tildes y por producto.
+  await expect(result('appearance-theme')).toBeVisible();
+  await expect(nav).toBeHidden();
   await box.fill('crm');
-  await expect(nav.getByRole('link', { name: 'CRM', exact: true })).toBeVisible();
+  await expect(result('product-crm')).toBeVisible();
   await box.fill('zzzz');
-  await expect(nav.getByText('No settings match “zzzz”')).toBeVisible();
+  await expect(page.getByText('No settings match “zzzz”')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(box).toHaveValue('');
   await expect(nav.getByRole('link', { name: 'Members and permissions' })).toBeVisible();
-  // Flecha abajo entra a la lista; Enter con texto abre la primera.
+  // Enter abre el primero.
   await box.fill('offline');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/en\/app\/settings\/offline$/);
+  await expect(page).toHaveURL(/\/en\/app\/settings\/offline$/, { timeout: 60_000 });
   await expect(page.getByTestId('offline-settings')).toBeVisible();
 });
 

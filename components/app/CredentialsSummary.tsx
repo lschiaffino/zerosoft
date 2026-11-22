@@ -26,7 +26,7 @@ export default async function CredentialsSummary({
   const typeLabel = (type: string) => (tf.has(`types.${type}`) ? tf(`types.${type}`) : type);
 
   return (
-    <FormSection
+    <FormSection setting="connections-credentials"
       id="credentials"
       title={t('title')}
       description={t('desc')}

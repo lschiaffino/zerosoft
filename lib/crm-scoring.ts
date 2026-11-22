@@ -487,7 +487,41 @@ function parseBreakdown(json: string | null | undefined): ScoreBreakdownItem[] {
 }
 
 /** Todos los scores de un contacto, el principal primero. */
-export async function contactScores(workspaceId: string, contact: Pick<CrmContactRow, 'id' | 'score' | 'score_breakdown'>, db: Db = getDb()): Promise<ContactScoreView[]> {
+/**
+ * Reglas que la persona puede ver: sin las de propiedad sobre un campo propio
+ * que tiene oculto (su nombre y el valor con que compara dirían algo de él).
+ */
+export async function scoreRulesForViewer(viewer: import('./crm-field-perms').FieldViewer, rules: ScoreRule[], db: Db = getDb()): Promise<ScoreRule[]> {
+  const { hiddenFieldsFor } = await import('./crm-field-perms');
+  const hidden = await hiddenFieldsFor(viewer, 'contacts', db);
+  if (!hidden.size) return rules;
+  return rules.filter((r) => !(r.kind === 'property' && hiddenCustomField((r.config as PropertyRuleConfig).field, hidden)));
+}
+
+function hiddenCustomField(field: string, hidden: ReadonlySet<string>): boolean {
+  return field.startsWith('custom.') && hidden.has(field.slice(7));
+}
+
+/**
+ * Scores del contacto. Con `viewer`, el desglose no trae las reglas sobre
+ * campos propios que la persona tiene ocultos (el detalle es el valor del campo).
+ */
+export async function contactScores(
+  workspaceId: string,
+  contact: Pick<CrmContactRow, 'id' | 'score' | 'score_breakdown'>,
+  db: Db = getDb(),
+  viewer?: import('./crm-field-perms').FieldViewer,
+): Promise<ContactScoreView[]> {
+  let dropRules = new Set<string>();
+  if (viewer) {
+    const { hiddenFieldsFor } = await import('./crm-field-perms');
+    const hidden = await hiddenFieldsFor(viewer, 'contacts', db);
+    if (hidden.size) {
+      const rules = await listScoreRules(workspaceId, db);
+      dropRules = new Set(rules.filter((r) => r.kind === 'property' && hiddenCustomField((r.config as PropertyRuleConfig).field, hidden)).map((r) => r.id));
+    }
+  }
+  const shown = (items: ScoreBreakdownItem[]) => (dropRules.size ? items.filter((b) => !dropRules.has(b.ruleId)) : items);
   const { scoreTier } = await import('./crm-scoring-schema');
   const scores = await listScores(workspaceId, db);
   const rows = (await db
@@ -502,7 +536,7 @@ export async function contactScores(workspaceId: string, contact: Pick<CrmContac
       isPrimary: s.isPrimary,
       score: value,
       tier: scoreTier(value, s.thresholds),
-      breakdown: s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown),
+      breakdown: shown(s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown)),
     };
   });
 }

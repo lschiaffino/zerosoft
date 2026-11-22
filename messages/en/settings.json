@@ -1910,5 +1910,15 @@
     "adminNote": "You see this page as an admin. The people who asked and their words are in the roadmap admin.",
     "adminLink": "Open in the roadmap admin",
     "reason": "Reason: {reason}"
+  },
+  "search": {
+    "label": "Search settings",
+    "placeholder": "Search settings",
+    "results": "Matching settings",
+    "loading": "Loading settings…",
+    "noResults": "No settings match “{q}”",
+    "try": "Try",
+    "hint": "Type a word from a setting, in any language.",
+    "suggestions": "dark mode|2FA|invite|language|webhooks"
   }
 }

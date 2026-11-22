@@ -1097,7 +1097,7 @@ function Editor({
             </label>
             {canEdit && (
               <>
-                <button type="button" className="btn btn-secondary" onClick={openTest} aria-busy={running || undefined}>
+                <button type="button" className="btn btn-secondary" onClick={openTest} aria-busy={running || undefined} data-tour="flow-test">
                   {t('editor.testRun')}
                 </button>
                 <button
@@ -1203,7 +1203,7 @@ function Editor({
         ) : (
           <div className={`flow-workspace${readOnly ? ' is-readonly' : ''}`}>
             {!readOnly && (
-              <aside className="flow-palette" aria-label={t('editor.palette')} data-open={paletteOpen || undefined}>
+              <aside className="flow-palette" aria-label={t('editor.palette')} data-open={paletteOpen || undefined} data-tour="flow-add-step">
                 <button
                   type="button"
                   className="btn btn-secondary btn-block flow-palette-toggle"

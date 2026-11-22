@@ -9,6 +9,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import sanitizeHtml from 'sanitize-html';
 import { getDb, type CrmEmailRow, type CrmEmailTemplateRow, type UserRow } from './db';
 import { createActivity, parseCustom } from './crm';
+import { fieldsHiddenForAnyone, hiddenFieldsFor, redactCustomJson, type FieldViewer } from './crm-field-perms';
+import { scopeAnd, type OwnerScope } from './crm-visibility';
 import { sendEmail } from './email';
 import { emitEvent } from './events';
 import { createNotification } from './notifications';
@@ -120,42 +122,79 @@ export function renderEmailTemplate(template: string, ctx: TemplateContext): { t
   return { text, missing: [...missing] };
 }
 
-/** Contexto de variables: contacto, su company, deal (dado o el primero asociado) y owner. */
+/**
+ * Con el acceso de quién se resuelven las variables: su alcance de registros
+ * y sus campos ocultos. Sin `access` se resuelve todo (solo para código que ya
+ * decidió que la persona ve todo).
+ */
+export interface TemplateAccess {
+  scope: OwnerScope | undefined;
+  /** null = nadie en particular: no sale ningún campo propio. */
+  viewer: FieldViewer | null;
+  /**
+   * El contacto es el destinatario de un envío ya decidido (una secuencia):
+   * sale aunque quede fuera del alcance, igual sin campos ocultos; empresa y
+   * deal siguen el alcance.
+   */
+  recipient?: boolean;
+  /**
+   * Lo renderizado queda a la vista de cualquiera que ve el registro (un
+   * email registrado en el timeline): tampoco salen los campos que algún rol
+   * o equipo tiene ocultos.
+   */
+  shared?: boolean;
+}
+
+/**
+ * Contexto de variables: contacto, su company, deal (dado o el primero
+ * asociado) y owner. Con `access`: el contacto, la empresa y el deal solo si
+ * la persona los ve, y sin los campos propios que tiene ocultos.
+ */
 export async function loadTemplateContext(
   userId: string,
-  opts: { contactId?: string | null; dealId?: string | null; senderId?: string | null },
+  opts: { contactId?: string | null; dealId?: string | null; senderId?: string | null; access?: TemplateAccess },
 ): Promise<TemplateContext> {
   const db = getDb();
   const ctx: TemplateContext = {};
+  const access = opts.access;
+  const sc = (alias: string) => scopeAnd(alias, access?.scope);
   let ownerId: string | null = opts.senderId ?? null;
   if (opts.contactId) {
+    const s = access?.recipient ? { sql: '', args: [] as string[] } : sc('c');
     const contact = (await db
-      .prepare('SELECT first_name, last_name, email, job_title, custom, company_id, owner_id FROM crm_contacts WHERE id = ? AND user_id = ?')
-      .get(opts.contactId, userId)) as
+      .prepare(`SELECT c.first_name, c.last_name, c.email, c.job_title, c.custom, c.company_id, c.owner_id FROM crm_contacts c WHERE c.id = ? AND c.user_id = ?${s.sql}`)
+      .get(opts.contactId, userId, ...s.args)) as
       | { first_name: string; last_name: string; email: string; job_title: string; custom: string; company_id: string | null; owner_id: string | null }
       | undefined;
     if (contact) {
+      if (access) {
+        const hidden = access.viewer ? await hiddenFieldsFor(access.viewer, 'contacts', db) : null;
+        if (hidden && access.shared) for (const f of await fieldsHiddenForAnyone(userId, 'contacts', db)) hidden.add(f);
+        contact.custom = hidden ? redactCustomJson(contact.custom, hidden) : '{}';
+      }
       ctx.contact = contact;
       if (contact.owner_id) ownerId = contact.owner_id;
       if (contact.company_id) {
+        const s2 = sc('co');
         ctx.company = ((await db
-          .prepare('SELECT name FROM crm_companies WHERE id = ? AND user_id = ?')
-          .get(contact.company_id, userId)) as { name: string } | undefined) ?? null;
+          .prepare(`SELECT co.name FROM crm_companies co WHERE co.id = ? AND co.user_id = ?${s2.sql}`)
+          .get(contact.company_id, userId, ...s2.args)) as { name: string } | undefined) ?? null;
       }
     }
   }
+  const sd = sc('d');
   if (opts.dealId) {
-    ctx.deal = ((await db.prepare('SELECT name FROM crm_deals WHERE id = ? AND user_id = ?').get(opts.dealId, userId)) as
+    ctx.deal = ((await db.prepare(`SELECT d.name FROM crm_deals d WHERE d.id = ? AND d.user_id = ?${sd.sql}`).get(opts.dealId, userId, ...sd.args)) as
       | { name: string }
       | undefined) ?? null;
-  } else if (opts.contactId) {
+  } else if (opts.contactId && ctx.contact) {
     ctx.deal = ((await db
       .prepare(
         `SELECT d.name FROM crm_deals d JOIN crm_deal_contacts dc ON dc.deal_id = d.id
-         WHERE dc.contact_id = ? AND d.user_id = ? AND d.closed_at IS NULL
+         WHERE dc.contact_id = ? AND d.user_id = ? AND d.closed_at IS NULL${sd.sql}
          ORDER BY d.created_at DESC LIMIT 1`,
       )
-      .get(opts.contactId, userId)) as { name: string } | undefined) ?? null;
+      .get(opts.contactId, userId, ...sd.args)) as { name: string } | undefined) ?? null;
   }
   const owner = (await db.prepare('SELECT name, email FROM users WHERE id = ?').get(ownerId ?? userId)) as
     | Pick<UserRow, 'name' | 'email'>
@@ -460,7 +499,9 @@ async function fireTrackingEvents(email: CrmEmailRow, kind: 'open' | 'click', ur
     clickCount: email.click_count + (kind === 'click' ? 1 : 0),
     ...(kind === 'click' ? { url } : {}),
   };
-  await emitEvent(email.user_id, kind === 'open' ? 'email.opened' : 'email.clicked', data);
+  const event = kind === 'open' ? 'email.opened' : 'email.clicked';
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(email.user_id, event, data, await crmEventOptions(email.user_id, event, data));
   const { recalcContactScoreSafe } = await import('./crm-scoring');
   await recalcContactScoreSafe(email.user_id, email.contact_id);
   const { runWorkflowsForEvent } = await import('./crm-workflows');
@@ -726,11 +767,13 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
   if (activity) await db.prepare('UPDATE crm_emails SET activity_id = ? WHERE id = ?').run(activity.id, emailId);
 
   const email = (await db.prepare('SELECT * FROM crm_emails WHERE id = ?').get(emailId)) as CrmEmailRow;
-  await emitEvent(userId, 'email.sent', {
+  const sent = {
     email: { id: email.id, subject: email.subject, to: email.to_emails, threadId: email.thread_id, via },
     contactId: input.contactId,
     sequence: input.enrollmentId ? { enrollmentId: input.enrollmentId, stepId: input.stepId ?? null } : null,
-  });
+  };
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(userId, 'email.sent', sent, await crmEventOptions(userId, 'email.sent', sent));
   return { ok: true, email, via };
 }
 
@@ -738,13 +781,26 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
 export async function threadReplyInfo(
   userId: string,
   threadId: string,
+  scope?: OwnerScope,
 ): Promise<{ threadId: string; inReplyTo: string; subject: string } | null> {
+  // Con alcance: solo un thread con algún email de un contacto que la persona ve (como el timeline).
+  const vis = scope
+    ? (() => {
+        const c = scopeAnd('vc', scope);
+        return {
+          sql: ` AND EXISTS (SELECT 1 FROM crm_emails te JOIN crm_email_contacts tec ON tec.email_id = te.id
+                 JOIN crm_contacts vc ON vc.id = tec.contact_id AND vc.user_id = te.user_id
+                 WHERE te.user_id = crm_emails.user_id AND te.thread_id = crm_emails.thread_id${c.sql})`,
+          args: c.args,
+        };
+      })()
+    : { sql: '', args: [] as string[] };
   const last = (await getDb()
     .prepare(
-      `SELECT thread_id, message_id, subject FROM crm_emails WHERE user_id = ? AND thread_id = ?
+      `SELECT thread_id, message_id, subject FROM crm_emails WHERE user_id = ? AND thread_id = ?${vis.sql}
        ORDER BY sent_at DESC LIMIT 1`,
     )
-    .get(userId, threadId)) as { thread_id: string; message_id: string; subject: string } | undefined;
+    .get(userId, threadId, ...vis.args)) as { thread_id: string; message_id: string; subject: string } | undefined;
   if (!last) return null;
   return { threadId: last.thread_id, inReplyTo: last.message_id, subject: last.subject };
 }

@@ -93,6 +93,7 @@
   "errors": {
     "too_many_pins": "Up to 3 pinned messages per chat. Unpin one first.",
     "not_pinnable": "That message cannot be pinned.",
+    "not_reportable": "Only messages you received can be reported.",
     "mic_denied": "The browser did not allow the microphone.",
     "file_too_large": "The file is too big for WhatsApp.",
     "media_too_large": "The file is too big for WhatsApp.",

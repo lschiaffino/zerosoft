@@ -11,11 +11,19 @@
  *
  * Se aplica al emitir (personalize de lib/webhooks.ts y lib/flow.ts) y otra
  * vez en cada reintento o reenvío, con el acceso de ese momento.
+ *
+ * Además de contactos, empresas y deals (con sus formularios y el score):
+ * - task.*: la tarea se manda si quien creó la suscripción la ve, con el
+ *   mismo alcance que el índice de Tareas (todos sus registros asociados), y
+ *   sin el texto si salió de un chat de Lines que esa persona no ve;
+ * - email.*: el email se manda si ve alguno de sus contactos, y solo con los
+ *   contactos que ve;
+ * - quote.*: el quote se manda si ve su deal.
  */
 import { getDb, type Db } from './db';
 import { hiddenFieldsFor, isUnrestricted, redactCustomJson, type FieldViewer } from './crm-field-perms';
-import { canSeeEntity, canSeeOwner, ownerScopeFor, type OwnerScope } from './crm-visibility';
-import { maskPrivateRef, PRIVATE_REFS } from './crm-record-scope';
+import { canSeeActivityRefs, canSeeEntity, canSeeOwner, ownerScopeFor, type ActivityRefs, type OwnerScope } from './crm-visibility';
+import { maskPrivateRef, PRIVATE_REFS, visibleRecordIds } from './crm-record-scope';
 import { normalizeRole } from './teams';
 
 export type CrmEventEntity = 'contact' | 'company' | 'deal';
@@ -184,7 +192,93 @@ export async function scoreChangedFor(sub: Subscriber, data: EventData): Promise
   return rest;
 }
 
+const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
+
+/**
+ * task.created, task.completed, task.due: null si la suscripción no ve la
+ * tarea (alguno de sus registros asociados, ahora o en el evento, queda fuera
+ * de su alcance; sin registros, el owner de la tarea). El título y las notas
+ * de una tarea de un chat de Lines que su creador no ve salen con el marcador,
+ * también para owner y admins (la visibilidad de chats es aparte).
+ */
+export async function taskEventFor(sub: Subscriber, data: EventData, db: Db = getDb()): Promise<EventData | null> {
+  const task = isObj(data.task) ? data.task : null;
+  const id = task ? str(task.id) : null;
+  if (!task || !id) return sub.unrestricted ? data : null;
+  const ws = sub.viewer.workspaceId;
+  if (!sub.unrestricted) {
+    const row = (await db
+      .prepare('SELECT contact_id, company_id, deal_id, lead_id, object_record_id, owner_id FROM crm_activities WHERE id = ? AND user_id = ?')
+      .get(id, ws)) as ActivityRefs | undefined;
+    const fromEvent: ActivityRefs = {
+      contact_id: str(task.contactId),
+      company_id: str(task.companyId),
+      deal_id: str(task.dealId),
+      lead_id: str(task.leadId),
+      object_record_id: str(task.objectRecordId),
+      owner_id: str(task.ownerId),
+    };
+    if (!(await canSeeActivityRefs(ws, fromEvent, sub.scope))) return null;
+    if (row && !(await canSeeActivityRefs(ws, row, sub.scope))) return null;
+  }
+  const { noChatReader, personChatReader, redactChatTask } = await import('./crm-chat-privacy');
+  const reader = sub.viewer.personId
+    ? await personChatReader(ws, sub.viewer.personId, 'en', sub.viewer.role).catch(() => noChatReader(ws))
+    : noChatReader(ws);
+  const text = { id, subject: typeof task.subject === 'string' ? task.subject : '', body: typeof task.body === 'string' ? task.body : '' };
+  const seen = await redactChatTask(ws, text, reader);
+  if (seen.subject === text.subject && seen.body === text.body) return data;
+  return { ...data, task: { ...task, subject: seen.subject, body: seen.body } };
+}
+
+/**
+ * email.received, email.sent, email.opened, email.clicked: el email se ve si
+ * se ve alguno de sus contactos (como en el timeline). null si no ve
+ * ninguno; si no, solo con los contactos que ve.
+ */
+export async function emailEventFor(sub: Subscriber, data: EventData, db: Db = getDb()): Promise<EventData | null> {
+  // Sin restricción de registros (admins o visibilidad "todos"): también los emails sin contactos.
+  if (sub.unrestricted || sub.scope === null) return data;
+  const ws = sub.viewer.workspaceId;
+  const emailId = isObj(data.email) ? str(data.email.id) : null;
+  const listed = [
+    ...(str(data.contactId) ? [data.contactId as string] : []),
+    ...(Array.isArray(data.contactIds) ? data.contactIds.filter((v): v is string => typeof v === 'string' && v !== '') : []),
+  ];
+  const linked = emailId
+    ? ((await db
+        .prepare(
+          `SELECT contact_id FROM crm_emails WHERE id = ? AND user_id = ?
+           UNION SELECT contact_id FROM crm_email_contacts WHERE email_id = ? AND user_id = ?`,
+        )
+        .all(emailId, ws, emailId, ws)) as Array<{ contact_id: string }>).map((r) => r.contact_id)
+    : [];
+  const visible = await visibleRecordIds(ws, 'crm_contacts', [...listed, ...linked], sub.scope, db);
+  if (!visible.size) return null;
+  const out: EventData = { ...data };
+  if ('contactId' in out && str(out.contactId) && !visible.has(out.contactId as string)) out.contactId = null;
+  if (Array.isArray(out.contactIds)) out.contactIds = out.contactIds.filter((v) => typeof v === 'string' && visible.has(v));
+  return out;
+}
+
+/** quote.accepted, quote.paid: solo si ve el deal del quote (el de ahora y el del evento). */
+export async function quoteEventFor(sub: Subscriber, data: EventData, db: Db = getDb()): Promise<EventData | null> {
+  if (sub.unrestricted || sub.scope === null) return data;
+  const ws = sub.viewer.workspaceId;
+  const id = str(data.id);
+  const row = id
+    ? ((await db.prepare('SELECT deal_id FROM crm_quotes WHERE id = ? AND user_id = ?').get(id, ws)) as { deal_id: string | null } | undefined)
+    : undefined;
+  const deals = [...new Set([str(row?.deal_id), str(data.dealId)].filter((v): v is string => !!v))];
+  if (!deals.length) return null;
+  for (const d of deals) if (!(await canSeeEntity(ws, 'deal', d, sub.scope))) return null;
+  return data;
+}
+
 const RECORD_EVENT = /^(contact|company|deal)\.(created|updated|stage_changed|won|lost|deleted)$/;
+const TASK_EVENT = /^task\.(created|completed|due)$/;
+const EMAIL_EVENT = /^email\.(received|sent|opened|clicked)$/;
+const QUOTE_EVENT = /^quote\.(accepted|paid)$/;
 
 /** ¿Es un evento del CRM cuyo cuerpo depende de quién lo recibe? */
 export function isPersonalCrmEvent(event: string): boolean {
@@ -192,7 +286,10 @@ export function isPersonalCrmEvent(event: string): boolean {
     RECORD_EVENT.test(event) ||
     /^(contact|company|deal)\.property_changed$/.test(event) ||
     event === 'form.submitted' ||
-    event === 'contact.score_changed'
+    event === 'contact.score_changed' ||
+    TASK_EVENT.test(event) ||
+    EMAIL_EVENT.test(event) ||
+    QUOTE_EVENT.test(event)
   );
 }
 
@@ -223,7 +320,12 @@ export async function crmEventFor(
   data: EventData,
   ctx: { ownerId?: string | null; formFields?: Array<{ id: string; property: string }> | null } = {},
 ): Promise<EventData | null> {
-  if (sub.unrestricted || !isPersonalCrmEvent(event)) return data;
+  if (!isPersonalCrmEvent(event)) return data;
+  // Las tareas pasan también para owner y admins: el texto de un chat de Lines depende de quién mira.
+  if (TASK_EVENT.test(event)) return taskEventFor(sub, data);
+  if (sub.unrestricted) return data;
+  if (EMAIL_EVENT.test(event)) return emailEventFor(sub, data);
+  if (QUOTE_EVENT.test(event)) return quoteEventFor(sub, data);
   if (event === 'form.submitted') {
     const fields = ctx.formFields !== undefined ? ctx.formFields : await formFields(sub.viewer.workspaceId, isObj(data.form) ? data.form.id : null);
     return formSubmittedFor(sub, data, fields);
@@ -238,6 +340,29 @@ export async function crmEventFor(
     return recordEventFor(sub, entity, data, { ownerId: trashed ?? null });
   }
   return recordEventFor(sub, entity, data, ctx.ownerId !== undefined ? { ownerId: ctx.ownerId } : {});
+}
+
+/**
+ * Opciones de emitEvent para un evento del CRM: cada suscripción recibe lo
+ * que ve quien la creó. Las apps del workspace (Slack, un canal compartido)
+ * reciben `data`, salvo el texto de una tarea de un chat de Lines, que va
+ * con el marcador (como para quien no ve ese chat).
+ */
+export async function crmEventOptions(
+  workspaceId: string,
+  event: string,
+  data: EventData,
+): Promise<{ personalize: Personalizer; appsData: EventData }> {
+  let appsData = data;
+  const task = TASK_EVENT.test(event) && isObj(data.task) ? data.task : null;
+  const id = task ? str(task.id) : null;
+  if (task && id) {
+    const { noChatReader, redactChatTask } = await import('./crm-chat-privacy');
+    const text = { id, subject: typeof task.subject === 'string' ? task.subject : '', body: typeof task.body === 'string' ? task.body : '' };
+    const seen = await redactChatTask(workspaceId, text, noChatReader(workspaceId));
+    if (seen.subject !== text.subject || seen.body !== text.body) appsData = { ...data, task: { ...task, subject: seen.subject, body: seen.body } };
+  }
+  return { personalize: crmPersonalizer(workspaceId, event, data), appsData };
 }
 
 /** personalize de lib/events.ts / lib/webhooks.ts para un evento del CRM (cachea por creador). */
@@ -281,7 +406,7 @@ export async function deliveryPayloadFor(workspaceId: string, creatorId: string 
   }
   const sub = await subscriberFor(workspaceId, creatorId);
   if (!sub) return null;
-  if (sub.unrestricted) return payload;
+  if (sub.unrestricted && !TASK_EVENT.test(event)) return payload;
   const data = isObj(body.data) ? body.data : {};
   const own = await crmEventFor(sub, event, data);
   if (!own) return null;

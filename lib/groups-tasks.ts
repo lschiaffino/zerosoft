@@ -245,23 +245,31 @@ export async function createGroupTask(ws: string, actor: string, input: CreateTa
   const ownerId = input.ownerId || actor;
   await assertPerson(ws, ownerId);
   const notes = (input.notes ?? '').trim().slice(0, 4000);
-  const activity = await createActivity(ws, {
-    type: 'task',
-    subject: title,
-    body: notes,
-    dueAt,
-    ownerId,
-    priority: cleanPriority(input.priority),
-    contactId: chat.crm_contact_id,
-    companyId: chat.crm_company_id,
-  });
-  // Mismo id que la tarea del CRM: un solo id en Groups, CRM, ⌘K y la API.
+  const activity = await createActivity(
+    ws,
+    {
+      type: 'task',
+      subject: title,
+      body: notes,
+      dueAt,
+      ownerId,
+      priority: cleanPriority(input.priority),
+      contactId: chat.crm_contact_id,
+      companyId: chat.crm_company_id,
+    },
+    {
+      // El vínculo con el chat va antes de task.created: el evento sale sin el texto para quien no ve el chat.
+      // Mismo id que la tarea del CRM: un solo id en Groups, CRM, ⌘K y la API.
+      beforeEvent: async (row) => {
+        await getDb()
+          .prepare(
+            'INSERT INTO groups_tasks (id, user_id, chat_id, message_id, activity_id, created_by, locale, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(row.id, ws, chat.id, input.messageId ?? null, row.id, actor, locale, safeTimezone(input.timezone), now.toISOString());
+      },
+    },
+  );
   const id = activity.id;
-  await getDb()
-    .prepare(
-      'INSERT INTO groups_tasks (id, user_id, chat_id, message_id, activity_id, created_by, locale, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(id, ws, chat.id, input.messageId ?? null, activity.id, actor, locale, safeTimezone(input.timezone), now.toISOString());
   // Vínculos de la tarea de la suite (lib/tasks.ts): el CRM, el inicio y la API muestran de qué chat salió.
   const link = getDb().prepare(
     'INSERT OR IGNORE INTO task_links (task_id, workspace_id, kind, ref_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',

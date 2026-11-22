@@ -137,7 +137,7 @@ export default function DisplaySection({ variant = 'ui' }: { variant?: 'ui' | 'i
     setState((await setDisplay(patch)) ? 'saved' : 'error');
   };
   return (
-    <section ref={sectionRef} className={`${c.section} wa-display`} id="chat-display" aria-labelledby="chat-display-h">
+    <section ref={sectionRef} className={`${c.section} wa-display`} id="chat-display" aria-labelledby="chat-display-h" data-setting="chat-display">
       <div className={variant === 'inbox' ? 'wa-contents' : 'ui-section-body'}>
         <div className={`${c.head} wa-display-head`}>
           <h2 className={c.title} id="chat-display-h">

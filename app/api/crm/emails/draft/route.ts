@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
+import { sessionScope } from '@/lib/crm-visibility';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { aiEnabled, aiGenerateText, AiError } from '@/lib/ai';
 import { getDb } from '@/lib/db';
 import { loadTemplateContext } from '@/lib/crm-email';
@@ -26,7 +28,12 @@ export async function POST(req: NextRequest) {
   const parsed = aiDraftSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
 
-  const ctx = await loadTemplateContext(user.id, { contactId: parsed.data.contactId, senderId: realUserId(user) });
+  // Con lo que ve quien pide: un contacto que no ve es 404, y su empresa o deal ocultos no entran al prompt.
+  const ctx = await loadTemplateContext(user.id, {
+    contactId: parsed.data.contactId,
+    senderId: realUserId(user),
+    access: { scope: await sessionScope(user), viewer: sessionFieldViewer(user) },
+  });
   if (!ctx.contact) return notFound();
   const recent = (await getDb()
     .prepare(

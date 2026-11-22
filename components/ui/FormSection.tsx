@@ -30,6 +30,7 @@ export default function FormSection({
   tone = 'default',
   titleHidden = false,
   id,
+  setting,
   className = '',
   resetOnSave = false,
 }: {
@@ -51,6 +52,8 @@ export default function FormSection({
   /** "danger": borde y pie rojos, para borrar o transferir. */
   tone?: 'default' | 'danger';
   id?: string;
+  /** Ancla de la búsqueda de Ajustes (lib/settings-registry.ts): `data-setting` en la sección. */
+  setting?: string;
   className?: string;
 }) {
   const t = useTranslations('common.ui');
@@ -97,7 +100,7 @@ export default function FormSection({
 
   if (!onSubmit) {
     return (
-      <section className={cls} aria-labelledby={titleId} id={id}>
+      <section className={cls} aria-labelledby={titleId} id={id} data-setting={setting}>
         <div className="ui-section-body">
           {head}
           {children}
@@ -111,7 +114,7 @@ export default function FormSection({
     state === 'saving' ? t('saving') : state === 'saved' ? t('saved') : state === 'error' ? error || t('saveError') : null;
 
   return (
-    <form className={cls} aria-labelledby={titleId} id={id} onSubmit={handle}>
+    <form className={cls} aria-labelledby={titleId} id={id} data-setting={setting} onSubmit={handle}>
       <div className="ui-section-body">
         {head}
         {children}

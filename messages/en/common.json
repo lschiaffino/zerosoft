@@ -1524,6 +1524,87 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "flow": {
+      "intro": {
+        "title": "Welcome to Flow",
+        "body": "Flow automates work across your apps: when something happens, it runs the steps you set up. This tour points out the main parts."
+      },
+      "newFlow": {
+        "title": "Create a flow",
+        "body": "Start from a blank canvas, or use Build with AI and describe what you want in your own words."
+      },
+      "templates": {
+        "title": "Start from a template",
+        "body": "Ready-made flows for common jobs. Use one and change the details to fit."
+      },
+      "runs": {
+        "title": "Run history",
+        "body": "Every time a flow runs it shows up here, with each step, what it received and any error. You can run a failed one again."
+      },
+      "credentials": {
+        "title": "Credentials",
+        "body": "Keys and sign-ins for the services your flows use, like Slack, Google or Stripe. Save them once and pick them in any step."
+      },
+      "openFlow": {
+        "title": "Open a flow",
+        "body": "Open one of your flows to see how it's built."
+      },
+      "trigger": {
+        "title": "The trigger",
+        "body": "Every flow starts here: an event in a zerosoft app, a schedule, a webhook or a manual start. Select it to choose what starts the flow."
+      },
+      "addStep": {
+        "title": "Add steps",
+        "body": "Steps are what the flow does: send an email, create an issue in Track, call an API and more. Add them from here and connect each one to the step before it."
+      },
+      "test": {
+        "title": "Test it",
+        "body": "Test run tries the flow so you can see what each step did. When it works, publish it and turn it on with the switch."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
+    "social": {
+      "intro": {
+        "title": "Welcome to Social",
+        "body": "Social plans and publishes your posts on social networks, and gathers the comments and messages they get. This tour points out the main parts."
+      },
+      "accounts": {
+        "title": "Connect your accounts",
+        "body": "Link the networks you post on, like Instagram, LinkedIn or X. Your posts go out from the accounts you connect."
+      },
+      "newPost": {
+        "title": "Write a post",
+        "body": "Pick the accounts, write the text once or adjust it per network, and add images or video. Then publish now, schedule it or save it as a draft."
+      },
+      "calendar": {
+        "title": "Your calendar",
+        "body": "Everything planned and published, by month or week. Use + on a day to plan a post there, or drag a post to another day to move it.",
+        "bodyTouch": "Everything planned and published, by month or week. Use + on a day to plan a post there."
+      },
+      "posts": {
+        "title": "Posts",
+        "body": "Every post in a list: drafts, posts waiting for approval, scheduled and published. Filter by status, network or account."
+      },
+      "inbox": {
+        "title": "Inbox",
+        "body": "Comments, mentions and direct messages from your accounts, in one place. Answer them and mark them done."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "body": "Impressions, reach, engagement and clicks of what you published, and followers per account."
+      },
+      "settings": {
+        "title": "Who publishes",
+        "body": "Choose who publishes on their own and who sends posts for approval first."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "hiring": {
       "intro": {
         "title": "Welcome to Hiring",

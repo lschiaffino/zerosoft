@@ -32,8 +32,12 @@ import {
   criteriaEntity,
   criteriaEventTypes,
   dbTime,
-  delayMinutes,
   eventChangedFields,
+  planWait,
+  waitEventMatches,
+  waitKey,
+  WAIT_EVENTS,
+  type WaitEvent,
   parseWorkflowSettings,
   pickRotation,
   propertyChangeMatches,
@@ -75,6 +79,15 @@ import {
 export type CrmWorkflowRunRow = Omit<BaseWorkflowRunRow, 'status'> & {
   status: BaseWorkflowRunRow['status'] | 'unenrolled';
   unenrolled_by?: string | null;
+  /**
+   * W2: al inscribirse, ¿los criterios, las ramas o las esperas del workflow
+   * miraban otro registro? Se guarda en ese momento: si después cambian los
+   * criterios, las inscripciones viejas siguen ocultas para quien no ve todo.
+   * NULL (inscripciones de antes de W2): se trata como 1.
+   */
+  reaches_other?: number | null;
+  /** W2: espera por evento: evento y registro (waitKey). NULL si no espera un evento. */
+  wait_key?: string | null;
 };
 
 export const TRIGGER_TYPES = [
@@ -583,13 +596,15 @@ export async function listWorkflowRunViews(
     const seen = hasRecord && visible[entity as RecordEntity].has(r.trigger_entity_id);
     // Sin registro visible: un miembro con alcance no ve la corrida (salvo una manual, que no tiene registro).
     if (scope && !seen && r.trigger_entity_id) continue;
-    if (scope && r.trigger_entity_id && (!wf || conditionsReachOtherEntity(wf, entity))) continue;
+    // Con el flag guardado al inscribirse (W2): cambiar los criterios después no destapa inscripciones viejas.
+    if (scope && r.trigger_entity_id && (!wf || r.reaches_other !== 0 || conditionsReachOtherEntity(wf, entity))) continue;
     const view: WorkflowRunView = {
       id: r.id,
       status: r.status,
       started_at: r.started_at,
       finished_at: r.finished_at,
-      resume_at: r.status === 'waiting' ? r.resume_at ?? null : null,
+      // Una espera hasta una fecha de un campo propio: la hora la revela, solo para owner y admins (W2).
+      resume_at: r.status === 'waiting' && (log || !waitsOnField(r.state)) ? r.resume_at ?? null : null,
       ...runCounts(r.output),
       record: seen ? { entity: entity as RecordEntity, id: r.trigger_entity_id, label: labels[entity as RecordEntity].get(r.trigger_entity_id) ?? '' } : null,
     };
@@ -601,6 +616,11 @@ export async function listWorkflowRunViews(
     if (out.length >= limit) break;
   }
   return out;
+}
+
+/** ¿La inscripción espera hasta una fecha que sale de un campo propio del registro? (W2) */
+function waitsOnField(state: string | null | undefined): boolean {
+  return parseJsonObject(state ?? null).waitFromField === true;
 }
 
 /** Nombre (o email) de personas, para "la sacó X" en el registro por acción. */
@@ -733,11 +753,25 @@ export async function enrollExistingRecords(
       const res = await db
         .prepare(
           `INSERT INTO crm_workflow_runs
-           (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at, resume_at, next_position, state, steps)
-           SELECT ?, ?, ?, ?, ?, ?, 'waiting', '{}', ?, ?, 0, ?, 0
+           (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at, resume_at, next_position, state, steps, reaches_other)
+           SELECT ?, ?, ?, ?, ?, ?, 'waiting', '{}', ?, ?, 0, ?, 0, ?
            WHERE NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE workflow_id = ? AND trigger_entity = ? AND trigger_entity_id = ?)`,
         )
-        .run(crypto.randomUUID(), workflowId, workspaceId, entity, row.id, CRITERIA_TRIGGER, dbTime(start), resumeAt, JSON.stringify(state), workflowId, entity, row.id);
+        .run(
+          crypto.randomUUID(),
+          workflowId,
+          workspaceId,
+          entity,
+          row.id,
+          CRITERIA_TRIGGER,
+          dbTime(start),
+          resumeAt,
+          JSON.stringify(state),
+          reachesOther(workflow, entity),
+          workflowId,
+          entity,
+          row.id,
+        );
       if (res.changes > 0) enrolled++;
     }
   }
@@ -800,18 +834,22 @@ export async function listRecordEnrollments(
   const rows = (await getDb()
     .prepare(
       `SELECT r.id, r.workflow_id, w.name AS workflow_name, r.status, r.started_at, r.finished_at,
-         CASE WHEN r.status = 'waiting' THEN r.resume_at END AS resume_at
+         CASE WHEN r.status = 'waiting' THEN r.resume_at END AS resume_at, r.reaches_other, r.state AS wait_state
        FROM crm_workflow_runs r JOIN crm_workflows w ON w.id = r.workflow_id AND w.user_id = r.user_id
        WHERE r.user_id = ? AND r.trigger_entity = ? AND r.trigger_entity_id = ?
        ORDER BY r.started_at DESC, r.rowid DESC LIMIT ?`,
     )
-    .all(workspaceId, entity, recordId, Math.min(Math.max(limit, 1), 100))) as RecordEnrollment[];
-  if (!viewer || isUnrestricted(viewer) || !rows.length) return rows;
+    .all(workspaceId, entity, recordId, Math.min(Math.max(limit, 1), 100))) as Array<RecordEnrollment & { reaches_other?: number | null; wait_state?: string | null }>;
+  // Quien no administra no ve la hora de una espera hasta una fecha de un campo propio (W2).
+  const admin = !viewer || isUnrestricted(viewer);
+  const strip = (list: typeof rows): RecordEnrollment[] =>
+    list.map(({ reaches_other: _r, wait_state, ...rest }) => (!admin && rest.resume_at && waitsOnField(wait_state) ? { ...rest, resume_at: null } : rest));
+  if (!viewer || isUnrestricted(viewer) || !rows.length) return strip(rows);
   const hidden = await hiddenAnywhere(viewer);
   // Quien no ve todo: tampoco las inscripciones cuyos criterios o ramas miran
   // otro registro (el deal o la empresa de este), que puede no ver (W3).
   const scoped = (await ownerScopeFor(viewer)) !== null;
-  if (!hidden.size && !scoped) return rows;
+  if (!hidden.size && !scoped) return strip(rows);
   // Solo los workflows de estas inscripciones (no todos los del workspace).
   const allowed = new Set<string>();
   for (const id of new Set(rows.map((r) => r.workflow_id))) {
@@ -820,7 +858,8 @@ export async function listRecordEnrollments(
     if (scoped && conditionsReachOtherEntity(wf, entity)) continue;
     allowed.add(id);
   }
-  return rows.filter((r) => allowed.has(r.workflow_id));
+  // Con el flag guardado al inscribirse (W2; NULL, de antes, cuenta como que sí).
+  return strip(rows.filter((r) => allowed.has(r.workflow_id) && (!scoped || r.reaches_other === 0)));
 }
 
 /** Secreto de firma del webhook del workflow (lo crea la primera vez). Solo para owner/admin. */
@@ -1487,7 +1526,7 @@ async function executeAction(
           entity === event.entity ? event.entityId : entity === 'deal' ? ctx.deal?.id : entity === 'contact' ? ctx.contact?.id : undefined;
         if (!entity || !recordId) return { ok: false, type: action.type, error: 'missing_target' };
         const out = await runAiStep(userId, stepCfg, { entity, id: recordId });
-        if (stepCfg.mode !== 'prompt') return { ok: true, type: action.type, result: { mode: stepCfg.mode, text: out.text.slice(0, 500) } };
+        if (stepCfg.mode !== 'prompt') return { ok: true, type: action.type, result: { mode: stepCfg.mode, chars: out.text.length } };
         if (stepCfg.output === 'field') {
           if (!stepCfg.field) return { ok: false, type: action.type, error: 'missing_field' };
           const updater = entity === 'contact' ? updateContact : entity === 'company' ? updateCompany : updateDeal;
@@ -1501,7 +1540,7 @@ async function executeAction(
           } else {
             await updater(userId, recordId, { [apiFieldKey(stepCfg.field)]: out.text.slice(0, 500) }, undefined, '');
           }
-          return { ok: true, type: action.type, result: { field: stepCfg.field, text: out.text.slice(0, 500) } };
+          return { ok: true, type: action.type, result: { field: stepCfg.field, chars: out.text.length } };
         }
         const note = await createActivity(userId, {
           type: 'note',
@@ -1511,7 +1550,7 @@ async function executeAction(
           companyId: entity === 'company' ? recordId : ctx.contact?.company_id ?? null,
           dealId: entity === 'deal' ? recordId : null,
         });
-        return { ok: true, type: action.type, result: { activityId: note.id, text: out.text.slice(0, 500) } };
+        return { ok: true, type: action.type, result: { activityId: note.id, chars: out.text.length } };
       }
       default:
         return { ok: false, type: action.type, error: 'unknown_action' };
@@ -1611,6 +1650,12 @@ interface RunState {
    * dispara B, que crea uno que dispara A) no terminarían nunca.
    */
   chain?: { depth: number; seen: string[] };
+  /** W2: espera por evento en curso (evento y propiedad); al retomar decide la rama. */
+  wait?: { event: WaitEvent; field: string; splits?: boolean };
+  /** W2: espera hasta la fecha de un campo propio: la hora de reanudar no se le muestra a quien no administra. */
+  waitFromField?: boolean;
+  /** W2: el evento pasó antes del tope. */
+  waitMet?: boolean;
 }
 
 /**
@@ -1622,6 +1667,11 @@ async function meetsConditions(userId: string, conditions: EnrollCondition[], ev
     if (!(await evaluateBranch(userId, c as unknown as Record<string, unknown>, event, ctx).catch(() => false))) return false;
   }
   return true;
+}
+
+/** Flag reaches_other de una inscripción nueva, con la config del workflow de ahora. */
+function reachesOther(workflow: Pick<Workflow, 'settings' | 'actions'>, entity: string): 0 | 1 {
+  return conditionsReachOtherEntity(workflow, entity) ? 1 : 0;
 }
 
 /**
@@ -1643,8 +1693,8 @@ async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent, 
   const res = await getDb()
     .prepare(
       `INSERT INTO crm_workflow_runs
-       (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at)
-       SELECT ?, ?, ?, ?, ?, ?, 'running', '{}', ?
+       (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at, reaches_other)
+       SELECT ?, ?, ?, ?, ?, ?, 'running', '{}', ?, ?
        WHERE NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE ${same}
                          AND (status = 'waiting' OR (status IN ('running', 'pending') AND COALESCE(resume_at, started_at) > ?)))
          AND (? = 1 OR NOT EXISTS (SELECT 1 FROM crm_workflow_runs WHERE ${same}))
@@ -1658,6 +1708,7 @@ async function enroll(userId: string, workflow: Workflow, event: WorkflowEvent, 
       event.entityId,
       event.type,
       dbTime(at),
+      reachesOther(workflow, event.entity),
       ...key,
       stuck,
       reenroll ? 1 : 0,
@@ -1720,13 +1771,29 @@ async function executeRun(
       continue;
     }
     if (action.type === 'delay') {
-      const minutes = delayMinutes(action.config);
-      if (minutes === null) {
-        push({ ok: false, type: action.type, error: 'invalid_delay' }, action.position);
+      // W2: duración, fecha (propiedad del registro inscripto o del calendario), día y hora, o evento.
+      const record = action.config.mode === 'date' ? await recordRow(userId, event) : null;
+      const plan = planWait(action.config, new Date(), record);
+      if (plan.kind === 'invalid') {
+        push({ ok: false, type: action.type, error: plan.error }, action.position);
         failed = true;
         continue;
       }
-      push({ ok: true, type: action.type, result: { minutes } }, action.position);
+      if (plan.kind === 'pass') {
+        // La fecha ya pasó o el registro no tiene la propiedad: sigue sin esperar.
+        push({ ok: true, type: action.type, result: { wait: 'date', passed: true } }, action.position);
+        continue;
+      }
+      // Evento: tiene que pasar en el registro inscripto o en el relacionado de esa entidad.
+      const target = plan.kind === 'event' ? waitTarget(plan.event, event, ctx) : null;
+      push(
+        {
+          ok: true,
+          type: action.type,
+          result: plan.kind === 'event' ? { wait: 'event' } : plan.mode === 'duration' ? { minutes: plan.minutes } : { wait: plan.mode },
+        },
+        action.position,
+      );
       const next = actions[i + 1];
       if (!next) continue;
       const store = chain.getStore();
@@ -1735,14 +1802,31 @@ async function executeRun(
         branch,
         results,
         chain: { depth: store?.depth ?? 1, seen: [...new Set([...(store?.seen ?? []), workflow.id])] },
+        ...(plan.kind === 'event' ? { wait: { event: plan.event, field: plan.field, splits: !safeString(action.config.when) } } : {}),
+        // Fecha de una propiedad propia: la hora de reanudar la revela; a quien no administra no se le muestra.
+        ...(plan.kind === 'until' && plan.mode === 'date' && safeString(action.config.field).trim().startsWith('custom.') && safeString(action.config.dateSource) !== 'calendar'
+          ? { waitFromField: true }
+          : {}),
       };
       // Solo si sigue corriendo: una inscripción sacada a mano no vuelve a esperar.
+      // Sin registro para el evento: espera el tope (y sigue por la rama No).
       await db
         .prepare(
-          `UPDATE crm_workflow_runs SET status = 'waiting', resume_at = ?, next_position = ?, state = ?, steps = ?, output = ?
+          `UPDATE crm_workflow_runs SET status = 'waiting', resume_at = ?, next_position = ?, state = ?, steps = ?, output = ?, wait_key = ?,
+             reaches_other = MAX(COALESCE(reaches_other, 1), ?)
            WHERE id = ? AND status = 'running'`,
         )
-        .run(dbTime(addMinutes(new Date(), minutes)), next.position, JSON.stringify(nextState), steps, JSON.stringify({ event, results }), runId);
+        .run(
+          dbTime(plan.at),
+          next.position,
+          JSON.stringify(nextState),
+          steps,
+          JSON.stringify({ event, results }),
+          target ? waitKey(plan.kind === 'event' ? plan.event : '', target.entity, target.id) : null,
+          // El flag solo sube: si la config cambió mientras esperaba y ahora mira otro registro, queda marcado.
+          reachesOther(workflow, event.entity),
+          runId,
+        );
       return;
     }
     const result = await executeAction(userId, workflow.id, runId, action, event, ctx);
@@ -1752,10 +1836,80 @@ async function executeRun(
 
   await db
     .prepare(
-      `UPDATE crm_workflow_runs SET status = ?, output = ?, finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}', steps = ?
+      `UPDATE crm_workflow_runs SET status = ?, output = ?, finished_at = ?, resume_at = NULL, next_position = NULL, state = '{}', steps = ?,
+         reaches_other = CASE WHEN trigger_entity_id = '' THEN reaches_other ELSE MAX(COALESCE(reaches_other, 1), ?) END
        WHERE id = ? AND status = 'running'`,
     )
-    .run(failed ? 'failed' : 'done', JSON.stringify({ event, results }), now(), steps, runId);
+    .run(failed ? 'failed' : 'done', JSON.stringify({ event, results }), now(), steps, reachesOther(workflow, event.entity), runId);
+}
+
+/** Fila del registro inscripto (contacto, empresa o deal) para una espera hasta una de sus fechas. */
+async function recordRow(userId: string, event: WorkflowEvent): Promise<Record<string, unknown> | null> {
+  if (!isRecordEntity(event.entity) || !event.entityId) return null;
+  const row = await getDb().prepare(`SELECT * FROM ${RECORD_TABLE[event.entity]} WHERE id = ? AND user_id = ?`).get(event.entityId, userId);
+  return (row as Record<string, unknown> | undefined) ?? null;
+}
+
+/**
+ * Registro en el que tiene que pasar el evento esperado: el inscripto si es
+ * de esa entidad; si no, el relacionado (el contacto de un deal, etc.).
+ */
+function waitTarget(waitEvent: WaitEvent, event: WorkflowEvent, ctx: ActionContext): { entity: RecordEntity; id: string } | null {
+  const entity = WAIT_EVENTS[waitEvent];
+  if (event.entity === entity && event.entityId) return { entity, id: event.entityId };
+  const id = ctx[entity]?.id;
+  return id ? { entity, id } : null;
+}
+
+/** Registro en el que pasó un evento (un email, en su contacto), para despertar las esperas. */
+async function eventRecord(userId: string, event: WorkflowEvent): Promise<{ entity: RecordEntity; id: string } | null> {
+  if (!event.entityId) return null;
+  if (isRecordEntity(event.entity)) return { entity: event.entity, id: event.entityId };
+  if (event.entity !== 'email') return null;
+  const fromPayload = safeString(event.payload?.contactId);
+  if (fromPayload) return { entity: 'contact', id: fromPayload };
+  const row = (await getDb().prepare('SELECT contact_id FROM crm_emails WHERE id = ? AND user_id = ?').get(event.entityId, userId)) as
+    | { contact_id: string | null }
+    | undefined;
+  return row?.contact_id ? { entity: 'contact', id: row.contact_id } : null;
+}
+
+/**
+ * W2: despierta las inscripciones que esperan este evento en este registro:
+ * pasan a retomarse ya (el cron de cada minuto las corre) por la rama Sí.
+ * Guardas contra loops: no despierta un workflow que ya corrió en la cadena
+ * del evento, y la cadena del evento se suma a la guardada (se conserva al
+ * retomar). Compare-and-set: solo una vez, y solo si sigue esperando.
+ */
+async function wakeWaitingRuns(userId: string, event: WorkflowEvent, parent: { depth: number; seen: ReadonlySet<string> } | undefined): Promise<void> {
+  if (!(Object.prototype.hasOwnProperty.call(WAIT_EVENTS, event.type))) return;
+  const target = await eventRecord(userId, event);
+  if (!target || WAIT_EVENTS[event.type as WaitEvent] !== target.entity) return;
+  const db = getDb();
+  const rows = (await db
+    .prepare(`SELECT id, workflow_id, state FROM crm_workflow_runs WHERE user_id = ? AND status = 'waiting' AND wait_key = ? LIMIT 200`)
+    .all(userId, waitKey(event.type, target.entity, target.id))) as Array<{ id: string; workflow_id: string; state: string }>;
+  if (!rows.length) return;
+  const hidden = waitEventTakesAnyField(event.type) ? (await hiddenForAnyone(userId))[target.entity] : new Set<string>();
+  for (const row of rows) {
+    if (parent?.seen.has(row.workflow_id)) continue;
+    const state = parseJsonObject(row.state);
+    const wait = isObjectRecord(state.wait) ? state.wait : null;
+    if (!wait || !waitEventMatches({ event: safeString(wait.event), field: safeString(wait.field) }, event, hidden)) continue;
+    const saved = isObjectRecord(state.chain) ? state.chain : {};
+    const seen = Array.isArray(saved.seen) ? (saved.seen as unknown[]).map(safeString).filter(Boolean) : [];
+    const merged = {
+      depth: Math.min(Math.max(Number(saved.depth) || 1, (parent?.depth ?? 0) + 1), MAX_CHAIN_DEPTH),
+      seen: [...new Set([...seen, ...(parent?.seen ?? [])])],
+    };
+    await db
+      .prepare(`UPDATE crm_workflow_runs SET resume_at = ?, state = ?, wait_key = NULL WHERE id = ? AND status = 'waiting' AND wait_key = ?`)
+      .run(dbTime(new Date()), JSON.stringify({ ...state, chain: merged, waitMet: true }), row.id, waitKey(event.type, target.entity, target.id));
+  }
+}
+
+function waitEventTakesAnyField(type: string): boolean {
+  return type === 'contact_updated' || type === 'company_updated' || type === 'deal_updated';
 }
 
 /** ¿La inscripción sigue corriendo? (no la sacaron a mano ni la cerró el cron por colgada). */
@@ -1780,8 +1934,8 @@ async function runSingleWorkflow(
     await getDb()
       .prepare(
         `INSERT INTO crm_workflow_runs
-         (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'running', '{}', ?)`,
+         (id, workflow_id, user_id, trigger_entity, trigger_entity_id, trigger_type, status, output, started_at, reaches_other)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', '{}', ?, 0)`,
       )
       .run(runId, workflow.id, userId, event.entity, event.entityId, event.type, now());
   }
@@ -1800,6 +1954,8 @@ const chain = new AsyncLocalStorage<{ depth: number; seen: ReadonlySet<string> }
 export async function runWorkflowsForEvent(userId: string, event: WorkflowEvent): Promise<void> {
   const parent = chain.getStore();
   if (parent && parent.depth >= MAX_CHAIN_DEPTH) return;
+  // W2: las esperas por este evento se despiertan (en el tope de la cadena no: siguen por el tiempo límite).
+  await wakeWaitingRuns(userId, event, parent).catch(() => null);
   const db = getDb();
   const rows = (await db
     .prepare('SELECT * FROM crm_workflows WHERE user_id = ? AND enabled = 1')
@@ -1921,7 +2077,7 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
     .run(at, dbTime(addMinutes(new Date(), -STUCK_RUN_MINUTES)));
   const rows = (await db
     .prepare(
-      `SELECT r.id, r.user_id, r.workflow_id, r.next_position, r.state, r.steps FROM crm_workflow_runs r
+      `SELECT r.id, r.user_id, r.workflow_id, r.next_position, r.state, r.steps, r.resume_at, r.wait_key FROM crm_workflow_runs r
        JOIN crm_workflows w ON w.id = r.workflow_id AND w.user_id = r.user_id AND w.enabled = 1
        WHERE r.status = 'waiting' AND r.resume_at <= ?
        ORDER BY r.resume_at ASC LIMIT ?`,
@@ -1933,30 +2089,47 @@ export async function resumeWaitingWorkflowRuns(opts: { limit?: number; budgetMs
     next_position: number | null;
     state: string;
     steps: number | null;
+    resume_at: string | null;
+    wait_key: string | null;
   }>;
   let resumed = 0;
   for (const row of rows) {
     if (opts.budgetMs && Date.now() - start > opts.budgetMs) break;
     const claim = await db
       // resume_at pasa a ser la hora del claim: el guard de enroll la usa para saber que sigue activa.
-      .prepare("UPDATE crm_workflow_runs SET status = 'running', resume_at = ? WHERE id = ? AND status = 'waiting' AND resume_at <= ?")
+      .prepare("UPDATE crm_workflow_runs SET status = 'running', resume_at = ?, wait_key = NULL WHERE id = ? AND status = 'waiting' AND resume_at <= ?")
       .run(dbTime(new Date()), row.id, at);
     if (!claim.changes) continue;
     try {
       const workflow = await getWorkflow(row.user_id, row.workflow_id);
       if (!workflow?.enabled) {
         // Lo apagaron entre la lectura y el claim: vuelve a esperar sin perder nada.
-        await db.prepare("UPDATE crm_workflow_runs SET status = 'waiting' WHERE id = ? AND status = 'running'").run(row.id);
+        // Con su hora y su espera por evento de antes (si no, se perdería el evento y seguiría antes de tiempo).
+        await db
+          .prepare("UPDATE crm_workflow_runs SET status = 'waiting', resume_at = ?, wait_key = ? WHERE id = ? AND status = 'running'")
+          .run(row.resume_at, row.wait_key, row.id);
         continue;
       }
-      const parsed = parseJsonObject(row.state);
+      // El estado de después del claim: un evento pudo despertarla entre la lectura y el claim (W2).
+      const fresh = (await db.prepare('SELECT state FROM crm_workflow_runs WHERE id = ?').get(row.id)) as { state: string } | undefined;
+      const parsed = parseJsonObject(fresh?.state ?? row.state);
       const event = parsed.event as WorkflowEvent | undefined;
       if (!event || !event.type) throw new Error('bad_state');
+      const results = Array.isArray(parsed.results) ? (parsed.results as ActionResult[]) : [];
+      let branch: boolean | null = typeof parsed.branch === 'boolean' ? parsed.branch : null;
+      if (isObjectRecord(parsed.wait)) {
+        // W2: después de esperar un evento, Sí si pasó y No si se venció el tope (como HubSpot). Solo una
+        // espera que corre siempre abre las ramas; una que corre dentro de una rama sigue la del si/si no.
+        const met = parsed.waitMet === true;
+        if (parsed.wait.splits !== false) branch = met;
+        const last = results[results.length - 1];
+        if (last && last.type === 'delay') last.result = { ...(isObjectRecord(last.result) ? last.result : {}), met };
+      }
       const state: RunState = {
         event,
-        branch: typeof parsed.branch === 'boolean' ? parsed.branch : null,
+        branch,
         chain: isObjectRecord(parsed.chain) ? (parsed.chain as RunState['chain']) : undefined,
-        results: Array.isArray(parsed.results) ? (parsed.results as ActionResult[]) : [],
+        results,
       };
       // Si el registro ya no existe (borrado o en la papelera), la inscripción termina.
       if (isRecordEntity(event.entity) && event.entityId) {
@@ -1997,34 +2170,44 @@ export interface SendCrmEmailInput {
   fromEmail: string;
 }
 
+/**
+ * Contacto al que queda asociado un email que se manda desde un contacto, una
+ * empresa o un deal: el primero que la persona que envía puede ver (nunca uno
+ * que no ve: el email, su thread y su actividad quedarían en ese contacto).
+ * null si no ve ninguno.
+ */
 async function resolveContactIdForEmail(
   userId: string,
   recordType: 'contact' | 'company' | 'deal',
   recordId: string,
+  scope: OwnerScope | undefined,
 ): Promise<string | null> {
-  if (recordType === 'contact') {
-    const row = await getDb()
-      .prepare('SELECT 1 FROM crm_contacts WHERE id = ? AND user_id = ?')
-      .get(recordId, userId);
-    return row ? recordId : null;
-  }
-  if (recordType === 'deal') {
-    const row = (await getDb()
+  let ids: string[];
+  if (recordType === 'contact') ids = [recordId];
+  else if (recordType === 'deal') {
+    const rows = (await getDb()
       .prepare(
         `SELECT dc.contact_id FROM crm_deal_contacts dc
          JOIN crm_deals d ON d.id = dc.deal_id
-         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 1`,
+         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 200`,
       )
-      .get(recordId, userId)) as { contact_id: string } | undefined;
-    return row?.contact_id ?? null;
+      .all(recordId, userId)) as Array<{ contact_id: string }>;
+    ids = rows.map((r) => r.contact_id);
+  } else {
+    const rows = (await getDb()
+      .prepare('SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 200')
+      .all(recordId, userId)) as Array<{ id: string }>;
+    ids = rows.map((r) => r.id);
   }
-  // company
-  const row = (await getDb()
-    .prepare(
-      'SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
-    )
-    .get(recordId, userId)) as { id: string } | undefined;
-  return row?.id ?? null;
+  const visible = await visibleRecordIds(userId, 'crm_contacts', ids, scope);
+  return ids.find((id) => visible.has(id)) ?? null;
+}
+
+/** Alcance de registros de quien envía (null: ve todo; sin lugar en el workspace: nada). */
+async function senderScope(workspaceId: string, senderId: string): Promise<OwnerScope> {
+  const role = await workspacePersonRole(workspaceId, senderId);
+  if (!role) return [];
+  return ownerScopeFor({ workspaceId, personId: senderId, role });
 }
 
 export async function sendCrmEmailAndSave(
@@ -2034,7 +2217,10 @@ export async function sendCrmEmailAndSave(
   const { recordType, recordId, to, subject, body, fromEmail } = input;
   if (!to) return { ok: false, error: 'missing_recipient' };
 
-  const contactId = await resolveContactIdForEmail(userId, recordType, recordId);
+  // El registro desde el que se manda tiene que ser uno que la persona ve (si no, como si no existiera).
+  const scope = await senderScope(userId, input.senderId);
+  if (!(await visibleRecordIds(userId, RECORD_TABLE[recordType], [recordId], scope)).has(recordId)) return { ok: false, error: 'not_found' };
+  const contactId = await resolveContactIdForEmail(userId, recordType, recordId, scope);
   if (!contactId) return { ok: false, error: 'missing_contact' };
 
   const { sendCrmEmail } = await import('./crm-email');

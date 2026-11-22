@@ -18,6 +18,9 @@ import AppKit
 ///   `zs-test-mic` and `zs-test-paste` (the fake permissions: how often asked, the answer, the
 ///   keystrokes), `zs-test-pending` (saved dictations), `zs-test-dictset`
 ///   (AppSettings.dictationSummary), `zs-test-hud` (what the HUD shows).
+/// - Block 7: `zs-test-capture` (CaptureState.summary, the indicator and the menu bar item),
+///   `zs-test-sysaudio` (SystemAudioController.summary), `zs-test-capperm` (the fake capture
+///   permissions: how often asked), `zs-test-meetset` (AppSettings.meetingsSummary).
 @MainActor
 final class TestPanel {
     private let panel: NSPanel
@@ -28,7 +31,7 @@ final class TestPanel {
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 120, height: 8),
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 8),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -40,7 +43,7 @@ final class TestPanel {
         panel.isExcludedFromWindowsMenu = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .ignoresCycle]
-        panel.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 120, height: 8))
+        panel.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 8))
         if let screen = NSScreen.main?.visibleFrame {
             panel.setFrameOrigin(NSPoint(x: screen.minX, y: screen.minY))
         }
@@ -53,6 +56,7 @@ final class TestPanel {
             ("zs-test-dictation", "events 0 none"), ("zs-test-phase", "phase idle"), ("zs-test-hotkey", "none"),
             ("zs-test-mic", "mic asked=0"), ("zs-test-paste", "paste asked=0"), ("zs-test-pending", "pending 0"),
             ("zs-test-dictset", "none"), ("zs-test-hud", "hidden"),
+            ("zs-test-capture", "none"), ("zs-test-sysaudio", "none"), ("zs-test-capperm", "none"), ("zs-test-meetset", "none"),
         ] {
             let label = NSTextField(labelWithString: initial)
             label.frame = NSRect(x: CGFloat(labels.count) * 5, y: 0, width: 4, height: 4)
@@ -144,6 +148,31 @@ final class TestPanel {
         }
         paint()
         paste.onChange = paint
+        report()
+    }
+
+    func watch(meetings: MeetingsController, capture: FakeCapturePermissions, statusItem: StatusItemController) {
+        let report: @MainActor @Sendable () -> Void = { [weak self, weak meetings, weak statusItem] in
+            guard let self, let meetings else { return }
+            let now = CaptureState(meeting: meetings.recording != nil, systemAudio: meetings.systemAudio.running)
+            self.set("zs-test-capture", "capture \(now.summary) indicator=\(meetings.indicatorShown ? "shown" : "hidden") item=\(statusItem?.isShown == true ? "shown" : "hidden")")
+            self.set("zs-test-sysaudio", meetings.systemAudio.summary)
+        }
+        let onCapture = meetings.onCapture
+        meetings.onCapture = {
+            onCapture()
+            report()
+        }
+        meetings.systemAudio.onOutcome = { _ in report() }
+        // Reads change only the audio flag: a light timer keeps it current.
+        let timer = Timer(timeInterval: 0.5, repeats: true) { _ in Task { @MainActor in report() } }
+        RunLoop.main.add(timer, forMode: .common)
+        let paint = { [weak self, weak capture] in
+            guard let self, let capture else { return }
+            self.set("zs-test-capperm", "capperm \(capture.summary)")
+        }
+        capture.onChange = paint
+        paint()
         report()
     }
 

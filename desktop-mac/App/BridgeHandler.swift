@@ -6,8 +6,8 @@ import WebKit
 /// through `Bridge.validate` (origin, allowlist, typed arguments, size) before anything native
 /// runs; refusals reject the page's promise with a closed reason and are logged with that reason
 /// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`;
-/// block 4 adds `tabs`; block 5 `openSettings`. The other commands answer `unavailable` until their blocks add the
-/// native side.
+/// block 4 adds `tabs`; block 5 `openSettings`; block 7 `recording` and `systemAudioStart/Read/Stop`.
+/// The other commands answer `unavailable` until their blocks add the native side.
 @MainActor
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "bridge")
@@ -27,6 +27,12 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     /// `tabs` from the server's main frame of this web view (block 4). The path, when there is
     /// one, already passed `Bridge.validPath`; the tabs controller checks it again.
     var onTabs: ((TabsAction, String?, String?, Int?) -> Void)?
+    /// Meetings (block 7): the page's recording flag and the computer's audio. The start answers
+    /// later (macOS may ask first); read answers the base64 PCM since the last read.
+    var onRecording: ((Bool, Double?, String?) -> Void)?
+    var onSystemAudioStart: ((@escaping @MainActor (String) -> Void) -> Void)?
+    var onSystemAudioRead: (() -> String)?
+    var onSystemAudioStop: (() -> Void)?
 
     init(server: String, info: BridgeInfo) {
         self.server = server
@@ -65,6 +71,10 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         onNotify = nil
         onOpenSettings = nil
         onTabs = nil
+        onRecording = nil
+        onSystemAudioStart = nil
+        onSystemAudioRead = nil
+        onSystemAudioStop = nil
     }
 
     func userContentController(
@@ -110,6 +120,20 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             reply(nil, nil)
         case let .tabs(action, path, title, n):
             onTabs?(action, path, title, n)
+            reply(nil, nil)
+        case let .recording(active, startedAt, path):
+            guard let onRecording else { return reject(.unavailable, reply) }
+            onRecording(active, startedAt, path)
+            reply(nil, nil)
+        case .systemAudioStart:
+            guard let onSystemAudioStart else { return reject(.unavailable, reply) }
+            onSystemAudioStart { code in reply(code, nil) }
+        case .systemAudioRead:
+            guard let onSystemAudioRead else { return reject(.unavailable, reply) }
+            reply(onSystemAudioRead(), nil)
+        case .systemAudioStop:
+            guard let onSystemAudioStop else { return reject(.unavailable, reply) }
+            onSystemAudioStop()
             reply(nil, nil)
         default:
             // Valid, but this build has no native side for it yet.

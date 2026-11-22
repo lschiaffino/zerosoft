@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { canSeeActivityRefs, canSeeOwnedRow, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivityRefs, canSeeOwnedRow, sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import {
   ACTIVITY_TYPES,
@@ -75,6 +75,9 @@ export async function POST(req: NextRequest) {
   }
   // Cola de tareas: solo una que la persona ve (una privada de otra persona no existe para ella).
   if (parsed.data.queueId && !(await getQueue(sessionQueueViewer(user), parsed.data.queueId))) return crmError(400, 'invalid_queue');
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const activity = await catchRef(createActivity(user.id, parsed.data));
   if (activity instanceof CrmRefError) return crmError(400, activity.code);
   // @menciones: aviso in-app y por email a cada persona mencionada que puede ver la actividad. A quien

@@ -14,7 +14,7 @@
 import { getDb, type CrmActivityRow } from './db';
 import { personAppAccess } from './api-auth';
 import { canUseApp } from './workspace';
-import { canSeeActivity, canSeeOwnedRow, ownerScopeFor } from './crm-visibility';
+import { canSeeActivity, ownerScopeFor } from './crm-visibility';
 import { createNotification } from './notifications';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 
@@ -75,10 +75,8 @@ export async function reminderRecipientSees(task: CrmActivityRow, personId: stri
   const access = await personAppAccess(ws, personId).catch(() => null);
   if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'crm')) return false;
   const scope = await ownerScopeFor({ workspaceId: ws, personId, role: access.role });
-  if (!(await canSeeActivity(ws, task.id, scope))) return false;
-  if (task.lead_id && !(await canSeeOwnedRow(ws, 'crm_leads', task.lead_id, scope))) return false;
-  if (task.object_record_id && !(await canSeeOwnedRow(ws, 'crm_object_records', task.object_record_id, scope))) return false;
-  return true;
+  // canSeeActivity ya mira contacto, empresa, deal, lead y registro de objeto (misma regla que el índice).
+  return canSeeActivity(ws, task.id, scope);
 }
 
 /** Manda los recordatorios vencidos. Devuelve cuántos salieron. */

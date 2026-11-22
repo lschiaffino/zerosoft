@@ -516,7 +516,7 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
       }}
     >
       <p className="ui-help">{t('rules.intro')}</p>
-      <div className="ui-fields-2">
+      <div className="ui-fields-2" data-setting="lines-ticket-detection">
         <label className="ui-field">
           <span className="label">{t('rules.emoji')}</span>
           <input className="input gr-narrow" value={s.ticketEmoji} onChange={(e) => setS({ ...s, ticketEmoji: e.target.value })} maxLength={16} disabled={!canEdit} />
@@ -528,7 +528,7 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
           <span className="ui-help">{t('rules.keywordsHelp')}</span>
         </label>
       </div>
-      <div className="ui-fields-2">
+      <div className="ui-fields-2" data-setting="lines-response-times">
         {num(s.unansweredMin, (n) => setS({ ...s, unansweredMin: n }), t('rules.unanswered'))}
         {num(s.firstResponseMin, (n) => setS({ ...s, firstResponseMin: n }), t('rules.firstResponse'))}
       </div>
@@ -540,7 +540,7 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
           )}
         </div>
       </fieldset>
-      <fieldset className="ui-field">
+      <fieldset className="ui-field" data-setting="lines-flag-mode">
         <legend className="label">{t('rules.flagMode')}</legend>
         {(['time', 'questions'] as const).map((m) => (
           <label key={m} className="gr-check-label">
@@ -563,17 +563,17 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
       </label>
       <fieldset className="ui-field">
         <legend className="label">{t('rules.whatsapp')}</legend>
-        <label className="gr-check-label">
+        <label className="gr-check-label" data-setting="lines-read-receipts">
           <input type="checkbox" className="ui-check" checked={s.readReceipts} onChange={(e) => setS({ ...s, readReceipts: e.target.checked })} disabled={!canEdit} />
           {t('rules.readReceipts')}
         </label>
         <span className="ui-help">{t('rules.readReceiptsHelp')}</span>
-        <label className="gr-check-label">
+        <label className="gr-check-label" data-setting="lines-keep-archived">
           <input type="checkbox" className="ui-check" checked={s.keepArchived} onChange={(e) => setS({ ...s, keepArchived: e.target.checked })} disabled={!canEdit} />
           {t('rules.keepArchived')}
         </label>
       </fieldset>
-      <fieldset className="ui-field">
+      <fieldset className="ui-field" data-setting="lines-sla-email">
         <legend className="label">{t('rules.slaEmail')}</legend>
         <label className="gr-check-label">
           <input type="checkbox" className="ui-check" checked={s.slaEmail} onChange={(e) => setS({ ...s, slaEmail: e.target.checked })} disabled={!canEdit} />
@@ -597,7 +597,7 @@ export function TicketRulesPanel({ initial, canEdit, aiAvailable = true }: { ini
           </>
         )}
       </fieldset>
-      <label className="ui-field">
+      <label className="ui-field" data-setting="lines-default-priority">
         <span className="label">{t('rules.defaultPriority')}</span>
         <select className="select gr-narrow" value={s.defaultPriority} onChange={(e) => setS({ ...s, defaultPriority: e.target.value as GroupsSettings['defaultPriority'] })} disabled={!canEdit}>
           {['low', 'medium', 'high', 'urgent'].map((p) => (

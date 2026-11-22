@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { sessionScope } from '@/lib/crm-visibility';
+import { sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
-import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { catchContactWrite, catchRef, crmError, CrmRefError, emailTakenResponse, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
 import { createFormMissing } from '@/lib/crm-create-form';
 import { isCreateFormRequest } from '@/lib/crm-create-form-shared';
@@ -57,9 +58,14 @@ export async function POST(req: NextRequest) {
     const missing = await createFormMissing(sessionFieldViewer(user), 'contacts', data);
     if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
   }
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const contact = await catchContactWrite(createContact(user.id, data));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   // El email es la identidad del contacto: 409 con el existente solo si quien pide lo ve.
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, await sessionScope(user));
-  return NextResponse.json(redactRow(contact, await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')), { status: 201 });
+  // La empresa vinculada sola por el dominio del email puede ser una que la persona no ve: sale como privada.
+  const shown = (await maskPrivateRef(user.id, contact, [PRIVATE_REFS.company([])], await sessionScope(user)))!;
+  return NextResponse.json(redactRow(shown, await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')), { status: 201 });
 }

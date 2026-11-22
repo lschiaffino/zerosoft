@@ -20,7 +20,7 @@ export default function ProfileForm({ name, locale, timeZone }: { name: string; 
   const list = useMemo(() => zones(tz), [tz]);
 
   return (
-    <FormSection
+    <FormSection setting="profile-details"
       title={t('title')}
       description={t('desc')}
       onSubmit={async (fd) => {

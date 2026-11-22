@@ -215,17 +215,21 @@ export async function storeGmailMessage(
         entityId: emailId,
         payload: { contactId: primary, gmailId: msg.id, direction: 'in', source },
       }).catch(() => null);
-      await emitEvent(userId, 'email.received', {
+      const received = {
         email: { id: emailId, subject: msg.subject, from: msg.from, threadId: msg.threadId },
         contactIds: [...new Set(contacts.values())],
-      });
+      };
+      const { crmEventOptions } = await import('./crm-event-privacy');
+      await emitEvent(userId, 'email.received', received, await crmEventOptions(userId, 'email.received', received));
     }
   } else if (recent) {
-    await emitEvent(userId, 'email.sent', {
+    const sent = {
       email: { id: emailId, subject: msg.subject, to: msg.to, threadId: msg.threadId, via: source },
       contactId: primary,
       sequence: null,
-    });
+    };
+    const { crmEventOptions } = await import('./crm-event-privacy');
+    await emitEvent(userId, 'email.sent', sent, await crmEventOptions(userId, 'email.sent', sent));
   }
   return true;
 }

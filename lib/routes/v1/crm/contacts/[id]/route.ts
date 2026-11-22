@@ -3,9 +3,9 @@ import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } fr
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getContact, updateContact, deleteContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
-import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
+import { apiEmailTakenResponse, catchContactWrite, catchRef, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
-import { apiScope } from '@/lib/crm-visibility';
+import { apiScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
@@ -43,11 +43,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fieldViewer = apiFieldViewer(auth);
   const fp = await guardRecordCustomWrite(fieldViewer, 'contact', params.id, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  // No se vincula un registro que la key no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
+  if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
   const contact = await catchContactWrite(updateContact(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, refErrorMessage(contact.code));
   if (contact instanceof ContactEmailTakenError) return apiEmailTakenResponse(contact, scope);
   if (!contact) return apiError(404, 'not_found', 'Contact not found.');
-  return NextResponse.json(cleanRow(redactRow(contact, await hiddenFieldsFor(fieldViewer, 'contacts'))));
+  const shown = (await maskPrivateRef(auth.user.id, contact, [PRIVATE_REFS.company([])], scope))!;
+  return NextResponse.json(cleanRow(redactRow(shown, await hiddenFieldsFor(fieldViewer, 'contacts'))));
 }
 
 export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {

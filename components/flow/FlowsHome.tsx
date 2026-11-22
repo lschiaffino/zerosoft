@@ -363,6 +363,7 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
     <button
       type="button"
       className="btn btn-primary"
+      data-tour="flow-new"
       aria-busy={busy === 'new' || undefined}
       disabled={busy !== null && busy !== 'new'}
       onClick={() => create({ name: t('editor.untitled') }, 'new')}
@@ -472,7 +473,7 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
               </option>
             ))}
           </select>
-          <Link href="/app/flow/runs" className="btn btn-ghost btn-sm">
+          <Link href="/app/flow/runs" className="btn btn-ghost btn-sm" data-tour="flow-history">
             {t('history.title')}
           </Link>
         </div>
@@ -505,7 +506,7 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
               key: 'name',
               header: t('list.name'),
               cell: (f) => (
-                <span className="flow-name-cell">
+                <span className="flow-name-cell" data-tour="flow-item">
                   <span className="flow-ellipsis">{f.name}</span>
                   {f.draft && <span className="badge badge-outline">{t('draft.badge')}</span>}
                 </span>
@@ -791,8 +792,8 @@ export default function FlowsHome({ flows: initial, folders: initialFolders, can
           <p className="ui-help">{t('templates.subtitle')}</p>
         </div>
         <ul className={`flow-templates${allTemplates ? ' is-all' : ''}`}>
-          {FLOW_TEMPLATES.map((tpl) => (
-            <li className="flow-template" key={tpl.key}>
+          {FLOW_TEMPLATES.map((tpl, i) => (
+            <li className="flow-template" key={tpl.key} data-tour={i === 0 ? 'flow-template' : undefined}>
               <div className="flow-template-text">
                 <h3 className="flow-template-name">{t(`templates.items.${tpl.key}.name`)}</h3>
                 <p className="flow-template-desc">{t(`templates.items.${tpl.key}.desc`)}</p>
