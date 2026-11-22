@@ -402,7 +402,9 @@ export async function computeLibraryReport(key: string, ctx: ReportContext): Pro
          WHERE s.pipeline_id = ? GROUP BY s.id ORDER BY s.position`,
         [...w.args, pid],
       );
-      const conv = funnelConversion(rows.map((r) => ({ ...r, count: num(r.count) })));
+      const conv = funnelConversion(
+        rows.map((r) => ({ ...r, count: num(r.count), is_won: (r.is_won ? 1 : 0) as 0 | 1, is_lost: (r.is_lost ? 1 : 0) as 0 | 1 })),
+      );
       // Cuántos llegaron a cada etapa: los que están ahí o más adelante (los ganados pasaron por todas).
       const flow = conv.filter((r) => !r.is_lost);
       const reached: number[] = [];
