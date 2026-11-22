@@ -50,7 +50,7 @@ export default function AppearanceSettings({ toursOff = false }: { toursOff?: bo
 
   return (
     <div className="st-stack">
-      <FormSection title={t('title')} description={t('desc')}>
+      <FormSection setting="appearance-theme" title={t('title')} description={t('desc')}>
         <fieldset className="st-fieldset">
           <legend className="sr-only">{tTheme('label')}</legend>
           <div className="st-theme-options" role="radiogroup" aria-label={tTheme('label')} data-testid="appearance-theme">
@@ -68,7 +68,7 @@ export default function AppearanceSettings({ toursOff = false }: { toursOff?: bo
         </fieldset>
         <p className="ui-help">{t('themeHelp')}</p>
       </FormSection>
-      <FormSection title={t('lookTitle')} description={t('lookDesc')}>
+      <FormSection setting="appearance-look" title={t('lookTitle')} description={t('lookDesc')}>
         <fieldset className="st-fieldset">
           <legend className="sr-only">{t('lookLabel')}</legend>
           <div className="st-look-options" role="radiogroup" aria-label={t('lookLabel')} data-testid="appearance-look">
@@ -93,7 +93,7 @@ export default function AppearanceSettings({ toursOff = false }: { toursOff?: bo
           {lookStatus === 'saved' ? t('lookSaved') : lookStatus === 'error' ? t('lookError') : null}
         </p>
       </FormSection>
-      <FormSection title={t('toursTitle')} description={t('toursDesc')}>
+      <FormSection setting="appearance-tours" title={t('toursTitle')} description={t('toursDesc')}>
         <label className="ui-check">
           <input type="checkbox" checked={toursOn} onChange={(e) => void toggleTours(e.target.checked)} data-testid="appearance-tours-auto" />
           <span>{t('toursAuto')}</span>
@@ -107,7 +107,7 @@ export default function AppearanceSettings({ toursOff = false }: { toursOff?: bo
           {toursStatus === 'reset' ? t('toursResetDone') : toursStatus === 'error' ? t('toursError') : null}
         </p>
       </FormSection>
-      <FormSection title={t('languageTitle')} description={t('languageDesc')}>
+      <FormSection setting="appearance-language" title={t('languageTitle')} description={t('languageDesc')}>
         <p className="ui-help">
           <Link href="/app/settings" className="st-inline-link">
             {t('languageLink')}

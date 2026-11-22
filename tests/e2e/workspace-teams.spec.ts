@@ -359,7 +359,8 @@ test('onboarding de una cuenta nueva: equipo, invitaciones, rol y app de entrada
     await expect(p.getByTestId('group-row').filter({ hasText: 'Ventas' })).toBeVisible();
     await expect(p.getByTestId('group-row')).toContainText('@ventas');
     await p.keyboard.press('ControlOrMeta+k');
-    await p.getByRole('combobox').fill('Ventas');
+    // El ⌘K abre un diálogo; la página de Ajustes tiene su propio buscador (otro combobox).
+    await p.getByRole('dialog').getByRole('combobox').fill('Ventas');
     await expect(p.getByRole('option', { name: /Ventas/ }).first()).toBeVisible();
     await p.keyboard.press('Escape');
     await p.getByTestId('group-row').getByRole('button', { name: 'Edit' }).click();

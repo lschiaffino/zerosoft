@@ -152,7 +152,7 @@ export default function WebhooksPanel({ initial, defaultDomain = '', linkDomains
   }
 
   return (
-    <FormSection id="webhooks" title={t('title')} description={t('desc')}>
+    <FormSection setting="api-webhooks" id="webhooks" title={t('title')} description={t('desc')}>
       <form className="st-webhook-form" onSubmit={create}>
         <div className="ui-field">
           <label className="label" htmlFor="st-hook-url">

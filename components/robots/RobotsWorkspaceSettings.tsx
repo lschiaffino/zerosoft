@@ -44,7 +44,7 @@ export default function RobotsWorkspaceSettings({
 
   return (
     <div className="st-stack">
-      <FormSection title={t('concurrencyTitle')} description={t('concurrencyHint', { max: maxConcurrency })}>
+      <FormSection setting="robots-concurrency" title={t('concurrencyTitle')} description={t('concurrencyHint', { max: maxConcurrency })}>
         <div className="ui-field robots-narrow">
           <label className="label" htmlFor={`${uid}-concurrency`}>
             {t('concurrency')}
@@ -64,7 +64,7 @@ export default function RobotsWorkspaceSettings({
           </select>
         </div>
       </FormSection>
-      <FormSection title={t('membersTitle')} description={t('membersHint')}>
+      <FormSection setting="robots-members" title={t('membersTitle')} description={t('membersHint')}>
         <label className="robots-inline">
           <input type="checkbox" checked={config.membersCanBuild} disabled={!canEdit || busy} onChange={(e) => void save({ membersCanBuild: e.target.checked })} />
           <span>{t('members')}</span>

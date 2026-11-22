@@ -41,8 +41,6 @@ export default async function SettingsLayout(props: { children: ReactNode; param
             groups={groups}
             label={t('tabs.label')}
             selectLabel={t('nav.select')}
-            searchLabel={t('nav.search')}
-            noResults={t.raw('nav.noResults') as string}
           />
           <div className="ui-settings-content">{props.children}</div>
         </div>

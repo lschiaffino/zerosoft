@@ -34,7 +34,7 @@ export default function ChatAccessSettings({ apps, always }: { apps: ChatApp[]; 
   }
 
   return (
-    <FormSection title={t('title')} description={t('desc')}>
+    <FormSection setting="profile-chat-access" title={t('title')} description={t('desc')}>
       <ul className="asst-access" data-testid="assistant-chat-access">
         {apps.map((app) => (
           <li key={app} className="asst-access-row" data-app={app} data-allowed={allowed.has(app) ? 'always' : 'ask'}>

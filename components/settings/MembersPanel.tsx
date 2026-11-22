@@ -761,7 +761,7 @@ export default function MembersPanel({
   return (
     <>
       {admin && (
-        <FormSection title={t('inviteTitle', { workspace: dir.team.name })} description={t(emailLogin ? 'inviteDesc' : 'inviteDescGoogle')}>
+        <FormSection setting="members-invite" title={t('inviteTitle', { workspace: dir.team.name })} description={t(emailLogin ? 'inviteDesc' : 'inviteDescGoogle')}>
           {legacyNotice && (
             <p className="ws-notice" role="note" data-testid="legacy-notice">
               {t('legacyNotice')}
@@ -835,7 +835,7 @@ export default function MembersPanel({
         </FormSection>
       )}
 
-      <FormSection
+      <FormSection setting="members-list"
         title={t('listTitle', { count: dir.members.length })}
         description={admin ? t('listDescAdmin') : t('listDesc')}
         footer={
@@ -1110,7 +1110,7 @@ export default function MembersPanel({
       </FormSection>
 
       {admin && (
-        <FormSection title={t('pendingTitle', { count: dir.invites.length })} description={t('pendingDesc')}>
+        <FormSection setting="members-pending" title={t('pendingTitle', { count: dir.invites.length })} description={t('pendingDesc')}>
           <DataTable
             caption={t('pendingTitle', { count: dir.invites.length })}
             rows={dir.invites}
@@ -1267,7 +1267,7 @@ export default function MembersPanel({
       )}
 
       {admin && (
-        <FormSection title={tp('logTitle')} description={tp('logDesc')}>
+        <FormSection setting="members-log" title={tp('logTitle')} description={tp('logDesc')}>
           {dir.audit.length === 0 ? (
             <EmptyState quiet compact title={tp('logEmpty')} />
           ) : (

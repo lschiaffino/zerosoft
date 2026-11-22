@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import SettingsSearch from '@/components/app/SettingsSearch';
 import type { AutoJoinRule, CallsSettings as Settings, Methodology } from '@/lib/calls/types';
 import { api, useErrorText, useToast } from './ui';
 
@@ -59,7 +60,7 @@ export default function CallsSettings({ initial, autoJoin, admin, botConfigured,
   return (
     <div className="app-page ui-page cl-page cl-narrow">
       {toast}
-      <PageHeader title={t('title')} description={t('desc')} />
+      <PageHeader title={t('title')} description={t('desc')} actions={<SettingsSearch variant="header" />} />
       <section className="ui-section">
         <div className="ui-section-body">
           <div className="ui-section-head">

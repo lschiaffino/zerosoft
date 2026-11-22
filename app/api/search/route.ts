@@ -52,6 +52,8 @@ import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
 import { noStore } from '@/lib/no-store';
+import { searchSettingsFor } from '@/lib/settings-search-server';
+import { crumbText, settingHref } from '@/lib/settings-search';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -327,6 +329,12 @@ async function getPrivate(req: NextRequest) {
 
   for (const r of reports) {
     items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });
+  }
+
+  // Ajustes puntuales (la misma búsqueda que la caja de Ajustes): solo los que la persona puede abrir.
+  const settings = await searchSettingsFor(user, req.nextUrl.searchParams.get('locale') ?? user.locale ?? 'en', q).catch(() => []);
+  for (const s of settings) {
+    items.push({ id: `setting:${s.id}`, group: 'settings', label: s.title, meta: crumbText(s), href: settingHref(s.href, s.anchor) });
   }
 
   // Acceso por app: nada de las apps que la persona no tiene en este workspace.

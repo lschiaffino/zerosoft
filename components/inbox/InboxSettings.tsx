@@ -1,5 +1,6 @@
 'use client';
 
+import SettingsSearch from '@/components/app/SettingsSearch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -410,7 +411,7 @@ function SnippetsSection({ snippets, onChange }: { snippets: SnippetDto[]; onCha
     onChange();
   };
   return (
-    <section className="ib-section" id="snippets" aria-labelledby="ib-snippets-h">
+    <section className="ib-section" id="snippets" aria-labelledby="ib-snippets-h" data-setting="inbox-snippets">
       <div className="ib-section-head">
         <h2 className="ib-h2" id="ib-snippets-h">
           {t('title')}
@@ -508,7 +509,7 @@ function FoldersSection({ folders, onChange }: { folders: FolderDto[]; onChange:
   const t = useTranslations('inbox.folders');
   const [edit, setEdit] = useState<FolderDto | 'new' | null>(null);
   return (
-    <section className="ib-section" id="folders" aria-labelledby="ib-folders-h">
+    <section className="ib-section" id="folders" aria-labelledby="ib-folders-h" data-setting="inbox-folders">
       <div className="ib-section-head">
         <h2 className="ib-h2" id="ib-folders-h">
           {t('title')}
@@ -572,6 +573,9 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           <h1 className="ui-page-title">{t('title')}</h1>
           <p className="ui-page-subtitle">{t('subtitle')}</p>
         </div>
+        <div className="ui-page-actions">
+          <SettingsSearch variant="header" />
+        </div>
       </div>
       {gmailResult && (
         <p className={gmailResult === 'connected' ? 'ib-ok' : 'ui-error'} role="status">
@@ -581,7 +585,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
           </button>
         </p>
       )}
-      <section className="ib-section" id="accounts" aria-labelledby="ib-accounts-h">
+      <section className="ib-section" id="accounts" aria-labelledby="ib-accounts-h" data-setting="inbox-accounts">
         <h2 className="ib-h2" id="ib-accounts-h">
           {t('accounts')}
         </h2>
@@ -600,7 +604,7 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
         gmailConnected={state.accounts.some((a) => a.kind === 'gmail' && a.status === 'connected')}
         onDone={reloadQuiet}
       />
-      <section className="ib-section" id="shortcuts" aria-labelledby="ib-keys-h">
+      <section className="ib-section" id="shortcuts" aria-labelledby="ib-keys-h" data-setting="inbox-shortcuts">
         <h2 className="ib-h2" id="ib-keys-h">
           {th('title')}
         </h2>
