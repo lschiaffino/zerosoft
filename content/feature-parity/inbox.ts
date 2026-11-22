@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-21',
+  lastReviewed: '2026-11-22',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -373,9 +373,9 @@ const parity: ProductParity = {
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
-        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
-        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. Salir o editar un grupo se hace en el teléfono',
-        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. Sair ou editar um grupo é feito no celular',
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. The pencil next to the group name and description changes them on WhatsApp, with the notice in the chat (tested with the fake provider). Leaving a group and changing its photo or settings are done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. El lápiz al lado del nombre y de la descripción del grupo los cambia en WhatsApp, con el aviso en el chat (probado con el proveedor falso). Salir del grupo y cambiar su foto o sus ajustes se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. O lápis ao lado do nome e da descrição do grupo os muda no WhatsApp, com o aviso na conversa (testado com o provedor falso). Sair do grupo e mudar a foto ou as configurações dele é feito no celular',
       ],
     }),
     row('wa-group-members', 'whatsapp', ['Add members and change group admins', 'Agregar miembros y cambiar admins del grupo', 'Adicionar membros e mudar admins do grupo'], 'partial', {
