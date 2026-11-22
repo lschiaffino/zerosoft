@@ -141,3 +141,28 @@ test('el vacío compacto y el quieto van sin caja en los cinco aspectos (el file
     if (look === 'liquid') expect(shadows.map((s) => s.backgroundColor)).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
   }
 });
+
+test('Retro: la cabecera de columna es un botón en relieve y la celda que encabeza una fila no', async ({ page }) => {
+  await setLook(page, 'retro');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/people', { waitUntil: 'networkidle' });
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'retro');
+  // Como el directorio de People: th en thead y th scope="row" en cada fila.
+  const cells = await page.evaluate(() => {
+    const main = document.querySelector('main') ?? document.body;
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    wrap.innerHTML = '<table class="table"><thead><tr><th scope="col">Name</th><th scope="col">Team</th></tr></thead><tbody><tr><th scope="row">Ana</th><td>Product</td></tr></tbody></table>';
+    main.appendChild(wrap);
+    const style = (sel: string) => {
+      const { boxShadow, backgroundColor } = getComputedStyle(wrap.querySelector(sel)!);
+      return { boxShadow, backgroundColor };
+    };
+    const out = { head: style('thead th'), row: style('tbody th'), cell: style('tbody td') };
+    wrap.remove();
+    return out;
+  });
+  expect(cells.head.boxShadow).not.toBe('none');
+  expect(cells.row.boxShadow).toBe('none');
+  expect(cells.row.backgroundColor).toBe(cells.cell.backgroundColor);
+});
