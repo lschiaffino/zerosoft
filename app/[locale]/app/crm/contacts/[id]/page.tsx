@@ -677,6 +677,12 @@ export default async function ContactDetailPage(props: {
                   {company.name}
                 </Link>
               )}
+              {/* Como en HubSpot: el email a mano debajo del nombre. */}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="record-meta-link" data-testid="record-email">
+                  {contact.email}
+                </a>
+              )}
             </>
           }
           tags={
