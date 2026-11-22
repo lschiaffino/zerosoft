@@ -16,17 +16,5 @@
     "since": "2026-11-14",
     "reason": "Encola 2.500 corridas y espera el avance del worker en 30 s; con la cola ocupada por tests anteriores el avance no llega a tiempo, y si falla antes de cancelar deja la cola llena para los siguientes.",
     "owner": "lschiaffino"
-  },
-  {
-    "test": "track-dnd.spec.ts › arrastrar a un project del sidebar lo suma al project (con Deshacer)",
-    "since": "2026-11-14",
-    "reason": "Falló en los dos intentos de dos corridas de #291 (página de estado, no toca Track) cuando cambió el reparto de shards; con next dev también falla en main (4e8bdba) el primer test del archivo. Después del dragTo no aparece el toast con Deshacer: hay que revisar el drop sobre el sidebar.",
-    "owner": "lschiaffino"
-  },
-  {
-    "test": "track-dnd.spec.ts › varios seleccionados se arrastran juntos y el clic derecho abre el menú",
-    "since": "2026-11-14",
-    "reason": "Falló en los dos intentos de dos corridas de #291 (página de estado, no toca Track) cuando cambió el reparto de shards; con next dev también falla en main (4e8bdba) el primer test del archivo. Después del dragTo no aparece el toast con Deshacer: hay que revisar el drop sobre el sidebar.",
-    "owner": "lschiaffino"
   }
 ]

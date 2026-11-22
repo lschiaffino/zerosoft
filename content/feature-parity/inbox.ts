@@ -85,9 +85,9 @@ const parity: ProductParity = {
     row('splits', 'triage', ['Split inbox', 'Bandeja dividida (splits)', 'Caixa dividida (splits)'], 'partial', {
       weight: 2,
       detail: [
-        'Fixed views (to reply, waiting, unread, WhatsApp, email, groups) and your folders with rules by channel, kind and name. No VIP or calendar splits',
-        'Vistas fijas (por responder, esperando, no leídos, WhatsApp, correo, grupos) y tus carpetas con reglas por canal, tipo y nombre. Sin splits de VIP ni de calendario',
-        'Visões fixas (para responder, aguardando, não lidos, WhatsApp, e-mail, grupos) e suas pastas com regras por canal, tipo e nome. Sem splits de VIP nem de calendário',
+        'Fixed views (to reply, waiting, unread, WhatsApp, email, groups, favorites) and your folders with rules by channel, kind and name. A VIP split: mark a person as VIP from the chat menu and the VIP tab lists their WhatsApp chats on any account and their emails. No calendar split',
+        'Vistas fijas (por responder, esperando, no leídos, WhatsApp, correo, grupos, favoritos) y tus carpetas con reglas por canal, tipo y nombre. Un split VIP: marcás a una persona como VIP desde el menú del chat y la pestaña VIP lista sus chats de WhatsApp de cualquier cuenta y sus correos. Sin split de calendario',
+        'Visões fixas (para responder, aguardando, não lidos, WhatsApp, e-mail, grupos, favoritos) e suas pastas com regras por canal, tipo e nome. Um split VIP: você marca uma pessoa como VIP pelo menu da conversa e a aba VIP lista as conversas de WhatsApp dela em qualquer conta e os e-mails dela. Sem split de calendário',
       ],
     }),
     row('folders', 'triage', ['Folders and subfolders', 'Carpetas y subcarpetas', 'Pastas e subpastas'], 'have', {

@@ -1566,6 +1566,40 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "pulse": {
+      "intro": {
+        "title": "Te damos la bienvenida a Pulse",
+        "body": "Pulse mide lo que hace la gente en tu sitio o tu app: visitas, eventos, embudos y retención. Este tour te muestra las partes principales."
+      },
+      "newProject": {
+        "title": "Creá un proyecto",
+        "body": "Un proyecto guarda los datos de un sitio o una app y te da un snippet para pegar ahí. Creá uno por cada cosa que quieras medir."
+      },
+      "setup": {
+        "title": "Instalá el snippet",
+        "body": "En Instalar y ajustes están el snippet para tu sitio y la clave y las opciones del proyecto. Las visitas aparecen unos segundos después de pegarlo."
+      },
+      "web": {
+        "title": "Web analytics",
+        "body": "Visitantes, páginas vistas, sesiones y rebote en el período que elijas. Elegí una fila de las tablas de abajo para filtrar toda la página por ella."
+      },
+      "events": {
+        "title": "Actividad",
+        "body": "Cada evento apenas llega, con la persona y la página. Sirve para ver que el snippet ande."
+      },
+      "insights": {
+        "title": "Insights",
+        "body": "Gráficos que armás con tus eventos: tendencias, embudos, retención y recorridos. Guardá uno para volver a verlo o sumarlo a un tablero."
+      },
+      "dashboards": {
+        "title": "Tableros",
+        "body": "Juntá tus insights en una página para tu equipo y recibilos por mail cada tanto."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "social": {
       "intro": {
         "title": "Te damos la bienvenida a Social",

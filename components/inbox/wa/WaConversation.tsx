@@ -789,6 +789,7 @@ const WaConversation = forwardRef<
     { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
     { key: 'favorite', label: thread.favorite ? mo('unfavorite') : mo('favorite'), onSelect: () => onAction('favorite') },
+    ...(!group && thread.handle ? [{ key: 'vip', label: thread.vip ? mo('unvip') : mo('vip'), onSelect: () => onAction('vip') }] : []),
     { key: 'archive', label: thread.archived || thread.done ? t('actions.unarchive') : t('actions.archive'), onSelect: () => onAction(thread.archived || thread.done ? 'unarchive' : 'archive') },
     ...(thread.archived ? [{ key: 'keepArchived', label: thread.keepArchived ? w('keepArchivedOff') : w('keepArchived'), onSelect: () => onAction('keepArchived') }] : []),
     { key: 'aiDraft', label: mo('aiDraft'), onSelect: () => onAction('aiDraft') },

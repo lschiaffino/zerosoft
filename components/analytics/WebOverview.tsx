@@ -188,7 +188,7 @@ export default function WebOverview({ projectId, webVitals = false, canManage = 
       <div className="an-toolbar">
         <RangeSelect value={range} onChange={(v) => setParams((sp) => (v === '-7d' ? sp.delete('range') : sp.set('range', v)))} />
         <LiveVisitors projectId={projectId} />
-        <Link href="/app/pulse/events" className="an-link">
+        <Link href="/app/pulse/events" className="an-link" data-tour="pulse-live">
           {t('seeEvents')}
         </Link>
       </div>
@@ -240,7 +240,8 @@ export default function WebOverview({ projectId, webVitals = false, canManage = 
                 </Link>
               </div>
             ))}
-          <div className="an-stats">
+          {/* Anclajes del tour de Pulse (lib/tours/pulse.ts): los números y, arriba, Ver eventos en vivo. */}
+          <div className="an-stats" data-tour="pulse-stats">
             <Stat label={t('visitors')} value={data.stats.visitors.value} previous={data.stats.visitors.previous} format={n} />
             <Stat label={t('pageviews')} value={data.stats.pageviews.value} previous={data.stats.pageviews.previous} format={n} />
             <Stat label={t('sessions')} value={data.stats.sessions.value} previous={data.stats.sessions.previous} format={n} />

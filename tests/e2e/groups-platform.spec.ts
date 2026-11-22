@@ -78,7 +78,8 @@ test('mensaje recurrente: se arma en Envíos, muestra las próximas corridas, se
   await page.getByRole('combobox', { name: /^Repeats/ }).selectOption('weekly');
   await page.getByLabel('Time', { exact: true }).fill('09:30');
   await expect(page.getByRole('checkbox', { name: 'Mon' })).not.toBeChecked();
-  await page.getByLabel('Wed').check();
+  // Por rol y exacto: el select "From number" lista números de otros tests, y un nombre al azar con "wed" también matchea getByLabel('Wed').
+  await page.getByRole('checkbox', { name: 'Wed', exact: true }).check();
   await expect(page.getByText(/^Next: /)).toBeVisible();
   await page.getByRole('searchbox').fill(`Rec${tag}`);
   await page.getByRole('checkbox', { name: new RegExp(`Rec${tag}`) }).check();

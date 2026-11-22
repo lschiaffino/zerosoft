@@ -14,6 +14,7 @@ import { api, fmtDay, LoadingRows, ProgressBar } from './shared';
 import { LineChart } from './charts';
 import { encodeFilter } from '@/lib/track-filter';
 import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
+import { fetchAllTrackTeams } from '@/components/track/fetchAllTeams';
 
 const localToday = () => {
   const d = new Date();
@@ -35,10 +36,8 @@ export function CyclesIndex() {
   const currentTeam = team ? (teams.find((x) => x.id === team || x.slug.toLowerCase() === team.toLowerCase()) ?? null) : null;
   const [createError, setCreateError] = useState<string | null>(null);
   useEffect(() => {
-    void api<{
-      rows: Array<{ id: string; name: string; slug: string; status: string }>;
-    }>('/api/track/projects?pageSize=100').then((r) => {
-      if (r.ok) setTeams(r.data.rows.filter((p) => p.status === 'active'));
+    void fetchAllTrackTeams<{ id: string; name: string; slug: string; status: string }>().then((rows) => {
+      if (rows) setTeams(rows.filter((p) => p.status === 'active'));
     });
   }, []);
   // "New cycle" (como Linear): arranca el día después del último cycle del team y dura dos semanas.

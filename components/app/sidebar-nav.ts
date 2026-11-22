@@ -993,15 +993,16 @@ export function buildNav(
         {
           items: [
             { href: '/app/pulse', label: a.web, active: pathname === '/app/pulse', icon: 'analytics' },
-            { href: '/app/pulse/events', label: a.events, active: at('/app/pulse/events'), icon: 'live' },
+            // Anclajes del tour de Pulse (lib/tours/pulse.ts).
+            { href: '/app/pulse/events', label: a.events, active: at('/app/pulse/events'), icon: 'live', tour: 'pulse-events' },
           ],
         },
         {
           section: labels.insights,
           items: [
-            { href: '/app/pulse/insights', label: a.insights, active: at('/app/pulse/insights'), icon: 'insights' },
+            { href: '/app/pulse/insights', label: a.insights, active: at('/app/pulse/insights'), icon: 'insights', tour: 'pulse-insights' },
             // Los tableros cuelgan del ítem (AnalyticsBranch en el hueco #side-branch), como en PostHog.
-            { href: '/app/pulse/dashboards', label: a.dashboards, active: at('/app/pulse/dashboards'), icon: 'dashboards', branch: true },
+            { href: '/app/pulse/dashboards', label: a.dashboards, active: at('/app/pulse/dashboards'), icon: 'dashboards', branch: true, tour: 'pulse-dashboards' },
             { href: '/app/pulse/sql', label: a.sql, active: at('/app/pulse/sql'), icon: 'sql' },
             { href: '/app/pulse/alerts', label: a.alerts, active: at('/app/pulse/alerts'), icon: 'bell' },
             { href: '/app/pulse/subscriptions', label: a.subscriptions, active: at('/app/pulse/subscriptions'), icon: 'calendar' },

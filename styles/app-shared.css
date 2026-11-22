@@ -372,6 +372,9 @@
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .folder-rail-btn.is-active { color: #fff; } }
 @media (max-width: 1023px) {
   .docs-tree { --row-h: 36px; --indent: 16px; }
+  /* El árbol del hueco solo se cuelga en escritorio (useShellBranch): una sección que
+     no tiene otra cosa ("Your teams" de Track) quedaba en el drawer con el título solo. */
+  .side-group:has(> .side-section:first-child + .side-branch:last-child) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .docs-tree-row { transition: none; }

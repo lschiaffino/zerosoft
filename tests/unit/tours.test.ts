@@ -170,6 +170,22 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.flow, { audience: null, admin: true, touch: true }))).toEqual(steps);
   });
 
+  it('el tour de Pulse arranca en web analytics y no cambia de página; es igual para todos', () => {
+    expect(tourForPath('/app/pulse')?.key).toBe('pulse');
+    expect(tourForPath('/es/app/pulse/insights/new')?.key).toBe('pulse');
+    expect(tourForPath('/app/pulsex')).toBeNull();
+    expect(atTourStart(TOURS.pulse, '/pt/app/pulse')).toBe(true);
+    expect(atTourStart(TOURS.pulse, '/app/pulse/events')).toBe(false);
+    expect(atTourStart(TOURS.pulse, '/app/pulse/projects')).toBe(false);
+    // Sin proyecto se ve crear uno; con proyecto, la instalación y los números (lo que no está se saltea).
+    const steps = ids([...TOURS.pulse.steps]);
+    expect(steps).toEqual(['intro', 'newProject', 'setup', 'web', 'events', 'insights', 'dashboards', 'done']);
+    // En el teléfono la actividad señala el link de la página (el lateral es un cajón).
+    expect(TOURS.pulse.steps.find((s) => s.id === 'events')?.targets).toEqual(['pulse-events', 'pulse-live']);
+    expect(ids(stepsFor(TOURS.pulse, { audience: 'team', admin: false }))).toEqual(steps);
+    expect(ids(stepsFor(TOURS.pulse, { audience: null, admin: true, touch: true }))).toEqual(steps);
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');
