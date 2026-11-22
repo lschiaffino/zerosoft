@@ -265,6 +265,7 @@ function Details({ channelId, initialTab, onClose }: { channelId: string; initia
   const [members, setMembers] = useState<Array<{ userId: string; role: string }> | null>(null);
   const [adding, setAdding] = useState<string[]>([]);
   const [confirm, setConfirm] = useState<'archive' | 'delete' | 'leave' | null>(null);
+  const [convertName, setConvertName] = useState('');
   const [hooks, setHooks] = useState<TalkHookDto[] | null>(null);
   const [newHook, setNewHook] = useState<string | null>(null);
   const [hookName, setHookName] = useState('');
@@ -501,6 +502,24 @@ function Details({ channelId, initialTab, onClose }: { channelId: string; initia
                 </button>
               </div>
             </div>
+          )}
+          {channel.kind === 'group' && channel.isMember && !ctx.boot.guest && (
+            <form
+              className="ui-field"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (convertName.trim()) void patch({ kind: 'private', name: convertName }, t('dialogs.saved'));
+              }}
+            >
+              <span className="label">{t('details.convertGroup')}</span>
+              <p className="ui-help">{t('details.convertGroupHelp')}</p>
+              <input className="input" aria-label={t('details.convertGroupName')} data-testid="talk-convert-name" value={convertName} maxLength={80} onChange={(e) => setConvertName(e.target.value)} />
+              <div>
+                <button type="submit" className="btn btn-sm" data-testid="talk-convert-btn" disabled={!convertName.trim()}>
+                  {t('details.convertGroupBtn')}
+                </button>
+              </div>
+            </form>
           )}
           <div className="talk-details-actions">
             {channel.isMember && !(isChannel && channel.name === 'general') && (

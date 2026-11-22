@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi, onTestFinished } from 'vitest';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
 import { addMembers, createChannel, deleteChannel, listEventsSince, postMessage, readableChannel, removeMember, updateChannel, type TalkActor } from '@/lib/talk';
+import { openDm, listChannelMessages } from '@/lib/talk';
 import { AGENT_BOT_NAME, askInChannel, fairRecapBatch, neutralizeAgentText, nextRecapAt, sendDailyRecaps } from '@/lib/talk-ai';
 import { extractMentions } from '@/lib/talk-markdown';
 import { setPrefs } from '@/lib/talk-extras';
@@ -330,5 +331,28 @@ describe('recap diario', () => {
     const off = (await getDb().prepare('SELECT recap_daily FROM talk_prefs WHERE workspace_id = ? AND user_id = ?').get(w.owner.id, w.bob.id)) as { recap_daily: number };
     expect(Number(off.recap_daily)).toBe(0);
     expect(await ai(w.bob.id)).toBe(0);
+  });
+});
+
+describe('Talk: group DM to private channel', () => {
+  it('converts a group keeping messages and members, and rejects bad cases', async () => {
+    const w = await workspace('grpconv');
+    const g = await openDm(w.a, [w.bob.id, w.owner.id]);
+    expect(g.kind).toBe('group');
+    await postMessage(w.a, { channelId: g.id, body: 'antes' });
+    await expect(updateChannel(w.a, g.id, { kind: 'private', name: '  ' })).rejects.toMatchObject({ code: 'invalid_name' });
+    const outsider = await makeUser('grpconv-out');
+    await expect(updateChannel({ ...w.a, personId: outsider.id }, g.id, { kind: 'private', name: 'x' })).rejects.toBeTruthy();
+    const c = await updateChannel(w.b, g.id, { kind: 'private', name: 'Proyecto Nuevo' });
+    expect(c.kind).toBe('private');
+    expect(c.name).toBe('proyecto-nuevo');
+    expect(c.memberCount).toBe(3);
+    expect((await listChannelMessages(w.a, g.id)).messages.map((m) => m.body)).toEqual(['antes']);
+    expect(await readableChannel(w.o, g.id)).not.toBeNull();
+    // Ya no es un grupo: la misma conversación se puede volver a abrir como grupo nuevo.
+    const again = await openDm(w.a, [w.bob.id, w.owner.id]);
+    expect(again.id).not.toBe(g.id);
+    // Un canal público no se convierte por este camino y el nombre no se pisa.
+    await expect(updateChannel(w.a, again.id, { kind: 'private', name: 'proyecto-nuevo' })).rejects.toMatchObject({ code: 'name_taken' });
   });
 });

@@ -3345,5 +3345,35 @@
     "description": "Hootsuite warns that networks often flag identical content as spam and tells users to edit duplicates so each post is unique (https://help.hootsuite.com/hc/en-us/articles/1260804306069-Schedule-a-post); duplicate posts are also a common reason for failures in its bulk composer (https://help.hootsuite.com/hc/en-us/articles/1260804249930-Bulk-schedule-your-posts). Now that a post can be duplicated (components/social/PostDetail.tsx) and CSV import can repeat text (lib/social-bulk.ts), nothing checks for repeats on the same account in a short window. First scope: when scheduling, compare the normalized text with posts for the same account in the last and next 7 days and show a dismissible warning in the composer and in the CSV preview, without blocking.",
     "product": "social",
     "kind": "idea"
+  },
+  {
+    "title": "Talk: Add custom workspace emoji for reactions and messages",
+    "description": "Slack lets anyone upload custom emoji and use them as :name: in messages and reactions (https://slack.com/help/articles/206870177-Add-custom-emoji-and-aliases-to-your-workspace). Talk only has the built-in emoji set in lib/talk-emoji.ts and the parity table says there are no workspace emoji yet. Small teams use in-jokes and team logos as reactions all the time, so it is a cheap way to make the space feel like theirs. First scope: a small table of name plus image per workspace, an upload and delete screen for admins, and the picker and :name: autocomplete reading from it.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Talk: Forward a message to another channel or DM",
+    "description": "Slack has Share message, which posts a preview of a message into another channel or DM with an optional comment (https://slack.com/help/articles/203274767-Share-messages-in-Slack). Talk has Copy link in components/talk/Message.tsx but no way to forward, so people paste text by hand and lose the author and context. Small teams move decisions between a project channel and a DM constantly. First scope: a Share action in the message menu that opens a channel and person picker, posts the quoted message with author and link, and only allows targets the sender can write to and where the original stays readable.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Talk: Open the message when clicking a desktop notification",
+    "description": "Slack's desktop app takes you to the exact message when you click a notification. In Talk's desktop app (desktop/, Tauri) clicking a native notification only brings the window to the front, as the parity table states for desktop-app. Someone who was mentioned in a busy channel then has to find the message by hand. First scope: carry the channel and message id in the notification payload and have the app route to that channel and scroll to the message, reusing the permalink handling from components/talk/Message.tsx.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Talk: Add a transcript to audio and video clips",
+    "description": "Slack clips get an automatic transcript and captions that people can read without playing the audio (https://slack.com/help/articles/4406235349267-Record-audio-and-video-clips). Talk records and plays clips inside the message (components/talk/ClipRecorder.tsx) but the parity table says there is no transcript yet. A transcript lets people skim a clip in a meeting or search for what was said. First scope: transcribe on upload using the same provider that Calls uses, behind a fake flag for offline use, store the text on the file and show it under the player and in message search.",
+    "product": "chat",
+    "kind": "idea"
+  },
+  {
+    "title": "Talk: Add interactive buttons to messages posted by apps and webhooks",
+    "description": "Slack apps post messages with buttons and menus that call back the app (https://api.slack.com/interactivity). Talk supports slash commands with signed POST and response_url (lib/talk-commands.ts) and incoming webhooks, but no interactive components, as the api-bots row says. Without buttons, an approval or a deploy confirmation from a flow needs the person to type a reply. First scope: an optional actions array of buttons in the webhook and API v1 message payload, a signed POST to the app when one is pressed, and the button showing who pressed it.",
+    "product": "chat",
+    "kind": "idea"
   }
 ]
