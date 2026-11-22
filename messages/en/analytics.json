@@ -508,7 +508,14 @@
     "removeCohortBreakdown": "Stop breaking down by {name}",
     "breakdownBins": "In ranges",
     "breakdownBinCount": "Number of ranges",
-    "subscribe": "Subscribe"
+    "subscribe": "Subscribe",
+    "pathExclude": "Skip",
+    "pathExcludeHelp": "Pages or events that do not count as a step. Use * as a wildcard (/admin/*).",
+    "pathGroups": "Group",
+    "pathGroupsHelp": "Pages that match one pattern count as one step (/blog/* for every blog post).",
+    "pathAdd": "Add",
+    "pathRemove": "Remove {value}",
+    "pathListFull": "Up to 20."
   },
   "sql": {
     "title": "SQL",

@@ -69,6 +69,9 @@
 .an-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .an-wrap { flex-wrap: wrap; }
 .an-inline-field { display: flex; flex-direction: column; gap: 4px; }
+.an-path-patterns { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.an-path-patterns > .an-row { align-items: flex-end; }
+.an-path-patterns .an-inline-field { flex: 0 1 280px; min-width: 0; }
 .an-num-input { width: 88px; }
 .an-search { width: 100%; max-width: 360px; }
 

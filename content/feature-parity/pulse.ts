@@ -35,7 +35,7 @@ const BASE_AREAS = new Set(['ingest', 'privacy', 'insights', 'people', 'flags', 
 
 const parity: ProductParity = {
   competitor: 'PostHog',
-  lastReviewed: '2026-11-18',
+  lastReviewed: '2026-11-22',
   percentHidden: {
     note: loc([
       'This comparison goes through the full PostHog docs, feature by feature, so it has many more rows than the other apps and its numbers are not comparable with their percentages. That is why there is no overall percentage here.',
@@ -180,9 +180,9 @@ const parity: ProductParity = {
     }),
     row('paths', 'insights', ['User paths', 'Caminos de usuarios', 'Caminhos de usuários'], 'partial', {
       detail: [
-        'Sankey diagram and tables, with page views or custom events, a start and an end, and ids grouped in URLs. No path cleaning rules or exclusions',
-        'Diagrama Sankey y tablas, con páginas vistas o eventos propios, inicio y final, e ids juntados en las URLs. Sin reglas de limpieza de caminos ni exclusiones',
-        'Diagrama Sankey e tabelas, com visualizações de página ou eventos próprios, início e fim, e ids agrupados nas URLs. Sem regras de limpeza de caminhos nem exclusões',
+        'Sankey diagram and tables, with page views or custom events, a start and an end, ids grouped in URLs, skipped steps and wildcard groups (up to 20 each). No regex cleaning rules, project-wide rules or people per step',
+        'Diagrama Sankey y tablas, con páginas vistas o eventos propios, inicio y final, ids juntados en las URLs, pasos salteados y grupos con comodín (hasta 20 de cada uno). Sin reglas de limpieza con regex, reglas para todo el proyecto ni personas por paso',
+        'Diagrama Sankey e tabelas, com visualizações de página ou eventos próprios, início e fim, ids agrupados nas URLs, etapas puladas e grupos com curinga (até 20 de cada). Sem regras de limpeza com regex, regras para todo o projeto nem pessoas por etapa',
       ],
     }),
     row('sql', 'insights', ['SQL queries', 'Consultas SQL', 'Consultas SQL'], 'partial', {
