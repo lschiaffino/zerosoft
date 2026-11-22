@@ -1,7 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { resolveDateFilter } from '@/lib/crm-date-presets';
+import { PAGE_SIZES, parsePageSize } from '@/lib/crm-page-size';
+import PageSizeSelect from '@/components/crm/PageSizeSelect';
 import { workspaceTeamId } from '@/lib/workspace';
 import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
@@ -37,7 +40,6 @@ import EmptyState from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
-const PAGE_SIZE = 25;
 
 interface CompaniesPageProps {
   params: Promise<{ locale: string }>;
@@ -84,9 +86,18 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const owner = state.owner ?? '';
   const createdFrom = state.createdFrom ?? '';
   const createdTo = state.createdTo ?? '';
+  const created = state.created ?? '';
+  const activity = state.activity ?? '';
+  const activityFrom = state.activityFrom ?? '';
+  const activityTo = state.activityTo ?? '';
   const tag = state.tag ?? '';
   const custom = customFromState(state);
   const page = Number(one(searchParams.page) ?? '1') || 1;
+  const pageSize = parsePageSize(one(searchParams.per));
+  const timeZone = await getUserTimeZone();
+  const now = new Date();
+  const createdRange = resolveDateFilter(created, createdFrom, createdTo, { now, timeZone });
+  const activityRange = resolveDateFilter(activity, activityFrom, activityTo, { now, timeZone, allowNone: true });
   const rawFilters = state.filters ?? '';
   const sortParam = state.sort;
   const COMPANY_SORTS: readonly string[] = ['oldest', 'name', 'name_desc', ...ACTIVITY_DATE_SORTS];
@@ -128,18 +139,21 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     industry: industry || undefined,
     lifecycle: lifecycle || undefined,
     owner: owner || undefined,
-    createdFrom: createdFrom || undefined,
-    createdTo: createdTo || undefined,
+    createdFrom: createdRange.from,
+    createdTo: createdRange.to,
+    activityFrom: activityRange.from,
+    activityTo: activityRange.to,
+    activityNone: activityRange.none,
     tag: tag || undefined,
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
     filters: advancedCount ? filterModel : undefined,
-    filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
+    filterEnv: { viewerId: realUserId(user), timeZone, strictCustom: true },
     customTypes,
     sort,
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   });
 
   // Deals por empresa (asociaciones deal ↔ company), solo para la página actual y solo los que la persona ve.
@@ -221,7 +235,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
   ];
 
-  const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+  const pages = Math.max(Math.ceil(total / pageSize), 1);
   const currentPage = Math.min(Math.max(page, 1), pages);
   const query: Record<string, string> = {};
   if (q) query.q = q;
@@ -229,8 +243,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   if (lifecycle) query.lifecycle = lifecycle;
   if (owner) query.owner = owner;
   if (tag) query.tag = tag;
+  if (created) query.created = created;
   if (createdFrom) query.createdFrom = createdFrom;
   if (createdTo) query.createdTo = createdTo;
+  if (activity) query.activity = activity;
+  if (activityFrom) query.activityFrom = activityFrom;
+  if (activityTo) query.activityTo = activityTo;
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
@@ -241,6 +259,9 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
   Object.assign(query, views.keep);
+  // El tamaño de página es de la URL (no de la vista): lo conservan los links del listado.
+  if (pageSize !== PAGE_SIZES[0]) query.per = String(pageSize);
+  const keep = pageSize !== PAGE_SIZES[0] ? { ...views.keep, per: String(pageSize) } : views.keep;
 
   const hasFilters =
     !!q ||
@@ -248,9 +269,14 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     !!lifecycle ||
     !!owner ||
     !!tag ||
+    !!created ||
     !!createdFrom ||
     !!createdTo ||
+    !!activity ||
+    !!activityFrom ||
+    !!activityTo ||
     Object.keys(custom).length > 0;
+  const admin = isWorkspaceAdmin(user);
 
   return (
     <div className="ui-page crm-list-page">
@@ -279,7 +305,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
       />
 
       <CompanyFilters
-        keep={views.keep}
+        keep={keep}
         q={q}
         industry={industry}
         lifecycle={lifecycle}
@@ -288,6 +314,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
+        created={created}
+        activity={activity}
+        activityFrom={activityFrom}
+        activityTo={activityTo}
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
@@ -340,8 +370,13 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             allTags={tagOptions}
             bulkFields={bulkFields}
             owners={owners}
+            canDelete={admin}
+            canExport={admin}
           />
-          <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
+          <div className="hs-pager-row">
+            <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
+            <PageSizeSelect value={pageSize} />
+          </div>
         </>
       )}
     </div>

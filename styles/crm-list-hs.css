@@ -1,0 +1,250 @@
+/* ============================================================
+   CRM: listados de contactos y empresas con la estructura de HubSpot
+   (búsqueda y orden arriba, fila de filtros rápidos, primera columna con
+   avatar, acciones masivas a la vista) y el buscador de propiedades de la
+   ficha. Solo tokens: se ve en los cinco aspectos, claro y oscuro.
+   ============================================================ */
+
+/* ---------- Barra: búsqueda + orden + columnas ---------- */
+.hs-filters { gap: 10px; }
+.hs-toolbar { gap: 10px; }
+.hs-search { position: relative; flex: 0 1 320px; }
+.hs-search .input { padding-left: 30px; width: 100%; }
+.hs-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--brand-gray-2);
+  pointer-events: none;
+}
+
+/* ---------- Fila de filtros rápidos ---------- */
+.hs-quick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.hs-quick-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+
+.qf { position: relative; }
+.qf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 280px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-1);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.qf-btn:hover, .qf.is-open .qf-btn { background: var(--brand-enamel); border-color: var(--line); }
+.qf-btn:focus-visible { outline: 2px solid var(--focus, var(--ink)); outline-offset: 1px; }
+.qf-btn.on { border-color: var(--ink); background: var(--bg); }
+.qf-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+  color: var(--brand-gray-1);
+}
+.qf-btn.on .qf-label::after { content: ':'; }
+.qf-chev { flex: none; color: var(--brand-gray-2); transition: transform 120ms ease; }
+.qf.is-open .qf-chev { transform: rotate(180deg); }
+
+.qf-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 70;
+  width: 260px;
+  max-width: calc(100vw - 32px);
+  max-height: min(440px, 70vh);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  box-shadow: 0 12px 32px var(--ui-shadow-strong);
+}
+.qf-search { width: 100%; height: 32px; min-height: 32px; margin-bottom: 6px; }
+.qf-list { display: flex; flex-direction: column; }
+.qf-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.qf-opt:hover, .qf-opt:focus-visible { background: var(--brand-enamel); outline: none; }
+.qf-opt[aria-selected='true'] { font-weight: 600; }
+.qf-check { flex: none; display: inline-flex; width: 14px; color: var(--ink); }
+.qf-opt-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qf-empty { margin: 6px 8px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.qf-custom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 8px 4px;
+  border-top: 1px solid var(--line);
+}
+.qf-custom-title { grid-column: 1 / -1; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-1); }
+.qf-date { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.75rem; color: var(--brand-gray-2); }
+.qf-date .input { height: 32px; min-height: 32px; padding: 0 6px; min-width: 0; width: 100%; }
+.qf-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 2px 2px;
+}
+.qf-list + .qf-foot { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+.qf-clear {
+  margin-right: auto;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--brand-gray-1);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.qf-clear:hover { color: var(--ink); }
+.filter-more-empty { margin: 0; font-size: 0.8125rem; }
+
+/* ---------- Primera columna: avatar + nombre ---------- */
+.crm-table td.cell-record { max-width: 320px; }
+.hs-name { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; vertical-align: middle; }
+.hs-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--brand-enamel);
+  font-family: var(--font-data);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--brand-gray-1);
+}
+.hs-name .co-logo { border-radius: var(--radius-1); }
+.hs-name .cell-name { min-width: 0; max-width: 220px; }
+.hs-name .cell-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hs-open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-1);
+  color: var(--brand-gray-2);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.hs-open:hover { color: var(--ink); background: var(--brand-enamel); }
+tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
+@media (hover: none) { .hs-open { opacity: 1; } }
+.crm-table tbody tr.is-selected > td { background: color-mix(in srgb, var(--ink) 4%, var(--bg)); }
+.crm-table.is-frozen tbody tr.is-selected > :is(.cell-check, :nth-child(2)) { background: color-mix(in srgb, var(--ink) 4%, var(--bg)); }
+
+@media (max-width: 640px) {
+  .hs-open { display: none; }
+  .crm-cards td[data-card='main'].cell-record .hs-name { gap: 8px; }
+  .crm-cards td[data-card='main'] .hs-name .cell-name { max-width: none; }
+}
+
+/* ---------- Pie: total, páginas y filas por página ---------- */
+.hs-pager-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hs-pager-row .crm-pager { flex: 1 1 auto; }
+.hs-page-size { width: auto; }
+
+/* ---------- Acciones masivas ---------- */
+.hs-bulk { gap: 8px; padding: 8px 10px 8px 18px; }
+.hs-bulk .bulk-count { margin-right: 6px; }
+.bk-action { position: relative; display: inline-flex; }
+.hs-bulk .bulk-btn { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; text-decoration: none; }
+.hs-bulk .bulk-btn.is-open { background: var(--bg); color: var(--ink); }
+.bk-clear { padding: 0 9px; }
+.bk-pop {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  z-index: 61;
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 0 12px 40px var(--ui-shadow-strong);
+  white-space: normal;
+}
+.bk-options { display: flex; flex-direction: column; }
+.bk-option {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bk-option:hover, .bk-option:focus-visible { background: color-mix(in srgb, var(--bg) 14%, transparent); outline: none; }
+.bk-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-confirm { font-size: 0.8125rem; }
+.bk-pop .bulk-error { margin: 8px 0 0; font-size: 0.75rem; }
+
+@media (max-width: 640px) {
+  /* En el teléfono la barra ocupa el ancho y sus paneles se abren encima, a lo ancho. */
+  .hs-bulk { left: 16px; right: 16px; transform: none; max-width: none; overflow-x: auto; }
+  .bk-action { position: static; }
+  .bk-pop { position: fixed; left: 16px; right: 16px; bottom: 96px; }
+  .hs-bulk .bulk-btn, .hs-bulk .bk-clear { min-height: 40px; }
+  .qf-pop { position: fixed; left: 16px; right: 16px; top: auto; bottom: 16px; width: auto; }
+  .qf-btn, .qf-opt, .filter-more { min-height: 40px; }
+  .hs-search { flex-basis: 100%; }
+}
+
+/* ---------- Ficha: buscador de propiedades ---------- */
+.prop-search { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.prop-search-input { flex: 1 1 auto; min-width: 0; height: 32px; min-height: 32px; }
+.prop-search-empty { flex: none; white-space: nowrap; }
+.prop-search-empty[aria-pressed='true'] { color: var(--ink); }
+/* Buscando: solo las tarjetas con alguna propiedad que coincide, abiertas aunque estén plegadas. */
+.prop-search-on .rec-card:not(:has(.prop-row)) { display: none; }
+.prop-search-on .rec-card-body[hidden]:has(.prop-row) { display: block; }
+.prop-search-none { margin: 4px 0; font-size: 0.8125rem; }
+.prop-search-on:has(.prop-row) > .prop-search-none { display: none; }
+@media (max-width: 640px) {
+  .prop-search-input, .prop-search-empty { min-height: 40px; }
+}

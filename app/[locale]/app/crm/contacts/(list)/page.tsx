@@ -2,7 +2,11 @@ import { listSequences } from '@/lib/crm-sequences';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { realUserId, requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
+import { listsForViewer } from '@/lib/crm-list-access';
+import { resolveDateFilter } from '@/lib/crm-date-presets';
+import { PAGE_SIZES, parsePageSize } from '@/lib/crm-page-size';
+import PageSizeSelect from '@/components/crm/PageSizeSelect';
 import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
@@ -41,7 +45,6 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 
 export const dynamic = 'force-dynamic';
 
-const PAGE_SIZE = 25;
 const SORTS: readonly ContactSort[] = [
   'newest', 'oldest', 'name', 'name_desc', 'email', 'email_desc', 'score', 'score_asc', ...ACTIVITY_DATE_SORTS,
 ];
@@ -82,7 +85,9 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const companiesP = scopeP.then((scope) => listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope }));
   const membersP = workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : null;
   const sequencesP = listSequences(user.id);
-  for (const p of [scopeP, fieldAccessP, tagsP, scoresP, companiesP, membersP, sequencesP]) p?.catch(() => {});
+  // "Agregar a lista": las estáticas que la persona ve.
+  const listsP = scopeP.then((scope) => listsForViewer(sessionFieldViewer(user), scope));
+  for (const p of [scopeP, fieldAccessP, tagsP, scoresP, companiesP, membersP, sequencesP, listsP]) p?.catch(() => {});
   const scope = await scopeP;
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -101,11 +106,20 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const owner = state.owner ?? '';
   const createdFrom = state.createdFrom ?? '';
   const createdTo = state.createdTo ?? '';
+  const created = state.created ?? '';
+  const activity = state.activity ?? '';
+  const activityFrom = state.activityFrom ?? '';
+  const activityTo = state.activityTo ?? '';
   const tag = state.tag ?? '';
   const custom = customFromState(state);
   const rawFilters = state.filters ?? '';
   const sortParam = state.sort ?? 'newest';
   const page = Number(one(searchParams.page) ?? '1') || 1;
+  const pageSize = parsePageSize(one(searchParams.per));
+  const timeZone = await getUserTimeZone();
+  const now = new Date();
+  const createdRange = resolveDateFilter(created, createdFrom, createdTo, { now, timeZone });
+  const activityRange = resolveDateFilter(activity, activityFrom, activityTo, { now, timeZone, allowNone: true });
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -158,19 +172,23 @@ export default async function ContactsPage(props: ContactsPageProps) {
     leadStatus: leadStatus || undefined,
     source: source || undefined,
     owner: owner || undefined,
-    createdFrom: createdFrom || undefined,
-    createdTo: createdTo || undefined,
+    createdFrom: createdRange.from,
+    createdTo: createdRange.to,
+    activityFrom: activityRange.from,
+    activityTo: activityRange.to,
+    activityNone: activityRange.none,
     tag: tag || undefined,
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
       : undefined,
     filters: advancedCount ? filterModel : undefined,
-    filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
+    filterEnv: { viewerId: realUserId(user), timeZone, strictCustom: true },
     customTypes,
     sort: sort as ContactFilter['sort'],
     page,
+    pageSize,
   });
-  const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+  const pages = Math.max(Math.ceil(total / pageSize), 1);
   const rowTags = await tagsForRecords(user.id, 'contact', rows.map((r) => r.id));
 
   const customFields = customFieldDefs
@@ -245,8 +263,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (source) query.source = source;
   if (owner) query.owner = owner;
   if (tag) query.tag = tag;
+  if (created) query.created = created;
   if (createdFrom) query.createdFrom = createdFrom;
   if (createdTo) query.createdTo = createdTo;
+  if (activity) query.activity = activity;
+  if (activityFrom) query.activityFrom = activityFrom;
+  if (activityTo) query.activityTo = activityTo;
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
@@ -257,6 +279,9 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
   Object.assign(query, views.keep);
+  // El tamaño de página es de la URL (no de la vista): lo conservan los links del listado.
+  if (pageSize !== PAGE_SIZES[0]) query.per = String(pageSize);
+  const keep = pageSize !== PAGE_SIZES[0] ? { ...views.keep, per: String(pageSize) } : views.keep;
 
   const hasFilters =
     !!q ||
@@ -265,9 +290,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
     !!source ||
     !!owner ||
     !!tag ||
+    !!created ||
     !!createdFrom ||
     !!createdTo ||
+    !!activity ||
+    !!activityFrom ||
+    !!activityTo ||
     Object.keys(custom).length > 0;
+  const admin = isWorkspaceAdmin(user);
 
   return (
     <div className="ui-page crm-list-page">
@@ -305,6 +335,10 @@ export default async function ContactsPage(props: ContactsPageProps) {
         tags={tagOptions}
         createdFrom={createdFrom}
         createdTo={createdTo}
+        created={created}
+        activity={activity}
+        activityFrom={activityFrom}
+        activityTo={activityTo}
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
@@ -313,7 +347,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
         sources={[...SOURCES]}
         owners={owners}
         customFields={customFields}
-        keep={views.keep}
+        keep={keep}
         extraSorts={extraSortOptions(customFieldDefs, {
             ownerAsc: t('listSort.ownerAsc'),
             ownerDesc: t('listSort.ownerDesc'),
@@ -363,8 +397,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
             allTags={tagOptions}
             bulkFields={bulkFields}
             owners={owners}
+            lists={(await listsP).filter((l) => l.kind === 'static').map((l) => ({ id: l.id, name: l.name }))}
+            canDelete={admin}
+            canExport={admin}
           />
-          <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />
+          <div className="hs-pager-row">
+            <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />
+            <PageSizeSelect value={pageSize} />
+          </div>
         </>
       )}
     </div>

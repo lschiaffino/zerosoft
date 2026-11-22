@@ -2,17 +2,18 @@
 
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
-import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
-import BulkEditControls, { type BulkEditField } from './BulkEditControls';
+import type { BulkEditField } from './BulkEditControls';
+import BulkActionsBar from './BulkActionsBar';
+import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
@@ -71,6 +72,11 @@ interface ContactsTableProps {
   bulkFields?: BulkEditField[];
   /** Personas del workspace (columna owner). */
   owners?: Array<{ value: string; label: string }>;
+  /** Listas estáticas de contactos (acción masiva "Agregar a lista"). */
+  lists?: Array<{ id: string; name: string }>;
+  /** Borrar y exportar en masa: solo admins (el server lo vuelve a chequear). */
+  canDelete?: boolean;
+  canExport?: boolean;
 }
 
 const COLS = [
@@ -104,51 +110,26 @@ export default function ContactsTable({ viewCols, viewFreeze,
   bulkFields = [],
   customColumns = [],
   owners = [],
+  lists = [],
+  canDelete = false,
+  canExport = false,
 }: ContactsTableProps) {
   const t = useTranslations('crm');
-  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const columnDefs = [
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
   ];
-  const cols = useTableColumns({ entity: 'contacts', columns: columnDefs, storageKey: 'zs-contacts-columns', first: 'name', viewCols, viewFreeze });
+  const cols = useTableColumns({ entity: 'contacts', columns: columnDefs, storageKey: 'zs-contacts-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [bulkSequence, setBulkSequence] = useState('');
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
-
-  /** Acción masiva: inscribir los seleccionados en una secuencia. */
-  async function enrollSelected() {
-    if (!bulkSequence) return;
-    setBusy(true);
-    setBulkNotice(null);
-    const res = await fetch(`/api/crm/sequences/${bulkSequence}/enroll`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contactIds: [...selected] }),
-    }).catch(() => null);
-    setBusy(false);
-    const data = (await res?.json().catch(() => null)) as { error?: string; enrolled?: string[]; skipped?: unknown[] } | null;
-    if (!res?.ok) {
-      setBulkNotice(data?.error && t.has(`errors.${data.error}`) ? t(`errors.${data.error}` as 'errors.generic') : t('errors.generic'));
-      return;
-    }
-    const skipped = data?.skipped?.length ?? 0;
-    setBulkNotice(
-      `${t('sequences.enrolledOk', { count: data?.enrolled?.length ?? 0 })}${skipped ? ` ${t('sequences.enrolledSkipped', { count: skipped })}` : ''}`,
-    );
-    setSelected(new Set());
-    setBulkSequence('');
-  }
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
-    setConfirmingDelete(false);
+    setBulkNotice(null);
   }
 
   function toggleOne(id: string) {
@@ -158,20 +139,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
       else next.add(id);
       return next;
     });
-    setConfirmingDelete(false);
-  }
-
-  async function bulk(body: Record<string, unknown>) {
-    setBusy(true);
-    await fetch('/api/crm/contacts/bulk', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    }).catch(() => null);
-    setBusy(false);
-    setSelected(new Set());
-    setConfirmingDelete(false);
-    router.refresh();
+    setBulkNotice(null);
   }
 
   const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
@@ -228,13 +196,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
   function bodyCell(id: string, row: ContactRow): ReactNode {
     switch (id) {
       case 'name':
-        return (
-          <td data-card="main">
-            <Link href={`/app/crm/contacts/${row.id}`} className="cell-name">
-              {row.name}
-            </Link>
-          </td>
-        );
+        return <RecordNameCell href={`/app/crm/contacts/${row.id}`} name={row.name} onPreview={() => setPreviewId(row.id)} />;
       case 'email':
         return (
           <td className="card-contact-email" data-card="line">
@@ -407,12 +369,11 @@ export default function ContactsTable({ viewCols, viewFreeze,
               {order.map((id) => (
                 <Fragment key={id}>{headCells[id]}</Fragment>
               ))}
-              <th className="cell-actions-head"><span className="sr-only">{t('contacts.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
+              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -425,17 +386,6 @@ export default function ContactsTable({ viewCols, viewFreeze,
                 {order.map((id) => (
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
-                <td className="cell-actions">
-                  <button
-                    type="button"
-                    className="icon-btn preview-btn"
-                    onClick={() => setPreviewId(row.id)}
-                    title={t('common.preview')}
-                    aria-label={t('common.preview')}
-                  >
-                    <CrmIcon name="panel" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -443,90 +393,22 @@ export default function ContactsTable({ viewCols, viewFreeze,
       </div>
 
       {selected.size > 0 && (
-        <div className="bulk-bar" role="toolbar">
-          <span className="bulk-count">{t('contacts.bulk.selected', { count: selected.size })}</span>
-          <BulkEditControls
-            endpoint="/api/crm/contacts/bulk"
-            ids={[...selected]}
-            fields={bulkFields}
-            disabled={busy}
-            onDone={(notice) => {
-              setSelected(new Set());
-              setBulkNotice(notice);
-            }}
-          />
-          <TagBulkControls
-            entity="contact"
-            ids={[...selected]}
-            tags={allTags}
-            disabled={busy}
-            onDone={() => setSelected(new Set())}
-          />
-          {sequences.length > 0 && (
-            <>
-              <select
-                className="filter-select"
-                value={bulkSequence}
-                onChange={(e) => setBulkSequence(e.target.value)}
-                aria-label={t('contacts.bulk.enroll')}
-                disabled={busy}
-              >
-                <option value="">{t('contacts.bulk.enroll')}</option>
-                {sequences.map((sq) => (
-                  <option key={sq.id} value={sq.id}>
-                    {sq.name}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="bulk-btn" disabled={busy || !bulkSequence} onClick={enrollSelected}>
-                {t('sequences.enrollCta')}
-              </button>
-            </>
-          )}
-          {confirmingDelete ? (
-            <>
-              <span className="bulk-count">
-                {t('contacts.bulk.confirmDelete', { count: selected.size })}
-              </span>
-              <button
-                type="button"
-                className="bulk-btn danger"
-                disabled={busy}
-                onClick={() => bulk({ action: 'delete', ids: [...selected] })}
-              >
-                {t('common.yes')}
-              </button>
-              <button
-                type="button"
-                className="bulk-btn"
-                disabled={busy}
-                onClick={() => setConfirmingDelete(false)}
-              >
-                {t('common.no')}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="bulk-btn danger"
-              disabled={busy}
-              onClick={() => setConfirmingDelete(true)}
-            >
-              {t('contacts.bulk.delete')}
-            </button>
-          )}
-          <button
-            type="button"
-            className="bulk-btn"
-            disabled={busy}
-            onClick={() => {
-              setSelected(new Set());
-              setConfirmingDelete(false);
-            }}
-          >
-            {t('contacts.bulk.clear')}
-          </button>
-        </div>
+        <BulkActionsBar
+          entity="contact"
+          ids={[...selected]}
+          owners={owners}
+          bulkFields={bulkFields}
+          allTags={allTags}
+          lists={lists}
+          sequences={sequences}
+          canDelete={canDelete}
+          canExport={canExport}
+          onClear={() => setSelected(new Set())}
+          onNotice={(notice) => {
+            setSelected(new Set());
+            setBulkNotice(notice);
+          }}
+        />
       )}
 
       {bulkNotice && selected.size === 0 && (

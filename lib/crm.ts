@@ -47,6 +47,7 @@ import {
   type FilterRule,
 } from './crm-filters';
 import { filterTypeFor, UNIQUE_FIELD_TYPES } from './crm-custom-fields';
+import { OWNER_UNASSIGNED } from './crm-filter-model';
 import { assertUniqueCustom, hasDuplicateValues, isUniqueEntity } from './crm-unique';
 import { trashRecords } from './crm-trash';
 import { changedFields } from './crm-workflow-rules';
@@ -383,6 +384,10 @@ export interface ContactFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Fecha de última actividad (YYYY-MM-DD, inclusive) o sin ninguna actividad (filtro rápido). */
+  activityFrom?: string;
+  activityTo?: string;
+  activityNone?: boolean;
   /** Id de tag: solo contactos con ese tag. */
   tag?: string;
   custom?: Record<string, string>;
@@ -524,7 +529,10 @@ function buildContactWhere(
     where.push(tagCondition('c', 'contact'));
     args.push(f.tag);
   }
-  if (f.owner) {
+  if (f.owner === OWNER_UNASSIGNED) {
+    // Sin owner (filtro rápido "Sin owner"), como la regla del filtro avanzado.
+    where.push("(c.owner_id IS NULL OR c.owner_id = '')");
+  } else if (f.owner) {
     where.push('c.owner_id = ?');
     args.push(f.owner);
   }
@@ -535,6 +543,18 @@ function buildContactWhere(
   if (f.createdTo) {
     where.push('c.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.activityNone) {
+    where.push('c.last_activity_at IS NULL');
+  } else {
+    if (f.activityFrom) {
+      where.push('c.last_activity_at >= ?');
+      args.push(`${f.activityFrom} 00:00:00`);
+    }
+    if (f.activityTo) {
+      where.push('c.last_activity_at <= ?');
+      args.push(`${f.activityTo} 23:59:59`);
+    }
   }
   if (f.custom) {
     for (const [name, value] of Object.entries(f.custom)) {
@@ -1067,6 +1087,10 @@ export interface CompanyFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Fecha de última actividad (YYYY-MM-DD, inclusive) o sin ninguna actividad (filtro rápido). */
+  activityFrom?: string;
+  activityTo?: string;
+  activityNone?: boolean;
   /** Id de tag: solo empresas con ese tag. */
   tag?: string;
   /** Solo hijas directas de esta empresa. */
@@ -1119,7 +1143,10 @@ export async function listCompanies(
     where.push('co.lifecycle_stage = ?');
     args.push(f.lifecycle);
   }
-  if (f.owner) {
+  if (f.owner === OWNER_UNASSIGNED) {
+    // Sin owner (filtro rápido "Sin owner"), como la regla del filtro avanzado.
+    where.push("(co.owner_id IS NULL OR co.owner_id = '')");
+  } else if (f.owner) {
     where.push('co.owner_id = ?');
     args.push(f.owner);
   }
@@ -1130,6 +1157,18 @@ export async function listCompanies(
   if (f.createdTo) {
     where.push('co.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.activityNone) {
+    where.push('co.last_activity_at IS NULL');
+  } else {
+    if (f.activityFrom) {
+      where.push('co.last_activity_at >= ?');
+      args.push(`${f.activityFrom} 00:00:00`);
+    }
+    if (f.activityTo) {
+      where.push('co.last_activity_at <= ?');
+      args.push(`${f.activityTo} 23:59:59`);
+    }
   }
   if (f.tag) {
     where.push(tagCondition('co', 'company'));
@@ -3341,6 +3380,8 @@ export async function exportRows(
   filter?: ExportFilter,
   /** Actividades: las tareas de chats de Lines que quien exporta no ve, sin su texto. */
   reader?: ChatReader | null,
+  /** Solo estos registros (exportar la selección del listado). Ids de otro workspace no salen. */
+  ids?: readonly string[],
 ): Promise<Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>> {
   const db = getDb();
   const table =
@@ -3365,6 +3406,11 @@ export async function exportRows(
       where.push(cond.sql);
       args.push(...cond.args);
     }
+  }
+  if (ids) {
+    if (!ids.length) return [];
+    where.push(`${alias}.id IN (${ids.map(() => '?').join(', ')})`);
+    args.push(...ids);
   }
   if (scope.sql) {
     where.push(scope.sql);

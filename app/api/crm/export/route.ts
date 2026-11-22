@@ -59,6 +59,10 @@ export async function GET(req: NextRequest) {
       ? {}
       : await requestFilter(sp, entity, { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
   if ('error' in filter) return crmError(400, 'invalid_filter');
+  // `ids`: exportar solo los registros elegidos en el listado (la acción masiva). Tope como el de las otras acciones masivas.
+  const idsParam = sp.get('ids');
+  const ids = idsParam === null ? undefined : idsParam.split(',').map((x) => x.trim()).filter(Boolean);
+  if (ids && (ids.length === 0 || ids.length > 500 || ids.some((x) => x.length > 64))) return crmError(400, 'invalid_input');
   const rows = await exportRows(
     user.id,
     entity,
@@ -66,6 +70,7 @@ export async function GET(req: NextRequest) {
     filter.filters ? { model: filter.filters, customTypes: filter.customTypes, env: filter.filterEnv } : undefined,
     // Tareas de chats de Lines que quien exporta no ve: sin su texto.
     await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'))),
+    entity === 'activities' ? undefined : ids,
   );
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;

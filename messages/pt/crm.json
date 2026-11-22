@@ -4993,5 +4993,59 @@
       "updated": "Atualizada"
     },
     "partialFilters": "Alguns filtros desta visualização não se aplicam a você."
+  },
+  "listBar": {
+    "label": "Filtros rápidos",
+    "contactOwner": "Responsável pelo contato",
+    "companyOwner": "Responsável pela empresa",
+    "createDate": "Data de criação",
+    "lastActivity": "Data da última atividade",
+    "lifecycleStage": "Estágio do ciclo de vida",
+    "noOwner": "Sem responsável",
+    "export": "Exportar",
+    "openRecord": "Abrir registro",
+    "noMoreFilters": "Ainda não há mais filtros para empresas. Use os filtros avançados.",
+    "search": "Buscar",
+    "noMatch": "Nada encontrado",
+    "clear": "Limpar",
+    "apply": "Aplicar",
+    "custom": "Período personalizado",
+    "from": "De",
+    "to": "Até",
+    "range": "{from} a {to}",
+    "since": "Desde {date}",
+    "until": "Até {date}",
+    "perPage": "{count} por página",
+    "perPageLabel": "Linhas por página",
+    "presets": {
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "last7": "Últimos 7 dias",
+      "last30": "Últimos 30 dias",
+      "last90": "Últimos 90 dias",
+      "thisMonth": "Este mês",
+      "lastMonth": "Mês passado",
+      "thisQuarter": "Este trimestre",
+      "thisYear": "Este ano",
+      "none": "Sem atividade"
+    }
+  },
+  "bulkBar": {
+    "label": "Ações em massa",
+    "assign": "Atribuir",
+    "edit": "Editar",
+    "addToList": "Adicionar à lista",
+    "list": "Lista",
+    "pickList": "Escolha uma lista estática",
+    "add": "Adicionar",
+    "clear": "Limpar seleção",
+    "addedToList": "{count, plural, one {# contato adicionado à lista.} other {# contatos adicionados à lista.}}",
+    "deleted": "{count, plural, one {# registro movido para a lixeira.} other {# registros movidos para a lixeira.}}"
+  },
+  "propSearch": {
+    "placeholder": "Buscar propriedades",
+    "empty": "Nenhuma propriedade encontrada",
+    "hideEmpty": "Ocultar propriedades vazias",
+    "showEmpty": "Mostrar propriedades vazias"
   }
 }

@@ -4993,5 +4993,59 @@
       "updated": "Updated"
     },
     "partialFilters": "Some filters in this view don't apply to you."
+  },
+  "listBar": {
+    "label": "Quick filters",
+    "contactOwner": "Contact owner",
+    "companyOwner": "Company owner",
+    "createDate": "Create date",
+    "lastActivity": "Last activity date",
+    "lifecycleStage": "Lifecycle stage",
+    "noOwner": "No owner",
+    "export": "Export",
+    "openRecord": "Open record",
+    "noMoreFilters": "No more filters for companies yet. Use Advanced filters.",
+    "search": "Search",
+    "noMatch": "Nothing matches",
+    "clear": "Clear",
+    "apply": "Apply",
+    "custom": "Custom range",
+    "from": "From",
+    "to": "To",
+    "range": "{from} to {to}",
+    "since": "Since {date}",
+    "until": "Until {date}",
+    "perPage": "{count} per page",
+    "perPageLabel": "Rows per page",
+    "presets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7": "Last 7 days",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "thisQuarter": "This quarter",
+      "thisYear": "This year",
+      "none": "No activity"
+    }
+  },
+  "bulkBar": {
+    "label": "Bulk actions",
+    "assign": "Assign",
+    "edit": "Edit",
+    "addToList": "Add to list",
+    "list": "List",
+    "pickList": "Pick a static list",
+    "add": "Add",
+    "clear": "Clear selection",
+    "addedToList": "{count, plural, one {# contact added to the list.} other {# contacts added to the list.}}",
+    "deleted": "{count, plural, one {# record moved to trash.} other {# records moved to trash.}}"
+  },
+  "propSearch": {
+    "placeholder": "Search properties",
+    "empty": "No property matches",
+    "hideEmpty": "Hide blank properties",
+    "showEmpty": "Show blank properties"
   }
 }

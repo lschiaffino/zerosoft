@@ -2,18 +2,19 @@
 
 import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import SortTh from './SortTh';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
-import TagBulkControls from './TagBulkControls';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
 import CompanyLogo from './CompanyLogo';
-import BulkEditControls, { type BulkEditField } from './BulkEditControls';
+import type { BulkEditField } from './BulkEditControls';
+import BulkActionsBar from './BulkActionsBar';
+import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
@@ -60,6 +61,9 @@ interface CompaniesTableProps {
   bulkFields?: BulkEditField[];
   /** Personas del workspace (columna owner). */
   owners?: Array<{ value: string; label: string }>;
+  /** Borrar y exportar en masa: solo admins (el server lo vuelve a chequear). */
+  canDelete?: boolean;
+  canExport?: boolean;
 }
 
 const COLS = [
@@ -81,18 +85,15 @@ const COLS = [
 ];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [] }: CompaniesTableProps) {
+export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false }: CompaniesTableProps) {
   const t = useTranslations('crm');
-  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const columnDefs = [
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
     ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
   ];
-  const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze });
+  const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
 
@@ -100,7 +101,7 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
-    setConfirmingDelete(false);
+    setBulkNotice(null);
   }
 
   function toggleOne(id: string) {
@@ -110,20 +111,7 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
       else next.add(id);
       return next;
     });
-    setConfirmingDelete(false);
-  }
-
-  async function bulk(body: Record<string, unknown>) {
-    setBusy(true);
-    await fetch('/api/crm/companies/bulk', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    }).catch(() => null);
-    setBusy(false);
-    setSelected(new Set());
-    setConfirmingDelete(false);
-    router.refresh();
+    setBulkNotice(null);
   }
 
   const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
@@ -174,12 +162,12 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
     switch (id) {
       case 'name':
         return (
-          <td data-card="main">
-            <Link href={`/app/crm/companies/${row.id}`} className="cell-name cell-name-logo">
-              <CompanyLogo domain={row.domain} name={row.name} size={18} />
-              {row.name}
-            </Link>
-          </td>
+          <RecordNameCell
+            href={`/app/crm/companies/${row.id}`}
+            name={row.name}
+            avatar={<CompanyLogo domain={row.domain} name={row.name} size={24} />}
+            onPreview={() => setPreviewId(row.id)}
+          />
         );
       case 'domain':
         return (
@@ -303,12 +291,11 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
               {order.map((id) => (
                 <Fragment key={id}>{headCells[id]}</Fragment>
               ))}
-              <th className="cell-actions-head"><span className="sr-only">{t('companies.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
+              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -321,17 +308,6 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
                 {order.map((id) => (
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
-                <td className="cell-actions">
-                  <button
-                    type="button"
-                    className="icon-btn preview-btn"
-                    onClick={() => setPreviewId(row.id)}
-                    title={t('common.preview')}
-                    aria-label={t('common.preview')}
-                  >
-                    <CrmIcon name="panel" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -339,69 +315,20 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
       </div>
 
       {selected.size > 0 && (
-        <div className="bulk-bar" role="toolbar">
-          <span className="bulk-count">{t('companies.bulk.selected', { count: selected.size })}</span>
-          <BulkEditControls
-            endpoint="/api/crm/companies/bulk"
-            ids={[...selected]}
-            fields={bulkFields}
-            disabled={busy}
-            onDone={(notice) => {
-              setSelected(new Set());
-              setBulkNotice(notice);
-            }}
-          />
-          <TagBulkControls
-            entity="company"
-            ids={[...selected]}
-            tags={allTags}
-            disabled={busy}
-            onDone={() => setSelected(new Set())}
-          />
-          {confirmingDelete ? (
-            <>
-              <span className="bulk-count">
-                {t('companies.bulk.confirmDelete', { count: selected.size })}
-              </span>
-              <button
-                type="button"
-                className="bulk-btn danger"
-                disabled={busy}
-                onClick={() => bulk({ action: 'delete', ids: [...selected] })}
-              >
-                {t('common.yes')}
-              </button>
-              <button
-                type="button"
-                className="bulk-btn"
-                disabled={busy}
-                onClick={() => setConfirmingDelete(false)}
-              >
-                {t('common.no')}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="bulk-btn danger"
-              disabled={busy}
-              onClick={() => setConfirmingDelete(true)}
-            >
-              {t('companies.bulk.delete')}
-            </button>
-          )}
-          <button
-            type="button"
-            className="bulk-btn"
-            disabled={busy}
-            onClick={() => {
-              setSelected(new Set());
-              setConfirmingDelete(false);
-            }}
-          >
-            {t('companies.bulk.clear')}
-          </button>
-        </div>
+        <BulkActionsBar
+          entity="company"
+          ids={[...selected]}
+          owners={owners}
+          bulkFields={bulkFields}
+          allTags={allTags}
+          canDelete={canDelete}
+          canExport={canExport}
+          onClear={() => setSelected(new Set())}
+          onNotice={(notice) => {
+            setSelected(new Set());
+            setBulkNotice(notice);
+          }}
+        />
       )}
 
       {bulkNotice && selected.size === 0 && (

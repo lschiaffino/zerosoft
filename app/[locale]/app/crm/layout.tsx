@@ -8,6 +8,7 @@ import '@/styles/crm.css';
 import '@/styles/import-shared.css';
 import '@/styles/crm-records.css';
 import '@/styles/crm-record-layout.css';
+import '@/styles/crm-list-hs.css';
 import '@/styles/crm-timeline.css';
 import '@/styles/crm-ai.css';
 import '@/styles/track-triage.css';

@@ -45,6 +45,7 @@ import { listMembers } from '@/lib/teams';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
+import PropertySearch from '@/components/crm/PropertySearch';
 import RecordCard from '@/components/crm/RecordCard';
 import RecordWorkflows from '@/components/crm/RecordWorkflows';
 import { listRecordEnrollments } from '@/lib/crm-workflows';
@@ -684,7 +685,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
           }
         />
       }
-      about={about}
+      about={<PropertySearch>{about}</PropertySearch>}
       aboutLabel={t('record.layoutTabs.properties')}
       overview={overview}
       activity={activity}

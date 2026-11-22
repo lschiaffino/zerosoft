@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
+import QuickFilters, { type QuickFilterDef } from './QuickFilters';
+import { OWNER_UNASSIGNED } from '@/lib/crm-filter-model';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 import type { ExtraSort } from '@/lib/crm-list-sort';
 
@@ -36,6 +38,11 @@ interface ContactsFiltersProps {
   tags?: Array<{ id: string; name: string }>;
   createdFrom: string;
   createdTo: string;
+  /** Rangos de los filtros rápidos (lib/crm-date-presets.ts): clave y, a medida, desde/hasta. */
+  created?: string;
+  activity?: string;
+  activityFrom?: string;
+  activityTo?: string;
   custom: Record<string, string>;
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
@@ -68,6 +75,10 @@ export default function ContactsFilters({
   tags = [],
   createdFrom,
   createdTo,
+  created = '',
+  activity = '',
+  activityFrom = '',
+  activityTo = '',
   custom,
   advanced,
   sort,
@@ -94,8 +105,12 @@ export default function ContactsFilters({
       source: source || undefined,
       owner: owner || undefined,
       tag: tag || undefined,
+      created: created || undefined,
       createdFrom: createdFrom || undefined,
       createdTo: createdTo || undefined,
+      activity: activity || undefined,
+      activityFrom: activityFrom || undefined,
+      activityTo: activityTo || undefined,
       filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
       ...keep,
@@ -105,6 +120,7 @@ export default function ContactsFilters({
       if (value) params.set(key, value);
     }
     for (const [name, value] of Object.entries(custom)) {
+      if (`custom_${name}` in patch) continue;
       if (value) params.set(`custom_${name}`, value);
       else params.delete(`custom_${name}`);
     }
@@ -126,24 +142,84 @@ export default function ContactsFilters({
     source,
     owner,
     tag,
+    created,
     createdFrom,
     createdTo,
+    activity,
+    activityFrom,
+    activityTo,
     ...Object.values(custom),
   ].filter(Boolean).length;
 
-  const moreActive = [source, createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
+  // "Más filtros": lo que no tiene botón propio en la fila (origen, tag y propiedades propias).
+  const moreActive = [source, tag, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
 
+  const quick: QuickFilterDef[] = [
+    {
+      kind: 'select',
+      id: 'owner',
+      param: 'owner',
+      label: t('listBar.contactOwner'),
+      value: owner,
+      options: [{ value: OWNER_UNASSIGNED, label: t('listBar.noOwner') }, ...owners],
+    },
+    {
+      kind: 'date',
+      id: 'created',
+      param: 'created',
+      fromParam: 'createdFrom',
+      toParam: 'createdTo',
+      label: t('listBar.createDate'),
+      preset: created,
+      from: createdFrom,
+      to: createdTo,
+    },
+    {
+      kind: 'date',
+      id: 'activity',
+      param: 'activity',
+      fromParam: 'activityFrom',
+      toParam: 'activityTo',
+      label: t('listBar.lastActivity'),
+      preset: activity,
+      from: activityFrom,
+      to: activityTo,
+      allowNone: true,
+    },
+    {
+      kind: 'select',
+      id: 'leadStatus',
+      param: 'leadStatus',
+      label: t('contacts.filterLeadStatus'),
+      value: leadStatus,
+      options: leadStatuses.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    },
+    {
+      kind: 'select',
+      id: 'lifecycle',
+      param: 'lifecycle',
+      label: t('listBar.lifecycleStage'),
+      value: lifecycle,
+      options: lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+    },
+  ];
+
   return (
-    <div className="filter-bar">
-      <div className="filter-toolbar">
+    <div className="filter-bar hs-filters">
+      <div className="filter-toolbar hs-toolbar">
         <form
-          className="filter-search"
+          className="filter-search hs-search"
+          role="search"
           onSubmit={(e) => {
             e.preventDefault();
             go({ q: search.trim() || undefined });
           }}
         >
+          <svg className="hs-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
           <input
             className="input"
             type="search"
@@ -153,94 +229,8 @@ export default function ContactsFilters({
             aria-label={t('contacts.searchPlaceholder')}
           />
         </form>
-        <select
-          className={`filter-select${lifecycle ? ' on' : ''}`}
-          value={lifecycle}
-          onChange={(e) => go({ lifecycle: e.target.value || undefined })}
-          aria-label={t('contacts.filterLifecycle')}
-        >
-          <option value="">{t('contacts.filterLifecycle')}</option>
-          {lifecycles.map((v) => (
-            <option key={v} value={v}>
-              {t(`enums.lifecycle.${v}`)}
-            </option>
-          ))}
-        </select>
-        <select
-          className={`filter-select${leadStatus ? ' on' : ''}`}
-          value={leadStatus}
-          onChange={(e) => go({ leadStatus: e.target.value || undefined })}
-          aria-label={t('contacts.filterLeadStatus')}
-        >
-          <option value="">{t('contacts.filterLeadStatus')}</option>
-          {leadStatuses.map((v) => (
-            <option key={v} value={v}>
-              {t(`enums.leadStatus.${v}`)}
-            </option>
-          ))}
-        </select>
-        <select
-          className={`filter-select${owner ? ' on' : ''}`}
-          value={owner}
-          onChange={(e) => go({ owner: e.target.value || undefined })}
-          aria-label={t('contacts.filterOwner')}
-        >
-          <option value="">{t('contacts.filterOwner')}</option>
-          {owners.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-
-        {tags.length > 0 && (
-          <select
-            className={`filter-select${tag ? ' on' : ''}`}
-            value={tag}
-            onChange={(e) => go({ tag: e.target.value || undefined })}
-            aria-label={t('tags.filter')}
-            data-testid="tag-filter"
-          >
-            <option value="">{t('tags.filter')}</option>
-            {tags.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          type="button"
-          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
-          onClick={() => setMoreOpen((v) => !v)}
-          aria-expanded={moreOpen}
-        >
-          {t('common.moreFilters')}
-          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
-        </button>
-        {children}
 
         <div className="filter-right">
-          {activeFilters > 0 && (
-            <button
-              type="button"
-              className="filter-clear"
-              onClick={() =>
-                go({
-                  q: undefined,
-                  lifecycle: undefined,
-                  leadStatus: undefined,
-                  source: undefined,
-                  owner: undefined,
-                  tag: undefined,
-                  createdFrom: undefined,
-                  createdTo: undefined,
-                })
-              }
-            >
-              {t('common.clear')}
-            </button>
-          )}
           <select
             className="filter-select filter-sort"
             value={sort}
@@ -270,6 +260,48 @@ export default function ContactsFilters({
         </div>
       </div>
 
+      <div className="hs-quick" role="group" aria-label={t('listBar.label')} data-testid="quick-filters">
+        <QuickFilters filters={quick} onChange={go} />
+        <span className="hs-quick-sep" aria-hidden="true" />
+        <button
+          type="button"
+          className={`filter-more${moreOpen ? ' open' : ''}${moreActive ? ' on' : ''}`}
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          {t('common.moreFilters')}
+          {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
+        </button>
+        {children}
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            className="filter-clear"
+            data-testid="quick-clear"
+            onClick={() => {
+              setSearch('');
+              go({
+                q: undefined,
+                lifecycle: undefined,
+                leadStatus: undefined,
+                source: undefined,
+                owner: undefined,
+                tag: undefined,
+                created: undefined,
+                createdFrom: undefined,
+                createdTo: undefined,
+                activity: undefined,
+                activityFrom: undefined,
+                activityTo: undefined,
+                ...Object.fromEntries(Object.keys(custom).map((k) => [`custom_${k}`, undefined])),
+              });
+            }}
+          >
+            {t('common.clear')}
+          </button>
+        )}
+      </div>
+
       {moreOpen && (
         <div className="filter-more-panel">
           <label className="filter-field">
@@ -287,24 +319,24 @@ export default function ContactsFilters({
               ))}
             </select>
           </label>
-          <label className="filter-field">
-            <span className="label">{t('contacts.filterCreatedFrom')}</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdFrom}
-              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
-            />
-          </label>
-          <label className="filter-field">
-            <span className="label">{t('contacts.filterCreatedTo')}</span>
-            <input
-              className="input filter-date"
-              type="date"
-              value={createdTo}
-              onChange={(e) => go({ createdTo: e.target.value || undefined })}
-            />
-          </label>
+          {tags.length > 0 && (
+            <label className="filter-field">
+              <span className="label">{t('tags.filter')}</span>
+              <select
+                className={`filter-select${tag ? ' on' : ''}`}
+                value={tag}
+                onChange={(e) => go({ tag: e.target.value || undefined })}
+                data-testid="tag-filter"
+              >
+                <option value="">{t('common.all')}</option>
+                {tags.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {customFields.map((cf) => (
             <label key={cf.name} className="filter-field">
               <span className="label">{cf.label}</span>
