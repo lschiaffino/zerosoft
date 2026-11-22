@@ -120,6 +120,9 @@ public struct LoadWatchdog: Sendable {
         case cancelled
         /// Result of a paint check.
         case paint(hasContent: Bool, generation: Int)
+        /// The bridge `ready` message of the page in the main frame (DOMContentLoaded): the second
+        /// paint signal of section 4.6. Only a page with visible content counts.
+        case ready(hasContent: Bool)
         case timer(WatchdogTimer, generation: Int)
         /// `webViewWebContentProcessDidTerminate`.
         case terminated(at: Date)
@@ -135,6 +138,9 @@ public struct LoadWatchdog: Sendable {
     /// Whether the web view currently holds a page that drew. A failure or a crash clears it:
     /// what is under the overlay is then unknown, so the next load shows the loading view.
     public private(set) var painted = false
+    /// The current navigation's page reported visible content through the bridge before
+    /// `didFinish`: the paint check passes as soon as the load finishes.
+    private var readyContent = false
     private var lastCrash: Date?
 
     public init() {}
@@ -147,12 +153,17 @@ public struct LoadWatchdog: Sendable {
         case .started:
             generation += 1
             phase = .loading
+            readyContent = false
             if !painted { overlay = .loading }
             return [.schedule(.load, after: Self.loadTimeout, generation: generation)]
 
         case .finished:
             // A load that was only slow still replaces the timeout error when it arrives.
             guard phase == .loading || phase == .failed else { return [] }
+            if readyContent {
+                show()
+                return []
+            }
             phase = .checkingPaint
             return [
                 .checkPaint(after: 0, generation: generation),
@@ -175,12 +186,19 @@ public struct LoadWatchdog: Sendable {
         case let .paint(hasContent, gen):
             guard gen == generation, phase == .checkingPaint else { return [] }
             if hasContent {
-                phase = .shown
-                painted = true
-                overlay = .none
+                show()
                 return []
             }
             return [.checkPaint(after: Self.paintPoll, generation: gen)]
+
+        case let .ready(hasContent):
+            guard hasContent else { return [] }
+            if phase == .checkingPaint {
+                show()
+            } else if phase == .loading {
+                readyContent = true
+            }
+            return []
 
         case let .timer(kind, gen):
             guard gen == generation else { return [] }
@@ -211,8 +229,15 @@ public struct LoadWatchdog: Sendable {
         generation += 1
         phase = .loading
         painted = false
+        readyContent = false
         overlay = .loading
         return [.reload, .schedule(.load, after: Self.loadTimeout, generation: generation)]
+    }
+
+    private mutating func show() {
+        phase = .shown
+        painted = true
+        overlay = .none
     }
 
     private mutating func fail(_ reason: LoadFailure) {

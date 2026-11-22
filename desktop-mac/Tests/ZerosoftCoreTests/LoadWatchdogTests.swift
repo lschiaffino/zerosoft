@@ -192,3 +192,43 @@ import Testing
     _ = w.handle(.cancelled) // the WebKit 102 that follows our cancel
     #expect(w.overlay == .error(.server(status: 502)))
 }
+
+@Test func bridgeReadyIsTheSecondPaintSignal() {
+    // ready with content before didFinish: the page shows as soon as it finishes.
+    var w = LoadWatchdog()
+    _ = w.handle(.started)
+    #expect(w.handle(.ready(hasContent: true)) == [])
+    #expect(w.overlay == .loading)
+    #expect(w.handle(.finished) == [])
+    #expect(w.phase == .shown && w.overlay == .none && w.painted)
+
+    // ready after didFinish while the paint check polls.
+    var v = LoadWatchdog()
+    _ = v.handle(.started)
+    _ = v.handle(.finished)
+    _ = v.handle(.ready(hasContent: true))
+    #expect(v.overlay == .none)
+}
+
+@Test func bridgeReadyWithoutContentDoesNotHideABlankPage() {
+    var w = LoadWatchdog()
+    _ = w.handle(.started)
+    _ = w.handle(.ready(hasContent: false))
+    #expect(w.handle(.finished).count == 2)
+    _ = w.handle(.ready(hasContent: false))
+    _ = w.handle(.timer(.paint, generation: 1))
+    #expect(w.overlay == .error(.blank))
+    // A ready seen for one navigation does not carry over to the next.
+    var v = LoadWatchdog()
+    _ = v.handle(.started)
+    _ = v.handle(.ready(hasContent: true))
+    _ = v.handle(.started)
+    #expect(v.handle(.finished).count == 2)
+    #expect(v.phase == .checkingPaint)
+    // Nor does it lift an error view.
+    var e = LoadWatchdog()
+    _ = e.handle(.started)
+    _ = e.handle(.failed(.unreachable))
+    _ = e.handle(.ready(hasContent: true))
+    #expect(e.overlay == .error(.unreachable))
+}
