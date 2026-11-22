@@ -3,6 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import PrivateRecord from './PrivateRecord';
 import { Link } from '@/i18n/navigation';
 import AdvancedSection from '@/components/ui/AdvancedSection';
 import RowTools from './RowTools';
@@ -17,6 +18,7 @@ interface HistoryRow {
   id: string;
   contact_id: string | null;
   contact_name: string | null;
+  contact_private?: boolean;
   person_id: string;
   source: string;
   created_at: string;
@@ -168,6 +170,8 @@ export default function AssignmentPanel({ rule, unavailable, history, people, se
                   <span className="data"><LocalText>{fmt(h.created_at)}</LocalText></span>{' '}
                   {h.contact_id ? (
                     <Link href={`/app/crm/contacts/${h.contact_id}`}>{h.contact_name || t('forms.contact')}</Link>
+                  ) : h.contact_private ? (
+                    <PrivateRecord label={t('common.privateRecord')} />
                   ) : null}{' '}
                   {t('assignment.assignedTo', { name: name(h.person_id), source: t(`assignment.source.${h.source}`) })}
                 </li>

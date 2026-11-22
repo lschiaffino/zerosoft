@@ -6,6 +6,7 @@
  */
 import { getDb } from './db';
 import { activityScopeSql, type OwnerScope } from './crm-visibility';
+import { maskPrivateRefs } from './crm-record-scope';
 import { dayRangeUtc } from './user-tz';
 
 export type QueueScope = 'due' | 'overdue' | 'today';
@@ -28,6 +29,8 @@ export interface QueueTask {
     phone: string;
     job_title: string;
     company_name: string | null;
+    /** La empresa del contacto es un registro que la persona no ve. */
+    company_private?: boolean;
   } | null;
   company: { id: string; name: string; domain: string; phone: string } | null;
   deal: { id: string; name: string; amount: number; currency: string; stage: string | null } | null;
@@ -49,6 +52,8 @@ interface QueueRow {
   c_phone: string | null;
   c_title: string | null;
   c_company: string | null;
+  c_company_id?: string | null;
+  c_company_private?: boolean;
   company_id: string | null;
   co_name: string | null;
   co_domain: string | null;
@@ -109,7 +114,7 @@ export async function listQueueTasks(
     .prepare(
       `SELECT a.id, a.subject, a.body, a.due_at, a.owner_id, a.task_kind, a.sequence_id, sq.name AS sequence_name,
          a.contact_id, c.first_name AS c_first, c.last_name AS c_last, c.email AS c_email, c.phone AS c_phone,
-         c.job_title AS c_title, cco.name AS c_company,
+         c.job_title AS c_title, cco.name AS c_company, cco.id AS c_company_id,
          a.company_id, co.name AS co_name, co.domain AS co_domain, co.phone AS co_phone,
          a.deal_id, d.name AS d_name, d.amount AS d_amount, d.currency AS d_currency, st.name AS d_stage
        FROM crm_activities a
@@ -124,8 +129,15 @@ export async function listQueueTasks(
        LIMIT ?`,
     )
     .all(...args)) as QueueRow[];
+  // La empresa del contacto que la persona no ve sale como "Registro privado".
+  const masked = await maskPrivateRefs(
+    workspaceId,
+    rows,
+    [{ table: 'crm_companies', id: 'c_company_id', fields: ['c_company'], flag: 'c_company_private' }],
+    opts.ownerScope,
+  );
   const { redactChatTasks } = await import('./crm-chat-privacy');
-  return (await redactChatTasks(workspaceId, rows, opts.chatReader)).map((r) => toQueueTask(r, start));
+  return (await redactChatTasks(workspaceId, masked, opts.chatReader)).map((r) => toQueueTask(r, start));
 }
 
 function toQueueTask(r: QueueRow, todayStart: string): QueueTask {
@@ -146,6 +158,7 @@ function toQueueTask(r: QueueRow, todayStart: string): QueueTask {
           phone: r.c_phone ?? '',
           job_title: r.c_title ?? '',
           company_name: r.c_company,
+          ...(r.c_company_private ? { company_private: true } : {}),
         }
       : null,
     company: r.company_id ? { id: r.company_id, name: r.co_name ?? '', domain: r.co_domain ?? '', phone: r.co_phone ?? '' } : null,

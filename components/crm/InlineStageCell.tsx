@@ -56,7 +56,7 @@ export default function InlineStageCell({ dealId, stageId, stages, className = '
       setReq({ body, requirements: wonRequirements(check ?? { stage: target.name, missing: [] }), won: true });
       return;
     }
-    if (check && check.missing.length) {
+    if (check && (check.missing.length || check.adminRequired)) {
       setBusy(false);
       setEditing(false);
       setReq({ body, requirements: check });

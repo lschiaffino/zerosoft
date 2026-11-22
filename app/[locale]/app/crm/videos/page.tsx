@@ -42,6 +42,7 @@ export default async function VideosPage(props: { params: Promise<{ locale: stri
           token: v.token,
           contact_id: v.contact_id,
           contact_name: v.contact_name,
+          contact_private: !!v.contact_private,
           duration_sec: v.duration_sec,
           views: v.views,
           last_viewed_at: v.last_viewed_at,

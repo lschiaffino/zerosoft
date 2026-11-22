@@ -51,7 +51,7 @@ export default function DealStagePanel({ dealId, stages, currentStageId }: DealS
       setApproval(check.approval);
       return;
     }
-    if (check && check.missing.length) {
+    if (check && (check.missing.length || check.adminRequired)) {
       setBusy(false);
       setPending(null);
       setReq({ stageId, ...(lostReason !== undefined ? { lostReason } : {}), requirements: check });

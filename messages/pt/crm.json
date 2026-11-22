@@ -78,7 +78,8 @@
     "moreFilters": "Mais filtros",
     "sortBy": "Ordenar por",
     "activityType": "Tipo de atividade",
-    "preview": "Pré-visualizar"
+    "preview": "Pré-visualizar",
+    "privateRecord": "Registro privado"
   },
   "assoc": {
     "noneToAdd": "Não há mais nada para vincular. Crie um registro primeiro.",
@@ -2353,7 +2354,8 @@
   },
   "mentions": {
     "suggestions": "Pessoas para mencionar",
-    "placeholder": "Notas. Digite @ para mencionar alguém da equipe"
+    "placeholder": "Notas. Digite @ para mencionar alguém da equipe",
+    "notNotified": "{count, plural, one {{names} não pode ver este registro, então não foi notificado.} other {{names} não podem ver este registro, então não foram notificados.}}"
   },
   "stageRules": {
     "fields": {
@@ -2376,7 +2378,8 @@
     "needContacts": "Associe pelo menos um contato ao deal.",
     "openDeal": "Abrir o deal",
     "saveAndMove": "Salvar e mover",
-    "bulkBlocked": "{count, plural, one {# deal ficou onde estava porque a etapa pede propriedades que ele não tem.} other {# deals ficaram onde estavam porque a etapa pede propriedades que eles não têm.}}"
+    "bulkBlocked": "{count, plural, one {# deal ficou onde estava porque a etapa pede propriedades que ele não tem.} other {# deals ficaram onde estavam porque a etapa pede propriedades que eles não têm.}}",
+    "adminRequired": "Esta etapa pede uma propriedade que só um admin pode preencher. Peça a um admin para preenchê-la e depois mova o deal."
   },
   "calls": {
     "call": "Ligar",
@@ -3363,7 +3366,8 @@
       "invalid_field": "Um dos campos não existe mais. Remova-o e tente de novo.",
       "invalid_metric": "Soma, média, mínimo e máximo precisam de um campo numérico.",
       "invalid_input": "Essa combinação de objetos não está disponível para a fonte de dados.",
-      "network": "Não foi possível falar com o servidor. Verifique sua conexão."
+      "network": "Não foi possível falar com o servidor. Verifique sua conexão.",
+      "report_restricted": "Este relatório usa uma propriedade que você não pode ver. Peça a um admin para alterá-lo."
     },
     "fields": {
       "contact": {
@@ -4635,6 +4639,7 @@
       "createdByMe": "Criadas por mim",
       "noMatch": "Nenhuma visualização corresponde a estes filtros.",
       "updated": "Atualizada"
-    }
+    },
+    "partialFilters": "Alguns filtros desta visualização não se aplicam a você."
   }
 }

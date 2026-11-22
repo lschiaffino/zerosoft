@@ -4,7 +4,7 @@ import { canSeeActivity, canSeeActivityRefs, sessionScope } from '@/lib/crm-visi
 import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { unpinSiblings } from '@/lib/crm-timeline';
-import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
+import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
 import { activityUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -44,16 +44,18 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();
   const activity = (await redactChatTask(user.id, updated, reader)) ?? updated;
-  // Solo se avisa a quienes la edición suma como mencionados.
+  // Solo se avisa a quienes la edición suma como mencionados (y pueden ver la actividad).
   if (before && textEdit) {
-    await notifyActivityMentions({
+    const people = await mentionablePeople(user);
+    const mentions = await notifyMentionsDetailed({
       activity: updated,
       actor: user.actingUser ?? user,
-      people: await mentionablePeople(user),
+      people,
       workspaceId: user.id,
       before: `${before.subject}\n${before.body}`,
       locale,
-    }).catch(() => []);
+    }).catch(() => ({ notified: [], withoutAccess: [] as string[] }));
+    return NextResponse.json({ ...activity, ...mentionsNotNotified(mentions.withoutAccess, people) });
   }
   return NextResponse.json(activity);
 }

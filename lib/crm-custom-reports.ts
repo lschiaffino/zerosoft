@@ -35,7 +35,7 @@ import {
   type ReportResult,
 } from './crm-report-builder';
 import { FORECAST_DEFAULTS } from './crm-forecast';
-import { hiddenFieldsFor, type FieldViewer } from './crm-field-perms';
+import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
 
 export interface CustomReportRow {
   id: string;
@@ -81,6 +81,66 @@ function toReport(row: CustomReportRow): CustomReport {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+// ---------- Campos ocultos en una config guardada ----------
+
+/** ¿La clave (`deal.custom:secret`) es un campo propio que la persona tiene oculto? */
+export type HiddenKeyTest = (key: string) => boolean;
+
+/** Test de claves ocultas a partir de los campos ocultos por entidad. Puro. */
+export function hiddenKeyTest(hidden: Partial<Record<'contacts' | 'companies' | 'deals', ReadonlySet<string>>>): HiddenKeyTest {
+  return (key) => {
+    const obj = fieldObject(key);
+    const entity = obj ? CUSTOM_FIELD_ENTITY[obj] : undefined;
+    const name = fieldName(key);
+    if (!entity || !name.startsWith('custom:')) return false;
+    return !!hidden[entity]?.has(name.slice(7));
+  };
+}
+
+/** Claves que usa una config (columnas, filtros, dimensiones y el campo de la métrica). Puro. */
+export function configFieldKeys(config: ReportConfig): string[] {
+  return [
+    ...config.columns,
+    ...config.filters.map((f) => f.f),
+    ...config.dimensions.map((d) => d.field),
+    ...(config.metric.field ? [config.metric.field] : []),
+  ];
+}
+
+/** ¿La config usa algún campo oculto? Puro. */
+export function configUsesHidden(config: ReportConfig, isHidden: HiddenKeyTest): boolean {
+  return configFieldKeys(config).some(isHidden);
+}
+
+/**
+ * La config sin columnas, filtros ni dimensiones sobre campos ocultos (la
+ * métrica sobre uno de ellos pasa a ser un conteo). Es lo que ve una persona
+ * con campos ocultos: ni el nombre del campo ni el valor por el que filtra. Puro.
+ */
+export function redactReportConfig(config: ReportConfig, isHidden: HiddenKeyTest): ReportConfig {
+  if (!configUsesHidden(config, isHidden)) return config;
+  const metricHidden = !!config.metric.field && isHidden(config.metric.field);
+  return {
+    ...config,
+    columns: config.columns.filter((k) => !isHidden(k)),
+    filters: config.filters.filter((f) => !isHidden(f.f)),
+    dimensions: config.dimensions.filter((d) => !isHidden(d.field)),
+    metric: metricHidden ? { agg: 'count', ...(config.metric.object ? { object: config.metric.object } : {}) } : config.metric,
+  };
+}
+
+/** Test de claves ocultas para la persona (nunca oculta nada a owner y admins). */
+export async function viewerHiddenKeys(viewer: FieldViewer, db: Db = getDb()): Promise<HiddenKeyTest> {
+  if (isUnrestricted(viewer)) return () => false;
+  return hiddenKeyTest(await hiddenFieldSets(viewer, ['contacts', 'companies', 'deals'] as const, db));
+}
+
+/** El reporte como lo ve la persona (config sin campos ocultos). */
+export async function reportForViewer<T extends { config: ReportConfig }>(viewer: FieldViewer, report: T, db: Db = getDb()): Promise<T> {
+  const isHidden = await viewerHiddenKeys(viewer, db);
+  return { ...report, config: redactReportConfig(report.config, isHidden) };
 }
 
 // ---------- CRUD ----------

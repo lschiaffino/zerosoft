@@ -4,6 +4,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
+import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
@@ -42,6 +43,8 @@ export interface DealRow {
   tags?: TagDot[];
   /** Empresa primaria. */
   companyName?: string | null;
+  /** La empresa primaria es un registro que la persona no ve. */
+  companyPrivate?: boolean;
   /** Monto convertido a la moneda base (texto), si la moneda es otra. */
   amountBase?: string | null;
 }
@@ -275,7 +278,7 @@ export default function DealsTable({ viewCols, viewFreeze,
       case 'company':
         return (
           <td className="muted cell-sub" data-card="line">
-            {row.companyName || <span className="cell-empty">—</span>}
+            {row.companyName || (row.companyPrivate ? <PrivateRecord label={t('common.privateRecord')} /> : <span className="cell-empty">—</span>)}
           </td>
         );
       case 'tags':

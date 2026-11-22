@@ -13,6 +13,7 @@ import { scoreBand } from './DealInsightCard';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
 import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
+import PrivateRecord from './PrivateRecord';
 import StageRequirementsDialog, {
   checkStageMove,
   readRequirements,
@@ -468,7 +469,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     const target = cols.find((c) => c.stage.id === stageId);
     if (target && parseRequiredFields(target.stage.required_fields).length > 0) {
       const check = await checkStageMove(dealId, stageId);
-      if (check && check.missing.length) {
+      if (check && (check.missing.length || check.adminRequired)) {
         setReqMove({ dealId, request: { stageId, beforeId, ...(lostReason !== undefined ? { lostReason } : {}) }, requirements: check });
         return;
       }
@@ -656,9 +657,13 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                       {deal.name}
                     </Link>
                     <span className="kb-card-amount">{fmtMoney(deal.amount, deal.currency)}</span>
-                    {(deal.company_name || deal.contact_name) && (
+                    {deal.company_name || deal.contact_name ? (
                       <span className="kb-card-meta">{deal.company_name ?? deal.contact_name}</span>
-                    )}
+                    ) : deal.company_private || deal.contact_private ? (
+                      <span className="kb-card-meta">
+                        <PrivateRecord label={t('common.privateRecord')} />
+                      </span>
+                    ) : null}
                     <div className="kb-card-foot">
                       {deal.priority === 'high' && (
                         <span className="badge prio-high">{priorityLabel.get(deal.priority) ?? deal.priority}</span>

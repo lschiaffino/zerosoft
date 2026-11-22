@@ -51,8 +51,10 @@ export default function ApprovalBanner({ approval, me }: ApprovalBannerProps) {
       setError(t('approvals.decideError'));
       return;
     }
-    const data = (await res.json().catch(() => null)) as { moved?: boolean; missing?: string[] } | null;
-    if (action === 'approve' && data && !data.moved) setMessage(t('approvals.approvedNotMoved'));
+    const data = (await res.json().catch(() => null)) as { moved?: boolean; missing?: string[]; adminRequired?: boolean } | null;
+    if (action === 'approve' && data && !data.moved) {
+      setMessage(data.adminRequired ? t('stageRules.adminRequired') : t('approvals.approvedNotMoved'));
+    }
     router.refresh();
   }
 
