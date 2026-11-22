@@ -2944,10 +2944,25 @@ td.crm-row-actions > * + * { margin-left: 4px; }
 .wf-secret { font-family: var(--font-data); }
 .wf-runs-record { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wf-runs-resume { white-space: nowrap; }
+/* W3: criterios, inscribir los que ya cumplen, registro por acción y sacar a mano. */
+.wf-criteria { max-width: 320px; }
+.wf-backfill { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.wf-backfill-actions, .wf-run-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.wf-backfill-opt { margin-top: 16px; }
+.wf-runs-more { width: 1%; white-space: nowrap; text-align: right; }
+.wf-runs-detail > td { white-space: normal; background: var(--bg-soft); }
+.wf-run-log { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; min-width: 0; }
+.wf-run-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.wf-run-step { font-size: 0.8125rem; }
+.wf-run-step > span + span { margin-left: 10px; }
+.wf-run-step-name { font-weight: 600; }
+.wf-run-step[data-outcome='failed'] .wf-run-step-outcome { color: var(--bad-ink); }
+.wf-run-step[data-outcome='skipped'] .wf-run-step-outcome { color: var(--brand-gray-2); }
 /* Ficha: inscripciones del registro en workflows. */
 .crm-record-workflows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .crm-record-workflow { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; }
 .crm-record-workflow-name { min-width: 0; overflow-wrap: anywhere; font-size: 0.875rem; }
+.crm-record-workflow-actions { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
 .crm-record-workflow-meta { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--brand-gray-1); }
 .wf-empty[data-invalid] { color: var(--bad-ink); }
 .wf-table .ui-switch { font-size: 0.8125rem; }
@@ -3053,6 +3068,18 @@ td.crm-row-actions > * + * { margin-left: 4px; }
   .wf-filter { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
   .wf-type { max-width: none; }
   .wf-steps-btn span:last-child { font-size: 0.8125rem; }
+  .wf-criteria { max-width: none; }
+  /* Historial en el celular: cada inscripción es un bloque (sin scroll lateral ni columna fija). */
+  .wf-runs-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .wf-runs-table, .wf-runs-table tbody, .wf-runs-table tr, .wf-runs-table td { display: block; width: auto; }
+  .wf-runs-table tbody > tr[data-status] { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .wf-runs-table tbody > tr[data-status] > td { grid-column: 1; padding: 0; border: 0; text-align: left; }
+  .wf-runs-table tbody > tr[data-status] > td.wf-runs-more { grid-column: 2; grid-row: 1 / span 4; align-self: center; width: auto; }
+  .wf-runs-table .wf-runs-record { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+  .wf-runs-detail > td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  /* Toques de al menos 40px en el celular. */
+  .wf-runs-toggle, .wf-run-actions .btn, .wf-backfill .btn, .crm-record-workflow-actions .btn { min-height: 40px; }
+  .wf-backfill-opt .ui-check { min-height: 40px; }
 }
 
 /* ---------- Ajustes de la revisión: listas, señalética y celular ---------- */

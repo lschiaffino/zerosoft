@@ -1524,6 +1524,45 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "social": {
+      "intro": {
+        "title": "Welcome to Social",
+        "body": "Social plans and publishes your posts on social networks, and gathers the comments and messages they get. This tour points out the main parts."
+      },
+      "accounts": {
+        "title": "Connect your accounts",
+        "body": "Link the networks you post on, like Instagram, LinkedIn or X. Your posts go out from the accounts you connect."
+      },
+      "newPost": {
+        "title": "Write a post",
+        "body": "Pick the accounts, write the text once or adjust it per network, and add images or video. Then publish now, schedule it or save it as a draft."
+      },
+      "calendar": {
+        "title": "Your calendar",
+        "body": "Everything planned and published, by month or week. Use + on a day to plan a post there, or drag a post to another day to move it.",
+        "bodyTouch": "Everything planned and published, by month or week. Use + on a day to plan a post there."
+      },
+      "posts": {
+        "title": "Posts",
+        "body": "Every post in a list: drafts, posts waiting for approval, scheduled and published. Filter by status, network or account."
+      },
+      "inbox": {
+        "title": "Inbox",
+        "body": "Comments, mentions and direct messages from your accounts, in one place. Answer them and mark them done."
+      },
+      "analytics": {
+        "title": "Analytics",
+        "body": "Impressions, reach, engagement and clicks of what you published, and followers per account."
+      },
+      "settings": {
+        "title": "Who publishes",
+        "body": "Choose who publishes on their own and who sends posts for approval first."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "hiring": {
       "intro": {
         "title": "Welcome to Hiring",

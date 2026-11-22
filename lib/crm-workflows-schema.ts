@@ -3,7 +3,7 @@
  */
 import { z } from 'zod';
 import { TRIGGER_TYPES, ACTION_TYPES } from './crm-workflows';
-import { BRANCH_OPS, CONDITION_ENTITIES, MAX_FILTERS } from './crm-workflow-rules';
+import { BRANCH_OPS, CONDITION_ENTITIES, CRITERIA_TRIGGER, MAX_FILTERS } from './crm-workflow-rules';
 
 const id = z.string().min(1).max(64);
 const shortText = z.string().trim().max(500);
@@ -35,6 +35,15 @@ const conditionSchema = z.object({
   value: z.string().max(500).optional(),
 });
 
+/**
+ * "El registro cumple los criterios" necesita al menos un criterio (los
+ * filtros de inscripción): sin ninguno inscribiría cualquier registro.
+ */
+function criteriaHaveFilters(w: { triggers?: Array<{ type: string }>; settings?: { filters?: unknown[] } }): boolean {
+  if (!w.triggers?.some((t) => t.type === CRITERIA_TRIGGER)) return true;
+  return (w.settings?.filters?.length ?? 0) > 0;
+}
+
 /** Inscripción: reinscripción y filtros (todos se cumplen). */
 const settingsSchema = z.object({
   reenroll: z.boolean().optional(),
@@ -53,15 +62,18 @@ export const workflowCreateSchema = z
   .refine((w) => w.actions.length > 0 || w.enabled === false, {
     message: 'actions_required',
     path: ['actions'],
-  });
+  })
+  .refine(criteriaHaveFilters, { message: 'criteria_required', path: ['settings', 'filters'] });
 
-export const workflowUpdateSchema = z.object({
-  name: shortText.optional(),
-  enabled: z.boolean().optional(),
-  settings: settingsSchema.optional(),
-  triggers: z.array(triggerSchema).min(1).max(10).optional(),
-  actions: z.array(actionSchema).min(1).max(20).optional(),
-});
+export const workflowUpdateSchema = z
+  .object({
+    name: shortText.optional(),
+    enabled: z.boolean().optional(),
+    settings: settingsSchema.optional(),
+    triggers: z.array(triggerSchema).min(1).max(10).optional(),
+    actions: z.array(actionSchema).min(1).max(20).optional(),
+  })
+  .refine((w) => w.settings === undefined || criteriaHaveFilters(w), { message: 'criteria_required', path: ['settings', 'filters'] });
 
 export const workflowToggleSchema = z.object({
   enabled: z.boolean(),

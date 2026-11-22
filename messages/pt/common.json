@@ -1524,6 +1524,45 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "social": {
+      "intro": {
+        "title": "Boas-vindas ao Social",
+        "body": "O Social planeja e publica seus posts nas redes sociais, e reúne os comentários e mensagens que eles recebem. Este tour mostra as partes principais."
+      },
+      "accounts": {
+        "title": "Conecte suas contas",
+        "body": "Vincule as redes onde você publica, como Instagram, LinkedIn ou X. Seus posts saem das contas que você conectar."
+      },
+      "newPost": {
+        "title": "Escreva um post",
+        "body": "Escolha as contas, escreva o texto uma vez ou ajuste por rede, e adicione imagens ou vídeo. Depois publique agora, agende ou salve como rascunho."
+      },
+      "calendar": {
+        "title": "Seu calendário",
+        "body": "Tudo o que está planejado e publicado, por mês ou por semana. Use + em um dia para planejar um post ali, ou arraste um post para outro dia para movê-lo.",
+        "bodyTouch": "Tudo o que está planejado e publicado, por mês ou por semana. Use + em um dia para planejar um post ali."
+      },
+      "posts": {
+        "title": "Publicações",
+        "body": "Todos os posts em uma lista: rascunhos, os que esperam aprovação, agendados e publicados. Filtre por status, rede ou conta."
+      },
+      "inbox": {
+        "title": "Caixa de entrada",
+        "body": "Comentários, menções e mensagens diretas das suas contas, em um só lugar. Responda e marque como concluídos."
+      },
+      "analytics": {
+        "title": "Métricas",
+        "body": "Impressões, alcance, engajamento e cliques do que você publicou, e seguidores por conta."
+      },
+      "settings": {
+        "title": "Quem publica",
+        "body": "Escolha quem publica por conta própria e quem envia os posts para aprovação antes."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "hiring": {
       "intro": {
         "title": "Boas-vindas ao Hiring",
