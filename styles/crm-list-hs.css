@@ -258,4 +258,6 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 .prop-search-on:has(.prop-row) > .prop-search-none { display: none; }
 @media (max-width: 640px) {
   .prop-search-input, .prop-search-empty { min-height: 40px; }
+  /* En el teléfono el email queda en Propiedades y en la acción Email: dos links chicos juntos no se tocan bien. */
+  [data-testid='record-email'] { display: none; }
 }
