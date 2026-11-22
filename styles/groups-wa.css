@@ -628,6 +628,9 @@ button.wa-doc.is-off .wa-doc-icon { opacity: 0.6; }
 .gr-inbox .wa-messages { background-position: 0 100%; }
 .gr-inbox .wa-composer.has-mode { background: var(--wa-reply-surface); }
 .gr-inbox .wa-composer.is-note { background: var(--wa-note-surface); }
+/* Ya no es miembro del grupo (components/groups/wa/LeftGroupBar.tsx): el aviso en lugar del campo, como WhatsApp. */
+.wa-left-bar { display: flex; align-items: center; justify-content: center; min-height: 46px; padding: 10px 16px; font-size: var(--wa-fs-preview); line-height: 1.4; color: var(--wa-text-2); text-align: center; overflow-wrap: anywhere; }
+.ib-wa-composer.is-left { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
 .wa-team-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-bottom: 5px; }
 .wa-mode {
   display: flex; align-items: flex-end; gap: 4px; margin: -5px calc(-1 * var(--wa-pad-x)) 5px; padding: 6px var(--wa-pad-x) 0;

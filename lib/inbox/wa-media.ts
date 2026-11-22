@@ -123,6 +123,7 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
 async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof getThreadRow>>, f: OutgoingFile): Promise<string> {
   const account = await getAccount(owner, thread.account_id);
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
+  if (thread.kind === 'group' && thread.left_at) throw new InboxError('group_left', 409);
   if (!f.data && !(f.url && isInboxBlobUrl(f.url))) throw new InboxError('invalid_input', 400);
   if (f.data && f.data.length > INLINE_MEDIA_MAX) throw new InboxError('file_too_large', 413);
   const mimetype = (f.mimetype || 'application/octet-stream').split(';')[0].trim().toLowerCase().slice(0, 100);

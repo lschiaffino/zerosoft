@@ -1725,6 +1725,7 @@
     "action": "Go to inbox"
   },
   "wa": {
+    "leftGroupBar": "You can't send messages to this group because you're no longer a member.",
     "chatSearch": {
       "open": "Search messages",
       "shortcut": "Ctrl+Shift+F",

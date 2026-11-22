@@ -1725,6 +1725,7 @@
     "action": "Ir para a caixa"
   },
   "wa": {
+    "leftGroupBar": "Você não pode enviar mensagens para este grupo porque não é mais membro.",
     "chatSearch": {
       "open": "Pesquisar mensagens",
       "shortcut": "Ctrl+Shift+F",

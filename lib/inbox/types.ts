@@ -96,6 +96,8 @@ export interface ThreadDto {
   lastMediaId?: string | null;
   /** WhatsApp: le falta un mensaje que no se pudo entregar; al abrirlo se pide el historial (lib/wa-history-gaps.ts). */
   historyGap?: boolean;
+  /** WhatsApp, grupos: la cuenta ya no está en el grupo (salió o la sacaron). El chat queda de solo lectura, como en WhatsApp. */
+  leftAt?: string;
   /** Solo en "Sacados de Inbox": cuándo se sacó y cuándo se borra solo (lib/inbox/removed.ts). */
   removedAt?: string;
   purgeAt?: string;

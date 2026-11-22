@@ -212,6 +212,8 @@ export interface ThreadRow {
   history_gap_at?: string | null;
   /** Sacado de Inbox (lib/inbox/removed.ts): fuera de todas las vistas hasta que se recupera o se purga. */
   removed_at?: string | null;
+  /** WhatsApp, grupos: desde cuándo la cuenta ya no está en el grupo (salió o la sacaron); el chat queda de solo lectura. */
+  left_at?: string | null;
 }
 
 /** Versión corta de la URL de la foto: cambia el link (y la caché del navegador) cuando cambia la foto. */
@@ -904,6 +906,7 @@ export function threadDto(
     lastSeenAt: r.last_seen_at ?? null,
     lastMediaId: r.last_media_id ?? null,
     ...(r.history_gap_at ? { historyGap: true } : {}),
+    ...(r.kind === 'group' && r.left_at ? { leftAt: r.left_at } : {}),
   };
   if (lidThread(r)) LID_OF.set(dto, r.external_id.slice(0, r.external_id.indexOf('@')));
   return dto;

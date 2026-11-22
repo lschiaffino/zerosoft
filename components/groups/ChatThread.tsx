@@ -3,6 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import LeftGroupBar from '@/components/groups/wa/LeftGroupBar';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -2785,6 +2786,9 @@ export default function ChatThread(props: ThreadProps) {
                 { key: 'delete', label: t('thread.deleteForAll'), icon: <Trash size={22} />, onClick: () => setDeletingSel(true), danger: true, disabled: !selectedMsgs().length || !selectedMsgs().every(canDelete) },
               ]}
             />
+          ) : chat.leftAt && mode === 'reply' && !editing ? (
+            // La línea ya no está en el grupo: el aviso de WhatsApp en lugar del campo; la nota interna sigue.
+            <LeftGroupBar />
           ) : recording ? (
             <div className="wa-bar wa-recording" role="group" aria-label={t('wa.recording')} aria-busy={voiceBusy || undefined}>
               <button type="button" className="wa-icon-btn" onClick={() => stopRecording(true)} disabled={voiceBusy} aria-label={t('wa.discardVoice')} title={t('wa.discardVoice')}>

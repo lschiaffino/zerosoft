@@ -166,6 +166,8 @@
 .ib-wa-badge { display: inline-flex; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; color: var(--wa-primary-ink); background: var(--wa-chip-on-bg); border-radius: var(--radius-1); }
 .ib-wa-about, .ib-wa-summary-text { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ib-wa-muted { margin: 0; font-size: var(--wa-fs-preview); color: var(--wa-text-2); }
+/* Ya no es miembro del grupo: en lugar de "Salir del grupo", el aviso (sin acción). */
+.ib-wa-row.ib-wa-left-note { margin: 0; font-size: var(--wa-fs-preview); color: var(--wa-text-2); cursor: default; }
 /* Nombre y descripción del grupo con su lápiz (components/inbox/wa/GroupInfoEdit.tsx). El lápiz está siempre: nada salta al pasar el mouse. */
 .ib-wa-editable { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .ib-wa-hero-name.ib-wa-editable { justify-content: center; align-items: center; max-width: 100%; }

@@ -14,7 +14,7 @@ import { dbBatch, getDb } from './db';
 import { phoneDigits, type InboundEvent } from './groups-provider';
 import { displayName, lookupContacts } from './wa-contacts';
 import { pokeLive } from './wa-live';
-import { bumpsChat, encodeSysPreview, groupEventId, participantsEvent, personOf, type WaGroupEvent, type WaGroupPerson } from './wa-group-events';
+import { bumpsChat, encodeSysPreview, groupEventId, participantsEvent, personOf, selfMembershipChange, type WaGroupEvent, type WaGroupPerson } from './wa-group-events';
 import { findThread, newId, nowIso, upsertThread, type AccountRow, type ThreadRow } from './inbox/core';
 import type { ChatRow, NumberRow } from './groups';
 
@@ -106,10 +106,21 @@ export async function inboxGroupEvent(account: AccountRow, ev: GroupInbound, now
   }
   const e = await withNames({ app: 'inbox', accountId: account.id }, built.e);
   const added = await addInboxGroupEvent(thread, e, built.at);
+  await applyInboxMembership(thread.id, e, built.at);
   // Cambiaron los participantes (o es nuevo): los datos del grupo se vuelven a pedir en la próxima pasada.
   await getDb().prepare('UPDATE inbox_threads SET info_at = NULL WHERE id = ?').run(thread.id);
   if (added) pokeLive('inbox', account.owner_id);
   return added;
+}
+
+/**
+ * Salió o la sacaron: el chat de Inbox queda de solo lectura (left_at); volver
+ * a entrar lo abre de nuevo. Lo mismo para lo que hace la cuenta desde zerosoft.
+ */
+export async function applyInboxMembership(threadId: string, e: WaGroupEvent, at: string): Promise<void> {
+  const change = selfMembershipChange(e);
+  if (change === 'left') await getDb().prepare('UPDATE inbox_threads SET left_at = COALESCE(left_at, ?) WHERE id = ?').run(at, threadId);
+  else if (change === 'joined') await getDb().prepare('UPDATE inbox_threads SET left_at = NULL WHERE id = ? AND left_at IS NOT NULL').run(threadId);
 }
 
 /**
@@ -187,6 +198,10 @@ export async function linesGroupEvent(number: NumberRow, ev: GroupInbound, now =
   }
   const e = await withNames({ app: 'lines', accountId: number.id }, built.e);
   const added = await addLinesGroupEvent(chat, e, built.at);
+  // Como en Inbox: si la línea salió o la sacaron desde el teléfono, el chat queda de solo lectura; volver a entrar lo abre.
+  const change = selfMembershipChange(e);
+  if (change === 'left') await db.prepare('UPDATE groups_chats SET left_at = COALESCE(left_at, ?) WHERE id = ?').run(built.at, chat.id);
+  else if (change === 'joined') await db.prepare('UPDATE groups_chats SET left_at = NULL WHERE id = ? AND left_at IS NOT NULL').run(chat.id);
   if (added) pokeLive('lines', number.user_id);
   return added;
 }

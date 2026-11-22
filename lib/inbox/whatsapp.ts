@@ -644,6 +644,8 @@ export async function sendWhatsappText(
   opts: { replyTo?: string; mentions?: string[]; clientId?: string; linkPreview?: boolean; forwarded?: boolean; forward?: ForwardFlag } = {},
 ): Promise<string> {
   if (account.status !== 'connected') throw new InboxError('not_connected', 409);
+  // Ya no está en el grupo (salió o la sacaron): como en WhatsApp, no se puede escribir.
+  if (thread.kind === 'group' && thread.left_at) throw new InboxError('group_left', 409);
   let id: string;
   try {
     const o = {
