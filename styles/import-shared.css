@@ -210,6 +210,27 @@
 .hsync-check input { margin: 0; flex: none; }
 .hsync-check .hsync-sub { flex-basis: 100%; }
 
+/* Conflictos del sync (HubspotSyncConflicts): un registro por fila, y al compararlo un grupo de opciones por campo. */
+.hsync-conf-list { list-style: none; margin: 0; padding: 0; min-width: 0; border-top: 1px solid var(--line); }
+.hsync-conf { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.hsync-conf-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; min-width: 0; }
+.hsync-conf-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 0.8125rem; }
+.hsync-conf-name { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+a.hsync-conf-name { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+a.hsync-conf-name:hover { text-decoration-color: currentColor; }
+a.hsync-conf-name:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.hsync-conf-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hsync-conf-fields { display: grid; gap: 10px; min-width: 0; }
+.hsync-conf-field { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.hsync-conf-legend { padding: 0; margin: 0 0 4px; font-size: 0.8125rem; font-weight: 500; display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+.hsync-conf-option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 8px; align-items: center; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-1); font-size: 0.8125rem; cursor: pointer; min-width: 0; }
+.hsync-conf-option input { margin: 0; grid-row: span 2; }
+.hsync-conf-option:has(input:checked) { border-color: var(--accent-ink); }
+.hsync-conf-option:has(input:focus-visible) { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.hsync-conf-option[data-disabled='true'] { cursor: default; opacity: 0.6; }
+.hsync-conf-side { font-size: 0.75rem; color: var(--dim); }
+.hsync-conf-value { overflow-wrap: anywhere; color: var(--ink); }
+
 @media (max-width: 720px) {
   .hsync-card { padding: 12px; }
   .hsync-objects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -218,6 +239,9 @@
   .hsync-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hsync-sample { grid-template-columns: minmax(0, 1fr); }
   .hsync-sample-links { white-space: normal; flex-wrap: wrap; }
+  .hsync-conf-field { grid-template-columns: minmax(0, 1fr); }
+  .hsync-conf-head { grid-template-columns: minmax(0, 1fr); }
+  .hsync-conf-head .btn { justify-self: start; }
 }
 @media (max-width: 480px) {
   /* A 390 px entran las columnas que importan (vinculados, creados, conflictos); el resto se ve en una pantalla más ancha. */
