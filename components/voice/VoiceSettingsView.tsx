@@ -94,7 +94,7 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
 
   return (
     <>
-      <FormSection
+      <FormSection setting="voice-general"
         title={t('generalTitle')}
         description={t('generalDesc')}
         onSubmit={(fd) =>
@@ -181,7 +181,7 @@ function DictationSettings({ initial }: { initial: VoiceSettings }) {
           <span>{t('learnCorrections')}</span>
         </label>
       </FormSection>
-      <FormSection
+      <FormSection setting="voice-styles"
         title={t('stylesTitle')}
         description={t('stylesDesc')}
         onSubmit={(fd) => save({ styles: Object.fromEntries(VOICE_CONTEXTS.map((c) => [c, String(fd.get(`style-${c}`))])) as VoiceSettings['styles'] })}

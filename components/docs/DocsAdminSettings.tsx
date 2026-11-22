@@ -34,7 +34,7 @@ export function DocsAccessSettings({ initial, canManage }: { initial: DocsSettin
 
   return (
     <>
-      <FormSection
+      <FormSection setting="docs-members"
         title={t('membersTitle')}
         description={t('membersHelp')}
         disabled={!canManage}
@@ -55,7 +55,7 @@ export function DocsAccessSettings({ initial, canManage }: { initial: DocsSettin
           <span className="ui-help">{t('memberRoleHelp')}</span>
         </div>
       </FormSection>
-      <FormSection
+      <FormSection setting="docs-security"
         title={t('securityTitle')}
         description={t('securityHelp')}
         disabled={!canManage}
@@ -77,7 +77,7 @@ export function DocsAccessSettings({ initial, canManage }: { initial: DocsSettin
         ))}
       </FormSection>
       {/* Colaboración: no es un permiso de admins (otra sección que Seguridad). */}
-      <FormSection
+      <FormSection setting="docs-collab"
         title={t('collabTitle')}
         description={t('collabHelp')}
         disabled={!canManage}

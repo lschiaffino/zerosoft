@@ -912,7 +912,80 @@ function PathsForm({ q, set }: { q: PathsQuery; set: (q: PathsQuery) => void }) 
       <label className="ui-check">
         <input type="checkbox" checked={Boolean(q.collapseIds)} onChange={(e) => set({ ...q, collapseIds: e.target.checked })} /> {t('collapseIds')}
       </label>
+      <PathPatternList
+        testId="an-paths-exclude"
+        label={t('pathExclude')}
+        help={t('pathExcludeHelp')}
+        placeholder="/admin/*"
+        values={q.exclude ?? []}
+        onChange={(exclude) => set({ ...q, exclude: exclude.length ? exclude : undefined })}
+      />
+      <PathPatternList
+        testId="an-paths-groups"
+        label={t('pathGroups')}
+        help={t('pathGroupsHelp')}
+        placeholder="/blog/*"
+        values={q.groups ?? []}
+        onChange={(groups) => set({ ...q, groups: groups.length ? groups : undefined })}
+      />
       <p className="an-note">{(q.source ?? 'pageviews') === 'all' ? t('pathsNoteAll') : t('pathsNote')}</p>
+    </div>
+  );
+}
+
+const PATH_PATTERNS_MAX = 20;
+
+/** Lista corta de patrones de camino: se escribe, Enter o Sumar la agrega, y cada uno se saca con su botón. */
+function PathPatternList({ testId, label, help, placeholder, values, onChange }: { testId: string; label: string; help: string; placeholder: string; values: string[]; onChange: (v: string[]) => void }) {
+  const t = useTranslations('analytics.editor');
+  const [draft, setDraft] = useState('');
+  const helpId = `${testId}-help`;
+  const full = values.length >= PATH_PATTERNS_MAX;
+  const add = () => {
+    const v = draft.trim().slice(0, 500);
+    if (!v || full) return;
+    if (!values.includes(v)) onChange([...values, v]);
+    setDraft('');
+  };
+  return (
+    <div className="an-path-patterns" data-testid={testId}>
+      <div className="an-row an-wrap">
+        <label className="ui-field an-inline-field">
+          <span className="label">{label}</span>
+          <input
+            className="input"
+            placeholder={placeholder}
+            value={draft}
+            maxLength={500}
+            disabled={full}
+            aria-describedby={helpId}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+        </label>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={add} disabled={!draft.trim() || full}>
+          {t('pathAdd')}
+        </button>
+      </div>
+      <p id={helpId} className="an-note">
+        {help}
+        {full ? ` ${t('pathListFull')}` : ''}
+      </p>
+      {values.length > 0 && (
+        <div className="an-chips" role="group" aria-label={label}>
+          {values.map((v) => (
+            <button key={v} type="button" className="an-chip" aria-label={t('pathRemove', { value: v })} onClick={() => onChange(values.filter((x) => x !== v))}>
+              <span className="an-chip-text">{v}</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

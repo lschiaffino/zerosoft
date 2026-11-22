@@ -22,7 +22,7 @@ const NOTES_TEMPLATE_META = {
   pt: notesPt.templates.cmdkMeta,
 };
 import { searchApps } from '@/lib/app-search';
-import { searchRuns } from '@/lib/crm-ai-agents';
+import { searchRuns, sessionRunViewer } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
@@ -52,6 +52,8 @@ import { actorOf } from '@/lib/rec-http';
 import { searchPlanning } from '@/lib/track-planning-search';
 import { listConversations } from '@/lib/assistant/store';
 import { noStore } from '@/lib/no-store';
+import { searchSettingsFor } from '@/lib/settings-search-server';
+import { crumbText, settingHref } from '@/lib/settings-search';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -94,7 +96,7 @@ async function getPrivate(req: NextRequest) {
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
     // Corridas de los agentes de IA del CRM, por nombre.
-    searchRuns(user.id, q),
+    sessionRunViewer(user).then((v) => searchRuns(user.id, q, 5, v)),
     // CRM: leads (nombre, contacto, empresa) y registros de objetos propios (propiedad primaria).
     searchLeads(user.id, q, scope, 8),
     searchRecords(user.id, q, scope, 8),
@@ -327,6 +329,12 @@ async function getPrivate(req: NextRequest) {
 
   for (const r of reports) {
     items.push({ id: r.id, group: 'reports', label: r.name, meta: '', href: `/app/crm/reports/custom/${r.id}` });
+  }
+
+  // Ajustes puntuales (la misma búsqueda que la caja de Ajustes): solo los que la persona puede abrir.
+  const settings = await searchSettingsFor(user, req.nextUrl.searchParams.get('locale') ?? user.locale ?? 'en', q).catch(() => []);
+  for (const s of settings) {
+    items.push({ id: `setting:${s.id}`, group: 'settings', label: s.title, meta: crumbText(s), href: settingHref(s.href, s.anchor) });
   }
 
   // Acceso por app: nada de las apps que la persona no tiene en este workspace.

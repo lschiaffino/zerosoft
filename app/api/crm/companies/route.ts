@@ -1,8 +1,9 @@
 import { after, NextRequest, NextResponse } from 'next/server';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { shouldEnrichOnCreate, enrichCompany } from '@/lib/crm-enrich';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { sessionScope } from '@/lib/crm-visibility';
+import { sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { createCompany, listCompanies } from '@/lib/crm';
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest) {
     const missing = await createFormMissing(sessionFieldViewer(user), 'companies', data);
     if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
   }
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const company = await catchRef(createCompany(user.id, data));
   if (company instanceof CrmRefError) return crmError(400, company.code);
   // Datos del sitio en segundo plano (lo que el formulario no precargó).
@@ -62,5 +66,6 @@ export async function POST(req: NextRequest) {
     const companyId = company.id;
     after(() => enrichCompany(user.id, companyId, { actorEmail: user.actingUser?.email ?? user.email }).then(() => undefined).catch(() => undefined));
   }
-  return NextResponse.json(redactRow(company, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')), { status: 201 });
+  const shown = (await maskPrivateRef(user.id, company, [PRIVATE_REFS.parent()], await sessionScope(user)))!;
+  return NextResponse.json(redactRow(shown, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')), { status: 201 });
 }

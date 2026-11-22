@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { canSeeActivity, canSeeActivityRefs, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeActivityRefs, sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { unpinSiblings } from '@/lib/crm-timeline';
@@ -43,6 +43,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const reader = await sessionChatReader(user, locale);
   const textEdit = parsed.data.subject !== undefined || parsed.data.body !== undefined;
   if (textEdit && (await isChatHidden(user.id, params.id, reader))) return crmError(403, 'chat_private');
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const before = await getActivity(user.id, params.id);
   // Una sola fijada por registro (como en HubSpot): fijar esta desfija las otras de sus registros.
   if (parsed.data.pinned === true) await unpinSiblings(user.id, params.id);

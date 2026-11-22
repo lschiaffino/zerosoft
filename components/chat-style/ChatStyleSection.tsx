@@ -24,7 +24,7 @@ export default function ChatStyleSection({ variant = 'ui' }: { variant?: 'ui' | 
     setState((await setStyle(s)) ? 'saved' : 'error');
   };
   return (
-    <section className={c.section} id="chat-style" aria-labelledby="chat-style-h">
+    <section className={c.section} id="chat-style" aria-labelledby="chat-style-h" data-setting="chat-style">
       <div className={variant === 'inbox' ? 'wa-contents' : 'ui-section-body'}>
         <div className={c.head}>
           <h2 className={c.title} id="chat-style-h">

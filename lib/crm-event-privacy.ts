@@ -22,7 +22,7 @@
  */
 import { getDb, type Db } from './db';
 import { hiddenFieldsFor, isUnrestricted, redactCustomJson, type FieldViewer } from './crm-field-perms';
-import { canSeeActivityRefs, canSeeEntity, canSeeOwner, ownerScopeFor, type OwnerScope } from './crm-visibility';
+import { canSeeActivityRefs, canSeeEntity, canSeeOwner, ownerScopeFor, type ActivityRefs, type OwnerScope } from './crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS, visibleRecordIds } from './crm-record-scope';
 import { normalizeRole } from './teams';
 
@@ -208,9 +208,16 @@ export async function taskEventFor(sub: Subscriber, data: EventData, db: Db = ge
   const ws = sub.viewer.workspaceId;
   if (!sub.unrestricted) {
     const row = (await db
-      .prepare('SELECT contact_id, company_id, deal_id, owner_id FROM crm_activities WHERE id = ? AND user_id = ?')
-      .get(id, ws)) as { contact_id: string | null; company_id: string | null; deal_id: string | null; owner_id: string | null } | undefined;
-    const fromEvent = { contact_id: str(task.contactId), company_id: str(task.companyId), deal_id: str(task.dealId), owner_id: str(task.ownerId) };
+      .prepare('SELECT contact_id, company_id, deal_id, lead_id, object_record_id, owner_id FROM crm_activities WHERE id = ? AND user_id = ?')
+      .get(id, ws)) as ActivityRefs | undefined;
+    const fromEvent: ActivityRefs = {
+      contact_id: str(task.contactId),
+      company_id: str(task.companyId),
+      deal_id: str(task.dealId),
+      lead_id: str(task.leadId),
+      object_record_id: str(task.objectRecordId),
+      owner_id: str(task.ownerId),
+    };
     if (!(await canSeeActivityRefs(ws, fromEvent, sub.scope))) return null;
     if (row && !(await canSeeActivityRefs(ws, row, sub.scope))) return null;
   }

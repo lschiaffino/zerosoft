@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!(await guard(user, id))) return notFound();
-  return NextResponse.json(await recordLinks(user.id, id));
+  return NextResponse.json(await recordLinks(user.id, id, await sessionScope(user)));
 }
 
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {

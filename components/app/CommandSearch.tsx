@@ -22,6 +22,7 @@ import {
 import { PriorityIcon, StatusDot } from '@/components/track/glyphs';
 import TrackIcon, { type TrackIconName } from '@/components/track/TrackIcon';
 import { SETTINGS_SECTION_KEYS, settingsSectionHref } from '@/lib/settings-nav';
+import { navigateToSetting } from '@/lib/settings-search';
 import { comingSoonHref, hrefAllowed, isComingSoon, PRODUCT_CONFIG, PRODUCT_KEYS, productSettingsHref, type AllowedApps, type ProductKey } from '@/lib/products';
 import { RIVALS } from '@/components/site/catalog';
 import { IMPORT_SOURCES, importHubHref } from '@/lib/import-registry';
@@ -722,7 +723,8 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       window.setTimeout(() => window.dispatchEvent(new CustomEvent(name, { cancelable: true })), 0);
       return;
     }
-    router.push(item.href);
+    // Un ajuste (#setting-…): la página lo marca al llegar, o ya si es la misma.
+    navigateToSetting((href, scroll) => router.push(href, { scroll }), item.href);
   }
 
   // Attached to the dialog container so Esc/arrows work wherever focus sits

@@ -4,7 +4,8 @@ import WebKit
 /// Windows with tabs, each tab a web view of the server with the navigation policy and the load
 /// watchdog (blocks 1, 2 and 4 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links,
 /// notifications and the Dock badge (block 3); the menu bar item, the Settings window, the
-/// onboarding and the login item (block 5); dictation in any app (block 6). The app's own
+/// onboarding and the login item (block 5); dictation in any app (block 6); meetings: the
+/// computer's audio, the recording indicator and the menu bar dot (block 7). The app's own
 /// requests go only to the server: the token exchange, the badge poll, the Settings window's
 /// and the dictation's (NativeHTTP).
 @main
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController?
     private var onboarding: OnboardingWindowController?
     private var dictation: DictationController!
+    private var meetings: MeetingsController!
     /// The onboarding opens after the first window (`-ZSOnboarding YES` forces it in a test).
     private var showOnboarding = false
     private var server = Server.defaultOrigin
@@ -66,8 +68,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openExternal = { [weak panel] url in panel?.external(url) }
         }
         #endif
+        // Meetings (block 7): nothing here asks for a permission either; Screen Recording and the
+        // computer's audio are asked for on the first capture or from their Settings button.
+        let systemCapture = SystemCapturePermissions()
+        var capture: CapturePermissions = systemCapture
+        var makeSystemAudio: () -> SystemAudioSource? = { systemCapture.makeSource() }
+        #if DEBUG
+        var fakeCapture: FakeCapturePermissions?
+        if testing {
+            // CI cannot grant Screen Recording or system audio recording, or answer the prompts.
+            let access = FakeCapturePermissions.Access(rawValue: defaults.string(forKey: "ZSSystemAudio") ?? "") ?? .ask
+            let backend: SystemAudioBackend = defaults.string(forKey: "ZSSystemAudioBackend") == "screen" ? .screenCapture : .processTap
+            let fake = FakeCapturePermissions(audio: access, backend: backend)
+            fakeCapture = fake
+            capture = fake
+            makeSystemAudio = { FakeSystemAudioSource(permissions: fake) }
+        }
+        #endif
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-        let info = BridgeInfo(version: version, store: Self.storeBuild, lockdown: lockdown)
+        let info = BridgeInfo(version: version, store: Self.storeBuild, lockdown: lockdown, systemAudio: capture.backend != .none)
         let lang = self.lang
         let http = NativeHTTP(server: server)
         let auth = AuthController(server: server, lang: lang, http: http)
@@ -141,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = SettingsModel(
             lang: lang, server: server, lockdown: info.lockdown, store: settingsStore,
             remote: SettingsRemote(server: server, http: http), loginItems: loginItems, permission: permission,
-            mic: mic, paste: paste
+            mic: mic, paste: paste, capture: capture
         )
         self.model = model
         #if DEBUG
@@ -158,15 +177,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             mic: mic, paste: paste, makeSource: makeSource
         )
         self.dictation = dictation
+        let systemAudio = SystemAudioController(makeSource: makeSystemAudio)
+        systemAudio.available = { [weak model] in
+            SystemAudioRules.available(allowed: model?.settings.allowSystemAudio ?? false, lockdown: info.lockdown, backend: capture.backend)
+        }
+        let meetings = MeetingsController(server: server, lang: lang, tabs: tabs, systemAudio: systemAudio)
+        self.meetings = meetings
+        tabs.configureTab = { [weak meetings] id, web in meetings?.wire(web, tab: id) }
+        meetings.indicator.saved = { [weak model] in model?.settings.indicatorPosition }
+        meetings.onMoved = { [weak model] p in model?.update { $0.indicatorPosition = p } }
+        meetings.onCapture = { [weak self] in self?.captureChanged() }
+        meetings.apply(model.settings)
         model.onPrefs = { [weak tabs] prefs in tabs?.setPrefs(prefs) }
         model.onSettings = { [weak self] settings in
             self?.statusItem.setShown(settings.menuBarItem)
             self?.dictation.apply(settings)
+            self?.meetings.apply(settings)
         }
         dictation.onChange = { [weak self] in
             guard let self else { return }
-            self.statusItem.setRecording(self.dictation.machine.phase == .recording)
+            self.captureChanged()
             self.model.dictationChanged()
+        }
+        statusItem.onOpenRecording = { [weak meetings] in meetings?.open() }
+        statusItem.onStopRecording = { [weak meetings] in meetings?.stop() }
+        statusItem.onStopSystemAudio = { [weak systemAudio] in systemAudio?.stop(.user) }
+        model.onStopRecording = { [weak meetings] in meetings?.stop() }
+        model.onOpenVoice = { [weak tabs, server] in
+            NSApp.activate(ignoringOtherApps: true)
+            if let url = URL(string: server + "/app/voice/meetings") { tabs?.navigateActive(url) }
         }
         statusItem.dictation = { [weak dictation] in dictation?.menuState }
         statusItem.shortcutLabel = { [weak dictation] in dictation?.shortcut.label ?? "" }
@@ -223,6 +262,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if let fakeMic, let fakePaste {
                 panel.watch(dictation: dictation, mic: fakeMic, paste: fakePaste)
+            }
+            if let fakeCapture {
+                panel.watch(meetings: meetings, capture: fakeCapture, statusItem: statusItem)
+                let onSettings = model.onSettings
+                model.onSettings = { [weak panel] settings in
+                    onSettings(settings)
+                    panel?.set("zs-test-meetset", settings.meetingsSummary)
+                }
+                panel.set("zs-test-meetset", model.settings.meetingsSummary)
             }
             onDeepLink = { [weak panel] what in panel?.deepLink(what) }
             var saves = 0
@@ -305,7 +353,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        meetings?.systemAudio.stop(.user)
         tabs?.willTerminate()
+    }
+
+    /// The menu bar item and Settings › Meetings show what records now.
+    private func captureChanged() {
+        let now = CaptureState(
+            dictation: dictation?.machine.phase == .recording,
+            meeting: meetings?.recording != nil,
+            systemAudio: meetings?.systemAudio.running ?? false
+        )
+        statusItem.setCapture(now)
+        model?.captureChanged(now)
     }
 
     // MARK: Deep links

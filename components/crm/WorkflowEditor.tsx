@@ -5,7 +5,25 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import type { BackfillCursor, Workflow, WorkflowTriggerInput, WorkflowActionInput, TriggerType, ActionType, WorkflowRunView } from '@/lib/crm-workflows';
 import type { CrmListRow } from '@/lib/db';
-import { BRANCH_OPS, DELAY_UNITS, MAX_BACKFILL_ENROLL, MAX_FILTERS, type EnrollCondition, type WorkflowSettings } from '@/lib/crm-workflow-rules';
+import {
+  BRANCH_OPS,
+  DEFAULT_EVENT_TIMEOUT,
+  DELAY_MODES,
+  DELAY_UNITS,
+  MAX_BACKFILL_ENROLL,
+  MAX_DATE_OFFSET_DAYS,
+  MAX_FILTERS,
+  WAIT_EVENTS,
+  delayMode,
+  isWaitEvent,
+  waitEventTakesField,
+  waitTime,
+  waitTimeZone,
+  waitWeekdays,
+  type DelayMode,
+  type EnrollCondition,
+  type WorkflowSettings,
+} from '@/lib/crm-workflow-rules';
 import {
   ACTION_GROUPS,
   TEMPLATE_KEYS,
@@ -303,7 +321,10 @@ export default function WorkflowEditor({
         </li>
       )}
       {actions.map((a, i) => {
-        const afterBranch = a.type !== 'branch' && actions.slice(0, i).some((p) => p.type === 'branch');
+        // Si/si no, o una espera por evento (W2: Sí si pasó, No si se venció el tope): la más cercana arriba decide.
+        const splitter = [...actions.slice(0, i)].reverse().find((p) => p.type === 'branch' || (p.type === 'delay' && delayMode(p.config ?? {}) === 'event' && !safeString(p.config?.when)));
+        const afterBranch = a.type !== 'branch' && !!splitter;
+        const afterWait = splitter?.type === 'delay';
         return (
           <li key={i} className="crm-step" data-testid="workflow-action">
             <span className="crm-step-n" aria-hidden="true">{i + 1}</span>
@@ -362,8 +383,8 @@ export default function WorkflowEditor({
                     disabled={!canEdit}
                   >
                     <option value="">{t('when.always')}</option>
-                    <option value="yes">{t('when.yes')}</option>
-                    <option value="no">{t('when.no')}</option>
+                    <option value="yes">{afterWait ? t('when.met') : t('when.yes')}</option>
+                    <option value="no">{afterWait ? t('when.timedOut') : t('when.no')}</option>
                   </select>
                 </div>
               )}
@@ -654,6 +675,10 @@ export default function WorkflowEditor({
     if (a.type === 'create_task' || a.type === 'send_email') return safeString(c.subject) ? `«${safeString(c.subject)}»` : '';
     if (a.type === 'notify_user') return safeString(c.message) ? `«${safeString(c.message)}»` : '';
     if (a.type === 'delay') {
+      const mode = delayMode(c);
+      if (mode === 'event') return isWaitEvent(c.event) ? t('delay.summary.event', { event: t(`delay.events.${safeString(c.event)}` as 'delay.events.email_opened') }) : '';
+      if (mode === 'date') return t(safeString(c.dateSource) === 'calendar' ? 'delay.summary.calendar' : 'delay.summary.property', { date: safeString(c.dateSource) === 'calendar' ? safeString(c.date) : safeString(c.field), time: waitTime(c.time) });
+      if (mode === 'weekday') return t('delay.summary.weekday', { time: waitTime(c.time) });
       const unit = (DELAY_UNITS as readonly string[]).includes(safeString(c.unit)) ? safeString(c.unit) : 'days';
       return t(`delay.summary.${unit}` as 'delay.summary.days', { n: Number(c.amount) || 0 });
     }
@@ -1294,35 +1319,7 @@ function ActionConfig({
       );
     }
     case 'delay':
-      return (
-        <div className="wf-config">
-          <div className="wf-delay">
-            <Field id={id('amount')} label={t('delay.amount')} error={reqMsg('amount')}>
-              <input
-                id={id('amount')}
-                className="input data"
-                type="number"
-                min={1}
-                {...req('amount', id('amount'))}
-                value={safeString(config.amount)}
-                onChange={(e) => onChange({ amount: e.target.value === '' ? '' : Number(e.target.value) })}
-                disabled={dis}
-                data-testid="workflow-delay-amount"
-              />
-            </Field>
-            <Field id={id('unit')} label={t('delay.unit')}>
-              <select id={id('unit')} className="select" value={safeString(config.unit) || 'days'} onChange={(e) => onChange({ unit: e.target.value })} disabled={dis}>
-                {DELAY_UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {t(`delay.units.${u}`)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <p className="ui-help">{t('delay.hint')}</p>
-        </div>
-      );
+      return <DelayConfig config={config} id={id} dis={dis} missing={missing} onChange={onChange} />;
     case 'rotate_owner': {
       const ownerIds = Array.isArray(config.ownerIds) ? (config.ownerIds as unknown[]).map(safeString) : [];
       return (
@@ -1536,4 +1533,248 @@ function ActionConfig({
 function safeString(v: unknown): string {
   if (v === null || v === undefined) return '';
   return String(v);
+}
+
+/** Zona horaria del navegador (la de quien arma el workflow), o UTC. */
+function browserTimeZone(): string {
+  try {
+    return waitTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  } catch {
+    return 'UTC';
+  }
+}
+
+/** Zonas IANA para elegir (más la guardada, si el navegador no la lista). */
+function timeZones(current: string): string[] {
+  let all: string[] = [];
+  try {
+    all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? [];
+  } catch {
+    all = [];
+  }
+  const list = all.length ? all : ['UTC'];
+  return list.includes(current) ? list : [current, ...list];
+}
+
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+const WAIT_EVENT_GROUPS = (['contact', 'company', 'deal'] as const).map((entity) => ({
+  entity,
+  events: Object.entries(WAIT_EVENTS)
+    .filter(([, e]) => e === entity)
+    .map(([k]) => k),
+}));
+
+/**
+ * Espera (W2): por un tiempo, hasta una fecha (propiedad del registro o del
+ * calendario), hasta un día de la semana y hora, o hasta que pase un evento
+ * con un tope. Controles nativos: Esc y el clic afuera los cierra el navegador.
+ */
+function DelayConfig({
+  config,
+  id,
+  dis,
+  missing,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  id: (k: string) => string;
+  dis: boolean;
+  missing: string[];
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const t = useTranslations('crm.workflows');
+  const mode = delayMode(config);
+  const req = (k: string, fid: string) => (missing.includes(k) ? { 'aria-invalid': true as const, 'aria-describedby': `${fid}-err` } : {});
+  const reqMsg = (k: string) => (missing.includes(k) ? t('problems.required') : undefined);
+  const tz = waitTimeZone(config.tz);
+  const switchMode = (next: DelayMode) => {
+    if (next === mode) return;
+    const zone = browserTimeZone();
+    const base: Record<string, unknown> = { mode: next, when: config.when };
+    if (next === 'duration') onChange({ ...base, amount: 1, unit: 'days' });
+    else if (next === 'date') onChange({ ...base, dateSource: 'property', field: '', offsetDays: 0, offsetDir: 'after', time: '09:00', tz: zone });
+    else if (next === 'weekday') onChange({ ...base, days: [1], time: '09:00', tz: zone });
+    else onChange({ ...base, event: 'email_opened', eventField: '', timeoutAmount: DEFAULT_EVENT_TIMEOUT.amount, timeoutUnit: DEFAULT_EVENT_TIMEOUT.unit });
+  };
+  const timeFields = (
+    <>
+      <Field id={id('time')} label={t('delay.time')}>
+        <input id={id('time')} className="input data" type="time" value={waitTime(config.time)} onChange={(e) => onChange({ time: e.target.value })} disabled={dis} data-testid="workflow-delay-time" />
+      </Field>
+      <Field id={id('tz')} label={t('delay.timeZone')}>
+        <select id={id('tz')} className="select" value={tz} onChange={(e) => onChange({ tz: e.target.value })} disabled={dis} data-testid="workflow-delay-tz">
+          {timeZones(tz).map((z) => (
+            <option key={z} value={z}>
+              {z.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </>
+  );
+  const days = waitWeekdays(config.days);
+  const event = safeString(config.event);
+  return (
+    <div className="wf-config" data-testid="workflow-delay" data-mode={mode}>
+      <Field id={id('mode')} label={t('delay.mode')}>
+        <select id={id('mode')} className="select wf-type" value={mode} onChange={(e) => switchMode(e.target.value as DelayMode)} disabled={dis} data-testid="workflow-delay-mode">
+          {DELAY_MODES.map((m) => (
+            <option key={m} value={m}>
+              {t(`delay.modes.${m}`)}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {mode === 'duration' && (
+        <>
+          <div className="wf-delay">
+            <Field id={id('amount')} label={t('delay.amount')} error={reqMsg('amount')}>
+              <input
+                id={id('amount')}
+                className="input data"
+                type="number"
+                min={1}
+                {...req('amount', id('amount'))}
+                value={safeString(config.amount)}
+                onChange={(e) => onChange({ amount: e.target.value === '' ? '' : Number(e.target.value) })}
+                disabled={dis}
+                data-testid="workflow-delay-amount"
+              />
+            </Field>
+            <Field id={id('unit')} label={t('delay.unit')}>
+              <select id={id('unit')} className="select" value={safeString(config.unit) || 'days'} onChange={(e) => onChange({ unit: e.target.value })} disabled={dis}>
+                {DELAY_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {t(`delay.units.${u}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="ui-help">{t('delay.hint')}</p>
+        </>
+      )}
+      {mode === 'date' && (
+        <>
+          <div className="wf-delay-grid">
+            <Field id={id('source')} label={t('delay.dateSource')}>
+              <select id={id('source')} className="select" value={safeString(config.dateSource) === 'calendar' ? 'calendar' : 'property'} onChange={(e) => onChange({ dateSource: e.target.value })} disabled={dis} data-testid="workflow-delay-source">
+                <option value="property">{t('delay.sources.property')}</option>
+                <option value="calendar">{t('delay.sources.calendar')}</option>
+              </select>
+            </Field>
+            {safeString(config.dateSource) === 'calendar' ? (
+              <Field id={id('date')} label={t('delay.date')} error={reqMsg('date')}>
+                <input id={id('date')} className="input data" type="date" {...req('date', id('date'))} value={safeString(config.date)} onChange={(e) => onChange({ date: e.target.value })} disabled={dis} data-testid="workflow-delay-date" />
+              </Field>
+            ) : (
+              <Field id={id('dfield')} label={t('delay.dateField')} help={t('delay.dateFieldHint')} error={reqMsg('field')}>
+                <input id={id('dfield')} className="input data" {...req('field', id('dfield'))} value={safeString(config.field)} onChange={(e) => onChange({ field: e.target.value })} disabled={dis} data-testid="workflow-delay-field" placeholder="close_date" />
+              </Field>
+            )}
+          </div>
+          {safeString(config.dateSource) !== 'calendar' && (
+            <div className="wf-delay">
+              <Field id={id('offset')} label={t('delay.offsetDays')}>
+                <input
+                  id={id('offset')}
+                  className="input data"
+                  type="number"
+                  min={0}
+                  max={MAX_DATE_OFFSET_DAYS}
+                  value={safeString(config.offsetDays) || '0'}
+                  onChange={(e) => onChange({ offsetDays: e.target.value === '' ? 0 : Number(e.target.value) })}
+                  disabled={dis}
+                  data-testid="workflow-delay-offset"
+                />
+              </Field>
+              <Field id={id('dir')} label={t('delay.offsetDir')}>
+                <select id={id('dir')} className="select" value={safeString(config.offsetDir) === 'before' ? 'before' : 'after'} onChange={(e) => onChange({ offsetDir: e.target.value })} disabled={dis}>
+                  <option value="before">{t('delay.dirs.before')}</option>
+                  <option value="after">{t('delay.dirs.after')}</option>
+                </select>
+              </Field>
+            </div>
+          )}
+          <div className="wf-delay-grid">{timeFields}</div>
+          <p className="ui-help">{t('delay.dateHint')}</p>
+        </>
+      )}
+      {mode === 'weekday' && (
+        <>
+          <fieldset className="wf-people" aria-invalid={missing.includes('days') || undefined} data-testid="workflow-delay-days">
+            <legend className="label">{t('delay.days')}</legend>
+            <ul className="wf-days-list">
+              {WEEKDAYS.map((d) => (
+                <li key={d}>
+                  <label className="ui-check">
+                    <input
+                      type="checkbox"
+                      checked={days.includes(d)}
+                      onChange={(e) => onChange({ days: e.target.checked ? [...days, d] : days.filter((x) => x !== d) })}
+                      disabled={dis}
+                    />
+                    <span>{t(`delay.weekdays.${d}` as 'delay.weekdays.1')}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {missing.includes('days') && <span className="ui-error">{t('problems.required')}</span>}
+          </fieldset>
+          <div className="wf-delay-grid">{timeFields}</div>
+          <p className="ui-help">{t('delay.weekdayHint')}</p>
+        </>
+      )}
+      {mode === 'event' && (
+        <>
+          <div className="wf-delay-grid">
+            <Field id={id('event')} label={t('delay.event')} error={reqMsg('event')}>
+              <select id={id('event')} className="select" {...req('event', id('event'))} value={event} onChange={(e) => onChange({ event: e.target.value, eventField: '' })} disabled={dis} data-testid="workflow-delay-event">
+                {!isWaitEvent(event) && <option value="">{t('pick')}</option>}
+                {WAIT_EVENT_GROUPS.map((g) => (
+                  <optgroup key={g.entity} label={t(`entities.${g.entity}`)}>
+                    {g.events.map((ev) => (
+                      <option key={ev} value={ev}>
+                        {t(`delay.events.${ev}` as 'delay.events.email_opened')}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </Field>
+            {waitEventTakesField(event) && (
+              <Field id={id('efield')} label={t('delay.eventField')} help={t('delay.eventFieldHint')}>
+                <input id={id('efield')} className="input data" value={safeString(config.eventField)} onChange={(e) => onChange({ eventField: e.target.value })} disabled={dis} data-testid="workflow-delay-event-field" />
+              </Field>
+            )}
+          </div>
+          <div className="wf-delay">
+            <Field id={id('tamount')} label={t('delay.timeout')} error={reqMsg('timeoutAmount')}>
+              <input
+                id={id('tamount')}
+                className="input data"
+                type="number"
+                min={1}
+                {...req('timeoutAmount', id('tamount'))}
+                value={safeString(config.timeoutAmount ?? DEFAULT_EVENT_TIMEOUT.amount)}
+                onChange={(e) => onChange({ timeoutAmount: e.target.value === '' ? '' : Number(e.target.value) })}
+                disabled={dis}
+                data-testid="workflow-delay-timeout"
+              />
+            </Field>
+            <Field id={id('tunit')} label={t('delay.unit')}>
+              <select id={id('tunit')} className="select" value={safeString(config.timeoutUnit) || DEFAULT_EVENT_TIMEOUT.unit} onChange={(e) => onChange({ timeoutUnit: e.target.value })} disabled={dis}>
+                {DELAY_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {t(`delay.units.${u}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="ui-help">{t('delay.eventHint')}</p>
+        </>
+      )}
+    </div>
+  );
 }

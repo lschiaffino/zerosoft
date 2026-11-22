@@ -124,7 +124,7 @@ export default function OfflineSettings({ owner }: { owner: string }) {
 
   return (
     <div className="st-stack" data-testid="offline-settings">
-      <FormSection title={t('title')} description={t('desc')}>
+      <FormSection setting="offline-mode" title={t('title')} description={t('desc')}>
         <label className="ui-switch st-offline-switch" htmlFor="offline-enabled">
           <input id="offline-enabled" type="checkbox" role="switch" checked={prefs.enabled} onChange={(e) => toggleEnabled(e.target.checked)} />
           <span>{t('enabled')}</span>
@@ -214,7 +214,7 @@ export default function OfflineSettings({ owner }: { owner: string }) {
         </p>
       </FormSection>
 
-      <FormSection title={t('storageTitle')} description={t('storageDesc')}>
+      <FormSection setting="offline-storage" title={t('storageTitle')} description={t('storageDesc')}>
         {worker === 'none' ? (
           <p className="ui-help">{t('noWorker')}</p>
         ) : (
@@ -251,7 +251,7 @@ export default function OfflineSettings({ owner }: { owner: string }) {
         </div>
       </FormSection>
 
-      <FormSection title={t('pendingTitle')} description={t('pendingDesc')}>
+      <FormSection setting="offline-pending" title={t('pendingTitle')} description={t('pendingDesc')}>
         <p className="st-offline-pending" data-testid="offline-pending">
           <span className="data st-strong">{pending}</span> {t('pendingCount', { n: pending })}
         </p>

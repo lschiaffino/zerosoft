@@ -2,14 +2,17 @@
  * Alertas sobre insights de tendencias. El cron de cada hora reclama las que
  * vencieron (compare-and-set), mira el último intervalo cerrado y avisa solo
  * al pasar de "bien" a "disparada", así una alerta sostenida no repite el
- * aviso. Se avisa por notificación dentro de la app, a quienes siguen teniendo
- * acceso a Analytics en el workspace. Server-only.
+ * aviso. Se avisa por notificación dentro de la app y, si la alerta lo pide,
+ * por email, a quienes siguen teniendo acceso a Pulse en el workspace.
+ * Server-only.
  */
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { getDb } from '../db';
+import { appSender, escapeHtml, sendEmail } from '../email';
 import { createNotification } from '../notifications';
-import { localized } from '../notification-copy';
+import { localized, recipientLocale, renderLocalized } from '../notification-copy';
+import { rateLimit } from '../rate-limit';
 import { listOwnerSpacePeople } from '../workspace';
 import { getInsight } from './records';
 import { runTrends } from './query';
@@ -20,6 +23,8 @@ const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const CLAIM_MS = 10 * 60_000;
 export const ALERTS_PER_PROJECT = 50;
+/** Emails de alertas por workspace y por hora: un umbral mal puesto no llena casillas. */
+export const ALERT_EMAILS_PER_HOUR = 60;
 
 interface AlertRow {
   id: string;
@@ -33,6 +38,7 @@ interface AlertRow {
   frequency: string;
   enabled: number;
   subscribers: string;
+  email?: number | null;
   state: string;
   last_value: number | null;
   last_checked_at: number | null;
@@ -60,6 +66,7 @@ function toDto(r: AlertRow): AlertDto {
     frequency: r.frequency as AlertDto['frequency'],
     enabled: Number(r.enabled) === 1,
     subscribers: subs,
+    email: Number(r.email ?? 0) === 1,
     state: r.state as AlertDto['state'],
     lastValue: r.last_value === null ? null : Number(r.last_value),
     lastCheckedAt: r.last_checked_at === null ? null : Number(r.last_checked_at),
@@ -83,7 +90,7 @@ export async function getAlert(projectId: string, id: string): Promise<AlertDto 
   return r ? toDto(r) : null;
 }
 
-export async function createAlert(projectId: string, personId: string, input: AlertInput): Promise<AlertDto | 'too_many' | 'insight_not_found'> {
+export async function createAlert(projectId: string, personId: string, input: Omit<AlertInput, 'email'> & { email?: boolean }): Promise<AlertDto | 'too_many' | 'insight_not_found'> {
   const insight = await getInsight(projectId, input.insightId);
   if (!insight || insight.query.kind !== 'trends') return 'insight_not_found';
   const n = (await getDb().prepare('SELECT COUNT(*) AS n FROM analytics_alerts WHERE project_id = ?').get(projectId)) as { n: number };
@@ -93,10 +100,10 @@ export async function createAlert(projectId: string, personId: string, input: Al
   const subs = input.subscribers.length ? input.subscribers : [personId];
   await getDb()
     .prepare(
-      `INSERT INTO analytics_alerts (id, project_id, insight_id, name, series_index, condition, threshold, frequency, enabled, subscribers, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO analytics_alerts (id, project_id, insight_id, name, series_index, condition, threshold, frequency, enabled, subscribers, email, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, projectId, input.insightId, input.name, input.seriesIndex, input.condition, input.threshold, input.frequency, input.enabled ? 1 : 0, JSON.stringify(subs), personId, ts, ts);
+    .run(id, projectId, input.insightId, input.name, input.seriesIndex, input.condition, input.threshold, input.frequency, input.enabled ? 1 : 0, JSON.stringify(subs), input.email ? 1 : 0, personId, ts, ts);
   return (await getAlert(projectId, id))!;
 }
 
@@ -108,10 +115,10 @@ export async function updateAlert(projectId: string, id: string, patch: Partial<
   const reset = patch.condition !== undefined || patch.threshold !== undefined || patch.seriesIndex !== undefined || patch.frequency !== undefined;
   await getDb()
     .prepare(
-      `UPDATE analytics_alerts SET name = ?, series_index = ?, condition = ?, threshold = ?, frequency = ?, enabled = ?, subscribers = ?, updated_at = ?${reset ? ", state = 'ok', next_check_at = 0" : ''}
+      `UPDATE analytics_alerts SET name = ?, series_index = ?, condition = ?, threshold = ?, frequency = ?, enabled = ?, subscribers = ?, email = ?, updated_at = ?${reset ? ", state = 'ok', next_check_at = 0" : ''}
        WHERE id = ? AND project_id = ?`,
     )
-    .run(next.name, next.seriesIndex, next.condition, next.threshold, next.frequency, next.enabled ? 1 : 0, JSON.stringify(next.subscribers), new Date().toISOString(), id, projectId);
+    .run(next.name, next.seriesIndex, next.condition, next.threshold, next.frequency, next.enabled ? 1 : 0, JSON.stringify(next.subscribers), next.email ? 1 : 0, new Date().toISOString(), id, projectId);
   return getAlert(projectId, id);
 }
 
@@ -212,18 +219,58 @@ async function checkAlert(a: AlertRow & { workspace_id: string }, now: number): 
   } catch {
     subs = [];
   }
-  const allowed = new Set((await listOwnerSpacePeople(a.workspace_id, { app: 'pulse' })).map((p) => p.id));
+  const people = new Map((await listOwnerSpacePeople(a.workspace_id, { app: 'pulse' })).map((p) => [p.id, p]));
+  const title = localized('analyticsAlertTitle', { name: a.name });
+  const body = localized('analyticsAlertBody', { value: String(v.value), insight: insight.name });
   for (const userId of subs) {
-    if (!allowed.has(userId)) continue;
+    const person = people.get(userId);
+    if (!person) continue;
     await createNotification({
       userId,
       type: 'analytics_alert',
-      title: localized('analyticsAlertTitle', { name: a.name }),
-      body: localized('analyticsAlertBody', { value: String(v.value), insight: insight.name }),
+      title,
+      body,
       href: `/app/pulse/insights/${insight.id}`,
       sourceType: 'analytics_alert',
       sourceId: a.id,
     });
+    if (Number(a.email ?? 0) === 1 && person.email) {
+      // Un email que falla no frena el aviso a los demás ni deja la alerta en error.
+      await emailAlert(a.workspace_id, person.id, person.email, { title, body, insightId: insight.id }).catch((err) => {
+        console.error('[analytics alerts] email', a.id, err instanceof Error ? err.message : 'error');
+      });
+    }
   }
   return true;
+}
+
+const EMAIL_COPY: Record<'en' | 'es' | 'pt', { open: string; why: string }> = {
+  en: { open: 'Open the insight', why: 'You get this email because you are subscribed to this alert in Pulse. You can turn email off from the insight.' },
+  es: { open: 'Abrir el insight', why: 'Te llega este email porque estás suscripto a esta alerta en Pulse. Podés apagar el email desde el insight.' },
+  pt: { open: 'Abrir o insight', why: 'Você recebe este email porque está inscrito neste alerta no Pulse. Você pode desligar o email no insight.' },
+};
+
+const appUrl = () => (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+/** El email de una alerta disparada, en el idioma de quien lo recibe. Respeta un tope por workspace. */
+async function emailAlert(
+  workspaceId: string,
+  userId: string,
+  to: string,
+  msg: { title: ReturnType<typeof localized>; body: ReturnType<typeof localized>; insightId: string },
+): Promise<boolean> {
+  if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(`aalert-mail:${workspaceId}`, ALERT_EMAILS_PER_HOUR, 3600)).ok) return false;
+  const locale = await recipientLocale(userId);
+  const c = EMAIL_COPY[locale];
+  const subject = renderLocalized(msg.title, locale);
+  const line = renderLocalized(msg.body, locale);
+  const href = `${appUrl()}/${locale}/app/pulse/insights/${encodeURIComponent(msg.insightId)}`;
+  const res = await sendEmail({
+    to,
+    subject,
+    from: appSender(),
+    text: [line, '', `${c.open}: ${href}`, '', c.why].join('\n'),
+    html: `<p>${escapeHtml(line)}</p><p><a href="${escapeHtml(href)}">${escapeHtml(c.open)}</a></p><p style="font-size:12px;color:#666">${escapeHtml(c.why)}</p>`,
+  });
+  return res.ok;
 }

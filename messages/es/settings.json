@@ -1910,5 +1910,15 @@
     "adminNote": "Ves esta página como admin. Quiénes lo pidieron y sus palabras están en el admin del roadmap.",
     "adminLink": "Abrir en el admin del roadmap",
     "reason": "Motivo: {reason}"
+  },
+  "search": {
+    "label": "Buscar en ajustes",
+    "placeholder": "Buscar en ajustes",
+    "results": "Ajustes que coinciden",
+    "loading": "Cargando ajustes…",
+    "noResults": "Ningún ajuste coincide con “{q}”",
+    "try": "Probá",
+    "hint": "Escribí una palabra del ajuste, en cualquier idioma.",
+    "suggestions": "modo oscuro|2FA|invitar|idioma|webhooks"
   }
 }

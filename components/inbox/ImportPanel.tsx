@@ -315,7 +315,7 @@ export default function ImportPanel({ whatsappConnected, gmailConnected = false,
   };
 
   return (
-    <section className="ib-section" id="import" aria-labelledby="ib-import-h">
+    <section className="ib-section" id="import" aria-labelledby="ib-import-h" data-setting="inbox-import">
       <h2 className="ib-h2" id="ib-import-h">
         {t('title')}
       </h2>

@@ -1910,5 +1910,15 @@
     "adminNote": "Você vê esta página como admin. Quem pediu e as palavras de cada um estão no admin do roadmap.",
     "adminLink": "Abrir no admin do roadmap",
     "reason": "Motivo: {reason}"
+  },
+  "search": {
+    "label": "Buscar nas configurações",
+    "placeholder": "Buscar nas configurações",
+    "results": "Configurações encontradas",
+    "loading": "Carregando configurações…",
+    "noResults": "Nenhuma configuração corresponde a “{q}”",
+    "try": "Tente",
+    "hint": "Digite uma palavra da configuração, em qualquer idioma.",
+    "suggestions": "modo escuro|2FA|convidar|idioma|webhooks"
   }
 }

@@ -254,7 +254,7 @@ export default async function ContactDetailPage(props: {
     nextTaskFor(user.id, { contactId: id, chatReader }),
     listCompanies(user.id, { pageSize: 100, sort: 'name', ownerScope: scope }),
     fieldAccessFor(sessionFieldViewer(user), 'contacts'),
-    contactScores(user.id, contact),
+    contactScores(user.id, contact, undefined, sessionFieldViewer(user)),
     getDb()
       .prepare(
         `SELECT d.id, d.name FROM crm_deals d WHERE d.user_id = ?${dealScope.sql ? ` AND ${dealScope.sql}` : ''}

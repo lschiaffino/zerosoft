@@ -870,7 +870,8 @@ async function insertRecord(ctx: PageCtx, object: SyncObject, hubspotId: string,
   return { id, shadow };
 }
 
-async function updateRecord(ctx: PageCtx, object: SyncObject, id: string, row: Record<string, unknown>, remote: Values, apply: string[]): Promise<void> {
+/** Escribe acá los valores de HubSpot de `apply` (también lo usa la resolución de conflictos, conflicts.ts). */
+export async function updateRecord(ctx: Pick<PageCtx, 'db' | 'ws' | 'plan'>, object: SyncObject, id: string, row: Record<string, unknown>, remote: Values, apply: string[]): Promise<void> {
   if (!apply.length) return;
   const cols: Array<[string, string | number | null]> = [];
   let custom: Record<string, unknown> | null = null;

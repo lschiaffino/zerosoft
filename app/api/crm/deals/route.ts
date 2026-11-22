@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { sessionScope } from '@/lib/crm-visibility';
+import { sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { createDeal, listDeals, listDealsForBoard } from '@/lib/crm';
@@ -67,6 +67,9 @@ export async function POST(req: NextRequest) {
     const missing = await createFormMissing(sessionFieldViewer(user), 'deals', data);
     if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
   }
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const result = await catchRef(createDeal(user.id, data));
   if (result instanceof CrmRefError) return crmError(400, result.code);
   if (!result.ok) {
