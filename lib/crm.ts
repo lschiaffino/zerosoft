@@ -3,6 +3,7 @@
  * Sigue el patrón de lib/links.ts: getDb() singleton, WHERE builders,
  * paginación con clamp, ids crypto.randomUUID(), timestamps UTC.
  */
+import { shiftReminder } from './crm-tasks-shared';
 import { recordStageEntry } from './crm-stage-history';
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
 import { deleteUploads } from './uploads';
@@ -2238,6 +2239,10 @@ export interface ActivityInput {
   taskKind?: TaskKind;
   /** Solo tareas: '' (sin prioridad), 'low', 'medium' o 'high' (lib/tasks.ts). */
   priority?: TaskPriority;
+  /** Solo tareas: cola con nombre (lib/crm-task-queues.ts). La ruta comprueba que quien edita la ve. */
+  queueId?: string | null;
+  /** Solo tareas: recordatorio a quien la tiene, en UTC (lib/crm-task-reminders.ts). */
+  reminderAt?: string | null;
 }
 
 export type ActivityListRow = CrmActivityRow & {
@@ -2303,6 +2308,9 @@ async function assertActivityRefs(userId: string, data: ActivityInput, db: Db): 
       .get(data.projectId, userId))
   ) {
     throw new CrmRefError('invalid_project');
+  }
+  if (data.queueId && !(await db.prepare('SELECT 1 FROM crm_task_queues WHERE id = ? AND user_id = ?').get(data.queueId, userId))) {
+    throw new CrmRefError('invalid_queue');
   }
 }
 
@@ -2375,8 +2383,9 @@ export async function createActivity(
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, channel, duration_min,
-        contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, task_kind, priority, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, task_kind, priority, queue_id, reminder_at,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2399,6 +2408,8 @@ export async function createActivity(
       (data.type ?? 'note') === 'task' ? (data.repeat ?? 'none') : 'none',
       (data.type ?? 'note') === 'task' ? (data.taskKind ?? '') : '',
       (data.type ?? 'note') === 'task' ? cleanPriority(data.priority) : '',
+      (data.type ?? 'note') === 'task' ? (data.queueId ?? null) : null,
+      (data.type ?? 'note') === 'task' ? (data.reminderAt ?? null) : null,
       ts,
       ts,
     );
@@ -2450,6 +2461,19 @@ export async function updateActivity(
   if (data.repeat !== undefined) sets.push(['repeat', data.repeat]);
   if (data.taskKind !== undefined) sets.push(['task_kind', (data.type ?? existing.type) === 'task' ? data.taskKind : '']);
   if (data.priority !== undefined) sets.push(['priority', (data.type ?? existing.type) === 'task' ? cleanPriority(data.priority) : '']);
+  if (data.queueId !== undefined) sets.push(['queue_id', (data.type ?? existing.type) === 'task' ? data.queueId : null]);
+  if (data.reminderAt !== undefined) {
+    sets.push(['reminder_at', (data.type ?? existing.type) === 'task' ? data.reminderAt : null]);
+    // Otra hora → el recordatorio vuelve a quedar pendiente.
+    if (data.reminderAt !== existing.reminder_at) sets.push(['reminder_sent_at', null]);
+  } else if (data.dueAt !== undefined && data.dueAt !== existing.due_at && existing.reminder_at) {
+    // Se movió el vencimiento (posponer, otra fecha): el recordatorio se corre lo mismo y vuelve a quedar pendiente.
+    const shifted = shiftReminder(existing.reminder_at, existing.due_at, data.dueAt);
+    if (shifted) {
+      sets.push(['reminder_at', shifted]);
+      sets.push(['reminder_sent_at', null]);
+    }
+  }
   sets.push(['updated_at', now()]);
   await db
     .prepare(`UPDATE crm_activities SET ${sets.map(([c]) => `${c} = ?`).join(', ')} WHERE id = ?`)
@@ -2482,8 +2506,8 @@ async function spawnNextRepeat(userId: string, task: CrmActivityRow, db: Db): Pr
     .prepare(
       `INSERT INTO crm_activities
        (id, user_id, owner_id, type, subject, body, due_at, contact_id, company_id, deal_id, project_id, repeat,
-        task_kind, priority, created_at, updated_at)
-       VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        task_kind, priority, queue_id, reminder_at, created_at, updated_at)
+       VALUES (?, ?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       nextId,
@@ -2499,6 +2523,9 @@ async function spawnNextRepeat(userId: string, task: CrmActivityRow, db: Db): Pr
       repeat,
       task.task_kind ?? '',
       task.priority ?? '',
+      task.queue_id ?? null,
+      // El recordatorio de la serie, a la misma distancia del nuevo vencimiento.
+      shiftReminder(task.reminder_at, task.due_at, nextRepeatDue(task.due_at, repeat)),
       ts,
       ts,
     );

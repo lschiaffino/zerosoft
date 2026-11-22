@@ -183,6 +183,19 @@ const STEPS: Step[] = [
       await db()
         .prepare("DELETE FROM crm_saved_views WHERE user_id = ? AND person_id = ? AND visibility = 'private'")
         .run(e.ownerId, e.userId);
+      // Sus colas de tareas privadas (A3): las tareas quedan, sin cola. Y su email diario de tareas.
+      try {
+        await db()
+          .prepare(
+            'UPDATE crm_activities SET queue_id = NULL WHERE user_id = ? AND queue_id IN (SELECT id FROM crm_task_queues WHERE user_id = ? AND person_id = ? AND shared = 0)',
+          )
+          .run(e.ownerId, e.ownerId, e.userId);
+        await db().prepare('DELETE FROM crm_task_queues WHERE user_id = ? AND person_id = ? AND shared = 0').run(e.ownerId, e.userId);
+        // El email diario de tareas: no vuelve solo si la suman de nuevo.
+        await db().prepare('DELETE FROM crm_task_digests WHERE user_id = ? AND person_id = ?').run(e.ownerId, e.userId);
+      } catch (err) {
+        if (!/no such table|no such column/i.test(String(err))) throw err;
+      }
     },
   },
   {

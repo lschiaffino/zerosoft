@@ -910,3 +910,42 @@ button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset:
 .voice-panel-nested { padding-left: 22px; display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .voice-panel code,
 .gmail-panel code { word-break: break-all; }
+
+/* ---------- Tareas: listado como tabla (A3) ---------- */
+
+.task-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 0; }
+.task-search { flex: 0 1 260px; min-width: 0; }
+.task-search .input { width: 100%; }
+.task-toolbar .task-filters { flex: 1 1 auto; padding-bottom: 0; }
+.task-start-view { margin-left: auto; }
+.task-table .th-sort { padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; }
+.task-table .th-sort-mark { color: var(--ink); }
+.task-title-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.task-title-sub { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 2px 0 0 32px; font-size: 0.8125rem; }
+.task-table td.cell-task-card { display: none; }
+.task-card-meta { color: var(--brand-gray-1); }
+@media (min-width: 641px) {
+  /* La fila de tarea vieja era una grilla: en la tabla vuelve a ser una fila. */
+  .task-table tr.task-row { display: table-row; min-height: 0; padding: 0; }
+  .task-table .cell-task-title { min-width: 240px; white-space: normal; }
+}
+.task-queue-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.task-queue-form .input { flex: 1 1 180px; min-width: 0; }
+.task-queue-shared { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; }
+.task-queue-item { flex-wrap: wrap; }
+.task-queue-meta { display: block; font-size: 0.75rem; }
+.task-queue-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: auto; }
+.task-queue-rename { display: flex; flex: 1 1 auto; gap: 8px; }
+.task-queue-rename .input { flex: 1 1 auto; min-width: 0; }
+.task-queues-help { margin: 0; font-size: 0.8125rem; }
+@media (max-width: 640px) {
+  .task-toolbar { align-items: stretch; }
+  .task-search { flex: 1 1 100%; }
+  .task-toolbar .task-filters { flex-wrap: wrap; }
+  .task-toolbar .task-filters .select { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .task-start-view { width: 100%; margin-left: 0; justify-content: center; }
+  .task-title-sub { margin-left: 0; }
+  .task-queue-actions { margin-left: 0; }
+}
+.task-digest-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.task-digest-toggle input { margin: 0; }

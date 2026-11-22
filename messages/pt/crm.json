@@ -563,7 +563,8 @@
       "project": "Projeto",
       "owner": "Responsável",
       "repeat": "Repetir",
-      "priority": "Prioridade"
+      "priority": "Prioridade",
+      "reminder": "Lembrete"
     },
     "detail": {
       "back": "← Todas as tarefas",
@@ -629,6 +630,64 @@
       "error": "Não foi possível criar a issue.",
       "created": "Issue {id} criada",
       "source": "De"
+    },
+    "searchPlaceholder": "Buscar tarefas",
+    "filterType": "Tipo de tarefa",
+    "filterPriority": "Prioridade",
+    "ownerMe": "Eu",
+    "ownerUnassigned": "Sem responsável",
+    "kind": {
+      "todo": "A fazer"
+    },
+    "startView": "{count, plural, one {Começar # tarefa} other {Começar # tarefas}}",
+    "emptyFiltered": "Nenhuma tarefa corresponde a estes filtros",
+    "emptyFilteredBody": "Mude ou limpe os filtros para ver mais tarefas.",
+    "table": {
+      "title": "Título",
+      "type": "Tipo",
+      "priority": "Prioridade",
+      "associated": "Associada a",
+      "due": "Vencimento",
+      "owner": "Atribuída a",
+      "status": "Status",
+      "created": "Criada"
+    },
+    "reminderNeedsDue": "Defina uma data de vencimento para adicionar um lembrete.",
+    "reminder": {
+      "none": "Sem lembrete",
+      "at_due": "Na hora do vencimento",
+      "15m": "15 minutos antes",
+      "1h": "1 hora antes",
+      "1d": "1 dia antes",
+      "1w": "1 semana antes"
+    },
+    "reminderAt": "Lembrete {when}",
+    "reminderSent": "enviado",
+    "reminderHelp": "Nesse horário, a pessoa atribuída recebe um aviso e um email.",
+    "bulkLabel": "Tarefas selecionadas",
+    "bulkSelected": "{count, plural, one {# tarefa selecionada} other {# tarefas selecionadas}}",
+    "bulkConfirmDelete": "{count, plural, one {Excluir # tarefa?} other {Excluir # tarefas?}}",
+    "queues": {
+      "label": "Fila",
+      "filter": "Fila",
+      "none": "Sem fila",
+      "manage": "Filas",
+      "help": "Junte tarefas em uma fila e trabalhe uma depois da outra. Uma fila privada é só sua; uma compartilhada é vista por todo o workspace.",
+      "namePlaceholder": "Nome da fila",
+      "shareWithAll": "Compartilhar com o workspace",
+      "shared": "Compartilhada",
+      "private": "Privada",
+      "share": "Compartilhar",
+      "makePrivate": "Tornar privada",
+      "rename": "Renomear",
+      "start": "Começar",
+      "deleteConfirm": "As tarefas ficam, sem fila.",
+      "openCount": "{count, plural, one {# tarefa aberta} other {# tarefas abertas}}",
+      "empty": "Ainda não há filas."
+    },
+    "digest": {
+      "label": "Email diário",
+      "hint": "Toda manhã às 8, um email com suas tarefas abertas vencidas ou que vencem hoje."
     }
   },
   "lists": {
@@ -1254,7 +1313,9 @@
     "not_unique": "Alguns registros já compartilham um valor nesta propriedade. Corrija os duplicados primeiro.",
     "invalid_unique": "Só propriedades de texto, número, URL e telefone de contatos, empresas e negócios podem exigir valor único.",
     "duplicate_label": "Já existe um rótulo com esse nome.",
-    "too_many_labels": "Você atingiu o limite de rótulos para esta associação."
+    "too_many_labels": "Você atingiu o limite de rótulos para esta associação.",
+    "invalid_queue": "Essa fila não existe ou você não pode vê-la.",
+    "too_many": "Este workspace atingiu o limite."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -2269,7 +2330,8 @@
         "overdue": "Nada vencido",
         "today": "Nada para hoje",
         "upcoming": "Nada nos próximos dias",
-        "done": "Nenhuma tarefa concluída ainda"
+        "done": "Nenhuma tarefa concluída ainda",
+        "all": "Nenhuma tarefa aberta"
       },
       "tasksBody": "As tarefas de contatos, empresas e deals aparecem aqui por data.",
       "bringFromHubspot": "Traga seus dados do HubSpot"
@@ -3018,7 +3080,9 @@
     "scope": {
       "due": "Atrasadas e de hoje",
       "overdue": "Atrasadas",
-      "today": "Hoje"
+      "today": "Hoje",
+      "upcoming": "Próximas",
+      "all": "Todas as abertas"
     },
     "counter": "Tarefa {current} de {total}",
     "progress": "Progresso da fila",
@@ -3060,7 +3124,8 @@
     "emptyBody": "Nesta fila não há tarefas atrasadas nem que vencem hoje.",
     "finishedTitle": "Você terminou a fila",
     "finishedSummary": "{done} concluídas, {snoozed} adiadas e {skipped} para depois.",
-    "reviewSkipped": "Revisar as {count} puladas"
+    "reviewSkipped": "Revisar as {count} puladas",
+    "namedDesc": "As tarefas abertas desta fila, uma por vez."
   },
   "playbooks": {
     "title": "Playbooks",
@@ -4598,7 +4663,12 @@
       "unassignedCompanies": "Empresas sem responsável",
       "allDeals": "Todos os negócios",
       "myDeals": "Meus negócios",
-      "openDeals": "Negócios abertos"
+      "openDeals": "Negócios abertos",
+      "allTasks": "Todas as tarefas",
+      "dueToday": "Vencem hoje",
+      "overdueTasks": "Vencidas",
+      "upcomingTasks": "Próximas",
+      "completedTasks": "Concluídas"
     },
     "columns": {
       "button": "Editar colunas",
@@ -4623,7 +4693,8 @@
       "entities": {
         "contacts": "Contatos",
         "companies": "Empresas",
-        "deals": "Negócios"
+        "deals": "Negócios",
+        "tasks": "Tarefas"
       },
       "you": "Você",
       "formerMember": "Ex-membro",
