@@ -152,8 +152,9 @@ final class MainWindowUITests: XCTestCase {
         let ready = readyLine(app)
         if Self.mode == "on" {
             // Section 3.1. Measured on macos-15: WebAssembly, IndexedDB, WebRTC, Web Audio and
-            // Notification go; service workers stay with the per-web-view switch. getUserMedia is
-            // absent in both modes here (no camera entitlement yet), so it proves nothing.
+            // Notification go; service workers stay with the per-web-view switch. getUserMedia was
+            // absent in both modes before the camera entitlement (block 8); with it, it is present
+            // only without the restrictions (Rec's test attaches the measure).
             XCTAssertTrue(line.contains("wasm=undefined"), "Lockdown restrictions not active: \(line)")
             for gone in ["wasm", "idb", "rtc", "audio", "notification"] {
                 XCTAssertTrue(ready.contains("\(gone)=false"), "\(gone) still on with Lockdown: \(ready)")
