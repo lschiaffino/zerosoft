@@ -622,7 +622,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
 
   // ---------- Derecha: asociaciones ----------
   // La persona ya ve el deal (notFound arriba si no): sus inscripciones en workflows.
-  const workflowEnrollments = await listRecordEnrollments(user.id, 'deal', deal.id);
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'deal', deal.id, 20, sessionFieldViewer(user));
 
   const right = (
     <>

@@ -149,8 +149,10 @@ export interface PrivateRefFlags {
 /**
  * Filas sin los asociados que la persona no ve: su id y sus columnas quedan
  * en null y la marca en true, así la UI muestra "Registro privado" sin link.
- * Un asociado inexistente o de otro workspace cuenta como no visible. Sin
- * restricción devuelve las filas tal cual.
+ * Un id que no apunta a un registro del workspace (borrado, o de otro
+ * workspace) queda en null sin marca, para todos: se ve como "sin asociado",
+ * igual para un admin que para un miembro, y no dice si el registro existe
+ * en otro lado. Sin nada que limpiar devuelve las filas tal cual.
  */
 export async function maskPrivateRefs<T extends object>(
   workspaceId: string,
@@ -159,21 +161,26 @@ export async function maskPrivateRefs<T extends object>(
   scope: OwnerScope | undefined,
   db: Db = getDb(),
 ): Promise<Array<T & PrivateRefFlags>> {
-  if (!scope || !rows.length || !specs.length) return rows as Array<T & PrivateRefFlags>;
-  const out = rows.map((r) => ({ ...r }) as Record<string, unknown>);
+  if (!rows.length || !specs.length) return rows as Array<T & PrivateRefFlags>;
+  let out: Array<Record<string, unknown>> | null = null;
   for (const spec of specs) {
-    const ids = out.map((r) => r[spec.id]).filter((v): v is string => typeof v === 'string' && v !== '');
+    const source = out ?? (rows as Array<Record<string, unknown>>);
+    const ids = source.map((r) => r[spec.id]).filter((v): v is string => typeof v === 'string' && v !== '');
     if (!ids.length) continue;
-    const visible = await visibleRecordIds(workspaceId, spec.table, ids, scope, db);
+    const existing = await visibleRecordIds(workspaceId, spec.table, ids, undefined, db);
+    const visible = scope ? await visibleRecordIds(workspaceId, spec.table, [...existing], scope, db) : existing;
+    if (ids.every((id) => visible.has(id))) continue;
+    out ??= rows.map((r) => ({ ...r }) as Record<string, unknown>);
     for (const r of out) {
       const id = r[spec.id];
       if (typeof id !== 'string' || id === '' || visible.has(id)) continue;
       r[spec.id] = null;
       for (const f of spec.fields) if (f in r) r[f] = null;
-      r[spec.flag] = true;
+      // Huérfano: sin marca (no hay nada que no se pueda ver).
+      if (existing.has(id)) r[spec.flag] = true;
     }
   }
-  return out as Array<T & PrivateRefFlags>;
+  return (out ?? rows) as Array<T & PrivateRefFlags>;
 }
 
 /** maskPrivateRefs para una sola fila (null pasa como null). */
@@ -199,7 +206,7 @@ const DETAIL_REFS = {
  * Ficha (getContact, getCompany, getDeal, ya pasada por scope*Detail) sin ids
  * de asociados que la persona no ve dentro de cada fila: la empresa primaria
  * de un contacto (`company_id`) y la madre de una empresa
- * (`parent_company_id`). Sin restricción la devuelve tal cual.
+ * (`parent_company_id`). Un id huérfano queda en null para todos.
  */
 export async function maskDetailRefs<T extends object>(
   workspaceId: string,
@@ -208,7 +215,6 @@ export async function maskDetailRefs<T extends object>(
   scope: OwnerScope | undefined,
   db: Db = getDb(),
 ): Promise<T> {
-  if (!scope) return detail;
   const out: Record<string, unknown> = { ...(detail as Record<string, unknown>) };
   for (const [key, specs] of Object.entries(DETAIL_REFS[kind]) as Array<[string, readonly PrivateRefSpec[]]>) {
     const v = out[key];

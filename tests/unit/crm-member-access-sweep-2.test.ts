@@ -163,11 +163,14 @@ describe('asociados que la persona no ve', () => {
     expect(out[0]).toEqual({ id: 'a', company_id: null, company_name: null, company_private: true });
     expect(out[1]).toEqual(rows[1]);
     expect(out[2]).toEqual(rows[2]);
-    expect(out[3]).toMatchObject({ company_id: null, company_private: true });
-    expect(await maskPrivateRefs(s.ws, rows, spec, null)).toBe(rows);
-    // Otro workspace: nada de este cuenta como visible.
+    // Un id que no es de un registro del workspace queda vacío, sin marca (igual para todos: ver la tercera pasada).
+    expect(out[3]).toEqual({ id: 'd', company_id: null, company_name: null });
+    // Sin alcance y sin huérfanos no toca nada.
+    const live = rows.slice(0, 3);
+    expect(await maskPrivateRefs(s.ws, live, spec, null)).toBe(live);
+    // Otro workspace: un id de este es un huérfano más.
     const other = await maskPrivateRefs(s.w.stranger.id, rows.slice(1, 2), spec, [s.w.stranger.id]);
-    expect(other[0]).toMatchObject({ company_id: null, company_private: true });
+    expect(other[0]).toEqual({ id: 'b', company_id: null, company_name: null });
   });
 
   it('leads: el contacto, la empresa y el deal que no se ven salen como privados, y la búsqueda no los usa', async () => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { createWorkflow, listWorkflows } from '@/lib/crm-workflows';
+import { createWorkflow, listWorkflows, workflowsForViewer } from '@/lib/crm-workflows';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { workflowCreateSchema } from '@/lib/crm-workflows-schema';
 import { redactActionsForMember } from '@/lib/crm-workflow-rules';
 import { invalidBody, unauthorized, forbidden } from '@/lib/crm-http';
@@ -11,7 +12,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const workflows = await listWorkflows(user.id);
+  // Sin los que nombran un campo que la persona tiene oculto.
+  const workflows = await workflowsForViewer(sessionFieldViewer(user), await listWorkflows(user.id));
   // Quien no administra workflows no ve cabeceras ni URLs completas de webhooks (pueden llevar tokens).
   return NextResponse.json({
     workflows: isWorkspaceAdmin(user) ? workflows : workflows.map((w) => ({ ...w, actions: redactActionsForMember(w.actions) })),

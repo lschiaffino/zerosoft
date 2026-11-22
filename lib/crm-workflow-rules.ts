@@ -274,3 +274,20 @@ export function redactActionsForMember<A extends { type: string; config: Record<
     return { ...a, config: { method: str(a.config.method) || 'POST', url: urlOrigin(a.config.url), when: a.config.when } };
   });
 }
+
+/**
+ * ¿La config del workflow (disparadores, filtros de inscripción, acciones,
+ * plantillas) nombra un campo propio que la persona tiene oculto? Busca
+ * `custom.<nombre>` en cualquier parte, de cualquier entidad: ante la duda,
+ * el workflow no se le muestra (como una lista que filtra por un campo
+ * oculto). Puro.
+ */
+export function workflowUsesHiddenField(
+  workflow: { triggers: Array<{ config: unknown }>; actions: Array<{ config: unknown }>; settings?: unknown },
+  hidden: ReadonlySet<string>,
+): boolean {
+  if (!hidden.size) return false;
+  const text = JSON.stringify([workflow.triggers.map((t) => t.config), workflow.actions.map((a) => a.config), workflow.settings ?? null]);
+  for (const m of text.matchAll(/custom\.([A-Za-z0-9_-]+)/g)) if (hidden.has(m[1])) return true;
+  return false;
+}

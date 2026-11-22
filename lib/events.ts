@@ -41,6 +41,11 @@ export interface EmitOptions {
    * Flow lo devuelto reemplaza a `data` y a `extra`.
    */
   personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown>; extra?: Record<string, unknown> } | null>;
+  /**
+   * Con `personalize`: lo que reciben las apps del CRM (Slack, que solo anuncia
+   * nombre y link). Sin esto, un evento personalizado no les llega.
+   */
+  appsData?: unknown;
 }
 
 /**
@@ -71,10 +76,10 @@ export async function emitEvent(
   if ((WEBHOOK_EVENTS as readonly string[]).includes(type)) {
     await emitWebhook(workspaceId, type as WebhookEvent, data, opts.audience, opts.personalize);
     // Apps del CRM (Slack): mismos eventos que los webhooks (nunca lo restringido).
-    if (!opts.audience && !opts.personalize) {
+    if (!opts.audience && (!opts.personalize || opts.appsData !== undefined)) {
       try {
         const { notifyApps } = await import('./crm-apps');
-        await notifyApps(workspaceId, type as WebhookEvent, data);
+        await notifyApps(workspaceId, type as WebhookEvent, opts.personalize ? opts.appsData : data);
       } catch {
         /* una app caída no corta el evento */
       }

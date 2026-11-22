@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { deleteWorkflow, getWorkflow, updateWorkflow } from '@/lib/crm-workflows';
+import { deleteWorkflow, getWorkflowForViewer, updateWorkflow } from '@/lib/crm-workflows';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
 import { redactActionsForMember } from '@/lib/crm-workflow-rules';
 import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
@@ -12,7 +13,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const workflow = await getWorkflow(user.id, params.id);
+  // Un workflow que nombra un campo que la persona tiene oculto no existe para ella.
+  const workflow = await getWorkflowForViewer(sessionFieldViewer(user), params.id);
   if (!workflow) return notFound();
   if (!isWorkspaceAdmin(user)) return NextResponse.json({ ...workflow, actions: redactActionsForMember(workflow.actions) });
   return NextResponse.json(workflow);
