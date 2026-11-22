@@ -11,7 +11,7 @@
 import { getDb, type CrmContactRow, type CrmCustomFieldRow, type CrmObjectRecordRow, type CrmObjectRow, type Db } from './db';
 import { appendAdvancedFilters, parseCustom, type AdvancedFieldDef, type FilterFieldType, type FilterRule } from './crm';
 import { assertRefs, CrmRefError } from './crm-refs';
-import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { filterByScope, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { deleteFieldPermissions } from './crm-field-perms';
 import { coerceCustomFieldValue } from './crm-custom-fields';
 
@@ -342,7 +342,11 @@ export interface RecordLinks {
   deals: Array<{ id: string; name: string; amount: number; currency: string; owner_id: string | null; user_id: string }>;
 }
 
-export async function recordLinks(workspaceId: string, recordId: string, db: Db = getDb()): Promise<RecordLinks> {
+/**
+ * Contactos, empresas y deals vinculados al registro. Con `scope`, solo los
+ * que la persona ve (los demás no salen ni por id ni por nombre).
+ */
+export async function recordLinks(workspaceId: string, recordId: string, scope?: OwnerScope, db: Db = getDb()): Promise<RecordLinks> {
   const [contacts, companies, deals] = await Promise.all([
     db
       .prepare(
@@ -366,7 +370,8 @@ export async function recordLinks(workspaceId: string, recordId: string, db: Db 
       )
       .all(recordId, workspaceId) as Promise<RecordLinks['deals']>,
   ]);
-  return { contacts, companies, deals };
+  if (!scope) return { contacts, companies, deals };
+  return { contacts: filterByScope(contacts, scope), companies: filterByScope(companies, scope), deals: filterByScope(deals, scope) };
 }
 
 export interface LinkedRecord {

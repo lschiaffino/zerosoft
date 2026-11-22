@@ -17,7 +17,7 @@ import { listTags } from '@/lib/crm-tags';
 import { getCrmSettings, listExchangeRates, missingRates } from '@/lib/crm-currency';
 import { getMemberVisibility, listSalesTeams, sessionScope } from '@/lib/crm-visibility';
 import { getAssignmentRule, listAssignmentHistory, unavailablePeople } from '@/lib/crm-assignment';
-import { listScoreRules, listScores } from '@/lib/crm-scoring';
+import { listScoreRules, listScores, scoreRulesForViewer } from '@/lib/crm-scoring';
 import { quotaProgress } from '@/lib/crm-quotas';
 import { CRM_SETTINGS_TABS, crmSettingsTab } from '@/lib/crm-settings-tabs';
 import PageHeader from '@/components/ui/PageHeader';
@@ -249,7 +249,7 @@ export default async function CrmSettingsPage(props: {
       getAssignmentRule(user.id),
       unavailablePeople(user.id),
       sessionScope(user).then((scope) => listAssignmentHistory(user.id, 15, scope)),
-      listScoreRules(user.id),
+      listScoreRules(user.id).then((rules) => scoreRulesForViewer(sessionFieldViewer(user), rules)),
       fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
       listScores(user.id),
     ]);

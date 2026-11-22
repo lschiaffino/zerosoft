@@ -22,7 +22,7 @@ import { createActivity, createContact } from './crm';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { BODY_TEXT_MAX, dbNow, newTrackingToken, pixelUrl } from './crm-email';
 import { parseAddressList } from './gmail';
-import { canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
+import { activityScopeSql, canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
 import { emitEvent } from './events';
 
 export interface ExtensionActor {
@@ -121,13 +121,15 @@ export async function extensionSidebar(actor: ExtensionActor, email: string): Pr
     user_id: string;
     stage_name: string | null;
   }>;
+  // Misma regla que el índice de Tareas: todos los registros de la tarea (deal, lead, objeto) se ven.
+  const taskVis = activityScopeSql('a', actor.scope);
   const tasks = (await db
     .prepare(
-      `SELECT * FROM crm_activities
-       WHERE user_id = ? AND contact_id = ? AND type = 'task' AND done = 0
-       ORDER BY due_at IS NULL, due_at ASC, created_at DESC LIMIT 20`,
+      `SELECT a.* FROM crm_activities a
+       WHERE a.user_id = ? AND a.contact_id = ? AND a.type = 'task' AND a.done = 0${taskVis.sql ? ` AND ${taskVis.sql}` : ''}
+       ORDER BY a.due_at IS NULL, a.due_at ASC, a.created_at DESC LIMIT 20`,
     )
-    .all(actor.workspaceId, contact.id)) as CrmActivityRow[];
+    .all(actor.workspaceId, contact.id, ...taskVis.args)) as CrmActivityRow[];
   const logged = (await db
     .prepare('SELECT COUNT(*) AS n FROM crm_email_contacts WHERE user_id = ? AND contact_id = ?')
     .get(actor.workspaceId, contact.id)) as { n: number } | undefined;
@@ -159,7 +161,7 @@ export async function extensionSidebar(actor: ExtensionActor, email: string): Pr
         url: `/app/crm/deals/${d.id}`,
       })),
     // Tareas de chats de Lines que la persona no ve: sin su texto (lib/crm-chat-privacy.ts).
-    tasks: (await redactChatTasks(actor.workspaceId, tasks.filter((t) => canSeeOwner(actor.scope, t.owner_id, t.user_id)), await personChatReader(actor.workspaceId, actor.personId, 'en')))
+    tasks: (await redactChatTasks(actor.workspaceId, tasks, await personChatReader(actor.workspaceId, actor.personId, 'en')))
       .map((t) => ({ id: t.id, subject: t.subject, dueAt: t.due_at, url: `/app/crm/tasks/${t.id}` })),
     emailsLogged: Number(logged?.n ?? 0),
   };

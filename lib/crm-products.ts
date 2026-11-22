@@ -12,7 +12,7 @@
  *   no muestra borradores.
  */
 import { localized } from './notification-copy';
-import { dealScopeSql, type OwnerScope } from './crm-visibility';
+import { dealScopeSql, getMemberVisibility, scopeAnd, type OwnerScope } from './crm-visibility';
 import { createHmac, randomBytes } from 'node:crypto';
 import { CrmRefError } from './crm-refs';
 import { cleanSignatureImage, getQuoteSignature, quoteContentHash } from './crm-quote-sign';
@@ -453,19 +453,24 @@ export async function createQuote(
   const snap = await snapshotItems(userId, dealId, db);
   if (!snap.items.length) return { ok: false, error: 'no_line_items' };
 
-  // Destinatario por defecto: primer contacto del deal y su empresa primaria.
+  // Destinatario por defecto: primer contacto del deal y su empresa primaria. El quote lo ve todo
+  // quien ve el deal, así que solo entran los que ve cualquiera que lo abre (los del owner del deal
+  // si la visibilidad es "míos" o "equipo").
+  const audience: OwnerScope = (await getMemberVisibility(userId, db)) === 'all' ? null : [deal.owner_id ?? userId];
+  const sc = scopeAnd('c', audience);
+  const sco = scopeAnd('co', audience);
   const contact = (await db
     .prepare(
       `SELECT c.first_name, c.last_name, c.email FROM crm_contacts c
-       JOIN crm_deal_contacts dc ON dc.contact_id = c.id WHERE dc.deal_id = ? ORDER BY dc.rowid LIMIT 1`,
+       JOIN crm_deal_contacts dc ON dc.contact_id = c.id WHERE dc.deal_id = ? AND c.user_id = ?${sc.sql} ORDER BY dc.rowid LIMIT 1`,
     )
-    .get(dealId)) as { first_name: string; last_name: string; email: string } | undefined;
+    .get(dealId, userId, ...sc.args)) as { first_name: string; last_name: string; email: string } | undefined;
   const company = (await db
     .prepare(
       `SELECT co.name FROM crm_deal_companies dc JOIN crm_companies co ON co.id = dc.company_id
-       WHERE dc.deal_id = ? AND dc.is_primary = 1`,
+       WHERE dc.deal_id = ? AND dc.is_primary = 1 AND co.user_id = ?${sco.sql}`,
     )
-    .get(dealId)) as { name: string } | undefined;
+    .get(dealId, userId, ...sco.args)) as { name: string } | undefined;
 
   const year = new Date().getUTCFullYear();
   // Siguiente número del año (máximo + 1, así borrar un quote no repite números).

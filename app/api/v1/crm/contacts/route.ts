@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { apiFieldViewer, guardRecordCustomWrite, hiddenFieldsFor, redactRow } from '@/lib/crm-field-perms';
 import { requireApiUser, apiError } from '@/lib/api-auth';
 import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
-import { apiEmailTakenResponse, catchContactWrite, cleanRow, CrmRefError, refErrorMessage, pageParams, zodErrorCode } from '@/lib/crm-http';
+import { apiEmailTakenResponse, catchContactWrite, catchRef, cleanRow, CrmRefError, refErrorMessage, pageParams, zodErrorCode } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
-import { apiScope } from '@/lib/crm-visibility';
+import { apiScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { assignNewLead } from '@/lib/crm-assignment';
 
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
   // regla round-robin para la fuente "api", la regla decide.
   const fp = await guardRecordCustomWrite(apiFieldViewer(auth), 'contact', null, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  // No se vincula un registro que la key no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
+  if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
   const contact = await catchContactWrite(createContact(auth.user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? auth.personId }));
   if (contact instanceof CrmRefError) return apiError(400, contact.code, refErrorMessage(contact.code));
   // El email es la identidad del contacto: 409 con el id del existente solo si la key lo ve.
@@ -55,5 +59,7 @@ export async function POST(req: NextRequest) {
     const assigned = await assignNewLead(auth.user.id, contact.id, 'api');
     if (assigned) contact.owner_id = assigned;
   }
-  return NextResponse.json(cleanRow(redactRow(contact, await hiddenFieldsFor(apiFieldViewer(auth), 'contacts'))), { status: 201 });
+  // La empresa vinculada sola por el dominio del email puede ser una que la key no ve: sale como privada.
+  const shown = (await maskPrivateRef(auth.user.id, contact, [PRIVATE_REFS.company([])], await apiScope(auth)))!;
+  return NextResponse.json(cleanRow(redactRow(shown, await hiddenFieldsFor(apiFieldViewer(auth), 'contacts'))), { status: 201 });
 }

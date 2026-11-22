@@ -4,7 +4,7 @@ import { requireApiUser, apiError } from '@/lib/api-auth';
 import { getCompany, updateCompany, deleteCompany } from '@/lib/crm';
 import { companyUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, refErrorMessage, zodErrorCode, apiGuardRecord } from '@/lib/crm-http';
-import { apiScope } from '@/lib/crm-visibility';
+import { apiScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
@@ -41,6 +41,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fieldViewer = apiFieldViewer(auth);
   const fp = await guardRecordCustomWrite(fieldViewer, 'company', params.id, parsed.data.custom);
   if (!fp.ok) return apiError(403, 'field_readonly', 'A property in the body is read-only for this key.');
+  // No se vincula un registro que la key no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
+  if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, refErrorMessage(refsHidden.code));
   const company = await catchRef(updateCompany(auth.user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, auth.user.email));
   if (company instanceof CrmRefError) return apiError(400, company.code, refErrorMessage(company.code));
   if (!company) return apiError(404, 'not_found', 'Company not found.');
