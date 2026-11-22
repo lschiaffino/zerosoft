@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { countDueTasks } from '@/lib/crm';
+import { sessionScope } from '@/lib/crm-visibility';
 import { unauthorized } from '@/lib/crm-http';
 import { noStore } from '@/lib/no-store';
 
@@ -16,7 +17,7 @@ export const dynamic = 'force-dynamic';
 async function getPrivate() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  const count = await countDueTasks(user.id).catch((err: unknown) => {
+  const count = await countDueTasks(user.id, await sessionScope(user)).catch((err: unknown) => {
     console.error('[crm due-count]', err);
     return 0;
   });
