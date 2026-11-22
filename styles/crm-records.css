@@ -203,6 +203,8 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 520px) {
   .assoc-row { flex-wrap: wrap; }
   .assoc-row-meta { order: 3; width: 100%; padding-left: 0; }
+  /* El label ocupa la fila entera: los nombres largos no se cortan a 140px. */
+  .assoc-row-meta .assoc-label-select { flex: 1 1 auto; width: auto; min-width: 0; max-width: 100%; }
 }
 
 /* ---------- Menú "Más" ---------- */
@@ -674,6 +676,34 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .assoc-labels-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .assoc-labels-add { display: flex; gap: 8px; flex-wrap: wrap; }
 .assoc-labels-add .input { flex: 1 1 200px; min-width: 0; }
+
+/* Ajustes: formulario de alta (qué propiedades, orden, obligatorias). */
+.create-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.create-form-object { max-width: 280px; }
+.create-form-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.create-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.create-form-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; overflow-wrap: anywhere; }
+.create-form-note { font-size: 0.8125rem; }
+.create-form-req { font-size: 0.8125rem; white-space: nowrap; }
+.create-form-tools { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
+.create-form-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.create-form-add .select { flex: 1 1 200px; min-width: 0; }
+@media (max-width: 520px) {
+  .create-form-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .create-form-tools { grid-column: 1 / -1; justify-content: flex-start; }
+  .create-form-tools:empty { display: none; }
+}
+
+/* Marca de propiedad obligatoria en los formularios de alta. */
+.crm-req { color: var(--bad-ink); }
 
 /* Ajustes: permisos por campo. */
 .field-perms-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }

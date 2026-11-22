@@ -1155,7 +1155,10 @@
       "priority": "Prioridade",
       "description": "Descrição",
       "contactEmail": "Email(s) do contato",
-      "fullName": "Nome completo"
+      "fullName": "Nome completo",
+      "dealType": "Tipo de negócio",
+      "nextStep": "Próximo passo",
+      "wonReason": "Motivo de ganho"
     },
     "preset": "Mapeamento salvo",
     "presetAuto": "Detecção automática",
@@ -4518,5 +4521,22 @@
       "contact_company": "Por exemplo, Contato de cobrança",
       "deal_contact": "Por exemplo, Decisor"
     }
+  },
+  "createForm": {
+    "title": "Formulário de criação",
+    "desc": "Escolha quais propriedades são preenchidas ao criar um contato, uma empresa ou um negócio, em que ordem e quais são obrigatórias. Vale para a janela de criação rápida e para os formulários completos. Importações, formulários públicos, a API e a sincronização com o HubSpot não as exigem.",
+    "object": "Objeto",
+    "always": "Sempre visível",
+    "custom": "Personalizada",
+    "required": "Obrigatória",
+    "remove": "Tirar do formulário",
+    "add": "Adicionar",
+    "addLabel": "Propriedade para adicionar",
+    "pick": "Escolha uma propriedade",
+    "none": "Todas as propriedades já estão no formulário",
+    "reset": "Voltar ao formulário padrão",
+    "help": "Os membros só veem as propriedades personalizadas que podem editar, e só essas são obrigatórias para eles.",
+    "saved": "Salvo",
+    "missing": "Preencha os campos obrigatórios: {fields}"
   }
 }

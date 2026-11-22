@@ -81,7 +81,7 @@ describe('Import: preset HubSpot (csv.ts)', () => {
         ],
         'deals',
       ),
-    ).toEqual(['name', 'pipeline', 'stage', 'amount', 'currency', 'closeDate', 'ownerEmail', 'companyName', 'contactEmail', '']);
+    ).toEqual(['name', 'pipeline', 'stage', 'amount', 'currency', 'closeDate', 'ownerEmail', 'companyName', 'contactEmail', 'dealType']);
   });
 
   it('auto-detect no repite destinos y un preset guardado se aplica por header', () => {

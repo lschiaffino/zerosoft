@@ -8,6 +8,8 @@ import { createContact, listContacts } from '@/lib/crm';
 import { contactCreateSchema } from '@/lib/crm-schema';
 import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
+import { createFormMissing } from '@/lib/crm-create-form';
+import { isCreateFormRequest } from '@/lib/crm-create-form-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,7 +51,13 @@ export async function POST(req: NextRequest) {
 
   const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'contact', null, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
-  const contact = await catchContactWrite(createContact(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const data = { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) };
+  // Las obligatorias del formulario de alta (Ajustes › Datos), solo para las altas desde ese formulario.
+  if (isCreateFormRequest(body)) {
+    const missing = await createFormMissing(sessionFieldViewer(user), 'contacts', data);
+    if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
+  }
+  const contact = await catchContactWrite(createContact(user.id, data));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   // El email es la identidad del contacto: 409 con el existente solo si quien pide lo ve.
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, await sessionScope(user));

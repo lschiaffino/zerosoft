@@ -37,7 +37,7 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
-import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import { COMMON_CURRENCIES, DEAL_TYPES } from '@/lib/crm-constants';
 import { FORECAST_CATEGORIES } from '@/lib/crm-forecast';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
@@ -316,6 +316,15 @@ export default async function DealsPage(props: DealsPageProps) {
         type: 'select',
         options: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
       },
+      {
+        key: 'dealType',
+        label: t('deals.form.dealType'),
+        type: 'select',
+        options: DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) })),
+        nullable: true,
+      },
+      { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', nullable: true },
+      { key: 'wonReason', label: t('deals.form.wonReason'), type: 'text', nullable: true },
       ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
     ];
 

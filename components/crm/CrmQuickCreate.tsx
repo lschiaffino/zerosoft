@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { DomainPrefillNote, siteExtras, useDomainPrefill } from './DomainPrefill';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import QuickModal, { useKeyShortcut } from '@/components/app/QuickModal';
 import { EmailTakenText, emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
-import { LIFECYCLE_STAGES } from '@/lib/crm-constants';
+import CreateFormFields, { missingFromResponse, useCreateForm, useMissingMessage, type CreateFormOption } from './CreateFormFields';
+import { createFormBody, deriveDomain } from './formPayload';
+import { configuredFields, isRequired, missingRequired, type CreateFormEntity } from '@/lib/crm-create-form-shared';
 
 export type QuickCreateKind = 'contact' | 'company' | 'deal';
 
@@ -39,7 +41,11 @@ const KNOWN_ERRORS = new Set([
   'missing_name',
   'invalid_input',
   'invalid_company',
+  'invalid_contact',
+  'invalid_owner',
   'invalid_stage',
+  'field_readonly',
+  'value_taken',
   'rate_limited',
 ]);
 
@@ -48,6 +54,8 @@ const LIST_PATH: Record<QuickCreateKind, string> = {
   company: '/app/crm/companies',
   deal: '/app/crm/deals',
 };
+
+const ENTITY: Record<QuickCreateKind, CreateFormEntity> = { contact: 'contacts', company: 'companies', deal: 'deals' };
 
 /**
  * Alta rápida de contacto / company / deal en un modal, sin salir de la
@@ -132,6 +140,12 @@ function QuickCreateForm({
 }) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const entity = ENTITY[kind];
+  const form = useCreateForm(entity);
+  const missingMessage = useMissingMessage(entity);
+  const fieldsRef = useRef<HTMLDivElement>(null);
+  /** Cambia para volver a montar los campos configurados vacíos ("Crear otro"). */
+  const [round, setRound] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createMore, setCreateMore] = useState(false);
@@ -139,16 +153,20 @@ function QuickCreateForm({
   const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
   const [createdNote, setCreatedNote] = useState<{ id: string; name: string } | null>(null);
 
+  const configured = form ? configuredFields(entity, form.fields) : [];
+  const required = (key: string) => (form ? isRequired(entity, form.fields, key) : false);
+  const needs = (key: string) => configured.some((f) => f.key === key);
+  const needsCompanies = needs('companyId');
+  const needsContacts = needs('contactId');
+
   // Contacto
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [companyId, setCompanyId] = useState(fixedCompanyId ?? '');
-  const [lifecycle, setLifecycle] = useState<string>('lead');
-  const [companies, setCompanies] = useState<Option[]>(
-    fixedCompanyId ? [{ id: fixedCompanyId, name: fixedCompanyName ?? '—' }] : [],
+  const [companies, setCompanies] = useState<CreateFormOption[]>(
+    fixedCompanyId ? [{ value: fixedCompanyId, label: fixedCompanyName ?? '—' }] : [],
   );
+  const [contacts, setContacts] = useState<CreateFormOption[] | null>(null);
 
   // Company
   const [name, setName] = useState('');
@@ -156,32 +174,15 @@ function QuickCreateForm({
   const nameRef = useRef(name);
   nameRef.current = name;
   const [domain, setDomain] = useState('');
-  const [industry, setIndustry] = useState('');
   const prefill = useDomainPrefill();
 
   // Deal
   const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
   const [pipelineId, setPipelineId] = useState(defaultPipelineId ?? '');
   const [stageId, setStageId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [closeDate, setCloseDate] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    if (kind === 'contact') {
-      fetch('/api/crm/companies?pageSize=100&sort=name')
-        .then((r) => (r.ok ? r.json() : { rows: [] }))
-        .then((d: { rows: Option[] }) => {
-          if (cancelled) return;
-          const rows = d.rows.map((c) => ({ id: c.id, name: c.name }));
-          // La company fija puede no estar entre las primeras 100: la agregamos igual.
-          if (fixedCompanyId && !rows.some((c) => c.id === fixedCompanyId)) {
-            rows.unshift({ id: fixedCompanyId, name: fixedCompanyName ?? '—' });
-          }
-          setCompanies(rows);
-        })
-        .catch(() => null);
-    }
     if (kind === 'deal') {
       fetch('/api/crm/pipelines')
         .then((r) => (r.ok ? r.json() : { rows: [] }))
@@ -199,7 +200,45 @@ function QuickCreateForm({
     return () => {
       cancelled = true;
     };
-  }, [kind, defaultPipelineId, fixedCompanyId, fixedCompanyName]);
+  }, [kind, defaultPipelineId]);
+
+  // Las listas para elegir empresa o contacto, solo si el formulario las muestra.
+  useEffect(() => {
+    if (!needsCompanies) return;
+    let cancelled = false;
+    fetch('/api/crm/companies?pageSize=100&sort=name')
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d: { rows: Option[] }) => {
+        if (cancelled) return;
+        const rows = d.rows.map((c) => ({ value: c.id, label: c.name }));
+        // La company fija puede no estar entre las primeras 100: la agregamos igual.
+        if (fixedCompanyId && !rows.some((c) => c.value === fixedCompanyId)) {
+          rows.unshift({ value: fixedCompanyId, label: fixedCompanyName ?? '—' });
+        }
+        setCompanies(rows);
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [needsCompanies, fixedCompanyId, fixedCompanyName]);
+
+  useEffect(() => {
+    if (!needsContacts) return;
+    let cancelled = false;
+    fetch('/api/crm/contacts?pageSize=100')
+      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((d: { rows: Array<{ id: string; first_name: string; last_name: string; email: string }> }) => {
+        if (cancelled) return;
+        setContacts(d.rows.map((c) => ({ value: c.id, label: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email })));
+      })
+      .catch(() => {
+        if (!cancelled) setContacts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsContacts]);
 
   const pipeline = pipelines.find((p) => p.id === pipelineId);
 
@@ -216,70 +255,81 @@ function QuickCreateForm({
         ? !!name.trim()
         : !!name.trim() && !!pipelineId && !!stageId;
 
-  const reset = useCallback(() => {
+  function reset() {
     setFirstName('');
     setLastName('');
     setEmail('');
-    setPhone('');
     setName('');
     setDomain('');
-    setIndustry('');
-    setAmount('');
-    setCloseDate('');
-  }, []);
+    setRound((r) => r + 1);
+  }
+
+  /** Valores de las propiedades configuradas (inputs sin estado dentro del form del modal). */
+  function configuredValues(): Record<string, unknown> {
+    const formEl = fieldsRef.current?.closest('form');
+    if (!formEl) return {};
+    return createFormBody(entity, new FormData(formEl), configured);
+  }
 
   async function submit() {
     if (!canSubmit || busy) return;
-    setBusy(true);
     setError(null);
     setTaken(undefined);
     let url = '';
     let body: Record<string, unknown> = {};
+    const extra = configuredValues();
     if (kind === 'contact') {
       url = '/api/crm/contacts';
       body = {
+        ...extra,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
         email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
-        lifecycleStage: lifecycle,
-        companyId: companyId || null,
+        ...(fixedCompanyId ? { companyId: fixedCompanyId } : {}),
       };
     } else if (kind === 'company') {
-      // Antes de crear, el chequeo rápido de duplicado (sin esperar la
-      // búsqueda del sitio, que puede tardar). Si aparece uno que la persona
-      // todavía no vio, el aviso queda a la vista y el botón pasa a "Crear igual".
-      if (domain.trim() && !prefill.existingFor(domain)) {
-        const found = await prefill.checkExisting(domain);
-        if (found?.existing) {
-          setBusy(false);
-          return;
-        }
-      }
       url = '/api/crm/companies';
       const site = prefill.infoFor(domain);
       body = {
-        name: name.trim(),
-        domain: domain.trim() || undefined,
-        // Lo que se precargó del sitio (solo si sigue siendo el mismo dominio).
+        // Lo que se precargó del sitio (solo si sigue siendo el mismo dominio); lo escrito gana.
         ...(site ? siteExtras(site) : {}),
-        industry: industry.trim() || site?.industry || undefined,
+        ...extra,
+        name: name.trim(),
+        // Vacío: sale del sitio web, como en el formulario completo.
+        domain: deriveDomain(domain.trim() || undefined, typeof extra.website === 'string' ? extra.website : undefined),
       };
+      if (!body.industry && site?.industry) body.industry = site.industry;
     } else {
       url = '/api/crm/deals';
       body = {
+        ...extra,
         pipelineId,
         stageId,
         name: name.trim(),
-        amount: amount ? Number(amount) : 0,
-        closeDate: closeDate || null,
         ...(fixedCompanyId ? { companyId: fixedCompanyId } : {}),
       };
+    }
+    // Las obligatorias del formulario, antes de ir al server (que igual las exige).
+    const missing = form ? missingRequired(entity, form.fields, body) : [];
+    if (missing.length) {
+      setError(missingMessage(missing, form?.fields));
+      return;
+    }
+    setBusy(true);
+    if (kind === 'company' && domain.trim() && !prefill.existingFor(domain)) {
+      // Antes de crear, el chequeo rápido de duplicado (sin esperar la
+      // búsqueda del sitio, que puede tardar). Si aparece uno que la persona
+      // todavía no vio, el aviso queda a la vista y el botón pasa a "Crear igual".
+      const found = await prefill.checkExisting(domain);
+      if (found?.existing) {
+        setBusy(false);
+        return;
+      }
     }
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     setBusy(false);
     if (res && res.status === 201) {
@@ -305,10 +355,23 @@ function QuickCreateForm({
       setTaken(existing);
       return;
     }
+    const missingServer = missingFromResponse(data);
+    if (missingServer) {
+      setError(missingMessage(missingServer.fields, form?.fields, missingServer.labels));
+      return;
+    }
     setError(t(KNOWN_ERRORS.has(code) ? `errors.${code}` : 'errors.generic'));
   }
 
   const recordPath = (id: string) => `${LIST_PATH[kind]}/${id}`;
+  const star = (key: string) =>
+    required(key) ? (
+      <span className="crm-req" aria-hidden="true">
+        {' '}
+        *
+      </span>
+    ) : null;
+  const reqAttr = (key: string) => (required(key) ? { required: true, 'aria-required': true as const } : {});
 
   return (
     <QuickModal
@@ -360,6 +423,7 @@ function QuickCreateForm({
               placeholder={t('contacts.form.firstName')}
               aria-label={t('contacts.form.firstName')}
               maxLength={200}
+              {...reqAttr('firstName')}
             />
             <input
               className="qm-title"
@@ -368,43 +432,16 @@ function QuickCreateForm({
               placeholder={t('contacts.form.lastName')}
               aria-label={t('contacts.form.lastName')}
               maxLength={200}
+              {...reqAttr('lastName')}
             />
           </div>
           <div className="qm-row">
             <label className="qm-field">
-              <span>{t('contacts.form.email')}</span>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} />
-            </label>
-            <label className="qm-field">
-              <span>{t('contacts.form.phone')}</span>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={60} />
-            </label>
-          </div>
-          <div className="qm-row">
-            <label className="qm-field">
-              <span>{t('contacts.form.company')}</span>
-              <select
-                value={companyId}
-                onChange={(e) => setCompanyId(e.target.value)}
-                disabled={!!fixedCompanyId}
-              >
-                <option value="">{t('contacts.form.noCompany')}</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="qm-field">
-              <span>{t('contacts.form.lifecycle')}</span>
-              <select value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
-                {LIFECYCLE_STAGES.map((l) => (
-                  <option key={l} value={l}>
-                    {t(`enums.lifecycle.${l}`)}
-                  </option>
-                ))}
-              </select>
+              <span>
+                {t('contacts.form.email')}
+                {star('email')}
+              </span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={320} {...reqAttr('email')} />
             </label>
           </div>
         </>
@@ -423,7 +460,10 @@ function QuickCreateForm({
           />
           <div className="qm-row">
             <label className="qm-field">
-              <span>{t('companies.form.domain')}</span>
+              <span>
+                {t('companies.form.domain')}
+                {star('domain')}
+              </span>
               <input
                 value={domain}
                 onChange={(e) => {
@@ -438,11 +478,8 @@ function QuickCreateForm({
                 maxLength={500}
                 spellCheck={false}
                 data-testid="quick-company-domain"
+                aria-required={required('domain') || undefined}
               />
-            </label>
-            <label className="qm-field">
-              <span>{t('companies.form.industry')}</span>
-              <input value={industry} onChange={(e) => setIndustry(e.target.value)} maxLength={200} />
             </label>
           </div>
           {/* Lugar fijo para el aviso: que aparezca no corre el botón Crear bajo el puntero. */}
@@ -490,25 +527,21 @@ function QuickCreateForm({
               </select>
             </label>
           </div>
-          <div className="qm-row">
-            <label className="qm-field">
-              <span>{t('deals.form.amount')}</span>
-              <input
-                type="number"
-                min={0}
-                step="any"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </label>
-            <label className="qm-field">
-              <span>{t('deals.form.closeDate')}</span>
-              <input type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
-            </label>
-          </div>
         </>
       )}
+
+      {/* Lo que el workspace eligió para el alta (Ajustes › Datos › Formulario de alta). */}
+      <div ref={fieldsRef} className="qm-row" data-testid="quick-create-fields" key={round}>
+        {form && (
+          <CreateFormFields
+            entity={entity}
+            fields={configured}
+            variant="quick"
+            idPrefix={`qc-${kind}`}
+            ctx={{ companies, contacts, people: form.people, me: form.me, baseCurrency: form.baseCurrency, fixedCompanyId }}
+          />
+        )}
+      </div>
     </QuickModal>
   );
 }

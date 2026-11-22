@@ -5,49 +5,81 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
-import CustomFieldInput from './CustomFieldInput';
-import { contactPayload, type CustomFieldDef } from './formPayload';
+import { createFormBody } from './formPayload';
 import EmailTakenNotice, { emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
+import CreateFormFields, { missingFromResponse, useMissingMessage, useMoreHint, type CreateFormOption } from './CreateFormFields';
+import { configuredFields, isRequired, missingRequired, type ResolvedCreateField } from '@/lib/crm-create-form-shared';
 
 export type { CustomFieldDef } from './formPayload';
 
 interface ContactFormProps {
   companies: Array<{ id: string; name: string }>;
-  customFields: CustomFieldDef[];
-  lifecycles: string[];
-  leadStatuses: string[];
-  sources: string[];
+  /** Formulario de alta configurado (lib/crm-create-form.ts) y el resto de lo editable. */
+  form: ResolvedCreateField[];
+  more: ResolvedCreateField[];
+  people: CreateFormOption[];
+  me: string;
   /** Company preseleccionada (p.ej. ?companyId= desde el detalle de company). */
   defaultCompanyId?: string;
 }
 
-const ERROR_CODES = ['invalid_email', 'missing_name', 'invalid_input', 'invalid_company', 'invalid_owner'] as const;
+const ERROR_CODES = [
+  'invalid_email',
+  'missing_name',
+  'invalid_input',
+  'invalid_company',
+  'invalid_owner',
+  'field_readonly',
+  'value_taken',
+] as const;
+
+const str = (fd: FormData, key: string) => {
+  const v = fd.get(key);
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+};
 
 /**
- * Alta de contacto. Lo básico (nombre, apellido, email, teléfono, empresa)
- * a la vista; cargo, web, ubicación, lifecycle, origen y campos propios en
- * "Más campos". Un solo botón: Crear contacto.
+ * Alta de contacto. Nombre, apellido y email arriba; después las propiedades
+ * que el workspace eligió para el alta (Ajustes › Datos), con las
+ * obligatorias marcadas; el resto en "Más campos". Un solo botón: Crear contacto.
  */
-export default function ContactForm({
-  companies,
-  customFields,
-  lifecycles,
-  leadStatuses,
-  sources,
-  defaultCompanyId,
-}: ContactFormProps) {
+export default function ContactForm({ companies, form, more, people, me, defaultCompanyId }: ContactFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const missingMessage = useMissingMessage('contacts');
   /** Ya hay un contacto con ese email (undefined = sin aviso). */
   const [taken, setTaken] = useState<EmailTakenExisting | undefined>(undefined);
+  const configured = configuredFields('contacts', form);
+  const moreHint = useMoreHint('contacts', more);
+  const ctx = {
+    companies: companies.map((c) => ({ value: c.id, label: c.name })),
+    people,
+    me,
+    defaultCompanyId,
+  };
+  const req = (key: string) => (isRequired('contacts', form, key) ? { required: true, 'aria-required': true as const } : {});
+  const star = (key: string) =>
+    isRequired('contacts', form, key) ? (
+      <span className="crm-req" aria-hidden="true">
+        {' '}
+        *
+      </span>
+    ) : null;
 
   async function onSubmit(fd: FormData) {
     setTaken(undefined);
-    const body = contactPayload(fd, customFields);
+    const body: Record<string, unknown> = {
+      ...createFormBody('contacts', fd, [...configured, ...more]),
+      firstName: str(fd, 'firstName'),
+      lastName: str(fd, 'lastName'),
+      email: str(fd, 'email'),
+    };
+    const missing = missingRequired('contacts', form, body);
+    if (missing.length) return missingMessage(missing, form);
     const res = await fetch('/api/crm/contacts', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
 
     if (res && res.status === 201) {
@@ -63,6 +95,8 @@ export default function ContactForm({
       setTaken(existing);
       return t('errors.contact_email_taken');
     }
+    const missingServer = missingFromResponse(data);
+    if (missingServer) return missingMessage(missingServer.fields, form, missingServer.labels);
     return (ERROR_CODES as readonly string[]).includes(code) ? t(`errors.${code}`) : t('errors.generic');
   }
 
@@ -77,18 +111,21 @@ export default function ContactForm({
         <div className="ui-field">
           <label className="label" htmlFor="cf-first">
             {t('contacts.form.firstName')}
+            {star('firstName')}
           </label>
-          <input id="cf-first" name="firstName" className="input" autoComplete="given-name" autoFocus />
+          <input id="cf-first" name="firstName" className="input" autoComplete="given-name" autoFocus {...req('firstName')} />
         </div>
         <div className="ui-field">
           <label className="label" htmlFor="cf-last">
             {t('contacts.form.lastName')}
+            {star('lastName')}
           </label>
-          <input id="cf-last" name="lastName" className="input" autoComplete="family-name" />
+          <input id="cf-last" name="lastName" className="input" autoComplete="family-name" {...req('lastName')} />
         </div>
         <div className="ui-field">
           <label className="label" htmlFor="cf-email">
             {t('contacts.form.email')}
+            {star('email')}
           </label>
           <input
             id="cf-email"
@@ -99,102 +136,20 @@ export default function ContactForm({
             spellCheck={false}
             aria-invalid={taken !== undefined || undefined}
             onChange={() => setTaken(undefined)}
+            {...req('email')}
           />
           {taken !== undefined && <EmailTakenNotice existing={taken} />}
         </div>
-        <div className="ui-field">
-          <label className="label" htmlFor="cf-phone">
-            {t('contacts.form.phone')}
-          </label>
-          <input id="cf-phone" name="phone" className="input" type="tel" autoComplete="tel" />
-        </div>
-      </div>
-      <div className="ui-field">
-        <label className="label" htmlFor="cf-company">
-          {t('contacts.form.company')}
-        </label>
-        <select id="cf-company" name="companyId" className="select" defaultValue={defaultCompanyId ?? ''}>
-          <option value="">{t('contacts.form.noCompany')}</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <CreateFormFields entity="contacts" fields={configured} variant="full" idPrefix="cf" ctx={ctx} />
       </div>
 
-      <AdvancedSection
-        storageKey="crm.contact.new"
-        label={t('record.form.moreFields')}
-        hint={t('record.form.contactMoreHint')}
-      >
-        <div className="ui-fields-2">
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-job">
-              {t('contacts.form.jobTitle')}
-            </label>
-            <input id="cf-job" name="jobTitle" className="input" autoComplete="organization-title" />
+      {more.length > 0 && (
+        <AdvancedSection storageKey="crm.contact.new" label={t('record.form.moreFields')} hint={moreHint}>
+          <div className="ui-fields-2">
+            <CreateFormFields entity="contacts" fields={more} variant="full" idPrefix="cf" ctx={ctx} />
           </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-web">
-              {t('contacts.form.website')}
-            </label>
-            <input id="cf-web" name="website" className="input" type="url" inputMode="url" placeholder="https://" />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-city">
-              {t('contacts.form.city')}
-            </label>
-            <input id="cf-city" name="city" className="input" autoComplete="address-level2" />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-country">
-              {t('contacts.form.country')}
-            </label>
-            <input id="cf-country" name="country" className="input" autoComplete="country-name" />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-lifecycle">
-              {t('contacts.form.lifecycle')}
-            </label>
-            <select id="cf-lifecycle" name="lifecycleStage" className="select" defaultValue="lead">
-              {lifecycles.map((v) => (
-                <option key={v} value={v}>
-                  {t(`enums.lifecycle.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-status">
-              {t('contacts.form.leadStatus')}
-            </label>
-            <select id="cf-status" name="leadStatus" className="select" defaultValue="new">
-              {leadStatuses.map((v) => (
-                <option key={v} value={v}>
-                  {t(`enums.leadStatus.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="cf-source">
-              {t('contacts.form.source')}
-            </label>
-            <select id="cf-source" name="source" className="select" defaultValue="">
-              <option value="">—</option>
-              {sources.map((v) => (
-                <option key={v} value={v}>
-                  {t(`enums.source.${v}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          {customFields.map((f) => (
-            <CustomFieldInput key={f.name} field={f} idPrefix="cf" />
-          ))}
-        </div>
-      </AdvancedSection>
+        </AdvancedSection>
+      )}
     </FormSection>
   );
 }
