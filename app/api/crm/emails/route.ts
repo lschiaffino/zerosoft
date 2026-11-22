@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!result.ok) {
+    if (result.error === 'not_found') return NextResponse.json({ error: 'not_found' }, { status: 404 });
     return NextResponse.json({ error: result.error ?? 'send_failed' }, { status: 400 });
   }
   return NextResponse.json(result, { status: 201 });

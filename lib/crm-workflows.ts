@@ -2170,34 +2170,44 @@ export interface SendCrmEmailInput {
   fromEmail: string;
 }
 
+/**
+ * Contacto al que queda asociado un email que se manda desde un contacto, una
+ * empresa o un deal: el primero que la persona que envía puede ver (nunca uno
+ * que no ve: el email, su thread y su actividad quedarían en ese contacto).
+ * null si no ve ninguno.
+ */
 async function resolveContactIdForEmail(
   userId: string,
   recordType: 'contact' | 'company' | 'deal',
   recordId: string,
+  scope: OwnerScope | undefined,
 ): Promise<string | null> {
-  if (recordType === 'contact') {
-    const row = await getDb()
-      .prepare('SELECT 1 FROM crm_contacts WHERE id = ? AND user_id = ?')
-      .get(recordId, userId);
-    return row ? recordId : null;
-  }
-  if (recordType === 'deal') {
-    const row = (await getDb()
+  let ids: string[];
+  if (recordType === 'contact') ids = [recordId];
+  else if (recordType === 'deal') {
+    const rows = (await getDb()
       .prepare(
         `SELECT dc.contact_id FROM crm_deal_contacts dc
          JOIN crm_deals d ON d.id = dc.deal_id
-         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 1`,
+         WHERE dc.deal_id = ? AND d.user_id = ? ORDER BY dc.rowid ASC LIMIT 200`,
       )
-      .get(recordId, userId)) as { contact_id: string } | undefined;
-    return row?.contact_id ?? null;
+      .all(recordId, userId)) as Array<{ contact_id: string }>;
+    ids = rows.map((r) => r.contact_id);
+  } else {
+    const rows = (await getDb()
+      .prepare('SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 200')
+      .all(recordId, userId)) as Array<{ id: string }>;
+    ids = rows.map((r) => r.id);
   }
-  // company
-  const row = (await getDb()
-    .prepare(
-      'SELECT id FROM crm_contacts WHERE company_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT 1',
-    )
-    .get(recordId, userId)) as { id: string } | undefined;
-  return row?.id ?? null;
+  const visible = await visibleRecordIds(userId, 'crm_contacts', ids, scope);
+  return ids.find((id) => visible.has(id)) ?? null;
+}
+
+/** Alcance de registros de quien envía (null: ve todo; sin lugar en el workspace: nada). */
+async function senderScope(workspaceId: string, senderId: string): Promise<OwnerScope> {
+  const role = await workspacePersonRole(workspaceId, senderId);
+  if (!role) return [];
+  return ownerScopeFor({ workspaceId, personId: senderId, role });
 }
 
 export async function sendCrmEmailAndSave(
@@ -2207,7 +2217,10 @@ export async function sendCrmEmailAndSave(
   const { recordType, recordId, to, subject, body, fromEmail } = input;
   if (!to) return { ok: false, error: 'missing_recipient' };
 
-  const contactId = await resolveContactIdForEmail(userId, recordType, recordId);
+  // El registro desde el que se manda tiene que ser uno que la persona ve (si no, como si no existiera).
+  const scope = await senderScope(userId, input.senderId);
+  if (!(await visibleRecordIds(userId, RECORD_TABLE[recordType], [recordId], scope)).has(recordId)) return { ok: false, error: 'not_found' };
+  const contactId = await resolveContactIdForEmail(userId, recordType, recordId, scope);
   if (!contactId) return { ok: false, error: 'missing_contact' };
 
   const { sendCrmEmail } = await import('./crm-email');

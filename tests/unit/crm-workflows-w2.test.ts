@@ -53,6 +53,7 @@ vi.mock('@/lib/session', async (orig) => ({
 }));
 
 const itemRoute = await import('@/lib/routes/crm/workflows/[id]/route');
+const emailRoute = await import('@/app/api/crm/emails/route');
 
 beforeEach(() => {
   session.user = null;
@@ -499,6 +500,43 @@ describe('W2: privacidad', () => {
       if (prev === undefined) delete process.env.RATE_LIMIT_DISABLED;
       else process.env.RATE_LIMIT_DISABLED = prev;
     }
+  });
+
+  it('un email desde una empresa o un deal queda en el primer contacto que quien envía ve', async () => {
+    const w = await workspaceWithMember('w2-mail');
+    await setMemberVisibility(w.owner.id, 'mine');
+    const p = await createPipeline(w.owner.id, 'P');
+    const s1 = (await createStage(w.owner.id, p.id, { name: 'New' })) as { id: string };
+    const co = await createCompany(w.owner.id, { name: 'Co', ownerId: w.member.id });
+    const hidden = await createContact(w.owner.id, { email: 'first@w2mail.test', ownerId: w.friend.id, companyId: co.id });
+    const mine = await createContact(w.owner.id, { email: 'second@w2mail.test', ownerId: w.member.id, companyId: co.id });
+    const deal = await createDeal(w.owner.id, { name: 'D', pipelineId: p.id, stageId: s1.id, contactIds: [hidden.id, mine.id], ownerId: w.member.id });
+    const other = await createDeal(w.owner.id, { name: 'Other', pipelineId: p.id, stageId: s1.id, contactIds: [mine.id], ownerId: w.friend.id });
+    const onlyHidden = await createCompany(w.owner.id, { name: 'Hidden only', ownerId: w.member.id });
+    await createContact(w.owner.id, { email: 'only@w2mail.test', ownerId: w.friend.id, companyId: onlyHidden.id });
+    if (!deal.ok || !other.ok) throw new Error('deal');
+    const send = async (recordType: string, recordId: string) => {
+      const r = await emailRoute.POST(
+        new NextRequest('http://x/api/crm/emails', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ recordType, recordId, to: 'buyer@w2mail.test', subject: 's', body: 'b' }),
+        }),
+      );
+      return { status: r.status, json: (await r.json()) as { email?: { contact_id: string } } };
+    };
+    session.user = asMember(w.owner, w.member);
+    for (const [type, id] of [['deal', deal.deal.id], ['company', co.id]] as const) {
+      const r = await send(type, id);
+      expect(r.status).toBe(201);
+      expect(r.json.email?.contact_id).toBe(mine.id);
+    }
+    // Un registro que no ve: como si no existiera. Una empresa sin contactos que vea: no se manda.
+    expect((await send('deal', other.deal.id)).status).toBe(404);
+    expect((await send('company', onlyHidden.id)).status).toBe(400);
+    // El owner ve todo: el primer contacto.
+    session.user = asOwner(w.owner);
+    expect((await send('deal', deal.deal.id)).json.email?.contact_id).toBe(hidden.id);
   });
 
   it('solo owner y admins editan esperas; un miembro, uno de un equipo de ventas y otro workspace no', async () => {
