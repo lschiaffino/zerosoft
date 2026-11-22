@@ -3,8 +3,9 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import type { Workflow, WorkflowTriggerInput, WorkflowActionInput, TriggerType, ActionType } from '@/lib/crm-workflows';
-import type { CrmWorkflowRunRow, CrmListRow } from '@/lib/db';
+import type { Workflow, WorkflowTriggerInput, WorkflowActionInput, TriggerType, ActionType, WorkflowRunView } from '@/lib/crm-workflows';
+import type { CrmListRow } from '@/lib/db';
+import { BRANCH_OPS, DELAY_UNITS, MAX_FILTERS, type EnrollCondition, type WorkflowSettings } from '@/lib/crm-workflow-rules';
 import {
   ACTION_GROUPS,
   TEMPLATE_KEYS,
@@ -21,8 +22,9 @@ import {
 import RowTools from './RowTools';
 import WorkflowRuns from './WorkflowRuns';
 
-const BRANCH_OPS = ['equals', 'not_equals', 'contains', 'gt', 'lt', 'is_set', 'is_not_set'] as const;
 const ENTITIES = ['contact', 'company', 'deal'] as const;
+/** Disparadores "registro actualizado" que aceptan propiedad y valor (lib/crm-workflows PROPERTY_TRIGGERS). */
+const PROPERTY_TRIGGERS: readonly string[] = ['contact_updated', 'company_updated', 'deal_updated'];
 const ACTIVITY_TYPES = ['note', 'call', 'meeting', 'email', 'task'] as const;
 
 type Option = { id: string; name: string };
@@ -39,11 +41,18 @@ export interface WorkflowEditorProps {
   owners?: Array<{ id: string; label: string }>;
   /** Lead scores del workspace (trigger "Score cambió"). */
   scores?: Array<{ id: string; name: string; isPrimary: boolean }>;
-  runs: CrmWorkflowRunRow[];
+  runs: WorkflowRunView[];
   canEdit?: boolean;
+  /** Secreto con el que se firman los webhooks (solo owner/admin). */
+  webhookSecret?: string | null;
 }
 
-type Ctx = Required<Omit<WorkflowEditorProps, 'workflow' | 'runs' | 'canEdit'>> & { canEdit: boolean; idBase: string; showErrors: boolean };
+type Ctx = Required<Omit<WorkflowEditorProps, 'workflow' | 'runs' | 'canEdit' | 'webhookSecret'>> & {
+  canEdit: boolean;
+  idBase: string;
+  showErrors: boolean;
+  webhookSecret: string | null;
+};
 
 /**
  * Editor de workflows. Nuevo: asistente en tres pasos (Disparador →
@@ -62,6 +71,7 @@ export default function WorkflowEditor({
   scores = [],
   runs,
   canEdit = true,
+  webhookSecret = null,
 }: WorkflowEditorProps) {
   const t = useTranslations('crm.workflows');
   const router = useRouter();
@@ -89,8 +99,10 @@ export default function WorkflowEditor({
   const [showErrors, setShowErrors] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [running, setRunning] = useState(false);
+  // Inscripción: un workflow nuevo arranca sin reinscripción, como en HubSpot.
+  const [settings, setSettings] = useState<WorkflowSettings>(workflow?.settings ?? { reenroll: false, filters: [] });
 
-  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, scores, canEdit, idBase, showErrors };
+  const ctx: Ctx = { lists, sequences, forms, flows, pipelines, owners, scores, canEdit, idBase, showErrors, webhookSecret };
   const triggerLabel = (type: string) => (t.has(`triggerTypes.${type}`) ? t(`triggerTypes.${type}` as 'triggerTypes.manual') : type);
   const actionLabel = (type: string) => (t.has(`actionTypes.${type}`) ? t(`actionTypes.${type}` as 'actionTypes.webhook') : type);
 
@@ -165,6 +177,7 @@ export default function WorkflowEditor({
     const payload = {
       name: effectiveName.trim(),
       enabled,
+      settings: { reenroll: settings.reenroll, filters: settings.filters.filter((f) => f.field.trim()) },
       triggers: triggers.map((x, i) => ({ ...x, position: i })),
       actions: actions.map((a, i) => ({ ...a, config: normalizeActionConfig(a.type, a.config ?? {}), position: i })),
     };
@@ -249,6 +262,17 @@ export default function WorkflowEditor({
         </li>
       )}
     </ol>
+  );
+
+  const enrollBlock = (
+    <EnrollmentSettings
+      settings={settings}
+      ctx={ctx}
+      onChange={(next) => {
+        setSettings(next);
+        dirty();
+      }}
+    />
   );
 
   const actionBlock = (
@@ -436,6 +460,7 @@ export default function WorkflowEditor({
             </ul>
             <h2 className="crm-panel-title">{t('wizard.orTrigger')}</h2>
             {triggerBlock}
+            {enrollBlock}
           </section>
         )}
 
@@ -559,6 +584,7 @@ export default function WorkflowEditor({
             {t('triggers')}
           </h2>
           {triggerBlock}
+          {enrollBlock}
         </section>
 
         <section className="wf-panel" aria-labelledby={`${idBase}-act`}>
@@ -592,6 +618,11 @@ export default function WorkflowEditor({
     const c = a.config ?? {};
     if (a.type === 'create_task' || a.type === 'send_email') return safeString(c.subject) ? `«${safeString(c.subject)}»` : '';
     if (a.type === 'notify_user') return safeString(c.message) ? `«${safeString(c.message)}»` : '';
+    if (a.type === 'delay') {
+      const unit = (DELAY_UNITS as readonly string[]).includes(safeString(c.unit)) ? safeString(c.unit) : 'days';
+      return t(`delay.summary.${unit}` as 'delay.summary.days', { n: Number(c.amount) || 0 });
+    }
+    if (a.type === 'create_deal') return safeString(c.name) ? `«${safeString(c.name)}»` : '';
     if (a.type === 'ai_step') {
       const mode = safeString(c.mode) || 'prompt';
       if (mode !== 'prompt') return t(`aiStep.modes.${mode}` as 'aiStep.modes.summary');
@@ -738,7 +769,156 @@ function TriggerConfig({
           {stageSelect('toStageId')}
         </div>
       )}
+      {PROPERTY_TRIGGERS.includes(trigger.type) && (
+        <div className="ui-fields-2">
+          <Field id={id('pfield')} label={t('propertyChanged')} help={t('propertyChangedHint')}>
+            <input
+              id={id('pfield')}
+              className="input data"
+              value={safeString(cfg.field)}
+              onChange={(e) => onConfig({ field: e.target.value })}
+              placeholder="lifecycle_stage"
+              disabled={!ctx.canEdit}
+              data-testid="workflow-trigger-field"
+            />
+          </Field>
+          {safeString(cfg.field).trim() !== '' && (
+            <Field id={id('pvalue')} label={t('propertyNewValue')} help={t('propertyNewValueHint')}>
+              <input id={id('pvalue')} className="input" value={safeString(cfg.value)} onChange={(e) => onConfig({ value: e.target.value })} disabled={!ctx.canEdit} />
+            </Field>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * Inscripción (como "Enrollment" de HubSpot): reinscripción y filtros que el
+ * registro tiene que cumplir para entrar. Todas las condiciones a la vez.
+ */
+function EnrollmentSettings({ settings, ctx, onChange }: { settings: WorkflowSettings; ctx: Ctx; onChange: (next: WorkflowSettings) => void }) {
+  const t = useTranslations('crm.workflows');
+  const tc = useTranslations('crm');
+  const dis = !ctx.canEdit;
+  const id = (k: string) => `${ctx.idBase}-enroll-${k}`;
+  const setFilter = (i: number, patch: Partial<EnrollCondition>) =>
+    onChange({ ...settings, filters: settings.filters.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
+  return (
+    <div className="wf-enroll" data-testid="workflow-enrollment">
+      <h3 className="wf-enroll-title">{t('enrollment.title')}</h3>
+      <div className="ui-field">
+        <label className="ui-switch">
+          <input
+            type="checkbox"
+            role="switch"
+            checked={settings.reenroll}
+            onChange={(e) => onChange({ ...settings, reenroll: e.target.checked })}
+            disabled={dis}
+            aria-describedby={id('re-help')}
+            data-testid="workflow-reenroll"
+          />
+          {t('enrollment.reenroll')}
+        </label>
+        <span className="ui-help" id={id('re-help')}>
+          {settings.reenroll ? t('enrollment.reenrollOn') : t('enrollment.reenrollOff')}
+        </span>
+      </div>
+      <p className="ui-help">{settings.filters.length ? t('enrollment.filtersHint') : t('enrollment.noFilters')}</p>
+      {settings.filters.length > 0 && (
+        <ul className="wf-filters">
+          {settings.filters.map((f, i) => (
+            <li key={i} className="wf-config-branch wf-filter" data-testid="workflow-filter">
+              <Field id={id(`e${i}`)} label={t('entity')}>
+                <select id={id(`e${i}`)} className="select" value={f.entity} onChange={(e) => setFilter(i, { entity: e.target.value as EnrollCondition['entity'] })} disabled={dis}>
+                  {ENTITIES.map((en) => (
+                    <option key={en} value={en}>
+                      {t(`entities.${en}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field id={id(`f${i}`)} label={t('field')}>
+                <input id={id(`f${i}`)} className="input data" value={f.field} onChange={(e) => setFilter(i, { field: e.target.value })} disabled={dis} />
+              </Field>
+              <Field id={id(`o${i}`)} label={t('condition')}>
+                <select id={id(`o${i}`)} className="select" value={f.op} onChange={(e) => setFilter(i, { op: e.target.value as EnrollCondition['op'] })} disabled={dis}>
+                  {BRANCH_OPS.map((op) => (
+                    <option key={op} value={op}>
+                      {tc(`scoring.ops.${op}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {f.op !== 'is_set' && f.op !== 'is_not_set' && (
+                <Field id={id(`v${i}`)} label={t('value')}>
+                  <input id={id(`v${i}`)} className="input" value={f.value ?? ''} onChange={(e) => setFilter(i, { value: e.target.value })} disabled={dis} />
+                </Field>
+              )}
+              {!dis && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-danger btn-sm wf-filter-remove"
+                  onClick={() => onChange({ ...settings, filters: settings.filters.filter((_, j) => j !== i) })}
+                  aria-label={t('enrollment.removeFilter', { n: i + 1 })}
+                >
+                  {t('enrollment.remove')}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!dis && settings.filters.length < MAX_FILTERS && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => onChange({ ...settings, filters: [...settings.filters, { entity: 'contact', field: '', op: 'equals', value: '' }] })}
+          data-testid="workflow-add-filter"
+        >
+          {t('enrollment.addFilter')}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Lista de personas con casillas (rotación de owner, avisos a personas elegidas). */
+function PeoplePicker({
+  legend,
+  selected,
+  ctx,
+  error,
+  onChange,
+  testId,
+}: {
+  legend: string;
+  selected: string[];
+  ctx: Ctx;
+  error?: string;
+  onChange: (ids: string[]) => void;
+  testId?: string;
+}) {
+  return (
+    <fieldset className="wf-people" aria-invalid={error ? true : undefined} data-testid={testId}>
+      <legend className="label">{legend}</legend>
+      <ul className="wf-people-list">
+        {ctx.owners.map((o) => (
+          <li key={o.id}>
+            <label className="ui-check">
+              <input
+                type="checkbox"
+                checked={selected.includes(o.id)}
+                onChange={(e) => onChange(e.target.checked ? [...selected, o.id] : selected.filter((x) => x !== o.id))}
+                disabled={!ctx.canEdit}
+              />
+              <span>{o.label}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {error && <span className="ui-error">{error}</span>}
+    </fieldset>
   );
 }
 
@@ -931,14 +1111,167 @@ function ActionConfig({
               {valid ? t('headersHint') : t('problems.headers')}
             </span>
           </div>
+          {ctx.canEdit && ctx.webhookSecret ? (
+            <Field id={id('secret')} label={t('webhookSecret')} help={t('webhookSecretHint')}>
+              <input id={id('secret')} className="input wf-secret" value={ctx.webhookSecret} readOnly onFocus={(e) => e.currentTarget.select()} data-testid="workflow-webhook-secret" />
+            </Field>
+          ) : (
+            <p className="ui-help">{t('webhookSignedHint')}</p>
+          )}
         </div>
       );
     }
-    case 'notify_user':
+    case 'notify_user': {
+      const recipients = safeString(config.recipients) || 'workspace';
+      const userIds = Array.isArray(config.userIds) ? (config.userIds as unknown[]).map(safeString) : [];
       return (
         <div className="wf-config">
+          <Field id={id('rcpt')} label={t('notify.recipients')} help={t('notify.privacyHint')}>
+            <select id={id('rcpt')} className="select" value={recipients} onChange={(e) => onChange({ recipients: e.target.value })} disabled={dis} data-testid="workflow-notify-recipients">
+              {(['owner', 'people', 'workspace'] as const).map((r) => (
+                <option key={r} value={r}>
+                  {t(`notify.to.${r}`)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {recipients === 'people' && (
+            <PeoplePicker legend={t('notify.people')} selected={userIds} ctx={ctx} error={reqMsg('userIds')} onChange={(ids) => onChange({ userIds: ids })} />
+          )}
           <Field id={id('msg')} label={t('message')} help={t('variablesHint')} error={reqMsg('message')}>
             <textarea id={id('msg')} className="textarea" rows={2} {...req('message', id('msg'))} value={safeString(config.message)} onChange={(e) => onChange({ message: e.target.value })} disabled={dis} />
+          </Field>
+        </div>
+      );
+    }
+    case 'delay':
+      return (
+        <div className="wf-config">
+          <div className="wf-delay">
+            <Field id={id('amount')} label={t('delay.amount')} error={reqMsg('amount')}>
+              <input
+                id={id('amount')}
+                className="input data"
+                type="number"
+                min={1}
+                {...req('amount', id('amount'))}
+                value={safeString(config.amount)}
+                onChange={(e) => onChange({ amount: e.target.value === '' ? '' : Number(e.target.value) })}
+                disabled={dis}
+                data-testid="workflow-delay-amount"
+              />
+            </Field>
+            <Field id={id('unit')} label={t('delay.unit')}>
+              <select id={id('unit')} className="select" value={safeString(config.unit) || 'days'} onChange={(e) => onChange({ unit: e.target.value })} disabled={dis}>
+                {DELAY_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {t(`delay.units.${u}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="ui-help">{t('delay.hint')}</p>
+        </div>
+      );
+    case 'rotate_owner': {
+      const ownerIds = Array.isArray(config.ownerIds) ? (config.ownerIds as unknown[]).map(safeString) : [];
+      return (
+        <div className="wf-config">
+          <div className="ui-fields-2">
+            <Field id={id('rentity')} label={t('entity')}>
+              <select id={id('rentity')} className="select" value={safeString(config.entity)} onChange={(e) => onChange({ entity: e.target.value })} disabled={dis}>
+                <option value="">{t('rotate.eventRecord')}</option>
+                {ENTITIES.map((en) => (
+                  <option key={en} value={en}>
+                    {t(`entities.${en}`)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <PeoplePicker
+            legend={t('rotate.pool')}
+            selected={ownerIds}
+            ctx={ctx}
+            error={reqMsg('ownerIds')}
+            onChange={(ids) => onChange({ ownerIds: ids })}
+            testId="workflow-rotate-pool"
+          />
+          <label className="ui-check">
+            <input type="checkbox" checked={config.onlyUnowned === true} onChange={(e) => onChange({ onlyUnowned: e.target.checked })} disabled={dis} />
+            <span>{t('rotate.onlyUnowned')}</span>
+          </label>
+          <p className="ui-help">{t('rotate.hint')}</p>
+        </div>
+      );
+    }
+    case 'create_deal': {
+      const pipelineId = safeString(config.pipelineId);
+      const pipeline = ctx.pipelines.find((p) => p.id === pipelineId);
+      return (
+        <div className="wf-config">
+          <Field id={id('dname')} label={t('createDeal.name')} help={t('variablesHint')} error={reqMsg('name')}>
+            <input id={id('dname')} className="input" {...req('name', id('dname'))} value={safeString(config.name)} onChange={(e) => onChange({ name: e.target.value })} disabled={dis} />
+          </Field>
+          <div className="wf-config-3">
+            <Field id={id('dpipe')} label={t('createDeal.pipeline')} error={reqMsg('pipelineId')}>
+              <select
+                id={id('dpipe')}
+                className="select"
+                {...req('pipelineId', id('dpipe'))}
+                value={pipelineId}
+                onChange={(e) => onChange({ pipelineId: e.target.value, stageId: ctx.pipelines.find((p) => p.id === e.target.value)?.stages[0]?.id ?? '' })}
+                disabled={dis}
+              >
+                <option value="">{t('pick')}</option>
+                {ctx.pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field id={id('dstage')} label={t('createDeal.stage')} error={reqMsg('stageId')}>
+              <select id={id('dstage')} className="select" {...req('stageId', id('dstage'))} value={safeString(config.stageId)} onChange={(e) => onChange({ stageId: e.target.value })} disabled={dis || !pipeline}>
+                <option value="">{t('pick')}</option>
+                {pipeline?.stages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field id={id('damount')} label={t('createDeal.amount')}>
+              <input
+                id={id('damount')}
+                className="input data"
+                type="number"
+                min={0}
+                value={safeString(config.amount)}
+                onChange={(e) => onChange({ amount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                disabled={dis}
+              />
+            </Field>
+          </div>
+          <p className="ui-help">{t('createDeal.hint')}</p>
+        </div>
+      );
+    }
+    case 'remove_from_list':
+      return (
+        <div className="wf-config">
+          <Field id={id('rlist')} label={t('listId')} error={reqMsg('listId')}>
+            <select id={id('rlist')} className="select" {...req('listId', id('rlist'))} value={safeString(config.listId)} onChange={(e) => onChange({ listId: e.target.value })} disabled={dis}>
+              <option value="">{t('pick')}</option>
+              {ctx.lists
+                .filter((l) => l.kind === 'static')
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+            </select>
           </Field>
         </div>
       );

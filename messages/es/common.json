@@ -1524,6 +1524,48 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "hiring": {
+      "intro": {
+        "title": "Te damos la bienvenida a Hiring",
+        "body": "Hiring lleva un puesto desde la publicación hasta la oferta, con un pipeline de candidatos, scorecards y reportes. Este tour te muestra las partes principales."
+      },
+      "newJob": {
+        "title": "Creá un puesto",
+        "body": "Arrancá de una plantilla o de un puesto en blanco, con sus etapas, el formulario de postulación y el equipo que contrata. Publicalo en tu página de empleos."
+      },
+      "jobs": {
+        "title": "Puestos y su pipeline",
+        "body": "Tus puestos abiertos. Abrí uno para ver su pipeline: sumá candidatos a mano o con un CSV, y arrastrá una tarjeta o elegí su etapa para que avance."
+      },
+      "pending": {
+        "title": "Tus scorecards",
+        "body": "Candidatos que esperan tu evaluación después de una entrevista. Quien entrevista ve solo a los candidatos que le piden evaluar."
+      },
+      "recent": {
+        "title": "Último movimiento",
+        "body": "Quiénes se movieron último en tus puestos. Abrí uno para ver el CV, las notas, los mails, las entrevistas y las ofertas."
+      },
+      "candidates": {
+        "title": "Candidatos",
+        "body": "Todos los candidatos de tus puestos. Buscá, filtrá por puesto, origen o etiqueta, y mové, etiquetá o rechazá a varios a la vez."
+      },
+      "reports": {
+        "title": "Reportes",
+        "body": "Tiempo de contratación, conversión por etapa, rendimiento de cada origen y motivos de rechazo, con descarga en CSV."
+      },
+      "templates": {
+        "title": "Plantillas",
+        "body": "Mails a candidatos y la carta de oferta, listos para reusar."
+      },
+      "settings": {
+        "title": "Ajustes de Hiring",
+        "body": "Tu página de empleos, los mails a candidatos, los motivos de rechazo, las aprobaciones y la retención de datos."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "send": {
       "intro": {
         "title": "Te damos la bienvenida a Send",

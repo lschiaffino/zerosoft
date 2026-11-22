@@ -49,6 +49,7 @@ import {
 import { filterTypeFor, UNIQUE_FIELD_TYPES } from './crm-custom-fields';
 import { assertUniqueCustom, hasDuplicateValues, isUniqueEntity } from './crm-unique';
 import { trashRecords } from './crm-trash';
+import { changedFields } from './crm-workflow-rules';
 import { nextRepeatDue, type TaskRepeat } from './crm-task-repeat';
 import { cleanPriority, type TaskPriority } from './tasks-shared';
 import { activityDateOrder, ACTIVITY_DATE_SORTS, type ActivityDateSort } from './crm-activity-dates';
@@ -802,7 +803,7 @@ export async function updateContact(
   }
   await logPropertyEvents(userId, 'contact', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
   const contact = (await db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id)) as CrmContactRow;
-  await fireEvent(userId, { type: 'contact_updated', entity: 'contact', entityId: id });
+  await fireEvent(userId, { type: 'contact_updated', entity: 'contact', entityId: id, payload: { changed: changedFields(existing as unknown as Record<string, unknown>, sets) } });
   return contact;
 }
 
@@ -1304,6 +1305,7 @@ export async function createCompany(
   if (data.parentCompanyId) await setParentCompany(userId, id, data.parentCompanyId, db);
   const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
   await emitCrmHookSoon(userId, 'company.created', recordPayload(company as unknown as Record<string, unknown>));
+  await fireEvent(userId, { type: 'company_created', entity: 'company', entityId: id });
   return company;
 }
 
@@ -1334,6 +1336,7 @@ export async function updateCompany(
   const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
   if (sets.length) {
     await emitCrmHookSoon(userId, 'company.updated', recordPayload(company as unknown as Record<string, unknown>));
+    await fireEvent(userId, { type: 'company_updated', entity: 'company', entityId: id, payload: { changed: changedFields(existing as unknown as Record<string, unknown>, sets) } });
   }
   return company;
 }
@@ -2050,7 +2053,7 @@ export async function updateDeal(
     await recalcDealAmount(userId, id);
   }
   const deal = (await db.prepare('SELECT * FROM crm_deals WHERE id = ?').get(id)) as CrmDealRow;
-  await fireEvent(userId, { type: 'deal_updated', entity: 'deal', entityId: id });
+  await fireEvent(userId, { type: 'deal_updated', entity: 'deal', entityId: id, payload: { changed: changedFields(existing as unknown as Record<string, unknown>, sets) } });
   return deal;
 }
 

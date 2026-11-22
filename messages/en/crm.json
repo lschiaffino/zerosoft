@@ -741,7 +741,9 @@
       "email_clicked": "Email link clicked",
       "quote_accepted": "Quote accepted",
       "form_submitted": "Form submitted",
-      "score_changed": "Lead score changed"
+      "score_changed": "Lead score changed",
+      "company_created": "Company created",
+      "company_updated": "Company updated"
     },
     "actionTypes": {
       "send_email": "Send email",
@@ -754,7 +756,11 @@
       "enroll_in_sequence": "Enroll in sequence",
       "run_flow": "Run a Flow",
       "branch": "If / else",
-      "ai_step": "AI step"
+      "ai_step": "AI step",
+      "delay": "Delay",
+      "rotate_owner": "Rotate owner",
+      "create_deal": "Create a deal",
+      "remove_from_list": "Remove from list"
     },
     "addTrigger": "Add trigger",
     "addAction": "Add action",
@@ -766,7 +772,8 @@
       "pending": "Pending",
       "running": "Running",
       "done": "Done",
-      "failed": "Failed"
+      "failed": "Failed",
+      "waiting": "Waiting"
     },
     "noRuns": "No runs yet.",
     "delete": "Delete workflow",
@@ -820,7 +827,8 @@
       "contacts": "Contacts",
       "deals": "Deals",
       "email": "Email and meetings",
-      "other": "Other"
+      "other": "Other",
+      "companies": "Companies"
     },
     "templates": {
       "copy": {
@@ -930,7 +938,71 @@
         "deal_score": "Saves the AI score and deal plan. Use it with deal triggers."
       }
     },
-    "scoreId": "Score"
+    "scoreId": "Score",
+    "runRecord": "Record",
+    "runNoRecord": "No record",
+    "resumesAt": "until {when}",
+    "propertyChanged": "Only when this property changes",
+    "propertyChangedHint": "Optional. A property name such as lifecycle_stage, or custom.key for a custom property. Empty means any change.",
+    "propertyNewValue": "And the new value is",
+    "propertyNewValueHint": "Optional. Empty means any value.",
+    "enrollment": {
+      "title": "Enrollment",
+      "reenroll": "Re-enroll records",
+      "reenrollOn": "A record enrolls again each time the trigger happens, at most 10 times a day, and never while it is still in this workflow.",
+      "reenrollOff": "Each record enrolls once. Later triggers for the same record are ignored.",
+      "noFilters": "Every record that meets the trigger enrolls. Add a filter to enroll only some.",
+      "filtersHint": "A record enrolls only when it meets every filter.",
+      "addFilter": "Add filter",
+      "remove": "Remove",
+      "removeFilter": "Remove filter {n}"
+    },
+    "notify": {
+      "recipients": "Notify",
+      "to": {
+        "owner": "The record owner",
+        "people": "Chosen people",
+        "workspace": "The workspace owner"
+      },
+      "people": "People",
+      "privacyHint": "A person is notified only if they can see the record, and the message leaves out fields hidden from them."
+    },
+    "delay": {
+      "amount": "Wait",
+      "unit": "Unit",
+      "units": {
+        "minutes": "Minutes",
+        "hours": "Hours",
+        "days": "Days"
+      },
+      "hint": "The next actions run after this wait, up to 30 days. Turning the workflow off pauses waiting records, and they continue when it is turned on again.",
+      "summary": {
+        "minutes": "{n, plural, one {# minute} other {# minutes}}",
+        "hours": "{n, plural, one {# hour} other {# hours}}",
+        "days": "{n, plural, one {# day} other {# days}}"
+      }
+    },
+    "rotate": {
+      "eventRecord": "The enrolled record",
+      "pool": "Rotate between",
+      "onlyUnowned": "Only when the record has no owner",
+      "hint": "Each enrollment goes to the next person in order. People marked as out of office are skipped."
+    },
+    "createDeal": {
+      "name": "Deal name",
+      "pipeline": "Pipeline",
+      "stage": "Stage",
+      "amount": "Amount",
+      "hint": "The deal is associated with the contact and company of the enrolled record, and gets the record owner."
+    },
+    "webhookSecret": "Signing secret",
+    "webhookSecretHint": "Each request carries a zerosoft-signature header with the send time (t) and an HMAC-SHA256 of the time, a dot and the body, made with this secret (v1). Only owners and admins see it.",
+    "webhookSignedHint": "Requests are signed with the zerosoft-signature header. Fields hidden from anyone in the workspace are never sent.",
+    "recordCard": {
+      "title": "Workflows",
+      "empty": "This record has not been enrolled in a workflow.",
+      "resumes": "continues {when}"
+    }
   },
   "history": {
     "title": "History",

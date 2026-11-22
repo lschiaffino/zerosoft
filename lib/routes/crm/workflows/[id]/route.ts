@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import { deleteWorkflow, getWorkflow, updateWorkflow } from '@/lib/crm-workflows';
 import { workflowUpdateSchema } from '@/lib/crm-workflows-schema';
+import { redactActionsForMember } from '@/lib/crm-workflow-rules';
 import { invalidBody, notFound, unauthorized, forbidden } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -13,6 +14,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (!user) return unauthorized();
   const workflow = await getWorkflow(user.id, params.id);
   if (!workflow) return notFound();
+  if (!isWorkspaceAdmin(user)) return NextResponse.json({ ...workflow, actions: redactActionsForMember(workflow.actions) });
   return NextResponse.json(workflow);
 }
 

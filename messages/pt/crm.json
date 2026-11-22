@@ -741,7 +741,9 @@
       "email_clicked": "Clique em um link do email",
       "quote_accepted": "Orçamento aceito",
       "form_submitted": "Formulário enviado",
-      "score_changed": "Lead score mudou"
+      "score_changed": "Lead score mudou",
+      "company_created": "Empresa criada",
+      "company_updated": "Empresa atualizada"
     },
     "actionTypes": {
       "send_email": "Enviar e-mail",
@@ -754,7 +756,11 @@
       "enroll_in_sequence": "Inscrever em sequência",
       "run_flow": "Executar um Flow",
       "branch": "Se / senão",
-      "ai_step": "Passo de IA"
+      "ai_step": "Passo de IA",
+      "delay": "Esperar",
+      "rotate_owner": "Revezar responsável",
+      "create_deal": "Criar um negócio",
+      "remove_from_list": "Remover de uma lista"
     },
     "addTrigger": "Adicionar gatilho",
     "addAction": "Adicionar ação",
@@ -766,7 +772,8 @@
       "pending": "Pendente",
       "running": "Executando",
       "done": "Concluído",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "waiting": "Esperando"
     },
     "noRuns": "Ainda não há execuções.",
     "delete": "Excluir workflow",
@@ -820,7 +827,8 @@
       "contacts": "Contatos",
       "deals": "Deals",
       "email": "Email e reuniões",
-      "other": "Outros"
+      "other": "Outros",
+      "companies": "Empresas"
     },
     "templates": {
       "copy": {
@@ -930,7 +938,71 @@
         "deal_score": "Salva o score com IA e o plano do negócio. Use com gatilhos de negócios."
       }
     },
-    "scoreId": "Score"
+    "scoreId": "Score",
+    "runRecord": "Registro",
+    "runNoRecord": "Sem registro",
+    "resumesAt": "até {when}",
+    "propertyChanged": "Só quando esta propriedade muda",
+    "propertyChangedHint": "Opcional. O nome de uma propriedade, como lifecycle_stage, ou custom.chave para uma propriedade própria. Vazio é qualquer mudança.",
+    "propertyNewValue": "E o novo valor é",
+    "propertyNewValueHint": "Opcional. Vazio é qualquer valor.",
+    "enrollment": {
+      "title": "Inscrição",
+      "reenroll": "Reinscrever registros",
+      "reenrollOn": "Um registro se inscreve de novo cada vez que o gatilho acontece, até 10 vezes por dia, e nunca enquanto ainda está neste workflow.",
+      "reenrollOff": "Cada registro se inscreve uma vez. Os gatilhos seguintes do mesmo registro são ignorados.",
+      "noFilters": "Todo registro que cumpre o gatilho se inscreve. Adicione um filtro para inscrever só alguns.",
+      "filtersHint": "Um registro se inscreve só se cumpre todos os filtros.",
+      "addFilter": "Adicionar filtro",
+      "remove": "Remover",
+      "removeFilter": "Remover o filtro {n}"
+    },
+    "notify": {
+      "recipients": "Avisar",
+      "to": {
+        "owner": "O responsável pelo registro",
+        "people": "Pessoas escolhidas",
+        "workspace": "O dono do workspace"
+      },
+      "people": "Pessoas",
+      "privacyHint": "Uma pessoa recebe o aviso só se vê o registro, e a mensagem deixa de fora os campos ocultos para ela."
+    },
+    "delay": {
+      "amount": "Esperar",
+      "unit": "Unidade",
+      "units": {
+        "minutes": "Minutos",
+        "hours": "Horas",
+        "days": "Dias"
+      },
+      "hint": "As ações seguintes rodam depois desta espera, de até 30 dias. Desligar o workflow pausa os registros que esperam, e eles continuam quando ele é ligado de novo.",
+      "summary": {
+        "minutes": "{n, plural, one {# minuto} other {# minutos}}",
+        "hours": "{n, plural, one {# hora} other {# horas}}",
+        "days": "{n, plural, one {# dia} other {# dias}}"
+      }
+    },
+    "rotate": {
+      "eventRecord": "O registro inscrito",
+      "pool": "Revezar entre",
+      "onlyUnowned": "Só quando o registro não tem responsável",
+      "hint": "Cada inscrição vai para a próxima pessoa na ordem. Quem está marcado como fora do escritório é pulado."
+    },
+    "createDeal": {
+      "name": "Nome do negócio",
+      "pipeline": "Pipeline",
+      "stage": "Etapa",
+      "amount": "Valor",
+      "hint": "O negócio fica associado ao contato e à empresa do registro inscrito, com o responsável do registro."
+    },
+    "webhookSecret": "Segredo de assinatura",
+    "webhookSecretHint": "Cada requisição leva o cabeçalho zerosoft-signature com a hora do envio (t) e um HMAC-SHA256 da hora, um ponto e o corpo, feito com este segredo (v1). Só owners e admins o veem.",
+    "webhookSignedHint": "As requisições vão assinadas com o cabeçalho zerosoft-signature. Os campos ocultos para alguém do workspace nunca são enviados.",
+    "recordCard": {
+      "title": "Workflows",
+      "empty": "Este registro não foi inscrito em nenhum workflow.",
+      "resumes": "continua {when}"
+    }
   },
   "history": {
     "title": "Histórico",
