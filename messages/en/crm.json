@@ -4433,7 +4433,8 @@
       "amount": "Amount",
       "currency": "Currency",
       "close_date": "Close date",
-      "description": "Description"
+      "description": "Description",
+      "lost_reason": "Lost reason"
     },
     "localFields": {
       "source": "Source",
@@ -4504,7 +4505,7 @@
         "deals": "Deals",
         "activities": "Activity"
       },
-      "conflicts": "{n} records changed on both sides since the last sync. We kept the value in zerosoft, and writing to HubSpot does not send that field either.",
+      "conflicts": "{n} records changed on both sides since the last sync. Each side kept its value. Choose which one stays under Conflicts, below.",
       "archived": "{n} records were archived in HubSpot. They stay in the CRM.",
       "objectsTitle": "What to bring",
       "objects": {
@@ -4686,6 +4687,95 @@
         "associations": "Associations added here are added in HubSpot. Removing one here does not remove it there.",
         "deletes": "Deleting a record here never deletes it in HubSpot: the link is only marked.",
         "pause": "Pausing the sync above pauses both directions."
+      },
+      "retryFailed": "Send rejected changes again",
+      "retrying": "Queuing…",
+      "retried": "{n, plural, =0 {There were no rejected changes to send again.} one {# change is queued again.} other {# changes are queued again.}}"
+    },
+    "conflicts": {
+      "title": "Conflicts",
+      "desc": "Records with a field that changed both here and in HubSpot since the last sync. Until you choose, each side keeps its own value. Compare them and choose which value stays, field by field.",
+      "loading": "Loading conflicts…",
+      "loadError": "We could not load the conflicts.",
+      "retry": "Try again",
+      "empty": "No conflicts. Both sides agree on everything the sync compares.",
+      "all": {
+        "here": "Keep zerosoft in all",
+        "hubspot": "Keep HubSpot in all"
+      },
+      "confirm": {
+        "here": {
+          "title": "Keep the zerosoft value in every conflict?",
+          "body": "Nothing changes here. If writing to HubSpot is on, these values go to HubSpot on the next run; if it is off, they go when you turn it on.",
+          "yes": "Keep zerosoft"
+        },
+        "hubspot": {
+          "title": "Keep the HubSpot value in every conflict?",
+          "body": "The value HubSpot has now replaces the one here in every field in conflict. Nothing is written to HubSpot.",
+          "yes": "Keep HubSpot"
+        }
+      },
+      "cancel": "Cancel",
+      "resolving": "Saving…",
+      "bulkDone": "{n, plural, one {# field resolved.} other {# fields resolved.}}",
+      "bulkDoneKept": "{n, plural, one {# field resolved.} other {# fields resolved.}} {k, plural, one {# record still has a field that could not be resolved: compare it to see why.} other {# records still have a field that could not be resolved: compare them to see why.}}",
+      "more": "Show more",
+      "objects": {
+        "contact": "Contact",
+        "company": "Company",
+        "deal": "Deal",
+        "activity": "Activity"
+      },
+      "unnamed": {
+        "contact": "Contact without a name",
+        "company": "Company without a name",
+        "deal": "Deal without a name",
+        "activity": "Activity from HubSpot"
+      },
+      "mergeNote": "HubSpot merged two records that are still two here. Merge them here.",
+      "activityNote": "An activity changed on both sides. Check it on its record and remove it from this list.",
+      "compare": "Compare",
+      "close": "Close",
+      "dismiss": "Remove from list",
+      "reading": "Reading HubSpot…",
+      "pickAll": {
+        "here": "Choose zerosoft in all",
+        "hubspot": "Choose HubSpot in all"
+      },
+      "side": {
+        "here": "zerosoft",
+        "hubspot": "HubSpot"
+      },
+      "equal": "Already the same on both sides",
+      "noEquivalent": "This value has no equivalent here",
+      "emptyValue": "Empty",
+      "applyNote": "Fields you do not choose stay in conflict. Keeping HubSpot changes the record here; keeping zerosoft goes to HubSpot only through writing to HubSpot.",
+      "apply": "{n, plural, =0 {Apply} one {Apply to # field} other {Apply to # fields}}",
+      "resolved": "Conflict resolved.",
+      "dismissed": "Removed from the list. No value changed.",
+      "keptSome": "Saved. Still in conflict: {fields}.",
+      "codes": {
+        "hubspot_value_unmapped": "the HubSpot value has no equivalent here",
+        "email_taken": "that email belongs to another contact here"
+      },
+      "errors": {
+        "generic": "That did not work. Try again.",
+        "not_connected": "Connect HubSpot first.",
+        "blocked": "The HubSpot key no longer works or opens another account. Fix the connection above.",
+        "not_found": "This conflict is no longer there, or the record is no longer linked.",
+        "not_resolvable": "This conflict is resolved on the record itself.",
+        "hubspot_missing": "The record is no longer in HubSpot (archived or merged there).",
+        "hubspot_busy": "HubSpot is limiting requests. Try again in a minute.",
+        "provider_error": "HubSpot returned an error. Try again.",
+        "rate_limited": "Too many requests. Try again in a while."
+      },
+      "rules": {
+        "title": "How resolving works",
+        "hubspot": "Keep HubSpot: the value HubSpot has now replaces the one here. Nothing is written to HubSpot.",
+        "here": "Keep zerosoft: nothing changes here and the value goes to HubSpot through writing to HubSpot, if it is on. This screen never writes to HubSpot by itself.",
+        "again": "If the field changes again in HubSpot before it is sent, the conflict comes back. Nothing is overwritten without asking.",
+        "values": "Values are read from HubSpot when you compare and are only shown here. The conflict list only stores field names.",
+        "merge": "Records that HubSpot merged and activities are resolved on the record; here you only remove them from the list."
       }
     }
   },

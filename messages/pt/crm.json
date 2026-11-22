@@ -4433,7 +4433,8 @@
       "amount": "Valor",
       "currency": "Moeda",
       "close_date": "Data de fechamento",
-      "description": "Descrição"
+      "description": "Descrição",
+      "lost_reason": "Motivo da perda"
     },
     "localFields": {
       "source": "Origem",
@@ -4504,7 +4505,7 @@
         "deals": "Negócios",
         "activities": "Atividade"
       },
-      "conflicts": "{n} registros mudaram dos dois lados desde a última sincronização. Ficou o valor do zerosoft, e a escrita no HubSpot também não envia esse campo.",
+      "conflicts": "{n} registros mudaram dos dois lados desde o último sync. Cada lado manteve seu valor. Escolha qual fica em Conflitos, abaixo.",
       "archived": "{n} registros foram arquivados no HubSpot. Continuam no CRM.",
       "objectsTitle": "O que trazer",
       "objects": {
@@ -4686,6 +4687,95 @@
         "associations": "As associações adicionadas aqui são adicionadas no HubSpot. Remover uma aqui não a remove lá.",
         "deletes": "Apagar um registro aqui nunca o apaga no HubSpot: só o vínculo é marcado.",
         "pause": "Pausar a sincronização acima pausa as duas direções."
+      },
+      "retryFailed": "Enviar de novo os rejeitados",
+      "retrying": "Colocando na fila…",
+      "retried": "{n, plural, =0 {Não havia mudanças rejeitadas para enviar de novo.} one {# mudança voltou para a fila.} other {# mudanças voltaram para a fila.}}"
+    },
+    "conflicts": {
+      "title": "Conflitos",
+      "desc": "Registros com um campo que mudou aqui e no HubSpot desde o último sync. Até você escolher, cada lado mantém seu valor. Compare e escolha qual valor fica, campo por campo.",
+      "loading": "Carregando conflitos…",
+      "loadError": "Não conseguimos carregar os conflitos.",
+      "retry": "Tentar de novo",
+      "empty": "Sem conflitos. Os dois lados concordam em tudo o que o sync compara.",
+      "all": {
+        "here": "Manter zerosoft em todos",
+        "hubspot": "Manter HubSpot em todos"
+      },
+      "confirm": {
+        "here": {
+          "title": "Manter o valor do zerosoft em todos os conflitos?",
+          "body": "Nada muda aqui. Se a escrita no HubSpot estiver ligada, esses valores vão para o HubSpot na próxima rodada; se estiver desligada, vão quando você ligar.",
+          "yes": "Manter zerosoft"
+        },
+        "hubspot": {
+          "title": "Manter o valor do HubSpot em todos os conflitos?",
+          "body": "O valor que o HubSpot tem agora substitui o daqui em cada campo em conflito. Nada é escrito no HubSpot.",
+          "yes": "Manter HubSpot"
+        }
+      },
+      "cancel": "Cancelar",
+      "resolving": "Salvando…",
+      "bulkDone": "{n, plural, one {# campo resolvido.} other {# campos resolvidos.}}",
+      "bulkDoneKept": "{n, plural, one {# campo resolvido.} other {# campos resolvidos.}} {k, plural, one {# registro ainda tem um campo que não pôde ser resolvido: compare para ver por quê.} other {# registros ainda têm um campo que não pôde ser resolvido: compare para ver por quê.}}",
+      "more": "Ver mais",
+      "objects": {
+        "contact": "Contato",
+        "company": "Empresa",
+        "deal": "Negócio",
+        "activity": "Atividade"
+      },
+      "unnamed": {
+        "contact": "Contato sem nome",
+        "company": "Empresa sem nome",
+        "deal": "Negócio sem nome",
+        "activity": "Atividade do HubSpot"
+      },
+      "mergeNote": "O HubSpot mesclou dois registros que aqui continuam sendo dois. Mescle-os aqui.",
+      "activityNote": "Uma atividade mudou dos dois lados. Revise no registro e tire-a desta lista.",
+      "compare": "Comparar",
+      "close": "Fechar",
+      "dismiss": "Tirar da lista",
+      "reading": "Lendo o HubSpot…",
+      "pickAll": {
+        "here": "Escolher zerosoft em todos",
+        "hubspot": "Escolher HubSpot em todos"
+      },
+      "side": {
+        "here": "zerosoft",
+        "hubspot": "HubSpot"
+      },
+      "equal": "Já é igual dos dois lados",
+      "noEquivalent": "Este valor não tem equivalente aqui",
+      "emptyValue": "Vazio",
+      "applyNote": "Os campos que você não escolher continuam em conflito. Manter o HubSpot muda o registro aqui; manter o zerosoft vai para o HubSpot só pela escrita no HubSpot.",
+      "apply": "{n, plural, =0 {Aplicar} one {Aplicar a # campo} other {Aplicar a # campos}}",
+      "resolved": "Conflito resolvido.",
+      "dismissed": "Tiramos da lista. Nenhum valor mudou.",
+      "keptSome": "Salvo. Continuam em conflito: {fields}.",
+      "codes": {
+        "hubspot_value_unmapped": "o valor do HubSpot não tem equivalente aqui",
+        "email_taken": "esse email é de outro contato aqui"
+      },
+      "errors": {
+        "generic": "Não funcionou. Tente de novo.",
+        "not_connected": "Conecte o HubSpot primeiro.",
+        "blocked": "A chave do HubSpot não funciona mais ou abre outra conta. Corrija a conexão acima.",
+        "not_found": "Este conflito não existe mais, ou o registro não está mais vinculado.",
+        "not_resolvable": "Este conflito é resolvido no próprio registro.",
+        "hubspot_missing": "O registro não está mais no HubSpot (foi arquivado ou mesclado lá).",
+        "hubspot_busy": "O HubSpot está limitando as requisições. Tente de novo em um minuto.",
+        "provider_error": "O HubSpot retornou um erro. Tente de novo.",
+        "rate_limited": "Requisições demais. Tente de novo daqui a pouco."
+      },
+      "rules": {
+        "title": "Como a resolução funciona",
+        "hubspot": "Manter HubSpot: o valor que o HubSpot tem agora substitui o daqui. Nada é escrito no HubSpot.",
+        "here": "Manter zerosoft: nada muda aqui e o valor vai para o HubSpot pela escrita no HubSpot, se estiver ligada. Esta tela nunca escreve no HubSpot sozinha.",
+        "again": "Se o campo mudar de novo no HubSpot antes de ser enviado, o conflito volta. Nada é sobrescrito sem perguntar.",
+        "values": "Os valores são lidos do HubSpot ao comparar e só aparecem aqui. A lista de conflitos guarda só nomes de campos.",
+        "merge": "Registros que o HubSpot mesclou e atividades são resolvidos no registro; aqui só são tirados da lista."
       }
     }
   },
