@@ -87,9 +87,7 @@ final class SettingsUITests: XCTestCase {
         press(row)
     }
 
-    /// A click at the element's center. With the dictionary list on screen, a plain click()
-    /// on any button failed on the runner while XCTest resolved the element
-    /// ("Can't do regex matching on object 1"); a click at a point does not resolve it again.
+    /// A click at the element's center.
     private func press(_ el: XCUIElement) {
         el.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
     }
@@ -226,6 +224,8 @@ final class SettingsUITests: XCTestCase {
         // Sign in from Settings itself: the open section loads with the new session.
         press(button(app, "zs-remote-signin"))
         waitLabel(app, "zs-test-login", "login 1 ok")
+        // The sign-in shows its page in the tab window; Cmd+, brings Settings back as it was.
+        openSettings(app)
         XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the open section did not reload after sign-in")
 
         section(app, "account")
@@ -261,6 +261,7 @@ final class SettingsUITests: XCTestCase {
         press(signOut)
         waitServer("sign-out") { self.server.writes.contains("signout ok") }
         XCTAssertTrue(text(app, "Not signed in.").waitForExistence(timeout: 10))
+        openSettings(app)
         section(app, "dictionary")
         XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "the dictionary still shows after sign-out")
         waitLabel(app, "zs-test-badge", "badge 0")
