@@ -128,7 +128,14 @@ const parity: ProductParity = {
     row('self-host', 'numbers', ['Self-hosted, your data on your server', 'Self-host, los datos en tu servidor', 'Self-host, os dados no seu servidor'], 'better', { competitorHas: false }),
 
     // Bandeja
-    row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', { detail: ['Tested against a simulated gateway; not yet tried with real WhatsApp', 'Probado contra un gateway simulado; falta probarlo con WhatsApp real', 'Testado contra um gateway simulado; falta testar com WhatsApp real'], weight: 2 }),
+    row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', {
+      detail: [
+        'A group that arrives without its subject asks WhatsApp for it right away, like Inbox, and shows "Group" until it comes; never the raw id. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Un grupo que llega sin asunto se lo pide a WhatsApp en el momento, como Inbox, y dice "Grupo" hasta que llega; nunca el id crudo. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Um grupo que chega sem assunto pede ao WhatsApp na hora, como no Inbox, e mostra "Grupo" até chegar; nunca o id cru. Testado contra um gateway simulado; falta testar com WhatsApp real',
+      ],
+      weight: 2,
+    }),
     row('new-chat', 'inbox', ['New chat like WhatsApp Web: search, frequently contacted, all contacts A to Z', 'Chat nuevo como WhatsApp Web: buscador, contactados con frecuencia, todos los contactos de la A a la Z', 'Nova conversa como o WhatsApp Web: pesquisa, contatos frequentes, todos os contatos de A a Z'], 'partial', {
       detail: [
         'New in the sidebar opens it directly; names without accents and numbers in any format; New group goes to the group form; keyboard and phone layout. Tested with the fake provider; not yet tried with real WhatsApp',
