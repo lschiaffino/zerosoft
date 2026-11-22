@@ -977,6 +977,7 @@ export default function InboxShell({
       ...from('pin'),
       ...from('mute'),
       ...from('favorite'),
+      ...from('vip'),
       ...from('close'),
       ...from('assign'),
       ...from('folder'),
