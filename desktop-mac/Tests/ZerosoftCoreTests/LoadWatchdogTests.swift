@@ -197,6 +197,7 @@ import Testing
     // ready with content before didFinish: the page shows as soon as it finishes.
     var w = LoadWatchdog()
     _ = w.handle(.started)
+    _ = w.handle(.committed)
     #expect(w.handle(.ready(hasContent: true)) == [])
     #expect(w.overlay == .loading)
     #expect(w.handle(.finished) == [])
@@ -221,10 +222,18 @@ import Testing
     // A ready seen for one navigation does not carry over to the next.
     var v = LoadWatchdog()
     _ = v.handle(.started)
+    _ = v.handle(.committed)
     _ = v.handle(.ready(hasContent: true))
     _ = v.handle(.started)
     #expect(v.handle(.finished).count == 2)
     #expect(v.phase == .checkingPaint)
+    // A ready between start and commit comes from the page that is going away: ignored.
+    var old = LoadWatchdog()
+    _ = old.handle(.started)
+    _ = old.handle(.ready(hasContent: true))
+    _ = old.handle(.committed)
+    #expect(old.handle(.finished).count == 2)
+    #expect(old.phase == .checkingPaint)
     // Nor does it lift an error view.
     var e = LoadWatchdog()
     _ = e.handle(.started)

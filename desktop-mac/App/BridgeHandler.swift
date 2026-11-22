@@ -26,7 +26,10 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
 
     /// Adds the handler and the bridge script to a configuration. The script runs in the main
     /// frame only; the handler is visible to every frame of the page world, which is why the
-    /// origin check is on the native side.
+    /// origin check is on the native side. A frame that can already script the main frame (same
+    /// origin, or an about:blank/srcdoc frame that inherits it) can also call through
+    /// `parent.zerosoftDesktop`; WebKit attributes that call to the main frame. That grants
+    /// nothing such a frame did not already have.
     func install(in controller: WKUserContentController) {
         controller.addScriptMessageHandler(self, contentWorld: .page, name: Bridge.handlerName)
         controller.addUserScript(WKUserScript(

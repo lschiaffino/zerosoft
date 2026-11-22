@@ -224,6 +224,11 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         send(.started)
     }
 
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        guard isCurrent(navigation) else { return }
+        send(.committed)
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard isCurrent(navigation) else { return }
         send(.finished)

@@ -110,6 +110,9 @@ public struct LoadWatchdog: Sendable {
         case loadRequested
         /// `didStartProvisionalNavigation` of the main frame.
         case started
+        /// `didCommit`: the new document replaced the old one. A `ready` before it may come from
+        /// the page that is going away.
+        case committed
         /// `didFinish`.
         case finished
         /// A failure that `LoadFailure.from` did not ignore.
@@ -141,6 +144,8 @@ public struct LoadWatchdog: Sendable {
     /// The current navigation's page reported visible content through the bridge before
     /// `didFinish`: the paint check passes as soon as the load finishes.
     private var readyContent = false
+    /// The current navigation committed its document (`didCommit`).
+    private var committed = false
     private var lastCrash: Date?
 
     public init() {}
@@ -154,8 +159,13 @@ public struct LoadWatchdog: Sendable {
             generation += 1
             phase = .loading
             readyContent = false
+            committed = false
             if !painted { overlay = .loading }
             return [.schedule(.load, after: Self.loadTimeout, generation: generation)]
+
+        case .committed:
+            if phase == .loading { committed = true }
+            return []
 
         case .finished:
             // A load that was only slow still replaces the timeout error when it arrives.
@@ -195,7 +205,7 @@ public struct LoadWatchdog: Sendable {
             guard hasContent else { return [] }
             if phase == .checkingPaint {
                 show()
-            } else if phase == .loading {
+            } else if phase == .loading, committed {
                 readyContent = true
             }
             return []
@@ -230,6 +240,7 @@ public struct LoadWatchdog: Sendable {
         phase = .loading
         painted = false
         readyContent = false
+        committed = false
         overlay = .loading
         return [.reload, .schedule(.load, after: Self.loadTimeout, generation: generation)]
     }

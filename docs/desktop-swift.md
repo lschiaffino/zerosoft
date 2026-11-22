@@ -277,6 +277,12 @@ after load (section 4.6).
 - Lockdown `on` only: the page reports `typeof indexedDB`, `navigator.serviceWorker`,
   `navigator.mediaDevices` through the bridge `ready` message, so the test proves restrictions were
   actually active (if they were not, the test fails: it protects against a no-op flag).
+  **Measured in block 2 (macos-15 runner, `isLockdownModeEnabled = true`):** WebAssembly,
+  IndexedDB (absent, not throwing), WebRTC, Web Audio and `Notification` are gone; service workers
+  stay available and register; a TrueType web font is refused and text falls back to a system
+  font; the page and the bridge keep working. `navigator.mediaDevices` is absent in both modes until
+  the app has the camera and microphone entitlements, so it is not used as proof. The web app's
+  IndexedDB code (7 files) already checks `typeof indexedDB` or catches before using it.
 - Against the real web app: a nightly job runs the Swift app against a `next start` of `main` with
   `DEMO_MODE=true` (the same build the e2e jobs make) and opens the home of each app with Lockdown on
   and off, taking a screenshot per app as an artifact and failing on a blank page or uncaught error.
