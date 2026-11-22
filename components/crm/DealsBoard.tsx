@@ -630,9 +630,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
               <div className="kb-col-head">
                 <span className="kb-col-title">
                   <span className="kb-col-name">{col.stage.name}</span>
-                  <span className="kb-col-count num" aria-label={t('deals.totals.open')}>
-                    {col.count}
-                  </span>
+                  <span className="kb-col-count num">{col.count}</span>
                 </span>
                 <span className="kb-col-stats num">
                   {fmtMoney(col.amount, baseCurrency)}
@@ -714,6 +712,7 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                         <span
                           className="kb-card-owner"
                           title={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
+                          role="img"
                           aria-label={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
                           data-testid="kb-card-owner"
                         >

@@ -151,10 +151,6 @@ export default function DealStagePanel({ dealId, stages, currentStageId, variant
           aria-label={t('deals.form.stage')}
           data-testid="preview-stage"
           onChange={(e) => onSelect(e.target.value)}
-          onKeyDown={(e) => {
-            // Esc solo cierra la lista, no la vista previa.
-            if (e.key === 'Escape') e.preventDefault();
-          }}
         >
           {stages.map((s) => (
             <option key={s.id} value={s.id}>
@@ -212,7 +208,18 @@ export default function DealStagePanel({ dealId, stages, currentStageId, variant
       </div>
       )}
       {pending?.is_lost ? (
-        <div className="stage-confirm" role="group" aria-label={t('deals.lostDialog.title')}>
+        <div
+          className="stage-confirm"
+          role="group"
+          aria-label={t('deals.lostDialog.title')}
+          onKeyDown={(e) => {
+            // Esc cancela el motivo de pérdida (y no cierra la vista previa que lo contiene).
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setPending(null);
+            }
+          }}
+        >
           <p className="ui-help">{t('deals.lostDialog.sub')}</p>
           <div className="ui-fields-2">
             <select

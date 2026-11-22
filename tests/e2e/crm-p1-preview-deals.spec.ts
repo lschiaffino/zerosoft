@@ -112,6 +112,7 @@ test('board: arrastrar una card a otra etapa la guarda', async ({ page, request 
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.goto(`/en/app/crm/deals?pipeline=${p.id}`, { waitUntil: 'networkidle' });
   const card = page.locator(`.kb-card[data-deal-id="${deal.id}"]`);
+  await card.scrollIntoViewIfNeeded();
   const from = (await card.boundingBox())!;
   const target = (await page.locator(`.kb-cards[data-stage-id="${p.open[1].id}"]`).boundingBox())!;
   await page.mouse.move(from.x + 20, from.y + 12);
@@ -269,11 +270,10 @@ test('vista previa de un member: el campo de solo lectura no se edita y el ocult
     await ed.locator('input').fill('c-2');
     await ed.locator('input').press('Enter');
     await expect(ed).toContainText('c-2');
-    // Y el oculto sigue guardado para el owner.
-    const rows = await sql('SELECT custom FROM crm_deals WHERE name = ?', [name]);
-    const stored = JSON.parse(String(rows[0].custom)) as Record<string, string>;
-    expect(stored[fields['Margin note']]).toBe('m-secret');
-    expect(stored[fields['Champion']]).toBe('c-2');
+    // Guardado (no solo en pantalla), y el oculto sigue ahí para el owner.
+    const stored = async () => JSON.parse(String((await sql('SELECT custom FROM crm_deals WHERE name = ?', [name]))[0].custom)) as Record<string, string>;
+    await expect.poll(async () => (await stored())[fields['Champion']]).toBe('c-2');
+    expect((await stored())[fields['Margin note']]).toBe('m-secret');
   } finally {
     for (const c of ctxs) await c.close();
   }

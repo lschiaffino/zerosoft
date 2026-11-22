@@ -29,6 +29,7 @@ interface PreviewContact {
   lead_status: string;
   source: string;
   owner_id: string | null;
+  user_id?: string;
   custom: string;
 }
 
@@ -45,6 +46,7 @@ interface PreviewCompany {
   lifecycle_stage: string;
   description?: string | null;
   owner_id: string | null;
+  user_id?: string;
   custom: string;
 }
 
@@ -62,6 +64,7 @@ interface PreviewDeal {
   stage_id: string;
   pipeline_id: string;
   owner_id: string | null;
+  user_id?: string;
   custom: string;
 }
 
@@ -163,10 +166,15 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
-  // Vuelve a leer el registro (después de guardar) sin mostrar "cargando".
+  // Vuelve a leer el registro (después de guardar) sin mostrar "cargando". Solo vale la última
+  // lectura: una respuesta vieja que llega tarde no pisa a una más nueva.
+  const reloadSeq = useRef(0);
   const reload = useCallback(async () => {
+    const seq = ++reloadSeq.current;
     const res = await fetch(`/api/crm/${plural}/${id}`, { cache: 'no-store' }).catch(() => null);
-    if (res?.ok) setPayload((await res.json()) as PreviewPayload);
+    if (!res?.ok || seq !== reloadSeq.current) return;
+    const data = (await res.json()) as PreviewPayload;
+    if (seq === reloadSeq.current) setPayload(data);
   }, [plural, id]);
 
   useEffect(() => {
@@ -259,10 +267,10 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
   const custom = useMemo(() => parseCustom(customJson), [customJson]);
 
   const ownerOptions = owners;
-  const ownerField = (ownerId: string | null, label: string): PropField[] =>
-    ownerOptions.length
-      ? [{ key: 'ownerId', label, type: 'select', value: ownerId ?? '', options: ownerOptions, nullOption: true }]
-      : [];
+  // Sin propietario es el dueño del workspace (como en la ficha): no se ofrece "—", que
+  // dejaría a un member sin acceso a un registro que estaba viendo.
+  const ownerField = (ownerId: string | null, workspaceId: string | undefined, label: string): PropField[] =>
+    ownerOptions.length ? [{ key: 'ownerId', label, type: 'select', value: ownerId ?? workspaceId ?? '', options: ownerOptions }] : [];
 
   const customFields = customPropFields(defs, custom, { yes: t('common.yes'), no: t('common.no'), locale, owners: ownerOptions });
 
@@ -290,7 +298,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
           value: c.lead_status,
           options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
         },
-        ...ownerField(c.owner_id, t('contacts.form.owner')),
+        ...ownerField(c.owner_id, c.user_id, t('contacts.form.owner')),
         {
           key: 'source',
           label: t('contacts.form.source'),
@@ -318,7 +326,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
           value: c.lifecycle_stage,
           options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
         },
-        ...ownerField(c.owner_id, t('companies.form.owner')),
+        ...ownerField(c.owner_id, c.user_id, t('companies.form.owner')),
         { key: 'city', label: t('companies.form.city'), type: 'text', value: c.city },
         { key: 'country', label: t('companies.form.country'), type: 'text', value: c.country },
         { key: 'employees', label: t('companies.form.employees'), type: 'number', value: c.employees === null ? '' : String(c.employees) },
@@ -331,7 +339,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
       { key: 'name', label: t('deals.form.name'), type: 'text', value: d.name },
       { key: 'amount', label: t('deals.form.amount'), type: 'number', value: String(d.amount), display: formatMoney(d.amount, d.currency, locale) },
       { key: 'closeDate', label: t('deals.form.closeDate'), type: 'date', value: d.close_date ?? '', display: formatDay(d.close_date, locale) || undefined, nullOption: true },
-      ...ownerField(d.owner_id, t('deals.form.owner')),
+      ...ownerField(d.owner_id, d.user_id, t('deals.form.owner')),
       {
         key: 'priority',
         label: t('deals.form.priority'),
@@ -560,17 +568,19 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
             onSaved={() => void reload()}
           />
         ))}
-        {customSections.map((s) =>
-          section(s.id, s.title, undefined, (
+        {/* Un solo panel para todas las propiedades propias (agrupadas): el PATCH manda el
+            objeto custom entero, y dos paneles con su propia copia se pisaban entre sí. */}
+        {customSections.length > 0 &&
+          section('custom', t('preview.customProps'), undefined, (
             <PropertiesPanel
               endpoint={endpoint}
-              fields={customFields.filter((f) => s.keys.includes(f.key))}
+              fields={customFields}
               custom={custom}
+              sections={customSections.length > 1 || customSections[0].title !== t('preview.customProps') ? customSections : undefined}
               optimistic
               onSaved={() => void reload()}
             />
-          )),
-        )}
+          ))}
       </>
     );
   }

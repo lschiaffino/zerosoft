@@ -536,7 +536,6 @@
     },
     "filterStalledLabel": "Atividade",
     "colWeighted": "Ponderado {amount}",
-    "summaryOpen": "{count, plural, one {# negócio aberto} other {# negócios abertos}}",
     "cardOwner": "Responsável: {name}"
   },
   "tasks": {

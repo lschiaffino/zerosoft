@@ -612,7 +612,7 @@ const parity: ProductParity = {
       id: 'board-totals',
       area: 'index',
       label: { en: 'Stage totals and weighted amount on the board', es: 'Totales por etapa y monto ponderado en el tablero', pt: 'Totais por etapa e valor ponderado no quadro' },
-      detail: { en: 'Each column shows its deal count, its total in the base currency and the amount weighted by the stage probability, and the board shows the open, total and weighted amounts of the pipeline', es: 'Cada columna muestra su cantidad de deals, su total en la moneda base y el monto ponderado por la probabilidad de la etapa, y el tablero muestra los montos abiertos, totales y ponderados del pipeline', pt: 'Cada coluna mostra a quantidade de negócios, o total na moeda base e o valor ponderado pela probabilidade da etapa, e o quadro mostra os valores abertos, totais e ponderados do pipeline' },
+      detail: { en: 'Each column shows its deal count, its total in the base currency and the amount weighted by the stage probability, and the board shows the open deals, open amount and weighted forecast of the pipeline', es: 'Cada columna muestra su cantidad de deals, su total en la moneda base y el monto ponderado por la probabilidad de la etapa, y el tablero muestra los deals abiertos, el monto abierto y el forecast ponderado del pipeline', pt: 'Cada coluna mostra a quantidade de negócios, o total na moeda base e o valor ponderado pela probabilidade da etapa, e o quadro mostra os negócios abertos, o valor aberto e a previsão ponderada do pipeline' },
       status: 'have',
       competitorHas: true,
     },

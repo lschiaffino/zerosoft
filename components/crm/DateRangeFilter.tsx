@@ -60,7 +60,8 @@ interface DateRangeFilterProps {
 export default function DateRangeFilter({ label, kind, from, to, locale, onChange, testId }: DateRangeFilterProps) {
   const t = useTranslations('crm.dateFilter');
   const [open, setOpen] = useState(false);
-  const [alignRight, setAlignRight] = useState(false);
+  /** Corrimiento del menú (px, desde el borde izquierdo del botón) para que entre en la pantalla. */
+  const [shift, setShift] = useState(0);
   const [draftFrom, setDraftFrom] = useState(from);
   const [draftTo, setDraftTo] = useState(to);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -93,11 +94,12 @@ export default function DateRangeFilter({ label, kind, from, to, locale, onChang
     };
   }, [open]);
 
-  // Si a la derecha no entra (teléfono, último filtro de la fila), el menú se alinea al borde derecho del botón.
+  // El menú arranca en el botón y se corre lo justo para quedar entero en la pantalla (teléfono).
   useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
+    if (!open || !btnRef.current || !menuRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    setAlignRight(r.left + 288 > window.innerWidth - 8);
+    const w = menuRef.current.offsetWidth;
+    setShift(Math.max(8, Math.min(r.left, window.innerWidth - 8 - w)) - r.left);
   }, [open]);
 
   const fmt = (d: string) => {
@@ -136,7 +138,8 @@ export default function DateRangeFilter({ label, kind, from, to, locale, onChang
           id={menuId}
           role="dialog"
           aria-label={label}
-          className={`dr-filter-menu${alignRight ? ' align-right' : ''}`}
+          className="dr-filter-menu"
+          style={{ left: shift }}
           data-testid={testId ? `${testId}-menu` : undefined}
         >
           <div className="dr-filter-presets">

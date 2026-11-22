@@ -536,7 +536,6 @@
     },
     "filterStalledLabel": "Activity",
     "colWeighted": "Weighted {amount}",
-    "summaryOpen": "{count, plural, one {# open deal} other {# open deals}}",
     "cardOwner": "Owner: {name}"
   },
   "tasks": {
