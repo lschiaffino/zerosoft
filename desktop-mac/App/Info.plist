@@ -66,7 +66,11 @@
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>zerosoft captures the computer's audio only while a meeting you started records, so its notes include the other people on the call. The audio goes to your zerosoft server.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>On macOS 14.1 and earlier, zerosoft needs Screen Recording to capture the computer's audio while a meeting you started records. It does not record your screen.</string>
+	<string>Rec records your screen from its page, only after you start a recording and pick what to share. On macOS 14.1 and earlier, zerosoft also needs Screen Recording to capture the computer's audio while a meeting you started records.</string>
+	<!-- Rec (block 8): the camera for the page (Talk, Rec) and for Rec's camera bubble, which
+	     only previews it on screen. Asked on first use or from Settings › Permissions. -->
+	<key>NSCameraUsageDescription</key>
+	<string>zerosoft uses the camera for video calls and for Rec recordings with your camera, only after you start one. During a Rec recording your camera shows in a round bubble on top of other apps.</string>
 	<!-- Auto-paste of dictated text (decision 7.1, section 5.1): YES posts Command+V once the
 	     person allows it in Privacy & Security › Accessibility; NO only copies. From the
 	     ZS_AUTO_PASTE build setting (project.yml). -->

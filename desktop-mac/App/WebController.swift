@@ -49,6 +49,9 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     var onSystemAudioRead: (() -> String)?
     var onSystemAudioStop: (() -> Void)?
     var onDocumentGone: (() -> Void)?
+    /// Rec (block 8): the bridge's `recOverlay` and `recLevel`.
+    var onRecOverlay: ((Bool, RecPhase?, Double?, String?, String?) -> Void)?
+    var onRecLevel: ((Double) -> Void)?
     /// The web view with the native overlay on top: what a window shows for this tab.
     private(set) var content: TabContentView!
 
@@ -97,6 +100,8 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         bridge.onSystemAudioRead = { [weak self] in self?.onSystemAudioRead?() ?? "" }
         bridge.onSystemAudioStop = { [weak self] in self?.onSystemAudioStop?() }
+        bridge.onRecOverlay = { [weak self] active, phase, elapsed, mic, camera in self?.onRecOverlay?(active, phase, elapsed, mic, camera) }
+        bridge.onRecLevel = { [weak self] level in self?.onRecLevel?(level) }
         model.onOpenInBrowser = { [weak self] in
             guard let self else { return }
             self.openExternal(self.lastRequested ?? self.serverURL)
@@ -133,6 +138,8 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         onSystemAudioRead = nil
         onSystemAudioStop = nil
         onDocumentGone = nil
+        onRecOverlay = nil
+        onRecLevel = nil
         content.removeFromSuperview()
     }
 
@@ -140,6 +147,12 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// (`zerosoft:stop-recording`, DESKTOP_STOP_RECORDING_EVENT in lib/desktop-bridge.ts).
     func dispatchStopRecording() {
         webView.evaluateJavaScript("window.dispatchEvent(new Event('zerosoft:stop-recording'))", completionHandler: nil)
+    }
+
+    /// A control from Rec's bar, bubble or shortcuts (`zerosoft:rec-control`,
+    /// DESKTOP_REC_CONTROL_EVENT): only the fixed values of RecControl reach the page.
+    func dispatchRecControl(_ control: RecControl) {
+        webView.evaluateJavaScript(control.script, completionHandler: nil)
     }
 
     func goBack() {
@@ -386,6 +399,22 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
             _ = route(url)
         }
         return nil
+    }
+
+    /// Camera and microphone for the page (Talk, Rec, Voice meetings), as tabs.rs
+    /// `on_permission_request`: granted to the server's main frame only, denied to every frame
+    /// and every other origin. macOS still asks the person the first time the app uses either
+    /// (TCC); a page cannot open them without that answer. Screen sharing (getDisplayMedia)
+    /// does not come here: WebKit asks the person itself each time.
+    func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
+    ) {
+        let from = BridgeFrame(isMainFrame: frame.isMainFrame, scheme: origin.protocol, host: origin.host, port: origin.port)
+        decisionHandler(Bridge.originAllowed(from, server: server) ? .grant : .deny)
     }
 
     func webView(

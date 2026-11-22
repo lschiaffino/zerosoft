@@ -337,8 +337,10 @@ final class MeetingsUITests: XCTestCase {
 
         press(app.buttons.matching(identifier: "zs-settings-permissions").firstMatch)
         reveal(app, element(app, "zs-set-audio-state"), click: false)
-        // macOS 14.2 and later (audio taps) never need Screen Recording: no row asks for it.
-        XCTAssertFalse(element(app, "zs-set-screen-state").exists, "Screen Recording offered without a use")
+        // The computer's audio on macOS 14.2 and later (audio taps) never needs Screen
+        // Recording. Since block 8 its row shows on every macOS for Rec, which records the
+        // screen from the page; showing it asks nothing.
+        reveal(app, element(app, "zs-set-screen-state"), click: false)
         waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=0")
 
         app.terminate()

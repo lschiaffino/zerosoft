@@ -207,8 +207,9 @@ final class MainWindowUITests: XCTestCase {
     }
 
     /// The bridge answers the server's main frame and refuses everything else: an unknown
-    /// command, an oversize or mistyped message, a command without a native side yet, and any
-    /// frame (another origin, the same origin, a sandboxed one).
+    /// command, an oversize or mistyped message, and any frame (another origin, the same origin,
+    /// a sandboxed one). Since block 8 every command has a native side: Rec's "not recording"
+    /// from a tab without a recording is answered and does nothing.
     func testBridgeAnswersOnlyTheServerMainFrame() throws {
         try server.start()
         let app = launch()
@@ -220,7 +221,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(bridge.contains("unknown=denied:unknownCommand "), bridge)
         XCTAssertTrue(bridge.contains("oversize=denied:tooLarge "), bridge)
         XCTAssertTrue(bridge.contains("badargs=denied:badArgs "), bridge)
-        XCTAssertTrue(bridge.contains("unimplemented=denied:unavailable "), bridge)
+        XCTAssertTrue(bridge.contains("recoff=ok "), bridge)
         XCTAssertTrue(bridge.contains("malformed=denied:malformed "), bridge)
         XCTAssertTrue(bridge.contains("frozen=true "), bridge)
         XCTAssertTrue(bridge.contains("fields=darwin,false,\(lockdown) "), bridge)
@@ -242,7 +243,7 @@ final class MainWindowUITests: XCTestCase {
         // The native side counted each refusal under its reason.
         let native = element(app, "zs-test-bridge")
         let origin = refused == 0 ? "" : "origin=\(refused) "
-        let want = "rejected \(origin)malformed=1 tooLarge=1 unknownCommand=1 badArgs=1 unavailable=1 end"
+        let want = "rejected \(origin)malformed=1 tooLarge=1 unknownCommand=1 badArgs=1 end"
         let done = expectation(for: NSPredicate { obj, _ in
             ((obj as? XCUIElement)?.value as? String) == want
         }, evaluatedWith: native)

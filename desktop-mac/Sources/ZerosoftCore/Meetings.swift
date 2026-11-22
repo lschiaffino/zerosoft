@@ -252,7 +252,8 @@ public enum RecordingIndicatorRules {
     /// indicator.rs `should_show`: while the recording tab is not in front, for a meeting the
     /// page reported (unless switched off in Settings › Meetings) and always for the computer's
     /// audio, which the app captures itself and must mark whatever the page says (guideline
-    /// 2.5.14). Rec's own floating bar (block 8) already marks a Rec capture. The person can hide
+    /// 2.5.14). Rec's own floating bar (block 8) already marks the computer's audio a Rec
+    /// recording captures, so it does not show for that. The person can hide
     /// it until the next recording; the menu bar item and the tab keep their dot.
     public static func shouldShow(meeting: Bool, systemAudio: Bool, recBar: Bool, enabled: Bool, dismissed: Bool, inFront: Bool) -> Bool {
         !dismissed && !inFront && ((meeting && enabled) || (systemAudio && !recBar))
@@ -282,20 +283,24 @@ public struct CaptureState: Equatable, Sendable {
     public var meeting: Bool
     /// The app captures the computer's audio.
     public var systemAudio: Bool
+    /// A page records with Rec (block 8): its floating bar shows.
+    public var rec: Bool
 
-    public init(dictation: Bool = false, meeting: Bool = false, systemAudio: Bool = false) {
+    public init(dictation: Bool = false, meeting: Bool = false, systemAudio: Bool = false, rec: Bool = false) {
         self.dictation = dictation
         self.meeting = meeting
         self.systemAudio = systemAudio
+        self.rec = rec
     }
 
-    /// A meeting or the computer's audio: the menu bar item shows even when Settings › General
-    /// hides it, so the recording is always marked (guideline 2.5.14).
-    public var forcesMenuBarItem: Bool { meeting || systemAudio }
+    /// A meeting, Rec or the computer's audio: the menu bar item shows even when Settings ›
+    /// General hides it, so the recording is always marked (guideline 2.5.14).
+    public var forcesMenuBarItem: Bool { meeting || systemAudio || rec }
 
     /// The tooltip of the menu bar item.
     public var statusKey: StringKey? {
         if meeting { return .statusMeeting }
+        if rec { return .statusRec }
         if systemAudio { return .statusSystemAudio }
         if dictation { return .statusRecording }
         return nil
