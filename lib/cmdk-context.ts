@@ -91,6 +91,8 @@ export function getCommandContext(): CommandContext | null {
 export const OPEN_SEARCH_EVENT = 'zs:open-search';
 /** La paleta se cerró (las páginas sueltan los objetivos que fijaron al abrirla). */
 export const CMDK_CLOSED_EVENT = 'zs:cmdk-closed';
+/** Las acciones de la página cambiaron (el chat se silenció, se fijó): la paleta abierta se vuelve a dibujar. */
+export const CMDK_CONTEXT_EVENT = 'zs:cmdk-context';
 
 export interface CommandAnchor {
   top: number;

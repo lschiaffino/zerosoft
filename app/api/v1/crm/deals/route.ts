@@ -45,5 +45,5 @@ export async function POST(req: NextRequest) {
       ? apiError(400, 'invalid_stage', 'The stage does not belong to that pipeline.')
       : apiError(400, 'invalid_pipeline', 'The pipeline does not exist.');
   }
-  return NextResponse.json(cleanRow(result.deal), { status: 201 });
+  return NextResponse.json(cleanRow(redactRow(result.deal, await hiddenFieldsFor(apiFieldViewer(auth), 'deals'))), { status: 201 });
 }

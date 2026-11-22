@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-21',
+  lastReviewed: '2026-11-22',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -142,8 +142,12 @@ const parity: ProductParity = {
       weight: 2,
       detail: ['J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letter and ? for the list', 'J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letra y ? para la lista', 'J, K, E, H, F, R, C, U, P, V, X, Z, /, g + letra e ? para a lista'],
     }),
-    row('command', 'navigation', ['Command palette', 'Paleta de comandos', 'Paleta de comandos'], 'partial', {
-      detail: ['Cmd+K finds your chats and Inbox views across the suite. The actions of the open chat are commands in its message field (type /), not in Cmd+K', 'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite. Las acciones del chat abierto son comandos en su campo de mensaje (escribí /), no en Cmd+K', 'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte. As ações da conversa aberta são comandos no campo de mensagem (digite /), não no Cmd+K'],
+    row('command', 'navigation', ['Command palette', 'Paleta de comandos', 'Paleta de comandos'], 'have', {
+      detail: [
+        'Cmd+K finds your chats and Inbox views across the suite. With a chat open it lists the actions of that chat first, the same as the / menu of its message field (done, snooze, remind, folder, read, pin, archive, mute with its options, info, rename, attach) plus Search messages, with their shortcuts',
+        'Cmd+K encuentra tus chats y vistas de Inbox en toda la suite. Con un chat abierto muestra primero las acciones de ese chat, las mismas del menú / de su campo de mensaje (hecho, posponer, recordar, carpeta, leído, fijar, archivar, silenciar con sus opciones, info, renombrar, adjuntar) y Buscar mensajes, con sus atajos',
+        'Cmd+K encontra suas conversas e visões do Inbox em toda a suíte. Com uma conversa aberta mostra primeiro as ações dessa conversa, as mesmas do menu / do campo de mensagem (feito, adiar, lembrar, pasta, lida, fixar, arquivar, silenciar com suas opções, dados, renomear, anexar) e Pesquisar mensagens, com seus atalhos',
+      ],
     }),
     row('search', 'navigation', ['Search', 'Búsqueda', 'Busca'], 'have', {
       detail: [
@@ -373,9 +377,9 @@ const parity: ProductParity = {
     }),
     row('wa-contact-info', 'whatsapp', ['Contact and group info', 'Info del contacto y del grupo', 'Dados do contato e do grupo'], 'partial', {
       detail: [
-        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. Leaving or editing a group is done on the phone',
-        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. Salir o editar un grupo se hace en el teléfono',
-        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. Sair ou editar um grupo é feito no celular',
+        'Photo, name, number or members with admins, about or description, shared photos, documents and links, starred messages, groups in common, mute and block. The photo or name of anyone in a group, or a participant, opens their contact info with Message (opens or starts the one on one chat). No audio or video calls. The pencil next to the group name and description changes them on WhatsApp, with the notice in the chat (tested with the fake provider). Leaving a group and changing its photo or settings are done on the phone',
+        'Foto, nombre, número o integrantes con sus admins, info o descripción, fotos, documentos y enlaces compartidos, destacados, grupos en común, silenciar y bloquear. La foto o el nombre de alguien en un grupo, o un participante, abre su info del contacto con Mensaje (abre o empieza el chat individual). Sin llamadas de audio ni video. El lápiz al lado del nombre y de la descripción del grupo los cambia en WhatsApp, con el aviso en el chat (probado con el proveedor falso). Salir del grupo y cambiar su foto o sus ajustes se hace en el teléfono',
+        'Foto, nome, número ou membros com os admins, recado ou descrição, fotos, documentos e links compartilhados, favoritas, grupos em comum, silenciar e bloquear. A foto ou o nome de alguém em um grupo, ou um participante, abre os dados do contato com Mensagem (abre ou começa a conversa individual). Sem chamadas de áudio ou vídeo. O lápis ao lado do nome e da descrição do grupo os muda no WhatsApp, com o aviso na conversa (testado com o provedor falso). Sair do grupo e mudar a foto ou as configurações dele é feito no celular',
       ],
     }),
     row('wa-group-members', 'whatsapp', ['Add members and change group admins', 'Agregar miembros y cambiar admins del grupo', 'Adicionar membros e mudar admins do grupo'], 'partial', {

@@ -3,18 +3,25 @@
 # project.yml, the UI tests against a local fixture server, and a Release build signed ad hoc
 # whose signature and entitlements are checked. The signed .app is kept as an artifact. Nothing is
 # published. The Tauri app (desktop/) has its own workflow, desktop.yml.
+#
+# The UI tests run twice (section 3.5): with WebKit's Lockdown Mode restrictions off and forced on
+# (`-ZSLockdown`, WKWebpagePreferences.isLockdownModeEnabled). The `on` run proves the restrictions
+# were active and that the app still shows the page or the native error view.
+#
+# On a pull request this runs from ci.yml (`workflow_call`), only when the PR touches the files in
+# the `mac` list of scripts/e2e-areas.json, and "CI result" waits for it. On main it runs on its own
+# when a push touches the app.
 name: desktop-mac
 
 on:
-  pull_request:
-    paths:
-      - 'desktop-mac/**'
-      - '.github/workflows/desktop-mac.yml'
+  workflow_call:
   push:
     branches: [main]
     paths:
       - 'desktop-mac/**'
       - '.github/workflows/desktop-mac.yml'
+      - 'lib/desktop-bridge.ts'
+      - 'desktop/privacy-facts.json'
   workflow_dispatch:
 
 permissions:
@@ -26,9 +33,13 @@ concurrency:
 
 jobs:
   build-test:
-    name: Mac app (Swift)
+    name: Mac app (Swift, Lockdown ${{ matrix.lockdown }})
     runs-on: macos-15
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        lockdown: ['off', 'on']
     defaults:
       run:
         working-directory: desktop-mac
@@ -44,6 +55,7 @@ jobs:
           xcodebuild -version
           swift --version
       - name: ZerosoftCore tests
+        if: ${{ matrix.lockdown == 'off' }}
         run: swift test
       - name: Generate the Xcode project
         run: |
@@ -53,6 +65,9 @@ jobs:
           unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
           "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate --spec project.yml
       - name: UI tests
+        env:
+          # xcodebuild hands TEST_RUNNER_* variables to the test runner without the prefix.
+          TEST_RUNNER_ZS_LOCKDOWN: ${{ matrix.lockdown }}
         run: |
           xcodebuild test -quiet \
             -project zerosoft.xcodeproj -scheme zerosoft -configuration Debug \
@@ -70,17 +85,25 @@ jobs:
                   print("  " * d + n.get("name", "") + ": " + n.get("result", ""))
               for c in n.get("children", []): walk(c, d + 1)
           for n in json.load(sys.stdin).get("testNodes", []): walk(n)' || true
+          # What the pages measured (web features, bridge answers, fonts) in this Lockdown mode.
+          xcrun xcresulttool export attachments --path build/UITests.xcresult --output-path build/attachments >/dev/null 2>&1 || true
+          find build/attachments -type f -size -8k ! -name '*.json' ! -name '*.png' ! -name '*.heic' 2>/dev/null \
+            | while read -r f; do echo "attachment: $(cat "$f")"; done || true
       - name: Release build (universal, signed ad hoc)
+        if: ${{ matrix.lockdown == 'off' }}
         run: |
           xcodebuild build -quiet \
             -project zerosoft.xcodeproj -scheme zerosoft -configuration Release \
             -destination 'generic/platform=macOS' \
             -derivedDataPath build/release
       - name: Check signature and entitlements
+        if: ${{ matrix.lockdown == 'off' }}
         run: scripts/check-signature.sh build/release/Build/Products/Release/zerosoft.app
       - name: Package
+        if: ${{ matrix.lockdown == 'off' }}
         run: ditto -c -k --keepParent build/release/Build/Products/Release/zerosoft.app build/zerosoft-mac-adhoc.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ matrix.lockdown == 'off' }}
         with:
           name: zerosoft-mac-adhoc
           path: desktop-mac/build/zerosoft-mac-adhoc.zip
@@ -88,6 +111,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ failure() }}
         with:
-          name: desktop-mac-test-results
+          name: desktop-mac-test-results-lockdown-${{ matrix.lockdown }}
           path: desktop-mac/build/UITests.xcresult
           retention-days: 7

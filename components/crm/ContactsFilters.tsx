@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import CrmIcon from './CrmIcon';
 import { ColumnsSlot } from './ColumnToggle';
 import { ACTIVITY_DATE_SORTS, type ActivityDateSort } from '@/lib/crm-activity-dates';
 import type { ExtraSort } from '@/lib/crm-list-sort';
@@ -19,11 +18,6 @@ export type ContactSort =
   | 'score_asc'
   | ActivityDateSort
   | ExtraSort;
-
-interface SavedView {
-  id: string;
-  name: string;
-}
 
 interface CustomFieldOption {
   name: string;
@@ -51,8 +45,8 @@ interface ContactsFiltersProps {
   sources: string[];
   owners: Array<{ value: string; label: string }>;
   customFields: CustomFieldOption[];
-  views: SavedView[];
-  activeViewId: string | null;
+  /** Params que se conservan al filtrar (vista activa, columnas; lib/crm-views-shared.ts). */
+  keep?: Record<string, string>;
   /** Órdenes por owner y custom fields (lib/crm-list-sort.ts). */
   extraSorts?: Array<{ value: string; label: string }>;
   /** El botón de filtros avanzados (AdvancedFilters): va en la barra, al lado de "Más filtros". */
@@ -62,7 +56,7 @@ interface ContactsFiltersProps {
 /**
  * Barra de filtros del listado de contactos: búsqueda, selects de
  * lifecycle/lead status/origen/owner/fecha/custom y sort; todo server-side
- * via query params; guardar/borrar vistas va por API + refresh.
+ * via query params. Las vistas guardadas están en ViewTabs.
  */
 export default function ContactsFilters({
   q,
@@ -82,8 +76,7 @@ export default function ContactsFilters({
   sources,
   owners,
   customFields,
-  views,
-  activeViewId,
+  keep = {},
   extraSorts = [],
   children,
 }: ContactsFiltersProps) {
@@ -91,8 +84,6 @@ export default function ContactsFilters({
   const router = useRouter();
   const pathname = usePathname();
   const [search, setSearch] = useState(q);
-  const [viewName, setViewName] = useState('');
-  const [savingView, setSavingView] = useState(false);
 
   function go(patch: Record<string, string | undefined>) {
     const params = new URLSearchParams();
@@ -107,7 +98,7 @@ export default function ContactsFilters({
       createdTo: createdTo || undefined,
       filters: advanced || undefined,
       sort: sort !== 'newest' ? sort : undefined,
-      view: activeViewId ?? undefined,
+      ...keep,
       ...patch,
     };
     for (const [key, value] of Object.entries(current)) {
@@ -128,44 +119,6 @@ export default function ContactsFilters({
     go({ [`custom_${name}`]: value || undefined });
   }
 
-  async function saveView(e: React.FormEvent) {
-    e.preventDefault();
-    const name = viewName.trim();
-    if (!name) return;
-    setSavingView(true);
-    const query: Record<string, string> = {};
-    if (q) query.q = q;
-    if (lifecycle) query.lifecycle = lifecycle;
-    if (leadStatus) query.leadStatus = leadStatus;
-    if (source) query.source = source;
-    if (owner) query.owner = owner;
-    if (tag) query.tag = tag;
-    if (createdFrom) query.createdFrom = createdFrom;
-    if (createdTo) query.createdTo = createdTo;
-    if (advanced) query.filters = advanced;
-    if (sort !== 'newest') query.sort = sort;
-    Object.entries(custom).forEach(([k, v]) => {
-      if (v) query[`custom_${k}`] = v;
-    });
-    await fetch('/api/crm/views', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ entity: 'contacts', name, query }),
-    }).catch(() => null);
-    setSavingView(false);
-    setViewName('');
-    router.refresh();
-  }
-
-  async function deleteView(id: string) {
-    await fetch(`/api/crm/views/${id}`, { method: 'DELETE' }).catch(() => null);
-    if (id === activeViewId) {
-      go({ view: undefined });
-      return;
-    }
-    router.refresh();
-  }
-
   const activeFilters = [
     q,
     lifecycle,
@@ -180,69 +133,15 @@ export default function ContactsFilters({
 
   const moreActive = [source, createdFrom, createdTo, ...Object.values(custom)].filter(Boolean).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
-  const [savingOpen, setSavingOpen] = useState(false);
 
   return (
     <div className="filter-bar">
-      <div className="views-tabs" role="tablist" aria-label={t('contacts.savedViews.title')}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={!activeViewId}
-          className={`view-tab${!activeViewId ? ' active' : ''}`}
-          onClick={() => go({ view: undefined })}
-        >
-          {t('common.all')}
-        </button>
-        {views.map((v) => (
-          <span key={v.id} className={`view-tab${activeViewId === v.id ? ' active' : ''}`}>
-            <button type="button" role="tab" aria-selected={activeViewId === v.id} onClick={() => go({ view: v.id })}>
-              {v.name}
-            </button>
-            <button
-              type="button"
-              className="view-tab-del"
-              onClick={() => deleteView(v.id)}
-              title={t('contacts.savedViews.delete')}
-              aria-label={t('contacts.savedViews.delete')}
-            >
-              <CrmIcon name="x" />
-            </button>
-          </span>
-        ))}
-        {savingOpen ? (
-          <form className="view-save" onSubmit={saveView}>
-            <input
-              className="input"
-              type="text"
-              autoFocus
-              value={viewName}
-              onChange={(e) => setViewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Escape' && setSavingOpen(false)}
-              placeholder={t('contacts.savedViews.namePlaceholder')}
-              aria-label={t('contacts.savedViews.namePlaceholder')}
-              maxLength={200}
-            />
-            <button type="submit" className="btn btn-solid btn-small" disabled={savingView || !viewName.trim()}>
-              {t('common.save')}
-            </button>
-            <button type="button" className="btn btn-ghost btn-small" onClick={() => setSavingOpen(false)}>
-              {t('common.cancel')}
-            </button>
-          </form>
-        ) : (
-          <button type="button" className="view-tab view-tab-add" onClick={() => setSavingOpen(true)}>
-            + {t('contacts.savedViews.saveCurrent')}
-          </button>
-        )}
-      </div>
-
       <div className="filter-toolbar">
         <form
           className="filter-search"
           onSubmit={(e) => {
             e.preventDefault();
-            go({ q: search.trim() || undefined, view: undefined });
+            go({ q: search.trim() || undefined });
           }}
         >
           <input
@@ -257,7 +156,7 @@ export default function ContactsFilters({
         <select
           className={`filter-select${lifecycle ? ' on' : ''}`}
           value={lifecycle}
-          onChange={(e) => go({ lifecycle: e.target.value || undefined, view: undefined })}
+          onChange={(e) => go({ lifecycle: e.target.value || undefined })}
           aria-label={t('contacts.filterLifecycle')}
         >
           <option value="">{t('contacts.filterLifecycle')}</option>
@@ -270,7 +169,7 @@ export default function ContactsFilters({
         <select
           className={`filter-select${leadStatus ? ' on' : ''}`}
           value={leadStatus}
-          onChange={(e) => go({ leadStatus: e.target.value || undefined, view: undefined })}
+          onChange={(e) => go({ leadStatus: e.target.value || undefined })}
           aria-label={t('contacts.filterLeadStatus')}
         >
           <option value="">{t('contacts.filterLeadStatus')}</option>
@@ -283,7 +182,7 @@ export default function ContactsFilters({
         <select
           className={`filter-select${owner ? ' on' : ''}`}
           value={owner}
-          onChange={(e) => go({ owner: e.target.value || undefined, view: undefined })}
+          onChange={(e) => go({ owner: e.target.value || undefined })}
           aria-label={t('contacts.filterOwner')}
         >
           <option value="">{t('contacts.filterOwner')}</option>
@@ -336,7 +235,6 @@ export default function ContactsFilters({
                   tag: undefined,
                   createdFrom: undefined,
                   createdTo: undefined,
-                  view: undefined,
                 })
               }
             >
@@ -379,7 +277,7 @@ export default function ContactsFilters({
             <select
               className={`filter-select${source ? ' on' : ''}`}
               value={source}
-              onChange={(e) => go({ source: e.target.value || undefined, view: undefined })}
+              onChange={(e) => go({ source: e.target.value || undefined })}
             >
               <option value="">{t('common.all')}</option>
               {sources.map((v) => (
@@ -395,7 +293,7 @@ export default function ContactsFilters({
               className="input filter-date"
               type="date"
               value={createdFrom}
-              onChange={(e) => go({ createdFrom: e.target.value || undefined, view: undefined })}
+              onChange={(e) => go({ createdFrom: e.target.value || undefined })}
             />
           </label>
           <label className="filter-field">
@@ -404,7 +302,7 @@ export default function ContactsFilters({
               className="input filter-date"
               type="date"
               value={createdTo}
-              onChange={(e) => go({ createdTo: e.target.value || undefined, view: undefined })}
+              onChange={(e) => go({ createdTo: e.target.value || undefined })}
             />
           </label>
           {customFields.map((cf) => (

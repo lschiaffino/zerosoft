@@ -1206,10 +1206,11 @@ export function buildNav(
         {
           items: [
             { href: '/app/people', label: pl.directory, active: pathname === '/app/people' || peopleDetail, icon: 'people' },
-            { href: '/app/people/org', label: pl.org, active: at('/app/people/org'), icon: 'orgchart' },
-            { href: '/app/people/time-off', label: pl.timeOff, active: at('/app/people/time-off'), icon: 'timeoff' },
+            // Anclajes del tour de People (lib/tours/people.ts).
+            { href: '/app/people/org', label: pl.org, active: at('/app/people/org'), icon: 'orgchart', tour: 'people-org' },
+            { href: '/app/people/time-off', label: pl.timeOff, active: at('/app/people/time-off'), icon: 'timeoff', tour: 'people-time-off' },
             { href: '/app/people/onboarding', label: pl.onboarding, active: at('/app/people/onboarding'), icon: 'tasks' },
-            { href: '/app/people/reviews', label: pl.reviews, active: at('/app/people/reviews'), icon: 'insights' },
+            { href: '/app/people/reviews', label: pl.reviews, active: at('/app/people/reviews'), icon: 'insights', tour: 'people-reviews' },
           ],
         },
         {
@@ -1219,7 +1220,7 @@ export function buildNav(
             { href: '/app/people/welcome', label: pl.welcome, active: at('/app/people/welcome'), icon: 'help' },
           ],
         },
-        appSettingsGroup('/app/people/settings'),
+        appSettingsGroup('/app/people/settings', { tour: 'people-settings' }),
       ];
     }
 

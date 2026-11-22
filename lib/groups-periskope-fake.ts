@@ -26,10 +26,12 @@ export function fakePeriskope(ws: string, key: string): PeriskopeFetch {
     const url = new URL(path, 'https://fake.periskope.local');
     const offset = Number(url.searchParams.get('offset') ?? 0);
     const db = getDb();
+    // Los chats más nuevos: el que acaba de crear un test (o la demo) queda primero, con la nota y el primer ticket.
+    // Con los más viejos, la nota caía en un chat que había dejado otro test antes y que la importación no siempre encuentra.
     const rows = (await db
       .prepare(
         `SELECT c.provider_chat_id, c.kind, c.name, c.phone, n.phone AS number_phone FROM groups_chats c LEFT JOIN groups_numbers n ON n.id = c.number_id
-         WHERE c.user_id = ? AND c.provider_chat_id != '' ORDER BY c.created_at, c.id LIMIT 4`,
+         WHERE c.user_id = ? AND c.provider_chat_id != '' ORDER BY c.created_at DESC, c.id DESC LIMIT 4`,
       )
       .all(ws)) as Row[];
     const owner = (await db.prepare('SELECT email FROM users WHERE id = ?').get(ws)) as { email: string } | undefined;

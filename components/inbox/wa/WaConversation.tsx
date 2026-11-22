@@ -67,6 +67,7 @@ import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent'
 import { parseEvent } from '@/lib/wa-group-events';
 import { forwardedMany } from '@/lib/wa-forward';
 import type { WaMentionPick } from '@/lib/wa-compose-mentions';
+import { useChatCommands } from '@/components/ui/useChatCommands';
 
 export interface WaThreadDetail {
   thread: ThreadDto;
@@ -89,6 +90,9 @@ function senderKey(m: MessageDto): string {
 }
 
 /** "últ. vez hoy a las 14:05" / "ayer" / la fecha. */
+/** Acciones del "/" que viven en el campo de texto y no van en ⌘K. */
+const INBOX_CMDK_SKIP = ['emoji', 'dictate'];
+
 function lastSeen(iso: string, locale: string, w: ReturnType<typeof useTranslations>): string {
   const d = new Date(iso);
   const time = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
@@ -726,6 +730,10 @@ const WaConversation = forwardRef<
   const [searchOpen, setSearchOpen] = useState(false);
   useChatSearchShortcut(() => setSearchOpen(true));
   useEffect(() => setSearchOpen(false), [thread.id]);
+  // Las mismas acciones también en ⌘K (como Superhuman), más buscar en el chat.
+  useChatCommands(name, slashCommands, { prefix: 'inbox-chat', skip: INBOX_CMDK_SKIP }, [
+    { id: 'inbox-chat:search', label: gw('chatSearch.open'), meta: '⌘⇧F', keywords: 'search find', run: () => setSearchOpen(true) },
+  ]);
   const searchThreads = [thread.id, ...sameLines.map((l) => l.chatId).filter((id) => id !== thread.id)].join(',');
   const searchChat = useCallback<ChatSearchFn>(
     async (q, before) => {

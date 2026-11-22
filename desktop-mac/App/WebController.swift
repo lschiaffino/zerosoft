@@ -4,8 +4,9 @@ import WebKit
 
 /// The web view of the server plus everything that keeps it honest: the navigation policy
 /// (NavigationPolicy), the load and paint watchdog (LoadWatchdog) and the process-crash handler.
-/// Block 2 notes: the paint check gets the bridge `ready` message as a second signal before 1.0,
-/// and iframes (allowed here, the policy is for the main frame) get the bridge origin check.
+/// The bridge (BridgeHandler) answers only the server's main frame; its `ready` message is the
+/// watchdog's second paint signal. Iframes load (the policy is for the main frame) but cannot
+/// use the bridge.
 @MainActor
 final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let webView: WKWebView
@@ -22,10 +23,18 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// The main-frame navigation in flight: events of an older one are ignored.
     private var currentNavigation: WKNavigation?
     private let pathMonitor = NWPathMonitor()
+    private let bridge: BridgeHandler
     /// Called when the overlay changes (the content view hides it when there is none).
     var onOverlayChange: ((Overlay) -> Void)?
 
-    init(server: String, lockdown: LockdownSetting, lang: Lang, openExternal: @escaping (URL) -> Void) {
+    /// A validated bridge `ready` and every bridge refusal (UI tests show them).
+    var onBridgeReady: ((ReadyReport) -> Void)?
+    var onBridgeReject: ((BridgeRejection) -> Void)?
+    /// Bridge commands with a native side outside the web view (sign-in, notifications).
+    var onStartLogin: (() -> Void)?
+    var onNotify: ((String, String?) -> Void)?
+
+    init(server: String, lockdown: LockdownSetting, info: BridgeInfo, lang: Lang, openExternal: @escaping (URL) -> Void) {
         self.server = server
         serverURL = URL(string: server)!
         self.lockdown = lockdown
@@ -37,7 +46,12 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if let on = lockdown.webpagePreference {
             config.defaultWebpagePreferences.isLockdownModeEnabled = on
         }
-        webView = WKWebView(frame: .zero, configuration: config)
+        let bridge = BridgeHandler(server: server, info: info)
+        bridge.install(in: config.userContentController)
+        let webView = WKWebView(frame: .zero, configuration: config)
+        bridge.attach(to: webView)
+        self.bridge = bridge
+        self.webView = webView
         webView.allowsBackForwardNavigationGestures = true
         webView.setAccessibilityIdentifier("zs-webview")
         model = OverlayModel(lang: lang, server: server)
@@ -46,6 +60,13 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView.navigationDelegate = self
         webView.uiDelegate = self
         model.onRetry = { [weak self] in self?.send(.retry) }
+        bridge.onReady = { [weak self] report in
+            self?.send(.ready(hasContent: report.content > 0))
+            self?.onBridgeReady?(report)
+        }
+        bridge.onReject = { [weak self] reason in self?.onBridgeReject?(reason) }
+        bridge.onStartLogin = { [weak self] in self?.onStartLogin?() }
+        bridge.onNotify = { [weak self] title, body in self?.onNotify?(title, body) }
         model.onOpenInBrowser = { [weak self] in
             guard let self else { return }
             self.openExternal(self.lastRequested ?? self.serverURL)
@@ -61,8 +82,22 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         pathMonitor.cancel()
     }
 
-    func start() {
+    /// The first load: the server, or the page of a deep link that launched the app.
+    func start(at url: URL? = nil) {
+        if let url, NavigationPolicy.classify(url, server: server) == .allow { lastRequested = url }
         send(.loadRequested)
+    }
+
+    /// Loads a page of the server (a deep link, a notification, the end of a sign-in). Anything
+    /// the navigation policy would not load inside is ignored.
+    func open(_ url: URL) {
+        guard NavigationPolicy.classify(url, server: server) == .allow else { return }
+        if case .error = watchdog.overlay {
+            lastRequested = url
+            send(.retry)
+        } else {
+            load(url)
+        }
     }
 
     /// View › Reload: Retry when the error view is up, a normal reload otherwise.
@@ -159,7 +194,8 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
             lastAllowedAt = Date()
             return true
         case .googleLogin:
-            // Block 3 replaces this with ASWebAuthenticationSession and PKCE.
+            // The page signs in with the bridge's startLogin (ASWebAuthenticationSession and
+            // PKCE). A Google page reached any other way still goes to the browser, never inside.
             openExternal(url)
         case .connect:
             let age = lastAllowedAt.map { Date().timeIntervalSince($0) } ?? .infinity
@@ -206,6 +242,11 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         currentNavigation = navigation
         send(.started)
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        guard isCurrent(navigation) else { return }
+        send(.committed)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

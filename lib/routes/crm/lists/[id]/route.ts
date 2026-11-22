@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
-import { hiddenFieldsFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { hiddenFieldsFor, redactRowsFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import type { ListFilterJson } from '@/lib/crm';
 import { deleteList, getList, updateList } from '@/lib/crm';
 import { listUpdateSchema } from '@/lib/crm-schema';
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (!user) return unauthorized();
   const detail = await getList(user.id, params.id, await sessionScope(user));
   if (!detail) return notFound();
-  return NextResponse.json(detail);
+  return NextResponse.json({ ...detail, members: await redactRowsFor(sessionFieldViewer(user), 'contacts', detail.members) });
 }
 
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {

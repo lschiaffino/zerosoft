@@ -48,6 +48,16 @@ describe('crm-deal-clone', () => {
       custom: { region: 'LATAM' },
     });
   });
+  it('carries deal type and next step, not the won reason', () => {
+    const body = buildDealCloneBody(
+      { ...deal, deal_type: 'existingbusiness', next_step: 'Call back' },
+      stages,
+      { contactIds: [], companyId: null, companyIds: [] },
+      '(copy)',
+    )!;
+    expect(body).toMatchObject({ dealType: 'existingbusiness', nextStep: 'Call back' });
+    expect(body).not.toHaveProperty('wonReason');
+  });
   it('tolerates broken custom JSON and missing dates', () => {
     const body = buildDealCloneBody({ ...deal, custom: '{oops', close_date: null, owner_id: null }, stages, { contactIds: [], companyId: null, companyIds: [] }, '(copy)')!;
     expect(body.custom).toEqual({});

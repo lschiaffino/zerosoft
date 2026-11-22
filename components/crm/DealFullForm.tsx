@@ -5,9 +5,20 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import FormSection from '@/components/ui/FormSection';
 import AdvancedSection from '@/components/ui/AdvancedSection';
-import { creatableStages, dealPayload } from './formPayload';
+import { createFormBody, creatableStages } from './formPayload';
+import CreateFormFields, { missingFromResponse, useMissingMessage, useMoreHint, type CreateFormOption } from './CreateFormFields';
+import { configuredFields, missingRequired, type ResolvedCreateField } from '@/lib/crm-create-form-shared';
 
-const KNOWN_ERRORS = new Set(['invalid_stage', 'invalid_input', 'missing_name', 'generic']);
+const KNOWN_ERRORS = new Set([
+  'invalid_stage',
+  'invalid_input',
+  'missing_name',
+  'invalid_contact',
+  'invalid_owner',
+  'field_readonly',
+  'value_taken',
+  'generic',
+]);
 
 interface StageOption {
   id: string;
@@ -22,47 +33,52 @@ interface PipelineOption {
   stages: StageOption[];
 }
 
-interface ContactOption {
-  id: string;
-  name: string;
-}
-
 interface DealFullFormProps {
   pipelines: PipelineOption[];
-  priorities: Array<{ value: string; label: string }>;
-  sources: Array<{ value: string; label: string }>;
+  /** Formulario de alta configurado (lib/crm-create-form.ts) y el resto de lo editable. */
+  form: ResolvedCreateField[];
+  more: ResolvedCreateField[];
+  people: CreateFormOption[];
+  me: string;
+  baseCurrency: string;
   /** Si viene, el deal se crea ya vinculado a este contacto (sin selector). */
   fixedContactId?: string;
 }
 
+const str = (fd: FormData, key: string) => {
+  const v = fd.get(key);
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+};
+
 /**
- * Alta de deal (/app/crm/deals/new). Lo básico: nombre, monto, etapa y
- * contacto. El pipeline aparece solo si hay más de uno. Moneda, cierre,
- * prioridad, origen y descripción van en "Más campos".
+ * Alta de deal (/app/crm/deals/new). Nombre y etapa arriba (el pipeline solo
+ * si hay más de uno); después las propiedades que el workspace eligió para el
+ * alta (Ajustes › Datos) y el resto en "Más campos".
  */
-export default function DealFullForm({ pipelines, priorities, sources, fixedContactId }: DealFullFormProps) {
+export default function DealFullForm({ pipelines, form, more, people, me, baseCurrency, fixedContactId }: DealFullFormProps) {
   const t = useTranslations('crm');
   const router = useRouter();
+  const missingMessage = useMissingMessage('deals');
   const [pipelineId, setPipelineId] = useState(pipelines[0]?.id ?? '');
-  const [currency, setCurrency] = useState('USD');
-  const [contacts, setContacts] = useState<ContactOption[] | null>(fixedContactId ? [] : null);
+  // Con contacto fijo no se ofrece el selector.
+  const visible = (list: ResolvedCreateField[]) => (fixedContactId ? list.filter((f) => f.key !== 'contactId') : list);
+  const configured = visible(configuredFields('deals', form));
+  const rest = visible(more);
+  const moreHint = useMoreHint('deals', rest);
+  const needsContacts = !fixedContactId && [...configured, ...rest].some((f) => f.key === 'contactId');
+  const [contacts, setContacts] = useState<CreateFormOption[] | null>(null);
 
   const pipeline = pipelines.find((p) => p.id === pipelineId) ?? pipelines[0];
   const stages = creatableStages(pipeline);
 
   useEffect(() => {
-    if (fixedContactId) return;
+    if (!needsContacts) return;
     let cancelled = false;
     fetch('/api/crm/contacts?pageSize=100')
       .then((r) => (r.ok ? r.json() : { rows: [] }))
       .then((data: { rows: Array<{ id: string; first_name: string; last_name: string; email: string }> }) => {
         if (cancelled) return;
-        setContacts(
-          data.rows.map((c) => ({
-            id: c.id,
-            name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
-          })),
-        );
+        setContacts(data.rows.map((c) => ({ value: c.id, label: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email })));
       })
       .catch(() => {
         if (!cancelled) setContacts([]);
@@ -70,15 +86,25 @@ export default function DealFullForm({ pipelines, priorities, sources, fixedCont
     return () => {
       cancelled = true;
     };
-  }, [fixedContactId]);
+  }, [needsContacts]);
+
+  const ctx = { contacts, people, me, baseCurrency };
 
   async function onSubmit(fd: FormData) {
-    const body = dealPayload(fd, fixedContactId);
+    const body: Record<string, unknown> = {
+      ...createFormBody('deals', fd, [...configured, ...rest]),
+      pipelineId: str(fd, 'pipelineId') ?? '',
+      stageId: str(fd, 'stageId') ?? '',
+      name: str(fd, 'name') ?? '',
+      ...(fixedContactId ? { contactIds: [fixedContactId] } : {}),
+    };
     if (!body.name) return t('errors.missing_name');
+    const missing = missingRequired('deals', form, body);
+    if (missing.length) return missingMessage(missing, form);
     const res = await fetch('/api/crm/deals', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, createForm: true }),
     }).catch(() => null);
     if (res && res.status === 201) {
       const deal = (await res.json().catch(() => null)) as { id?: string } | null;
@@ -88,6 +114,8 @@ export default function DealFullForm({ pipelines, priorities, sources, fixedCont
     }
     const data = res ? ((await res.json().catch(() => null)) as { error?: string } | null) : null;
     const code = data?.error ?? 'generic';
+    const missingServer = missingFromResponse(data);
+    if (missingServer) return missingMessage(missingServer.fields, form, missingServer.labels);
     return t(KNOWN_ERRORS.has(code) ? `errors.${code}` : 'errors.generic');
   }
 
@@ -101,6 +129,10 @@ export default function DealFullForm({ pipelines, priorities, sources, fixedCont
       <div className="ui-field">
         <label className="label" htmlFor="df-name">
           {t('deals.form.name')}
+          <span className="crm-req" aria-hidden="true">
+            {' '}
+            *
+          </span>
         </label>
         <input
           id="df-name"
@@ -114,17 +146,6 @@ export default function DealFullForm({ pipelines, priorities, sources, fixedCont
       </div>
 
       <div className="ui-fields-2">
-        <div className="ui-field">
-          <label className="label" htmlFor="df-amount">
-            {t('deals.form.amount')}
-          </label>
-          <div className="ui-input-group">
-            <input id="df-amount" name="amount" className="input num" type="number" min={0} step="any" inputMode="decimal" />
-            <span className="ui-addon data" aria-hidden="true">
-              {currency.trim().toUpperCase() || 'USD'}
-            </span>
-          </div>
-        </div>
         <div className="ui-field">
           <label className="label" htmlFor="df-stage">
             {t('deals.form.stage')}
@@ -159,79 +180,16 @@ export default function DealFullForm({ pipelines, priorities, sources, fixedCont
         ) : (
           <input type="hidden" name="pipelineId" value={pipeline?.id ?? ''} />
         )}
-        {!fixedContactId && (
-          <div className="ui-field">
-            <label className="label" htmlFor="df-contact">
-              {t('record.form.contact')}
-            </label>
-            <select id="df-contact" name="contactId" className="select" defaultValue="" aria-busy={contacts === null || undefined}>
-              <option value="">{contacts === null ? t('record.loading') : t('record.form.noContact')}</option>
-              {(contacts ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <CreateFormFields entity="deals" fields={configured} variant="full" idPrefix="df" ctx={ctx} />
       </div>
 
-      <AdvancedSection storageKey="crm.deal.new" label={t('record.form.moreFields')} hint={t('record.form.dealMoreHint')}>
-        <div className="ui-fields-2">
-          <div className="ui-field">
-            <label className="label" htmlFor="df-currency">
-              {t('deals.form.currency')}
-            </label>
-            <input
-              id="df-currency"
-              name="currency"
-              className="input data"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              maxLength={3}
-              autoCapitalize="characters"
-              spellCheck={false}
-            />
+      {rest.length > 0 && (
+        <AdvancedSection storageKey="crm.deal.new" label={t('record.form.moreFields')} hint={moreHint}>
+          <div className="ui-fields-2">
+            <CreateFormFields entity="deals" fields={rest} variant="full" idPrefix="df" ctx={ctx} />
           </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="df-close">
-              {t('deals.form.closeDate')}
-            </label>
-            <input id="df-close" name="closeDate" className="input" type="date" />
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="df-priority">
-              {t('deals.form.priority')}
-            </label>
-            <select id="df-priority" name="priority" className="select" defaultValue="medium">
-              {priorities.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="label" htmlFor="df-source">
-              {t('deals.form.source')}
-            </label>
-            <select id="df-source" name="source" className="select" defaultValue="">
-              <option value="">—</option>
-              {sources.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="ui-field">
-          <label className="label" htmlFor="df-desc">
-            {t('deals.form.description')}
-          </label>
-          <textarea id="df-desc" name="description" className="textarea" rows={3} maxLength={5000} />
-        </div>
-      </AdvancedSection>
+        </AdvancedSection>
+      )}
     </FormSection>
   );
 }

@@ -1,7 +1,7 @@
 import { dealScoresFor } from '@/lib/crm-ai';
 import ScoreDealsButton from '@/components/crm/ScoreDealsButton';
 import { getTranslations } from 'next-intl/server';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { Link } from '@/i18n/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
@@ -30,6 +30,8 @@ import { getUserTimeZone } from '@/lib/user-tz';
 import { AddPipelineChip } from '@/components/crm/AddPipelineStage';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import ViewTabs from '@/components/crm/ViewTabs';
+import { loadListViews } from '@/components/crm/viewTabsData';
 import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -37,7 +39,7 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
-import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import { COMMON_CURRENCIES, DEAL_TYPES } from '@/lib/crm-constants';
 import { FORECAST_CATEGORIES } from '@/lib/crm-forecast';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
@@ -68,14 +70,11 @@ function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-function parseCustomFilter(
-  searchParams: Record<string, string | string[] | undefined>,
-): Record<string, string> {
+/** Filtros por custom field del estado del listado (`custom_<name>`). */
+function customFromState(state: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (key.startsWith('custom_') && typeof value === 'string' && value) {
-      out[key.slice(7)] = value;
-    }
+  for (const [key, value] of Object.entries(state)) {
+    if (key.startsWith('custom_') && value) out[key.slice(7)] = value;
   }
   return out;
 }
@@ -161,7 +160,8 @@ export default async function DealsPage(props: DealsPageProps) {
   const owners = teamMembers.map((m) => ({ value: m.user_id, label: m.name ?? m.email }));
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
-  const customFieldDefs = (await fieldAccessP).visible;
+  const fieldAccess = await fieldAccessP;
+  const customFieldDefs = fieldAccess.visible;
   const [allTags, currencyCtx] = await tagsCurrencyP;
   const tagOptions = allTags.map((x) => ({ id: x.id, name: x.name }));
   const customFields = customFieldDefs
@@ -193,52 +193,135 @@ export default async function DealsPage(props: DealsPageProps) {
     forecastCategories: FORECAST_CATEGORIES.map((c) => ({ value: c as string, label: t(`forecast.category.${c}`) })),
   });
 
+  // ---------- Vista activa (pestaña): la usan la tabla y el board ----------
+  // Sus filtros, orden y columnas sirven de default y los params explícitos ganan. Lo que toca
+  // campos ocultos para esta persona ya viene quitado; cada persona ve sus propios resultados.
+  const views = await loadListViews(user, 'deals', searchParams, fieldAccess.hidden, (k) => t(k));
+  const { state } = views;
+  const q = state.q ?? '';
+  const stageParam = state.stageId ?? '';
+  // La etapa de la vista se conserva en el board (para guardarla), pero solo filtra la tabla.
+  const viewStageId = pipeline.stages.some((s) => s.id === stageParam) ? stageParam : '';
+  const stageId = view === 'table' ? viewStageId : '';
+  const priorityParam = state.priority ?? '';
+  const priority = (PRIORITIES as readonly string[]).includes(priorityParam) ? priorityParam : '';
+  const sourceParam = state.source ?? '';
+  const source = (SOURCES as readonly string[]).includes(sourceParam) ? sourceParam : '';
+  const owner = state.owner ?? '';
+  const createdFrom = state.createdFrom ?? '';
+  const createdTo = state.createdTo ?? '';
+  const custom = customFromState(state);
+  const tag = state.tag ?? '';
+  const stalled = state.stalled === '1';
+  const rawFilters = state.filters ?? '';
+  // El filtro de la URL se valida contra lo que el panel ofrece: lo demás ni se aplica ni aparece como chip.
+  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  const advancedCount = countFilterRules(filterModel);
+  const filtersParam = serializeFilterModel(filterModel);
+  const sortParam = state.sort;
+  const sort: DealSort =
+    (DEAL_SORTS as readonly string[]).includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
+      ? (sortParam as DealSort)
+      : 'newest';
+  const page = Number(one(searchParams.page) ?? '1') || 1;
+  const dealFilter = {
+    q: q || undefined,
+    priority: priority || undefined,
+    source: source || undefined,
+    owner: owner || undefined,
+    createdFrom: createdFrom || undefined,
+    createdTo: createdTo || undefined,
+    tag: tag || undefined,
+    stalled: stalled || undefined,
+    custom: Object.keys(custom).length
+      ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
+      : undefined,
+    filters: advancedCount ? filterModel : undefined,
+    filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
+    customTypes,
+  };
+
+  // Lo que conservan los links del listado (tabla o board) y lo que guarda la vista.
+  const query: Record<string, string> = viewQuery(pipeline.id, view);
+  const viewState: Record<string, string> = {};
+  if (q) viewState.q = q;
+  if (viewStageId) viewState.stageId = viewStageId;
+  if (priority) viewState.priority = priority;
+  if (source) viewState.source = source;
+  if (owner) viewState.owner = owner;
+  if (tag) viewState.tag = tag;
+  if (stalled) viewState.stalled = '1';
+  if (createdFrom) viewState.createdFrom = createdFrom;
+  if (createdTo) viewState.createdTo = createdTo;
+  Object.entries(custom).forEach(([k, v]) => {
+    if (v) viewState[`custom_${k}`] = v;
+  });
+  if (filtersParam) viewState.filters = filtersParam;
+  if (sort !== 'newest') viewState.sort = sort;
+  Object.assign(query, viewState, views.keep);
+  if (state.cols) viewState.cols = state.cols;
+  if (state.freeze) viewState.freeze = state.freeze;
+  const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze');
+
+  const filterBar = (
+    <>
+      <ViewTabs
+        entity="deals"
+        pathname="/app/crm/deals"
+        baseQuery={viewQuery(pipeline.id, view)}
+        tabs={views.tabs}
+        activeKey={views.activeKey}
+        defaultKey={views.defaultKey}
+        activeExtra={views.activeExtra}
+        modified={views.modified}
+        state={viewState}
+        teams={views.teams}
+      />
+      <DealsFilters
+        keep={views.keep}
+        layout={view}
+        pipeline={pipeline.id}
+        q={q}
+        stageId={viewStageId}
+        priority={priority}
+        source={source}
+        owner={owner}
+        tag={tag}
+        stalled={stalled}
+        tags={tagOptions}
+        createdFrom={createdFrom}
+        createdTo={createdTo}
+        custom={custom}
+        advanced={filtersParam || undefined}
+        sort={sort}
+        stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
+        priorities={priorities}
+        sources={sources}
+        owners={owners}
+        customFields={customFields}
+        extraSorts={extraSortOptions(customFieldDefs, {
+          ownerAsc: t('listSort.ownerAsc'),
+          ownerDesc: t('listSort.ownerDesc'),
+          asc: (label) => t('listSort.fieldAsc', { label }),
+          desc: (label) => t('listSort.fieldDesc', { label }),
+        })}
+      >
+        <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} />
+      </DealsFilters>
+      <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
+    </>
+  );
+  // Pasar de board a tabla, o de pipeline, mantiene la vista activa.
+  const activeViewQ: Record<string, string> = views.keep.sv ? { sv: views.keep.sv } : {};
+
   // ---------- Vista tabla (server-side con searchParams) ----------
   let tableContent: React.ReactNode = null;
   if (view === 'table') {
-    const q = one(searchParams.q) ?? '';
-    const stageParam = one(searchParams.stageId) ?? '';
-    const stageId = pipeline.stages.some((s) => s.id === stageParam) ? stageParam : '';
-    const priorityParam = one(searchParams.priority) ?? '';
-    const priority = (PRIORITIES as readonly string[]).includes(priorityParam) ? priorityParam : '';
-    const sourceParam = one(searchParams.source) ?? '';
-    const source = (SOURCES as readonly string[]).includes(sourceParam) ? sourceParam : '';
-    const owner = one(searchParams.owner) ?? '';
-    const createdFrom = one(searchParams.createdFrom) ?? '';
-    const createdTo = one(searchParams.createdTo) ?? '';
-    const custom = parseCustomFilter(searchParams);
-    const tag = one(searchParams.tag) ?? '';
-    const stalled = one(searchParams.stalled) === '1';
-    const rawFilters = one(searchParams.filters) ?? '';
-    // El filtro de la URL se valida contra lo que el panel ofrece: lo demás ni se aplica ni aparece como chip.
-    const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
-    const advancedCount = countFilterRules(filterModel);
-    const filtersParam = serializeFilterModel(filterModel);
-    const sortParam = one(searchParams.sort);
-    const sort: DealSort =
-      (DEAL_SORTS as readonly string[]).includes(sortParam ?? '') || isExtraSort(sortParam, customTypes)
-        ? (sortParam as DealSort)
-      : 'newest';
-    const page = Number(one(searchParams.page) ?? '1') || 1;
-
     const { rows, total } = await listDeals(user.id, {
+      ...dealFilter,
       ownerScope: scope,
       pipelineId: pipeline.id,
-      q: q || undefined,
       stageId: stageId || undefined,
-      priority: priority || undefined,
-      source: source || undefined,
-      owner: owner || undefined,
-      createdFrom: createdFrom || undefined,
-      createdTo: createdTo || undefined,
-      tag: tag || undefined,
-      stalled: stalled || undefined,
-      custom: Object.keys(custom).length
-      ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
-      : undefined,
-      filters: advancedCount ? filterModel : undefined,
-      filterEnv: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
-      customTypes,
       sort,
       page,
       pageSize: PAGE_SIZE,
@@ -316,65 +399,28 @@ export default async function DealsPage(props: DealsPageProps) {
         type: 'select',
         options: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
       },
+      {
+        key: 'dealType',
+        label: t('deals.form.dealType'),
+        type: 'select',
+        options: DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) })),
+        nullable: true,
+      },
+      { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', nullable: true },
+      { key: 'wonReason', label: t('deals.form.wonReason'), type: 'text', nullable: true },
       ...customBulkFields(customFieldDefs.filter((d) => d.access === 'edit'), { yes: t('common.yes'), no: t('common.no') }, owners),
     ];
 
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
     const currentPage = Math.min(Math.max(page, 1), pages);
-    const query: Record<string, string> = { pipeline: pipeline.id, view: 'table' };
-    if (q) query.q = q;
-    if (stageId) query.stageId = stageId;
-    if (priority) query.priority = priority;
-    if (source) query.source = source;
-    if (owner) query.owner = owner;
-    if (tag) query.tag = tag;
-    if (stalled) query.stalled = '1';
-    if (createdFrom) query.createdFrom = createdFrom;
-    if (createdTo) query.createdTo = createdTo;
-    Object.entries(custom).forEach(([k, v]) => {
-      if (v) query[`custom_${k}`] = v;
-    });
-    if (filtersParam) query.filters = filtersParam;
-    if (sort !== 'newest') query.sort = sort;
-
     tableContent = (
       <>
-        <DealsFilters
-          pipeline={pipeline.id}
-          q={q}
-          stageId={stageId}
-          priority={priority}
-          source={source}
-          owner={owner}
-          tag={tag}
-          stalled={stalled}
-          tags={tagOptions}
-          createdFrom={createdFrom}
-          createdTo={createdTo}
-          custom={custom}
-          advanced={filtersParam || undefined}
-          sort={sort}
-          stages={pipeline.stages.map((s) => ({ id: s.id, name: s.name }))}
-          priorities={priorities}
-          sources={sources}
-          owners={owners}
-          customFields={customFields}
-          extraSorts={extraSortOptions(customFieldDefs, {
-            ownerAsc: t('listSort.ownerAsc'),
-            ownerDesc: t('listSort.ownerDesc'),
-            asc: (label) => t('listSort.fieldAsc', { label }),
-            desc: (label) => t('listSort.fieldDesc', { label }),
-          })}
-        >
-          <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} />
-        </DealsFilters>
-        <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
         {tableRows.length === 0 ? (
-          Object.keys(query).length > 2 ? (
+          hasViewFilters || views.activeKey !== 'all' ? (
             <EmptyState
               title={t('record.empty.noMatchTitle')}
               body={t('record.empty.noMatchBody')}
-              action={{ label: t('common.clear'), href: `/app/crm/deals?pipeline=${pipeline.id}&view=table` }}
+              action={{ label: t('common.clear'), href: `/app/crm/deals?pipeline=${pipeline.id}&view=table&sv=all` }}
             />
           ) : (
             <EmptyState
@@ -395,6 +441,8 @@ export default async function DealsPage(props: DealsPageProps) {
           <>
             <DealsTable
               rows={tableRows}
+              viewCols={state.cols}
+              viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
               customColumns={customColumns(customFieldDefs)}
               sort={sort}
               stages={pipeline.stages.map((s) => ({
@@ -418,13 +466,15 @@ export default async function DealsPage(props: DealsPageProps) {
   }
 
   // ---------- Vista board (con totales del pipeline) ----------
-  const rawBoard = view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope)) : null;
+  const rawBoard = view === 'board' ? withAges(await listDealsForBoard(user.id, pipeline.id, scope, dealFilter)) : null;
   // Score con IA guardado de cada deal (badge en la tarjeta).
   const aiScores = rawBoard ? await dealScoresFor(user.id, rawBoard.flatMap((c) => c.deals.map((d) => d.id))) : null;
+  // Las tarjetas son filas enteras que llegan al cliente: sin los campos ocultos para la persona.
+  const hiddenDealFields = (await fieldAccessP).hidden;
   const boardStages = rawBoard
     ? rawBoard.map((col) => ({
         ...col,
-        deals: col.deals.map((d) => ({ ...d, ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
+        deals: col.deals.map((d) => ({ ...redactRow(d, hiddenDealFields), ai_score: aiScores?.get(d.id)?.score ?? null, ai_reason: aiScores?.get(d.id)?.reason ?? '' })),
       }))
     : null;
   const openStages = boardStages?.filter((c) => !c.stage.is_won && !c.stage.is_lost) ?? [];
@@ -444,14 +494,14 @@ export default async function DealsPage(props: DealsPageProps) {
           <>
             <nav className="btn-group" aria-label={t('record.viewLabel')}>
               <Link
-                href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'board') }}
+                href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'board'), ...activeViewQ } }}
                 className="btn btn-secondary btn-sm"
                 aria-current={view === 'board' ? 'page' : undefined}
               >
                 {t('deals.board')}
               </Link>
               <Link
-                href={{ pathname: '/app/crm/deals', query: viewQuery(pipeline.id, 'table') }}
+                href={{ pathname: '/app/crm/deals', query: { ...viewQuery(pipeline.id, 'table'), ...activeViewQ } }}
                 className="btn btn-secondary btn-sm"
                 aria-current={view === 'table' ? 'page' : undefined}
               >
@@ -471,7 +521,7 @@ export default async function DealsPage(props: DealsPageProps) {
           {pipelines.map((p) => (
             <Link
               key={p.id}
-              href={{ pathname: '/app/crm/deals', query: viewQuery(p.id, view) }}
+              href={{ pathname: '/app/crm/deals', query: { ...viewQuery(p.id, view), ...activeViewQ } }}
               className="btn btn-secondary btn-sm"
               aria-current={p.id === pipeline.id ? 'page' : undefined}
             >
@@ -481,6 +531,8 @@ export default async function DealsPage(props: DealsPageProps) {
         </nav>
         <AddPipelineChip />
       </div>
+
+      {filterBar}
 
       {view === 'board' && boardStages && totals ? (
         <>

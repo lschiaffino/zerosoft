@@ -1,13 +1,31 @@
 import type { RecOverlayState } from './rec-controls';
 
 /**
- * Puente con la app de escritorio (desktop/src/preload/app.ts): existe solo
- * dentro de la app, y solo en páginas del servidor configurado. En el
- * navegador es null. Cliente.
+ * Puente con la app de escritorio: existe solo dentro de la app, y solo en
+ * páginas del servidor configurado. En el navegador es null. Cliente.
+ *
+ * Lo implementan dos apps: la de Tauri (desktop/src-tauri/src/lib.rs,
+ * `bridge_script`; Windows y Mac) y la de Mac en Swift
+ * (desktop-mac/Sources/ZerosoftCore/BridgeScript.swift). Las dos se
+ * reconocen igual (`startLogin`), y lo que una todavía no tiene lo dicen los
+ * campos de capacidad, para que la página nunca pregunte en qué app está.
  */
 export interface DesktopBridge {
   version: string;
   platform: string;
+  /** La app tiene su ventana de Ajustes. false: todavía no (la de Swift). Sin el campo (Tauri): sí. */
+  settingsWindow?: boolean;
+  /**
+   * La app se actualiza desde /api/desktop/update/latest.json. false: no (la de
+   * Swift se actualiza por la App Store o su propio canal). Sin el campo (Tauri): sí.
+   */
+  updateFeed?: boolean;
+  /** La app tiene pestañas y ventanas propias. false: todavía no. Sin el campo (Tauri): sí. */
+  tabs?: boolean;
+  /** Build de la Mac App Store: sin enlaces de compra (decisión 7.2 de docs/desktop-swift.md). */
+  store?: boolean;
+  /** Las vistas web corren con las restricciones del Modo de Aislamiento (Lockdown Mode). */
+  lockdown?: boolean;
   /** Hay audio del sistema para grabar reuniones. */
   systemAudio: boolean;
   /** El dictado en cualquier app está activo. */
@@ -59,4 +77,19 @@ export function desktopBridge(): DesktopBridge | null {
   if (typeof window === 'undefined') return null;
   const b = (window as unknown as { zerosoftDesktop?: DesktopBridge }).zerosoftDesktop;
   return b && typeof b.startLogin === 'function' ? b : null;
+}
+
+/** La app abre su propia ventana de Ajustes (openSettings hace algo). */
+export function desktopHasSettings(b: DesktopBridge | null): b is DesktopBridge {
+  return !!b && b.settingsWindow !== false;
+}
+
+/** La versión de la app se compara con el feed de actualizaciones de Tauri. */
+export function desktopUsesUpdateFeed(b: DesktopBridge | null): b is DesktopBridge {
+  return !!b && b.updateFeed !== false;
+}
+
+/** La app abre links en otra pestaña o ventana suya (⌘-clic y compañía). */
+export function desktopHasTabs(b: DesktopBridge | null): b is DesktopBridge {
+  return !!b && b.tabs !== false;
 }

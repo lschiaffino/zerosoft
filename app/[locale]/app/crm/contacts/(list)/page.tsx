@@ -12,7 +12,6 @@ import {
   SOURCES,
   listCompanies,
   listContacts,
-  listSavedViews,
   parseCustom,
   type ContactFilter,
 } from '@/lib/crm';
@@ -33,6 +32,8 @@ import { listScores } from '@/lib/crm-scoring';
 import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
+import ViewTabs from '@/components/crm/ViewTabs';
+import { loadListViews } from '@/components/crm/viewTabsData';
 import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -54,26 +55,11 @@ function one(v: string | string[] | undefined): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v ? v : undefined;
-}
-
-function parseCustomFilter(
-  searchParams: Record<string, string | string[] | undefined>,
-  viewQuery: Record<string, unknown>,
-): Record<string, string> {
+/** Filtros por custom field del estado del listado (`custom_<name>`). */
+function customFromState(state: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (key.startsWith('custom_') && typeof value === 'string' && value) {
-      out[key.slice(7)] = value;
-    }
-  }
-  if (!Object.keys(out).length) {
-    for (const [key, value] of Object.entries(viewQuery)) {
-      if (key.startsWith('custom_') && typeof value === 'string' && value) {
-        out[key.slice(7)] = value;
-      }
-    }
+  for (const [key, value] of Object.entries(state)) {
+    if (key.startsWith('custom_') && value) out[key.slice(7)] = value;
   }
   return out;
 }
@@ -100,26 +86,26 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const scope = await scopeP;
   const t = await getTranslations({ locale, namespace: 'crm' });
 
-  // Vista guardada activa: sus filtros sirven de default; los params explícitos ganan.
-  const views = await listSavedViews(user.id, 'contacts');
-  const activeView = views.find((v) => v.id === one(searchParams.view)) ?? null;
-  const viewQuery = activeView ? parseCustom(activeView.query) : {};
-
-  const q = one(searchParams.q) ?? str(viewQuery.q) ?? '';
-  const lifecycle = one(searchParams.lifecycle) ?? str(viewQuery.lifecycle) ?? '';
-  const leadStatus = one(searchParams.leadStatus) ?? str(viewQuery.leadStatus) ?? '';
-  const source = one(searchParams.source) ?? str(viewQuery.source) ?? '';
-  const owner = one(searchParams.owner) ?? str(viewQuery.owner) ?? '';
-  const createdFrom = one(searchParams.createdFrom) ?? str(viewQuery.createdFrom) ?? '';
-  const createdTo = one(searchParams.createdTo) ?? str(viewQuery.createdTo) ?? '';
-  const tag = one(searchParams.tag) ?? str(viewQuery.tag) ?? '';
-  const custom = parseCustomFilter(searchParams, viewQuery);
-  const rawFilters = one(searchParams.filters) ?? str(viewQuery.filters) ?? '';
-  const sortParam = one(searchParams.sort) ?? str(viewQuery.sort) ?? 'newest';
-  const page = Number(one(searchParams.page) ?? '1') || 1;
-
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
-  const customFieldDefs = (await fieldAccessP).visible;
+  const fieldAccess = await fieldAccessP;
+  const customFieldDefs = fieldAccess.visible;
+
+  // Vista activa (pestaña): sus filtros, orden y columnas sirven de default y los params
+  // explícitos ganan. Lo que toca campos ocultos para esta persona ya viene quitado.
+  const views = await loadListViews(user, 'contacts', searchParams, fieldAccess.hidden, (k) => t(k));
+  const { state } = views;
+  const q = state.q ?? '';
+  const lifecycle = state.lifecycle ?? '';
+  const leadStatus = state.leadStatus ?? '';
+  const source = state.source ?? '';
+  const owner = state.owner ?? '';
+  const createdFrom = state.createdFrom ?? '';
+  const createdTo = state.createdTo ?? '';
+  const tag = state.tag ?? '';
+  const custom = customFromState(state);
+  const rawFilters = state.filters ?? '';
+  const sortParam = state.sort ?? 'newest';
+  const page = Number(one(searchParams.page) ?? '1') || 1;
   const customTypes = customFilterTypes(customFieldDefs);
   const sort: ContactSort =
     SORTS.includes(sortParam as ContactSort) || isExtraSort(sortParam, customTypes)
@@ -265,7 +251,11 @@ export default async function ContactsPage(props: ContactsPageProps) {
   });
   if (filtersParam) query.filters = filtersParam;
   if (sort !== 'newest') query.sort = sort;
-  if (activeView) query.view = activeView.id;
+  // Estado de la vista (para guardarla) y params que conservan los links del listado.
+  const viewState = { ...query };
+  if (state.cols) viewState.cols = state.cols;
+  if (state.freeze) viewState.freeze = state.freeze;
+  Object.assign(query, views.keep);
 
   const hasFilters =
     !!q ||
@@ -292,6 +282,18 @@ export default async function ContactsPage(props: ContactsPageProps) {
         }
       />
 
+      <ViewTabs
+        entity="contacts"
+        pathname="/app/crm/contacts"
+        tabs={views.tabs}
+        activeKey={views.activeKey}
+        defaultKey={views.defaultKey}
+        activeExtra={views.activeExtra}
+        modified={views.modified}
+        state={viewState}
+        teams={views.teams}
+      />
+
       <ContactsFilters
         q={q}
         lifecycle={lifecycle}
@@ -310,8 +312,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
         sources={[...SOURCES]}
         owners={owners}
         customFields={customFields}
-        views={views.map((v) => ({ id: v.id, name: v.name }))}
-        activeViewId={activeView?.id ?? null}
+        keep={views.keep}
         extraSorts={extraSortOptions(customFieldDefs, {
             ownerAsc: t('listSort.ownerAsc'),
             ownerDesc: t('listSort.ownerDesc'),
@@ -319,16 +320,16 @@ export default async function ContactsPage(props: ContactsPageProps) {
             desc: (label) => t('listSort.fieldDesc', { label }),
           })}
       >
-        <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} resetKeys={['view']} />
+        <AdvancedFilters fields={filterFields} model={filterModel} baseQuery={query} />
       </ContactsFilters>
-      <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} resetKeys={['view']} />
+      <AdvancedFilterChips fields={filterFields} model={filterModel} baseQuery={query} />
 
       {tableRows.length === 0 ? (
-        hasFilters || advancedCount > 0 || activeView ? (
+        hasFilters || advancedCount > 0 || views.activeKey !== 'all' ? (
           <EmptyState
             title={t('record.empty.noMatchTitle')}
             body={t('record.empty.noMatchBody')}
-            action={{ label: t('common.clear'), href: '/app/crm/contacts' }}
+            action={{ label: t('common.clear'), href: '/app/crm/contacts?sv=all' }}
           />
         ) : (
           <EmptyState
@@ -348,6 +349,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
         <>
           <ContactsTable
             rows={tableRows}
+            viewCols={state.cols}
+            viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             lifecycles={[...LIFECYCLE_STAGES]}
             leadStatuses={[...LEAD_STATUSES]}

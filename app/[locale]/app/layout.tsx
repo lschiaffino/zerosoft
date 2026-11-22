@@ -335,6 +335,7 @@ export default async function AppLayout(
                 { href: '/app/crm/agents', label: tCrm('tabs.agents') },
                 { href: '/app/crm/settings', label: tCrm('tabs.crmSettings') },
                 { href: '/app/crm/trash', label: tCrm('tabs.trash') },
+                { href: '/app/crm/views', label: tCrm('views.all.title') },
                 { href: '/app/docs', label: tDocs('sidebar.pages') },
                 { href: '/app/docs/import', label: tDocs('notionImport.title') },
                 { href: '/app/docs/duplicate', label: tDocs('duplicatePublic.title') },

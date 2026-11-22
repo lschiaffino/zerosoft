@@ -8,6 +8,8 @@ import { getUserTimeZone } from '@/lib/user-tz';
 import { createCompany, listCompanies } from '@/lib/crm';
 import { companyCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, pageParams, sortParam, unauthorized } from '@/lib/crm-http';
+import { createFormMissing } from '@/lib/crm-create-form';
+import { isCreateFormRequest } from '@/lib/crm-create-form-shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,12 +49,18 @@ export async function POST(req: NextRequest) {
 
   const fp = await guardRecordCustomWrite(sessionFieldViewer(user), 'company', null, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
-  const company = await catchRef(createCompany(user.id, { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) }));
+  const data = { ...parsed.data, custom: fp.custom, ownerId: parsed.data.ownerId ?? realUserId(user) };
+  // Las obligatorias del formulario de alta (Ajustes › Datos), solo para las altas desde ese formulario.
+  if (isCreateFormRequest(body)) {
+    const missing = await createFormMissing(sessionFieldViewer(user), 'companies', data);
+    if (missing.fields.length) return NextResponse.json({ error: 'missing_required', ...missing }, { status: 400 });
+  }
+  const company = await catchRef(createCompany(user.id, data));
   if (company instanceof CrmRefError) return crmError(400, company.code);
   // Datos del sitio en segundo plano (lo que el formulario no precargó).
   if (shouldEnrichOnCreate(company)) {
     const companyId = company.id;
     after(() => enrichCompany(user.id, companyId, { actorEmail: user.actingUser?.email ?? user.email }).then(() => undefined).catch(() => undefined));
   }
-  return NextResponse.json(company, { status: 201 });
+  return NextResponse.json(redactRow(company, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')), { status: 201 });
 }

@@ -4,6 +4,7 @@ import { sessionScope } from '@/lib/crm-visibility';
 import { listPipelinesWithStages } from '@/lib/crm';
 import { listDashboards, listReportOwners } from '@/lib/crm-dashboards';
 import { builderCustomFields } from '@/lib/crm-custom-reports';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCrmSettings } from '@/lib/crm-currency';
 import type { ReportConfig } from '@/lib/crm-report-builder';
 import { Link } from '@/i18n/navigation';
@@ -23,7 +24,7 @@ export default async function ReportBuilderPage({
   const t = await getTranslations({ locale, namespace: 'crm' });
   const scope = await sessionScope(user);
   const [customFields, dashboards, owners, pipelines, settings] = await Promise.all([
-    builderCustomFields(user.id),
+    builderCustomFields(sessionFieldViewer(user)),
     listDashboards(user.id),
     listReportOwners(user, scope),
     listPipelinesWithStages(user.id),

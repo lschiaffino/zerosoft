@@ -75,7 +75,7 @@ export default function Directory({ employees, facets, hr, templates, filters, o
               <button type="button" className="btn btn-secondary" onClick={() => setImporting(true)}>
                 {t('import.button')}
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
+              <button type="button" className="btn btn-primary" onClick={() => setAdding(true)} data-tour="people-add">
                 {t('directory.add')}
               </button>
             </>
@@ -110,7 +110,7 @@ export default function Directory({ employees, facets, hr, templates, filters, o
           }}
         />
       )}
-      <div className="ppl-toolbar">
+      <div className="ppl-toolbar" data-tour="people-filters">
         <form
           role="search"
           className="ppl-search"
@@ -192,8 +192,8 @@ export default function Directory({ employees, facets, hr, templates, filters, o
               </tr>
             </thead>
             <tbody>
-              {employees.map((e) => (
-                <tr key={e.id} data-testid="people-row">
+              {employees.map((e, i) => (
+                <tr key={e.id} data-testid="people-row" data-tour={i === 0 ? 'people-person' : undefined}>
                   <th scope="row">
                     <Link href={`/app/people/${e.id}`} className="ppl-rowlink">
                       <Avatar name={e.name} photo={e.photo} />
