@@ -289,14 +289,16 @@ export function AlertsPanel({ projectId, insightId, insightName, seriesLabels }:
     }
   };
 
+  // El cambio se ve en el acto; si el servidor lo rechaza, se vuelve a lo guardado.
   const patch = async (a: AlertDto, body: { enabled?: boolean; email?: boolean }) => {
     setError(null);
+    setAlerts((cur) => cur?.map((x) => (x.id === a.id ? { ...x, ...body } : x)) ?? cur);
     try {
       await api(`/api/analytics/alerts/${a.id}`, { method: 'PATCH', body });
-      await load();
     } catch {
       setError(tc('error'));
     }
+    await load();
   };
 
   return (
