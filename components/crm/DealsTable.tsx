@@ -432,7 +432,7 @@ export default function DealsTable({ viewCols, viewFreeze,
       )}
 
       {previewId && (
-        <RecordPreview type="deal" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+        <RecordPreview type="deal" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
       )}
     </>
   );

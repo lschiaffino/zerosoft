@@ -18,6 +18,8 @@ interface WorkQueueProps {
   tasks: QueueTask[];
   locale: string;
   timeZone: string;
+  /** Personas del workspace (Propietario editable en la vista previa). */
+  owners?: Array<{ value: string; label: string }>;
 }
 
 /** Registro principal de la tarea: contacto, si no deal, si no empresa. */
@@ -34,7 +36,7 @@ function recordOf(task: QueueTask): { type: PreviewType; id: string; name: strin
  * anterior y siguiente con las flechas; Esc vuelve a Tareas. Completar o
  * posponer avanza sola a la próxima pendiente.
  */
-export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
+export default function WorkQueue({ tasks, locale, timeZone, owners = [] }: WorkQueueProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -425,7 +427,7 @@ export default function WorkQueue({ tasks, locale, timeZone }: WorkQueueProps) {
         <p className="muted wq-keys">{t('queue.keysHint')}</p>
       </article>
 
-      {preview && <RecordPreview type={preview.type} id={preview.id} locale={locale} onClose={() => setPreview(null)} />}
+      {preview && <RecordPreview type={preview.type} id={preview.id} locale={locale} owners={owners} onClose={() => setPreview(null)} />}
     </div>
   );
 }

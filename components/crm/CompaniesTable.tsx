@@ -411,7 +411,7 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
       )}
 
       {previewId && (
-        <RecordPreview type="company" id={previewId} locale={locale} onClose={() => setPreviewId(null)} />
+        <RecordPreview type="company" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
       )}
     </>
   );

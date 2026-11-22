@@ -533,7 +533,10 @@
       "moved": "{deal} foi para {stage}",
       "edge": "Não há outra etapa desse lado",
       "skipToBoard": "Ir para o board"
-    }
+    },
+    "filterStalledLabel": "Atividade",
+    "colWeighted": "Ponderado {amount}",
+    "cardOwner": "Responsável: {name}"
   },
   "tasks": {
     "title": "Tarefas",
@@ -4994,5 +4997,38 @@
       "updated": "Atualizada"
     },
     "partialFilters": "Alguns filtros desta visualização não se aplicam a você."
+  },
+  "preview": {
+    "kind": {
+      "contact": "Contato",
+      "company": "Empresa",
+      "deal": "Negócio"
+    },
+    "openRecord": "Abrir registro",
+    "allProps": "Ver todas as propriedades",
+    "customProps": "Propriedades próprias",
+    "loadError": "Não foi possível carregar este registro.",
+    "retry": "Tentar de novo"
+  },
+  "dateFilter": {
+    "quickFilters": "Filtros rápidos",
+    "created": "Data de criação",
+    "close": "Data de fechamento",
+    "activity": "Última atividade",
+    "from": "De",
+    "to": "Até",
+    "apply": "Aplicar",
+    "clear": "Limpar",
+    "presets": {
+      "today": "Hoje",
+      "last7": "Últimos 7 dias",
+      "last30": "Últimos 30 dias",
+      "thisMonth": "Este mês",
+      "lastMonth": "Mês passado",
+      "nextMonth": "Próximo mês",
+      "thisQuarter": "Este trimestre",
+      "next30": "Próximos 30 dias",
+      "overdue": "Antes de hoje"
+    }
   }
 }

@@ -1566,6 +1566,12 @@ export interface DealFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Fecha de cierre entre estos días (YYYY-MM-DD, inclusive). */
+  closeFrom?: string;
+  closeTo?: string;
+  /** Última actividad entre estos días (UTC, YYYY-MM-DD, inclusive). */
+  activityFrom?: string;
+  activityTo?: string;
   /** Id de tag: solo deals con ese tag. */
   tag?: string;
   /** Deals asociados a esta empresa. */
@@ -1687,6 +1693,22 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
   if (f.createdTo) {
     where.push('d.created_at <= ?');
     args.push(`${f.createdTo} 23:59:59`);
+  }
+  if (f.closeFrom) {
+    where.push('d.close_date IS NOT NULL AND substr(d.close_date, 1, 10) >= ?');
+    args.push(f.closeFrom);
+  }
+  if (f.closeTo) {
+    where.push('d.close_date IS NOT NULL AND substr(d.close_date, 1, 10) <= ?');
+    args.push(f.closeTo);
+  }
+  if (f.activityFrom) {
+    where.push('d.last_activity_at IS NOT NULL AND d.last_activity_at >= ?');
+    args.push(`${f.activityFrom} 00:00:00`);
+  }
+  if (f.activityTo) {
+    where.push('d.last_activity_at IS NOT NULL AND d.last_activity_at <= ?');
+    args.push(`${f.activityTo} 23:59:59`);
   }
   if (f.tag) {
     where.push(tagCondition('d', 'deal'));
