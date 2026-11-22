@@ -29,6 +29,8 @@ export const AUDIT_ACTIONS = [
   'hubspot_company',
   /** Importación desde Periskope (lib/groups-periskope.ts); chat_id null. */
   'imported',
+  /** "Reportar" en el menú de un mensaje recibido (lib/groups-inbox.ts reportMessage): detail { messageId, blocked, left }. */
+  'reported',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

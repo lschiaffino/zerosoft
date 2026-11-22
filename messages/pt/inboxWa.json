@@ -93,6 +93,7 @@
   "errors": {
     "too_many_pins": "Até 3 mensagens fixadas por conversa. Desafixe uma antes.",
     "not_pinnable": "Essa mensagem não pode ser fixada.",
+    "not_reportable": "Só é possível denunciar mensagens recebidas.",
     "mic_denied": "O navegador não permitiu usar o microfone.",
     "file_too_large": "O arquivo é grande demais para o WhatsApp.",
     "media_too_large": "O arquivo é grande demais para o WhatsApp.",

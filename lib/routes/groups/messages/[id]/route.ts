@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getMessageRow, reactToMessage } from '@/lib/groups';
-import { deleteMessage, editMessage, forwardMessage, pinMessage } from '@/lib/groups-inbox';
+import { deleteMessage, editMessage, forwardMessage, pinMessage, reportMessage } from '@/lib/groups-inbox';
 import { createTicket } from '@/lib/groups-tickets';
 import type { TicketPriority } from '@/lib/groups-rules';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 /**
  * Acciones sobre un mensaje: { action: 'react', emoji } (emoji vacío quita la
  * reacción), { action: 'ticket', title?, priority?, assigneeId? },
- * { action: 'edit', body } (nota o mensaje propio), { action: 'pin' | 'unpin' }
- * y { action: 'forward', chatIds }.
+ * { action: 'edit', body } (nota o mensaje propio), { action: 'pin' | 'unpin' },
+ * { action: 'forward', chatIds } y { action: 'report', block?, leave? }.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await groupsSession({ write: true });
@@ -49,6 +49,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     if (b.action === 'edit') return NextResponse.json(await editMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id, str(b.body) ?? ''));
     if (b.action === 'pin' || b.action === 'unpin') return NextResponse.json(await pinMessage(s.ws, s.me, id, b.action === 'pin'));
+    if (b.action === 'report') return NextResponse.json(await reportMessage(s.ws, s.me, id, { block: b.block === true, leave: b.leave === true }));
     if (b.action === 'forward') {
       // Solo a chats que esta persona puede ver (acceso por etiqueta).
       const targets: string[] = [];

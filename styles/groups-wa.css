@@ -1964,3 +1964,7 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 @media (max-width: 720px) {
   .wa-chat-search { top: 0; z-index: 80; width: 100%; border-left: 0; box-shadow: none; }
 }
+
+/* Reportar un mensaje (Lines e Inbox): el texto y la casilla de bloquear o salir, con aire entre los dos. */
+.wa-report-body { display: grid; gap: 12px; }
+.wa-report-body p { margin: 0; }

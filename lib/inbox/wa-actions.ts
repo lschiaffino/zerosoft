@@ -190,6 +190,39 @@ export async function starMessage(owner: string, messageId: string, on: boolean,
   await getDb().prepare('UPDATE inbox_messages SET starred_at = ? WHERE id = ? AND owner_id = ?').run(on ? nowIso(now) : null, msg.id, owner);
 }
 
+/**
+ * "Reportar" de WhatsApp sobre un mensaje recibido: queda marcado en Inbox
+ * (meta.reported). Ningún servidor de WhatsApp vinculado (Evolution, WAHA)
+ * expone el reporte a WhatsApp, así que no sale de acá. Como en WhatsApp se
+ * puede, a la vez, bloquear al contacto (chat 1:1) o salir del grupo. Si eso
+ * falla, el reporte queda igual y vuelve el código del error.
+ */
+export async function reportMessage(owner: string, messageId: string, opts: { block?: boolean; leave?: boolean } = {}, now = new Date()): Promise<{ blocked: boolean; left: boolean; error?: string }> {
+  const { msg, thread } = await context(owner, messageId);
+  if (msg.from_me === 1 || msg.revoked_at || (msg as { media_type?: string }).media_type === 'system') throw new InboxError('not_reportable', 400);
+  await getDb()
+    .prepare("UPDATE inbox_messages SET meta = json_set(CASE WHEN json_valid(meta) THEN meta ELSE '{}' END, '$.reported', json(?)) WHERE id = ? AND owner_id = ?")
+    .run(JSON.stringify({ at: nowIso(now) }), msg.id, owner);
+  let blocked = false;
+  let left = false;
+  let error: string | undefined;
+  try {
+    if (opts.block && thread.kind === 'dm') {
+      const { setBlocked } = await import('./wa-meta');
+      await setBlocked(owner, thread.id, true);
+      blocked = true;
+    }
+    if (opts.leave && thread.kind === 'group' && !thread.left_at) {
+      const { leaveGroupThread } = await import('./wa-group-members');
+      await leaveGroupThread(owner, thread.id);
+      left = true;
+    }
+  } catch (err) {
+    error = err instanceof InboxError ? err.code : 'send_failed';
+  }
+  return { blocked, left, ...(error ? { error } : {}) };
+}
+
 /** Hasta 3 mensajes fijados por chat, como WhatsApp. */
 export const MAX_PINNED_MESSAGES = 3;
 
