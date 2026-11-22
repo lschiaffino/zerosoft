@@ -169,7 +169,7 @@ test('el check de la fila es un círculo de 22px; en el teléfono se toca en 40p
     const check = row(page, subject).getByRole('button', { name: 'Complete' });
     await expect(check).toBeVisible(NAV);
     // clientWidth/Height es el círculo que se ve (sin el borde transparente del área táctil).
-    const box = await check.evaluate((el) => ({ w: el.clientWidth, h: el.clientHeight, ow: el.offsetWidth, oh: el.offsetHeight }));
+    const box = await check.evaluate((el: HTMLElement) => ({ w: el.clientWidth, h: el.clientHeight, ow: el.offsetWidth, oh: el.offsetHeight }));
     // Un título largo de varias líneas no aplasta el círculo.
     expect(box.w, name).toBeGreaterThanOrEqual(16);
     expect(box.w, name).toBe(box.h);
