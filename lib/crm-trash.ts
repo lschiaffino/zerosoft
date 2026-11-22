@@ -417,6 +417,7 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
     )
     .all(...args, Math.min(Math.max(f.limit ?? 200, 1), 500))) as TrashListRow[];
   // La empresa en la que se fusionó un registro: si quien mira no la ve, sale como "Registro privado".
+  if (!f.ownerScope) return rows;
   const { maskPrivateRefs, PRIVATE_REFS } = await import('./crm-record-scope');
   return maskPrivateRefs(userId, rows, [PRIVATE_REFS.mergedInto()], f.ownerScope, db);
 }

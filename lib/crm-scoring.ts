@@ -514,11 +514,16 @@ export async function contactScores(
   viewer?: import('./crm-field-perms').FieldViewer,
 ): Promise<ContactScoreView[]> {
   let shown = (items: ScoreBreakdownItem[]) => items;
+  let hiddenPoints = (_items: ScoreBreakdownItem[]) => 0;
   if (viewer) {
-    const { hiddenFieldsFor, visibleBreakdownItems } = await import('./crm-field-perms');
+    const { hiddenBreakdownPoints, hiddenFieldsFor, visibleBreakdownItems } = await import('./crm-field-perms');
     const hidden = await hiddenFieldsFor(viewer, 'contacts', db);
     const rules = hidden.scoreRules;
-    if (hidden.size && rules) shown = (items) => visibleBreakdownItems(items, rules);
+    if (hidden.size && rules) {
+      shown = (items) => visibleBreakdownItems(items, rules);
+      // El total y el tier, sin los puntos de las reglas que no se muestran.
+      hiddenPoints = (items) => hiddenBreakdownPoints(items, rules);
+    }
   }
   const { scoreTier } = await import('./crm-scoring-schema');
   const scores = await listScores(workspaceId, db);
@@ -527,14 +532,15 @@ export async function contactScores(
     .all(contact.id, workspaceId)) as Array<{ score_id: string; score: number; breakdown: string }>;
   const byId = new Map(rows.map((r) => [r.score_id, r]));
   return scores.map((s) => {
-    const value = s.isPrimary ? Number(contact.score ?? 0) : Number(byId.get(s.id)?.score ?? 0);
+    const items = s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown);
+    const value = (s.isPrimary ? Number(contact.score ?? 0) : Number(byId.get(s.id)?.score ?? 0)) - hiddenPoints(items);
     return {
       scoreId: s.id,
       name: s.name,
       isPrimary: s.isPrimary,
       score: value,
       tier: scoreTier(value, s.thresholds),
-      breakdown: shown(s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown)),
+      breakdown: shown(items),
     };
   });
 }

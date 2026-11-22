@@ -42,6 +42,7 @@ import {
   type CrmImportPresetRow,
   type Db,
 } from './db';
+import { ownerScopeSql, type OwnerScope } from './crm-visibility';
 
 /**
  * Tipo de deal de un CSV: "New Business", "newbusiness", "Negocio nuevo"…
@@ -430,31 +431,50 @@ export function coerceCustom(
   return out;
 }
 
+/** ' AND <cond>' de alcance sobre crm_companies/crm_contacts/crm_deals sin alias ('' sin alcance). */
+function inScope(table: 'crm_companies' | 'crm_contacts' | 'crm_deals', scope: OwnerScope | undefined): { sql: string; args: string[] } {
+  const c = ownerScopeSql(table, scope);
+  return c.sql ? { sql: ` AND ${c.sql}`, args: c.args } : { sql: '', args: [] };
+}
+
 /**
  * Empresa por dominio, si no por nombre (sin importar mayúsculas). Solo del
- * workspace. `create` la crea si no existe (con lo que haya: nombre y/o dominio).
+ * workspace y, con `scope` (quien importa), solo una que esa persona ve.
+ * `create` la crea si no existe (con lo que haya: nombre y/o dominio); si
+ * existe una con ese dominio o nombre que la persona no ve, no se crea otra ni
+ * se vincula: queda sin empresa.
  */
 async function findCompany(
   userId: string,
   q: { name?: string; domain?: string },
   db: Db,
   create: boolean,
+  scope?: OwnerScope,
 ): Promise<{ id: string; created: boolean } | null> {
   const domain = cleanDomain(q.domain);
   const name = (q.name ?? '').trim();
+  const byDomain = (s?: OwnerScope) => {
+    const c = inScope('crm_companies', s);
+    return db
+      .prepare(`SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = ?${c.sql} ORDER BY created_at, id LIMIT 1`)
+      .get(userId, domain, ...c.args) as Promise<{ id: string } | undefined>;
+  };
+  const byName = (s?: OwnerScope) => {
+    const c = inScope('crm_companies', s);
+    return db
+      .prepare(`SELECT id FROM crm_companies WHERE user_id = ? AND lower(name) = lower(?)${c.sql} ORDER BY created_at, id LIMIT 1`)
+      .get(userId, name, ...c.args) as Promise<{ id: string } | undefined>;
+  };
   if (domain) {
-    const row = (await db
-      .prepare(`SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = ? LIMIT 1`)
-      .get(userId, domain)) as { id: string } | undefined;
+    const row = await byDomain(scope);
     if (row) return { id: row.id, created: false };
   }
   if (name) {
-    const row = (await db
-      .prepare('SELECT id FROM crm_companies WHERE user_id = ? AND lower(name) = lower(?) ORDER BY created_at LIMIT 1')
-      .get(userId, name)) as { id: string } | undefined;
+    const row = await byName(scope);
     if (row) return { id: row.id, created: false };
   }
   if (!create || (!name && !domain)) return null;
+  if (scope && ((domain && (await byDomain())) || (name && (await byName())))) return null;
   const company = await createCompany(userId, { name: name || domain, domain }, db);
   return { id: company.id, created: true };
 }
@@ -493,8 +513,10 @@ export async function importContacts(
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
   try {
+    // Con alcance (quien importa es un miembro): solo contactos que ve; uno que no ve no se actualiza.
+    const contactScope = inScope('crm_contacts', opts.linkScope);
     const findByEmail = tdb.prepare(
-      'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1',
+      `SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?))${contactScope.sql} ORDER BY created_at ASC, id ASC LIMIT 1`,
     );
     for (const [i, raw] of rows.entries()) {
       const rowNo = i + 1;
@@ -505,7 +527,7 @@ export async function importContacts(
         continue;
       }
       const existing = email
-        ? ((await findByEmail.get(userId, email)) as { id: string } | undefined)
+        ? ((await findByEmail.get(userId, email, ...contactScope.args)) as { id: string } | undefined)
         : undefined;
       if (existing && mode === 'skip') {
         result.skipped++;
@@ -521,7 +543,7 @@ export async function importContacts(
       }
       const company =
         companyName || companyDomain
-          ? await findCompany(userId, { name: companyName, domain: companyDomain }, tdb, true)
+          ? await findCompany(userId, { name: companyName, domain: companyDomain }, tdb, true, opts.linkScope)
           : null;
       const data = {
         ...row,
@@ -573,6 +595,7 @@ export async function importCompanies(
   userId: string,
   rows: MappedCompanyRow[],
   mode: ImportMode,
+  opts: ContactWriteOpts = {},
 ): Promise<ImportResult> {
   const result = emptyResult(rows.length);
   const people = await workspacePeople(userId, getDb());
@@ -582,8 +605,10 @@ export async function importCompanies(
   const tx = await getClient().transaction();
   const tdb = txDb(tx);
   try {
+    // Con alcance (quien importa es un miembro): solo empresas que ve; una que no ve no se actualiza.
+    const companyScope = inScope('crm_companies', opts.linkScope);
     const findByDomain = tdb.prepare(
-      `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?) LIMIT 1`,
+      `SELECT id FROM crm_companies WHERE user_id = ? AND domain != '' AND lower(domain) = lower(?)${companyScope.sql} LIMIT 1`,
     );
     for (const [i, raw] of rows.entries()) {
       const rowNo = i + 1;
@@ -594,7 +619,7 @@ export async function importCompanies(
       }
       const domain = cleanDomain(row.domain);
       const existing = domain
-        ? ((await findByDomain.get(userId, domain)) as { id: string } | undefined)
+        ? ((await findByDomain.get(userId, domain, ...companyScope.args)) as { id: string } | undefined)
         : undefined;
       if (existing && mode === 'skip') {
         result.skipped++;
@@ -628,7 +653,7 @@ export async function importCompanies(
     }
     // La madre puede venir más abajo en el mismo archivo: se resuelve al final.
     for (const p of parents) {
-      const parent = await findCompany(userId, { name: p.name, domain: p.domain }, tdb, false);
+      const parent = await findCompany(userId, { name: p.name, domain: p.domain }, tdb, false, opts.linkScope);
       if (!parent || parent.id === p.id) {
         result.errors.push(`Row ${p.rowNo}: parent company "${p.domain || p.name}" not found, skipped`);
         continue;
@@ -712,13 +737,14 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
       const ownerId = resolveOwner(people, raw.ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, raw.custom, rowNo, result.errors);
 
+      const dealScope = inScope('crm_deals', opts.linkScope);
       const existing =
         mode === 'update'
           ? ((await db
               .prepare(
-                'SELECT id, stage_id FROM crm_deals WHERE user_id = ? AND pipeline_id = ? AND lower(name) = lower(?) LIMIT 1',
+                `SELECT id, stage_id FROM crm_deals WHERE user_id = ? AND pipeline_id = ? AND lower(name) = lower(?)${dealScope.sql} LIMIT 1`,
               )
-              .get(userId, pipeline.id, name)) as { id: string; stage_id: string } | undefined)
+              .get(userId, pipeline.id, name, ...dealScope.args)) as { id: string; stage_id: string } | undefined)
           : undefined;
 
       // Valor único repetido: la fila se saltea antes de crear empresa o contactos.
@@ -730,15 +756,16 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
       // Asociaciones: empresa (se crea si falta) y contactos por email (se crean si faltan).
       const company =
         raw.companyName || raw.companyDomain
-          ? await findCompany(userId, { name: raw.companyName, domain: raw.companyDomain }, db, true)
+          ? await findCompany(userId, { name: raw.companyName, domain: raw.companyDomain }, db, true, opts.linkScope)
           : null;
       const contactIds: string[] = [];
+      const contactScope = inScope('crm_contacts', opts.linkScope);
       for (const { email, name: personName } of extractEmails(raw.contactEmail)) {
         const found = (await db
           .prepare(
-            'SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?)) ORDER BY created_at ASC, id ASC LIMIT 1',
+            `SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?))${contactScope.sql} ORDER BY created_at ASC, id ASC LIMIT 1`,
           )
-          .get(userId, email)) as { id: string } | undefined;
+          .get(userId, email, ...contactScope.args)) as { id: string } | undefined;
         if (found) {
           contactIds.push(found.id);
           continue;
@@ -752,7 +779,12 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
             ...(company ? { companyId: company.id } : {}),
           }, undefined, opts),
         );
-        contactIds.push(contact instanceof ContactEmailTakenError ? contact.existing.id : contact.id);
+        // El email es de un contacto que quien importa no ve: no se vincula.
+        if (contact instanceof ContactEmailTakenError) {
+          if (!opts.linkScope) contactIds.push(contact.existing.id);
+          continue;
+        }
+        contactIds.push(contact.id);
       }
       if (raw.contactEmail?.trim() && !contactIds.length) {
         result.errors.push(`Row ${rowNo}: no valid email in "${raw.contactEmail}", contact not linked`);

@@ -34,6 +34,8 @@ const FIELD_ENTITY: Record<CrmEventEntity, 'contacts' | 'companies' | 'deals'> =
   deal: 'deals',
 };
 
+const RECORD_TABLE = { contact: 'crm_contacts', company: 'crm_companies', deal: 'crm_deals' } as const;
+
 export type EventData = Record<string, unknown>;
 export type Personalizer = (creatorId: string | null) => Promise<{ data: EventData } | null>;
 
@@ -120,7 +122,9 @@ export async function recordEventFor(
   // El desglose del score de un contacto: sin las reglas sobre campos ocultos (mismo helper que las filas).
   if (hidden.size && typeof out.score_breakdown === 'string') out.score_breakdown = redactScoreBreakdown(out.score_breakdown, hidden.scoreRules);
   if (isObj(out.change) && 'changed' in out.change) out.change = { ...out.change, changed: changedWithoutHidden(out.change.changed, hidden) };
-  out = ((await maskPrivateRef(ws, out, [PRIVATE_REFS.company([]), PRIVATE_REFS.parent()], sub.scope, db)) ?? out) as EventData;
+  // *.deleted de un merge: el registro en el que se fusionó, si no lo ve, sale en null con la marca.
+  const mergedInto = { table: RECORD_TABLE[entity], id: 'mergedInto', fields: [], flag: 'merged_into_private' } as const;
+  out = ((await maskPrivateRef(ws, out, [PRIVATE_REFS.company([]), PRIVATE_REFS.parent(), mergedInto], sub.scope, db)) ?? out) as EventData;
   return out;
 }
 
@@ -185,11 +189,17 @@ export async function formSubmittedFor(
   return out;
 }
 
-/** contact.score_changed: solo si ve el contacto, y sin el detalle por regla (puede citar un campo oculto). */
+/**
+ * contact.score_changed: solo si ve el contacto y ninguna regla de score es
+ * sobre un campo que tiene oculto; sin el detalle por regla.
+ */
 export async function scoreChangedFor(sub: Subscriber, data: EventData): Promise<EventData | null> {
   if (sub.unrestricted) return data;
   const id = typeof data.id === 'string' ? data.id : '';
   if (!id || !(await canSeeEntity(sub.viewer.workspaceId, 'contact', id, sub.scope))) return null;
+  // Con reglas de score sobre campos que tiene ocultos, el cambio (y el total) puede venir de uno
+  // de esos campos: no se le manda.
+  if ((await hiddenFieldsFor(sub.viewer, 'contacts')).hidesScoreRules) return null;
   const { breakdown: _b, ...rest } = data;
   return rest;
 }

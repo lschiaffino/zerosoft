@@ -26,6 +26,10 @@ import { createProduct } from '@/lib/crm-products';
 import { recordEventFor, subscriberFor } from '@/lib/crm-event-privacy';
 import { withViewerCrmContact } from '@/lib/chat-crm-contact';
 import { createApiKey, requireApiUser } from '@/lib/api-auth';
+import { importContacts } from '@/lib/crm-import';
+import { logChatToCrm } from '@/lib/crm-integrations';
+import { createNumber, upsertChat } from '@/lib/groups';
+import { loadChatPage } from '@/lib/groups-page';
 import { delegatedMfaOk, runAsDelegated } from '@/lib/mcp/identity';
 import { resolvePerson, type McpCaller } from '@/lib/mcp/caller';
 import { addMember, removeMember } from '@/lib/teams';
@@ -547,5 +551,118 @@ describe('catálogo de productos y tags compartidos: owner y admins', () => {
     expect((await tagRoute.DELETE(send('DELETE', `/api/crm/tags/${tag.id}`), ctx(tag.id))).status).toBe(404);
     session.user = owner(s);
     expect((await tagRoute.DELETE(send('DELETE', `/api/crm/tags/${tag.id}`), ctx(tag.id))).status).toBe(204);
+  });
+});
+
+// ---------- Ajustes de la revisión ----------
+
+describe('revisión: import, eventos, Inbox, total del score, papelera, Lines', () => {
+  it('el import de un miembro no actualiza ni vincula lo que no ve, ni crea un duplicado', async () => {
+    const s = await setup('s6imp');
+    const hidden = await createContact(s.ws, { firstName: 'Owner', email: `vip@${s.domain}`, jobTitle: 'Keep', ownerId: s.ws });
+    const before = Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM crm_companies WHERE user_id = ?').get(s.ws)) as { n: number }).n);
+    const scope = [s.w.member.id];
+    const res = await importContacts(
+      s.ws,
+      [
+        { email: `vip@${s.domain}`, jobTitle: 'Changed' },
+        { email: 'new1@gmail.com', companyDomain: s.domain },
+        { email: 'new2@gmail.com', companyName: 'Owner Holdings' },
+      ],
+      'update',
+      { linkScope: scope },
+    );
+    expect(res.updated).toBe(0);
+    const stored = (await getDb().prepare('SELECT job_title FROM crm_contacts WHERE id = ?').get(hidden.id)) as { job_title: string };
+    expect(stored.job_title).toBe('Keep');
+    const created = (await getDb().prepare("SELECT company_id FROM crm_contacts WHERE user_id = ? AND email IN ('new1@gmail.com', 'new2@gmail.com')").all(s.ws)) as Array<{ company_id: string | null }>;
+    expect(created).toHaveLength(2);
+    expect(created.every((c) => c.company_id === null)).toBe(true);
+    expect(Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM crm_companies WHERE user_id = ?').get(s.ws)) as { n: number }).n)).toBe(before);
+    // El owner sí actualiza y vincula.
+    const own = await importContacts(s.ws, [{ email: `vip@${s.domain}`, jobTitle: 'Changed', companyDomain: s.domain }], 'update', { linkScope: null });
+    expect(own.updated).toBe(1);
+  });
+
+  it('company.deleted de un merge no lleva el id de la empresa que el miembro no ve', async () => {
+    const s = await setup('s6evt-merge');
+    const sub = (await subscriberFor(s.ws, s.w.member.id))!;
+    const data = { id: 'gone', label: 'Member Dup', deletedBy: null, mergedInto: s.ownerCo.id };
+    const out = await recordEventFor(sub, 'company', data, { ownerId: s.w.member.id });
+    expect(out).toMatchObject({ mergedInto: null, merged_into_private: true });
+    expect(JSON.stringify(out)).not.toContain(s.ownerCo.id);
+    const ownerOut = await recordEventFor((await subscriberFor(s.ws, s.ws))!, 'company', data, { ownerId: s.w.member.id });
+    expect(ownerOut).toMatchObject({ mergedInto: s.ownerCo.id });
+  });
+
+  it('el total del score no delata la regla oculta, y score_changed no le llega', async () => {
+    const s = await setup('s6score-total');
+    await createScoreRule(s.ws, { kind: 'property', name: 'Budget flag', config: { field: 'custom.secret', op: 'is_set', value: '' }, points: 7 });
+    await createScoreRule(s.ws, { kind: 'property', name: 'Title rule', config: { field: 'jobTitle', op: 'equals', value: 'CEO' }, points: 5 });
+    const c = await createContact(s.ws, { firstName: 'Lu', email: 'lu2@gmail.com', jobTitle: 'CEO', ownerId: s.w.member.id, custom: { secret: 'x-val' } });
+    await recalcContactScore(s.ws, c.id);
+    session.user = member(s);
+    const row = (await json<{ rows: Array<CrmContactRow> }>(await contactsRoute.GET(send('GET', '/api/crm/contacts')))).rows.find((r) => r.id === c.id)!;
+    expect(row.score).toBe(5);
+    session.user = owner(s);
+    const ownRow = (await json<{ rows: Array<CrmContactRow> }>(await contactsRoute.GET(send('GET', '/api/crm/contacts')))).rows.find((r) => r.id === c.id)!;
+    expect(ownRow.score).toBe(12);
+    const stored = (await getDb().prepare('SELECT * FROM crm_contacts WHERE id = ?').get(c.id)) as CrmContactRow;
+    expect((await contactScores(s.ws, stored, undefined, viewerOf(s, s.w.member.id)))[0].score).toBe(5);
+    const evt = { id: c.id, scoreId: 'x', primary: true, oldScore: 5, newScore: 12, breakdown: [] };
+    const { scoreChangedFor } = await import('@/lib/crm-event-privacy');
+    expect(await scoreChangedFor((await subscriberFor(s.ws, s.w.member.id))!, evt)).toBeNull();
+    expect(await scoreChangedFor((await subscriberFor(s.ws, s.ws))!, evt)).toEqual(evt);
+  });
+
+  it('guardar un chat en el CRM no toca ni nombra un contacto que el miembro no ve', async () => {
+    const s = await setup('s6chatlog');
+    const hidden = await createContact(s.ws, { firstName: 'Vip', email: 'vip-chat@gmail.com', ownerId: s.ws });
+    const visitor = { email: 'vip-chat@gmail.com', email_verified: 1, name: 'Vip' } as never;
+    const res = await logChatToCrm(s.ws, { conversationId: 'conv-s6', subject: null, visitor, messages: [{ sender_type: 'visitor', body: 'hola', created_at: '2026-01-01T00:00:00' }] as never, actorId: s.w.member.id, scope: [s.w.member.id] });
+    expect(res).toEqual({ error: 'contact_email_taken' });
+    const notes = Number(((await getDb().prepare('SELECT COUNT(*) AS n FROM crm_activities WHERE contact_id = ?').get(hidden.id)) as { n: number }).n);
+    expect(notes).toBe(0);
+    // Uno nuevo, del dominio de una empresa que no ve: sin empresa.
+    const fresh = await logChatToCrm(s.ws, { conversationId: 'conv-s6b', subject: null, visitor: { email: `new@${s.domain}`, email_verified: 1, name: 'N' } as never, messages: [], actorId: s.w.member.id, scope: [s.w.member.id] });
+    expect('contact' in fresh && fresh.contact.company_id).toBeNull();
+  });
+
+  it('papelera: owner y admin siguen viendo el id aunque la empresa ya no exista', async () => {
+    const s = await setup('s6trash-gone');
+    const drop = await createCompany(s.ws, { name: 'Dup', ownerId: s.w.member.id });
+    expect(await mergeCompanies(s.ws, s.ownerCo.id, drop.id)).toMatchObject({ ok: true });
+    await getDb().prepare('DELETE FROM crm_companies WHERE id = ?').run(s.ownerCo.id);
+    const row = (await listTrash(s.ws, {})).find((r) => r.record_id === drop.id)!;
+    expect(row.merged_into).toBe(s.ownerCo.id);
+  });
+
+  it('tags por la API v1: un miembro no renombra', async () => {
+    const s = await setup('s6tag-v1');
+    const res = await createTag(s.ws, { name: 'Shared' });
+    if (!res.ok) throw new Error('tag');
+    const key = await createApiKey(s.ws, 'k', s.w.member.id, ['crm:read', 'crm:write']);
+    expect((await v1TagRoute.PATCH(send('PATCH', `/api/v1/crm/tags/${res.tag.id}`, { name: 'X' }, { authorization: `Bearer ${key.key}` }), ctx(res.tag.id))).status).toBe(403);
+  });
+
+  it('Lines: los detalles del chat no nombran una empresa que el miembro no ve, ni la deja vincular', async () => {
+    vi.stubEnv('GROUPS_FAKE', '1');
+    const s = await setup('s6lines');
+    const n = await createNumber(s.ws, s.ws, { provider: 'fake' });
+    const chat = await upsertChat({ id: n.id, user_id: s.ws }, { providerChatId: `1203630${Date.now()}@g.us`, kind: 'group', name: 'Clientes' }, { silent: true });
+    await getDb().prepare('UPDATE groups_chats SET crm_company_id = ? WHERE id = ?').run(s.ownerCo.id, chat.id);
+    const ownerPage = await loadChatPage(owner(s), chat.id);
+    expect(ownerPage?.crm?.company?.name).toBe('Owner Holdings');
+    const memberPage = await loadChatPage(member(s), chat.id);
+    expect(memberPage).not.toBeNull();
+    expect(memberPage!.crm?.company ?? null).toBeNull();
+    expect(memberPage!.chat.crmCompanyId).toBeNull();
+    expect(JSON.stringify(memberPage)).not.toContain('Owner Holdings');
+    const linesChatRoute = await import('@/lib/routes/groups/chats/[id]/route');
+    session.user = member(s);
+    const link = await linesChatRoute.PATCH(send('PATCH', `/api/groups/chats/${chat.id}`, { crmCompanyId: s.ownerCo.id }), ctx(chat.id));
+    expect(link.status).toBe(400);
+    session.user = owner(s);
+    expect((await linesChatRoute.PATCH(send('PATCH', `/api/groups/chats/${chat.id}`, { crmCompanyId: s.ownerCo.id }), ctx(chat.id))).status).toBe(200);
   });
 });

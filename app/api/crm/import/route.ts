@@ -91,14 +91,14 @@ export async function POST(req: NextRequest) {
           return custom ? { ...r, custom: Object.fromEntries(Object.entries(custom).filter(([k]) => !restricted.has(k))) } : r;
         })
       : list;
-  // La empresa que se vincula sola por el dominio del email tiene que ser una que la persona ve.
+  // Quien importa solo actualiza y vincula registros que ve (la empresa por dominio, incluida).
   const linkScope = await sessionScope(user);
   try {
     const result =
       entity === 'contacts'
         ? await importContacts(user.id, allowed(sanitizeRows(rows, importContactRowSchema)) as MappedContactRow[], mode, { linkScope })
         : entity === 'companies'
-          ? await importCompanies(user.id, allowed(sanitizeRows(rows, importCompanyRowSchema)) as MappedCompanyRow[], mode)
+          ? await importCompanies(user.id, allowed(sanitizeRows(rows, importCompanyRowSchema)) as MappedCompanyRow[], mode, { linkScope })
           : await importDeals(user.id, allowed(sanitizeRows(rows, importDealRowSchema)) as MappedDealRow[], mode, { linkScope });
     return NextResponse.json(result);
   } catch {

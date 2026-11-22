@@ -1,8 +1,8 @@
 /**
  * Chat — el contacto del CRM que una conversación trae vinculado
  * (getChatConversationWithVisitor), como lo ve quien abre la bandeja: con las
- * reglas del CRM (lib/crm-visibility.ts y lib/crm-field-perms.ts). Si no ve
- * ese contacto, la conversación sale sin contacto; si lo ve, sin los campos
+ * reglas del CRM (lib/crm-visibility.ts y lib/crm-field-perms.ts). Si no usa
+ * el CRM o no ve ese contacto, la conversación sale sin contacto; si lo ve, sin los campos
  * propios que tiene ocultos, sin las reglas de score sobre ellos y sin el id
  * de una empresa que no ve. Server-only.
  */
@@ -11,13 +11,17 @@ import { hiddenFieldsFor, redactRow, sessionFieldViewer } from './crm-field-perm
 import { canSeeOwner, sessionScope } from './crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS } from './crm-record-scope';
 import type { TeamRole } from './teams';
+import type { ProductKey } from './products';
+import { userCanUseApp, type AppAccess } from './workspace';
 
 export async function withViewerCrmContact<T extends { widget_user_id: string; crm_contact: CrmContactRow | null }>(
   conversation: T,
-  user: { id: string; role: TeamRole; actingUser?: { id: string } | null },
+  user: { id: string; role: TeamRole; actingUser?: { id: string } | null; apps?: AppAccess | string | null; blockedApps?: readonly ProductKey[] | null },
 ): Promise<T> {
   const contact = conversation.crm_contact;
   if (!contact) return conversation;
+  // Sin el CRM (no lo tiene, o está cortado en el workspace), tampoco su contacto.
+  if (!userCanUseApp(user, 'crm')) return { ...conversation, crm_contact: null };
   // El contacto es del CRM del workspace dueño del widget: desde otro workspace no se muestra.
   if (contact.user_id !== user.id || conversation.widget_user_id !== user.id) return { ...conversation, crm_contact: null };
   const scope = await sessionScope(user);

@@ -110,7 +110,11 @@ export type VisibleScoreRules = ReadonlyMap<string, 'activity' | 'property'>;
  * `score_breakdown` que pasa por redactRow sale sin las reglas sobre campos
  * ocultos.
  */
-export type HiddenFieldSet = Set<string> & { scoreRules?: VisibleScoreRules };
+export type HiddenFieldSet = Set<string> & {
+  scoreRules?: VisibleScoreRules;
+  /** Hay reglas de score sobre estos campos: el total y sus cambios pueden decir algo de ellos. */
+  hidesScoreRules?: boolean;
+};
 
 const isActivityDetail = (d: unknown) => typeof d === 'string' && /^\d+ \/ \d+d$/.test(d);
 
@@ -144,6 +148,31 @@ export function visibleBreakdownItems<T extends { ruleId: string; detail: string
 }
 
 /**
+ * Puntos del desglose que la persona no ve (reglas sobre campos ocultos o que
+ * no se pueden atribuir): se restan del total que se le muestra, así el total
+ * no dice lo que el desglose calla. Puro.
+ */
+export function hiddenBreakdownPoints(items: unknown, rules: VisibleScoreRules | undefined): number {
+  if (!Array.isArray(items)) return 0;
+  let out = 0;
+  for (const b of items) {
+    if (!b || typeof b !== 'object') continue;
+    const item = b as Record<string, unknown>;
+    const kind = rules ? rules.get(typeof item.ruleId === 'string' ? item.ruleId : '') : isActivityDetail(item.detail) ? 'activity' : undefined;
+    if (!kind) out += Number(item.points) || 0;
+  }
+  return out;
+}
+
+function parseItems(json: string): unknown {
+  try {
+    return JSON.parse(json || '[]');
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Copia de la fila sin los campos ocultos en `custom` (y, si la fila trae el
  * desglose del score, sin las reglas sobre campos ocultos ni el detalle de
  * las de propiedad).
@@ -152,7 +181,14 @@ export function redactRow<T extends { custom: string }>(row: T, hidden: Readonly
   if (!hidden.size) return row;
   const out = { ...row, custom: redactCustomJson(row.custom, hidden) };
   const sb = (row as { score_breakdown?: unknown }).score_breakdown;
-  if (typeof sb === 'string') (out as { score_breakdown?: string }).score_breakdown = redactScoreBreakdown(sb, (hidden as HiddenFieldSet).scoreRules);
+  if (typeof sb === 'string') {
+    const rules = (hidden as HiddenFieldSet).scoreRules;
+    (out as { score_breakdown?: string }).score_breakdown = redactScoreBreakdown(sb, rules);
+    // El total, sin los puntos de las reglas que no se muestran.
+    const score = (row as { score?: unknown }).score;
+    const minus = hiddenBreakdownPoints(parseItems(sb), rules);
+    if (typeof score === 'number' && minus) (out as { score?: number }).score = score - minus;
+  }
   return out;
 }
 
@@ -160,13 +196,13 @@ export function redactRow<T extends { custom: string }>(row: T, hidden: Readonly
  * Reglas de score del workspace que ve quien tiene ocultos estos campos de
  * contacto: todas las de actividad y las de propiedad sobre otro campo.
  */
-export async function visibleScoreRules(workspaceId: string, hidden: ReadonlySet<string>, db: Db = getDb()): Promise<VisibleScoreRules> {
+export async function visibleScoreRules(workspaceId: string, hidden: ReadonlySet<string>, db: Db = getDb()): Promise<Map<string, 'activity' | 'property'> & { anyHidden?: boolean }> {
   const rows = (await db.prepare('SELECT id, kind, config FROM crm_score_rules WHERE user_id = ?').all(workspaceId)) as Array<{
     id: string;
     kind: string;
     config: string;
   }>;
-  const out = new Map<string, 'activity' | 'property'>();
+  const out: Map<string, 'activity' | 'property'> & { anyHidden?: boolean } = new Map();
   for (const r of rows) {
     if (r.kind === 'activity') {
       out.set(r.id, 'activity');
@@ -180,7 +216,10 @@ export async function visibleScoreRules(workspaceId: string, hidden: ReadonlySet
       field = '';
     }
     // Sin campo legible no se sabe qué dice: no sale.
-    if (!field || (field.startsWith('custom.') && hidden.has(field.slice(7)))) continue;
+    if (!field || (field.startsWith('custom.') && hidden.has(field.slice(7)))) {
+      out.anyHidden = true;
+      continue;
+    }
     out.set(r.id, 'property');
   }
   return out;
@@ -352,7 +391,11 @@ export async function fieldAccessFor(
   for (const f of all) if (f.access !== 'edit') restricted.set(f.name, f.access);
   const hidden: HiddenFieldSet = new Set(all.filter((f) => f.access === 'hidden').map((f) => f.name));
   // Contactos: el desglose del score de cualquier fila sale sin las reglas sobre estos campos.
-  if (entity === 'contacts' && hidden.size) hidden.scoreRules = await visibleScoreRules(viewer.workspaceId, hidden, db);
+  if (entity === 'contacts' && hidden.size) {
+    const rules = await visibleScoreRules(viewer.workspaceId, hidden, db);
+    hidden.scoreRules = rules;
+    hidden.hidesScoreRules = !!rules.anyHidden;
+  }
   return {
     all,
     visible: all.filter((f) => f.access !== 'hidden'),
