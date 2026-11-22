@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDb } from '@/lib/db';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import { chatDisplayName, connectNumber, createNumber, fillGroupSubject, getChat, getNumberRowById, ingestEvents, listChats, type NumberRow } from '@/lib/groups';
+import { pageLocale } from '@/lib/groups-http';
 import { makeUser } from './helpers';
 
 beforeEach(() => {
@@ -77,6 +78,24 @@ describe('Lines: grupo sin asunto', () => {
     expect((await getChat(ws, c.id))!.name).toBe('Grupo');
     await getDb().prepare("UPDATE users SET locale = 'pt' WHERE id = ?").run(ws);
     expect((await listChats(ws, ws)).rows[0].name).toBe('Grupo');
+  });
+
+  it('el idioma de la página gana al guardado de la persona', async () => {
+    const { ws, number } = await line('lgs-page');
+    await ingestEvents(number, [groupMessage(groupJid(), { chatName: 'Equipo Prueba' })]);
+    const [c] = (await listChats(ws, ws)).rows;
+    await getDb().prepare("UPDATE groups_chats SET name = '' WHERE id = ?").run(c.id);
+    await getDb().prepare("UPDATE users SET locale = 'en' WHERE id = ?").run(ws);
+    expect((await listChats(ws, ws, { locale: 'es' })).rows[0].name).toBe('Grupo');
+    expect((await getChat(ws, c.id, 'es'))!.name).toBe('Grupo');
+    expect((await listChats(ws, ws)).rows[0].name).toBe('Group');
+  });
+
+  it('pageLocale: solo la cookie NEXT_LOCALE con un idioma de la app', () => {
+    const req = (cookie?: string) => new Request('http://x.test/api/groups/chats', { headers: cookie ? { cookie } : {} });
+    expect(pageLocale(req('a=1; NEXT_LOCALE=pt'))).toBe('pt');
+    expect(pageLocale(req('NEXT_LOCALE=fr'))).toBeUndefined();
+    expect(pageLocale(req())).toBeUndefined();
   });
 
   it('chatDisplayName: grupo, lid y 1:1 sin nombre', () => {

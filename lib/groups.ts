@@ -826,7 +826,7 @@ export async function getChatRow(ws: string, id: string): Promise<ChatRow | null
   return ((await getDb().prepare('SELECT * FROM groups_chats WHERE id = ? AND user_id = ?').get(id, ws)) as ChatRow) ?? null;
 }
 
-export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
+export async function getChat(ws: string, id: string, locale?: string): Promise<ChatDto | null> {
   const row = await getChatRow(ws, id);
   if (!row) return null;
   if (row.kind === 'dm') {
@@ -840,7 +840,7 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     const { isVipPhone } = await import('./groups-vip');
     if (await isVipPhone(ws, row.phone)) row.vip_hit = 1;
   }
-  const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? [], unnamedGroup(row) ? await viewerLocale(ws) : undefined);
+  const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? [], unnamedGroup(row) ? locale || (await viewerLocale(ws)) : undefined);
   // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
   if (row.kind === 'dm' && !dto.phone && isLidJid(row.provider_chat_id)) {
     const { phoneForLid } = await import('./wa-contacts');
@@ -889,6 +889,8 @@ export interface PropertyFilter {
 }
 
 export interface ChatQuery {
+  /** El idioma de la página (cookie NEXT_LOCALE): nombres genéricos de chats sin nombre. Sin él, el de la persona. */
+  locale?: string;
   filter?: ChatFilter;
   q?: string;
   labelId?: string;
@@ -1274,7 +1276,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const [myFolders, teamFolders] = rows.length
     ? await Promise.all([chatFoldersFor(ws, me, rows.map((r) => r.id)), teamFoldersFor(ws, rows.map((r) => r.id))])
     : [new Map<string, string>(), new Map<string, string>()];
-  const locale = rows.some(unnamedGroup) ? await viewerLocale(me) : undefined;
+  const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
