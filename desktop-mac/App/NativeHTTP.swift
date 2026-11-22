@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-/// The app's own requests to the server (token exchange, badge poll). An ephemeral session with
+/// The app's own requests to the server (token exchange, badge poll, the Settings window). An ephemeral session with
 /// no cookie jar, no cache and no redirects: the only cookies sent are the server's, read from
 /// the web view's store for each request (as api.rs does), and a redirect never carries them to
 /// another place. Nothing here logs a request, a header or a body.
@@ -25,18 +25,30 @@ final class NativeHTTP {
     /// Sends a request to the server, with the session cookies when `withSession` is true.
     /// Requests to any other origin are refused before they leave.
     func send(_ request: URLRequest, withSession: Bool) async -> (status: Int, body: Data)? {
+        guard let answer = await exchange(request, withSession: withSession) else { return nil }
+        return (answer.status, answer.body)
+    }
+
+    /// `send` with the response's cookies (the sign-out needs next-auth's CSRF cookie from the
+    /// first request in the second) and extra cookies to send. Cookies are only ever the
+    /// server's: the request is refused before it leaves when it is not for the server.
+    func exchange(_ request: URLRequest, withSession: Bool, extra: [HTTPCookie] = []) async -> (status: Int, body: Data, cookies: [HTTPCookie])? {
         guard let url = request.url, Server.origin(of: url) == server else { return nil }
         var request = request
         request.httpShouldHandleCookies = false
-        if withSession {
-            let cookies = await Self.cookies(for: url)
+        let cookies = (withSession ? await Self.cookies(for: url) : []) + extra
+        if !cookies.isEmpty {
             for (key, value) in HTTPCookie.requestHeaderFields(with: cookies) {
                 request.setValue(value, forHTTPHeaderField: key)
             }
         }
         guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return nil }
-        return (http.statusCode, data)
+        var fields: [String: String] = [:]
+        for (key, value) in http.allHeaderFields {
+            if let k = key as? String, let v = value as? String { fields[k] = v }
+        }
+        return (http.statusCode, data, HTTPCookie.cookies(withResponseHeaderFields: fields, for: url))
     }
 
     /// The web view's cookies that a browser would send to `url`.

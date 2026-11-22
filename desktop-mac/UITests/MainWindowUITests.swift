@@ -274,7 +274,7 @@ final class MainWindowUITests: XCTestCase {
         let app = launch()
         XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20))
         let detect = line(app, prefix: "detect ")
-        XCTAssertTrue(detect.contains("startLogin=function notification=function permission=granted settingsWindow=false end"), detect)
+        XCTAssertTrue(detect.contains("startLogin=function notification=function permission=granted settingsWindow=true end"), detect)
     }
 
     /// Google sign-in end to end against the fixture's copy of the server flow: PKCE challenge

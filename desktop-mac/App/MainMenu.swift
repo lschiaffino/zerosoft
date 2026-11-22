@@ -1,18 +1,20 @@
 import AppKit
 
-/// App, File, Edit, View and Window menus. The Edit menu is what makes Cmd+C / Cmd+V work in the
+/// App (with Settings, Cmd+,), File, Edit, View and Window menus. The Edit menu is what makes Cmd+C / Cmd+V work in the
 /// page. File and Window carry the tab shortcuts of docs/desktop-tabs.md (the Tauri app's menu in
 /// tray.rs): Cmd+T, Cmd+N, Cmd+Shift+T, Cmd+W, Cmd+Shift+W, Ctrl+Tab, Ctrl+Shift+Tab,
 /// Cmd+Shift+[ ], Cmd+1...Cmd+9. While the page has the keyboard, the bridge script handles the
 /// last four first (as in the Tauri app); the menu covers the rest of the time.
 @MainActor
 enum MainMenu {
-    static func build(lang: Lang, tabs: TabsController) -> NSMenu {
+    static func build(lang: Lang, tabs: TabsController, settings: AnyObject, settingsAction: Selector) -> NSMenu {
         let t = { (key: StringKey) in Strings.text(key, lang) }
         let main = NSMenu()
 
         let app = submenu(in: main, title: "zerosoft")
         app.addItem(withTitle: t(.menuAbout), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(.separator())
+        item(app, t(.menuSettings), settingsAction, ",", settings)
         app.addItem(.separator())
         app.addItem(withTitle: t(.menuHide), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let others = app.addItem(withTitle: t(.menuHideOthers), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")

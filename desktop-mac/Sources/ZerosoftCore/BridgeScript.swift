@@ -8,10 +8,10 @@ import Foundation
 /// - It keeps a reference to the message handler before any page script runs, so a page cannot
 ///   swap `postMessage` under the bridge.
 /// - The object is frozen and not writable. It carries the fields of `lib/desktop-bridge.ts`
-///   (with the capability fields `settingsWindow` and `updateFeed` set to false for what this
-///   build does not have yet, and `tabs` true) and the methods with a native side: `info()`, `startLogin()`
-///   (block 3; `desktopBridge()` in the web app finds the app by it, as with Tauri), `notify()`.
-///   `openSettings()` exists because the contract requires it; it does nothing until block 5.
+///   (with the capability field `updateFeed` set to false for what this build does not have,
+///   and `tabs` and `settingsWindow` true) and the methods with a native side: `info()`,
+///   `startLogin()` (block 3; `desktopBridge()` in the web app finds the app by it, as with
+///   Tauri), `notify()`, `openSettings()` (block 5: the native Settings window).
 /// - `window.Notification` becomes a shim that hands the page's title and body to the native
 ///   side (the app shows it only while it is not in front), as the Tauri app does. The web
 ///   features are measured before the shim replaces it.

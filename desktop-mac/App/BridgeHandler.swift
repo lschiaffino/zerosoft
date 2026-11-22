@@ -6,7 +6,7 @@ import WebKit
 /// through `Bridge.validate` (origin, allowlist, typed arguments, size) before anything native
 /// runs; refusals reject the page's promise with a closed reason and are logged with that reason
 /// only. Block 2 answers `info` and takes `ready`; block 3 adds `startLogin` and `notify`;
-/// block 4 adds `tabs`. The other commands answer `unavailable` until their blocks add the
+/// block 4 adds `tabs`; block 5 `openSettings`. The other commands answer `unavailable` until their blocks add the
 /// native side.
 @MainActor
 final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
@@ -22,6 +22,8 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
     /// `startLogin` and `notify` from the server's main frame.
     var onStartLogin: (() -> Void)?
     var onNotify: ((String, String?) -> Void)?
+    /// `openSettings` (block 5): the native Settings window.
+    var onOpenSettings: (() -> Void)?
     /// `tabs` from the server's main frame of this web view (block 4). The path, when there is
     /// one, already passed `Bridge.validPath`; the tabs controller checks it again.
     var onTabs: ((TabsAction, String?, String?, Int?) -> Void)?
@@ -61,6 +63,7 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
         onReject = nil
         onStartLogin = nil
         onNotify = nil
+        onOpenSettings = nil
         onTabs = nil
     }
 
@@ -98,6 +101,9 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             reply(nil, nil)
         case .startLogin:
             onStartLogin?()
+            reply(nil, nil)
+        case .openSettings:
+            onOpenSettings?()
             reply(nil, nil)
         case let .notify(title, body):
             onNotify?(title, body)

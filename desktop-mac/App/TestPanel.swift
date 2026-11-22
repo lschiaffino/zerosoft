@@ -10,6 +10,9 @@ import AppKit
 /// - `zs-test-login`, `zs-test-badge`, `zs-test-notify`, `zs-test-deeplink`: block 3.
 /// - `zs-test-tabs`: every window and its tabs (`TabSession.summary`); `zs-test-session`: how
 ///   many times the session was written to disk.
+/// - Block 5: `zs-test-settings` (AppSettings.summary), `zs-test-prefs` (TabPrefs.summary),
+///   `zs-test-loginitem` (the fake login item), `zs-test-notif` (how often the permission was
+///   asked and its answer), `zs-test-requests` (the Settings window's requests, in order).
 @MainActor
 final class TestPanel {
     private let panel: NSPanel
@@ -40,6 +43,8 @@ final class TestPanel {
             ("zs-test-external", "none"), ("zs-test-ready", "none"), ("zs-test-bridge", "rejected end"),
             ("zs-test-login", "none"), ("zs-test-badge", "none"), ("zs-test-notify", "none"),
             ("zs-test-deeplink", "none"), ("zs-test-tabs", "tabs end"), ("zs-test-session", "saved 0"),
+            ("zs-test-settings", "none"), ("zs-test-prefs", "none"), ("zs-test-loginitem", "none"),
+            ("zs-test-notif", "notif asked=0"), ("zs-test-requests", "requests end"),
         ] {
             let label = NSTextField(labelWithString: initial)
             label.frame = NSRect(x: CGFloat(labels.count) * 5, y: 0, width: 4, height: 4)
@@ -81,6 +86,20 @@ final class TestPanel {
         notifier.onBadge = { [weak self] label in self?.set("zs-test-badge", "badge \(label)") }
         notifier.onPageNotification = { [weak self] title, body, show in
             self?.set("zs-test-notify", "notify \(title)|\(body ?? "-")|\(show ? "shown" : "app-active")")
+        }
+    }
+
+    private var requests: [String] = []
+
+    func watch(settings model: SettingsModel, login: FakeLoginItem, permission: FakeNotificationPermission) {
+        set("zs-test-settings", model.settings.summary)
+        set("zs-test-loginitem", "login-item \(login.state.rawValue)")
+        login.onChange = { [weak self] state in self?.set("zs-test-loginitem", "login-item \(state.rawValue)") }
+        permission.onChange = { [weak self] asked, access in self?.set("zs-test-notif", "notif asked=\(asked) \(access.rawValue)") }
+        model.onRequest = { [weak self] fact in
+            guard let self else { return }
+            requests.append(fact)
+            set("zs-test-requests", (["requests"] + requests.suffix(12) + ["end"]).joined(separator: " | "))
         }
     }
 

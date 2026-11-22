@@ -1,0 +1,243 @@
+import XCTest
+
+/// Block 5 of docs/desktop-swift.md: the Settings window, the menu bar item, the onboarding,
+/// the notification prompt and the login item. The login item and the notification permission
+/// are fakes in UI tests (`zs-test-loginitem`, `zs-test-notif`): CI cannot answer the system
+/// prompt, and an ad hoc build must not add itself to the runner's login items.
+final class SettingsUITests: XCTestCase {
+    private var server: FixtureServer!
+    private var app: XCUIApplication?
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        server = FixtureServer(port: try FixtureServer.freePort())
+        try server.start()
+    }
+
+    override func tearDownWithError() throws {
+        app?.terminate()
+        server.stop()
+    }
+
+    private func launch(_ extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-server", server.origin,
+            "-ZSUITest", "YES",
+            "-AppleLanguages", "(en)",
+            "-ApplePersistenceIgnoreState", "YES",
+            "-ZSStartPath", "/",
+            "-ZSLockdown", MainWindowUITests.mode,
+        ] + extra
+        app.launch()
+        self.app = app
+        return app
+    }
+
+    private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
+    private func showing(_ text: String) -> NSPredicate {
+        NSPredicate(format: "label == %@ OR title == %@ OR value == %@", text, text, text)
+    }
+
+    private func text(_ app: XCUIApplication, _ text: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(showing(text)).firstMatch
+    }
+
+    private func value(_ app: XCUIApplication, _ id: String) -> String {
+        (element(app, id).value as? String) ?? ""
+    }
+
+    private func waitLabel(_ app: XCUIApplication, _ id: String, _ want: String, timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line) {
+        let label = element(app, id)
+        let done = XCTNSPredicateExpectation(predicate: NSPredicate { obj, _ in
+            ((obj as? XCUIElement)?.value as? String) == want
+        }, object: label)
+        XCTAssertEqual(XCTWaiter().wait(for: [done], timeout: timeout), .completed, "\(id) is '\(value(app, id))', want '\(want)'", file: file, line: line)
+    }
+
+    /// Waits for something the fixture server saw.
+    private func waitServer(_ what: String, timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line, _ check: @escaping () -> Bool) {
+        let done = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in check() }, object: nil)
+        XCTAssertEqual(XCTWaiter().wait(for: [done], timeout: timeout), .completed, "\(what): writes \(server.writes)", file: file, line: line)
+    }
+
+    private func ready(_ app: XCUIApplication) {
+        XCTAssertTrue(text(app, "zs-fixture-ok").waitForExistence(timeout: 20), "the server page did not show")
+    }
+
+    private func settingsWindow(_ app: XCUIApplication) -> XCUIElement {
+        app.windows.matching(identifier: "zs-settings").firstMatch
+    }
+
+    private func openSettings(_ app: XCUIApplication) {
+        app.typeKey(",", modifierFlags: .command)
+        XCTAssertTrue(settingsWindow(app).waitForExistence(timeout: 10), "Cmd+, did not open Settings")
+    }
+
+    private func section(_ app: XCUIApplication, _ name: String) {
+        let row = element(app, "zs-settings-\(name)")
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "no \(name) section")
+        row.click()
+    }
+
+    private func checkbox(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        let box = app.checkBoxes.matching(identifier: id).firstMatch
+        XCTAssertTrue(box.waitForExistence(timeout: 10), "no switch \(id)")
+        return box
+    }
+
+    private func isOn(_ box: XCUIElement) -> Bool {
+        "\(box.value ?? "")" == "1"
+    }
+
+    /// Cmd+, opens Settings; the app's switches go to settings.json and the tab preferences to
+    /// session.json, and both are there again after a relaunch.
+    func testSettingsOpensAndSwitchesPersist() throws {
+        var app = launch()
+        ready(app)
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=true asked=false")
+        waitLabel(app, "zs-test-prefs", "suspend=true minutes=30 restore=true links=tab")
+        openSettings(app)
+
+        let menubar = checkbox(app, "zs-set-menubar")
+        XCTAssertTrue(isOn(menubar))
+        menubar.click()
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false asked=false")
+        let login = checkbox(app, "zs-set-loginitem")
+        XCTAssertFalse(isOn(login), "open at login must start off")
+        login.click()
+        waitLabel(app, "zs-test-loginitem", "login-item enabled")
+
+        section(app, "tabs")
+        checkbox(app, "zs-set-suspend").click()
+        waitLabel(app, "zs-test-prefs", "suspend=false minutes=30 restore=true links=tab")
+        let window = app.radioButtons.matching(showing("A new window")).firstMatch
+        XCTAssertTrue(window.waitForExistence(timeout: 10))
+        window.click()
+        waitLabel(app, "zs-test-prefs", "suspend=false minutes=30 restore=true links=window")
+
+        app.terminate()
+        app = launch(["-ZSKeepSession", "YES", "-ZSKeepSettings", "YES"])
+        ready(app)
+        waitLabel(app, "zs-test-settings", "onboarded=false menubar=false asked=false")
+        waitLabel(app, "zs-test-prefs", "suspend=false minutes=30 restore=true links=window")
+        openSettings(app)
+        XCTAssertFalse(isOn(checkbox(app, "zs-set-menubar")))
+        section(app, "tabs")
+        XCTAssertFalse(isOn(checkbox(app, "zs-set-suspend")))
+        XCTAssertTrue(isOn(checkbox(app, "zs-set-restore")))
+    }
+
+    /// The menu bar item's menu opens a window and Settings.
+    func testMenuBarItem() throws {
+        let app = launch()
+        ready(app)
+        let item = app.statusItems.matching(identifier: "zs-status-item").firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 10), "no menu bar item")
+        item.click()
+        let newWindow = app.menuItems.matching(identifier: "zs-status-new-window").firstMatch
+        XCTAssertTrue(newWindow.waitForExistence(timeout: 10))
+        newWindow.click()
+        waitLabel(app, "zs-test-tabs", "tabs main=*/ w1=*/app end")
+        item.click()
+        let settings = app.menuItems.matching(identifier: "zs-status-settings").firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 10))
+        settings.click()
+        XCTAssertTrue(settingsWindow(app).waitForExistence(timeout: 10), "the menu bar item did not open Settings")
+    }
+
+    /// The page's `openSettings()` (the web app's "Desktop app settings" buttons) opens the
+    /// native window.
+    func testPageOpensSettings() throws {
+        let app = launch()
+        ready(app)
+        app.buttons.matching(showing("Desktop settings")).firstMatch.click()
+        XCTAssertTrue(settingsWindow(app).waitForExistence(timeout: 10), "openSettings() did not open Settings")
+    }
+
+    /// The onboarding asks for notifications only when its button is pressed, never at launch;
+    /// open at login stays off until it is switched on; finishing marks it as seen.
+    func testOnboardingAsksForNotificationsOnlyFromItsButton() throws {
+        let app = launch(["-ZSOnboarding", "YES"])
+        let onboarding = app.windows.matching(identifier: "zs-onboarding").firstMatch
+        XCTAssertTrue(onboarding.waitForExistence(timeout: 20), "no onboarding window")
+        waitLabel(app, "zs-test-notif", "notif asked=0")
+        element(app, "zs-ob-next").click()
+        XCTAssertTrue(element(app, "zs-ob-notif").waitForExistence(timeout: 10))
+        // Still not asked: the step explains first.
+        waitLabel(app, "zs-test-notif", "notif asked=0")
+        element(app, "zs-ob-notif").click()
+        waitLabel(app, "zs-test-notif", "notif asked=1 allowed")
+
+        let login = checkbox(app, "zs-ob-loginitem")
+        XCTAssertFalse(isOn(login))
+        login.click()
+        waitLabel(app, "zs-test-loginitem", "login-item enabled")
+        element(app, "zs-ob-next").click()
+        let done = element(app, "zs-ob-done")
+        XCTAssertTrue(done.waitForExistence(timeout: 10))
+        done.click()
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: onboarding)
+        wait(for: [gone], timeout: 10)
+        waitLabel(app, "zs-test-settings", "onboarded=true menubar=true asked=true")
+        // Settings shows the same answer, without a second prompt.
+        openSettings(app)
+        section(app, "notifications")
+        XCTAssertTrue(text(app, "Notifications are on.").waitForExistence(timeout: 10))
+        waitLabel(app, "zs-test-notif", "notif asked=1 allowed")
+    }
+
+    /// Without a session the server sections say so; after sign-in they show the server's data
+    /// and write to it with the server as Origin; sign-out ends the session on the server too.
+    func testServerSectionsUseTheSession() throws {
+        let app = launch()
+        ready(app)
+        openSettings(app)
+        section(app, "dictionary")
+        XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "signed out state missing")
+
+        app.windows.matching(identifier: "zs-settings").firstMatch.typeKey("w", modifierFlags: .command)
+        app.buttons.matching(showing("Sign in with Google")).firstMatch.click()
+        waitLabel(app, "zs-test-login", "login 1 ok")
+
+        openSettings(app)
+        section(app, "account")
+        XCTAssertTrue(text(app, "Signed in as fixture@example.com").waitForExistence(timeout: 15), "account missing")
+
+        section(app, "dictionary")
+        XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the dictionary did not load")
+        let phrase = element(app, "zs-dict-phrase")
+        phrase.click()
+        phrase.typeText("zs-new-word")
+        element(app, "zs-dict-add").click()
+        waitServer("add") { self.server.writes.contains(#"POST /api/voice/dictionary {"kind":"word","phrase":"zs-new-word"}"#) }
+        XCTAssertTrue(element(app, "zs-dict-entry-e2").waitForExistence(timeout: 15), "the new entry is not listed")
+        element(app, "zs-dict-delete-e1").click()
+        waitServer("delete") { self.server.dictionaryIDs == ["e2"] }
+        let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element(app, "zs-dict-entry-e1"))
+        wait(for: [removed], timeout: 10)
+
+        section(app, "voice")
+        let cleanup = app.popUpButtons.matching(identifier: "zs-voice-cleanup").firstMatch
+        XCTAssertTrue(cleanup.waitForExistence(timeout: 15), "voice settings did not load")
+        cleanup.click()
+        app.menuItems["Formal"].click()
+        waitServer("patch") { self.server.writes.contains(#"PATCH /api/voice/settings {"cleanupMode":"formal"}"#) }
+        XCTAssertTrue(element(app, "zs-voice-saved").waitForExistence(timeout: 10))
+
+        section(app, "history")
+        XCTAssertTrue(text(app, "zs-history-text").waitForExistence(timeout: 15), "history did not load")
+
+        section(app, "account")
+        let signOut = element(app, "zs-account-signout")
+        XCTAssertTrue(signOut.waitForExistence(timeout: 10))
+        signOut.click()
+        waitServer("sign-out") { self.server.writes.contains("signout ok") }
+        XCTAssertTrue(text(app, "Not signed in.").waitForExistence(timeout: 10))
+        waitLabel(app, "zs-test-badge", "badge 0")
+        XCTAssertFalse(server.writes.contains { $0.hasPrefix("bad-origin") || $0 == "signout bad" }, "\(server.writes)")
+    }
+}

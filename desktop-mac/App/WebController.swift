@@ -34,6 +34,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Bridge commands with a native side outside the web view (sign-in, notifications).
     var onStartLogin: (() -> Void)?
     var onNotify: ((String, String?) -> Void)?
+    var onOpenSettings: (() -> Void)?
     /// Tabs (block 4): the bridge's `tabs` messages, and a page of the server that asked for a
     /// new window (target=_blank, window.open), which opens as a tab next to this one.
     var onTabs: ((TabsAction, String?, String?, Int?) -> Void)?
@@ -76,6 +77,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         bridge.onReject = { [weak self] reason in self?.onBridgeReject?(reason) }
         bridge.onStartLogin = { [weak self] in self?.onStartLogin?() }
         bridge.onNotify = { [weak self] title, body in self?.onNotify?(title, body) }
+        bridge.onOpenSettings = { [weak self] in self?.onOpenSettings?() }
         bridge.onTabs = { [weak self] action, path, title, n in self?.onTabs?(action, path, title, n) }
         model.onOpenInBrowser = { [weak self] in
             guard let self else { return }
@@ -107,6 +109,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         onFinished = nil
         onStartLogin = nil
         onNotify = nil
+        onOpenSettings = nil
         content.removeFromSuperview()
     }
 
