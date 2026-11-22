@@ -167,7 +167,7 @@ async function onQuotePaid(q: CrmQuoteRow): Promise<void> {
   }
   try {
     const { emitCrmHook } = await import('./crm-hooks');
-    await emitCrmHook(userId, 'quote.paid', {
+    const paid = {
       id: q.id,
       number: q.number,
       title: q.title,
@@ -177,7 +177,9 @@ async function onQuotePaid(q: CrmQuoteRow): Promise<void> {
       dealId: q.deal_id,
       dealName: deal?.name ?? '',
       paidAt: q.paid_at,
-    });
+    };
+    const { crmPersonalizer } = await import('./crm-event-privacy');
+    await emitCrmHook(userId, 'quote.paid', paid, crmPersonalizer(userId, 'quote.paid', paid));
   } catch {
     /* idem */
   }

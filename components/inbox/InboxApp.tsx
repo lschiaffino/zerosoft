@@ -164,6 +164,7 @@ export default function InboxApp(props: {
 }) {
   const t = useTranslations('inbox');
   const w = useTranslations('inboxWa');
+  const gw = useTranslations('groups.wa');
   const { style: chatStyle } = useChatStyle();
   // Pellizcar en el trackpad agranda solo los mensajes, no la app entera.
   useConversationZoom();
@@ -1389,6 +1390,7 @@ export default function InboxApp(props: {
                 placeholder={t('list.searchPlaceholder')}
                 value={q}
                 maxLength={200}
+                clearLabel={gw('clearSearch')}
                 onCommit={setQ}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') {

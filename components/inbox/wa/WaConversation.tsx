@@ -24,7 +24,7 @@ import MediaAlbum from '@/components/groups/wa/MediaAlbum';
 import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
-import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, PinIcon, PollIcon, Plus, Retry, Search as SearchIcon, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, FlagIcon, PinIcon, PollIcon, Plus, Retry, Search as SearchIcon, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
 import { ChatSearchPanel, useChatSearchShortcut, type ChatSearchFn } from '@/components/groups/wa/ChatSearch';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
@@ -33,6 +33,7 @@ import PinnedBar from '@/components/groups/wa/PinnedBar';
 import LeftGroupBar from '@/components/groups/wa/LeftGroupBar';
 import { SelectCheck, useMessageSelection } from '@/components/groups/wa/useMessageSelection';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import ReportDialog from '@/components/groups/wa/ReportDialog';
 import { tapClosesKeyboard } from '@/components/groups/wa/keyboard';
 import { api, longWhen } from '../api';
 import { Modal } from '../InboxDialogs';
@@ -211,6 +212,9 @@ const WaConversation = forwardRef<
   });
   const { selecting, setSelecting } = selection;
   const [deletingSel, setDeletingSel] = useState(false);
+  // "Reportar" (menú de un mensaje recibido): el mensaje y si está en curso.
+  const [reporting, setReporting] = useState<MessageDto | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
@@ -616,7 +620,9 @@ const WaConversation = forwardRef<
         items.push({ key: 'messageSender', label: w('messageName', { name: who }), onSelect: () => void props.onMessagePerson?.(m.senderHandle, dmId) });
       }
     }
-    items.push({ key: 'hide', label: w('deleteForMe'), divider: true, danger: true, onSelect: () => void act(m, { action: 'hide' }) });
+    // Reportar lo que mandó otra persona, como WhatsApp (una vez; después queda la banderita).
+    if (!m.fromMe && !m.revoked && m.mediaType !== 'system' && !m.meta?.reported) items.push({ key: 'report', label: gw('report.action'), divider: true, onSelect: () => setReporting(m) });
+    items.push({ key: 'hide', label: w('deleteForMe'), divider: !items.some((it) => it.key === 'report') || undefined, danger: true, onSelect: () => void act(m, { action: 'hide' }) });
     if (canDeleteAll(m)) items.push({ key: 'deleteAll', label: w('deleteForEveryone'), danger: true, onSelect: () => void act(m, {}, 'DELETE') });
     return items;
   };
@@ -650,6 +656,25 @@ const WaConversation = forwardRef<
     }
     props.onToast(on ? (r.data.inWhatsApp ? gt('pinnedWhatsApp') : w('pinnedHereOnly')) : gt('unpinned'));
     onRefresh();
+  };
+  /** Reportar: queda marcado en Inbox; a la vez, bloquear (1:1) o salir del grupo si se marcó. */
+  const confirmReport = async (opts: { block: boolean; leave: boolean }) => {
+    if (!reporting) return;
+    setReportBusy(true);
+    const r = await api<{ blocked?: boolean; left?: boolean; error?: string }>(`/api/inbox/messages/${reporting.id}`, { method: 'PATCH', json: { action: 'report', ...opts } });
+    setReportBusy(false);
+    setReporting(null);
+    if (!r.ok) {
+      onError(r.data.error ?? 'generic');
+      return;
+    }
+    onRefresh();
+    if (r.data.error) {
+      const code = r.data.error;
+      props.onToast(gw('report.partial', { error: t.has(`errors.${code}`) ? t(`errors.${code}`) : w.has(`errors.${code}`) ? w(`errors.${code}`) : t('errors.generic') }));
+      return;
+    }
+    props.onToast(r.data.blocked ? gw('report.doneBlocked', { name }) : r.data.left ? gw('report.doneLeft') : gw('report.done'));
   };
   const starSelected = async () => {
     const list = selectedMsgs().filter((m) => !m.revoked);
@@ -873,7 +898,7 @@ const WaConversation = forwardRef<
     const body = m.body ?? '';
     const poll = meta.poll;
     const caption = !!body && !poll && !(kind === 'document' && body === m.mediaName);
-    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0) + (m.pinnedAt ? 16 : 0));
+    const spacer = Math.ceil(time.length * 6.6 + (m.fromMe ? 26 : 8) + (m.edited ? 52 : 0) + (m.starred ? 14 : 0) + (m.pinnedAt ? 16 : 0) + (m.meta?.reported ? 16 : 0));
     const gestures = swipeAndHold({
       onSwipe: selecting || left || m.revoked || isTempId(m.id) ? undefined : () => startReply(m),
       onHold: (el) => (selecting ? toggleSelected(m.id) : setHeld({ id: m.id, el })),
@@ -1081,6 +1106,7 @@ const WaConversation = forwardRef<
               </span>
             )}
             {m.pinnedAt && <PinIcon size={12} label={gt('pinned')} />}
+            {m.meta?.reported && <FlagIcon size={12} label={gw('report.reported')} data-testid="msg-reported" />}
             {m.edited && !m.revoked && <span className="wa-edited">{w('edited')}</span>}
             <time dateTime={m.sentAt} title={lineNames.size > 1 ? lineNames.get(lineOf(m)) : undefined}>
               {time}
@@ -1579,6 +1605,14 @@ const WaConversation = forwardRef<
           />
         )}
       </Modal>
+      <ReportDialog
+        open={!!reporting}
+        name={name}
+        extra={group ? (left ? null : 'leave') : wa?.blocked ? null : 'block'}
+        busy={reportBusy}
+        onConfirm={(opts) => void confirmReport(opts)}
+        onCancel={() => setReporting(null)}
+      />
       <ConfirmDialog
         open={deletingSel && !!selecting}
         title={gw('deleteSelectedTitle', { n: selecting?.size ?? 0 })}

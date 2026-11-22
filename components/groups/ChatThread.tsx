@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import LeftGroupBar from '@/components/groups/wa/LeftGroupBar';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useKeyShortcut } from '@/components/app/QuickModal';
+import ReportDialog from './wa/ReportDialog';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
@@ -96,6 +97,7 @@ import {
   PinIcon,
   HeartIcon,
   VipIcon,
+  FlagIcon,
   Plus,
   SendIcon,
   Smiley,
@@ -357,6 +359,9 @@ export default function ChatThread(props: ThreadProps) {
   const [ticketBusy, setTicketBusy] = useState(false);
   const [editing, setEditing] = useState<{ id: string; text: string; busy: boolean } | null>(null);
   const [deleting, setDeleting] = useState<MessageDto | null>(null);
+  // "Reportar" (menú de un mensaje recibido): el mensaje y si está en curso.
+  const [reporting, setReporting] = useState<MessageDto | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [forwarding, setForwarding] = useState<MessageDto | MessageDto[] | null>(null);
   const [translateOn, setTranslateOn] = useState(false);
@@ -1304,6 +1309,20 @@ export default function ChatThread(props: ThreadProps) {
     showToast(res.data.removed ? t('thread.noteDeleted') : t('thread.deletedForAll'));
   }
 
+  /** Reportar: queda marcado en el chat (y en su log); a la vez, bloquear (1:1) o salir del grupo si se marcó. */
+  async function confirmReport(opts: { block: boolean; leave: boolean }) {
+    if (!reporting) return;
+    setReportBusy(true);
+    const res = await api<{ message: MessageDto; blocked: boolean; left: boolean; error?: string }>(`/api/groups/messages/${reporting.id}`, { body: { action: 'report', ...opts } });
+    setReportBusy(false);
+    setReporting(null);
+    if (!res.data) return showToast(errText(res.error), true);
+    merge([res.data.message]);
+    if (res.data.blocked || res.data.left) router.refresh();
+    if (res.data.error) return showToast(t('wa.report.partial', { error: errText(res.data.error) }), true);
+    showToast(res.data.blocked ? t('wa.report.doneBlocked', { name: chat.name }) : res.data.left ? t('wa.report.doneLeft') : t('wa.report.done'));
+  }
+
   async function togglePin(m: MessageDto) {
     const pin = !m.pinnedAt;
     const res = await api<{ message: MessageDto; inWhatsApp: boolean }>(`/api/groups/messages/${m.id}`, { body: { action: pin ? 'pin' : 'unpin' } });
@@ -1640,6 +1659,9 @@ export default function ChatThread(props: ThreadProps) {
       items.push({ key: 'replyPrivately', label: t('wa.replyPrivately'), divider: true, onSelect: () => void openPrivateChat(m, true) });
       items.push({ key: 'messageSender', label: t('wa.messageName', { name: inName(m) }), onSelect: () => void openPrivateChat(m, false) });
     }
+    // Reportar lo que mandó otra persona, como WhatsApp (una vez; después queda la banderita).
+    if (m.direction === 'in' && !m.deletedAt && !(m.meta as Record<string, unknown>).reported)
+      items.push({ key: 'report', label: t('wa.report.action'), divider: true, onSelect: () => setReporting(m) });
     if (can.delete)
       items.push({
         key: 'delete',
@@ -2277,7 +2299,7 @@ export default function ChatThread(props: ThreadProps) {
                       )
                     : <RichText text={m.body} mentions={mentionsFor(m)} />}
                 {/* Lugar para la hora flotante (como en WhatsApp: el texto no se pisa con la hora). */}
-                <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
+                <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0) + ((m.meta as Record<string, unknown>).reported ? 16 : 0))}px` }} />
               </p>
             )
           )}
@@ -2317,12 +2339,13 @@ export default function ChatThread(props: ThreadProps) {
               )}
               {m.direction === 'in' && m.needsReply === true && <span className="gr-question-tag">{t('thread.question')}</span>}
               {/* Lugar para la hora (va abajo a la derecha, encima del último renglón): sin esto, "Enviado desde …" se pisaba con la hora. */}
-              <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0))}px` }} />
+              <span className="wa-spacer" aria-hidden="true" style={{ width: `${Math.ceil(time.length * 6.6 + (m.direction === 'out' ? 26 : 8) + (m.editedAt ? 52 : 0) + (m.pinnedAt ? 16 : 0) + ((m.meta as Record<string, unknown>).reported ? 16 : 0))}px` }} />
             </p>
           )}
           <p className="gr-msg-foot">
             {starred && <span className="wa-star" role="img" aria-label={t('wa.starred')}>★</span>}
             {m.pinnedAt && <PinIcon size={12} label={t('thread.pinned')} />}
+            {!!(m.meta as Record<string, unknown>).reported && <FlagIcon size={12} label={t('wa.report.reported')} data-testid="msg-reported" />}
             {m.editedAt && !m.deletedAt && <span className="wa-edited">{t('thread.edited')}</span>}
             <time dateTime={m.createdAt} title={lineNames.size > 1 ? lineNames.get(m.chatId) : undefined}>
               <LocalText>{time}</LocalText>
@@ -3175,6 +3198,15 @@ export default function ChatThread(props: ThreadProps) {
         busy={deleteBusy}
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleting(null)}
+      />
+
+      <ReportDialog
+        open={!!reporting}
+        name={chat.name}
+        extra={chat.kind === 'dm' ? (chat.canBlock && !chat.blocked ? 'block' : null) : !chat.leftAt && props.caps.groups && !props.sample ? 'leave' : null}
+        busy={reportBusy}
+        onConfirm={(opts) => void confirmReport(opts)}
+        onCancel={() => setReporting(null)}
       />
 
       <ConfirmDialog

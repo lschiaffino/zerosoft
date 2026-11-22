@@ -66,6 +66,7 @@ export const messageActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('edit'), body: z.string().min(1).max(LIMITS.message) }),
   z.object({ action: z.enum(['star', 'unstar', 'hide', 'pin', 'unpin']) }),
   z.object({ action: z.literal('forward'), to: z.array(id).min(1).max(5) }),
+  z.object({ action: z.literal('report'), block: z.boolean().optional(), leave: z.boolean().optional() }),
 ]);
 
 const rule = z

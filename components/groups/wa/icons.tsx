@@ -135,6 +135,12 @@ export const VipIcon = (p: P) => (
     <path d="M4 18h16M5 15 4 7l5 4 3-6 3 6 5-4-1 8z" />
   </Svg>
 );
+/** Reportado: una banderita, como la de WhatsApp. */
+export const FlagIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+  </Svg>
+);
 export const MuteIcon = (p: P) => (
   <Svg {...p}>
     <path d="M11 5 6.5 9H3.5v6h3l4.5 4z" />

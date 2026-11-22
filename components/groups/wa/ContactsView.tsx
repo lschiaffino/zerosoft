@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import SearchClear from '@/components/app/SearchClear';
 import { Link, useRouter } from '@/i18n/navigation';
 import EmptyState from '@/components/ui/EmptyState';
 import { useMounted } from '@/components/ui/useMounted';
@@ -164,6 +165,7 @@ export default function ContactsView({
   canWrite: boolean;
 }) {
   const t = useTranslations('inboxWa.contacts');
+  const tw = useTranslations('groups.wa');
   const ago = useAgo();
   const endpoint = app === 'lines' ? '/api/groups/people' : '/api/inbox/people';
   const [q, setQ] = useState('');
@@ -259,15 +261,19 @@ export default function ContactsView({
   return (
     <div className="wc" data-testid="contacts-view">
       <div className="gr-toolbar gr-gt-toolbar wc-toolbar">
-        <input
-          className="input"
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('search')}
-          aria-label={t('search')}
-          data-testid="contacts-search"
-        />
+        <span className="ui-search-box wc-search">
+          <input
+            className="input"
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t('search')}
+            aria-label={t('search')}
+            data-testid="contacts-search"
+            data-clearable=""
+          />
+          <SearchClear shown={q !== ''} onClear={() => setQ('')} label={tw('clearSearch')} />
+        </span>
         {lines.length > 1 && (
           <PickMenu
             label={isLines ? t('lineLabel') : t('accountLabel')}

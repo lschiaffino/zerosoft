@@ -34,7 +34,9 @@ afterEach(() => {
 });
 
 const owner = (u: { id: string }) => ({ ...u, role: 'owner', apps: '*' }) as unknown as SessionUser;
-const SECRET = 'el pedido 4471 llega el martes';
+// Centinela con letras fuera del hexadecimal: no puede aparecer por casualidad en un uuid ni en un id al azar.
+const SENTINEL = 'zorzal-4471';
+const SECRET = `el pedido ${SENTINEL} llega el martes`;
 
 async function inboxWorld(label: string) {
   const u = await makeUser(label);
@@ -68,7 +70,7 @@ describe('qué tengo atrasado (Inbox)', () => {
     // El más viejo primero, con las horas que lleva esperando.
     expect(out.waitingForReply.map((c) => c.name)).toEqual(['Ana', 'Beto']);
     expect(out.waitingForReply[0].waitingHours).toBeGreaterThanOrEqual(29);
-    expect(JSON.stringify(out)).not.toContain('4471');
+    expect(JSON.stringify(out)).not.toContain(SENTINEL);
     expect(r.actions).toEqual([]);
     expect(r.text).toContain('Esto es lo que tenés atrasado');
   });
@@ -108,8 +110,7 @@ describe('qué tengo atrasado (Inbox)', () => {
     const first = await turn(user, 'sí, leelos');
     const ask = first.results.find((x) => x.tool === 'inbox_read_chats')!.output as { status: string };
     expect(ask.status).toBe('awaiting_permission');
-    // Sin los ids al azar (un uuid puede traer esos dígitos por casualidad).
-    expect(JSON.stringify(first.events).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|fake-\d+-[0-9a-f]+/g, '')).not.toContain('4471');
+    expect(JSON.stringify(first.events)).not.toContain(SENTINEL);
     expect(first.actions.map((a) => a.tool)).toEqual(['grant_chat_access']);
     expect(first.text).toContain('necesito leer esos chats');
     const denied = (await getDb().prepare("SELECT outcome FROM assistant_audit WHERE person_id = ? AND tool = 'inbox_read_chats'").all(w.u.id)) as Array<{ outcome: string }>;
@@ -128,7 +129,7 @@ describe('qué tengo atrasado (Inbox)', () => {
     // El texto llega al modelo en el turno, pero ni la pantalla ni la charla guardada lo tienen.
     expect(readOut.output).toEqual({ read: 2, withheld: true });
     const saved = JSON.stringify(await listMessages(first.conversationId, 50));
-    expect(saved).not.toContain('4471');
+    expect(saved).not.toContain(SENTINEL);
     expect(read.actions.map((a) => a.tool)).toEqual(['propose_inbox_actions']);
     const other = await turn(user, 'sí, leelos');
     expect((other.results[0].output as { status: string }).status).toBe('awaiting_permission');
@@ -159,7 +160,7 @@ describe('qué tengo atrasado (Inbox)', () => {
     expect(spy).toHaveBeenCalled();
     seen = String(spy.mock.results[0].value);
     expect(seen).toMatch(/^<untrusted_data source="inbox.chats" nonce="[0-9a-f]+">/);
-    expect(seen).toContain('4471');
+    expect(seen).toContain(SENTINEL);
     spy.mockRestore();
   });
 
@@ -171,7 +172,7 @@ describe('qué tengo atrasado (Inbox)', () => {
     setAssistantModelOverride(scriptedModel([{ tool: 'inbox_read_chats', input: { chats: [w.ana.id, 'Ana'] } }, { text: 'ok' }]));
     const spy = vi.spyOn(await import('@/lib/mcp/untrusted'), 'wrapUntrusted');
     const r = await turn(as, 'leé el chat de Ana');
-    expect(JSON.stringify(spy.mock.calls)).not.toContain('4471');
+    expect(JSON.stringify(spy.mock.calls)).not.toContain(SENTINEL);
     expect((r.results[0].output as { read: number }).read).toBe(0);
     spy.mockRestore();
     // El permiso del dueño tampoco existe para el member (es por persona).
@@ -231,13 +232,13 @@ describe('Lines: solo los chats que la persona ve', () => {
     setAssistantModelOverride(scriptedModel([{ tool: 'lines_read_chats', input: { chats: [chat.id] } }, { text: 'ok' }]));
     const r = await turn(as, 'leé ese chat');
     expect((r.results[0].output as { read: number }).read).toBe(0);
-    expect(JSON.stringify(spy.mock.calls)).not.toContain('4471');
+    expect(JSON.stringify(spy.mock.calls)).not.toContain(SENTINEL);
 
     // El dueño (que ve la línea) sí.
     setAssistantModelOverride(scriptedModel([{ tool: 'lines_read_chats', input: { chats: [chat.id] } }, { text: 'ok' }]));
     const mine = await turn(owner(ws), 'leé ese chat');
     expect((mine.results[0].output as { read: number }).read).toBe(1);
-    expect(JSON.stringify(spy.mock.calls)).toContain('4471');
+    expect(JSON.stringify(spy.mock.calls)).toContain(SENTINEL);
     spy.mockRestore();
   });
 });
