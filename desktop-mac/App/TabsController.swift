@@ -452,11 +452,11 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         tabInUse(id)
     }
 
-    /// The red dot of the tab that records (one at a time; nil clears it).
-    func setRecording(_ id: Int?) {
+    /// The red dot of the tabs that record (a meeting, or the computer's audio).
+    func setRecording(_ ids: Set<Int>) {
         var touched = Set<String>()
-        for t in session.allTabs where t.recording != (t.id == id) {
-            session.update(t.id) { $0.recording = (t.id == id) }
+        for t in session.allTabs where t.recording != ids.contains(t.id) {
+            session.update(t.id) { $0.recording = ids.contains(t.id) }
             if let label = session.windowOf(t.id) { touched.insert(label) }
         }
         touched.forEach(refresh)

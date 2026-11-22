@@ -708,19 +708,24 @@ on and `systemAudio` is on except under forced Lockdown restrictions. Where the 
 the table above or from the Tauri app:
 
 - **Capture.** A private Core Audio process tap of every process but zerosoft, in a private
-  aggregate device clocked by the default output, on macOS 14.2 and later; ScreenCaptureKit's audio
+  aggregate device that holds only the tap (no sub-device, so a headset microphone cannot join),
+  on macOS 14.2 and later; ScreenCaptureKit's audio
   of the main display (no video output taken) on 13 to 14.1, as planned. Samples are mixed to
   mono and converted to 16 kHz 16-bit in the app (`PCMResampler`: a box filter down, linear up,
-  independent of how the audio thread splits the stream), held in memory at most 60 s between two
+  independent of how the audio thread splits the stream, following the tap's format when the
+  output device changes), held in memory at most 60 s between two
   reads (`PCMQueue`) and handed to the page as base64, as system_audio.rs does. Nothing is written
   to disk or logged; logs carry closed tags and OSStatus codes only.
 - **Upload.** Nothing native uploads: as in the Tauri app, the page records (MediaRecorder) and
   uploads through the Voice session routes (`/api/voice/sessions/...`). The app only feeds the
   page the computer's audio and marks the recording.
 - **Start rules.** As commands.rs: a capture starts only from the tab in use (in front of the key
-  window, the app in front); only that tab reads, stops or restarts it. It also ends when that tab
+  window, the app in front); only that tab reads, stops or restarts it. It does not wait for the
+  page's `recording` flag: Voice and Rec ask for the audio before they report recording, as in the
+  Tauri app. A stop, or a new document in the tab, while macOS still holds the start cancels it. It also ends when that tab
   closes, is suspended, loads another document or its web process ends, and 30 s after the page's
-  last read. Such a tab is never suspended. With the "Let meetings capture the computer's audio"
+  last read, unless that tab still reports a meeting (a page behind other tabs can be throttled;
+  its marks stay on and the queue keeps at most 60 s). Such a tab is never suspended. With the "Let meetings capture the computer's audio"
   switch off (Settings › Meetings, on by default as in the Tauri app, where it lived in Privacy) or
   under forced Lockdown restrictions (no Web Audio for the page) the start answers `unsupported`
   and the page records the microphone only; switching it off stops a capture.
@@ -728,7 +733,8 @@ the table above or from the Tauri app:
   `NSAudioCaptureUsageDescription`, ScreenCaptureKit only the person's Screen Recording approval
   (`NSScreenCaptureUsageDescription` is set as well); `scripts/check-signature.sh` checks both
   strings. Prompts show only on the first capture or from Settings › Permissions' "Allow screen
-  recording", never at launch. Audio taps have no public permission check, so `denied` comes only
+  recording" (a row shown only on macOS 13 to 14.1, where the capture needs it), never at launch;
+  a capture never opens System Settings by itself. Audio taps have no public permission check, so `denied` comes only
   from the ScreenCaptureKit path; a tap macOS refused records silence, which the page already warns
   about (`systemAudioSilent`). Their Permissions row explains when macOS asks and opens System
   Settings instead of starting a throwaway capture to raise the prompt. The Tauri app also opened
@@ -739,8 +745,10 @@ the table above or from the Tauri app:
   click opens the tab, hover shows the time, right click Open, Stop, Hide until the next
   recording, drag to move, position kept in settings.json as `indicatorPosition`). While a meeting
   records or the computer's audio is captured the menu bar item shows even when Settings ›
-  General hides it. The indicator follows its switch for meetings but always shows for the
-  computer's audio while the tab is not in front.
+  General hides it. The indicator follows its switch for meetings but shows for the computer's
+  audio whatever the switch says while the tab is not in front; "Hide until the next recording"
+  hides it for both, and the menu bar item's dot and the tab's dot stay. Every tab that records a
+  meeting or captures the computer's audio has the dot, and two tabs can record at once.
 - **Differences from indicator.rs.** The recording flag belongs to the tab that sent it: another
   tab saying "not recording" (Voice says it whenever its recorder mounts) no longer clears it.
   Stop from the indicator or the menu bar item sends `zerosoft:stop-recording` to the page and

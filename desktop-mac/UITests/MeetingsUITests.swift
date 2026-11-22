@@ -285,10 +285,23 @@ final class MeetingsUITests: XCTestCase {
         waitCapture(app, meeting: false, sysaudio: false, indicator: false)
     }
 
+    /// On macOS 13 to 14.1 (ScreenCaptureKit) Permissions shows Screen Recording and asks for it
+    /// only from its button.
+    func testScreenRecordingRowOnOlderMacOS() throws {
+        let app = launch(["-ZSSystemAudio", "allowed", "-ZSSystemAudioBackend", "screen"])
+        ready(app)
+        waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=0")
+        openSettings(app, "permissions")
+        reveal(app, element(app, "zs-set-screen-state"), click: false)
+        XCTAssertTrue(text(app, "Screen recording is off.").exists, "Screen Recording state missing")
+        waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=0")
+        reveal(app, app.buttons.matching(identifier: "zs-set-screen").firstMatch)
+        waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=1")
+    }
+
     /// Settings › Meetings: the switches persist; the indicator switch hides it for a meeting but
     /// never for the computer's audio; switching the computer's audio off stops a capture. Settings
-    /// › Permissions shows the computer's audio and Screen Recording, and asks for Screen
-    /// Recording only from its button.
+    /// › Permissions explains the computer's audio.
     func testMeetingsSettingsAndPermissions() throws {
         var app = launch(["-ZSSystemAudio", "allowed"])
         ready(app)
@@ -324,11 +337,9 @@ final class MeetingsUITests: XCTestCase {
 
         press(app.buttons.matching(identifier: "zs-settings-permissions").firstMatch)
         reveal(app, element(app, "zs-set-audio-state"), click: false)
-        reveal(app, element(app, "zs-set-screen-state"), click: false)
-        XCTAssertTrue(text(app, "Screen recording is off.").exists, "Screen Recording state missing")
+        // macOS 14.2 and later (audio taps) never need Screen Recording: no row asks for it.
+        XCTAssertFalse(element(app, "zs-set-screen-state").exists, "Screen Recording offered without a use")
         waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=0")
-        reveal(app, app.buttons.matching(identifier: "zs-set-screen").firstMatch)
-        waitLabel(app, "zs-test-capperm", "capperm asked=0 audio=allowed screen-asked=1")
 
         app.terminate()
         app = launch(["-ZSSystemAudio", "allowed", "-ZSKeepSettings", "YES"])

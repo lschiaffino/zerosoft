@@ -21,8 +21,11 @@ final class MeetingsController {
     private let tabs: TabsController
     let systemAudio: SystemAudioController
     let indicator: RecordingIndicator
-    private(set) var recording: MeetingRecording?
+    /// Meetings the pages reported, by tab (two tabs can record at once).
+    private var recordings: [Int: MeetingRecording] = [:]
+    /// The tab whose meeting the marks are about: the last one that started.
     private(set) var recordingTab: Int?
+    var recording: MeetingRecording? { recordingTab.flatMap { recordings[$0] } }
     private var dismissed = false
     private var indicatorEnabled = true
     private var observers: [NSObjectProtocol] = []
@@ -43,14 +46,16 @@ final class MeetingsController {
             // A new capture brings a hidden indicator back.
             if systemAudio.running, !wasRunning { self.dismissed = false }
             wasRunning = systemAudio.running
+            self.markTabs()
             self.update()
         }
         systemAudio.tabExists = { [weak tabs] id in tabs?.hasWeb(id) ?? false }
+        systemAudio.ownerRecording = { [weak self] id in self?.recordings[id] != nil }
         indicator.onOpen = { [weak self] in self?.open() }
         indicator.onStop = { [weak self] in self?.stop() }
         indicator.onHide = { [weak self] in self?.hideIndicator() }
         indicator.onMoved = { [weak self] p in self?.onMoved(p) }
-        tabs.keepAlive = { [weak self] id in self?.recordingTab == id || self?.systemAudio.owner == id }
+        tabs.keepAlive = { [weak self] id in self?.recordings[id] != nil || self?.systemAudio.owner == id }
         tabs.onTabGone = { [weak self] id in self?.tabGone(id) }
         tabs.onFrontChange = { [weak self] in self?.update() }
         let center = NotificationCenter.default
@@ -103,27 +108,32 @@ final class MeetingsController {
     private func pageRecording(_ id: Int, active: Bool, startedAt: Double?, path: String?) {
         let now = Date().timeIntervalSince1970 * 1000
         if let rec = MeetingRecording.from(active: active, startedAt: startedAt, path: path, nowMs: now) {
-            if recording == nil || recordingTab != id { dismissed = false }
-            recording = rec
-            recordingTab = id
-            tabs.setRecording(id)
+            if recordings[id] == nil {
+                dismissed = false
+                recordingTab = id
+            }
+            recordings[id] = rec
         } else {
-            guard recordingTab == id else { return }
-            recording = nil
-            recordingTab = nil
-            tabs.setRecording(nil)
+            guard recordings.removeValue(forKey: id) != nil else { return }
+            if recordingTab == id { recordingTab = recordings.keys.sorted().last }
         }
+        markTabs()
         Self.log.info("meeting recording \(active ? "on" : "off", privacy: .public)")
         update()
     }
 
     private func tabGone(_ id: Int) {
         systemAudio.tabGone(id)
-        guard recordingTab == id else { return }
-        recording = nil
-        recordingTab = nil
-        tabs.setRecording(nil)
+        if recordings.removeValue(forKey: id) != nil, recordingTab == id { recordingTab = recordings.keys.sorted().last }
+        markTabs()
         update()
+    }
+
+    /// The red dot on every tab that records a meeting or captures the computer's audio.
+    private func markTabs() {
+        var ids = Set(recordings.keys)
+        if let owner = systemAudio.owner { ids.insert(owner) }
+        tabs.setRecording(ids)
     }
 
     /// The tab that the marks are about: the meeting's, or the one capturing the computer's audio.
@@ -161,7 +171,7 @@ final class MeetingsController {
     /// stops as with its own button; the computer's audio stops here right away, whatever the
     /// page does.
     func stop() {
-        if let id = recordingTab { tabs.stopRecording(in: id) }
+        for id in recordings.keys { tabs.stopRecording(in: id) }
         systemAudio.stop(.user)
     }
 

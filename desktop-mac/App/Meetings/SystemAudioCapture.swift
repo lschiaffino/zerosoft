@@ -41,6 +41,23 @@ final class SystemAudioSink: @unchecked Sendable {
         queue.append(resampler.push(mono))
     }
 
+    /// The tap's current format (it changes when the output device or its rate changes).
+    private var tapFormat = AudioStreamBasicDescription()
+
+    func setFormat(_ format: AudioStreamBasicDescription) {
+        lock.lock()
+        tapFormat = format
+        lock.unlock()
+    }
+
+    /// From the tap's audio thread: the buffers in the tap's current format.
+    func pushTap(_ list: UnsafePointer<AudioBufferList>) {
+        lock.lock()
+        let format = tapFormat
+        lock.unlock()
+        push(list, format: format)
+    }
+
     /// From an audio thread: an AudioBufferList of 32-bit floats, interleaved or one buffer per
     /// channel.
     func push(_ list: UnsafePointer<AudioBufferList>, format: AudioStreamBasicDescription) {
@@ -61,11 +78,13 @@ final class SystemAudioSink: @unchecked Sendable {
         push(mono: PCMResampler.mixMono(channels: channels), rate: format.mSampleRate)
     }
 
-    /// Everything since the last read, as 16-bit little-endian bytes.
+    /// Everything since the last read, as 16-bit little-endian bytes. The samples are swapped
+    /// out under the lock and encoded outside it, so the audio thread never waits for that.
     func take() -> Data {
         lock.lock()
-        defer { lock.unlock() }
-        return queue.take()
+        let samples = queue.takeSamples()
+        lock.unlock()
+        return PCMQueue.bytes(samples)
     }
 }
 
@@ -85,9 +104,11 @@ protocol CapturePermissions: AnyObject {
     var backend: SystemAudioBackend { get }
     /// Screen Recording (CGPreflightScreenCaptureAccess), which ScreenCaptureKit's audio needs.
     func screenAllowed() -> Bool
-    /// macOS's Screen Recording prompt. It shows once per app; after that this opens System
-    /// Settings. Only from the "Allow screen recording" button or the first capture.
+    /// The "Allow screen recording" button: macOS's prompt the first time, System Settings after.
     func requestScreen()
+    /// The first capture without the permission: macOS's prompt (it shows once per app); never
+    /// opens System Settings, so a page cannot bring it up.
+    func promptScreenOnce()
     func openScreenSettings()
     func openAudioSettings()
 }
@@ -113,6 +134,12 @@ final class SystemCapturePermissions: CapturePermissions {
         }
         askedScreen = true
         // Shows the prompt the first time; returns false right away while it is up.
+        _ = CGRequestScreenCaptureAccess()
+    }
+
+    func promptScreenOnce() {
+        guard !askedScreen else { return }
+        askedScreen = true
         _ = CGRequestScreenCaptureAccess()
     }
 
@@ -156,6 +183,7 @@ final class ProcessTapSource: SystemAudioSource {
     private var tap = AudioObjectID(kAudioObjectUnknown)
     private var aggregate = AudioObjectID(kAudioObjectUnknown)
     private var proc: AudioDeviceIOProcID?
+    private var listener: AudioObjectPropertyListenerBlock?
     private let queue = DispatchQueue(label: "ai.zerosoft.mac.system-audio", qos: .userInitiated)
 
     func start(into sink: SystemAudioSink) async -> SystemAudioResult {
@@ -174,8 +202,13 @@ final class ProcessTapSource: SystemAudioSource {
         var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         status = AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format)
         guard status == noErr else { return fail("format", status) }
+        sink.setFormat(format)
+        // The output device or its rate can change mid-call (a headset switching profile): the
+        // sink follows the tap's format, so the conversion keeps the right rate.
+        let listener = Self.formatListener(tap: tap, sink: sink)
+        if AudioObjectAddPropertyListenerBlock(tap, &address, queue, listener) == noErr { self.listener = listener }
 
-        var device: [String: Any] = [
+        let device: [String: Any] = [
             kAudioAggregateDeviceNameKey: "zerosoft meeting audio",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
             kAudioAggregateDeviceIsPrivateKey: true,
@@ -186,18 +219,15 @@ final class ProcessTapSource: SystemAudioSource {
                 kAudioSubTapDriftCompensationKey: true,
             ]],
         ]
-        // The default output as the clock, as Apple's sample does.
-        if let output = Self.defaultOutputUID() {
-            device[kAudioAggregateDeviceMainSubDeviceKey] = output
-            device[kAudioAggregateDeviceSubDeviceListKey] = [[kAudioSubDeviceUIDKey: output]]
-        }
+        // Taps only, no sub-device: a headset's microphone would otherwise join the input
+        // buffers of the aggregate and be mixed into the computer's audio.
         var aggregate = AudioObjectID(kAudioObjectUnknown)
         status = AudioHardwareCreateAggregateDevice(device as CFDictionary, &aggregate)
         guard status == noErr, aggregate != kAudioObjectUnknown else { return fail("device", status) }
         self.aggregate = aggregate
 
         var proc: AudioDeviceIOProcID?
-        status = AudioDeviceCreateIOProcIDWithBlock(&proc, aggregate, queue, Self.ioBlock(sink, format))
+        status = AudioDeviceCreateIOProcIDWithBlock(&proc, aggregate, queue, Self.ioBlock(sink))
         guard status == noErr, let proc else { return fail("proc", status) }
         self.proc = proc
         status = AudioDeviceStart(aggregate, proc)
@@ -206,6 +236,11 @@ final class ProcessTapSource: SystemAudioSource {
     }
 
     func stop() {
+        if let listener, tap != kAudioObjectUnknown {
+            var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            AudioObjectRemovePropertyListenerBlock(tap, &address, queue, listener)
+        }
+        listener = nil
         if let proc {
             AudioDeviceStop(aggregate, proc)
             AudioDeviceDestroyIOProcID(aggregate, proc)
@@ -226,8 +261,18 @@ final class ProcessTapSource: SystemAudioSource {
 
     /// The block the audio thread calls: built outside the main actor, so it never inherits its
     /// isolation.
-    private nonisolated static func ioBlock(_ sink: SystemAudioSink, _ format: AudioStreamBasicDescription) -> AudioDeviceIOBlock {
-        { _, input, _, _, _ in sink.push(input, format: format) }
+    private nonisolated static func ioBlock(_ sink: SystemAudioSink) -> AudioDeviceIOBlock {
+        { _, input, _, _, _ in sink.pushTap(input) }
+    }
+
+    /// Reads the tap's format again when it changes (on the capture queue).
+    private nonisolated static func formatListener(tap: AudioObjectID, sink: SystemAudioSink) -> AudioObjectPropertyListenerBlock {
+        { _, _ in
+            var format = AudioStreamBasicDescription()
+            var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+            var address = AudioObjectPropertyAddress(mSelector: kAudioTapPropertyFormat, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            if AudioObjectGetPropertyData(tap, &address, 0, nil, &size, &format) == noErr { sink.setFormat(format) }
+        }
     }
 
     /// This app's Core Audio process object, so the tap leaves out the app's own sound.
@@ -238,19 +283,6 @@ final class ProcessTapSource: SystemAudioSource {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyTranslatePIDToProcessObject, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, UInt32(MemoryLayout<pid_t>.size), &pid, &size, &object)
         return status == noErr && object != kAudioObjectUnknown ? object : nil
-    }
-
-    private static func defaultOutputUID() -> String? {
-        var device = AudioObjectID(kAudioObjectUnknown)
-        var size = UInt32(MemoryLayout<AudioObjectID>.size)
-        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultSystemOutputDevice, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
-        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device) == noErr,
-              device != kAudioObjectUnknown else { return nil }
-        var uid: Unmanaged<CFString>?
-        size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-        address.mSelector = kAudioDevicePropertyDeviceUID
-        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &uid) == noErr, let uid else { return nil }
-        return uid.takeRetainedValue() as String
     }
 }
 
@@ -275,7 +307,7 @@ final class ScreenCaptureAudioSource: NSObject, SystemAudioSource {
     func start(into sink: SystemAudioSink) async -> SystemAudioResult {
         guard permissions.screenAllowed() else {
             // First use: macOS's prompt (once per app). The page says the permission is missing.
-            permissions.requestScreen()
+            permissions.promptScreenOnce()
             return .denied
         }
         do {
@@ -376,6 +408,8 @@ final class FakeCapturePermissions: CapturePermissions {
         askedScreen += 1
         onChange?()
     }
+
+    func promptScreenOnce() {}
 
     func openScreenSettings() {}
     func openAudioSettings() {}

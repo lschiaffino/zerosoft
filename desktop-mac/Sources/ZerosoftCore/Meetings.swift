@@ -183,7 +183,17 @@ public struct PCMQueue: Sendable {
 
     /// Everything since the last read as 16-bit little-endian bytes, and empties the queue.
     public mutating func take() -> Data {
-        defer { samples.removeAll(keepingCapacity: true) }
+        Self.bytes(takeSamples())
+    }
+
+    /// Everything since the last read, and empties the queue.
+    public mutating func takeSamples() -> [Int16] {
+        defer { samples = [] }
+        return samples
+    }
+
+    /// 16-bit little-endian bytes (what the page decodes).
+    public static func bytes(_ samples: [Int16]) -> Data {
         var data = Data(capacity: samples.count * 2)
         for s in samples {
             let v = UInt16(bitPattern: s.littleEndian)

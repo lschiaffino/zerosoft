@@ -17,7 +17,12 @@ final class SystemAudioController {
     private static let log = Logger(subsystem: "ai.zerosoft.mac", category: "meetings")
 
     private let makeSource: () -> SystemAudioSource?
-    private let sink = SystemAudioSink()
+    /// One sink per capture: late buffers of a stopped capture never reach the next one.
+    private var sink = SystemAudioSink()
+    /// Bumped by every stop, every start and every document change of the starting tab: a start
+    /// that waited for macOS while one of those happened does not begin.
+    private var generation = 0
+    private var pendingTab: Int?
     private var source: SystemAudioSource?
     private var idleTimer: Timer?
     private var starting = false
@@ -25,6 +30,10 @@ final class SystemAudioController {
     var available: () -> Bool = { false }
     /// The tab still exists (checked again after a start that waited for macOS).
     var tabExists: (Int) -> Bool = { _ in true }
+    /// The owner tab reported a meeting that still records: its page may be throttled behind
+    /// other tabs, so a pause in its reads does not end the capture (the meeting's marks stay on
+    /// and the queue keeps at most 60 s).
+    var ownerRecording: (Int) -> Bool = { _ in false }
 
     private(set) var running = false
     private(set) var owner: Int?
@@ -64,15 +73,24 @@ final class SystemAudioController {
         if running { stop(.page) }
         guard let source = makeSource() else { return .unsupported }
         starting = true
-        defer { starting = false }
+        pendingTab = tab
+        generation += 1
+        let mine = generation
+        defer {
+            starting = false
+            pendingTab = nil
+        }
+        let sink = SystemAudioSink()
         sink.reopen()
         let result = await source.start(into: sink)
-        // macOS may have kept the start waiting (a prompt): the tab or the switch may be gone.
-        guard result == .ok, available(), tabExists(tab) else {
+        // macOS may have kept the start waiting (a prompt): the tab, its page or the switch may
+        // be gone, or the page may have stopped meanwhile.
+        guard result == .ok, available(), tabExists(tab), generation == mine else {
             source.stop()
             sink.close()
             return result == .ok ? .failed : result
         }
+        self.sink = sink
         self.source = source
         owner = tab
         running = true
@@ -101,17 +119,20 @@ final class SystemAudioController {
 
     /// `systemAudioStop`: only the tab that started it.
     func stop(from tab: Int) {
+        if pendingTab == tab { generation += 1 }
         guard running, owner == tab else { return }
         stop(.page)
     }
 
     /// The tab closed, was suspended or loaded another document.
     func tabGone(_ tab: Int) {
+        if pendingTab == tab { generation += 1 }
         guard owner == tab else { return }
         stop(.tab)
     }
 
     func stop(_ why: SystemAudioStopReason) {
+        generation += 1
         guard running else { return }
         source?.stop()
         source = nil
@@ -129,6 +150,7 @@ final class SystemAudioController {
 
     private func checkIdle() {
         guard running, SystemAudioRules.idle(nowMs: now, lastReadMs: lastRead) else { return }
+        if let owner, ownerRecording(owner), tabExists(owner) { return }
         stop(.idle)
     }
 

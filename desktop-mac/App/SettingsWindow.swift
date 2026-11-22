@@ -395,13 +395,17 @@ private struct PermissionsSection: View {
                         .accessibilityIdentifier("zs-set-audio-state")
                 }
             }
-            Divider()
-            row(title: model.t(.permScreen), help: model.t(.permScreenHelp)) {
-                Text(model.t(model.screenAccess ? .screenAllowed : .screenOff)).accessibilityIdentifier("zs-set-screen-state")
-                if !model.screenAccess {
-                    Button(model.t(.screenAllow)) { model.screenButton() }
-                        .accessibilityIdentifier("zs-set-screen")
-                    Help(model.t(.screenAfter))
+            // Screen Recording only where the capture needs it (macOS 13 to 14.1): on 14.2 and
+            // later nothing in this block uses it, so the app does not ask for it.
+            if model.capture.backend == .screenCapture {
+                Divider()
+                row(title: model.t(.permScreen), help: model.t(.permScreenHelp)) {
+                    Text(model.t(model.screenAccess ? .screenAllowed : .screenOff)).accessibilityIdentifier("zs-set-screen-state")
+                    if !model.screenAccess {
+                        Button(model.t(.screenAllow)) { model.screenButton() }
+                            .accessibilityIdentifier("zs-set-screen")
+                        Help(model.t(.screenAfter))
+                    }
                 }
             }
         }
