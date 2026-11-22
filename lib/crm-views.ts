@@ -9,10 +9,14 @@
  *   ve y responde forbidden si intenta cambiarla.
  * - Lo que se manda a quien mira pasa por redactViewQuery con sus campos
  *   ocultos (lib/crm-field-perms.ts).
+ * - Una vista de tareas que filtra por una cola que quien mira no ve (la
+ *   privada de otra persona) le llega sin ese filtro; guardar una vista con
+ *   una cola que quien guarda no ve se rechaza.
  */
 import { getDb, type CrmSavedViewRow, type Db } from './db';
 import { roleAtLeast, type TeamRole } from './teams';
 import { hiddenFieldsFor } from './crm-field-perms';
+import { visibleQueueIds } from './crm-task-queues';
 import {
   DEFAULT_VIEWS,
   MAX_VIEWS,
@@ -53,7 +57,7 @@ export interface SavedViewDto {
   updatedAt: string;
 }
 
-export type ViewWriteError = 'not_found' | 'forbidden' | 'invalid_team' | 'too_many';
+export type ViewWriteError = 'not_found' | 'forbidden' | 'invalid_team' | 'invalid_queue' | 'too_many';
 
 /** Persona que mira (sesión o API key). */
 export async function viewViewerFor(
@@ -88,8 +92,26 @@ function parseQuery(raw: string): ViewQuery {
   }
 }
 
-export function toViewDto(row: CrmSavedViewRow, viewer: ViewViewer, hidden: ReadonlySet<string>): SavedViewDto {
+/** ¿La vista (de tareas) filtra por una cola que no está entre las que se ven? */
+function queueHidden(entity: ViewEntity, query: ViewQuery, queues: ReadonlySet<string>): boolean {
+  return entity === 'tasks' && !!query.queue && !queues.has(query.queue);
+}
+
+/**
+ * La vista como la recibe quien mira. `queues` son las colas que ve (sin
+ * pasarlas, ninguna): el filtro por una cola que no ve no le llega, ni su id.
+ */
+export function toViewDto(
+  row: CrmSavedViewRow,
+  viewer: ViewViewer,
+  hidden: ReadonlySet<string>,
+  queues: ReadonlySet<string> = new Set(),
+): SavedViewDto {
   const entity = row.entity as ViewEntity;
+  const state = pickViewState(entity, parseQuery(row.query));
+  const query = redactViewQuery(state, hidden);
+  const noQueue = queueHidden(entity, query, queues);
+  if (noQueue) delete query.queue;
   return {
     id: row.id,
     entity,
@@ -99,11 +121,20 @@ export function toViewDto(row: CrmSavedViewRow, viewer: ViewViewer, hidden: Read
     createdBy: viewCreator(row),
     mine: viewCreator(row) === viewer.personId,
     canEdit: canEditView(row, viewer),
-    query: redactViewQuery(pickViewState(entity, parseQuery(row.query)), hidden),
-    partial: viewQueryDropsFilters(pickViewState(entity, parseQuery(row.query)), hidden),
+    query,
+    partial: viewQueryDropsFilters(state, hidden) || noQueue,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
   };
+}
+
+function queueViewer(viewer: ViewViewer) {
+  return { workspaceId: viewer.workspaceId, personId: viewer.personId, role: viewer.isAdmin ? ('admin' as const) : ('member' as const) };
+}
+
+/** Colas que la persona ve (solo hacen falta para vistas de tareas). */
+async function queuesFor(viewer: ViewViewer, entity: string, db: Db): Promise<Set<string>> {
+  return entity === 'tasks' ? visibleQueueIds(queueViewer(viewer), db) : new Set();
 }
 
 async function hiddenFor(viewer: ViewViewer, entity: string, db: Db): Promise<Set<string>> {
@@ -141,11 +172,12 @@ export interface ViewListFilter {
 export async function listViews(viewer: ViewViewer, f: ViewListFilter = {}, db: Db = getDb()): Promise<SavedViewDto[]> {
   const rows = await visibleRows(viewer, f.entity ?? null, db);
   const hiddenByEntity = new Map<string, Set<string>>();
+  const queues = rows.some((r) => r.entity === 'tasks') ? await queuesFor(viewer, 'tasks', db) : new Set<string>();
   const out: SavedViewDto[] = [];
   const q = f.q?.trim().toLowerCase();
   for (const row of rows) {
     if (!hiddenByEntity.has(row.entity)) hiddenByEntity.set(row.entity, await hiddenFor(viewer, row.entity, db));
-    const dto = toViewDto(row, viewer, hiddenByEntity.get(row.entity)!);
+    const dto = toViewDto(row, viewer, hiddenByEntity.get(row.entity)!, queues);
     if (q && !dto.name.toLowerCase().includes(q)) continue;
     if (f.createdBy && dto.createdBy !== f.createdBy) continue;
     if (f.shared === 'mine' && !dto.mine) continue;
@@ -161,7 +193,7 @@ export async function getView(viewer: ViewViewer, id: string, db: Db = getDb()):
     .prepare('SELECT * FROM crm_saved_views WHERE id = ? AND user_id = ?')
     .get(id, viewer.workspaceId)) as CrmSavedViewRow | undefined;
   if (!row || !canSeeView(row, viewer)) return null;
-  return toViewDto(row, viewer, await hiddenFor(viewer, row.entity, db));
+  return toViewDto(row, viewer, await hiddenFor(viewer, row.entity, db), await queuesFor(viewer, row.entity, db));
 }
 
 /** Equipo válido para una vista de equipo: uno de la persona (un admin, cualquiera del workspace). */
@@ -180,9 +212,14 @@ export interface ViewInput {
   teamId?: string | null;
 }
 
-/** Guarda lo que la persona puede ver: sin campos que tiene ocultos. */
-async function cleanQuery(viewer: ViewViewer, entity: ViewEntity, query: Record<string, unknown> | undefined, db: Db): Promise<ViewQuery> {
-  return redactViewQuery(pickViewState(entity, query ?? {}), await hiddenFor(viewer, entity, db));
+/**
+ * Guarda lo que la persona puede ver: sin campos que tiene ocultos. null si
+ * filtra por una cola que no ve (no se guarda: el id no es suyo para compartir).
+ */
+async function cleanQuery(viewer: ViewViewer, entity: ViewEntity, query: Record<string, unknown> | undefined, db: Db): Promise<ViewQuery | null> {
+  const out = redactViewQuery(pickViewState(entity, query ?? {}), await hiddenFor(viewer, entity, db));
+  if (queueHidden(entity, out, await queuesFor(viewer, entity, db))) return null;
+  return out;
 }
 
 export async function createView(
@@ -196,8 +233,9 @@ export async function createView(
     .prepare('SELECT COUNT(*) AS c FROM crm_saved_views WHERE user_id = ? AND entity = ?')
     .get(viewer.workspaceId, input.entity)) as { c: number };
   if (Number(count.c) >= MAX_VIEWS) return { ok: false, error: 'too_many' };
-  const id = crypto.randomUUID();
   const query = await cleanQuery(viewer, input.entity, input.query, db);
+  if (!query) return { ok: false, error: 'invalid_queue' };
+  const id = crypto.randomUUID();
   await db
     .prepare(
       `INSERT INTO crm_saved_views (id, user_id, person_id, entity, name, query, visibility, team_id, updated_at)
@@ -259,12 +297,21 @@ export async function updateView(
     teamId = wanted;
   }
   const name = patch.name !== undefined ? patch.name.trim().slice(0, 200) : row.name;
-  // Una vista que filtra por campos que el editor tiene ocultos no se reescribe: los borraría sin verlos.
-  if (patch.query !== undefined && viewQueryDropsFilters(parseQuery(row.query), await hiddenFor(viewer, entity, db))) {
-    return { ok: false, error: 'forbidden' };
+  // Una vista que filtra por campos que el editor tiene ocultos, o por una cola que no ve, no se
+  // reescribe: borraría esos filtros sin verlos.
+  if (patch.query !== undefined) {
+    const stored = pickViewState(entity, parseQuery(row.query));
+    if (viewQueryDropsFilters(stored, await hiddenFor(viewer, entity, db)) || queueHidden(entity, stored, await queuesFor(viewer, entity, db))) {
+      return { ok: false, error: 'forbidden' };
+    }
   }
   // Lo que el editor no ve (campos ocultos para él) no se guarda: la edición reemplaza el estado.
-  const query = patch.query !== undefined ? JSON.stringify(await cleanQuery(viewer, entity, patch.query, db)) : row.query;
+  let query = row.query;
+  if (patch.query !== undefined) {
+    const clean = await cleanQuery(viewer, entity, patch.query, db);
+    if (!clean) return { ok: false, error: 'invalid_queue' };
+    query = JSON.stringify(clean);
+  }
   await db
     .prepare(
       `UPDATE crm_saved_views SET name = ?, query = ?, visibility = ?, team_id = ?, updated_at = datetime('now')
@@ -351,7 +398,8 @@ export async function listViewContext(
   db: Db = getDb(),
 ): Promise<ListViewContext> {
   const rows = await visibleRows(viewer, entity, db);
-  const views = rows.map((r) => toViewDto(r, viewer, hidden));
+  const queues = await queuesFor(viewer, entity, db);
+  const views = rows.map((r) => toViewDto(r, viewer, hidden, queues));
   const tabs = await getTabs(viewer, entity, db);
   // Sin `sv` se abre la primera pestaña (fijar una vista la deja por defecto, como en HubSpot).
   const defaultKey = tabs[0]?.key ?? 'all';

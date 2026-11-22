@@ -44,7 +44,7 @@ export default async function ApiSettingsPage(props: { params: Promise<{ locale:
           linkDomains={domains.filter((d) => d.verified === 1).map((d) => d.hostname)}
         />
       ) : (
-        <FormSection id="webhooks" title={t('webhooks.title')} description={t('webhooks.desc')}>
+        <FormSection setting="api-webhooks" id="webhooks" title={t('webhooks.title')} description={t('webhooks.desc')}>
           <p className="ui-help">{t('webhooks.adminOnly')}</p>
         </FormSection>
       )}

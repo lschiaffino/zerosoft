@@ -181,7 +181,7 @@ export function AccessPanel({
 // Log de auditoría (del chat o del workspace)
 // ======================================================================
 
-const AUDIT_FILTERS = ['', 'assigned', 'unassigned', 'closed', 'reopened', 'labels', 'renamed', 'deleted', 'exported', 'members', 'ticket_created', 'ticket_updated', 'ticket_deleted'];
+const AUDIT_FILTERS = ['', 'assigned', 'unassigned', 'closed', 'reopened', 'labels', 'renamed', 'deleted', 'exported', 'members', 'ticket_created', 'ticket_updated', 'ticket_deleted', 'reported'];
 
 export function AuditLog({ chatId, people, compact = false }: { chatId?: string; people: GroupsPerson[]; compact?: boolean }) {
   const t = useTranslations('groups');
@@ -240,6 +240,7 @@ export function AuditLog({ chatId, people, compact = false }: { chatId?: string;
       if (v.removed) return t('audit.actions.labelsRemoved', v);
     }
     if (e.action === 'assigned' && d.to && e.actorId && String(d.to) === e.actorId) return t('audit.actions.assignedSelf');
+    if (e.action === 'reported' && (d.blocked || d.left)) return t(d.blocked ? 'audit.actions.reportedBlocked' : 'audit.actions.reportedLeft');
     return t(`audit.actions.${e.action}`, v);
   };
 

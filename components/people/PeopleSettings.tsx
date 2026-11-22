@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
+import SettingsSearch from '@/components/app/SettingsSearch';
 import EmptyState from '@/components/ui/EmptyState';
 import type { CustomField, PeopleSettings as Settings } from '@/lib/people';
 import type { Policy } from '@/lib/people-timeoff';
@@ -225,7 +226,7 @@ export default function PeopleSettings({ settings, policies, fields, holidays, s
   return (
     <div className="app-page ui-page ppl-page">
       {toast}
-      <PageHeader title={t('settings.title')} description={t('settings.desc')} />
+      <PageHeader title={t('settings.title')} description={t('settings.desc')} actions={<SettingsSearch variant="header" />} />
       <Tabs items={tabs} value={tab} onChange={changeTab} label={t('settings.title')} />
       <div className="ppl-tabpanel" role="tabpanel">
         {tab === 'changes' && <ChangesPanel approveChanges={settings.approveChanges} onChanged={done} onError={(c) => push(errText(c), 'bad')} />}

@@ -44,7 +44,7 @@ export default function SecuritySettings(props: {
       <MfaSection enabledAt={props.mfaEnabledAt} recoveryLeft={props.recoveryLeft} locale={props.locale} />
       <SessionsSection sessions={props.sessions} locale={props.locale} />
       {props.workspace && <WorkspaceSection ws={props.workspace} locale={props.locale} />}
-      <FormSection title={t('activity.title')} description={t('activity.desc')}>
+      <FormSection setting="security-activity" title={t('activity.title')} description={t('activity.desc')}>
         <EventsTable rows={props.activity} locale={props.locale} showActor={false} empty={t('activity.empty')} />
       </FormSection>
     </div>
@@ -150,7 +150,7 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
 
   if (codes) {
     return (
-      <FormSection title={t('title')} description={t('desc')}>
+      <FormSection setting="security-mfa" title={t('title')} description={t('desc')}>
         <RecoveryCodes
           codes={codes}
           onDone={() => {
@@ -165,7 +165,7 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
 
   if (enabledAt) {
     return (
-      <FormSection title={t('title')} description={t('desc')}>
+      <FormSection setting="security-mfa" title={t('title')} description={t('desc')}>
         <div className="st-block" data-testid="mfa-on">
           <p>
             <span className="badge badge-ok">{t('on')}</span>{' '}
@@ -213,7 +213,7 @@ function MfaSection({ enabledAt, recoveryLeft, locale }: { enabledAt: string | n
   }
 
   return (
-    <FormSection title={t('title')} description={t('desc')}>
+    <FormSection setting="security-mfa" title={t('title')} description={t('desc')}>
       {!setup ? (
         <div className="st-block" data-testid="mfa-off">
           <p className="st-muted">{t('offHelp')}</p>
@@ -299,7 +299,7 @@ function SessionsSection({ sessions: initial, locale }: { sessions: SessionDto[]
   }
 
   return (
-    <FormSection
+    <FormSection setting="security-sessions"
       title={t('title')}
       description={t('desc')}
       footer={
@@ -401,7 +401,7 @@ function WorkspaceSection({ ws, locale }: { ws: WorkspaceSecurity; locale: strin
 
   return (
     <>
-      <FormSection title={t('title', { workspace: ws.name })} description={t('desc')}>
+      <FormSection setting="security-workspace" title={t('title', { workspace: ws.name })} description={t('desc')}>
         <label className="ui-switch">
           <input
             type="checkbox"
@@ -435,7 +435,7 @@ function WorkspaceSection({ ws, locale }: { ws: WorkspaceSecurity; locale: strin
           <p className="st-muted">{t('allHaveMfa')}</p>
         )}
       </FormSection>
-      <FormSection
+      <FormSection setting="security-audit"
         title={t('auditTitle')}
         description={t('auditDesc')}
         footer={

@@ -92,7 +92,7 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
 
   return (
     <>
-      <FormSection
+      <FormSection setting="cal-public-link"
         title={t('settings.publicLink')}
         description={t('settings.handleHint')}
         onSubmit={canEditHandle ? () => post({ handle }) : undefined}
@@ -122,7 +122,7 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
         </div>
       </FormSection>
 
-      <FormSection
+      <FormSection setting="cal-brand"
         title={t('settings.brandTitle')}
         description={t('settings.brandLead')}
         onSubmit={
@@ -220,7 +220,7 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
         </div>
       </FormSection>
 
-      <FormSection
+      <FormSection setting="cal-tracking"
         title={t('tracking.title')}
         description={t('tracking.lead')}
         onSubmit={
@@ -266,7 +266,7 @@ export default function CalendarSettingsForm({ initial, accountName, origin, loc
         <p className="ui-help">{t('tracking.events')}</p>
       </FormSection>
 
-      <FormSection
+      <FormSection setting="cal-defaults"
         title={t('settings.defaults')}
         description={t('settings.defaultsLead')}
         onSubmit={(fd) =>

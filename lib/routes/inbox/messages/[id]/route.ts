@@ -1,7 +1,7 @@
 import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
 import { messageActionSchema } from '@/lib/inbox/schemas';
-import { deleteForEveryone, editOwnMessage, forwardMessage, hideMessage, messageTranscript, pinMessage, reactToMessage, starMessage } from '@/lib/inbox/wa-actions';
+import { deleteForEveryone, editOwnMessage, forwardMessage, hideMessage, messageTranscript, pinMessage, reactToMessage, reportMessage, starMessage } from '@/lib/inbox/wa-actions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function POST(req: Request, ctx: Ctx) {
   return withOwner(async (owner) => iJson({ transcript: await messageTranscript(owner, id, true, force) }));
 }
 
-/** Reaccionar, editar, destacar, fijar, borrar para mí o reenviar un mensaje de WhatsApp. */
+/** Reaccionar, editar, destacar, fijar, borrar para mí, reenviar o reportar un mensaje de WhatsApp. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const limited = await limitByIp(req, 'inbox-message-action', 240, 60).catch(() => null);
   if (limited) return limited;
@@ -50,6 +50,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
         return iJson({ ok: true, ...(await pinMessage(owner, id, body.action === 'pin')) });
       case 'forward':
         return iJson({ ok: true, ...(await forwardMessage(owner, id, body.to)) });
+      case 'report':
+        return iJson({ ok: true, ...(await reportMessage(owner, id, { block: body.block, leave: body.leave })) });
     }
     return iJson({ ok: true });
   });

@@ -181,7 +181,7 @@ export default function TeamsPanel({
   return (
     <>
       {canEdit && (
-        <FormSection title={t('createTitle')} description={t('createDesc')}>
+        <FormSection setting="teams-create" title={t('createTitle')} description={t('createDesc')}>
           <form className="ws-invite" onSubmit={onCreate}>
             <div className="ui-field">
               <label className="label" htmlFor="ws-group-name">
@@ -208,7 +208,7 @@ export default function TeamsPanel({
         </FormSection>
       )}
 
-      <FormSection title={t('listTitle', { count: groups.length })} description={t('listDesc')}>
+      <FormSection setting="teams-list" title={t('listTitle', { count: groups.length })} description={t('listDesc')}>
         {error && !editing && (
           <p className="ui-error" role="alert">
             {error}

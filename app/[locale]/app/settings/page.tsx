@@ -41,7 +41,7 @@ export default async function AccountSettingsPage(props: { params: Promise<{ loc
   const members = Number(memberRow?.n ?? 1);
   return (
     <>
-    <FormSection
+    <FormSection setting="profile-account"
       title={t('title')}
       description={t('desc')}
       footer={<p className="ui-section-note">{DEMO_MODE ? t('demoNote') : t('note')}</p>}
