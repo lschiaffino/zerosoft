@@ -1600,6 +1600,40 @@
         "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
       }
     },
+    "agents": {
+      "intro": {
+        "title": "Te damos la bienvenida a Agents",
+        "body": "Los agentes son asistentes de IA que atienden a tus clientes en Chat, en una página pública o por la API, y hacen cosas en toda la suite. Este tour te muestra las partes principales."
+      },
+      "newAgent": {
+        "title": "Creá un agente",
+        "body": "Arrancá con un agente en blanco: ponele un nombre e instrucciones y elegí qué puede usar."
+      },
+      "templates": {
+        "title": "Empezá con una plantilla",
+        "body": "Cada plantilla trae instrucciones y prende las herramientas que necesita. Después de crearlo podés cambiar lo que quieras."
+      },
+      "openAgent": {
+        "title": "Abrí un agente",
+        "body": "Elegí un agente para editarlo, probarlo y leer sus conversaciones."
+      },
+      "configure": {
+        "title": "Configuralo",
+        "body": "En Instrucciones va cómo responde; en Conocimiento, lo que lee; en Herramientas, lo que puede hacer, y en Canales, dónde atiende."
+      },
+      "playground": {
+        "title": "Probalo",
+        "body": "Chateá con el agente como lo haría un visitante y mirá cada herramienta que usa, antes de que atienda a nadie."
+      },
+      "conversations": {
+        "title": "Conversaciones",
+        "body": "Cada conversación que tuvo, con el pulgar arriba o abajo que le dieron. Al lado, Analítica tiene los números."
+      },
+      "done": {
+        "title": "Listo el tour",
+        "body": "Podés hacerlo de nuevo desde el menú de tu cuenta."
+      }
+    },
     "social": {
       "intro": {
         "title": "Te damos la bienvenida a Social",
