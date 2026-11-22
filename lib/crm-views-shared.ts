@@ -38,8 +38,9 @@ const MAX_VALUE = 4000;
 
 /** Lo que una vista guarda de cada listado (además de `custom_<name>`). */
 export const VIEW_STATE_KEYS: Record<ViewEntity, readonly string[]> = {
-  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'filters', 'sort', 'cols', 'freeze'],
-  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'filters', 'sort', 'cols', 'freeze'],
+  // createdFrom/To y activityFrom/To: los filtros rápidos de fecha (DateRangeFilter), días en la zona de la persona.
+  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
+  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
   deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'closeFrom', 'closeTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
   // Tareas (A3): vencimiento, tipo, prioridad, owner, cola, proyecto, texto y orden (lib/crm-tasks-shared.ts).
   tasks: ['bucket', 'type', 'priority', 'owner', 'queue', 'project', 'q', 'sort', 'cols', 'freeze'],

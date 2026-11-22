@@ -37,6 +37,7 @@ import {
   appendAdvancedFilters,
   buildRuleCondition,
   compileFilterModel,
+  dayStartUtc,
   escapeLike,
   parseFilterRules,
   type AdvancedFieldDef,
@@ -47,6 +48,7 @@ import {
   type FilterRule,
 } from './crm-filters';
 import { filterTypeFor, UNIQUE_FIELD_TYPES } from './crm-custom-fields';
+import { OWNER_UNASSIGNED } from './crm-filter-model';
 import { assertUniqueCustom, hasDuplicateValues, isUniqueEntity } from './crm-unique';
 import { trashRecords } from './crm-trash';
 import { changedFields } from './crm-workflow-rules';
@@ -374,6 +376,25 @@ export async function listPropertyEvents(
 // CONTACTS
 // ============================================================
 
+/**
+ * Rango de días de los filtros rápidos de fecha (creación, última actividad) sobre una columna UTC:
+ * desde el comienzo de `from` hasta el comienzo del día siguiente a `to`, en la zona horaria de la
+ * persona (como el filtro avanzado). Sin zona, UTC. Un día mal formado no filtra.
+ */
+function appendDayRange(where: string[], args: Array<string | number>, col: string, from: string | undefined, to: string | undefined, timeZone: string | undefined): void {
+  const tz = timeZone || 'UTC';
+  const isDay = (v: string | undefined): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+  if (isDay(from)) {
+    where.push(`${col} IS NOT NULL AND ${col} >= ?`);
+    args.push(dayStartUtc(from, tz));
+  }
+  if (isDay(to)) {
+    const next = new Date(Date.parse(`${to}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    where.push(`${col} IS NOT NULL AND ${col} < ?`);
+    args.push(dayStartUtc(next, tz));
+  }
+}
+
 export interface ContactFilter {
   q?: string;
   lifecycle?: string;
@@ -383,6 +404,9 @@ export interface ContactFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Fecha de última actividad, días YYYY-MM-DD inclusive en la zona de `filterEnv` (filtro rápido). */
+  activityFrom?: string;
+  activityTo?: string;
   /** Id de tag: solo contactos con ese tag. */
   tag?: string;
   custom?: Record<string, string>;
@@ -524,25 +548,15 @@ function buildContactWhere(
     where.push(tagCondition('c', 'contact'));
     args.push(f.tag);
   }
-  if (f.owner) {
+  if (f.owner === OWNER_UNASSIGNED) {
+    // Sin owner (filtro rápido "Sin owner"), como la regla del filtro avanzado.
+    where.push("(c.owner_id IS NULL OR c.owner_id = '')");
+  } else if (f.owner) {
     where.push('c.owner_id = ?');
     args.push(f.owner);
   }
-  if (f.createdFrom) {
-    where.push('c.created_at >= ?');
-    args.push(`${f.createdFrom} 00:00:00`);
-  }
-  if (f.createdTo) {
-    where.push('c.created_at <= ?');
-    args.push(`${f.createdTo} 23:59:59`);
-  }
-  if (f.custom) {
-    for (const [name, value] of Object.entries(f.custom)) {
-      if (!value || !CUSTOM_NAME.test(name)) continue;
-      where.push(`json_extract(c.custom, '$.${name}') = ?`);
-      args.push(value);
-    }
-  }
+  appendDayRange(where, args, 'c.created_at', f.createdFrom, f.createdTo, f.filterEnv?.timeZone);
+  appendDayRange(where, args, 'c.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
   appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
@@ -1085,6 +1099,9 @@ export interface CompanyFilter {
   owner?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** Fecha de última actividad, días YYYY-MM-DD inclusive en la zona de `filterEnv` (filtro rápido). */
+  activityFrom?: string;
+  activityTo?: string;
   /** Id de tag: solo empresas con ese tag. */
   tag?: string;
   /** Solo hijas directas de esta empresa. */
@@ -1137,22 +1154,15 @@ export async function listCompanies(
     where.push('co.lifecycle_stage = ?');
     args.push(f.lifecycle);
   }
-  if (f.owner) {
+  if (f.owner === OWNER_UNASSIGNED) {
+    // Sin owner (filtro rápido "Sin owner"), como la regla del filtro avanzado.
+    where.push("(co.owner_id IS NULL OR co.owner_id = '')");
+  } else if (f.owner) {
     where.push('co.owner_id = ?');
     args.push(f.owner);
   }
-  if (f.createdFrom) {
-    where.push('co.created_at >= ?');
-    args.push(`${f.createdFrom} 00:00:00`);
-  }
-  if (f.createdTo) {
-    where.push('co.created_at <= ?');
-    args.push(`${f.createdTo} 23:59:59`);
-  }
-  if (f.tag) {
-    where.push(tagCondition('co', 'company'));
-    args.push(f.tag);
-  }
+  appendDayRange(where, args, 'co.created_at', f.createdFrom, f.createdTo, f.filterEnv?.timeZone);
+  appendDayRange(where, args, 'co.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
   if (f.parentId) {
     where.push('co.parent_company_id = ?');
     args.push(f.parentId);
@@ -1686,14 +1696,7 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
     where.push('d.owner_id = ?');
     args.push(f.owner);
   }
-  if (f.createdFrom) {
-    where.push('d.created_at >= ?');
-    args.push(`${f.createdFrom} 00:00:00`);
-  }
-  if (f.createdTo) {
-    where.push('d.created_at <= ?');
-    args.push(`${f.createdTo} 23:59:59`);
-  }
+  appendDayRange(where, args, 'd.created_at', f.createdFrom, f.createdTo, f.filterEnv?.timeZone);
   if (f.closeFrom) {
     where.push('d.close_date IS NOT NULL AND substr(d.close_date, 1, 10) >= ?');
     args.push(f.closeFrom);
@@ -1702,14 +1705,7 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
     where.push('d.close_date IS NOT NULL AND substr(d.close_date, 1, 10) <= ?');
     args.push(f.closeTo);
   }
-  if (f.activityFrom) {
-    where.push('d.last_activity_at IS NOT NULL AND d.last_activity_at >= ?');
-    args.push(`${f.activityFrom} 00:00:00`);
-  }
-  if (f.activityTo) {
-    where.push('d.last_activity_at IS NOT NULL AND d.last_activity_at <= ?');
-    args.push(`${f.activityTo} 23:59:59`);
-  }
+  appendDayRange(where, args, 'd.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
   if (f.tag) {
     where.push(tagCondition('d', 'deal'));
     args.push(f.tag);
@@ -3381,6 +3377,8 @@ export async function exportRows(
   filter?: ExportFilter,
   /** Actividades: las tareas de chats de Lines que quien exporta no ve, sin su texto. */
   reader?: ChatReader | null,
+  /** Solo estos registros (exportar la selección del listado). Ids de otro workspace no salen. */
+  ids?: readonly string[],
 ): Promise<Array<CrmContactRow | CrmCompanyRow | CrmDealRow | CrmActivityRow>> {
   const db = getDb();
   const table =
@@ -3405,6 +3403,11 @@ export async function exportRows(
       where.push(cond.sql);
       args.push(...cond.args);
     }
+  }
+  if (ids) {
+    if (!ids.length) return [];
+    where.push(`${alias}.id IN (${ids.map(() => '?').join(', ')})`);
+    args.push(...ids);
   }
   if (scope.sql) {
     where.push(scope.sql);

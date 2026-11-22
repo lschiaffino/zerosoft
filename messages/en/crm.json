@@ -4998,6 +4998,35 @@
     },
     "partialFilters": "Some filters in this view don't apply to you."
   },
+  "listBar": {
+    "contactOwner": "Contact owner",
+    "companyOwner": "Company owner",
+    "lifecycleStage": "Lifecycle stage",
+    "noOwner": "No owner",
+    "export": "Export",
+    "openRecord": "Open record",
+    "noMoreFilters": "No more filters for companies yet. Use Advanced filters.",
+    "perPage": "{count} per page",
+    "perPageLabel": "Rows per page"
+  },
+  "bulkBar": {
+    "label": "Bulk actions",
+    "assign": "Assign",
+    "edit": "Edit",
+    "addToList": "Add to list",
+    "list": "List",
+    "pickList": "Pick a static list",
+    "add": "Add",
+    "clear": "Clear selection",
+    "addedToList": "{count, plural, one {# contact added to the list.} other {# contacts added to the list.}}",
+    "deleted": "{count, plural, one {# record moved to trash.} other {# records moved to trash.}}"
+  },
+  "propSearch": {
+    "placeholder": "Search properties",
+    "empty": "No property matches",
+    "hideEmpty": "Hide blank properties",
+    "showEmpty": "Show blank properties"
+  },
   "preview": {
     "kind": {
       "contact": "Contact",

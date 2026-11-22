@@ -62,6 +62,7 @@ import RecordTags from '@/components/crm/RecordTags';
 import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
+import PropertySearch from '@/components/crm/PropertySearch';
 import RecordCard from '@/components/crm/RecordCard';
 import RecordWorkflows from '@/components/crm/RecordWorkflows';
 import { listRecordEnrollments } from '@/lib/crm-workflows';
@@ -676,6 +677,12 @@ export default async function ContactDetailPage(props: {
                   {company.name}
                 </Link>
               )}
+              {/* Como en HubSpot: el email a mano debajo del nombre. */}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="record-meta-link" data-testid="record-email">
+                  {contact.email}
+                </a>
+              )}
             </>
           }
           tags={
@@ -688,7 +695,7 @@ export default async function ContactDetailPage(props: {
           }
         />
       }
-      about={about}
+      about={<PropertySearch>{about}</PropertySearch>}
       aboutLabel={t('record.layoutTabs.properties')}
       overview={overview}
       activity={activity}

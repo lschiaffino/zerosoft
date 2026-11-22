@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { normalizeFieldUrl } from '@/lib/crm-custom-fields';
 import { utcToLocalInput } from '@/lib/utils';
 import EmailTakenNotice, { emailTakenFrom, type EmailTakenExisting } from './EmailTakenNotice';
+import { usePropertyMatch } from './PropertySearch';
 
 export interface PropField {
   /** Clave del payload PATCH (camelCase, ej. firstName, lifecycleStage).
@@ -100,6 +101,7 @@ export default function PropertiesPanel({
   const t = useTranslations('crm');
   const router = useRouter();
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const propertyMatch = usePropertyMatch();
   const [draft, setDraft] = useState('');
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
@@ -254,6 +256,12 @@ export default function PropertiesPanel({
         : field.display ? field.display : field.type === 'select'
         ? (field.options?.find((o) => o.value === field.value)?.label ?? field.value)
         : field.value;
+    // Buscador de propiedades de la ficha (PropertySearch): busca en lo que se ve; la que no coincide no se muestra.
+    const shown =
+      field.type === 'multiselect' && !field.display
+        ? parseList(field.value).map((v) => field.options?.find((o) => o.value === v)?.label ?? v).join(', ')
+        : display;
+    if (!propertyMatch({ ...field, value: field.type === 'multiselect' ? shown : field.value, display: shown }, editing)) return null;
     return (
       <div key={field.key} className="prop-row" data-prop={field.key}>
         <dt className="prop-label">
