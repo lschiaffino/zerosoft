@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import ClientMessages from '@/components/i18n/ClientMessages';
+import AppTour from '@/components/tour/AppTour';
 import AnalyticsBranch from '@/components/analytics/AnalyticsBranch';
 import ProjectBar from '@/components/analytics/ProjectBar';
 import { requireUser } from '@/lib/session';
@@ -18,6 +19,10 @@ export default async function AnalyticsLayout(props: { children: ReactNode; para
       <ProjectBar projects={projects.map((p) => ({ id: p.id, name: p.name }))} currentId={project?.id ?? null} />
       {props.children}
       <AnalyticsBranch projectId={project?.id ?? null} />
+      {/* Tour guiado de Pulse (lib/tours/pulse.ts): la primera vez, y desde el menú de la cuenta. */}
+      <Suspense fallback={null}>
+        <AppTour tour="pulse" />
+      </Suspense>
     </ClientMessages>
   );
 }

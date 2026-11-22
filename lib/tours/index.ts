@@ -25,6 +25,7 @@ import { INBOX_TOUR } from './inbox';
 import { LINES_TOUR } from './lines';
 import { NOTES_TOUR } from './notes';
 import { PEOPLE_TOUR } from './people';
+import { PULSE_TOUR } from './pulse';
 import { REC_TOUR } from './rec';
 import { SEND_TOUR } from './send';
 import { SOCIAL_TOUR } from './social';
@@ -32,7 +33,7 @@ import { TALK_TOUR } from './talk';
 import { TRACK_TOUR } from './track';
 import { VOICE_TOUR } from './voice';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec', 'people', 'hiring', 'social', 'flow'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec', 'people', 'hiring', 'social', 'flow', 'pulse'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -88,6 +89,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   hiring: HIRING_TOUR,
   social: SOCIAL_TOUR,
   flow: FLOW_TOUR,
+  pulse: PULSE_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */
