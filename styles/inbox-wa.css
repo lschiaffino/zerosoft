@@ -80,7 +80,9 @@
 .wa-row-time.is-unread { color: var(--wa-badge); font-weight: 500; }
 .wa-row-preview { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; overflow: hidden; font-size: var(--wa-fs-preview); line-height: 18px; color: var(--wa-text-2); }
 .wa-row-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wa-row-sender { flex: none; }
+/* Quién mandó en un grupo: un nombre largo se corta con "…" y el mensaje siempre se ve (como WhatsApp). */
+.wa-row-sender { flex: 0 1 auto; min-width: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-row-sender + .wa-row-text, .wa-row-sender ~ .wa-row-text { flex: 1 1 auto; min-width: 3em; }
 .wa-row-kind { display: inline-flex; flex: none; color: var(--wa-text-2); }
 .wa-row-typing { color: var(--wa-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-row-draft { flex: none; color: var(--wa-primary-ink); font-weight: 500; margin-right: 2px; }
