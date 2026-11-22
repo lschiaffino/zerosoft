@@ -688,7 +688,8 @@
     "digest": {
       "label": "Daily email",
       "hint": "Every morning at 8, an email with your open tasks that are overdue or due today."
-    }
+    },
+    "selectTask": "Select task"
   },
   "lists": {
     "title": "Lists",

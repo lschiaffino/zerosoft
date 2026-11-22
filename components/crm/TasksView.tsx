@@ -798,7 +798,9 @@ export default function TasksView({
                             return next;
                           })
                         }
-                        aria-label={row.subject}
+                        // Sin el título en el nombre: es texto libre y chocaría con las etiquetas del formulario.
+                        aria-label={t('tasks.selectTask')}
+                        data-testid="task-select"
                       />
                     </td>
                     {cols.order.map((id) => (

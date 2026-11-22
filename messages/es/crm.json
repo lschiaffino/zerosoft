@@ -688,7 +688,8 @@
     "digest": {
       "label": "Email diario",
       "hint": "Cada mañana a las 8, un email con tus tareas abiertas vencidas o que vencen hoy."
-    }
+    },
+    "selectTask": "Elegir tarea"
   },
   "lists": {
     "title": "Listas",

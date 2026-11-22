@@ -945,6 +945,8 @@ button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset:
   .task-toolbar .task-filters .select { flex: 1 1 calc(50% - 4px); min-width: 0; }
   .task-start-view { width: 100%; margin-left: 0; justify-content: center; }
   .task-title-sub { margin-left: 0; }
+  /* Los links bajo el título (de dónde viene la tarea) con área táctil propia, lejos del check. */
+  .task-title-sub a { display: inline-flex; align-items: center; min-height: 40px; }
   .task-queue-actions { margin-left: 0; }
 }
 .task-digest-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
