@@ -89,6 +89,17 @@ export default function AssociationPanel({
   const [adding, setAdding] = useState(false);
   const [loaded, setLoaded] = useState<AssociationOption[]>([]);
   const comboRef = useRef<HTMLDivElement>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+  const refocusAdd = useRef(false);
+  useEffect(() => {
+    if (adding || !refocusAdd.current) return;
+    refocusAdd.current = false;
+    addBtnRef.current?.focus();
+  }, [adding]);
+  const stopAdding = () => {
+    refocusAdd.current = true;
+    setAdding(false);
+  };
   const searchMode = !!search;
 
   useEffect(() => {
@@ -208,13 +219,24 @@ export default function AssociationPanel({
 
       {searchMode ? (
         adding ? (
-          <div className="assoc-add-row assoc-search" ref={comboRef} data-testid={testId ? `${testId}-search` : undefined}>
+          <div
+            className="assoc-add-row assoc-search"
+            ref={comboRef}
+            data-testid={testId ? `${testId}-search` : undefined}
+            onKeyDown={(e) => {
+              // Con la lista cerrada, Esc sale del buscador (no cierra la vista previa).
+              if (e.key === 'Escape' && !e.defaultPrevented) {
+                e.preventDefault();
+                stopAdding();
+              }
+            }}
+          >
             <RecordCombobox
               options={loaded.filter((o) => !associatedIds.has(o.id)).map((o) => ({ value: o.id, label: o.value }))}
               value=""
               onChange={(id) => {
                 if (!id) return;
-                setAdding(false);
+                stopAdding();
                 void wrap(() => onAssociate(id), id);
               }}
               noneLabel={t('assoc.typeToSearch')}
@@ -225,13 +247,14 @@ export default function AssociationPanel({
                 (await search!(q)).filter((o) => !associatedIds.has(o.id)).map((o) => ({ value: o.id, label: o.value }))
               }
             />
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={stopAdding}>
               {t('common.cancel')}
             </button>
           </div>
         ) : (
           <div className="assoc-add-row">
             <button
+              ref={addBtnRef}
               type="button"
               className="btn btn-ghost btn-sm assoc-add-btn"
               onClick={() => setAdding(true)}

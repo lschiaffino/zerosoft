@@ -173,6 +173,10 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
   const [defs, setDefs] = useState<FieldDef[]>([]);
   const [stages, setStages] = useState<StageOption[]>([]);
   const [layout, setLayout] = useState<PreviewLayout>(() => defaultPreviewLayout(PLURAL[type]));
+  /** La configuración ya llegó (la actividad reciente no se pide si está oculta). */
+  const [layoutReady, setLayoutReady] = useState(false);
+  /** Lo guardado en `custom` desde la última lectura, compartido por los dos paneles de propiedades. */
+  const savedCustom = useRef<Record<string, unknown>>({});
   const [recent, setRecent] = useState<RecentItem[] | null>(null);
   const [recentLoading, setRecentLoading] = useState(false);
   const isAdmin = useCrmAdmin();
@@ -199,10 +203,12 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     const res = await fetch(`/api/crm/timeline?kind=${type}&id=${encodeURIComponent(id)}&offset=0`, { cache: 'no-store' }).catch(() => null);
     const data = res?.ok ? ((await res.json().catch(() => null)) as { items?: RecentItem[] } | null) : null;
     if (seq !== recentSeq.current) return;
-    setRecent(data?.items ? data.items.slice(0, 3) : []);
+    // Lo último que pasó: por fecha de creación (el timeline pone primero lo fijado y las tareas por vencimiento).
+    const items = [...(data?.items ?? [])].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+    setRecent(items.slice(0, 3));
     setRecentLoading(false);
   }, [type, id]);
-  const showRecent = layout.sections.includes('activity');
+  const showRecent = layoutReady && layout.sections.includes('activity');
   useEffect(() => {
     if (showRecent) void loadRecent();
   }, [showRecent, loadRecent]);
@@ -232,6 +238,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
         setPayload(data);
         setDefs(fieldRows.rows ?? []);
         if (layoutRes?.layout) setLayout(layoutRes.layout);
+        setLayoutReady(true);
         if (data && pipelines && 'deal' in data) {
           const p = pipelines.rows.find((x) => x.id === (data as DealPayload).deal.pipeline_id);
           setStages(p?.stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost })) ?? []);
@@ -618,18 +625,23 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
 
   function renderAbout() {
     if (!payload) return null;
-    const fields = [...standardFields(), ...customFields];
-    // Lo configurado en Ajustes, en ese orden; "Ver todas" abre el resto.
-    const keys = layout.properties.filter((k) => fields.some((f) => f.key === k));
+    // Propias del objeto más las personalizadas configuradas acá (las demás van en su tarjeta: ninguna se repite).
+    const configured = new Set(layout.properties);
+    const fields = [...standardFields(), ...customFields.filter((f) => configured.has(f.key))];
+    // Lo configurado en Ajustes, en ese orden; "Ver todas" abre el resto. Sin nada configurado
+    // (o todo oculto para quien mira), lo de por defecto.
+    let keys = layout.properties.filter((k) => fields.some((f) => f.key === k));
+    if (!keys.length) keys = defaultPreviewLayout(PLURAL[type]).properties.filter((k) => fields.some((f) => f.key === k));
     return section('about', aboutTitle, undefined, (
       <PropertiesPanel
         endpoint={endpoint}
-        fields={keys.length ? fields : standardFields()}
+        fields={fields}
         custom={custom}
         compactKeys={keys}
         viewAllLabel={t('preview.allProps')}
         optimistic
         onSaved={() => void reload()}
+        savedCustomRef={savedCustom}
       />
     ));
   }
@@ -649,6 +661,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
         sections={customSections.length > 1 || customSections[0].title !== t('preview.customProps') ? customSections : undefined}
         optimistic
         onSaved={() => void reload()}
+        savedCustomRef={savedCustom}
       />
     ));
   }

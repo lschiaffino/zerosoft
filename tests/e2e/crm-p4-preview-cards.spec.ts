@@ -220,6 +220,15 @@ test('vista previa: asociar y quitar un contacto desde la tarjeta de asociacione
 
   const card = preview.locator('[data-preview-section="contacts"]');
   await expect(card.locator('.preview-sec-count')).toHaveText('0');
+  // Esc sale del buscador sin cerrar la vista previa, y el foco vuelve a "Agregar".
+  await card.getByTestId('preview-assoc-contacts-add').click();
+  await expect(card.getByRole('combobox')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(card.getByRole('combobox')).toHaveCount(0);
+  await expect(preview).toBeVisible();
+  await expect(card.getByTestId('preview-assoc-contacts-add')).toBeFocused();
+
   await card.getByTestId('preview-assoc-contacts-add').click();
   const input = card.getByRole('combobox');
   await expect(input).toBeFocused();

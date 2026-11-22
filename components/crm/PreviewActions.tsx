@@ -119,9 +119,9 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
     }
     setPosting(false);
     if (isQueuedResponse(res)) {
-      announceQueued('/api/crm/activities');
+      announceQueued(kind === 'email' ? '/api/crm/emails' : '/api/crm/activities');
       setNotice(t('offline.savedOffline'));
-      setKind(null);
+      close();
       return;
     }
     if (!res?.ok) {
@@ -131,7 +131,7 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
       return;
     }
     setNotice(t(`previewActions.logged.${kind}`));
-    setKind(null);
+    close();
     onLogged();
   }
 

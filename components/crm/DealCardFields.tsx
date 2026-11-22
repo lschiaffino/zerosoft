@@ -126,7 +126,9 @@ export default function DealCardFields({ deal, keys, customDefs, owners, locale,
         break;
       case 'company':
       case 'contact': {
-        const isCompany = k === 'company';
+        // Sin "Contacto" aparte, "Empresa" cae en el contacto si el deal no tiene empresa (como antes).
+        const fallback = k === 'company' && !keys.includes('contact') && !deal.company_name && !deal.company_private;
+        const isCompany = k === 'company' && !fallback;
         const nameText = isCompany ? deal.company_name : deal.contact_name;
         const hidden = isCompany ? deal.company_private : deal.contact_private;
         if (nameText) {
@@ -165,7 +167,8 @@ export default function DealCardFields({ deal, keys, customDefs, owners, locale,
   }
 
   const showClose = keys.includes('closeDate') && !!deal.close_date;
-  const showPriority = keys.includes('priority') && !!deal.priority;
+  // Solo la alta: media y baja en cada tarjeta serían ruido (como HubSpot, que destaca la alta).
+  const showPriority = keys.includes('priority') && deal.priority === 'high';
   const ownerId = deal.owner_id ?? deal.user_id ?? null;
   const ownerName = keys.includes('ownerId') && ownerId ? owners.get(ownerId) : undefined;
 
@@ -195,7 +198,7 @@ export default function DealCardFields({ deal, keys, customDefs, owners, locale,
         {showPriority && (
           <span className={`kb-card-prio kb-card-prio-${deal.priority}`} title={t('deals.form.priority')} data-card-prop="priority">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              {deal.priority === 'high' ? <path d="M6 15l6-6 6 6" /> : deal.priority === 'low' ? <path d="M6 9l6 6 6-6" /> : <path d="M6 12h12" />}
+              <path d="M6 15l6-6 6 6" />
             </svg>
             {t.has(`enums.priority.${deal.priority}`) ? t(`enums.priority.${deal.priority}`) : deal.priority}
           </span>

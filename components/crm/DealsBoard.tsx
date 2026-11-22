@@ -302,13 +302,6 @@ export default function DealsBoard({
       maximumFractionDigits: 0,
     }).format(amount);
 
-  const fmtClose = (cd: string | null): string =>
-    cd
-      ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
-          new Date(`${cd.slice(0, 10)}T00:00:00Z`),
-        )
-      : '';
-
   // ---------- Drag & drop (pointer events, sin deps) ----------
 
   function cleanupDragDom(d: DragState | null) {
