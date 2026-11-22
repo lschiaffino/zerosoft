@@ -366,6 +366,14 @@ const parity: ProductParity = {
         'Chats e grupos se vinculam a contatos e empresas do CRM, com mensagens e tickets na ficha. Uma seção Contatos mostra cada pessoa uma vez entre linhas (telefone e id do WhatsApp unidos), com linhas, grupos, última mensagem e o contato e a empresa no HubSpot; criar no HubSpot busca o telefone antes e coloca o contato na empresa dos grupos dele. Testado com o provedor falso e um HubSpot simulado',
       ],
     }),
+    row('favorites', 'organize', ['Favorites, like the WhatsApp list', 'Favoritos, como la lista de WhatsApp', 'Favoritos, como a lista do WhatsApp'], 'better', {
+      competitorHas: false,
+      detail: [
+        'A Favorites tab in the chat list, next to Unread and Groups. Add or remove a chat or group from its ⋯ menu or the row menu; the whole team sees the same Favorites, and the same chat on several lines counts once. They stay in Lines and do not sync to the phone',
+        'Una pestaña Favoritos en la lista de chats, al lado de No leídos y Grupos. Agregar o quitar un chat o grupo desde su menú ⋯ o el menú de la fila; todo el equipo ve los mismos Favoritos, y el mismo chat en varias líneas cuenta una vez. Quedan en Lines y no se sincronizan con el teléfono',
+        'Uma aba Favoritos na lista de conversas, ao lado de Não lidas e Grupos. Adicionar ou remover uma conversa ou grupo pelo menu ⋯ ou pelo menu da linha; toda a equipe vê os mesmos Favoritos, e a mesma conversa em várias linhas conta uma vez. Ficam no Lines e não sincronizam com o celular',
+      ],
+    }),
     row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'have', {
       detail: [
         'Filters by tab, label, type, assignee and property; shared or personal, in the sidebar and ⌘K, and as a broadcast audience',

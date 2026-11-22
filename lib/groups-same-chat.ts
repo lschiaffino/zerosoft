@@ -131,7 +131,7 @@ export async function withSameChatLines<T extends { id: string; unread: number; 
  * silenciar, eliminar): si no, la fila de otra línea volvería a aparecer sola. Marcar como no leído y fijar quedan
  * en la fila que se tocó (una vez alcanza).
  */
-export const SAME_CHAT_PATCH_KEYS = ['archived', 'keepArchived', 'snoozedUntil', 'hidden', 'status', 'muted'] as const;
+export const SAME_CHAT_PATCH_KEYS = ['archived', 'keepArchived', 'snoozedUntil', 'hidden', 'status', 'muted', 'favorite'] as const;
 
 /** Los chats pedidos más sus filas en otras líneas que quien mira ve (sin repetir). */
 export async function withSameChatIds(ws: string, viewer: GroupsViewer | null | undefined, ids: string[]): Promise<string[]> {

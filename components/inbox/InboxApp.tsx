@@ -60,12 +60,14 @@ export interface InboxStateDto {
   available: { whatsapp: boolean; gmail: boolean };
 }
 
-const TABS: InboxView[] = ['inbox', 'whatsapp', 'email', 'groups', 'unread'];
+const TABS: InboxView[] = ['inbox', 'whatsapp', 'email', 'groups', 'unread', 'favorites'];
 const UNDO: Partial<Record<ThreadAction['action'], ThreadAction['action']>> = {
   done: 'undone',
   undone: 'done',
   pin: 'unpin',
   unpin: 'pin',
+  favorite: 'unfavorite',
+  unfavorite: 'favorite',
   read: 'unread',
   unread: 'read',
   snooze: 'unsnooze',
@@ -83,6 +85,7 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   reply: ['done', 'snooze', 'archive'],
   waiting: ['done', 'snooze', 'archive'],
   pinned: ['unpin', 'archive'],
+  favorites: ['unfavorite', 'done', 'snooze', 'archive'],
   // Posponer archiva: en Archivados el chat pospuesto sigue ahí; sacarlo de Archivados cancela el pospuesto.
   archived: ['unarchive', 'undone'],
   snoozed: ['unsnooze', 'done', 'unarchive', 'undone'],
@@ -847,6 +850,9 @@ export default function InboxApp(props: {
         case 'pin':
           void runAction(ids, { action: th?.pinned ? 'unpin' : 'pin' });
           break;
+        case 'favorite':
+          void runAction(ids, { action: th?.favorite ? 'unfavorite' : 'favorite' });
+          break;
       }
     },
     [targetIds, threads, detail, runAction, keepArchived],
@@ -1185,6 +1191,7 @@ export default function InboxApp(props: {
         ? { key: 'unsnooze', label: t('rowMenu.unsnooze'), onSelect: () => void runAction([id], { action: 'unsnooze' }) }
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
       { key: 'pin', label: th.pinned ? t('rowMenu.unpin') : t('rowMenu.pin'), onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
+      { key: 'favorite', label: th.favorite ? t('rowMenu.unfavorite') : t('rowMenu.favorite'), onSelect: () => void runAction([id], { action: th.favorite ? 'unfavorite' : 'favorite' }) },
       th.mutedUntil
         ? { key: 'unmute', label: t('rowMenu.unmute'), onSelect: () => mute(null) }
         : {
@@ -1393,7 +1400,7 @@ export default function InboxApp(props: {
           {tabView && !q && (
             <nav ref={tabsEdges} className="ui-tabs ib-tabs" aria-label={t('list.filters')} data-tour={noAccounts ? undefined : 'inbox-filters'}>
               {TABS.map((v) => (
-                <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined}>
+                <Link key={v} href={viewHref(v)} prefetch={false} className={`ui-tab${v === view ? ' is-active' : ''}`} aria-current={v === view ? 'page' : undefined} data-testid={`inbox-tab-${v}`}>
                   {t(`tabs.${v}`)}
                 </Link>
               ))}
@@ -1413,7 +1420,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>

@@ -50,6 +50,8 @@ export interface LinesFilters {
   /** Pasó el límite sin respuesta. */
   flagged?: Tri;
   pinned?: Tri;
+  /** En Favoritos (la lista de WhatsApp). */
+  favorite?: Tri;
   muted?: Tri;
   /** Tiene un ticket abierto o en curso. */
   ticket?: Tri;
@@ -66,7 +68,7 @@ export interface LinesFilters {
   hsProps?: HubspotPropFilter[];
 }
 
-const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'muted', 'ticket', 'agent', 'crm'] as const;
+const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'favorite', 'muted', 'ticket', 'agent', 'crm'] as const;
 type TriKey = (typeof TRI_KEYS)[number];
 const MAX_IDS = 50;
 const PROP_KEY = /^[a-z0-9_]{1,40}$/;
@@ -210,7 +212,8 @@ export function countFilters(f: LinesFilters): number {
 
 // ---------- Pestañas: atajos de un campo ----------
 
-export const LINES_TABS = ['all', 'unread', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'] as const;
+// Como WhatsApp: Todos, No leídos, Favoritos, Grupos; después lo del equipo.
+export const LINES_TABS = ['all', 'unread', 'favorites', 'groups', 'unanswered', 'mine', 'unassigned', 'flagged', 'closed'] as const;
 export type LinesTab = (typeof LINES_TABS)[number];
 
 type TabKey = Exclude<LinesTab, 'all'>;
@@ -219,6 +222,7 @@ const only = (list: string[] | undefined, v: string) => list?.length === 1 && li
 /** Cada pestaña: cuándo está puesta, cómo se pone y cómo se saca. */
 const TAB_RULES: Record<TabKey, { on: (f: LinesFilters) => boolean; set: (f: LinesFilters) => void; clear: (f: LinesFilters) => void }> = {
   unread: { on: (f) => f.unread === 'yes', set: (f) => void (f.unread = 'yes'), clear: (f) => void delete f.unread },
+  favorites: { on: (f) => f.favorite === 'yes', set: (f) => void (f.favorite = 'yes'), clear: (f) => void delete f.favorite },
   groups: { on: (f) => only(f.kinds, 'group'), set: (f) => void (f.kinds = ['group']), clear: (f) => void delete f.kinds },
   unanswered: { on: (f) => f.waiting === 'yes', set: (f) => void (f.waiting = 'yes'), clear: (f) => void delete f.waiting },
   mine: { on: (f) => only(f.assignees, ME), set: (f) => void (f.assignees = [ME]), clear: (f) => void delete f.assignees },
@@ -396,6 +400,7 @@ export function linesFiltersSql(raw: LinesFilters, ctx: LinesSqlContext): { wher
   triSql(f.waiting, 'c.awaiting_since IS NOT NULL', 'c.awaiting_since IS NULL', out);
   triSql(f.flagged, 'c.flagged_at IS NOT NULL', 'c.flagged_at IS NULL', out);
   triSql(f.pinned, 'c.pinned_at IS NOT NULL', 'c.pinned_at IS NULL', out);
+  triSql(f.favorite, 'c.favorite_at IS NOT NULL', 'c.favorite_at IS NULL', out);
   if (f.muted) {
     out.where.push(f.muted === 'yes' ? '(c.muted_until IS NOT NULL AND c.muted_until > ?)' : '(c.muted_until IS NULL OR c.muted_until <= ?)');
     out.args.push(now.toISOString());

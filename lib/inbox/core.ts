@@ -178,6 +178,7 @@ export interface ThreadRow {
   last_from_me: number;
   unread: number;
   pinned_at: string | null;
+  favorite_at?: string | null;
   done_at: string | null;
   archived_at?: string | null;
   snoozed_until: string | null;
@@ -581,7 +582,7 @@ export interface ListOptions {
 
 /** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
 const LIST_COLS = [
-  'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'done_at',
+  'id', 'account_id', 'channel', 'kind', 'external_id', 'title', 'handle', 'preview', 'last_message_at', 'last_from_me', 'unread', 'pinned_at', 'favorite_at', 'done_at',
   'archived_at', 'keep_archived', 'snoozed_until', 'woke_at', 'woke_reason', 'follow_up_at', 'muted_until', 'draft', 'avatar_url', 'last_sender', 'last_kind', 'last_status',
   'presence', 'presence_who', 'presence_at', 'last_seen_at',
 ]
@@ -720,6 +721,11 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
         break;
       case 'pinned':
         where.push('t.pinned_at IS NOT NULL', 't.archived_at IS NULL');
+        break;
+      // Favoritos, como la lista de WhatsApp: los chats marcados que están en la bandeja.
+      case 'favorites':
+        where.push(active, 't.favorite_at IS NOT NULL');
+        args.push(nowS);
         break;
       case 'snoozed':
         where.push('t.snoozed_until > ?');
@@ -883,6 +889,7 @@ export function threadDto(
     lastFromMe: r.last_from_me === 1,
     unread: Number(r.unread),
     pinned: !!r.pinned_at,
+    ...(r.favorite_at ? { favorite: true } : {}),
     done: !!r.done_at,
     archived: !!r.archived_at,
     keepArchived: r.keep_archived === 1,
@@ -1271,6 +1278,9 @@ export type ThreadAction =
   | { action: 'unread' }
   | { action: 'pin' }
   | { action: 'unpin' }
+  /** Favoritos, como la lista de WhatsApp (queda en Inbox: el servidor de WhatsApp no la sincroniza). */
+  | { action: 'favorite' }
+  | { action: 'unfavorite' }
   | { action: 'archive' }
   | { action: 'unarchive' }
   /** Mantener archivado: prenderlo archiva el chat; apagarlo lo deja donde está. */
@@ -1331,6 +1341,13 @@ export async function applyThreadAction(owner: string, ids: string[], a: ThreadA
       break;
     case 'unpin':
       sql = 'pinned_at = NULL';
+      break;
+    case 'favorite':
+      sql = 'favorite_at = COALESCE(favorite_at, ?)';
+      extra = [nowS];
+      break;
+    case 'unfavorite':
+      sql = 'favorite_at = NULL';
       break;
     case 'archive':
       // Como WhatsApp: archivar suelta el fijado.
