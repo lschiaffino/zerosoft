@@ -1,6 +1,6 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
-  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "snooze": "Adiar…", "unsnooze": "Cancelar adiamento", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "favorite": "Adicionar aos Favoritos", "unfavorite": "Remover dos Favoritos", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "keepArchived": "Manter arquivada", "keepArchivedOff": "Deixar de manter arquivada", "groupInfo": "Dados do grupo" },
+  "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "snooze": "Adiar…", "unsnooze": "Cancelar adiamento", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "favorite": "Adicionar aos Favoritos", "unfavorite": "Remover dos Favoritos", "vip": "Marcar como VIP", "unvip": "Remover dos VIP", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "keepArchived": "Manter arquivada", "keepArchivedOff": "Deixar de manter arquivada", "groupInfo": "Dados do grupo" },
   "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
   "views": {
     "inbox": "Caixa de entrada",
@@ -11,6 +11,7 @@
     "email": "E-mail",
     "groups": "Grupos",
     "favorites": "Favoritos",
+    "vip": "VIP",
     "pinned": "Fixados",
     "snoozed": "Adiados",
     "scheduled": "Agendados",
@@ -19,7 +20,7 @@
     "nofolder": "Sem pasta",
     "removed": "Removidos do Inbox"
   },
-  "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos", "favorites": "Favoritos" },
+  "tabs": { "inbox": "Todos", "whatsapp": "WhatsApp", "email": "E-mail", "groups": "Grupos", "unread": "Não lidos", "favorites": "Favoritos", "vip": "VIP" },
   "when": {
     "title": { "snooze": "Adiar até", "followUp": "Lembrar se não responder", "sendLater": "Enviar mais tarde" },
     "followUpHelp": "Se até lá a pessoa não responder, a conversa volta para o topo da caixa.",
@@ -194,6 +195,7 @@
       "email": "Nenhum e-mail aqui",
       "groups": "Nenhum grupo aqui",
       "favorites": "Ainda não há favoritos. Adicione uma conversa pelo menu dela ou com o clique direito.",
+      "vip": "Ainda não há conversas VIP. Marque uma pessoa como VIP pelo menu da conversa: as conversas de WhatsApp e os e-mails dela aparecem aqui.",
       "pinned": "Nada fixado. Aperte P em uma conversa para fixar.",
       "snoozed": "Nada adiado. Aperte H em uma conversa para adiar.",
       "scheduled": "Nada agendado. Use Mais tarde ao lado de Enviar.",
@@ -248,6 +250,8 @@
     "unpin": "{n, plural, one {Desafixada} other {# conversas desafixadas}}",
     "favorite": "{n, plural, one {Adicionado aos Favoritos} other {# conversas adicionadas aos Favoritos}}",
     "unfavorite": "{n, plural, one {Removido dos Favoritos} other {# conversas removidas dos Favoritos}}",
+    "vip": "Marcado como VIP",
+    "unvip": "Removido dos VIP",
     "archive": "{n, plural, one {Arquivada} other {# conversas arquivadas}}",
     "unarchive": "{n, plural, one {Desarquivada} other {# conversas desarquivadas}}",
     "keepArchivedOn": "Mantida arquivada",
@@ -290,6 +294,8 @@
     "unpin": "Desafixar",
     "favorite": "Adicionar aos Favoritos",
     "unfavorite": "Remover dos Favoritos",
+    "vip": "Marcar como VIP",
+    "unvip": "Remover dos VIP",
     "read": "Marcar como lida",
     "unread": "Marcar como não lida",
     "mute8h": "Silenciar por 8 horas",

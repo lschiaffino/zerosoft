@@ -374,6 +374,14 @@ const parity: ProductParity = {
         'Uma aba Favoritos na lista de conversas, ao lado de Não lidas e Grupos. Adicionar ou remover uma conversa ou grupo pelo menu ⋯ ou pelo menu da linha; toda a equipe vê os mesmos Favoritos, e a mesma conversa em várias linhas conta uma vez. Ficam no Lines e não sincronizam com o celular',
       ],
     }),
+    row('vip', 'organize', ['VIP people with their own tab', 'Personas VIP con su pestaña', 'Pessoas VIP com sua aba'], 'better', {
+      competitorHas: false,
+      detail: [
+        'Mark the person of a one to one chat as VIP from its ⋯ menu or the row menu. The VIP tab, and the VIP filter in the panel, list their chats on every line, for the whole team. Groups are not marked',
+        'Marcar como VIP a la persona de un chat 1:1 desde su menú ⋯ o el menú de la fila. La pestaña VIP, y el filtro VIP del panel, listan sus chats de todas las líneas, para todo el equipo. Los grupos no se marcan',
+        'Marcar como VIP a pessoa de uma conversa 1:1 pelo menu ⋯ ou pelo menu da linha. A aba VIP, e o filtro VIP do painel, listam as conversas dela em todas as linhas, para toda a equipe. Os grupos não são marcados',
+      ],
+    }),
     row('saved-lists', 'organize', ['Saved chat lists', 'Listas guardadas de chats', 'Listas salvas de chats'], 'have', {
       detail: [
         'Filters by tab, label, type, assignee and property; shared or personal, in the sidebar and ⌘K, and as a broadcast audience',

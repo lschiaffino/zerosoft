@@ -578,6 +578,8 @@ export interface ChatRow {
   pinned_at?: string | null;
   /** Favoritos (como la lista de WhatsApp): desde cuándo. */
   favorite_at?: string | null;
+  /** Solo en la lista y en getChat: la persona del chat 1:1 es VIP (groups_vips). */
+  vip_hit?: number | null;
   assigned_team_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -632,6 +634,8 @@ export interface ChatDto {
   pinned: boolean;
   /** En Favoritos (la lista de WhatsApp). Solo si lo está. */
   favorite?: boolean;
+  /** La persona del chat 1:1 es VIP del equipo (lib/groups-vip.ts). Solo si lo es. */
+  vip?: boolean;
   properties: Record<string, unknown>;
   crmContactId: string | null;
   crmCompanyId: string | null;
@@ -750,6 +754,7 @@ export function toChatDto(row: ChatRow, labels: LabelDto[] = []): ChatDto {
     assignedTeamId: row.assigned_team_id ?? null,
     pinned: Boolean(row.pinned_at),
     ...(row.favorite_at ? { favorite: true } : {}),
+    ...(row.vip_hit ? { vip: true } : {}),
     properties: parseJson<Record<string, unknown>>(row.properties, {}),
     crmContactId: row.crm_contact_id,
     crmCompanyId: row.crm_company_id,
@@ -812,6 +817,10 @@ export async function getChat(ws: string, id: string): Promise<ChatDto | null> {
     const d = who.phone || who.lid;
     const pic = d ? (await contactPictures({ app: 'lines', accountId: row.number_id }, [d])).get(d) : undefined;
     if (pic) (row as ChatRow & { contact_picture?: string }).contact_picture = pic;
+  }
+  if (row.kind === 'dm' && row.phone) {
+    const { isVipPhone } = await import('./groups-vip');
+    if (await isVipPhone(ws, row.phone)) row.vip_hit = 1;
   }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? []);
   // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
@@ -1128,7 +1137,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const whereSql = where.join(' AND ');
   const db = getDb();
   const total = query.count === false ? { c: 0 } : ((await db.prepare(`SELECT COUNT(*) AS c FROM groups_chats c WHERE ${whereSql}`).get(...args)) as { c: number });
-  const select = `SELECT c.*, ${matchSelect},
+  const select = `SELECT c.*, ${matchSelect}, (c.kind = 'dm' AND c.phone <> '' AND EXISTS (SELECT 1 FROM groups_vips v WHERE v.user_id = c.user_id AND v.phone = c.phone)) AS vip_hit,
          CASE WHEN c.kind = 'dm' AND c.phone <> '' THEN
              (SELECT w.picture FROM wa_contacts w WHERE w.app = 'lines' AND w.account_id = c.number_id AND w.phone = c.phone AND w.picture <> '' LIMIT 1)
            WHEN c.kind = 'dm' AND c.provider_chat_id LIKE '%@lid' THEN

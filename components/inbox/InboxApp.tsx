@@ -60,7 +60,7 @@ export interface InboxStateDto {
   available: { whatsapp: boolean; gmail: boolean };
 }
 
-const TABS: InboxView[] = ['inbox', 'whatsapp', 'email', 'groups', 'unread', 'favorites'];
+const TABS: InboxView[] = ['inbox', 'whatsapp', 'email', 'groups', 'unread', 'favorites', 'vip'];
 const UNDO: Partial<Record<ThreadAction['action'], ThreadAction['action']>> = {
   done: 'undone',
   undone: 'done',
@@ -68,6 +68,8 @@ const UNDO: Partial<Record<ThreadAction['action'], ThreadAction['action']>> = {
   unpin: 'pin',
   favorite: 'unfavorite',
   unfavorite: 'favorite',
+  vip: 'unvip',
+  unvip: 'vip',
   read: 'unread',
   unread: 'read',
   snooze: 'unsnooze',
@@ -86,6 +88,7 @@ const LEAVES: Partial<Record<InboxView, ThreadAction['action'][]>> = {
   waiting: ['done', 'snooze', 'archive'],
   pinned: ['unpin', 'archive'],
   favorites: ['unfavorite', 'done', 'snooze', 'archive'],
+  vip: ['unvip', 'done', 'snooze', 'archive'],
   // Posponer archiva: en Archivados el chat pospuesto sigue ahí; sacarlo de Archivados cancela el pospuesto.
   archived: ['unarchive', 'undone'],
   snoozed: ['unsnooze', 'done', 'unarchive', 'undone'],
@@ -853,6 +856,9 @@ export default function InboxApp(props: {
         case 'favorite':
           void runAction(ids, { action: th?.favorite ? 'unfavorite' : 'favorite' });
           break;
+        case 'vip':
+          void runAction(ids, { action: th?.vip ? 'unvip' : 'vip' });
+          break;
       }
     },
     [targetIds, threads, detail, runAction, keepArchived],
@@ -1192,6 +1198,8 @@ export default function InboxApp(props: {
         : { key: 'snooze', label: t('rowMenu.snooze'), onSelect: () => setWhen({ kind: 'snooze', ids: [id] }) },
       { key: 'pin', label: th.pinned ? t('rowMenu.unpin') : t('rowMenu.pin'), onSelect: () => void runAction([id], { action: th.pinned ? 'unpin' : 'pin' }) },
       { key: 'favorite', label: th.favorite ? t('rowMenu.unfavorite') : t('rowMenu.favorite'), onSelect: () => void runAction([id], { action: th.favorite ? 'unfavorite' : 'favorite' }) },
+      // VIP es la persona: 1:1 y correos con dirección o teléfono (un chat por lid sin teléfono no tiene a quién marcar).
+      ...(th.kind !== 'group' && th.handle ? [{ key: 'vip', label: th.vip ? t('rowMenu.unvip') : t('rowMenu.vip'), onSelect: () => void runAction([id], { action: th.vip ? 'unvip' : 'vip' }) }] : []),
       th.mutedUntil
         ? { key: 'unmute', label: t('rowMenu.unmute'), onSelect: () => mute(null) }
         : {
@@ -1420,7 +1428,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>

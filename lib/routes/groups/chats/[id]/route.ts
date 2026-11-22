@@ -30,7 +30,7 @@ export async function GET(req: Request, ctx: Ctx) {
   return NextResponse.json({ chat: maskChat(guard.viewer, await withSameChatLines(s.ws, guard.viewer, row, chat)), members: (await listMembers(s.ws, id)).map((m) => maskMember(guard.viewer, m, id)) });
 }
 
-/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, Favoritos, etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */
+/** Renombrar (también en WhatsApp si es grupo), asignar a persona o equipo, cerrar, fijar, Favoritos, VIP (vip), etiquetas, propiedades, CRM, agente, leído o no leído, archivar, posponer, carpeta propia (folderId) y carpeta del equipo (teamFolderId; null la saca). */
 export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
@@ -72,6 +72,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
       const to = (b.teamFolderId as string | null) || null;
       if (to && (await folderKindOf(s.ws, s.me, to)) !== 'team') return groupsError(404, 'not_found');
       await moveChatsToFolder(s.ws, guard.viewer, [id], to, { kind: 'team' });
+    }
+    // VIP es la persona del chat 1:1 (su teléfono), no el chat: vale en todas las líneas.
+    if (typeof b.vip === 'boolean') {
+      const { setChatVip } = await import('@/lib/groups-vip');
+      await setChatVip(s.ws, s.me, id, b.vip);
     }
     const after = await patchChatAs(s.ws, { id: s.me }, id, patch);
     // El mismo chat en otras líneas: leer, archivar, posponer, cerrar, silenciar o eliminar vale para todas.
