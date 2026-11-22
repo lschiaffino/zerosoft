@@ -824,10 +824,11 @@ export function buildNav(
                 !at('/app/flow/variables'),
               icon: 'flow',
             },
-            { href: '/app/flow/runs', label: labels.flow.runs, active: at('/app/flow/runs'), icon: 'reports' },
+            // Anclajes del tour de Flow (lib/tours/flow.ts).
+            { href: '/app/flow/runs', label: labels.flow.runs, active: at('/app/flow/runs'), icon: 'reports', tour: 'flow-runs' },
             { href: '/app/flow/tables', label: labels.flow.tables, active: at('/app/flow/tables'), icon: 'lists' },
             { href: '/app/flow/variables', label: labels.flow.variables, active: at('/app/flow/variables'), icon: 'objects' },
-            { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'workflows' },
+            { href: '/app/flow/credentials', label: labels.flow.credentials, active: at('/app/flow/credentials'), icon: 'workflows', tour: 'flow-credentials' },
           ],
         },
         appSettingsGroup('/app/flow/settings'),

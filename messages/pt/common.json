@@ -1524,6 +1524,48 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "flow": {
+      "intro": {
+        "title": "Boas-vindas ao Flow",
+        "body": "O Flow automatiza trabalho entre seus apps: quando algo acontece, ele faz os passos que você montou. Este tour mostra as partes principais."
+      },
+      "newFlow": {
+        "title": "Crie um flow",
+        "body": "Comece numa tela em branco, ou use Montar com IA e descreva com suas palavras o que você quer."
+      },
+      "templates": {
+        "title": "Comece com um modelo",
+        "body": "Flows prontos para tarefas comuns. Use um e ajuste os detalhes."
+      },
+      "runs": {
+        "title": "Histórico",
+        "body": "Cada vez que um flow roda ele aparece aqui, com cada passo, o que recebeu e se deu erro. Dá para rodar de novo um que falhou."
+      },
+      "credentials": {
+        "title": "Credenciais",
+        "body": "Chaves e acessos dos serviços que seus flows usam, como Slack, Google ou Stripe. Salve uma vez e escolha em qualquer passo."
+      },
+      "openFlow": {
+        "title": "Abra um flow",
+        "body": "Abra um dos seus flows para ver como ele é montado."
+      },
+      "trigger": {
+        "title": "O gatilho",
+        "body": "Todo flow começa aqui: algo que acontece num app do zerosoft, um horário, um webhook ou um início manual. Selecione para escolher o que dispara o flow."
+      },
+      "addStep": {
+        "title": "Adicione passos",
+        "body": "Os passos são o que o flow faz: enviar um email, criar uma issue no Track, chamar uma API e mais. Adicione daqui e conecte cada um ao passo anterior."
+      },
+      "test": {
+        "title": "Teste",
+        "body": "Testar roda o flow para você ver o que cada passo fez. Quando funcionar, publique e ligue com o interruptor."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "social": {
       "intro": {
         "title": "Boas-vindas ao Social",
