@@ -3918,3 +3918,26 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 .preview-meta { align-items: flex-start; }
 .preview-amount { text-align: left; }
 .pipe-menu-btn { text-align: left; }
+
+/* Teléfono: el pipeline y los filtros de fecha bajan al pie como hoja con telón, como los
+   demás menús anclados (styles/app-shared.css), con filas de 44px. */
+@media (max-width: 640px) {
+  :is(.pipe-menu-list, .dr-filter-menu) {
+    position: fixed !important;
+    top: auto !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 8px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: 0 0 0 100vmax var(--ui-backdrop);
+  }
+  :is(.pipe-menu-item, .dr-filter-preset) { min-height: 44px; }
+  .dr-filter-field .input { min-height: 40px; }
+  :is(.dr-filter-actions, .pipe-menu-add) .btn { min-height: 40px; }
+  .pipe-menu-add .chip-add-input, .pipe-menu-add .chip-add-input :is(input, button) { min-height: 40px; }
+}

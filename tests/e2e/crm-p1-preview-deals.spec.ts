@@ -81,7 +81,10 @@ test('vista previa: editar en línea con Enter, Esc cancela sin cerrar, y el boa
   await expect(preview).toBeHidden();
 });
 
-test('vista previa: si el guardado falla, el valor vuelve y el error aparece debajo del campo', async ({ page, request }) => {
+test.describe('sin service worker', () => {
+  // El service worker offline atiende los fetch de la página: page.route no los vería.
+  test.use({ serviceWorkers: 'block' });
+  test('vista previa: si el guardado falla, el valor vuelve y el error aparece debajo del campo', async ({ page, request }) => {
   const name = `Rollback ${uid()}`;
   const { p, deal } = await newDeal(request, name);
   const preview = await openPreviewFromBoard(page, p.id, name);
@@ -95,6 +98,7 @@ test('vista previa: si el guardado falla, el valor vuelve y el error aparece deb
   await expect(nextStep.getByTestId('prop-error')).toBeVisible();
   await expect(nextStep).not.toContainText('Will fail');
   await page.unroute(`**/api/crm/deals/${deal.id}`);
+  });
 });
 
 test('vista previa: la etapa se cambia desde el panel y la card pasa de columna', async ({ page, request }) => {
@@ -118,7 +122,8 @@ test('board: arrastrar una card a otra etapa la guarda', async ({ page, request 
   await page.mouse.move(from.x + 20, from.y + 12);
   await page.mouse.down();
   await page.mouse.move(from.x + 60, from.y + 30, { steps: 5 });
-  await page.mouse.move(target.x + target.width / 2, target.y + 20, { steps: 12 });
+  // A la altura de la card: toda la columna recibe el drop (llega al alto de la más alta).
+  await page.mouse.move(target.x + target.width / 2, from.y + 12, { steps: 12 });
   await page.mouse.up();
   await expect(page.locator(`.kb-cards[data-stage-id="${p.open[1].id}"] .kb-card[data-deal-id="${deal.id}"]`)).toBeVisible();
   await expect.poll(async () => (await ok<{ deal: { stage_id: string } }>(request.get(`/api/crm/deals/${deal.id}`))).deal.stage_id).toBe(p.open[1].id);
@@ -187,11 +192,8 @@ test('deals y vista previa a 390: sin scroll horizontal y con blancos de 40px', 
   await page.goto(`/en/app/crm/deals?pipeline=${p.id}&view=table`, { waitUntil: 'networkidle' });
   await noHorizontalScroll(page);
 
-  // Vista previa desde la tabla a 390: ocupa la pantalla y no desborda.
-  const row = page.locator('tr', { hasText: name });
-  await row.getByRole('button', { name: 'Preview' }).click();
-  const preview = page.getByTestId('record-preview');
-  await expect(preview.getByRole('heading', { name })).toBeVisible();
+  // Vista previa a 390 (desde el board): ocupa la pantalla y no desborda.
+  const preview = await openPreviewFromBoard(page, p.id, name);
   const pb = (await preview.boundingBox())!;
   expect(pb.width).toBeLessThanOrEqual(390);
   await noHorizontalScroll(page);
