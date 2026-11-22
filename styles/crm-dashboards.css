@@ -132,7 +132,7 @@
 .cdb-tile.drop-before::before { left: -10px; }
 .cdb-tile.drop-after::after { right: -10px; }
 
-.cdb-tile-head { display: flex; align-items: flex-start; gap: 6px; padding: 12px 8px 4px 12px; }
+.cdb-tile-head { position: relative; display: flex; align-items: flex-start; gap: 6px; padding: 12px 8px 4px 16px; }
 .cdb-tile-titles { flex: 1; min-width: 0; padding-top: 2px; }
 .cdb-tile-title {
   margin: 0;
@@ -160,7 +160,7 @@
   fill: currentColor;
   cursor: pointer;
 }
-.cdb-grip { cursor: grab; touch-action: none; margin-left: -4px; opacity: 0; }
+.cdb-grip { position: absolute; left: -1px; top: 10px; width: 16px; cursor: grab; touch-action: none; opacity: 0; }
 .cdb-tile:hover .cdb-grip, .cdb-grip:focus-visible { opacity: 1; }
 .cdb-grip:hover, .cdb-tile-menu:hover, .cdb-tile-menu[aria-expanded='true'] { background: var(--ui-hover); color: var(--ink); }
 .cdb-tile-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
@@ -280,7 +280,34 @@ button.cdb-hbar-row:hover { background: var(--ui-hover); }
 .cdb-hbar + .cdb-hbar { border-radius: 0 3px 3px 0; }
 .cdb-hbar-value { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cdb-hbar-extra { font-size: 0.6875rem; color: var(--dim); }
-.cdb-series-drill { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
+.cdb-series-drill { display: flex; flex-wrap: wrap; gap: 0 14px; margin-top: 4px; font-size: 0.75rem; }
+.cdb-series-drill .cdb-link { color: var(--dim); text-decoration-color: transparent; }
+.cdb-series-drill .cdb-link:hover { color: var(--ink); text-decoration-color: currentColor; }
+.cdb-kpi-unit { font-size: 0.875rem; font-weight: 500; color: var(--dim); letter-spacing: 0; margin-left: 4px; }
+
+/* Filtros del dashboard: el selector de components/ui/MenuSelect con caja. */
+.zs-msel {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 220px; height: 30px; padding: 0 8px;
+  font: inherit; font-size: 0.875rem; font-weight: 500; color: var(--ink); background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-1); cursor: pointer;
+}
+.zs-msel:hover, .zs-msel.is-open { background: var(--ui-hover); }
+.zs-msel:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.zs-msel-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zs-msel-chevron { flex: none; color: var(--dim); }
+.zs-msel-list {
+  position: fixed; z-index: var(--z-menu); max-width: min(320px, calc(100vw - 16px)); padding: 4px; overflow-y: auto; overscroll-behavior: contain;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1);
+  box-shadow: 0 8px 24px var(--ui-shadow); outline: none;
+}
+.zs-msel-opt { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 0 8px 0 10px; font-size: 0.8125rem; border-radius: var(--radius-1); cursor: pointer; user-select: none; }
+.zs-msel-opt.is-active { background: var(--ui-hover); }
+.zs-msel-opt[aria-selected='true'] { font-weight: 500; }
+.zs-msel-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zs-msel-check { flex: none; color: var(--ink); }
+.cdb-filters .zs-msel { height: 36px; padding: 0 10px; border-color: var(--line); background: var(--bg); font-size: 0.8125rem; }
+.cdb-filters .zs-msel:hover, .cdb-filters .zs-msel.is-open { border-color: var(--ink); background: var(--bg); }
+@media (max-width: 1023px) { .cdb-filters .zs-msel { height: 40px; } .zs-msel-opt { min-height: 40px; } }
 
 /* ---------- Embudo ---------- */
 
@@ -475,7 +502,7 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
 @media (max-width: 640px) {
   .cdb-grid { gap: 12px; }
   .cdb-tile, .cdb-tile[data-size], .cdb-tile[data-size='small'] { grid-column: 1 / -1; min-height: 0; }
-  .cdb-tile:not(.cdb-tile-kpi) .cdb-tile-body { min-height: 260px; }
+  .cdb-tile-body { min-height: 0; }
   .cdb-grip { display: none; }
   .cdb-tile-menu { width: 40px; height: 40px; }
   .cdb-head { flex-direction: column; align-items: stretch; }

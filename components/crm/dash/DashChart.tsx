@@ -304,7 +304,7 @@ function HBars({ data, viz, text, onDrill, title }: Props) {
           </div>
         );
       })}
-      {stacked && <Legend data={data} text={text} />}
+      {stacked && !onDrill && <Legend data={data} text={text} />}
       {stacked && onDrill && data.series.length > 1 && (
         <div className="cdb-series-drill">
           {data.series.map((s, si) => (

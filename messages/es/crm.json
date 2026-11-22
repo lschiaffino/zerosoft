@@ -5119,7 +5119,8 @@
       "conversion": "{value}% desde la etapa anterior",
       "formerMember": "Ex integrante",
       "seeAll": "Ver todos",
-      "drillHint": "Elegí una barra o un valor para ver sus registros"
+      "drillHint": "Elegí una barra o un valor para ver sus registros",
+      "perDayUnit": "/ día"
     },
     "edit": {
       "title": "Editar reporte",

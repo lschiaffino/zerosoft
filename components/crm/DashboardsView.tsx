@@ -693,6 +693,8 @@ export default function DashboardsView({
     if (data.kind === 'kpi') {
       const pct = data.prev !== null && data.prev !== 0 ? Math.round(((data.value - data.prev) / Math.abs(data.prev)) * 100) : null;
       const valueText = fmtValue(data.value, data.format);
+      // "Por día" va chico al lado del número, no como parte de él.
+      const shown = data.format === 'moneyPerDay' ? fmtValue(data.value, 'money') : valueText;
       const key = tileKey(w);
       const detail =
         data.detail?.closed !== undefined
@@ -706,10 +708,11 @@ export default function DashboardsView({
         <div className="cdb-kpi">
           {data.drill ? (
             <button type="button" className="cdb-kpi-value" data-testid="cdb-kpi-value" aria-label={`${title}: ${valueText}`} onClick={() => void openDrill(w.id, {}, title, subtitle)}>
-              {valueText}
+              {shown}
+              {data.format === 'moneyPerDay' && <span className="cdb-kpi-unit">{t('dash.tile.perDayUnit')}</span>}
             </button>
           ) : (
-            <span className="cdb-kpi-value">{valueText}</span>
+            <span className="cdb-kpi-value">{shown}</span>
           )}
           <div className="cdb-kpi-meta">
             {pct !== null ? (
@@ -1202,7 +1205,7 @@ function SwitcherPanel({
   visibilityLabel: (b: DashboardView) => string;
 }) {
   const [q, setQ] = useState('');
-  const [cursor, setCursor] = useState(0);
+  const [cursor, setCursor] = useState(() => Math.max(0, boards.findIndex((b) => b.id === activeId)));
   const list = boards.filter((b) => b.name.toLowerCase().includes(q.trim().toLowerCase()));
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => inputRef.current?.focus(), []);

@@ -504,7 +504,7 @@ export async function reportContext(tv: TileViewer, filters: DashboardFilters, d
   const pipelineId = filters.pipelineId && pipelines.some((p) => p.id === filters.pipelineId) ? filters.pipelineId : null;
   let ownerIds: string[] | null = null;
   // Un owner guardado que la persona no puede nombrar (fuera de su alcance) no filtra: ve lo suyo, sin pantallas en cero sin explicación.
-  if (filters.ownerId && tv.owners.some((o) => o.id === filters.ownerId)) ownerIds = [filters.ownerId];
+  if (filters.ownerId && (!tv.scope || tv.scope.includes(filters.ownerId))) ownerIds = [filters.ownerId];
   else if (filters.teamId && !filters.ownerId) {
     const rows = (await db
       .prepare(

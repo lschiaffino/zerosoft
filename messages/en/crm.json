@@ -5119,7 +5119,8 @@
       "conversion": "{value}% from previous stage",
       "formerMember": "Former member",
       "seeAll": "See all",
-      "drillHint": "Select a bar or value to see its records"
+      "drillHint": "Select a bar or value to see its records",
+      "perDayUnit": "/ day"
     },
     "edit": {
       "title": "Edit report",
