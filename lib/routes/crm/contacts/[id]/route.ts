@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRecordDetail, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser } from '@/lib/session';
 import { deleteContact, getContact, updateContact } from '@/lib/crm';
 import { contactUpdateSchema } from '@/lib/crm-schema';
-import { catchContactWrite, crmError, CrmRefError, emailTakenResponse, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
+import { catchContactWrite, catchRef, crmError, CrmRefError, emailTakenResponse, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { ContactEmailTakenError } from '@/lib/crm-contact-email';
-import { sessionScope, scopeContactDetail } from '@/lib/crm-visibility';
+import { sessionScope, scopeContactDetail, assertVisibleRefs } from '@/lib/crm-visibility';
 import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
@@ -41,11 +42,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const fieldViewer = sessionFieldViewer(user);
   const fp = await guardRecordCustomWrite(fieldViewer, 'contact', params.id, parsed.data.custom);
   if (!fp.ok) return crmError(403, 'field_readonly');
+  // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
+  if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
   const contact = await catchContactWrite(updateContact(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, scope);
   if (!contact) return notFound();
-  return NextResponse.json(redactRow(contact, await hiddenFieldsFor(fieldViewer, 'contacts')));
+  const shown = (await maskPrivateRef(user.id, contact, [PRIVATE_REFS.company([])], await sessionScope(user)))!;
+  return NextResponse.json(redactRow(shown, await hiddenFieldsFor(fieldViewer, 'contacts')));
 }
 
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {

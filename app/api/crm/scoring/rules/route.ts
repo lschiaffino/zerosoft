@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { createScoreRule, listScoreRules, recalcWorkspaceScores } from '@/lib/crm-scoring';
+import { createScoreRule, listScoreRules, recalcWorkspaceScores, scoreRulesForViewer } from '@/lib/crm-scoring';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { scoreRuleCreateSchema } from '@/lib/crm-scoring-schema';
 import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
 
@@ -10,7 +11,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  return NextResponse.json({ rules: await listScoreRules(user.id) });
+  // Sin las reglas sobre campos que la persona tiene ocultos.
+  return NextResponse.json({ rules: await scoreRulesForViewer(sessionFieldViewer(user), await listScoreRules(user.id)) });
 }
 
 /** Nueva regla (solo admins). Recalcula el workspace para que se vea el efecto. */

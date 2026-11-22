@@ -96,9 +96,30 @@ export function redactCustomJson(json: string | null | undefined, hidden: Readon
   }
 }
 
-/** Copia de la fila sin los campos ocultos en `custom`. */
+/**
+ * Desglose del score sin el detalle de cada regla: para una regla de
+ * propiedad el detalle es el valor del campo, que puede ser uno oculto. Puro.
+ */
+export function redactScoreBreakdown(json: string): string {
+  try {
+    const v: unknown = JSON.parse(json || '[]');
+    if (!Array.isArray(v)) return '[]';
+    return JSON.stringify(v.map((b) => (b && typeof b === 'object' ? { ...(b as Record<string, unknown>), detail: '' } : b)));
+  } catch {
+    return '[]';
+  }
+}
+
+/**
+ * Copia de la fila sin los campos ocultos en `custom` (y, si la fila trae el
+ * desglose del score, sin sus detalles: pueden ser valores de campos ocultos).
+ */
 export function redactRow<T extends { custom: string }>(row: T, hidden: ReadonlySet<string>): T {
-  return hidden.size ? { ...row, custom: redactCustomJson(row.custom, hidden) } : row;
+  if (!hidden.size) return row;
+  const out = { ...row, custom: redactCustomJson(row.custom, hidden) };
+  const sb = (row as { score_breakdown?: unknown }).score_breakdown;
+  if (typeof sb === 'string') (out as { score_breakdown?: string }).score_breakdown = redactScoreBreakdown(sb);
+  return out;
 }
 
 /** Entidades de custom fields de una ficha de contacto, empresa o deal. */
@@ -118,7 +139,7 @@ function redactValue(v: unknown, hidden: ReadonlySet<string>): unknown {
   if (!hidden.size || !v || typeof v !== 'object') return v;
   if (Array.isArray(v)) return v.map((x) => redactValue(x, hidden));
   const row = v as Record<string, unknown>;
-  return typeof row.custom === 'string' ? { ...row, custom: redactCustomJson(row.custom, hidden) } : row;
+  return typeof row.custom === 'string' ? redactRow(row as Record<string, unknown> & { custom: string }, hidden) : row;
 }
 
 /**

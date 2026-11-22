@@ -5,7 +5,7 @@ import { createActivity, listTimeline } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { ACTIVITY_TYPES, type ActivityType } from '@/lib/crm-constants';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
-import { apiScope } from '@/lib/crm-visibility';
+import { apiScope, assertVisibleRefs } from '@/lib/crm-visibility';
 import { apiChatReader } from '@/lib/crm-chat-privacy';
 import { apiQueueViewer, getQueue, maskQueueRefs } from '@/lib/crm-task-queues';
 
@@ -48,6 +48,9 @@ export async function POST(req: NextRequest) {
   if (parsed.data.queueId && !(await getQueue(apiQueueViewer(auth), parsed.data.queueId))) {
     return apiError(400, 'invalid_queue', 'The queue does not exist.');
   }
+  // No se vincula un registro que la key no ve (mismo error que un id que no existe).
+  const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
+  if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, 'A referenced record does not exist.');
   const activity = await catchRef(createActivity(auth.user.id, parsed.data));
   if (activity instanceof CrmRefError) return apiError(400, activity.code, 'A referenced record does not exist.');
   return NextResponse.json(cleanRow(activity), { status: 201 });

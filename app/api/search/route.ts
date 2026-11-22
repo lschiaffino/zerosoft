@@ -22,7 +22,7 @@ const NOTES_TEMPLATE_META = {
   pt: notesPt.templates.cmdkMeta,
 };
 import { searchApps } from '@/lib/app-search';
-import { searchRuns } from '@/lib/crm-ai-agents';
+import { searchRuns, sessionRunViewer } from '@/lib/crm-ai-agents';
 import { searchLeads } from '@/lib/crm-leads';
 import { listObjects, searchRecords } from '@/lib/crm-objects';
 import { searchCustomReports } from '@/lib/crm-custom-reports';
@@ -94,7 +94,7 @@ async function getPrivate(req: NextRequest) {
     // Pizarras, Track, Cal, widgets, Flow, Agents y Robots: por nombre.
     searchApps(user, q, undefined, req.nextUrl.searchParams.get('locale') ?? 'en'),
     // Corridas de los agentes de IA del CRM, por nombre.
-    searchRuns(user.id, q),
+    sessionRunViewer(user).then((v) => searchRuns(user.id, q, 5, v)),
     // CRM: leads (nombre, contacto, empresa) y registros de objetos propios (propiedad primaria).
     searchLeads(user.id, q, scope, 8),
     searchRecords(user.id, q, scope, 8),

@@ -21,6 +21,14 @@ import {
   sendCrmEmail,
 } from './crm-email';
 
+/** Acceso de quien envía una secuencia (si ya no es parte del workspace: sin registros ni campos propios). */
+async function senderAccess(workspaceId: string, senderId: string | null): Promise<import('./crm-email').TemplateAccess> {
+  const { subscriberFor } = await import('./crm-event-privacy');
+  const sub = await subscriberFor(workspaceId, senderId);
+  if (!sub) return { scope: [], viewer: null, recipient: true };
+  return { scope: sub.scope, viewer: sub.viewer, recipient: true };
+}
+
 export const STEP_TYPES = ['email', 'task', 'wait'] as const;
 export type StepType = (typeof STEP_TYPES)[number];
 export const ENROLLMENT_STATUSES = ['active', 'paused', 'finished', 'exited'] as const;
@@ -609,7 +617,8 @@ export async function processEnrollment(
       await saveEnrollment(enr.id, { current_step: state.current_step + 1, next_run_at: dbNow(next) }, now);
       return 'waiting';
     }
-    const ctx = await loadTemplateContext(enr.user_id, { contactId: contact.id, senderId: enr.sender_id });
+    // Variables con lo que ve quien envía: sin sus campos ocultos ni la empresa o el deal que no ve.
+    const ctx = await loadTemplateContext(enr.user_id, { contactId: contact.id, senderId: enr.sender_id, access: await senderAccess(enr.user_id, enr.sender_id) });
     let subjectTpl = step.subject;
     let bodyTpl = step.body;
     if (step.template_id) {

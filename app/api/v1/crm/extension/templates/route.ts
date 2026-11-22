@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { apiScope, canSeeRecord } from '@/lib/crm-visibility';
+import { apiFieldViewer } from '@/lib/crm-field-perms';
 import { getEmailTemplate, listEmailTemplates, loadTemplateContext, renderEmailTemplate } from '@/lib/crm-email';
 import { contactsByEmail } from '@/lib/crm-email-sync';
 import { normalizeEmail } from '@/lib/crm-extension';
@@ -40,7 +41,11 @@ export async function POST(req: NextRequest) {
     const found = (await contactsByEmail(auth.user.id, [email])).get(email) ?? null;
     if (found && (await canSeeRecord(auth.user.id, 'crm_contacts', found, await apiScope(auth)))) contactId = found;
   }
-  const ctx = await loadTemplateContext(auth.user.id, { contactId, senderId: auth.personId });
+  const ctx = await loadTemplateContext(auth.user.id, {
+    contactId,
+    senderId: auth.personId,
+    access: { scope: await apiScope(auth), viewer: apiFieldViewer(auth) },
+  });
   const subject = renderEmailTemplate(tpl.subject, ctx);
   const body = renderEmailTemplate(tpl.body, ctx);
   return NextResponse.json({

@@ -12,7 +12,7 @@
 import { getDb, type CrmLeadRow, type CrmLeadStageRow, type Db } from './db';
 import { createDeal, listPipelinesWithStages } from './crm';
 import { assertRefs, CrmRefError } from './crm-refs';
-import { ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { ownerScopeSql, type OwnerScope, scopeAnd } from './crm-visibility';
 import { maskPrivateRef, maskPrivateRefs, PRIVATE_REFS, type PrivateRefFlags } from './crm-record-scope';
 import { SOURCES } from './crm-constants';
 
@@ -215,13 +215,16 @@ function leadWhere(workspaceId: string, f: LeadFilter): { where: string; args: A
     where.push('l.owner_id = ?');
     args.push(f.owner);
   }
+  // Filtrar por un contacto o una empresa que la persona no ve no trae nada (no confirma el vínculo).
   if (f.contactId) {
-    where.push('l.contact_id = ?');
-    args.push(f.contactId);
+    const fc = scopeAnd('fc', f.ownerScope);
+    where.push(`l.contact_id = ? AND EXISTS (SELECT 1 FROM crm_contacts fc WHERE fc.id = l.contact_id AND fc.user_id = l.user_id${fc.sql})`);
+    args.push(f.contactId, ...fc.args);
   }
   if (f.companyId) {
-    where.push('l.company_id = ?');
-    args.push(f.companyId);
+    const fco = scopeAnd('fco', f.ownerScope);
+    where.push(`l.company_id = ? AND EXISTS (SELECT 1 FROM crm_companies fco WHERE fco.id = l.company_id AND fco.user_id = l.user_id${fco.sql})`);
+    args.push(f.companyId, ...fco.args);
   }
   const scope = ownerScopeSql('l', f.ownerScope);
   if (scope.sql) {

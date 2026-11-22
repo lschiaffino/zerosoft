@@ -13,7 +13,7 @@
  * Registros sin owner cuentan como del dueño del workspace (COALESCE).
  */
 import { getDb, type CrmSalesTeamRow, type Db } from './db';
-import { isWorkspacePerson } from './crm-refs';
+import { CrmRefError, isWorkspacePerson } from './crm-refs';
 import { roleAtLeast, type TeamRole } from './teams';
 
 export const MEMBER_VISIBILITIES = ['all', 'mine', 'team'] as const;
@@ -122,22 +122,43 @@ export function filterByScope<T extends { owner_id: string | null; user_id: stri
   return rows.filter((r) => canSeeOwner(scope, r.owner_id, r.user_id));
 }
 
+/** Columnas de una actividad que la vinculan a un registro. */
+const ACTIVITY_REF_COLUMNS = ['contact_id', 'company_id', 'deal_id', 'lead_id', 'object_record_id'] as const;
+
 /**
- * Actividades visibles: si están vinculadas a registros, todos esos registros
- * deben verse; si no tienen registro, cuenta su owner.
+ * Actividades visibles (tareas, notas, llamadas): si están vinculadas a
+ * registros (contacto, empresa, deal, lead o registro de un objeto propio),
+ * todos esos registros deben verse y ser del mismo workspace; si no tienen
+ * registro, cuenta su owner. Es la única regla: el índice de Tareas, la ficha
+ * de la tarea, el email diario, los recordatorios, el timeline y la API la usan
+ * (en SQL con activityScopeSql, de a una con canSeeActivity).
  */
 export function activityScopeSql(alias: string, scope: OwnerScope | undefined): { sql: string; args: string[] } {
   if (!scope) return { sql: '', args: [] };
   if (!scope.length) return { sql: '0', args: [] };
   const inList = `(${scope.map(() => '?').join(',')})`;
+  const linked = (col: string, table: string, a: string) =>
+    `(${alias}.${col} IS NULL OR EXISTS (SELECT 1 FROM ${table} ${a} WHERE ${a}.id = ${alias}.${col} AND ${a}.user_id = ${alias}.user_id AND COALESCE(${a}.owner_id, ${a}.user_id) IN ${inList}))`;
   const sql = `(
-    (${alias}.contact_id IS NOT NULL OR ${alias}.company_id IS NOT NULL OR ${alias}.deal_id IS NOT NULL
+    (${ACTIVITY_REF_COLUMNS.map((c) => `${alias}.${c} IS NOT NULL`).join(' OR ')}
       OR COALESCE(${alias}.owner_id, ${alias}.user_id) IN ${inList})
-    AND (${alias}.contact_id IS NULL OR EXISTS (SELECT 1 FROM crm_contacts vsc WHERE vsc.id = ${alias}.contact_id AND COALESCE(vsc.owner_id, vsc.user_id) IN ${inList}))
-    AND (${alias}.company_id IS NULL OR EXISTS (SELECT 1 FROM crm_companies vsco WHERE vsco.id = ${alias}.company_id AND COALESCE(vsco.owner_id, vsco.user_id) IN ${inList}))
-    AND (${alias}.deal_id IS NULL OR EXISTS (SELECT 1 FROM crm_deals vsd WHERE vsd.id = ${alias}.deal_id AND COALESCE(vsd.owner_id, vsd.user_id) IN ${inList}))
+    AND ${linked('contact_id', 'crm_contacts', 'vsc')}
+    AND ${linked('company_id', 'crm_companies', 'vsco')}
+    AND ${linked('deal_id', 'crm_deals', 'vsd')}
+    AND ${linked('lead_id', 'crm_leads', 'vsl')}
+    AND ${linked('object_record_id', 'crm_object_records', 'vsor')}
   )`;
-  return { sql, args: [...scope, ...scope, ...scope, ...scope] };
+  return { sql, args: [...scope, ...scope, ...scope, ...scope, ...scope, ...scope] };
+}
+
+/** Registros a los que apunta una actividad (los que falten cuentan como sin vínculo). */
+export interface ActivityRefs {
+  contact_id?: string | null;
+  company_id?: string | null;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  object_record_id?: string | null;
+  owner_id?: string | null;
 }
 
 type RecordTable = 'crm_contacts' | 'crm_companies' | 'crm_deals';
@@ -187,19 +208,20 @@ export async function canSeeOwnedRow(
   return canSeeOwner(scope, row.owner_id, workspaceId);
 }
 
-/** ¿Ve todos los registros referenciados por una actividad? */
+/** ¿Ve todos los registros referenciados por una actividad? (misma regla que activityScopeSql) */
 export async function canSeeActivityRefs(
   workspaceId: string,
-  refs: { contact_id?: string | null; company_id?: string | null; deal_id?: string | null; owner_id?: string | null },
+  refs: ActivityRefs,
   scope: OwnerScope | undefined,
+  db: Db = getDb(),
 ): Promise<boolean> {
   if (!scope) return true;
-  if (refs.contact_id && !(await canSeeRecord(workspaceId, 'crm_contacts', refs.contact_id, scope))) return false;
-  if (refs.company_id && !(await canSeeRecord(workspaceId, 'crm_companies', refs.company_id, scope))) return false;
-  if (refs.deal_id && !(await canSeeRecord(workspaceId, 'crm_deals', refs.deal_id, scope))) return false;
-  if (!refs.contact_id && !refs.company_id && !refs.deal_id) {
-    return canSeeOwner(scope, refs.owner_id ?? null, workspaceId);
-  }
+  if (refs.contact_id && !(await canSeeRecord(workspaceId, 'crm_contacts', refs.contact_id, scope, db))) return false;
+  if (refs.company_id && !(await canSeeRecord(workspaceId, 'crm_companies', refs.company_id, scope, db))) return false;
+  if (refs.deal_id && !(await canSeeRecord(workspaceId, 'crm_deals', refs.deal_id, scope, db))) return false;
+  if (refs.lead_id && !(await canSeeOwnedRow(workspaceId, 'crm_leads', refs.lead_id, scope, db))) return false;
+  if (refs.object_record_id && !(await canSeeOwnedRow(workspaceId, 'crm_object_records', refs.object_record_id, scope, db))) return false;
+  if (!ACTIVITY_REF_COLUMNS.some((c) => refs[c])) return canSeeOwner(scope, refs.owner_id ?? null, workspaceId);
   return true;
 }
 
@@ -299,12 +321,10 @@ export async function canSeeActivity(
   db: Db = getDb(),
 ): Promise<boolean> {
   const row = (await db
-    .prepare('SELECT contact_id, company_id, deal_id, owner_id FROM crm_activities WHERE id = ? AND user_id = ?')
-    .get(id, workspaceId)) as
-    | { contact_id: string | null; company_id: string | null; deal_id: string | null; owner_id: string | null }
-    | undefined;
+    .prepare('SELECT contact_id, company_id, deal_id, lead_id, object_record_id, owner_id FROM crm_activities WHERE id = ? AND user_id = ?')
+    .get(id, workspaceId)) as ActivityRefs | undefined;
   if (!row) return false;
-  return canSeeActivityRefs(workspaceId, row, scope);
+  return canSeeActivityRefs(workspaceId, row, scope, db);
 }
 
 // ---------- Equipos de venta ----------
@@ -440,4 +460,49 @@ export function scopeDealDetail<T extends { contacts: Owned[]; company: Owned | 
     company: detail.company && canSeeOwner(scope, detail.company.owner_id, detail.company.user_id) ? detail.company : null,
     companies: filterByScope(detail.companies, scope),
   };
+}
+
+// ---------- Referencias en una escritura ----------
+
+/** Registros que nombra una escritura (alta o edición) por id. */
+export interface WriteRefs {
+  contactId?: string | null;
+  contactIds?: readonly string[] | null;
+  addContactIds?: readonly string[] | null;
+  removeContactIds?: readonly string[] | null;
+  companyId?: string | null;
+  companyIds?: readonly string[] | null;
+  parentCompanyId?: string | null;
+  dealId?: string | null;
+  leadId?: string | null;
+  objectRecordId?: string | null;
+}
+
+/**
+ * Una escritura no puede vincular un registro que la persona no ve: lanza el
+ * mismo CrmRefError que un id que no existe (así la respuesta no confirma que
+ * existe). Sin alcance (todo visible) no hace nada; la existencia la valida
+ * después assertRefs.
+ */
+export async function assertVisibleRefs(
+  workspaceId: string,
+  refs: WriteRefs,
+  scope: OwnerScope | undefined,
+  db: Db = getDb(),
+): Promise<void> {
+  if (!scope) return;
+  const all = async (table: RecordTable, ids: Array<string | null | undefined>, code: string) => {
+    const list = ids.filter((v): v is string => typeof v === 'string' && v !== '');
+    if (!list.length) return;
+    const ok = new Set(await visibleIds(workspaceId, table, list, scope, db));
+    if (list.some((id) => !ok.has(id))) throw new CrmRefError(code);
+  };
+  await all('crm_contacts', [refs.contactId, ...(refs.contactIds ?? []), ...(refs.addContactIds ?? []), ...(refs.removeContactIds ?? [])], 'invalid_contact');
+  await all('crm_companies', [refs.companyId, ...(refs.companyIds ?? [])], 'invalid_company');
+  await all('crm_companies', [refs.parentCompanyId], 'invalid_company');
+  await all('crm_deals', [refs.dealId], 'invalid_deal');
+  if (refs.leadId && !(await canSeeOwnedRow(workspaceId, 'crm_leads', refs.leadId, scope, db))) throw new CrmRefError('invalid_lead');
+  if (refs.objectRecordId && !(await canSeeOwnedRow(workspaceId, 'crm_object_records', refs.objectRecordId, scope, db))) {
+    throw new CrmRefError('invalid_record');
+  }
 }
