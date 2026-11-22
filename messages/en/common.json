@@ -1566,6 +1566,40 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "pulse": {
+      "intro": {
+        "title": "Welcome to Pulse",
+        "body": "Pulse measures what people do on your site or app: visits, events, funnels and retention. This tour points out the main parts."
+      },
+      "newProject": {
+        "title": "Create a project",
+        "body": "A project holds the data of one site or app and gives you a snippet to paste on it. Create one for each thing you want to measure."
+      },
+      "setup": {
+        "title": "Install the snippet",
+        "body": "Install and settings has the snippet for your site and the project's key and options. Visits show up a few seconds after you paste it."
+      },
+      "web": {
+        "title": "Web analytics",
+        "body": "Visitors, pageviews, sessions and bounce rate for the range you pick. Select a row in the tables below to filter the whole page by it."
+      },
+      "events": {
+        "title": "Activity",
+        "body": "Every event as it comes in, with the person and the page. Use it to check that the snippet works."
+      },
+      "insights": {
+        "title": "Insights",
+        "body": "Charts you build from your events: trends, funnels, retention and paths. Save one to see it again or add it to a dashboard."
+      },
+      "dashboards": {
+        "title": "Dashboards",
+        "body": "Put your insights together on one page for your team, and get them by email on a schedule."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "social": {
       "intro": {
         "title": "Welcome to Social",

@@ -1566,6 +1566,40 @@
         "body": "Você pode fazer de novo pelo menu da sua conta."
       }
     },
+    "pulse": {
+      "intro": {
+        "title": "Boas-vindas ao Pulse",
+        "body": "O Pulse mede o que as pessoas fazem no seu site ou app: visitas, eventos, funis e retenção. Este tour mostra as partes principais."
+      },
+      "newProject": {
+        "title": "Crie um projeto",
+        "body": "Um projeto guarda os dados de um site ou app e te dá um snippet para colar nele. Crie um para cada coisa que você quer medir."
+      },
+      "setup": {
+        "title": "Instale o snippet",
+        "body": "Em Instalar e configurações estão o snippet para o seu site e a chave e as opções do projeto. As visitas aparecem poucos segundos depois de colar."
+      },
+      "web": {
+        "title": "Web analytics",
+        "body": "Visitantes, visualizações, sessões e rejeição no período que você escolher. Selecione uma linha das tabelas abaixo para filtrar a página inteira por ela."
+      },
+      "events": {
+        "title": "Atividade",
+        "body": "Cada evento assim que chega, com a pessoa e a página. Serve para conferir se o snippet funciona."
+      },
+      "insights": {
+        "title": "Insights",
+        "body": "Gráficos que você monta com seus eventos: tendências, funis, retenção e caminhos. Salve um para ver de novo ou colocar num painel."
+      },
+      "dashboards": {
+        "title": "Painéis",
+        "body": "Junte seus insights numa página para o seu time e receba por email de tempos em tempos."
+      },
+      "done": {
+        "title": "Fim do tour",
+        "body": "Você pode fazer de novo pelo menu da sua conta."
+      }
+    },
     "social": {
       "intro": {
         "title": "Boas-vindas ao Social",
