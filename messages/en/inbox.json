@@ -1,6 +1,6 @@
 {
   "panels": { "list": "Resize the chat list", "details": "Resize the contact info", "hint": "Drag to change the width. Double-click to go back to the original." },
-  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "snooze": "Snooze…", "unsnooze": "Cancel snooze", "pin": "Pin chat", "unpin": "Unpin chat", "favorite": "Add to Favorites", "unfavorite": "Remove from Favorites", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "keepArchived": "Keep archived", "keepArchivedOff": "Stop keeping archived", "groupInfo": "Group info" },
+  "rowMenu": { "label": "Options for {name}", "newWindow": "Open in new window", "archive": "Archive chat", "unarchive": "Unarchive chat", "snooze": "Snooze…", "unsnooze": "Cancel snooze", "pin": "Pin chat", "unpin": "Unpin chat", "favorite": "Add to Favorites", "unfavorite": "Remove from Favorites", "vip": "Mark as VIP", "unvip": "Remove from VIP", "mute": "Mute notifications", "unmute": "Unmute notifications", "move": "Add to folder", "contactInfo": "Contact info", "keepArchived": "Keep archived", "keepArchivedOff": "Stop keeping archived", "groupInfo": "Group info" },
   "nav": { "inbox": "Inbox", "reply": "To reply", "waiting": "Waiting", "snoozed": "Snoozed", "scheduled": "Scheduled", "done": "Archived", "removed": "Removed from Inbox", "compose": "New message", "analytics": "Analytics", "contacts": "Contacts" },
   "views": {
     "inbox": "Inbox",
@@ -11,6 +11,7 @@
     "email": "Email",
     "groups": "Groups",
     "favorites": "Favorites",
+    "vip": "VIP",
     "pinned": "Pinned",
     "snoozed": "Snoozed",
     "scheduled": "Scheduled",
@@ -19,7 +20,7 @@
     "nofolder": "No folder",
     "removed": "Removed from Inbox"
   },
-  "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread", "favorites": "Favorites" },
+  "tabs": { "inbox": "All", "whatsapp": "WhatsApp", "email": "Email", "groups": "Groups", "unread": "Unread", "favorites": "Favorites", "vip": "VIP" },
   "when": {
     "title": { "snooze": "Snooze until", "followUp": "Remind me if there is no reply", "sendLater": "Send later" },
     "followUpHelp": "If they have not written back by then, the chat comes back to the top of your inbox.",
@@ -194,6 +195,7 @@
       "email": "No email here",
       "groups": "No groups here",
       "favorites": "No favorites yet. Add a chat from its menu or with a right click.",
+      "vip": "No VIP chats yet. Mark a person as VIP from the chat menu: their WhatsApp chats and emails show up here.",
       "pinned": "Nothing pinned. Press P on a chat to pin it.",
       "snoozed": "Nothing snoozed. Press H on a chat to snooze it.",
       "scheduled": "Nothing scheduled. Use Later next to Send.",
@@ -248,6 +250,8 @@
     "unpin": "{n, plural, one {Unpinned} other {# chats unpinned}}",
     "favorite": "{n, plural, one {Added to Favorites} other {# chats added to Favorites}}",
     "unfavorite": "{n, plural, one {Removed from Favorites} other {# chats removed from Favorites}}",
+    "vip": "Marked as VIP",
+    "unvip": "Removed from VIP",
     "archive": "{n, plural, one {Archived} other {# chats archived}}",
     "unarchive": "{n, plural, one {Unarchived} other {# chats unarchived}}",
     "keepArchivedOn": "Kept archived",
@@ -290,6 +294,8 @@
     "unpin": "Unpin",
     "favorite": "Add to Favorites",
     "unfavorite": "Remove from Favorites",
+    "vip": "Mark as VIP",
+    "unvip": "Remove from VIP",
     "read": "Mark read",
     "unread": "Mark unread",
     "mute8h": "Mute for 8 hours",

@@ -129,6 +129,12 @@ export const HeartIcon = (p: P) => (
     <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
   </Svg>
 );
+/** VIP: una corona de trazo. */
+export const VipIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 18h16M5 15 4 7l5 4 3-6 3 6 5-4-1 8z" />
+  </Svg>
+);
 /** Reportado: una banderita, como la de WhatsApp. */
 export const FlagIcon = (p: P) => (
   <Svg {...p}>

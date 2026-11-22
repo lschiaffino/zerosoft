@@ -54,6 +54,7 @@
       "all": "No hay chats abiertos. Los mensajes nuevos de WhatsApp llegan acá.",
       "unread": "No hay nada sin leer.",
       "favorites": "Todavía no hay favoritos. Agregá un chat desde su menú.",
+      "vip": "Todavía no hay chats VIP. Marcá a una persona como VIP desde el menú de su chat.",
       "unanswered": "Todos los mensajes de clientes tienen respuesta.",
       "flagged": "Ningún chat pasó el límite sin respuesta.",
       "mine": "No tenés chats asignados.",
@@ -102,10 +103,17 @@
     "added": "Agregado a Favoritos",
     "removed": "Quitado de Favoritos"
   },
+  "vip": {
+    "add": "Marcar como VIP",
+    "remove": "Quitar de VIP",
+    "added": "{name} es VIP: sus chats aparecen en VIP",
+    "removed": "{name} ya no es VIP"
+  },
   "filters": {
     "all": "Todos",
     "unread": "No leídos",
     "favorites": "Favoritos",
+    "vip": "VIP",
     "unanswered": "Esperando",
     "flagged": "Vencidos",
     "mine": "Míos",
@@ -2581,6 +2589,7 @@
     "flagged": "Vencidos",
     "pinned": "Fijados",
     "favorite": "En Favoritos",
+    "vip": "VIP",
     "muted": "Silenciados",
     "assignee": "Asignado a",
     "me": "Yo",
@@ -2606,6 +2615,7 @@
     "hsProps": "Propiedades de la empresa en HubSpot",
     "hsSummary": "{n, plural, one {# condición} other {# condiciones}}",
     "help": {
+      "vip": "Chats 1:1 con las personas que el equipo marcó como VIP, en cualquier línea.",
       "status": "Si no eliges nada, la lista muestra los chats abiertos.",
       "waiting": "El cliente escribió último y todavía nadie respondió.",
       "flagged": "Chats que esperan hace más que el límite de respuesta de Ajustes.",
@@ -2632,7 +2642,8 @@
       "hubspot": "crm empresa negocio",
       "muted": "silencio avisos",
       "pinned": "fijo arriba",
-      "favorite": "favoritos favorito corazón lista"
+      "favorite": "favoritos favorito corazón lista",
+      "vip": "vip importantes personas prioridad"
     }
   },
   "slash": {
