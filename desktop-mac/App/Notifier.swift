@@ -29,6 +29,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var authorization: Task<Void, Never>?
     /// Opens an app path in the web view (already checked with DeepLink.target).
     var openPath: (URL) -> Void = { _ in }
+    /// Products with something unread: the dots on their tabs (block 4).
+    var onUnread: (Set<String>) -> Void = { _ in }
     /// UI tests: every badge update and every page notification decision.
     var onBadge: ((String) -> Void)?
     var onPageNotification: ((String, String?, Bool) -> Void)?
@@ -96,10 +98,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             // Signed out: no count, and the next session starts without `since`.
             since = nil
             setBadge(0)
+            onUnread([])
             return
         }
         guard status == 200, let update = Badge.parse(body) else { return }
         setBadge(update.total)
+        onUnread(update.unread)
         for item in Badge.toShow(update, since: since, appActive: NSApp.isActive, seen: Set(seen)) {
             deliver(id: item.id, title: item.title, body: nil, path: item.path)
         }

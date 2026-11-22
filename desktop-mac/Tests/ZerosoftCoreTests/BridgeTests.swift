@@ -195,7 +195,7 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
         let body: [String: Any] = ["cmd": command.rawValue, "args": minimal[command] ?? [:]]
         #expect(accepted(body)?.command == command, "\(command)")
     }
-    #expect(BridgeCommand.implemented == [.info, .ready, .startLogin, .notify])
+    #expect(BridgeCommand.implemented == [.info, .ready, .startLogin, .notify, .tabs])
 }
 
 // MARK: info and the script
@@ -207,8 +207,10 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     #expect(info.reply["lockdownSetting"] as? String == "on")
     #expect(info.reply["store"] as? Bool == false)
     #expect(info.reply["platform"] as? String == "darwin")
-    // What this build does not have yet, so the web app hides it (lib/desktop-bridge.ts).
-    for key in ["settingsWindow", "updateFeed", "tabs"] { #expect(info.reply[key] as? Bool == false, "\(key)") }
+    // What this build does not have yet, so the web app hides it (lib/desktop-bridge.ts), and
+    // the tabs it has since block 4.
+    for key in ["settingsWindow", "updateFeed"] { #expect(info.reply[key] as? Bool == false, "\(key)") }
+    #expect(info.reply["tabs"] as? Bool == true)
     #expect(JSONSerialization.isValidJSONObject(info.reply))
     #expect(!BridgeInfo(version: "1", store: true, lockdown: .system).lockdown)
     #expect(BridgeInfo(version: "1", store: true, lockdown: .off).reply["store"] as? Bool == true)
@@ -224,9 +226,16 @@ private func frame(_ scheme: String, _ host: String, _ port: Int = 0, main: Bool
     // startLogin is how desktopBridge() finds the app; the shim replaces window.Notification
     // after the features are measured.
     #expect(script.contains("startLogin: function () { call('startLogin')"))
-    #expect(script.contains("settingsWindow: false") && script.contains("updateFeed: false") && script.contains("tabs: false"))
+    #expect(script.contains("settingsWindow: false") && script.contains("updateFeed: false") && script.contains("tabs: true"))
     let measured = script.range(of: "notification: typeof Notification")
     let shim = script.range(of: "Object.defineProperty(window, 'Notification'")
     #expect(measured != nil && shim != nil && measured!.lowerBound < shim!.lowerBound)
     #expect(BridgeScript.js("a\u{2028}b") == "\"a\\u2028b\"")
+    // Tabs: the page reports its path and title, and only same-origin links become tab actions.
+    #expect(script.contains("tabs({ action: 'state', path: p, title: t })"))
+    #expect(script.contains("u.origin === location.origin && p.length <= \(Bridge.maxPath)"))
+    #expect(script.contains("u.pathname.indexOf('/api/') === 0) return null"))
+    #expect(script.contains("action: e.altKey ? 'open-window' : e.shiftKey ? 'open-tab' : 'open'"))
+    // The JS regex keeps its backslashes (\s, not s).
+    #expect(script.contains("/^zerosoft(\\s*[·|]|$)/i"))
 }

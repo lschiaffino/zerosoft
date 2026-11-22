@@ -1,23 +1,29 @@
 import AppKit
 import WebKit
 
-/// One window with one web view of the server, the navigation policy and the load watchdog
-/// (blocks 1 and 2 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links, notifications
-/// and the Dock badge (block 3). The app's own requests go only to the server: the token
-/// exchange and the badge poll (NativeHTTP).
+/// Windows with tabs, each tab a web view of the server with the navigation policy and the load
+/// watchdog (blocks 1, 2 and 4 of docs/desktop-swift.md); Google sign-in, `zerosoft://` links,
+/// notifications and the Dock badge (block 3). The app's own requests go only to the server: the
+/// token exchange and the badge poll (NativeHTTP).
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: NSWindow!
-    private var web: WebController!
+    private var tabs: TabsController!
     private var auth: AuthController!
     private var notifier: Notifier!
     private var server = Server.defaultOrigin
-    /// A link that arrived before the window existed (the app was launched by it).
+    /// The tabs exist (a link that arrives before waits in `launchLink`).
+    private var started = false
+    /// A link that arrived before the windows existed (the app was launched by it).
     private var launchLink: URL?
     /// UI tests: what each deep link did.
     private var onDeepLink: ((String) -> Void)?
     private let lang = Lang.pick(Locale.preferredLanguages)
+    /// The page of the first window when there is no saved session.
+    private var firstPath = TabSession.home
+    #if DEBUG
+    private var testPanel: TestPanel?
+    #endif
 
     static func main() {
         let app = NSApplication.shared
@@ -32,95 +38,119 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let server = Server.resolve(defaults.string(forKey: Server.defaultsKey))
         self.server = server
         let lockdown = LockdownSetting(raw: defaults.string(forKey: LockdownSetting.defaultsKey))
+        // No macOS window tabs: the app has its own strip.
+        NSWindow.allowsAutomaticWindowTabbing = false
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "zerosoft"
-        window.minSize = NSSize(width: 480, height: 360)
-        window.isReleasedWhenClosed = false
-        window.backgroundColor = .windowBackgroundColor
-        window.center()
-        // The window owns its geometry; nothing else restores it.
-        window.setFrameAutosaveName("main")
-        self.window = window
-
-        let content = MainContentView(frame: window.contentLayoutRect)
         var openExternal: (URL) -> Void = { NSWorkspace.shared.open($0) }
+        var testing = false
         #if DEBUG
-        let testing = defaults.bool(forKey: "ZSUITest")
-        // UI tests: record what would open in the browser instead of launching it.
+        testing = defaults.bool(forKey: "ZSUITest")
         if testing {
-            openExternal = content.installTestRecorder()
+            let panel = TestPanel()
+            testPanel = panel
+            // UI tests: record what would open in the browser instead of launching it.
+            openExternal = { [weak panel] url in panel?.external(url) }
         }
         #endif
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let info = BridgeInfo(version: version, store: Self.storeBuild, lockdown: lockdown)
-        let web = WebController(server: server, lockdown: lockdown, info: info, lang: lang, openExternal: openExternal)
-        self.web = web
+        let lang = self.lang
         let http = NativeHTTP(server: server)
         let auth = AuthController(server: server, lang: lang, http: http)
         let notifier = Notifier(server: server, http: http)
         self.auth = auth
         self.notifier = notifier
-        auth.window = window
-        auth.onSignedIn = { [weak web, weak notifier] in
-            if let url = URL(string: server + "/app") { web?.open(url) }
+
+        let store = SessionStore.standard(testing: testing)
+        let tabs = TabsController(server: server, lang: lang, store: store) {
+            WebController(server: server, lockdown: lockdown, info: info, lang: lang, openExternal: openExternal)
+        }
+        self.tabs = tabs
+        tabs.configure = { [weak auth, weak notifier] web in
+            // The sign-in sheet goes on the window of the tab that asked for it.
+            web.onStartLogin = { [weak web] in
+                auth?.window = web?.webView.window
+                auth?.begin()
+            }
+            web.onNotify = { title, body in notifier?.pageNotification(title: title, body: body) }
+        }
+        auth.onSignedIn = { [weak tabs, weak notifier] in
+            tabs?.signedIn()
             notifier?.restart()
         }
-        notifier.openPath = { [weak self] url in self?.show(url) }
-        web.onStartLogin = { [weak auth] in auth?.begin() }
-        web.onNotify = { [weak notifier] title, body in notifier?.pageNotification(title: title, body: body) }
+        notifier.openPath = { [weak tabs] url in tabs?.navigateActive(url) }
+        notifier.onUnread = { [weak tabs] products in tabs?.setUnread(products) }
         #if DEBUG
-        if testing {
-            content.installBridgeRecorder(web)
-            onDeepLink = content.installBlock3Recorders(auth: auth, notifier: notifier)
+        if testing, let panel = testPanel {
+            let configure = tabs.configure
+            tabs.configure = { [weak panel] web in
+                configure(web)
+                panel?.watch(web)
+            }
+            panel.watch(auth: auth, notifier: notifier)
+            onDeepLink = { [weak panel] what in panel?.deepLink(what) }
+            var saves = 0
+            tabs.onChange = { [weak panel] session in panel?.set("zs-test-tabs", "tabs \(session.summary) end") }
+            tabs.onSaved = { [weak panel] in
+                saves += 1
+                panel?.set("zs-test-session", "saved \(saves)")
+            }
             notifier.useSystemCenter = false
             auth.testBrowser = TestBrowser.follow
+            // Each test starts with no session file unless it asks to keep one (the relaunch
+            // test), or hands one over to check what a restore accepts.
+            if !defaults.bool(forKey: "ZSKeepSession") { store.remove() }
+            if let given = defaults.string(forKey: "ZSTestSession").flatMap({ Data(base64Encoded: $0) }) { store.write(given) }
+            // The fixture's main page is the server root; a fresh session opens it instead of
+            // the home page.
+            if let path = defaults.string(forKey: "ZSStartPath") { firstPath = path }
         }
         #endif
-        content.install(web)
-        window.contentView = content
 
-        NSApp.mainMenu = MainMenu.build(lang: lang, target: self)
-        window.makeKeyAndOrderFront(nil)
+        NSApp.mainMenu = MainMenu.build(lang: lang, tabs: tabs)
         NSApp.activate(ignoringOtherApps: true)
-        let first = launchLink.flatMap(appPage)
-        launchLink = nil
         #if DEBUG
         if testing {
             // Each UI test starts signed out: no session cookie left by an earlier test.
             Task { @MainActor in
-                let store = WKWebsiteDataStore.default()
-                await store.removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: .distantPast)
-                web.start(at: first)
-                notifier.start()
+                let data = WKWebsiteDataStore.default()
+                await data.removeData(ofTypes: [WKWebsiteDataTypeCookies], modifiedSince: .distantPast)
+                self.startTabs()
             }
             return
         }
         #endif
-        web.start(at: first)
+        startTabs()
+    }
+
+    private func startTabs() {
+        let first = launchLink.flatMap(appPage).map(TabsController.path(of:))
+        launchLink = nil
+        tabs.start(launchPath: first, firstPath: firstPath)
+        started = true
         notifier.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        tabs?.willTerminate()
     }
 
     // MARK: Deep links
 
     /// `zerosoft://` links (CFBundleURLTypes). Only `open` with a safe app path does anything:
-    /// it shows that page of the configured server. A sign-in callback is accepted only by the
-    /// ASWebAuthenticationSession that asked for it, so a link with one is ignored here.
+    /// it shows that page of the configured server in the tab in front. A sign-in callback is
+    /// accepted only by the ASWebAuthenticationSession that asked for it, so a link with one is
+    /// ignored here.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls.prefix(1) {
-            guard web != nil else {
+            guard started else {
                 launchLink = url
                 return
             }
             if let page = appPage(url) {
-                show(page)
+                tabs.navigateActive(page)
             } else {
-                window.makeKeyAndOrderFront(nil)
+                tabs.showLast()
             }
         }
     }
@@ -144,12 +174,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func show(_ url: URL) {
-        web.open(url)
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
     /// The Mac App Store build (`STORE` compilation condition, block 10) hides purchase links.
     #if STORE
     static let storeBuild = true
@@ -160,11 +184,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { window.makeKeyAndOrderFront(nil) }
+        if !tabs.hasVisibleWindow { tabs.showLast() }
         return true
     }
 
-    @objc func reloadPage(_ sender: Any?) {
-        web.reloadPage()
+    /// Dock menu: New Window.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let item = menu.addItem(withTitle: Strings.text(.menuNewWindow, lang), action: #selector(TabsController.newWindowAction(_:)), keyEquivalent: "")
+        item.target = tabs
+        return menu
     }
 }
