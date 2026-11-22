@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: blocks 1 to 6 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 7 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -582,7 +582,7 @@ capability is on. Where the code differs from the table above or from the Tauri 
   window, as `navigate_active` in tabs.rs (section 4.7 said "opens the tab of the notification").
 - A fresh session opens `/app`, as the Tauri app; blocks 1 to 3 opened the server root.
 - The tab preferences (suspend, minutes, restore, Cmd-click target) are read from `session.json`;
-  the switches arrive with Settings in block 5. The recording dot waits for block 7.
+  the switches arrive with Settings in block 5. The recording dot waits for block 7 (built there).
 
 **Built in block 5** (`Sources/ZerosoftCore/AppSettings.swift`, `Sources/ZerosoftCore/SettingsAPI.swift`,
 `App/SettingsWindow.swift`, `App/SettingsModel.swift`, `App/OnboardingWindow.swift`,
@@ -700,6 +700,61 @@ dictation. Where the code differs from the table above or from the Tauri app:
   the log, and the Swift code paths in `desktop/privacy-facts.json` too. UI tests use a fake audio
   source and fake microphone and Accessibility permissions (CI cannot grant either and must not
   post keystrokes); the real capture and keystroke need a run on a real Mac before TestFlight.
+
+**Built in block 7** (`Sources/ZerosoftCore/Meetings.swift`; `App/Meetings/`: `SystemAudioCapture.swift`,
+`SystemAudioController.swift`, `MeetingsController.swift`, `RecordingIndicator.swift`): meetings. The
+bridge `recording` and `systemAudioStart/Read/Stop` have their native side, `recordingIndicator` is
+on and `systemAudio` is on except under forced Lockdown restrictions. Where the code differs from
+the table above or from the Tauri app:
+
+- **Capture.** A private Core Audio process tap of every process but zerosoft, in a private
+  aggregate device clocked by the default output, on macOS 14.2 and later; ScreenCaptureKit's audio
+  of the main display (no video output taken) on 13 to 14.1, as planned. Samples are mixed to
+  mono and converted to 16 kHz 16-bit in the app (`PCMResampler`: a box filter down, linear up,
+  independent of how the audio thread splits the stream), held in memory at most 60 s between two
+  reads (`PCMQueue`) and handed to the page as base64, as system_audio.rs does. Nothing is written
+  to disk or logged; logs carry closed tags and OSStatus codes only.
+- **Upload.** Nothing native uploads: as in the Tauri app, the page records (MediaRecorder) and
+  uploads through the Voice session routes (`/api/voice/sessions/...`). The app only feeds the
+  page the computer's audio and marks the recording.
+- **Start rules.** As commands.rs: a capture starts only from the tab in use (in front of the key
+  window, the app in front); only that tab reads, stops or restarts it. It also ends when that tab
+  closes, is suspended, loads another document or its web process ends, and 30 s after the page's
+  last read. Such a tab is never suspended. With the "Let meetings capture the computer's audio"
+  switch off (Settings › Meetings, on by default as in the Tauri app, where it lived in Privacy) or
+  under forced Lockdown restrictions (no Web Audio for the page) the start answers `unsupported`
+  and the page records the microphone only; switching it off stops a capture.
+- **Permissions.** No entitlement was added: taps use the existing audio input entitlement and
+  `NSAudioCaptureUsageDescription`, ScreenCaptureKit only the person's Screen Recording approval
+  (`NSScreenCaptureUsageDescription` is set as well); `scripts/check-signature.sh` checks both
+  strings. Prompts show only on the first capture or from Settings › Permissions' "Allow screen
+  recording", never at launch. Audio taps have no public permission check, so `denied` comes only
+  from the ScreenCaptureKit path; a tap macOS refused records silence, which the page already warns
+  about (`systemAudioSilent`). Their Permissions row explains when macOS asks and opens System
+  Settings instead of starting a throwaway capture to raise the prompt. The Tauri app also opened
+  System Settings on `denied`; this app leaves that to the row's button.
+- **Marks (guideline 2.5.14).** The tab's red dot (block 4), the menu bar item's red dot with
+  "Recording a meeting" or "Capturing the computer's audio", Open the recording, Stop recording and
+  Stop capturing the computer's audio, and the floating indicator (a non-activating `NSPanel`:
+  click opens the tab, hover shows the time, right click Open, Stop, Hide until the next
+  recording, drag to move, position kept in settings.json as `indicatorPosition`). While a meeting
+  records or the computer's audio is captured the menu bar item shows even when Settings ›
+  General hides it. The indicator follows its switch for meetings but always shows for the
+  computer's audio while the tab is not in front.
+- **Differences from indicator.rs.** The recording flag belongs to the tab that sent it: another
+  tab saying "not recording" (Voice says it whenever its recorder mounts) no longer clears it.
+  Stop from the indicator or the menu bar item sends `zerosoft:stop-recording` to the page and
+  also stops the computer's audio natively right away, instead of waiting for the page.
+- **Settings.** A Meetings section (what records now with Stop, the indicator switch, the computer
+  audio switch, "Open meetings in Voice") between Tabs and Permissions; Permissions gained
+  Computer audio and Screen recording. settings.json gained `recordingIndicator`,
+  `allowSystemAudio` and `indicatorPosition`.
+- **Not in this block.** Activity-log events for meetings and the computer's audio, and the Swift
+  code paths in `desktop/privacy-facts.json`, wait for block 9. UI tests use a fake capture and
+  fake permissions (CI cannot grant Screen Recording or system audio recording); the real tap and
+  ScreenCaptureKit paths need a run on a real Mac (one on 14.2 or later, one on 13 or 14.1) before
+  TestFlight. The bridge test's "unimplemented command" now sends `recOverlay`; block 8 implements
+  it and must pick another check (or drop it once every command has a native side).
 
 Parallel work: after block 2, blocks 4 and 5 can run at the same time; 6 and 7 at the same time
 after 5; block 10's signing setup any time after 1 once the owner's account exists. At most two blocks

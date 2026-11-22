@@ -41,6 +41,14 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     var onOpenInNewTab: ((URL) -> Void)?
     /// The page finished loading (the tabs controller opens the search of a new tab, Cmd+T).
     var onFinished: (() -> Void)?
+    /// Meetings (block 7): the bridge's recording flag and computer audio commands, and the
+    /// page's document going away (another document committed, or its process ended): whatever
+    /// it recorded or captured ended with it.
+    var onRecording: ((Bool, Double?, String?) -> Void)?
+    var onSystemAudioStart: ((@escaping @MainActor (String) -> Void) -> Void)?
+    var onSystemAudioRead: (() -> String)?
+    var onSystemAudioStop: (() -> Void)?
+    var onDocumentGone: (() -> Void)?
     /// The web view with the native overlay on top: what a window shows for this tab.
     private(set) var content: TabContentView!
 
@@ -79,6 +87,16 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         bridge.onNotify = { [weak self] title, body in self?.onNotify?(title, body) }
         bridge.onOpenSettings = { [weak self] in self?.onOpenSettings?() }
         bridge.onTabs = { [weak self] action, path, title, n in self?.onTabs?(action, path, title, n) }
+        bridge.onRecording = { [weak self] active, startedAt, path in self?.onRecording?(active, startedAt, path) }
+        bridge.onSystemAudioStart = { [weak self] reply in
+            guard let start = self?.onSystemAudioStart else {
+                reply(SystemAudioResult.unsupported.rawValue)
+                return
+            }
+            start(reply)
+        }
+        bridge.onSystemAudioRead = { [weak self] in self?.onSystemAudioRead?() ?? "" }
+        bridge.onSystemAudioStop = { [weak self] in self?.onSystemAudioStop?() }
         model.onOpenInBrowser = { [weak self] in
             guard let self else { return }
             self.openExternal(self.lastRequested ?? self.serverURL)
@@ -110,7 +128,18 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
         onStartLogin = nil
         onNotify = nil
         onOpenSettings = nil
+        onRecording = nil
+        onSystemAudioStart = nil
+        onSystemAudioRead = nil
+        onSystemAudioStop = nil
+        onDocumentGone = nil
         content.removeFromSuperview()
+    }
+
+    /// Stop from the indicator or the menu bar item: the page stops as with its own button
+    /// (`zerosoft:stop-recording`, DESKTOP_STOP_RECORDING_EVENT in lib/desktop-bridge.ts).
+    func dispatchStopRecording() {
+        webView.evaluateJavaScript("window.dispatchEvent(new Event('zerosoft:stop-recording'))", completionHandler: nil)
     }
 
     func goBack() {
@@ -291,6 +320,8 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         guard isCurrent(navigation) else { return }
+        // A new document: the old page and whatever it recorded are gone.
+        onDocumentGone?()
         send(.committed)
     }
 
@@ -316,6 +347,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        onDocumentGone?()
         send(.terminated(at: Date()))
     }
 

@@ -4,12 +4,16 @@ import { desktopBridge, desktopHasSettings, desktopHasTabs, desktopUsesUpdateFee
 const noop = () => {};
 /** Lo que define bridge_script en desktop/src-tauri/src/lib.rs (sin campos de capacidad). */
 const tauri = { version: '0.3.9', platform: 'darwin', systemAudio: true, dictation: true, startLogin: noop, openSettings: noop };
-/** Lo que define BridgeScript.swift en desktop-mac (bloque 4: pestañas; bloque 5: Ajustes nativos). */
+/**
+ * Lo que define BridgeScript.swift en desktop-mac (bloque 4: pestañas; bloque 5: Ajustes nativos;
+ * bloque 6: dictado; bloque 7: audio de la computadora e indicador de grabación).
+ */
 const swift = {
   version: '0.1.0',
   platform: 'darwin',
-  systemAudio: false,
-  dictation: false,
+  systemAudio: true,
+  dictation: true,
+  recordingIndicator: true,
   settingsWindow: true,
   updateFeed: false,
   tabs: true,
@@ -17,6 +21,10 @@ const swift = {
   lockdown: false,
   startLogin: noop,
   openSettings: noop,
+  recording: () => Promise.resolve(),
+  systemAudioStart: () => Promise.resolve('ok'),
+  systemAudioRead: () => Promise.resolve(''),
+  systemAudioStop: () => Promise.resolve(),
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -41,5 +49,13 @@ describe('desktopBridge() reconoce las dos apps de escritorio', () => {
     // Una versión anterior de la de Swift (bloques 2 a 4) dice settingsWindow: false y el botón no sale.
     expect(desktopHasSettings({ ...s, settingsWindow: false })).toBe(false);
     expect([desktopHasSettings(null), desktopUsesUpdateFeed(null), desktopHasTabs(null)]).toEqual([false, false, false]);
+  });
+});
+
+describe('el audio de la computadora en la app de Swift (bloque 7)', () => {
+  it('Rec y Voice lo piden por el puente, como en Tauri; con Lockdown la app no lo ofrece', async () => {
+    const { systemAudioSource } = await import('@/components/rec/recorder-media');
+    expect(systemAudioSource(true, swift)).toBe('native');
+    expect(systemAudioSource(true, { ...swift, systemAudio: false })).toBe('display');
   });
 });

@@ -102,12 +102,19 @@ final class DictationUITests: XCTestCase {
         el.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
     }
 
-    /// Opens the menu bar item's menu and clicks one of its items.
+    /// Opens the menu bar item's menu and clicks one of its items (waits until the item can be
+    /// clicked, and clicks once more if the menu did not open, as SettingsUITests does).
     private func menu(_ app: XCUIApplication, _ id: String, file: StaticString = #filePath, line: UInt = #line) {
         let item = app.statusItems.matching(identifier: "zs-status-item").firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 10), "no menu bar item", file: file, line: line)
-        item.click()
+        let hittable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: item)
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed, "the menu bar item cannot be clicked", file: file, line: line)
         let entry = app.menuItems.matching(identifier: "zs-status-\(id)").firstMatch
+        item.click()
+        if !entry.waitForExistence(timeout: 5) {
+            app.typeKey(.escape, modifierFlags: [])
+            item.click()
+        }
         XCTAssertTrue(entry.waitForExistence(timeout: 10), "no menu item \(id)", file: file, line: line)
         entry.click()
     }

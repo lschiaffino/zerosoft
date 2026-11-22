@@ -495,6 +495,47 @@ final class FixtureServer {
         <p><button onclick="window.zerosoftDesktop.startLogin()">Sign in with Google</button></p>
         <p><button onclick="new Notification('zs-note', { body: 'zs-body' })">Notify</button></p>
         <p><button onclick="window.zerosoftDesktop.openSettings()">Desktop settings</button></p>
+        <p><button onclick="zsMeeting.start()">Start meeting</button>
+          <button onclick="zsMeeting.later()">Start meeting soon</button>
+          <button onclick="zsMeeting.stop()">Stop meeting</button></p>
+        <p id="meeting">meeting pending</p>
+        <script>
+        // What components/voice/RecorderProvider.tsx and audio.ts do with the bridge: the
+        // recording flag, the computer's audio read every 250 ms, and Stop from the app.
+        window.zsMeeting = (function () {
+          var b = window.zerosoftDesktop, bytes = 0, timer = 0, res = 'none', stops = 0, rec = false;
+          var paint = function () {
+            document.getElementById('meeting').textContent = 'meeting rec=' + rec + ' start=' + res + ' audio=' + (bytes > 0) +
+              ' stops=' + stops + ' sys=' + (b ? b.systemAudio : 'none') + ' ind=' + (b ? b.recordingIndicator : 'none') + ' end';
+          };
+          var start = function () {
+            if (!b) return;
+            rec = true;
+            b.recording({ active: true, startedAt: Date.now() - 1000, path: '/app/voice/meetings/fixture-1' }).catch(function () {});
+            b.systemAudioStart().then(function (r) {
+              res = r;
+              paint();
+              if (r === 'ok') timer = setInterval(function () {
+                b.systemAudioRead().then(function (v) { bytes += atob(v).length; paint(); }, function () {});
+              }, 250);
+            }, function (e) { res = 'error:' + (e && e.message); paint(); });
+            paint();
+          };
+          var stop = function () {
+            clearInterval(timer);
+            if (b) {
+              b.systemAudioStop().catch(function () {});
+              b.recording({ active: false }).catch(function () {});
+            }
+            rec = false;
+            stops++;
+            paint();
+          };
+          addEventListener('zerosoft:stop-recording', stop);
+          setTimeout(paint, 0);
+          return { start: start, stop: stop, later: function () { setTimeout(start, 4000); } };
+        })();
+        </script>
         <p id="detect">detect pending</p>
         <p id="features">features</p>
         <script>
@@ -559,7 +600,7 @@ final class FixtureServer {
             res(function () { return h.postMessage({ cmd: 'eval', args: { code: '1' } }); }),
             res(function () { return h.postMessage({ cmd: 'notify', args: { title: new Array(5001).join('x') } }); }),
             res(function () { return h.postMessage({ cmd: 'recLevel', args: { level: 'loud' } }); }),
-            res(function () { return h.postMessage({ cmd: 'systemAudioStop', args: {} }); }),
+            res(function () { return h.postMessage({ cmd: 'recOverlay', args: { active: false } }); }),
             res(function () { return h.postMessage('info'); })
           ]).then(function (r) {
             show('bridge', 'bridge info=' + r[0] + ' unknown=' + r[1] + ' oversize=' + r[2] + ' badargs=' + r[3] +

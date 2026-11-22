@@ -11,7 +11,8 @@ import Foundation
 ///   (with the capability field `updateFeed` set to false for what this build does not have,
 ///   and `tabs` and `settingsWindow` true) and the methods with a native side: `info()`,
 ///   `startLogin()` (block 3; `desktopBridge()` in the web app finds the app by it, as with
-///   Tauri), `notify()`, `openSettings()` (block 5: the native Settings window).
+///   Tauri), `notify()`, `openSettings()` (block 5: the native Settings window), `recording()`
+///   and `systemAudioStart/Read/Stop()` (block 7: meetings).
 /// - `window.Notification` becomes a shim that hands the page's title and body to the native
 ///   side (the app shows it only while it is not in front), as the Tauri app does. The web
 ///   features are measured before the shim replaces it.
@@ -47,9 +48,9 @@ public enum BridgeScript {
           var bridge = Object.freeze({
             version: \(js(info.version)),
             platform: 'darwin',
-            systemAudio: false,
+            systemAudio: \(info.systemAudio),
             dictation: true,
-            recordingIndicator: false,
+            recordingIndicator: \(BridgeInfo.recordingIndicator),
             settingsWindow: \(BridgeInfo.settingsWindow),
             updateFeed: \(BridgeInfo.updateFeed),
             tabs: \(BridgeInfo.tabs),
@@ -60,7 +61,20 @@ public enum BridgeScript {
             openSettings: function () { call('openSettings').catch(quiet); },
             notify: function (title, body) {
               return call('notify', { title: text(title, \(Bridge.maxTitle)), body: body == null ? null : text(body, \(Bridge.maxBody)) });
-            }
+            },
+            // Meetings (block 7): the page's recording flag, and the computer's audio as
+            // 16-bit, 16 kHz mono PCM in base64 (lib/desktop-bridge.ts).
+            recording: function (s) {
+              s = s || {};
+              return call('recording', {
+                active: !!s.active,
+                startedAt: typeof s.startedAt === 'number' && isFinite(s.startedAt) && s.startedAt >= 0 ? s.startedAt : null,
+                path: typeof s.path === 'string' && s.path.length <= \(Bridge.maxPath) ? s.path : null
+              });
+            },
+            systemAudioStart: function () { return call('systemAudioStart'); },
+            systemAudioRead: function () { return call('systemAudioRead').then(function (v) { return typeof v === 'string' ? v : ''; }); },
+            systemAudioStop: function () { return call('systemAudioStop').then(function () {}); }
           });
           try { Object.defineProperty(window, 'zerosoftDesktop', { value: bridge }); } catch (e) { return; }
           var N = function (title, opts) { bridge.notify(title, opts && opts.body).catch(quiet); };

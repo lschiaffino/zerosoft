@@ -5,7 +5,9 @@
 	<!-- docs/desktop-swift.md, section 2.2. Each block adds the entitlements of its feature, and
 	     CI checks the signed app has exactly this list (scripts/check-signature.sh). Block 6:
 	     the microphone, for dictation. Pasting needs no entitlement (the person allows it in
-	     Privacy & Security › Accessibility). -->
+	     Privacy & Security › Accessibility). Block 7 (meetings) adds none: Core Audio taps use the
+	     audio input entitlement above plus their usage string, and ScreenCaptureKit needs only
+	     the person's Screen Recording approval. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.device.audio-input</key>

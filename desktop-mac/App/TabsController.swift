@@ -68,6 +68,13 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
     /// UI tests: the session after every change, and each write to disk.
     var onChange: ((TabSession) -> Void)?
     var onSaved: (() -> Void)?
+    /// Meetings (block 7): wires a tab's web controller with its id; a tab's web view went away
+    /// (closed, suspended, its window closed); the tab in front of a window may have changed; a
+    /// tab that must not be suspended (it records).
+    var configureTab: (Int, WebController) -> Void = { _, _ in }
+    var onTabGone: (Int) -> Void = { _ in }
+    var onFrontChange: () -> Void = {}
+    var keepAlive: (Int) -> Bool = { _ in false }
 
     init(server: String, lang: Lang, store: SessionStore, makeWeb: @escaping () -> WebController) {
         self.server = server
@@ -234,6 +241,7 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
         configure(web)
         web.onTabs = { [weak self] action, path, title, n in self?.pageAction(from: id, action, path: path, title: title, n: n) }
         web.onOpenInNewTab = { [weak self] url in self?.openFrom(id, url: url, place: .next) }
+        configureTab(id, web)
         webs[id] = web
         wc.adopt(web.content)
         web.start(at: url)
@@ -246,7 +254,9 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
     }
 
     private func dropWeb(_ id: Int) {
-        webs.removeValue(forKey: id)?.teardown()
+        guard let web = webs.removeValue(forKey: id) else { return }
+        web.teardown()
+        onTabGone(id)
     }
 
     /// Brings a tab to the front of its window.
@@ -360,6 +370,8 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
             // A call or a recording with the camera or the microphone on is never suspended,
             // whatever the page told the bridge.
             if let web = webs[id], web.webView.cameraCaptureState != .none || web.webView.microphoneCaptureState != .none { continue }
+            // Nor the tab that captures the computer's audio or reported a recording (block 7).
+            if keepAlive(id) { continue }
             dropWeb(id)
             session.update(id) { $0.loaded = false }
             if let label = session.windowOf(id) { touched.insert(label) }
@@ -418,6 +430,49 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
 
     var activeWeb: WebController? {
         session.activeOf(keyLabel()).flatMap { webs[$0] }
+    }
+
+    // MARK: Meetings (block 7)
+
+    /// The tab has a live web view.
+    func hasWeb(_ id: Int) -> Bool {
+        webs[id] != nil
+    }
+
+    /// The tab is the one the person is using: in front of its window, that window key and on
+    /// screen, the app in front (tabs.rs `tab_in_use`). The computer's audio starts only from it.
+    func tabInUse(_ id: Int) -> Bool {
+        guard NSApp.isActive, let label = session.windowOf(id), session.activeOf(label) == id,
+              let window = windows[label]?.window else { return false }
+        return window.isKeyWindow && window.isVisible && !window.isMiniaturized
+    }
+
+    /// The recording tab is in view (tabs.rs `recording_in_front`): the floating indicator hides.
+    func isInFront(_ id: Int) -> Bool {
+        tabInUse(id)
+    }
+
+    /// The red dot of the tab that records (one at a time; nil clears it).
+    func setRecording(_ id: Int?) {
+        var touched = Set<String>()
+        for t in session.allTabs where t.recording != (t.id == id) {
+            session.update(t.id) { $0.recording = (t.id == id) }
+            if let label = session.windowOf(t.id) { touched.insert(label) }
+        }
+        touched.forEach(refresh)
+    }
+
+    /// "Open" of the indicator: that tab in front of its window, the window in front.
+    func focus(_ id: Int) -> Bool {
+        guard let label = session.windowOf(id) else { return false }
+        show(id)
+        showWindow(label)
+        return true
+    }
+
+    /// "Stop" of the indicator: the page gets `zerosoft:stop-recording`.
+    func stopRecording(in id: Int) {
+        webs[id]?.dispatchStopRecording()
     }
 
     // MARK: From the page (bridge `tabs`)
@@ -534,6 +589,7 @@ final class TabsController: NSObject, TabStripDelegate, NSMenuItemValidation {
 
     private func changed() {
         onChange?(session)
+        onFrontChange()
     }
 
     func stripSelect(_ id: Int) {
