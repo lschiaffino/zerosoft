@@ -94,3 +94,10 @@ export async function readJson(req: Request): Promise<Record<string, unknown>> {
 export const str = (v: unknown, max = 4096): string | undefined => (typeof v === 'string' ? v.slice(0, max) : undefined);
 export const strArr = (v: unknown, max = 2000): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, max) : [];
+
+/** El idioma de la página que pide (cookie NEXT_LOCALE), si es uno de la app. */
+export function pageLocale(req: Request): string | undefined {
+  const m = /(?:^|;\s*)NEXT_LOCALE=([^;]*)/.exec(req.headers.get('cookie') ?? '');
+  const v = m ? m[1].trim() : '';
+  return ['en', 'es', 'pt'].includes(v) ? v : undefined;
+}
