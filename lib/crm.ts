@@ -2346,7 +2346,11 @@ export async function fireDueTasks(limit = 200): Promise<number> {
     if (!claimed.changes) continue;
     await fireEvent(row.user_id, { type: 'task_due', entity: 'task', entityId: row.id });
     const task = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(row.id)) as CrmActivityRow | undefined;
-    if (task) await emitEvent(row.user_id, 'task.due', taskEventPayload(await dueTaskForOwner(task)));
+    if (task) {
+      // Cada flow recibe la tarea como la ve quien lo creó (lib/crm-event-privacy.ts).
+      const { crmEventOptions } = await import('./crm-event-privacy');
+      await emitEvent(row.user_id, 'task.due', taskEventPayload(await dueTaskForOwner(task)), crmEventOptions(row.user_id, 'task.due', taskEventPayload(task)));
+    }
   }
   return rows.length;
 }
@@ -2431,7 +2435,11 @@ export async function createActivity(
     await recalcContactScoreSafe(userId, data.contactId);
   }
   const created = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
-  if (created.type === 'task') await emitEvent(userId, 'task.created', taskEventPayload(created));
+  if (created.type === 'task') {
+    const { crmEventOptions } = await import('./crm-event-privacy');
+    const data = taskEventPayload(created);
+    await emitEvent(userId, 'task.created', data, crmEventOptions(userId, 'task.created', data));
+  }
   return created;
 }
 
@@ -2492,7 +2500,9 @@ export async function updateActivity(
     .run(...sets.map(([, v]) => v), id);
   const updated = (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
   if (data.done === true && existing.done === 0 && updated.type === 'task') {
-    await emitEvent(userId, 'task.completed', taskEventPayload(updated));
+    const { crmEventOptions } = await import('./crm-event-privacy');
+    const data = taskEventPayload(updated);
+    await emitEvent(userId, 'task.completed', data, crmEventOptions(userId, 'task.completed', data));
   }
   if (data.done === true && existing.done === 0 && (await spawnNextRepeat(userId, updated, db))) {
     return (await db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
@@ -2868,15 +2878,19 @@ export async function searchTasks(userId: string, q: string, ownerScope?: OwnerS
   return forReader(userId, rows, reader);
 }
 
-/** Tareas abiertas vencidas o que vencen hoy (badge de la sidebar). */
-export async function countDueTasks(userId: string): Promise<number> {
+/**
+ * Tareas abiertas vencidas o que vencen hoy (badge de la sidebar), con el
+ * mismo alcance que el índice de Tareas: solo las que la persona puede abrir.
+ */
+export async function countDueTasks(userId: string, ownerScope: OwnerScope | undefined): Promise<number> {
   const { end } = await todayRange();
+  const scope = activityScopeSql('a', ownerScope);
   const row = (await getDb()
     .prepare(
-      `SELECT COUNT(*) AS c FROM crm_activities
-       WHERE user_id = ? AND type = 'task' AND done = 0 AND due_at IS NOT NULL AND due_at <= ?`,
+      `SELECT COUNT(*) AS c FROM crm_activities a
+       WHERE a.user_id = ? AND a.type = 'task' AND a.done = 0 AND a.due_at IS NOT NULL AND a.due_at <= ?${scope.sql ? ` AND ${scope.sql}` : ''}`,
     )
-    .get(userId, end)) as { c: number };
+    .get(userId, end, ...scope.args)) as { c: number };
   return row.c;
 }
 

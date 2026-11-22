@@ -460,7 +460,9 @@ async function fireTrackingEvents(email: CrmEmailRow, kind: 'open' | 'click', ur
     clickCount: email.click_count + (kind === 'click' ? 1 : 0),
     ...(kind === 'click' ? { url } : {}),
   };
-  await emitEvent(email.user_id, kind === 'open' ? 'email.opened' : 'email.clicked', data);
+  const event = kind === 'open' ? 'email.opened' : 'email.clicked';
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(email.user_id, event, data, crmEventOptions(email.user_id, event, data));
   const { recalcContactScoreSafe } = await import('./crm-scoring');
   await recalcContactScoreSafe(email.user_id, email.contact_id);
   const { runWorkflowsForEvent } = await import('./crm-workflows');
@@ -726,11 +728,13 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
   if (activity) await db.prepare('UPDATE crm_emails SET activity_id = ? WHERE id = ?').run(activity.id, emailId);
 
   const email = (await db.prepare('SELECT * FROM crm_emails WHERE id = ?').get(emailId)) as CrmEmailRow;
-  await emitEvent(userId, 'email.sent', {
+  const sent = {
     email: { id: email.id, subject: email.subject, to: email.to_emails, threadId: email.thread_id, via },
     contactId: input.contactId,
     sequence: input.enrollmentId ? { enrollmentId: input.enrollmentId, stepId: input.stepId ?? null } : null,
-  });
+  };
+  const { crmEventOptions } = await import('./crm-event-privacy');
+  await emitEvent(userId, 'email.sent', sent, crmEventOptions(userId, 'email.sent', sent));
   return { ok: true, email, via };
 }
 

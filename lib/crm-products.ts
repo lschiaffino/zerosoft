@@ -884,7 +884,8 @@ async function onQuoteResponded(
   }
   try {
     const { emitEvent } = await import('./events');
-    await emitEvent(userId, 'quote.accepted', payload);
+    const { crmEventOptions } = await import('./crm-event-privacy');
+    await emitEvent(userId, 'quote.accepted', payload, crmEventOptions(userId, 'quote.accepted', payload));
   } catch {
     /* idem */
   }
