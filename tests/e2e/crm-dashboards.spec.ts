@@ -193,9 +193,11 @@ test('reordenar tiles arrastrando y con el teclado; el orden queda guardado', as
 
   // Teclado: flecha a la izquierda sobre el asa mueve uno antes.
   await tiles.nth(2).getByTestId('cdb-grip').focus();
+  // La espera del guardado se arma antes de la tecla: si no, la respuesta puede llegar antes y la espera se queda colgada.
+  const keySaved = page.waitForResponse((r) => r.url().includes(`/api/crm/dashboards/${d.id}`) && r.request().method() === 'PATCH');
   await page.keyboard.press('ArrowLeft');
   await expect(titles).toHaveText(['Win rate', 'Deals created', 'New contacts']);
-  await page.waitForResponse((r) => r.url().includes(`/api/crm/dashboards/${d.id}`) && r.request().method() === 'PATCH').catch(() => null);
+  await keySaved;
   await page.reload({ waitUntil: 'networkidle' });
   await expect(titles).toHaveText(['Win rate', 'Deals created', 'New contacts']);
 
