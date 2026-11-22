@@ -798,9 +798,11 @@ from the table above or from the Tauri app:
   microphone with its level (click mutes), camera show or hide, pause or resume, restart and
   discard (each asks in the bar), Finish (finishes and brings the recording's tab to the
   front); a click on the bar opens that tab, a drag moves it. Hide zerosoft (Cmd+H) does not hide
-  the bar, the bubble or the meeting indicator (`canHide = false`). Whether ScreenCaptureKit on macOS 15
-  and later still honours `sharingType = .none` for what `getDisplayMedia` records is
-  **(unconfirmed)**: it needs a run on a real Mac.
+  the bar, the bubble or the meeting indicator (`canHide = false`). On the macos-15 runner,
+  XCTest's own screen recording of a failed Rec test showed the bubble and not the bar, so that
+  capture honours `sharingType = .none`; whether what `getDisplayMedia` records does too is still
+  **(unconfirmed)** and needs a run on a real Mac. The bubble has no tooltips: one floated over
+  the bar next to it.
 - **Bubble.** A round, mirrored `NSPanel` (168 or 280 points, as Tauri), shared with screen
   captures; hover shows Bigger or Smaller and Hide; drag moves it. It opens the camera whose name
   the page sent, else the default one, only while it shows: hiding it releases the camera.
