@@ -82,9 +82,15 @@ final class SettingsUITests: XCTestCase {
     }
 
     private func section(_ app: XCUIApplication, _ name: String) {
-        let row = element(app, "zs-settings-\(name)")
+        let row = button(app, "zs-settings-\(name)")
         XCTAssertTrue(row.waitForExistence(timeout: 10), "no \(name) section")
         row.click()
+    }
+
+    /// Typed queries: a click resolves its query over the whole tree, and some SwiftUI controls
+    /// expose values a generic identifier query cannot compare.
+    private func button(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.buttons.matching(identifier: id).firstMatch
     }
 
     private func checkbox(_ app: XCUIApplication, _ id: String) -> XCUIElement {
@@ -176,19 +182,19 @@ final class SettingsUITests: XCTestCase {
         let onboarding = app.windows.matching(identifier: "zs-onboarding").firstMatch
         XCTAssertTrue(onboarding.waitForExistence(timeout: 20), "no onboarding window")
         waitLabel(app, "zs-test-notif", "notif asked=0")
-        element(app, "zs-ob-next").click()
-        XCTAssertTrue(element(app, "zs-ob-notif").waitForExistence(timeout: 10))
+        button(app, "zs-ob-next").click()
+        XCTAssertTrue(button(app, "zs-ob-notif").waitForExistence(timeout: 10))
         // Still not asked: the step explains first.
         waitLabel(app, "zs-test-notif", "notif asked=0")
-        element(app, "zs-ob-notif").click()
+        button(app, "zs-ob-notif").click()
         waitLabel(app, "zs-test-notif", "notif asked=1 allowed")
 
         let login = checkbox(app, "zs-ob-loginitem")
         XCTAssertFalse(isOn(login))
         login.click()
         waitLabel(app, "zs-test-loginitem", "login-item enabled")
-        element(app, "zs-ob-next").click()
-        let done = element(app, "zs-ob-done")
+        button(app, "zs-ob-next").click()
+        let done = button(app, "zs-ob-done")
         XCTAssertTrue(done.waitForExistence(timeout: 10))
         done.click()
         let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: onboarding)
@@ -211,7 +217,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(text(app, "Sign in to see this.").waitForExistence(timeout: 15), "signed out state missing")
 
         // Sign in from Settings itself: the open section loads with the new session.
-        element(app, "zs-remote-signin").click()
+        button(app, "zs-remote-signin").click()
         waitLabel(app, "zs-test-login", "login 1 ok")
         XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the open section did not reload after sign-in")
 
@@ -220,13 +226,13 @@ final class SettingsUITests: XCTestCase {
 
         section(app, "dictionary")
         XCTAssertTrue(element(app, "zs-dict-entry-e1").waitForExistence(timeout: 15), "the dictionary did not load")
-        let phrase = element(app, "zs-dict-phrase")
+        let phrase = app.textFields.matching(identifier: "zs-dict-phrase").firstMatch
         phrase.click()
         phrase.typeText("zs-new-word")
-        element(app, "zs-dict-add").click()
+        button(app, "zs-dict-add").click()
         waitServer("add") { self.server.writes.contains(#"POST /api/voice/dictionary {"kind":"word","phrase":"zs-new-word"}"#) }
         XCTAssertTrue(element(app, "zs-dict-entry-e2").waitForExistence(timeout: 15), "the new entry is not listed")
-        element(app, "zs-dict-delete-e1").click()
+        button(app, "zs-dict-delete-e1").click()
         waitServer("delete") { self.server.dictionaryIDs == ["e2"] }
         let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element(app, "zs-dict-entry-e1"))
         wait(for: [removed], timeout: 10)
@@ -243,7 +249,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(text(app, "zs-history-text").waitForExistence(timeout: 15), "history did not load")
 
         section(app, "account")
-        let signOut = element(app, "zs-account-signout")
+        let signOut = button(app, "zs-account-signout")
         XCTAssertTrue(signOut.waitForExistence(timeout: 10))
         signOut.click()
         waitServer("sign-out") { self.server.writes.contains("signout ok") }

@@ -408,8 +408,8 @@ private struct DictionarySection: View {
                 Text(model.t(.kindReplace)).tag(DictionaryKind.replace)
                 Text(model.t(.kindSnippet)).tag(DictionaryKind.snippet)
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
+            .pickerStyle(.menu)
+            .frame(maxWidth: 260)
             .accessibilityIdentifier("zs-dict-kind")
             HStack {
                 TextField(model.t(.dictPhrase), text: $phrase)
