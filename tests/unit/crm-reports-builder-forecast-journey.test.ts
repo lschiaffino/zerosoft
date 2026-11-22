@@ -34,7 +34,7 @@ import {
   ReportError,
 } from '@/lib/crm-custom-reports';
 import { configObjectsValid, defaultConfig, reportConfigSchema, toCsv } from '@/lib/crm-report-builder';
-import { addWidget, createDashboard, getDashboard } from '@/lib/crm-dashboards';
+import { addWidget, createDashboard, getDashboardFor } from '@/lib/crm-dashboards';
 import { addMember, createTeam } from '@/lib/teams';
 import { makeUser } from './helpers';
 
@@ -284,12 +284,13 @@ describe('reportes propios', () => {
     expect((await searchCustomReports(u.id, 'pipeline')).map((x) => x.id)).toEqual([r.id]);
     const other = await makeUser('cr-other');
     expect(await updateCustomReport(other.id, r.id, { name: 'x' })).toBeNull();
-    const dash = await createDashboard(u.id, 'Main');
-    await addWidget(u.id, dash.id, { type: 'custom_report', config: { reportId: r.id } });
-    expect((await getDashboard(u.id, dash.id))?.widgets.length).toBe(1);
+    const v = { workspaceId: u.id, personId: u.id, role: 'owner' as const };
+    const dash = await createDashboard(v, { name: 'Main' });
+    await addWidget(v, dash.id, { type: 'custom_report', config: { reportId: r.id } });
+    expect((await getDashboardFor(v, dash.id))?.widgets.length).toBe(1);
     expect(await deleteCustomReport(other.id, r.id)).toBe(false);
     expect(await deleteCustomReport(u.id, r.id)).toBe(true);
-    expect((await getDashboard(u.id, dash.id))?.widgets.length).toBe(0);
+    expect((await getDashboardFor(v, dash.id))?.widgets.length).toBe(0);
   });
 
   it('entre objetos: suma de deals por industria de la empresa sin contar doble', async () => {

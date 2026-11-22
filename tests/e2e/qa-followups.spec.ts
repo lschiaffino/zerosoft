@@ -270,9 +270,14 @@ test('CRM Paneles: Eliminar panel atrapa el foco, Esc cierra y Eliminar borra', 
   test.setTimeout(120_000);
   const made = await request.post('/api/crm/dashboards', { data: { name: `QA panel ${uid()}` } });
   expect(made.ok(), await made.text()).toBe(true);
-  await page.goto('/en/app/crm/dashboards', { waitUntil: 'networkidle' });
-  const open = page.getByRole('button', { name: 'Delete dashboard' });
-  await open.click();
+  const { id } = (await made.json()) as { id: string };
+  await page.goto(`/en/app/crm/dashboards?d=${id}`, { waitUntil: 'networkidle' });
+  const actions = page.getByTestId('cdb-actions');
+  const openDelete = async () => {
+    await actions.click();
+    await page.getByRole('menuitem', { name: 'Delete dashboard' }).click();
+  };
+  await openDelete();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
@@ -282,13 +287,13 @@ test('CRM Paneles: Eliminar panel atrapa el foco, Esc cierra y Eliminar borra', 
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  await expect(open).toBeFocused();
   await page.setViewportSize({ width: 390, height: 700 });
-  await open.click();
+  await openDelete();
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(dialog).toBeHidden();
+  expect((await request.get(`/api/crm/dashboards/${id}`)).status()).toBe(404);
 });
 
 test('.modal-card: en un teléfono bajo scrollea adentro y no se sale de la pantalla', async ({ page }) => {

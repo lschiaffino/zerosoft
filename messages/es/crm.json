@@ -1217,7 +1217,8 @@
       "custom_report": "Reporte propio"
     },
     "reportMissing": "Este reporte se borró o ya no se puede correr.",
-    "openReport": "Abrir reporte"
+    "openReport": "Abrir reporte",
+    "salesName": "Ventas"
   },
   "settings": {
     "title": "Ajustes",
@@ -5058,6 +5059,287 @@
       "thisQuarter": "Este trimestre",
       "next30": "Próximos 30 días",
       "overdue": "Antes de hoy"
+    }
+  },
+  "dash": {
+    "switcher": {
+      "label": "Dashboard",
+      "searchPh": "Buscá un dashboard",
+      "create": "Crear dashboard",
+      "default": "Por defecto",
+      "ownedBy": "Dueño: {name}",
+      "noMatch": "Ningún dashboard coincide."
+    },
+    "visibility": {
+      "private": "Solo yo",
+      "team": "Compartido con {team}",
+      "teamPlain": "Un equipo de ventas",
+      "everyone": "Todo el workspace"
+    },
+    "access": {
+      "view": "Pueden ver",
+      "edit": "Pueden ver y editar"
+    },
+    "viewOnly": "Solo lectura",
+    "actions": {
+      "menu": "Acciones",
+      "rename": "Renombrar",
+      "clone": "Duplicar",
+      "share": "Gestionar acceso",
+      "setDefault": "Usar por defecto",
+      "delete": "Eliminar dashboard"
+    },
+    "addReport": "Agregar reporte",
+    "create": {
+      "title": "Crear dashboard",
+      "name": "Nombre",
+      "namePh": "Revisión del pipeline Q4",
+      "startWith": "Empezar con",
+      "sales": "Dashboard de ventas",
+      "salesHint": "12 reportes listos: ingresos, pipeline, forecast, actividad",
+      "blank": "Dashboard vacío",
+      "blankHint": "Agregás los reportes de a uno",
+      "submit": "Crear",
+      "cancel": "Cancelar"
+    },
+    "cloneName": "{name} (copia)",
+    "rename": {
+      "title": "Renombrar dashboard",
+      "save": "Guardar"
+    },
+    "share": {
+      "title": "Gestionar acceso",
+      "who": "Quién lo ve",
+      "what": "Qué pueden hacer",
+      "team": "Equipo de ventas",
+      "noTeams": "Creá un equipo de ventas en los ajustes del CRM para compartirlo con un equipo.",
+      "hint": "Cada persona ve solo los registros a los que tiene acceso. Los totales nunca incluyen registros ni campos que tiene ocultos.",
+      "save": "Guardar"
+    },
+    "filters": {
+      "label": "Filtros del dashboard",
+      "range": "Rango de fechas",
+      "owner": "Propietario",
+      "allOwners": "Todos los propietarios",
+      "team": "Equipo",
+      "allTeams": "Todos los equipos",
+      "pipeline": "Pipeline",
+      "allPipelines": "Todos los pipelines",
+      "reset": "Restablecer",
+      "from": "Desde",
+      "to": "Hasta",
+      "apply": "Aplicar",
+      "save": "Guardar filtros",
+      "saved": "Filtros guardados"
+    },
+    "ranges": {
+      "today": "Hoy",
+      "this_week": "Esta semana",
+      "last_week": "La semana pasada",
+      "this_month": "Este mes",
+      "last_month": "El mes pasado",
+      "this_quarter": "Este trimestre",
+      "last_quarter": "El trimestre pasado",
+      "this_year": "Este año",
+      "last_year": "El año pasado",
+      "last_7": "Últimos 7 días",
+      "last_30": "Últimos 30 días",
+      "last_90": "Últimos 90 días",
+      "last_365": "Últimos 365 días",
+      "custom": "Rango personalizado"
+    },
+    "tile": {
+      "menu": "Acciones de {name}",
+      "edit": "Editar",
+      "duplicate": "Duplicar",
+      "remove": "Quitar del dashboard",
+      "viewTable": "Ver como tabla",
+      "viewChart": "Ver como gráfico",
+      "exportCsv": "Exportar CSV",
+      "size": "Tamaño",
+      "small": "Chico",
+      "medium": "Mediano",
+      "wide": "Ancho",
+      "moveEarlier": "Mover antes",
+      "moveLater": "Mover después",
+      "openReport": "Abrir en el constructor",
+      "drag": "Arrastrá para reordenar {name}",
+      "current": "Hoy",
+      "thisMonth": "Este mes",
+      "allDates": "Todas las fechas",
+      "vsPrev": "vs. período anterior",
+      "noPrev": "Sin datos en el período anterior",
+      "noData": "No hay datos en este período",
+      "error": "No pudimos cargar este reporte.",
+      "reportMissing": "Este reporte se eliminó o ya no se puede correr.",
+      "fieldHidden": "Este reporte usa un campo al que no tenés acceso.",
+      "loading": "Cargando…",
+      "total": "Total",
+      "records": "{count, plural, one {# registro} other {# registros}}",
+      "deals": "{count, plural, one {# deal} other {# deals}}",
+      "winDetail": "{won} ganados de {closed} cerrados",
+      "openDeals": "{count, plural, one {# deal abierto} other {# deals abiertos}}",
+      "perDay": "{value} por día",
+      "days": "{value} días",
+      "conversion": "{value}% desde la etapa anterior",
+      "formerMember": "Ex integrante",
+      "seeAll": "Ver todos",
+      "drillHint": "Elegí una barra o un valor para ver sus registros",
+      "perDayUnit": "/ día"
+    },
+    "edit": {
+      "title": "Editar reporte",
+      "name": "Título",
+      "viz": "Tipo de gráfico",
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "viz": {
+      "kpi": "Número",
+      "bar": "Columnas",
+      "hbar": "Barras",
+      "stacked": "Barras apiladas",
+      "line": "Línea",
+      "area": "Área",
+      "funnel": "Embudo",
+      "donut": "Dona",
+      "table": "Tabla"
+    },
+    "library": {
+      "title": "Biblioteca de reportes",
+      "searchPh": "Buscá reportes",
+      "all": "Todos",
+      "mine": "Mis reportes",
+      "add": "Agregar",
+      "added": "Agregado",
+      "createCustom": "Crear reporte propio",
+      "noCustom": "Todavía no tenés reportes propios.",
+      "noResults": "Ningún reporte coincide.",
+      "categories": {
+        "deals": "Deals",
+        "forecast": "Forecast",
+        "activities": "Actividades",
+        "contacts": "Contactos"
+      }
+    },
+    "reports": {
+      "revenue_won_kpi": {
+        "name": "Ingresos ganados",
+        "desc": "Monto de los deals ganados en el período, comparado con el anterior."
+      },
+      "deals_created_kpi": {
+        "name": "Deals creados",
+        "desc": "Cuántos deals se crearon en el período."
+      },
+      "win_rate_kpi": {
+        "name": "Tasa de cierre",
+        "desc": "Deals ganados sobre todos los cerrados (ganados o perdidos) en el período."
+      },
+      "avg_deal_size_kpi": {
+        "name": "Ticket promedio",
+        "desc": "Monto promedio de los deals ganados en el período."
+      },
+      "sales_velocity": {
+        "name": "Velocidad de ventas",
+        "desc": "Ingresos que genera el pipeline por día: deals abiertos × tasa de cierre × ticket promedio ÷ ciclo de venta promedio."
+      },
+      "deals_created": {
+        "name": "Deals creados en el tiempo",
+        "desc": "Deals nuevos por día, semana o mes."
+      },
+      "revenue_won_over_time": {
+        "name": "Ingresos ganados en el tiempo",
+        "desc": "Monto ganado por día, semana o mes."
+      },
+      "won_lost_over_time": {
+        "name": "Deals ganados vs. perdidos",
+        "desc": "Deals cerrados por período, según el resultado."
+      },
+      "deals_won_lost_by_owner": {
+        "name": "Deals ganados y perdidos por propietario",
+        "desc": "Deals cerrados por vendedor, según el resultado."
+      },
+      "pipeline_by_stage": {
+        "name": "Pipeline por etapa",
+        "desc": "Monto y cantidad de deals abiertos en cada etapa, al día de hoy."
+      },
+      "conversion_funnel": {
+        "name": "Embudo de conversión",
+        "desc": "Cuántos deals creados en el período llegaron a cada etapa y la conversión entre etapas."
+      },
+      "avg_time_in_stage": {
+        "name": "Tiempo promedio en cada etapa",
+        "desc": "Días promedio que los deals pasan en cada etapa."
+      },
+      "deals_closing_this_month": {
+        "name": "Deals que cierran este mes",
+        "desc": "Deals abiertos con fecha de cierre en el mes en curso."
+      },
+      "deal_forecast": {
+        "name": "Forecast de deals",
+        "desc": "Monto de los deals que cierran en el período, por categoría de forecast."
+      },
+      "activities_by_rep": {
+        "name": "Actividades por vendedor",
+        "desc": "Llamadas, emails y reuniones registradas y tareas completadas por vendedor."
+      },
+      "activities_kpi": {
+        "name": "Actividades registradas",
+        "desc": "Llamadas, emails y reuniones registradas y tareas completadas en el período."
+      },
+      "upcoming_tasks": {
+        "name": "Tareas abiertas",
+        "desc": "Tareas sin terminar, las que vencen antes primero."
+      },
+      "new_contacts_kpi": {
+        "name": "Contactos nuevos",
+        "desc": "Contactos creados en el período."
+      },
+      "new_contacts_by_source": {
+        "name": "Contactos nuevos por fuente",
+        "desc": "Contactos creados en el período, por fuente."
+      },
+      "lifecycle_stage_changes": {
+        "name": "Cambios de etapa del ciclo de vida",
+        "desc": "Contactos que pasaron a cada etapa del ciclo de vida en el período."
+      }
+    },
+    "series": {
+      "won": "Ganados",
+      "lost": "Perdidos",
+      "call": "Llamadas",
+      "email": "Emails",
+      "meeting": "Reuniones",
+      "task": "Tareas completadas",
+      "value": "Valor"
+    },
+    "forecastCat": {
+      "closed_won": "Ganado",
+      "commit": "Compromiso",
+      "best_case": "Mejor caso",
+      "pipeline": "Pipeline"
+    },
+    "drill": {
+      "close": "Cerrar",
+      "empty": "No hay registros.",
+      "truncated": "Se muestran los primeros {count}. Acotá los filtros para ver el resto.",
+      "sum": "Monto total",
+      "cols": {
+        "name": "Nombre",
+        "amount": "Monto",
+        "stage": "Etapa",
+        "status": "Estado",
+        "type": "Tipo",
+        "owner": "Propietario",
+        "date": "Fecha"
+      }
+    },
+    "empty": {
+      "title": "Este dashboard todavía no tiene reportes",
+      "body": "Agregá reportes de ventas listos desde la biblioteca, o armá los tuyos en el constructor de reportes.",
+      "noDashTitle": "No hay dashboards para mostrar",
+      "noDashBody": "Creá un dashboard, o empezá con la plantilla de ventas y sus 12 reportes listos.",
+      "noData": "Todavía no hay datos del CRM en este período. Los reportes se llenan a medida que tu equipo carga deals, contactos y actividades."
     }
   }
 }
