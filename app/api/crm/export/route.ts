@@ -8,6 +8,8 @@ import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { requestLocale } from '@/lib/request-locale';
 import { exportRows, type ExportEntity } from '@/lib/crm';
 import { crmError, unauthorized, forbidden } from '@/lib/crm-http';
+import { EXPORT_VIEW_CAP, resolveMatching } from '@/lib/crm-list-matching';
+import { redactRowsFor } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,9 +63,18 @@ export async function GET(req: NextRequest) {
   if ('error' in filter) return crmError(400, 'invalid_filter');
   // `ids`: exportar solo los registros elegidos en el listado (la acción masiva). Tope como el de las otras acciones masivas.
   const idsParam = sp.get('ids');
-  const ids = idsParam === null ? undefined : idsParam.split(',').map((x) => x.trim()).filter(Boolean);
+  let ids = idsParam === null ? undefined : idsParam.split(',').map((x) => x.trim()).filter(Boolean);
   if (ids && (entity === 'activities' || ids.length === 0 || ids.length > 500 || ids.some((x) => x.length > 64))) return crmError(400, 'invalid_input');
-  const rows = await exportRows(
+  // `list`: "Exportar la vista": la query del listado (vista activa, filtros rápidos y avanzados, orden),
+  // que se vuelve a evaluar acá con quien exporta: su alcance, sus vistas y sus permisos por campo. Con tope.
+  const listQuery = sp.get('list');
+  if (listQuery !== null) {
+    if (entity === 'activities' || ids) return crmError(400, 'invalid_input');
+    const res = await resolveMatching(user, entity, listQuery, EXPORT_VIEW_CAP);
+    if ('error' in res) return crmError(400, res.error);
+    ids = res.ids;
+  }
+  const rawRows = await exportRows(
     user.id,
     entity,
     await sessionScope(user),
@@ -72,6 +83,8 @@ export async function GET(req: NextRequest) {
     await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'))),
     ids,
   );
+  // Defensa extra: sin los campos propios ocultos para quien exporta (hoy solo admins, que los ven todos).
+  const rows: typeof rawRows = entity === 'activities' ? rawRows : ((await redactRowsFor(sessionFieldViewer(user), entity, rawRows as Array<{ custom: string }>)) as typeof rawRows);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;
 

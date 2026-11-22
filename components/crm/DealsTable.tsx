@@ -1,20 +1,22 @@
 'use client';
 
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
-import SortTh from './SortTh';
+import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
+import TableScroll from './TableScroll';
+import SelectAllMatching, { type MatchingSelection } from './SelectAllMatching';
+import RecordNameCell from './RecordNameCell';
+import BulkActionsBar from './BulkActionsBar';
+import { customSortValue } from '@/lib/crm-list-sort';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
-import CrmIcon from './CrmIcon';
 import TagDots, { type TagDot } from './TagDots';
-import TagBulkControls from './TagBulkControls';
-import BulkEditControls, { type BulkEditField } from './BulkEditControls';
+import type { BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
-import { CustomColumnHeader, OwnerCell, OwnerHeader } from './TableExtraColumns';
+import { OwnerCell } from './TableExtraColumns';
 
 export interface DealRow {
   id: string;
@@ -78,6 +80,11 @@ interface DealsTableProps {
   bulkFields?: BulkEditField[];
   /** Personas del workspace (columna owner). */
   owners?: Array<{ value: string; label: string }>;
+  /** Borrar y exportar en masa: solo admins (el server lo vuelve a chequear). */
+  canDelete?: boolean;
+  canExport?: boolean;
+  /** Cuántos deals muestra el listado (para "Seleccionar todos los que coinciden"). */
+  total?: number;
 }
 
 const COLS = [
@@ -109,40 +116,39 @@ export default function DealsTable({ viewCols, viewFreeze,
   bulkFields = [],
   customColumns = [],
   owners = [],
+  canDelete = false,
+  canExport = false,
+  total = 0,
 }: DealsTableProps) {
   const t = useTranslations('crm');
-  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+  const [matching, setMatching] = useState<MatchingSelection | null>(null);
 
-  /** Borrado en masa: los deals van a la papelera (solo admins; lo valida la ruta). */
-  async function bulkDelete() {
-    setBusy(true);
-    const res = await fetch('/api/crm/deals/bulk', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', ids: [...selected] }),
-    }).catch(() => null);
-    setBusy(false);
-    setConfirmingDelete(false);
-    if (!res?.ok) {
-      setBulkNotice(res?.status === 403 ? t('errors.forbidden') : t('errors.generic'));
-      return;
-    }
-    setSelected(new Set());
-    setBulkNotice(t('trash.movedNotice'));
-    router.refresh();
-  }
+  // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
+  // y "todos los que coinciden" se cae (ya no describe lo que se ve).
+  const rowIds = rows.map((r) => r.id).join(',');
+  useEffect(() => {
+    setMatching(null);
+    const shown = new Set(rowIds.split(','));
+    setSelected((prev) => (prev.size && [...prev].some((id) => !shown.has(id)) ? new Set([...prev].filter((id) => shown.has(id))) : prev));
+  }, [rowIds]);
+
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
+    setMatching(null);
+    setBulkNotice(null);
+  }
   function toggleOne(id: string) {
+    setMatching(null);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    setBulkNotice(null);
   }
   const columnDefs = [
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
@@ -152,65 +158,38 @@ export default function DealsTable({ viewCols, viewFreeze,
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
 
+  // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
+  const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
+    <HeaderCell id={id} label={label} sort={sort} {...opts} />
+  );
   const headCells: Record<string, ReactNode> = {
-    name: <th data-card="main">{t('deals.table.name')}</th>,
-    amount: (
-      <th className="num">
-        <SortTh label={t('deals.table.amount')} asc="amount_asc" desc="amount" current={sort} />
-      </th>
-    ),
-    stage: <th>{t('deals.table.stage')}</th>,
-    priority: <th>{t('deals.table.priority')}</th>,
-    source: <th>{t('deals.table.source')}</th>,
-    closeDate: (
-      <th className="num cell-date">
-        <SortTh
-          label={t('deals.table.closeDate')}
-          asc="close_date"
-          desc="close_date_desc"
-          current={sort}
-        />
-      </th>
-    ),
-    age: <th className="num">{t('deals.table.age')}</th>,
-    contacts: <th className="num">{t('deals.table.contacts')}</th>,
-    company: <th>{t('deals.detail.company')}</th>,
-    tags: <th>{t('tags.column')}</th>,
-    owner: <OwnerHeader sort={sort} />,
-    created: (
-      <th className="num cell-date">
-        <SortTh label={t('deals.table.created')} asc="oldest" desc="newest" current={sort} />
-      </th>
-    ),
-    lastActivity: (
-      <th className="num cell-date">
-        <SortTh label={t('activityDates.lastActivity')} asc="last_activity_asc" desc="last_activity" current={sort} />
-      </th>
-    ),
-    lastContacted: (
-      <th className="num cell-date">
-        <SortTh label={t('activityDates.lastContacted')} asc="last_contacted_asc" desc="last_contacted" current={sort} />
-      </th>
-    ),
-    nextActivity: (
-      <th className="num cell-date">
-        <SortTh label={t('activityDates.nextActivity')} asc="next_activity" desc="next_activity_desc" current={sort} />
-      </th>
-    ),
+    name: H('name', t('deals.table.name'), { card: 'main' }),
+    amount: H('amount', t('deals.table.amount'), { asc: 'amount_asc', desc: 'amount', className: 'num' }),
+    stage: H('stage', t('deals.table.stage')),
+    priority: H('priority', t('deals.table.priority')),
+    source: H('source', t('deals.table.source')),
+    closeDate: H('closeDate', t('deals.table.closeDate'), { asc: 'close_date', desc: 'close_date_desc', className: 'num cell-date' }),
+    age: H('age', t('deals.table.age'), { className: 'num' }),
+    contacts: H('contacts', t('deals.table.contacts'), { className: 'num' }),
+    company: H('company', t('deals.detail.company')),
+    tags: H('tags', t('tags.column')),
+    owner: H('owner', t('filters.field.owner'), { asc: 'owner', desc: 'owner_desc' }),
+    created: H('created', t('deals.table.created'), { asc: 'oldest', desc: 'newest', className: 'num cell-date' }),
+    lastActivity: H('lastActivity', t('activityDates.lastActivity'), { asc: 'last_activity_asc', desc: 'last_activity', className: 'num cell-date' }),
+    lastContacted: H('lastContacted', t('activityDates.lastContacted'), { asc: 'last_contacted_asc', desc: 'last_contacted', className: 'num cell-date' }),
+    nextActivity: H('nextActivity', t('activityDates.nextActivity'), { asc: 'next_activity', desc: 'next_activity_desc', className: 'num cell-date' }),
   };
-  for (const c of customColumns) headCells[c.id] = <CustomColumnHeader key={c.id} col={c} sort={sort} />;
+  for (const c of customColumns) {
+    const name = c.id.startsWith('custom:') ? c.id.slice(7) : c.id;
+    headCells[c.id] = H(c.id, c.label, { asc: customSortValue(name), desc: customSortValue(name, true), className: c.numeric ? 'num' : undefined });
+  }
   const customById = new Map(customColumns.map((c) => [c.id, c]));
 
   function bodyCell(id: string, row: DealRow): ReactNode {
     switch (id) {
       case 'name':
-        return (
-          <td data-card="main">
-            <Link href={`/app/crm/deals/${row.id}`} className="cell-name">
-              {row.name}
-            </Link>
-          </td>
-        );
+        // Como contactos y empresas: el nombre abre la vista previa; "Abrir" (o Cmd/Ctrl+clic) va al deal.
+        return <RecordNameCell href={`/app/crm/deals/${row.id}`} name={row.name} avatar={null} onPreview={() => setPreviewId(row.id)} />;
       case 'amount':
         return (
           <td className="cell-amount num" data-card="line">
@@ -240,7 +219,7 @@ export default function DealsTable({ viewCols, viewFreeze,
               value={row.priority}
               type="select"
               options={priorities}
-              className={`badge prio-${row.priority}`}
+              className={`dot-label prio-${row.priority}`}
             />
           </td>
         );
@@ -331,7 +310,22 @@ export default function DealsTable({ viewCols, viewFreeze,
         onReset={cols.reset}
       />
 
-      <div className="table-wrap">
+      {allSelected && (
+        <SelectAllMatching
+          entity="deals"
+          pageCount={rows.length}
+          total={total}
+          matching={matching}
+          onMatching={setMatching}
+          onClear={() => {
+            setMatching(null);
+            setSelected(new Set());
+          }}
+        />
+      )}
+
+      <ColumnMenuContext.Provider value={{ order: cols.order, first: 'name', freeze: cols.freeze, apply: cols.apply }}>
+      <TableScroll>
         <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
           <thead>
             <tr>
@@ -340,19 +334,18 @@ export default function DealsTable({ viewCols, viewFreeze,
                   type="checkbox"
                   className="row-check"
                   checked={allSelected}
-                  onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))}
+                  onChange={toggleAll}
                   aria-label={t('common.all')}
                 />
               </th>
               {order.map((id) => (
                 <Fragment key={id}>{headCells[id]}</Fragment>
               ))}
-              <th className="cell-actions-head"><span className="sr-only">{t('deals.table.actions')}</span></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={busy && selected.has(row.id) ? 'row-busy' : undefined}>
+              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -365,64 +358,33 @@ export default function DealsTable({ viewCols, viewFreeze,
                 {order.map((id) => (
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
-                <td className="cell-actions">
-                  <button
-                    type="button"
-                    className="icon-btn preview-btn"
-                    onClick={() => setPreviewId(row.id)}
-                    title={t('common.preview')}
-                    aria-label={t('common.preview')}
-                  >
-                    <CrmIcon name="panel" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
+      </ColumnMenuContext.Provider>
 
       {selected.size > 0 && (
-        <div className="bulk-bar" role="toolbar">
-          <span className="bulk-count">{t('deals.bulkSelected', { count: selected.size })}</span>
-          <BulkEditControls
-            endpoint="/api/crm/deals/bulk"
-            ids={[...selected]}
-            fields={bulkFields}
-            disabled={busy}
-            onDone={(notice) => {
-              setSelected(new Set());
-              setBulkNotice(notice);
-            }}
-          />
-          <TagBulkControls entity="deal" ids={[...selected]} tags={allTags} disabled={busy} onDone={() => setSelected(new Set())} />
-          {confirmingDelete ? (
-            <>
-              <span className="bulk-count">{t('deals.bulkConfirmDelete', { count: selected.size })}</span>
-              <button type="button" className="bulk-btn danger" disabled={busy} onClick={bulkDelete}>
-                {t('common.yes')}
-              </button>
-              <button type="button" className="bulk-btn" disabled={busy} onClick={() => setConfirmingDelete(false)}>
-                {t('common.no')}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="bulk-btn danger" disabled={busy} onClick={() => setConfirmingDelete(true)}>
-              {t('contacts.bulk.delete')}
-            </button>
-          )}
-          <button
-            type="button"
-            className="bulk-btn"
-            disabled={busy}
-            onClick={() => {
-              setSelected(new Set());
-              setConfirmingDelete(false);
-            }}
-          >
-            {t('contacts.bulk.clear')}
-          </button>
-        </div>
+        <BulkActionsBar
+          entity="deal"
+          ids={[...selected]}
+          matching={matching ? { query: matching.query, count: matching.count } : undefined}
+          owners={owners}
+          bulkFields={bulkFields}
+          allTags={allTags}
+          canDelete={canDelete}
+          canExport={canExport}
+          onClear={() => {
+            setSelected(new Set());
+            setMatching(null);
+          }}
+          onNotice={(notice) => {
+            setSelected(new Set());
+            setMatching(null);
+            setBulkNotice(notice);
+          }}
+        />
       )}
 
       {bulkNotice && selected.size === 0 && (

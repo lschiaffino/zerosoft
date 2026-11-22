@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { sessionScope, visibleIds } from '@/lib/crm-visibility';
 import { bulkDeleteContacts, bulkUpdateContacts, LIFECYCLE_STAGES } from '@/lib/crm';
 import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
 import { bulkSetProperty } from '@/lib/crm-bulk';
+import { bulkCreateTasks, bulkTargetFields, bulkTargetIds, bulkTaskFields } from '@/lib/crm-bulk-target';
+import { getUserTimeZone } from '@/lib/user-tz';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const bulkSchema = z.object({
-  action: z.enum(['set_lifecycle', 'set_property', 'delete']),
-  ids: z.array(z.string().min(1).max(64)).min(1).max(500),
+  action: z.enum(['set_lifecycle', 'set_property', 'delete', 'create_tasks', 'count']),
+  /** Los elegidos en la página, o `matching`: todos los que coinciden con el listado (el server lo vuelve a evaluar). */
+  ...bulkTargetFields,
+  ...bulkTaskFields,
   /** set_property: clave de lib/crm-bulk-fields.ts (o custom:<name>). */
   field: z.string().min(1).max(80).optional(),
   value: z.union([z.string().max(500), z.number(), z.boolean(), z.null()]).optional(),
@@ -27,7 +30,17 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return crmError(400, 'invalid_input');
 
   const { action, value } = parsed.data;
-  const ids = await visibleIds(user.id, 'crm_contacts', parsed.data.ids, await sessionScope(user));
+  // Borrar en masa es solo para admins (antes de evaluar nada).
+  if (action === 'delete' && !isWorkspaceAdmin(user)) return forbidden();
+  const target = await bulkTargetIds(user, 'contacts', parsed.data);
+  if ('error' in target) return crmError(400, target.error);
+  const { ids } = target;
+  // "Seleccionar todos los que coinciden": cuántos son, para confirmar antes de actuar.
+  if (action === 'count') return NextResponse.json({ count: ids.length, total: target.total ?? ids.length });
+  if (action === 'create_tasks') {
+    if (!parsed.data.task) return crmError(400, 'invalid_input');
+    return NextResponse.json(await bulkCreateTasks(user, 'contacts', ids, parsed.data.task, await getUserTimeZone()));
+  }
   if (action === 'set_property') {
     const field = parsed.data.field;
     if (!field || value === undefined) return crmError(400, 'invalid_input');

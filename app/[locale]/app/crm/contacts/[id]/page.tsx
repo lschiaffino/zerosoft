@@ -530,8 +530,10 @@ export default async function ContactDetailPage(props: {
         label={t('contacts.detail.companies')}
         count={contactCompanies.length}
         addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="company"
           records={contactCompanies.map((c) => ({
             id: c.id,
             name: c.name,
@@ -558,9 +560,11 @@ export default async function ContactDetailPage(props: {
         id="contact.deals"
         label={t('contacts.detail.deals')}
         count={deals.length}
-        addLabel={allDeals.some((d) => !deals.some((dd) => dd.id === d.id)) || (defaultPipeline && firstOpenStage) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="deal"
           records={deals.map((d) => ({
             id: d.id,
             name: d.name,
@@ -664,12 +668,12 @@ export default async function ContactDetailPage(props: {
           keyLine={
             <>
               {contact.lifecycle_stage && (
-                <span className={`badge stage-${contact.lifecycle_stage}`}>
+                <span className={`dot-label stage-${contact.lifecycle_stage}`}>
                   {t(`enums.lifecycle.${contact.lifecycle_stage}`)}
                 </span>
               )}
               {contact.lead_status && (
-                <span className="badge badge-outline">{t(`enums.leadStatus.${contact.lead_status}`)}</span>
+                <span className="dot-label">{t(`enums.leadStatus.${contact.lead_status}`)}</span>
               )}
               {contact.job_title && <span>{contact.job_title}</span>}
               {company && (
@@ -679,7 +683,7 @@ export default async function ContactDetailPage(props: {
               )}
               {/* Como en HubSpot: el email a mano debajo del nombre. */}
               {contact.email && (
-                <a href={`mailto:${contact.email}`} className="record-meta-link" data-testid="record-email">
+                <a href={`mailto:${contact.email}`} className="record-meta-link" data-testid="record-email" title={contact.email}>
                   {contact.email}
                 </a>
               )}

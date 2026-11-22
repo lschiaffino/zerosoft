@@ -382,6 +382,7 @@ export default function PropertiesPanel({
           ) : field.href && field.value ? (
             <a
               className="prop-value prop-link"
+              title={typeof display === 'string' ? display : undefined}
               href={field.href}
               target={/^(tel|mailto):/.test(field.href) ? undefined : '_blank'}
               rel="noreferrer"

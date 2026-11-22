@@ -16,6 +16,7 @@
  */
 import { parseFilterModel, serializeFilterModel, type FilterModel } from './crm-filter-model';
 import { parseCustomSort } from './crm-list-sort';
+import { serializeQuickFilters } from './crm-quick-filters';
 
 export const VIEW_ENTITIES = ['contacts', 'companies', 'deals', 'tasks'] as const;
 export type ViewEntity = (typeof VIEW_ENTITIES)[number];
@@ -39,9 +40,10 @@ const MAX_VALUE = 4000;
 /** Lo que una vista guarda de cada listado (además de `custom_<name>`). */
 export const VIEW_STATE_KEYS: Record<ViewEntity, readonly string[]> = {
   // createdFrom/To y activityFrom/To: los filtros rápidos de fecha (DateRangeFilter), días en la zona de la persona.
-  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
-  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
-  deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'closeFrom', 'closeTo', 'activityFrom', 'activityTo', 'filters', 'sort', 'cols', 'freeze'],
+  // noActivity=1: "Sin actividad" en el filtro de última actividad. qf: los filtros rápidos que la vista muestra (lib/crm-quick-filters.ts).
+  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
+  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
+  deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'closeFrom', 'closeTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
   // Tareas (A3): vencimiento, tipo, prioridad, owner, cola, proyecto, texto y orden (lib/crm-tasks-shared.ts).
   tasks: ['bucket', 'type', 'priority', 'owner', 'queue', 'project', 'q', 'sort', 'cols', 'freeze'],
 };
@@ -118,7 +120,12 @@ export function pickViewState(entity: ViewEntity, params: Record<string, unknown
     if (!value) continue;
     if (key === 'sort' && value === 'newest') continue;
     if (key === 'freeze' && value !== '1' && !(opts.explicit && value === '0')) continue;
-    if (key === 'stalled' && value !== '1') continue;
+    if ((key === 'stalled' || key === 'noActivity') && value !== '1') continue;
+    if (key === 'qf') {
+      const qf = serializeQuickFilters(value);
+      if (qf) out.qf = qf;
+      continue;
+    }
     if (key === 'cols') {
       const cols = serializeColumns(parseColumns(value));
       if (cols) out.cols = cols;

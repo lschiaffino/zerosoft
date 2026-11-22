@@ -8,6 +8,8 @@ import type { TagEntity } from '@/lib/crm-constants';
 interface TagBulkControlsProps {
   entity: TagEntity;
   ids: string[];
+  /** "Todos los que coinciden": la query del listado; manda en vez de `ids`. */
+  matching?: string;
   tags: Array<{ id: string; name: string }>;
   disabled?: boolean;
   /** Se llama al terminar (la tabla limpia la selección). */
@@ -15,7 +17,7 @@ interface TagBulkControlsProps {
 }
 
 /** Bulk bar: elegir un tag y agregarlo / quitarlo de los registros seleccionados. */
-export default function TagBulkControls({ entity, ids, tags, disabled, onDone }: TagBulkControlsProps) {
+export default function TagBulkControls({ entity, ids, matching, tags, disabled, onDone }: TagBulkControlsProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [tagId, setTagId] = useState('');
@@ -29,7 +31,7 @@ export default function TagBulkControls({ entity, ids, tags, disabled, onDone }:
     await fetch('/api/crm/tags/apply', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ tagId, entity, ids, action }),
+      body: JSON.stringify({ tagId, entity, action, ...(matching !== undefined ? { matching: { query: matching } } : { ids }) }),
     }).catch(() => null);
     setBusy(false);
     setTagId('');

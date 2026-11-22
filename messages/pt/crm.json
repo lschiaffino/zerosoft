@@ -94,7 +94,14 @@
     "primary": "Principal",
     "makePrimary": "Tornar principal",
     "label": "Rótulo",
-    "noLabel": "Sem rótulo"
+    "noLabel": "Sem rótulo",
+    "noMatches": "Nenhum resultado.",
+    "searching": "Buscando…",
+    "search": {
+      "contact": "Buscar contatos",
+      "company": "Buscar empresas",
+      "deal": "Buscar negócios"
+    }
   },
   "enums": {
     "lifecycle": {
@@ -5007,7 +5014,9 @@
     "openRecord": "Abrir registro",
     "noMoreFilters": "Ainda não há mais filtros para empresas. Use os filtros avançados.",
     "perPage": "{count} por página",
-    "perPageLabel": "Linhas por página"
+    "perPageLabel": "Linhas por página",
+    "exportView": "Exportar visualização",
+    "exportViewHint": "Baixe em CSV todos os registros desta visualização, não só esta página"
   },
   "bulkBar": {
     "label": "Ações em massa",
@@ -5019,7 +5028,16 @@
     "add": "Adicionar",
     "clear": "Limpar seleção",
     "addedToList": "{count, plural, one {# contato adicionado à lista.} other {# contatos adicionados à lista.}}",
-    "deleted": "{count, plural, one {# registro movido para a lixeira.} other {# registros movidos para a lixeira.}}"
+    "deleted": "{count, plural, one {# registro movido para a lixeira.} other {# registros movidos para a lixeira.}}",
+    "createTasks": "Criar tarefas",
+    "taskTitle": "Título da tarefa",
+    "taskDue": "Vencimento",
+    "taskAssign": "Atribuir a",
+    "taskAssignOwner": "Responsável pelo registro",
+    "taskAssignMe": "Eu",
+    "createTasksCta": "{count, plural, one {Criar # tarefa} other {Criar # tarefas}}",
+    "tasksCreated": "{count, plural, one {# tarefa criada.} other {# tarefas criadas.}}",
+    "tasksFailed": "{count, plural, one {# registro foi ignorado.} other {# registros foram ignorados.}}"
   },
   "propSearch": {
     "placeholder": "Buscar propriedades",
@@ -5057,7 +5075,41 @@
       "nextMonth": "Próximo mês",
       "thisQuarter": "Este trimestre",
       "next30": "Próximos 30 dias",
-      "overdue": "Antes de hoje"
+      "overdue": "Antes de hoje",
+      "none": "Sem atividade"
     }
+  },
+  "columnMenu": {
+    "label": "Opções da coluna: {name}",
+    "sortAsc": "Ordenar crescente",
+    "sortDesc": "Ordenar decrescente",
+    "moveLeft": "Mover para a esquerda",
+    "moveRight": "Mover para a direita",
+    "remove": "Remover coluna"
+  },
+  "quickFilterPicker": {
+    "button": "Editar filtros rápidos",
+    "title": "Filtros rápidos desta visualização",
+    "reset": "Voltar ao padrão"
+  },
+  "selectAll": {
+    "page": "{count, plural, one {O registro desta página está selecionado.} other {Os # registros desta página estão selecionados.}}",
+    "select": {
+      "contacts": "Selecionar os {count} contatos desta visualização",
+      "companies": "Selecionar as {count} empresas desta visualização",
+      "deals": "Selecionar os {count} negócios desta visualização"
+    },
+    "all": {
+      "contacts": "Os {count} contatos desta visualização estão selecionados.",
+      "companies": "As {count} empresas desta visualização estão selecionadas.",
+      "deals": "Os {count} negócios desta visualização estão selecionados."
+    },
+    "capped": {
+      "contacts": "Os primeiros {count} de {total} contatos desta visualização estão selecionados (o limite de uma ação em massa).",
+      "companies": "As primeiras {count} de {total} empresas desta visualização estão selecionadas (o limite de uma ação em massa).",
+      "deals": "Os primeiros {count} de {total} negócios desta visualização estão selecionados (o limite de uma ação em massa)."
+    },
+    "clear": "Limpar seleção",
+    "error": "Não foi possível selecionar. Tente de novo."
   }
 }

@@ -407,6 +407,8 @@ export interface ContactFilter {
   /** Fecha de última actividad, días YYYY-MM-DD inclusive en la zona de `filterEnv` (filtro rápido). */
   activityFrom?: string;
   activityTo?: string;
+  /** Sin ninguna actividad registrada (opción "Sin actividad" del filtro rápido). */
+  activityNone?: boolean;
   /** Id de tag: solo contactos con ese tag. */
   tag?: string;
   custom?: Record<string, string>;
@@ -557,6 +559,15 @@ function buildContactWhere(
   }
   appendDayRange(where, args, 'c.created_at', f.createdFrom, f.createdTo, f.filterEnv?.timeZone);
   appendDayRange(where, args, 'c.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
+  if (f.activityNone) where.push('c.last_activity_at IS NULL');
+  if (f.custom) {
+    // Filtros rápidos por propiedad propia (`custom_<name>` en "Más filtros"), como en empresas y deals.
+    for (const [name, value] of Object.entries(f.custom)) {
+      if (!value || !CUSTOM_NAME.test(name)) continue;
+      where.push(`json_extract(c.custom, '$.${name}') = ?`);
+      args.push(value);
+    }
+  }
   appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
@@ -603,6 +614,25 @@ export async function listContacts(
     )
     .all(...args, pageSize, (page - 1) * pageSize)) as ContactListRow[];
   return { rows: await maskPrivateRefs(userId, rows, CONTACT_LIST_REFS, f.ownerScope, db), total };
+}
+
+/**
+ * Ids de los contactos que cumplen el filtro, en el orden del listado, hasta
+ * `cap` (seleccionar todos los que coinciden, exportar la vista). El filtro
+ * trae el alcance de quien pide (`ownerScope`): nunca sale uno que no ve.
+ */
+export async function listContactIds(userId: string, f: ContactFilter, cap: number): Promise<{ ids: string[]; total: number }> {
+  const db = getDb();
+  const { where, args } = buildContactWhere(userId, f);
+  const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`).get(...args)) as { c: number }).c;
+  const order =
+    extraSortOrder('c', f.sort, f.customTypes) ??
+    CONTACT_ORDER[(f.sort ?? 'newest') as keyof typeof CONTACT_ORDER] ??
+    CONTACT_ORDER.newest;
+  const rows = (await db
+    .prepare(`SELECT c.id FROM crm_contacts c WHERE ${where} ORDER BY ${order} LIMIT ?`)
+    .all(...args, Math.max(0, Math.floor(cap)))) as Array<{ id: string }>;
+  return { ids: rows.map((r) => r.id), total };
 }
 
 /** `assoc_label`: label de la asociación deal ↔ contacto ('' = sin label). */
@@ -1102,6 +1132,8 @@ export interface CompanyFilter {
   /** Fecha de última actividad, días YYYY-MM-DD inclusive en la zona de `filterEnv` (filtro rápido). */
   activityFrom?: string;
   activityTo?: string;
+  /** Sin ninguna actividad registrada (opción "Sin actividad" del filtro rápido). */
+  activityNone?: boolean;
   /** Id de tag: solo empresas con ese tag. */
   tag?: string;
   /** Solo hijas directas de esta empresa. */
@@ -1134,11 +1166,7 @@ const COMPANY_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   ...activityDateAdvFields('co'),
 };
 
-export async function listCompanies(
-  userId: string,
-  f: CompanyFilter,
-): Promise<{ rows: CompanyListRow[]; total: number }> {
-  const db = getDb();
+function buildCompanyWhere(userId: string, f: CompanyFilter): { where: string; args: Array<string | number> } {
   const where: string[] = ['co.user_id = ?'];
   const args: Array<string | number> = [userId];
   if (f.q) {
@@ -1163,6 +1191,7 @@ export async function listCompanies(
   }
   appendDayRange(where, args, 'co.created_at', f.createdFrom, f.createdTo, f.filterEnv?.timeZone);
   appendDayRange(where, args, 'co.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
+  if (f.activityNone) where.push('co.last_activity_at IS NULL');
   if (f.parentId) {
     where.push('co.parent_company_id = ?');
     args.push(f.parentId);
@@ -1176,7 +1205,42 @@ export async function listCompanies(
   }
   appendAdvancedFilters(where, args, 'co', COMPANY_ADV_FIELDS, f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'co', f.ownerScope);
-  const whereSql = where.join(' AND ');
+  return { where: where.join(' AND '), args };
+}
+
+function companyOrder(f: CompanyFilter): string {
+  const dateOrders = activityDateOrders('co');
+  return (
+    extraSortOrder('co', f.sort, f.customTypes) ??
+    (f.sort && f.sort in dateOrders
+      ? dateOrders[f.sort as ActivityDateSort]
+      : f.sort === 'oldest'
+        ? 'co.created_at ASC, co.id'
+        : f.sort === 'name'
+          ? 'co.name COLLATE NOCASE ASC, co.id'
+          : f.sort === 'name_desc'
+            ? 'co.name COLLATE NOCASE DESC, co.id'
+            : 'co.created_at DESC, co.id')
+  );
+}
+
+/** Ids de las empresas que cumplen el filtro (con el alcance de quien pide), en orden, hasta `cap`. */
+export async function listCompanyIds(userId: string, f: CompanyFilter, cap: number): Promise<{ ids: string[]; total: number }> {
+  const db = getDb();
+  const { where, args } = buildCompanyWhere(userId, f);
+  const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${where}`).get(...args)) as { c: number }).c;
+  const rows = (await db
+    .prepare(`SELECT co.id FROM crm_companies co WHERE ${where} ORDER BY ${companyOrder(f)} LIMIT ?`)
+    .all(...args, Math.max(0, Math.floor(cap)))) as Array<{ id: string }>;
+  return { ids: rows.map((r) => r.id), total };
+}
+
+export async function listCompanies(
+  userId: string,
+  f: CompanyFilter,
+): Promise<{ rows: CompanyListRow[]; total: number }> {
+  const db = getDb();
+  const { where: whereSql, args } = buildCompanyWhere(userId, f);
   const total = (
     (await db.prepare(`SELECT COUNT(*) AS c FROM crm_companies co WHERE ${whereSql}`).get(
       ...args,
@@ -1187,18 +1251,7 @@ export async function listCompanies(
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 100);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
-  const dateOrders = activityDateOrders('co');
-  const order =
-    extraSortOrder('co', f.sort, f.customTypes) ??
-    (f.sort && f.sort in dateOrders
-      ? dateOrders[f.sort as ActivityDateSort]
-      : f.sort === 'oldest'
-      ? 'co.created_at ASC, co.id'
-      : f.sort === 'name'
-        ? 'co.name COLLATE NOCASE ASC, co.id'
-        : f.sort === 'name_desc'
-          ? 'co.name COLLATE NOCASE DESC, co.id'
-          : 'co.created_at DESC, co.id');
+  const order = companyOrder(f);
   // La cantidad de contactos cuenta solo los que la persona ve, y la madre que no ve no sale ni por id.
   const countScope = scopeAnd('xc', f.ownerScope);
   const rows = (await db
@@ -1582,6 +1635,8 @@ export interface DealFilter {
   /** Última actividad entre estos días (UTC, YYYY-MM-DD, inclusive). */
   activityFrom?: string;
   activityTo?: string;
+  /** Sin ninguna actividad registrada (opción "Sin actividad" del filtro rápido). */
+  activityNone?: boolean;
   /** Id de tag: solo deals con ese tag. */
   tag?: string;
   /** Deals asociados a esta empresa. */
@@ -1706,6 +1761,7 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
     args.push(f.closeTo);
   }
   appendDayRange(where, args, 'd.last_activity_at', f.activityFrom, f.activityTo, f.filterEnv?.timeZone);
+  if (f.activityNone) where.push('d.last_activity_at IS NULL');
   if (f.tag) {
     where.push(tagCondition('d', 'deal'));
     args.push(f.tag);
@@ -1724,6 +1780,21 @@ function appendDealFilters(where: string[], args: Array<string | number>, f: Omi
   }
   appendAdvancedFilters(where, args, 'd', scopedCompanyNameFields(DEAL_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'd', f.ownerScope);
+}
+
+/** Ids de los deals del pipeline que cumplen el filtro (con el alcance de quien pide), en orden, hasta `cap`. */
+export async function listDealIds(userId: string, f: DealFilter, cap: number): Promise<{ ids: string[]; total: number }> {
+  const db = getDb();
+  const where: string[] = ['d.user_id = ?', 'd.pipeline_id = ?'];
+  const args: Array<string | number> = [userId, f.pipelineId];
+  appendDealFilters(where, args, f);
+  const whereSql = where.join(' AND ');
+  const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM crm_deals d WHERE ${whereSql}`).get(...args)) as { c: number }).c;
+  const order = extraSortOrder('d', f.sort, f.customTypes) ?? DEAL_ORDER[(f.sort ?? 'newest') as keyof typeof DEAL_ORDER] ?? DEAL_ORDER.newest;
+  const rows = (await db
+    .prepare(`SELECT d.id FROM crm_deals d WHERE ${whereSql} ORDER BY ${order} LIMIT ?`)
+    .all(...args, Math.max(0, Math.floor(cap)))) as Array<{ id: string }>;
+  return { ids: rows.map((r) => r.id), total };
 }
 
 export async function listDeals(
