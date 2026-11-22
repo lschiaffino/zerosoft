@@ -107,11 +107,17 @@ final class TabsUITests: XCTestCase {
         let hidden = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: strip)
         wait(for: [hidden], timeout: 10)
         waitTabs(app, "main=*/")
-        // No window has the keyboard now: File > New Tab from the menu bar.
-        app.menuBars.menuBarItems["File"].click()
-        app.menuItems["New Tab"].click()
-        XCTAssertTrue(strip.waitForExistence(timeout: 10), "New Tab did not show the window again")
+        // No window is on screen: with the app in front, File > New Tab from the menu bar opens a
+        // tab and shows the window.
+        app.activate()
+        let file = app.menuBars.menuBarItems["File"]
+        XCTAssertTrue(file.waitForExistence(timeout: 10))
+        file.click()
+        let newTab = app.menuItems["New Tab"]
+        XCTAssertTrue(newTab.waitForExistence(timeout: 10))
+        newTab.click()
         waitTabs(app, "main=/,*/app")
+        XCTAssertTrue(strip.waitForExistence(timeout: 10), "Cmd+T did not show the window again")
     }
 
     /// Cmd+1...Cmd+8 pick a tab, Cmd+9 the last; Ctrl+Tab and Ctrl+Shift+Tab wrap around, as do
