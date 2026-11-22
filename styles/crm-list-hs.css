@@ -374,6 +374,6 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 .assoc-picker-empty { margin: 4px 8px; font-size: 0.8125rem; color: var(--brand-gray-1); }
 .assoc-picker-foot { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
 @media (max-width: 640px) {
-  .assoc-picker-item, .assoc-add-trigger { min-height: 40px; }
+  .assoc-picker-item, .assoc-add-trigger, .rec-card[data-head-add='true'] .rec-card-add { min-height: 40px; }
   .assoc-picker-search { height: 40px; min-height: 40px; }
 }
