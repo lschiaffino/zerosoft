@@ -386,7 +386,24 @@ function fakeWav(seconds = 2): Buffer {
 const fakeMediaReleased = new Set<string>();
 const fakeMediaTries = new Map<string, number>();
 
+/**
+ * Lo que se mandó con bytes (base64), por id del mensaje: como WhatsApp, bajar un archivo propio devuelve ese mismo
+ * archivo (no uno inventado). Inbox no guarda copia al mandar y lo baja de acá; sin esto, la burbuja pasaba de la
+ * foto mandada a una inventada. En globalThis (la ruta que manda y la que sirve el archivo son módulos distintos) y
+ * con tope, para que el proceso de los e2e no crezca sin fin.
+ */
+const fakeSentMedia = ((globalThis as unknown as { __groupsFakeSentMedia?: Map<string, { data: Buffer; mimetype: string; filename: string }> }).__groupsFakeSentMedia ??= new Map());
+const FAKE_SENT_MEDIA_MAX = 200;
+
+function keepSentMedia(id: string, media: { base64?: string; mimetype: string; filename: string }): void {
+  if (!media.base64) return;
+  fakeSentMedia.set(id, { data: Buffer.from(media.base64, 'base64'), mimetype: media.mimetype, filename: media.filename });
+  while (fakeSentMedia.size > FAKE_SENT_MEDIA_MAX) fakeSentMedia.delete(fakeSentMedia.keys().next().value as string);
+}
+
 function fakeMedia(id: string): { data: Buffer; mimetype: string; filename: string } {
+  const sent = fakeSentMedia.get(id);
+  if (sent) return sent;
   // "gone-": el gateway ya no tiene el mensaje (Evolution: "Message not found" tras volver a vincular la línea).
   if (id.startsWith('gone-')) throw new ProviderError('not_found');
   // "hold-": el gateway no responde (falla pasajera) hasta que un webhook { type: 'fake_media_release', id } lo libera.
@@ -606,9 +623,13 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
         // Menciones en el pie, como Evolution (sendMedia con `mentioned`): el id lleva los JIDs, igual que en sendText.
         const wire = fakeMentionWire(chatId, media.caption, media.mentions);
         Object.assign(s.sent[s.sent.length - 1], { mentions: [...media.mentions], mentioned: wire.mentioned, mentionText: wire.text });
-        return { id: `${r.id}~${wire.mentioned.join(',')}` };
+        const id = `${r.id}~${wire.mentioned.join(',')}`;
+        keepSentMedia(id, media);
+        return { id };
       }
-      return media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
+      const out = media.kind === 'sticker' ? { id: `stk-${r.id}` } : media.gifPlayback ? { id: `gif-${r.id}` } : r;
+      keepSentMedia(out.id, media);
+      return out;
     },
     react: async (chatId, _id, emoji) => {
       send(chatId, emoji, 'reaction');
