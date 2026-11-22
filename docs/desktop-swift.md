@@ -1,6 +1,6 @@
 # A Swift Mac app for the Mac App Store and Lockdown Mode
 
-Status: blocks 1 to 3 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
+Status: blocks 1 to 6 merged or in review (November 2026); the rest is plan. This document is step 1 of the gauntlet loop
 that rewrites the Mac desktop app in Swift: it maps what the current app does, what Apple allows in
 the Mac App Store, what Lockdown Mode changes, the architecture, the distribution plan and the
 blocks (pull requests) that get us to 1.0.
@@ -552,6 +552,154 @@ workflow runs on its own for pushes that touch the app.
 | 9 | Privacy and data | Activity log (closed schema, 500 events, 30 days), stores inventory and delete, delete-all flow, privacy page in Settings; `privacy-facts.json` gains per-app code paths; `tests/unit/desktop-privacy.test.ts` scans Swift sources; Swift test compares ids and limits; runtime host check | Vitest + XCTest + a UI run that records hosts contacted | 3 to 8 |
 | 10 | Distribution | Developer ID signing, notarization and stapling, Sparkle 2 in the direct build, Store configuration (provisioning, `PrivacyInfo.xcprivacy`, export compliance), TestFlight upload with the App Store Connect API key on a tag `mac-vX.Y.Z`; `/download` and the download route serve the new build | CI dry run with a throwaway certificate (like today's `signing_selftest`); `spctl --assess` on the notarized app; `codesign -d --entitlements` matches the expected list | 1 (signing parts can start early, in parallel), needs the owner's account |
 | 11 | 1.0 hardening | VoiceOver labels on native UI, en/es/pt strings from `desktop/strings.json`, memory and launch timings against the Tauri numbers in `desktop/README.md`, the nightly real-web-app Lockdown run, review notes and screenshots | Full UI suite on both Lockdown modes; nightly run green 5 nights in a row | all |
+
+**Built in block 4** (`Sources/ZerosoftCore/TabSession.swift`, `App/TabsController.swift`,
+`App/BrowserWindowController.swift`, `App/TabStripView.swift`): windows with their own tab strip,
+one `WebController` per loaded tab built by the same factory as the first (same navigation policy,
+bridge checks, watchdog and Lockdown setting), the shortcuts and menus of `docs/desktop-tabs.md`,
+link handling in the bridge script (Cmd-click, Cmd+Shift-click, Cmd+Option-click, middle click,
+right click), `target=_blank` of the server as a tab next to the page, drag to reorder, drop on
+another window's strip or away from it, lazy restore and idle suspension. The bridge `tabs`
+capability is on. Where the code differs from the table above or from the Tauri app:
+
+- The strip is AppKit views in the title bar of a full-size content window, not SwiftUI: dragging a
+  tab across windows, the middle button and accessibility tab buttons need event tracking that
+  SwiftUI does not give.
+- `session.json` keeps the Tauri shape (version, windows, tabs with id and path, the tab in front,
+  bounds, prefs) but holds no titles, which are page contents; it reads a Tauri file and drops its
+  titles. Every path read from it goes through `TabSession.allowedPath`: `session::valid_path`,
+  no dot segment (plain or percent-encoded), no `/api/` route, and the server plus the path must
+  be the server origin and pass the navigation policy. Only app pages (`/app...`, also after a
+  locale) are saved, without query or fragment and never under `invite/`: public pages carry
+  capability tokens in the path (`/invite/<token>`, `/sign/<token>`...) and a query can carry one.
+  Restore takes only paths in that saved form. Tabs that fail are dropped, and so are windows left
+  without tabs.
+- A link or `target=_blank` to a server URL that cannot be a tab (an `/api/` export or download)
+  goes to the browser, as downloads do; the bridge script leaves `/api/` links to the page.
+- A tab with the camera or microphone on is never suspended, whatever the page told the bridge.
+- Bridge `tabs` actions other than `state` count only from the tab in front of its window.
+- Deep links and notification clicks load their page in the tab in front of the last focused
+  window, as `navigate_active` in tabs.rs (section 4.7 said "opens the tab of the notification").
+- A fresh session opens `/app`, as the Tauri app; blocks 1 to 3 opened the server root.
+- The tab preferences (suspend, minutes, restore, Cmd-click target) are read from `session.json`;
+  the switches arrive with Settings in block 5. The recording dot waits for block 7.
+
+**Built in block 5** (`Sources/ZerosoftCore/AppSettings.swift`, `Sources/ZerosoftCore/SettingsAPI.swift`,
+`App/SettingsWindow.swift`, `App/SettingsModel.swift`, `App/OnboardingWindow.swift`,
+`App/StatusItemController.swift`, `App/SystemServices.swift`): the menu bar item, the SwiftUI
+Settings window in an AppKit window (app menu Settings, Cmd+,; the menu bar item; the page's
+`openSettings()`), the first-run window and the login item. The bridge `settingsWindow`
+capability is on and `openSettings` has its native side, so the web app's "Desktop app
+settings" buttons (`components/settings/DesktopAppSettings.tsx`, `components/app/AppSidebar.tsx`)
+show and open it. `openSettings` counts only from the tab in front of the window in front, while
+the app is in front, so a background page cannot pull the app over other apps. Where the code differs from the table above or from the Tauri app:
+
+- Sections: General (open at login, menu bar item, server and Lockdown state, "show the welcome
+  again", the web settings in a tab), Tabs (the `session.json` preferences block 4 left without
+  switches: suspend, minutes, restore, Cmd-click target), Notifications, Dictation (language,
+  style, depth, AI cleanup: `/api/voice/settings`), Dictionary (`/api/voice/dictionary`), History
+  (the last 50 dictations, `/api/voice/sessions`) and Account (from the badge route's `user`, sign
+  in and out). Permissions has only notifications: the microphone, camera, screen and Accessibility
+  rows come with the blocks that add those entitlements (6 to 8). Meetings, Privacy and Updates
+  come with blocks 7, 9 and 10. History copies; paste-back needs block 6's paste path.
+- The Tauri window also lists the server's settings groups (`/api/settings/nav`) and loads those
+  web sections inside itself. The Swift window opens `/app/settings` in a tab instead: one less
+  web view outside the tab model and its checks.
+- The custom server is shown, not edited: a change needs the origin of every check to move and a
+  relaunch, so the field (Settings › Advanced) waits for block 10, where the direct build needs it.
+- `settings.json` (next to `session.json`, mode 0600) holds two switches and a version:
+  `onboarded`, `menuBarItem`. A test checks it can hold nothing else. The tab
+  preferences stay in `session.json`; the login item's state is the system's
+  (`SMAppService.mainApp.status`), so the app keeps no copy. What the server sections load
+  (dictionary, history, the account's name and email) stays in memory.
+- The notification prompt shows only from the "Turn on notifications" button of the onboarding or
+  Settings, after a screen that says what the notifications are. Block 3 asked on the first
+  delivery; now nothing is handed to the system until the person allowed it, and the Dock badge
+  counts in the meantime.
+- Open at login is off by default and changes only from its switch (onboarding or Settings).
+  "Needs approval" sends the person to System Settings › Login Items. A fresh install can report
+  "not found" before its first registration on macOS 13 and 14, so the switch stays usable and
+  `register()` decides.
+- Sign-out from Settings or the menu bar item does next-auth's CSRF request and POST
+  (`/api/auth/csrf`, `/api/auth/signout`, as auth.rs `server_sign_out`), which also revokes the
+  session on the server, then deletes the session cookies from the web views' store. The web
+  app's own local data for the server (localStorage, IndexedDB) stays: block 9's "delete all"
+  removes it. The open server section reloads after a sign-in or sign-out from anywhere. Writes to
+  the voice routes carry the server as `Origin`. Every path is in `desktop/privacy-facts.json`
+  (a Swift test compares them).
+- The first-run window did not show the dictation shortcut yet (section 2.1): block 6 added that
+  step. It opens once, never in a UI test unless `-ZSOnboarding YES` asks for it; closing it counts
+  as seen.
+- The menu bar item's menu: Open zerosoft, New Tab, New Window, the count of new items, Settings,
+  Sign in or Sign Out (once the badge poll knows), Quit. Its icon is an SF Symbol until block 11's
+  artwork. Dictation, history and the recording dot join it in blocks 6 and 7.
+- UI tests replace the login item and the notification permission with fakes (CI cannot answer
+  the system prompt, and an ad hoc build must not add itself to the runner's login items); the
+  mapping of the system states is unit tested.
+
+**Built in block 6** (`Sources/ZerosoftCore/Dictation.swift`, `DictationAudio.swift`,
+`DictationAPI.swift`, `PendingDictations.swift`, `PasteFlow.swift`; `App/Dictation/`): dictation
+in any app. The bridge `dictation` capability is on; the page still has no command that starts a
+dictation. Where the code differs from the table above or from the Tauri app:
+
+- **Paste path (decision 7.1, as planned).** Auto-paste sits behind the `ZSAutoPaste` flag in
+  Info.plist, from the `ZS_AUTO_PASTE` build setting in `project.yml`: `YES` for the direct build
+  and for the Store submission, and the Store configuration of block 10 sets `NO` if review
+  rejects it. The keystroke is posted only when the flag is on, the person's "Paste into the app
+  in front" switch is on (Settings › Dictation) and macOS approved it
+  (`CGPreflightPostEventAccess`). Otherwise the text is copied and the HUD says "Copied. Paste
+  with ⌘V" (the plan's copy-only baseline; no extra notification). Approval is asked for only
+  from the "Allow pasting" button (onboarding or Settings › Permissions):
+  `CGRequestPostEventAccess`, and System Settings › Accessibility whenever macOS shows no prompt
+  (it prompts only once per app). No
+  Accessibility (AX) API is used. `scripts/check-signature.sh` checks the built app has the flag
+  on and a microphone usage string.
+- **Microphone.** `com.apple.security.device.audio-input` and `NSMicrophoneUsageDescription` are
+  the only additions (the signature check lists the entitlements). The prompt shows only from
+  "Turn on the microphone" (onboarding, Settings › Permissions) or the first dictation, which asks
+  and records nothing; the next one records. Capture is `AVAudioEngine`'s input node at the
+  device's rate, mixed to mono in memory and resampled to 16 kHz WAV when the dictation ends.
+- **Shortcut.** `RegisterEventHotKey` for the dictation shortcut (the Tauri list, default
+  Option+Space) and "paste last" (Control+Command+V); Esc is registered only while recording.
+  Hold, tap (hands-free) and both modes are the Tauri state machine (`DictationMachine`), with
+  key repeats ignored and a lost release not blocking the next press. A shortcut that cannot be
+  registered shows "Pick another one" in Settings and the onboarding; when the default
+  Option+Space is refused (macOS 15 is reported to refuse some Option-only shortcuts), the app
+  uses Command+Shift+D for the session and says so in Settings. The UI tests record whether the
+  default registers on the runner and use Command+Shift+D for the shortcut test (Control+Option+
+  Space is a macOS input-source shortcut). While the microphone is open, paste last and the
+  resend of saved dictations do nothing and nothing replaces or hides the recording HUD.
+- **Clipboard.** The port of `clipboard.rs` keeps its rules, with two changes: the snapshot keeps
+  every item and type (Tauri kept text or an image), and "is our text still there" compares the
+  pasteboard's change count instead of reading the text back. Contents marked concealed,
+  transient or auto-generated (password managers) are never read or put back: the clipboard is
+  cleared instead, so their auto-clear still works. A clipboard over 32 MB is left alone. The clipboard is read only when the
+  keystroke will be posted and "put back the clipboard" is on; whether macOS 26's paste prompt
+  shows for that read is still **(unconfirmed)**. Text the app writes is transient, concealed and
+  this Mac only.
+- **Saved dictations.** `retry.rs` ported with its limits (20, a week): `<id>.audio` and
+  `<id>.json`, mode 0600, in the container's `Application Support/zerosoft/pending/` (0700,
+  excluded from backups), only for
+  failures where the audio was fine and only with "Keep dictations that could not be sent" on (on
+  by default, as the Tauri app and the privacy facts). They are sent only to the server they were
+  recorded for, and the text that comes back is copied, never pasted. No transcript is ever
+  written to disk; the last text stays in memory for "Paste last dictation". One resend runs at
+  a time, and it stops at the first offline, signed-out or rate-limited answer. The dictation
+  request has its own client with a 75-second idle timeout (the server can think for 60).
+- **Settings and menus.** settings.json gains the shortcut and the mode (names from closed lists)
+  and four switches (`autoPaste`, `restoreClipboard`, `sendAppName`, `keepFailedDictations`).
+  Settings › Notifications became Permissions (notifications, microphone, Accessibility).
+  Settings › Dictation has the switches above the account's dictation settings; the app-name and
+  keep switches live there until block 9's Privacy page. History pastes back (zerosoft hides so
+  the focus returns to the previous app) and sends the saved dictations again. The menu bar item
+  gained Start/Stop dictation, the hold hint, Paste last dictation, Send saved dictations again
+  and Dictation history; its icon and tooltip change while the microphone is open. The
+  onboarding has a dictation step (shortcut, microphone, pasting) after the welcome.
+- **Not in this block.** Timings are logged as numbers (`os.Logger`, never text) instead of shown
+  in History; activity-log events for the microphone and paste wait for block 9 with the rest of
+  the log, and the Swift code paths in `desktop/privacy-facts.json` too. UI tests use a fake audio
+  source and fake microphone and Accessibility permissions (CI cannot grant either and must not
+  post keystrokes); the real capture and keystroke need a run on a real Mac before TestFlight.
 
 Parallel work: after block 2, blocks 4 and 5 can run at the same time; 6 and 7 at the same time
 after 5; block 10's signing setup any time after 1 once the owner's account exists. At most two blocks

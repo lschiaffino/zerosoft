@@ -93,6 +93,11 @@ export async function GET(req: NextRequest) {
   if (!reminders.ok) return reminders;
   const webhookRetries = await retryDueWebhooks();
   const dueTasks = await fireDueTasks();
+  // CRM: email diario con las tareas del día (desde las 8 locales; claim por persona y día).
+  const taskDigests = await import('@/lib/crm-task-digest').then((m) => m.runTaskDigests()).catch(() => null);
+  const crmWorkflowWaits = await import('@/lib/crm-workflows')
+    .then((m) => m.resumeWaitingWorkflowRuns({ limit: 200, budgetMs: 30_000 }))
+    .catch(() => null);
   // Respuestas de Chat sin leer → email al visitante (también cada minuto en Vercel).
   const chatEmails = await sendOfflineReplyEmails({ limit: 200 }).catch(() => null);
   // Recordatorios de Notes (también cada minuto en Vercel; claim por fila).
@@ -227,6 +232,6 @@ export async function GET(req: NextRequest) {
     .catch(() => null);
   // Pedidos del asistente que no llegaron a su issue de GitHub (solo con BACKLOG_GITHUB_*).
   const backlogIssues = await syncPendingBacklogIssues({ limit: 20 }).catch(() => null);
-  return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, crmWorkflowWaits, taskDigests, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas, backlogIssues });
 }

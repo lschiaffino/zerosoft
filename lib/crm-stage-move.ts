@@ -20,6 +20,58 @@ export interface MissingFieldInfo {
   currency?: string;
 }
 
+/**
+ * Lo que pide la etapa, separado según la persona: `fillable` lo que puede
+ * completar en el diálogo; `adminRequired` si falta además un campo propio
+ * que tiene oculto o de solo lectura (lo tiene que completar un admin). Los
+ * ocultos no se nombran. Puro.
+ */
+export function splitMissingForViewer(
+  missing: string[],
+  restricted: ReadonlyMap<string, 'read' | 'hidden'>,
+): { fillable: string[]; adminRequired: boolean } {
+  const fillable: string[] = [];
+  let adminRequired = false;
+  for (const key of missing) {
+    if (key.startsWith('custom:') && restricted.has(key.slice(7))) adminRequired = true;
+    else fillable.push(key);
+  }
+  return { fillable, adminRequired };
+}
+
+/** Lo que queda en lugar de los campos ocultos en `required_fields`: la etapa sigue pidiendo algo, sin nombrarlo. */
+export const PRIVATE_REQUIRED_KEY = 'custom:_private';
+
+/**
+ * `required_fields` (JSON) de una etapa como lo ve la persona: los campos
+ * propios que tiene ocultos se cambian por PRIVATE_REQUIRED_KEY (una vez). Puro.
+ */
+export function redactRequiredFields(json: string | null | undefined, hidden: ReadonlySet<string>): string {
+  if (!json || !hidden.size) return json ?? '[]';
+  let keys: unknown;
+  try {
+    keys = JSON.parse(json);
+  } catch {
+    return '[]';
+  }
+  if (!Array.isArray(keys)) return '[]';
+  const out: string[] = [];
+  let hid = false;
+  for (const k of keys) {
+    if (typeof k !== 'string') continue;
+    if (k.startsWith('custom:') && hidden.has(k.slice(7))) hid = true;
+    else out.push(k);
+  }
+  if (hid) out.push(PRIVATE_REQUIRED_KEY);
+  return JSON.stringify(out);
+}
+
+/** Etapas (o pipelines con sus etapas) sin nombrar en `required_fields` campos que la persona tiene ocultos. */
+export function redactStagesFor<S extends { required_fields?: string | null }>(stages: S[], hidden: ReadonlySet<string>): S[] {
+  if (!hidden.size) return stages;
+  return stages.map((st) => (st.required_fields ? { ...st, required_fields: redactRequiredFields(st.required_fields, hidden) } : st));
+}
+
 /** Cómo pedir cada propiedad que falta (la UI arma el diálogo con esto). */
 export async function describeMissing(
   userId: string,

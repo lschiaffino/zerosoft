@@ -3,6 +3,7 @@ import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { getAssignmentRule, listAssignmentHistory, saveAssignmentRule, unavailablePeople } from '@/lib/crm-assignment';
 import { assignmentRuleSchema } from '@/lib/crm-schema';
 import { forbidden, invalidBody, unauthorized } from '@/lib/crm-http';
+import { sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export async function GET() {
   const [rule, away, history] = await Promise.all([
     getAssignmentRule(user.id),
     unavailablePeople(user.id),
-    listAssignmentHistory(user.id, 50),
+    sessionScope(user).then((scope) => listAssignmentHistory(user.id, 50, scope)),
   ]);
   return NextResponse.json({ rule, unavailable: [...away], history });
 }

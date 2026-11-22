@@ -1,7 +1,9 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { listWorkflows } from '@/lib/crm-workflows';
+import { listWorkflows, workflowsForViewer } from '@/lib/crm-workflows';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
+import { redactActionsForMember } from '@/lib/crm-workflow-rules';
 import WorkflowList from '@/components/crm/WorkflowList';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -13,8 +15,11 @@ export default async function WorkflowsPage(props: { params: Promise<{ locale: s
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm.workflows' });
   const tc = await getTranslations({ locale, namespace: 'crm.common' });
-  const workflows = await listWorkflows(user.id);
   const admin = isWorkspaceAdmin(user);
+  // Sin los que nombran un campo que la persona tiene oculto.
+  const all = await workflowsForViewer(sessionFieldViewer(user), await listWorkflows(user.id));
+  // Quien no administra no recibe cabeceras ni URLs completas de webhooks.
+  const workflows = admin ? all : all.map((w) => ({ ...w, actions: redactActionsForMember(w.actions) }));
 
   return (
     <div className="app-page ui-page">

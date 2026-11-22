@@ -4,6 +4,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import SortTh from './SortTh';
+import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
@@ -27,6 +28,8 @@ export interface ContactRow {
   phone: string;
   companyName: string | null;
   companyId: string | null;
+  /** La empresa primaria es un registro que la persona no ve. */
+  companyPrivate?: boolean;
   lifecycle: string;
   leadStatus: string;
   source: string;
@@ -270,7 +273,10 @@ export default function ContactsTable({ viewCols, viewFreeze,
       case 'company':
         return (
           <td data-card="line">
-            {companies.length > 0 ? (
+            {row.companyPrivate ? (
+              // No se ofrece cambiarla: la pisaría sin verla.
+              <PrivateRecord label={t('common.privateRecord')} />
+            ) : companies.length > 0 ? (
               <InlineEditCell
                 endpoint={`/api/crm/contacts/${row.id}`}
                 field="companyId"

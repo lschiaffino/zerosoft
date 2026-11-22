@@ -69,14 +69,12 @@ struct StatusOverlayView: View {
     private func t(_ key: StringKey) -> String { Strings.text(key, model.lang) }
 }
 
-/// The window's content: the web view with the native overlay on top. The overlay is hidden only
-/// while a page that drew is showing.
+/// One tab's content: its web view with the native overlay on top. The overlay is hidden only
+/// while a page that drew is showing. A window shows the content of its tab in front; moving a
+/// tab to another window moves this view (the page is not reloaded).
 @MainActor
-final class MainContentView: NSView {
+final class TabContentView: NSView {
     private var overlayHost: NSHostingView<StatusOverlayView>?
-    #if DEBUG
-    private var testLabels: [NSTextField] = []
-    #endif
 
     func install(_ web: WebController) {
         web.webView.frame = bounds
@@ -88,70 +86,9 @@ final class MainContentView: NSView {
         host.autoresizingMask = [.width, .height]
         addSubview(host, positioned: .above, relativeTo: web.webView)
         overlayHost = host
-        #if DEBUG
-        // The test labels stay above the overlay so tests can read them at any time.
-        for label in testLabels { addSubview(label, positioned: .above, relativeTo: host) }
-        #endif
+        host.isHidden = web.model.overlay == .none
         web.onOverlayChange = { [weak host] overlay in
             host?.isHidden = overlay == .none
         }
     }
-
-    #if DEBUG
-    /// UI tests only (`-ZSUITest YES`): a tiny label that receives the last URL that would have
-    /// opened in the browser, so tests can check the policy without launching a browser.
-    func installTestRecorder() -> (URL) -> Void {
-        let label = testLabel("zs-test-external", "none")
-        return { [weak label] url in label?.stringValue = url.absoluteString }
-    }
-
-    /// UI tests only: what the bridge's `ready` reported (`zs-test-ready`) and how many messages
-    /// it refused, by reason (`zs-test-bridge`), so tests see the native side of the checks.
-    func installBridgeRecorder(_ web: WebController) {
-        let ready = testLabel("zs-test-ready", "none")
-        let rejected = testLabel("zs-test-bridge", "rejected end")
-        var counts: [BridgeRejection: Int] = [:]
-        let order: [BridgeRejection] = [.origin, .malformed, .tooLarge, .unknownCommand, .badArgs, .unavailable]
-        web.onBridgeReady = { [weak ready] report in ready?.stringValue = "ready \(report.summary) end" }
-        web.onBridgeReject = { [weak rejected] reason in
-            counts[reason, default: 0] += 1
-            let parts = order.compactMap { r in counts[r].map { "\(r.rawValue)=\($0)" } }
-            rejected?.stringValue = (["rejected"] + parts + ["end"]).joined(separator: " ")
-        }
-    }
-
-    /// UI tests only: the outcome of a sign-in (`zs-test-login`, a closed tag), the Dock badge
-    /// (`zs-test-badge`), the last page notification and whether it would show
-    /// (`zs-test-notify`). Returns the recorder of deep links (`zs-test-deeplink`).
-    func installBlock3Recorders(auth: AuthController, notifier: Notifier) -> (String) -> Void {
-        let login = testLabel("zs-test-login", "none")
-        let badge = testLabel("zs-test-badge", "none")
-        let note = testLabel("zs-test-notify", "none")
-        let link = testLabel("zs-test-deeplink", "none")
-        var logins = 0
-        auth.onOutcome = { [weak login] tag in
-            logins += 1
-            login?.stringValue = "login \(logins) \(tag)"
-        }
-        notifier.onBadge = { [weak badge] label in badge?.stringValue = "badge \(label)" }
-        notifier.onPageNotification = { [weak note] title, body, show in
-            note?.stringValue = "notify \(title)|\(body ?? "-")|\(show ? "shown" : "app-active")"
-        }
-        var links = 0
-        return { [weak link] what in
-            links += 1
-            link?.stringValue = "link \(links) \(what)"
-        }
-    }
-
-    private func testLabel(_ id: String, _ initial: String) -> NSTextField {
-        let label = NSTextField(labelWithString: initial)
-        label.frame = NSRect(x: CGFloat(testLabels.count) * 5, y: 0, width: 4, height: 4)
-        label.alphaValue = 0.02
-        label.setAccessibilityIdentifier(id)
-        addSubview(label)
-        testLabels.append(label)
-        return label
-    }
-    #endif
 }

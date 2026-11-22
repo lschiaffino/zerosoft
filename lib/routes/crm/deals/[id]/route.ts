@@ -5,6 +5,7 @@ import { deleteDeal, getDeal, updateDeal } from '@/lib/crm';
 import { dealUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized, guardRecord } from '@/lib/crm-http';
 import { sessionScope, scopeDealDetail } from '@/lib/crm-visibility';
+import { maskDetailRefs } from '@/lib/crm-record-scope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
   if (hidden) return hidden;
   const detail = await getDeal(user.id, params.id);
   if (!detail) return notFound();
-  const scoped = scopeDealDetail(detail, scope);
+  const scoped = await maskDetailRefs(user.id, 'deal', scopeDealDetail(detail, scope), scope);
   // Sin campos ocultos ni en el registro ni en sus asociados.
   return NextResponse.json(await redactRecordDetail(sessionFieldViewer(user), 'deal', scoped));
 }

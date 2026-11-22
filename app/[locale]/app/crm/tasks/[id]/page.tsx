@@ -18,6 +18,7 @@ import TaskFiles from '@/components/crm/TaskFiles';
 import TaskDonePin from '@/components/crm/TaskDonePin';
 import TaskLinksPanel from '@/components/crm/TaskLinksPanel';
 import { taskLinksFor } from '@/lib/tasks';
+import { listQueues, sessionQueueViewer } from '@/lib/crm-task-queues';
 import { canUse } from '@/lib/permissions';
 import { ACTIVITY_TYPES } from '@/lib/crm-constants';
 import { TASK_REPEATS } from '@/lib/crm-task-repeat';
@@ -78,6 +79,9 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
     ? (await (await import('@/lib/track-data')).listProjectMetas(user.team?.id ?? null, user.id)).map((p) => ({ id: p.id, name: p.name }))
     : null;
   const projects = await listTaskProjects(user.id, true);
+  // Colas que la persona ve: la de otra persona (privada) sale vacía.
+  const queues = await listQueues(sessionQueueViewer(user));
+  const taskQueueId = task.queue_id && queues.some((q) => q.id === task.queue_id) ? task.queue_id : '';
   const contacts = (await listContacts(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
   const companies = (await listCompanies(user.id, { pageSize: 200, sort: 'name', ownerScope: scope })).rows;
   const deals = (await getDb()
@@ -153,11 +157,30 @@ export default async function TaskDetailPage(props: TaskDetailPageProps) {
       options: projectOptions,
       nullOption: true,
     },
+    {
+      key: 'queueId',
+      label: t('tasks.queues.label'),
+      type: 'select',
+      value: taskQueueId,
+      options: queues.map((q) => ({ value: q.id, label: q.name })),
+      nullOption: true,
+    },
+    {
+      key: 'reminderAt',
+      label: t('tasks.form.reminder'),
+      type: 'datetime',
+      value: task.reminder_at ?? '',
+      display: task.reminder_at
+        ? `${formatDateTime(task.reminder_at, locale, timeZone)}${task.reminder_sent_at ? ` · ${t('tasks.reminderSent')}` : ''}`
+        : '',
+      nullOption: true,
+      help: t('tasks.reminderHelp'),
+    },
   ];
 
   const sections: PropSection[] = [
-    { title: t('tasks.detail.aboutSection'), keys: ['subject', 'type', 'body', 'dueAt', 'repeat'] },
-    { title: t('tasks.detail.ownershipSection'), keys: ['ownerId', 'priority', 'projectId'] },
+    { title: t('tasks.detail.aboutSection'), keys: ['subject', 'type', 'body', 'dueAt', 'reminderAt', 'repeat'] },
+    { title: t('tasks.detail.ownershipSection'), keys: ['ownerId', 'priority', 'queueId', 'projectId'] },
   ];
 
   const associatedRecord = buildAssociation(task);

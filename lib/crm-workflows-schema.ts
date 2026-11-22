@@ -3,6 +3,7 @@
  */
 import { z } from 'zod';
 import { TRIGGER_TYPES, ACTION_TYPES } from './crm-workflows';
+import { BRANCH_OPS, CONDITION_ENTITIES, MAX_FILTERS } from './crm-workflow-rules';
 
 const id = z.string().min(1).max(64);
 const shortText = z.string().trim().max(500);
@@ -27,10 +28,24 @@ const actionSchema = z.object({
   position: z.number().int().min(0).optional(),
 });
 
+const conditionSchema = z.object({
+  entity: z.enum(CONDITION_ENTITIES),
+  field: z.string().trim().min(1).max(100),
+  op: z.enum(BRANCH_OPS),
+  value: z.string().max(500).optional(),
+});
+
+/** Inscripción: reinscripción y filtros (todos se cumplen). */
+const settingsSchema = z.object({
+  reenroll: z.boolean().optional(),
+  filters: z.array(conditionSchema).max(MAX_FILTERS).optional(),
+});
+
 export const workflowCreateSchema = z
   .object({
     name: shortText,
     enabled: z.boolean().optional(),
+    settings: settingsSchema.optional(),
     triggers: z.array(triggerSchema).min(1).max(10),
     // Sin acciones solo como borrador (creación rápida: nombre + trigger → editor).
     actions: z.array(actionSchema).max(20),
@@ -43,6 +58,7 @@ export const workflowCreateSchema = z
 export const workflowUpdateSchema = z.object({
   name: shortText.optional(),
   enabled: z.boolean().optional(),
+  settings: settingsSchema.optional(),
   triggers: z.array(triggerSchema).min(1).max(10).optional(),
   actions: z.array(actionSchema).min(1).max(20).optional(),
 });

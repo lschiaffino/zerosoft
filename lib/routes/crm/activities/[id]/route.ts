@@ -4,8 +4,9 @@ import { canSeeActivity, canSeeActivityRefs, sessionScope } from '@/lib/crm-visi
 import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { unpinSiblings } from '@/lib/crm-timeline';
-import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
+import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
+import { canChangeTaskQueue, getQueue, maskQueueRefs, sessionQueueViewer } from '@/lib/crm-task-queues';
 import { activityUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
@@ -31,6 +32,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return notFound();
   }
 
+  // Cola de tareas: solo una que la persona ve.
+  if (parsed.data.queueId && !(await getQueue(sessionQueueViewer(user), parsed.data.queueId))) return crmError(400, 'invalid_queue');
+  // Ni sacarla de una cola que no ve (la privada de otra persona).
+  if (parsed.data.queueId !== undefined && !(await canChangeTaskQueue(sessionQueueViewer(user), params.id))) return crmError(400, 'invalid_queue');
+
   // Tarea de un chat de Lines que la persona no ve: puede completarla, moverla o reasignarla, pero no
   // reescribir un texto que no ve, y la respuesta tampoco lo trae.
   const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
@@ -43,17 +49,19 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const updated = await catchRef(updateActivity(user.id, params.id, parsed.data));
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();
-  const activity = (await redactChatTask(user.id, updated, reader)) ?? updated;
-  // Solo se avisa a quienes la edición suma como mencionados.
+  const [activity] = await maskQueueRefs(sessionQueueViewer(user), [(await redactChatTask(user.id, updated, reader)) ?? updated]);
+  // Solo se avisa a quienes la edición suma como mencionados (y pueden ver la actividad).
   if (before && textEdit) {
-    await notifyActivityMentions({
+    const people = await mentionablePeople(user);
+    const mentions = await notifyMentionsDetailed({
       activity: updated,
       actor: user.actingUser ?? user,
-      people: await mentionablePeople(user),
+      people,
       workspaceId: user.id,
       before: `${before.subject}\n${before.body}`,
       locale,
-    }).catch(() => []);
+    }).catch(() => ({ notified: [], withoutAccess: [] as string[] }));
+    return NextResponse.json({ ...activity, ...mentionsNotNotified(mentions.withoutAccess, people) });
   }
   return NextResponse.json(activity);
 }

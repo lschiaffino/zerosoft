@@ -7,9 +7,19 @@
 import { after } from 'next/server';
 import { emitWebhook, type WebhookEvent } from './webhooks';
 
-export async function emitCrmHook(workspaceId: string, event: WebhookEvent, data: unknown): Promise<void> {
+/**
+ * `personalize`: cada webhook recibe lo que ve la persona que lo creó
+ * (lib/crm-event-privacy.ts). Las apps (Slack) reciben `data`: solo anuncian
+ * nombre y link.
+ */
+export async function emitCrmHook(
+  workspaceId: string,
+  event: WebhookEvent,
+  data: unknown,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown> } | null>,
+): Promise<void> {
   try {
-    await emitWebhook(workspaceId, event, data);
+    await emitWebhook(workspaceId, event, data, undefined, personalize);
     const { notifyApps } = await import('./crm-apps');
     await notifyApps(workspaceId, event, data);
   } catch (err) {
@@ -19,8 +29,13 @@ export async function emitCrmHook(workspaceId: string, event: WebhookEvent, data
 }
 
 /** Después de responder si hay request (no demora la operación); si no, en el momento. */
-export function emitCrmHookSoon(workspaceId: string, event: WebhookEvent, data: unknown): Promise<void> {
-  const job = () => emitCrmHook(workspaceId, event, data);
+export function emitCrmHookSoon(
+  workspaceId: string,
+  event: WebhookEvent,
+  data: unknown,
+  personalize?: (creatorId: string | null) => Promise<{ data: Record<string, unknown> } | null>,
+): Promise<void> {
+  const job = () => emitCrmHook(workspaceId, event, data, personalize);
   try {
     after(job);
     return Promise.resolve();

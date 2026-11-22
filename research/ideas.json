@@ -3170,7 +3170,9 @@
     "description": "HubSpot: Task queues: named queues a rep fills and then works one task after another; any filtered task view can be started (https://knowledge.hubspot.com/tasks/create-tasks). Today: lib/crm-work-queue.ts:11-12 scopes due, overdue, today; components/crm/QueueFilters.tsx (scope and owner). Reps organise their day in HubSpot with queues (calls to make, follow-ups) and the tasks table. First scope: queues a person creates and adds tasks to, Start tasks from any filtered task view, a table view of tasks with type, priority, queue and associated record columns and bulk edit, a reminder time on a task and a daily email with the tasks of the day. Also covers the parity rows tasks-index, task-reminders.",
     "product": "crm",
     "kind": "idea",
-    "parity": "work-queue"
+    "parity": "work-queue",
+    "status": "done",
+    "changelog": "2026-11-22-0815-crm-tasks-queues-reminders"
   },
   {
     "title": "CRM: BCC address to log email from any client, and a never-log list",

@@ -93,6 +93,7 @@ export async function sendWaCard(
   const [thread, sent] = await Promise.all([getThreadRow(owner, threadId), sentWithClientId(owner, threadId, clientId)]);
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   if (sent) return;
+  if (thread.kind === 'group' && thread.left_at) throw new InboxError('group_left', 409);
   const account = await getAccount(owner, thread.account_id);
   const provider = connected(account);
   const poll = 'poll' in card ? { question: card.poll.question.trim(), options: [...new Set(card.poll.options.map((o) => o.trim()).filter(Boolean))], multi: !!card.poll.multi } : null;

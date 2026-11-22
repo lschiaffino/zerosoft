@@ -12,8 +12,9 @@ import {
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
-import { mentionablePeople, notifyActivityMentions } from '@/lib/crm-mention-notify';
+import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
+import { getQueue, maskQueueRefs, sessionQueueViewer } from '@/lib/crm-task-queues';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,15 +31,14 @@ export async function GET(req: NextRequest) {
   const chatReader = await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')));
   if (bucket) {
     if (!BUCKETS.includes(bucket as TaskBucket)) return crmError(400, 'invalid_input');
-    return NextResponse.json({
-      rows: await listTasks(user.id, {
-        ownerScope: await sessionScope(user),
-        chatReader,
-        bucket: bucket as TaskBucket,
-        projectId: sp.get('projectId') ?? undefined,
-        ownerId: sp.get('ownerId') ?? undefined,
-      }),
+    const tasks = await listTasks(user.id, {
+      ownerScope: await sessionScope(user),
+      chatReader,
+      bucket: bucket as TaskBucket,
+      projectId: sp.get('projectId') ?? undefined,
+      ownerId: sp.get('ownerId') ?? undefined,
     });
+    return NextResponse.json({ rows: await maskQueueRefs(sessionQueueViewer(user), tasks) });
   }
 
   const type = sp.get('type');
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     dealId: sp.get('dealId') ?? undefined,
     type: (type as ActivityType | null) ?? undefined,
   });
-  return NextResponse.json({ rows });
+  return NextResponse.json({ rows: await maskQueueRefs(sessionQueueViewer(user), rows) });
 }
 
 export async function POST(req: NextRequest) {
@@ -73,15 +73,19 @@ export async function POST(req: NextRequest) {
   if (parsed.data.objectRecordId && !(await canSeeOwnedRow(user.id, 'crm_object_records', parsed.data.objectRecordId, scope))) {
     return notFound();
   }
+  // Cola de tareas: solo una que la persona ve (una privada de otra persona no existe para ella).
+  if (parsed.data.queueId && !(await getQueue(sessionQueueViewer(user), parsed.data.queueId))) return crmError(400, 'invalid_queue');
   const activity = await catchRef(createActivity(user.id, parsed.data));
   if (activity instanceof CrmRefError) return crmError(400, activity.code);
-  // @menciones: aviso in-app y por email a cada persona mencionada.
-  await notifyActivityMentions({
+  // @menciones: aviso in-app y por email a cada persona mencionada que puede ver la actividad. A quien
+  // escribe se le dice quiénes no la ven (no reciben nada).
+  const people = await mentionablePeople(user);
+  const mentions = await notifyMentionsDetailed({
     activity,
     actor: user.actingUser ?? user,
-    people: await mentionablePeople(user),
+    people,
     workspaceId: user.id,
     locale: requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')),
-  }).catch(() => []);
-  return NextResponse.json(activity, { status: 201 });
+  }).catch(() => ({ notified: [], withoutAccess: [] as string[] }));
+  return NextResponse.json({ ...activity, ...mentionsNotNotified(mentions.withoutAccess, people) }, { status: 201 });
 }

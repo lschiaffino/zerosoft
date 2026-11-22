@@ -5,6 +5,12 @@
  * una notificación in-app y un email con el texto y el link. Al editar solo
  * se avisa a quienes se suman como mencionados. Best effort: un email que
  * falla no corta el guardado.
+ *
+ * Quien no puede ver la nota o la tarea (el registro, el lead o el registro
+ * de objeto quedan fuera de su alcance, o es una tarea de un chat que no ve)
+ * no recibe nada: ni el texto, ni el nombre del registro, ni el link. La
+ * nota se guarda igual y a quien escribe se le avisa que esa persona no fue
+ * notificada (como HubSpot, que no notifica a quien no tiene acceso).
  */
 import { getWorkspace, workspaceTeamId } from './workspace';
 import { getDb, type CrmActivityRow } from './db';
@@ -12,7 +18,7 @@ import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { listMembers } from './teams';
 import { findMentions, newMentions, type Mentionable } from './crm-mentions';
-import { canSeeActivity, ownerScopeFor } from './crm-visibility';
+import { canSeeActivity, canSeeOwnedRow, ownerScopeFor } from './crm-visibility';
 import type { TeamRole } from './teams';
 
 /** Persona mencionable con su rol en el team (decide qué registros ve). */
@@ -98,26 +104,71 @@ async function recordLabel(a: Pick<CrmActivityRow, 'contact_id' | 'company_id' |
   return a.subject || 'CRM';
 }
 
-/**
- * Avisa a los mencionados en la actividad. `before`: el texto anterior (al
- * editar), así solo se avisa lo nuevo. Devuelve a quiénes se avisó.
- */
-export async function notifyActivityMentions(opts: {
-  activity: Pick<CrmActivityRow, 'id' | 'type' | 'subject' | 'body' | 'contact_id' | 'company_id' | 'deal_id'>;
+/** La actividad con lo que decide quién la ve. */
+type MentionActivity = Pick<CrmActivityRow, 'id' | 'type' | 'subject' | 'body' | 'contact_id' | 'company_id' | 'deal_id'> &
+  Partial<Pick<CrmActivityRow, 'lead_id' | 'object_record_id'>>;
+
+interface NotifyOpts {
+  activity: MentionActivity;
   actor: { id: string; name: string | null; email: string };
   people: MentionablePerson[];
   before?: string;
   locale?: string;
   /** Workspace dueño: si viene, solo se avisa a quien puede ver la actividad. */
   workspaceId?: string;
-}): Promise<string[]> {
+}
+
+/** ¿La persona ve la actividad: sus registros, su lead, su registro de objeto y, si es de un chat, el chat? */
+async function personSeesActivity(workspaceId: string, activity: MentionActivity, person: MentionablePerson, locale?: string): Promise<boolean> {
+  const scope = await ownerScopeFor({ workspaceId, personId: person.id, role: person.role ?? 'member' });
+  if (!(await canSeeActivity(workspaceId, activity.id, scope))) return false;
+  if (activity.lead_id && !(await canSeeOwnedRow(workspaceId, 'crm_leads', activity.lead_id, scope))) return false;
+  if (activity.object_record_id && !(await canSeeOwnedRow(workspaceId, 'crm_object_records', activity.object_record_id, scope))) {
+    return false;
+  }
+  // Una tarea de un chat de Lines que esa persona no ve: el aviso traería su texto (lib/crm-chat-privacy.ts).
+  // Si no se puede saber qué ve, no se avisa con el texto: cuenta como que no ve el chat.
+  const { isChatHidden, noChatReader, personChatReader } = await import('./crm-chat-privacy');
+  const reader = await personChatReader(workspaceId, person.id, locale).catch(() => noChatReader(workspaceId, locale));
+  return !(await isChatHidden(workspaceId, activity.id, reader));
+}
+
+/**
+ * Para la respuesta a quien escribe: los mencionados que no ven la actividad
+ * (solo su id y nombre, que ya conoce del equipo). Vacío si no hay.
+ */
+export function mentionsNotNotified(
+  ids: string[],
+  people: MentionablePerson[],
+): { mentions_not_notified?: Array<{ id: string; name: string }> } {
+  if (!ids.length) return {};
+  return {
+    mentions_not_notified: ids.map((id) => {
+      const p = people.find((x) => x.id === id);
+      return { id, name: p?.name?.trim() || p?.email || '' };
+    }),
+  };
+}
+
+/** Avisa a los mencionados (ver notifyMentionsDetailed). Devuelve a quiénes se avisó. */
+export async function notifyActivityMentions(opts: NotifyOpts): Promise<string[]> {
+  return (await notifyMentionsDetailed(opts)).notified;
+}
+
+/**
+ * Avisa a los mencionados en la actividad. `before`: el texto anterior (al
+ * editar), así solo se avisa lo nuevo. `notified`: a quiénes se avisó;
+ * `withoutAccess`: mencionados que no pueden ver la actividad y no recibieron
+ * nada (para decírselo a quien escribe).
+ */
+export async function notifyMentionsDetailed(opts: NotifyOpts): Promise<{ notified: string[]; withoutAccess: string[] }> {
   const { activity, actor, people } = opts;
-  if (!MENTION_TYPES.has(activity.type)) return [];
+  if (!MENTION_TYPES.has(activity.type)) return { notified: [], withoutAccess: [] };
   const text = `${activity.subject}\n${activity.body}`;
   const ids = (opts.before === undefined ? findMentions(text, people) : newMentions(opts.before, text, people)).filter(
     (id) => id !== actor.id,
   );
-  if (!ids.length) return [];
+  if (!ids.length) return { notified: [], withoutAccess: [] };
   const L = COPY[mailLocale(opts.locale)];
   const actorName = actor.name?.trim() || actor.email;
   const record = await recordLabel(activity);
@@ -126,18 +177,13 @@ export async function notifyActivityMentions(opts: {
   const url = `${baseUrl()}/${mailLocale(opts.locale)}${href}`;
   const excerpt = (activity.body || activity.subject).slice(0, 600);
   const notified: string[] = [];
+  const withoutAccess: string[] = [];
   for (const id of ids) {
     const person = people.find((p) => p.id === id);
     if (!person) continue;
-    if (opts.workspaceId) {
-      const scope = await ownerScopeFor({ workspaceId: opts.workspaceId, personId: id, role: person.role ?? 'member' });
-      if (!(await canSeeActivity(opts.workspaceId, activity.id, scope))) continue;
-      // Una tarea de un chat de Lines que esa persona no ve: el aviso traería su texto (lib/crm-chat-privacy.ts).
-      // Si no se puede saber qué ve, no se avisa con el texto: cuenta como que no ve el chat.
-      const { isChatHidden, noChatReader, personChatReader } = await import('./crm-chat-privacy');
-      const ws = opts.workspaceId;
-      const reader = await personChatReader(ws, id, opts.locale).catch(() => noChatReader(ws, opts.locale));
-      if (await isChatHidden(opts.workspaceId, activity.id, reader)) continue;
+    if (opts.workspaceId && !(await personSeesActivity(opts.workspaceId, activity, person, opts.locale))) {
+      withoutAccess.push(id);
+      continue;
     }
     notified.push(id);
     await createNotification({
@@ -165,5 +211,5 @@ export async function notifyActivityMentions(opts: {
       }),
     }).catch(() => null);
   }
-  return notified;
+  return { notified, withoutAccess };
 }

@@ -17,7 +17,7 @@
 import { parseFilterModel, serializeFilterModel, type FilterModel } from './crm-filter-model';
 import { parseCustomSort } from './crm-list-sort';
 
-export const VIEW_ENTITIES = ['contacts', 'companies', 'deals'] as const;
+export const VIEW_ENTITIES = ['contacts', 'companies', 'deals', 'tasks'] as const;
 export type ViewEntity = (typeof VIEW_ENTITIES)[number];
 
 export function isViewEntity(v: unknown): v is ViewEntity {
@@ -41,6 +41,8 @@ export const VIEW_STATE_KEYS: Record<ViewEntity, readonly string[]> = {
   contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'filters', 'sort', 'cols', 'freeze'],
   companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'filters', 'sort', 'cols', 'freeze'],
   deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'filters', 'sort', 'cols', 'freeze'],
+  // Tareas (A3): vencimiento, tipo, prioridad, owner, cola, proyecto, texto y orden (lib/crm-tasks-shared.ts).
+  tasks: ['bucket', 'type', 'priority', 'owner', 'queue', 'project', 'q', 'sort', 'cols', 'freeze'],
 };
 
 const CUSTOM_KEY = /^custom_([A-Za-z0-9_-]{1,100})$/;
@@ -80,6 +82,14 @@ export const DEFAULT_VIEWS: Record<ViewEntity, readonly DefaultView[]> = {
       labelKey: 'openDeals',
       query: { filters: serializeFilterModel({ v: 1, groups: [{ rules: [{ f: 'status', o: 'is', v: ['open'] }] }] }) },
     },
+  ],
+  // Las vistas por defecto del índice de Tareas de HubSpot, más las completadas.
+  tasks: [
+    { key: 'all', labelKey: 'allTasks', query: {} },
+    { key: 'today', labelKey: 'dueToday', query: { bucket: 'today' } },
+    { key: 'overdue', labelKey: 'overdueTasks', query: { bucket: 'overdue' } },
+    { key: 'upcoming', labelKey: 'upcomingTasks', query: { bucket: 'upcoming' } },
+    { key: 'done', labelKey: 'completedTasks', query: { bucket: 'done' } },
   ],
 };
 
@@ -207,6 +217,23 @@ export function redactViewQuery(query: ViewQuery, hidden: ReadonlySet<string>): 
     out[key] = value;
   }
   return out;
+}
+
+/**
+ * ¿La vista filtra por algún campo oculto para quien mira? Entonces esos
+ * filtros no se le aplican (redactViewQuery los quita) y la UI lo avisa, sin
+ * nombrarlos. Puro.
+ */
+export function viewQueryDropsFilters(query: ViewQuery, hidden: ReadonlySet<string>): boolean {
+  if (!hidden.size) return false;
+  for (const [key, value] of Object.entries(query)) {
+    const custom = CUSTOM_KEY.exec(key);
+    if (custom && hidden.has(custom[1]) && value) return true;
+    if (key === 'filters' && parseFilterModel(value).groups.some((g) => g.rules.some((r) => r.f.startsWith('custom:') && hidden.has(r.f.slice(7))))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function dropHiddenRules(model: FilterModel, hidden: ReadonlySet<string>): FilterModel {

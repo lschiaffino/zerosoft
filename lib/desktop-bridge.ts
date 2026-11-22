@@ -13,7 +13,7 @@ import type { RecOverlayState } from './rec-controls';
 export interface DesktopBridge {
   version: string;
   platform: string;
-  /** La app tiene su ventana de Ajustes. false: todavía no (la de Swift). Sin el campo (Tauri): sí. */
+  /** La app tiene su ventana de Ajustes (la de Swift desde el bloque 5). false: no. Sin el campo (Tauri): sí. */
   settingsWindow?: boolean;
   /**
    * La app se actualiza desde /api/desktop/update/latest.json. false: no (la de

@@ -21,7 +21,7 @@ import {
   type ReportFilters,
 } from './crm-reports';
 import { listMembers } from './teams';
-import { getCustomReport, runReport, ReportError } from './crm-custom-reports';
+import { getCustomReport, reportForViewer, runReport, ReportError } from './crm-custom-reports';
 import type { SessionUser } from './session';
 import { workspaceTeamId } from './workspace';
 import {
@@ -362,7 +362,9 @@ export async function getWidgetData(
           people: owners.map((o) => ({ id: o.id, name: o.name || o.email })),
           viewer,
         });
-        return { report: { id: report.id, name: report.name, config: report.config, result } };
+        // La config sale como la ve la persona (sin campos ocultos).
+        const shown = await reportForViewer(viewer, report);
+        return { report: { id: report.id, name: report.name, config: shown.config, result } };
       } catch (e) {
         return { report: null, error: e instanceof ReportError ? e.code : 'report_failed' };
       }

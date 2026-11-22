@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { requireUser } from '@/lib/session';
-import { listLists } from '@/lib/crm';
+import { listsForViewer } from '@/lib/crm-list-access';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { sessionScope } from '@/lib/crm-visibility';
 import { formatDate } from '@/lib/utils';
 import ListsIndex, { type ListRow } from '@/components/crm/ListsIndex';
@@ -13,7 +14,7 @@ export default async function ListsPage(props: { params: Promise<{ locale: strin
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const scope = await sessionScope(user);
-  const [lists, fields] = await Promise.all([listLists(user.id, scope), listFieldsFor(user, locale)]);
+  const [lists, fields] = await Promise.all([listsForViewer(sessionFieldViewer(user), scope), listFieldsFor(user, locale)]);
 
   const rows: ListRow[] = lists.map((l) => ({
     id: l.id,

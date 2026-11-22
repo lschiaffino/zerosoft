@@ -3,6 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import PrivateRecord from './PrivateRecord';
 import { Link, useRouter } from '@/i18n/navigation';
 import CopyButton from '@/components/link/CopyButton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -28,6 +29,7 @@ export default function DocumentDetail({
   canManage: boolean;
 }) {
   const t = useTranslations('crm.media');
+  const tc = useTranslations('crm');
   const locale = useLocale();
   const router = useRouter();
   const [links, setLinks] = useState(initialLinks);
@@ -170,6 +172,8 @@ export default function DocumentDetail({
                       <Link href={`/app/crm/contacts/${l.contact_id}`} className="cell-link">
                         {l.contact_name || l.contact_email || t('contact')}
                       </Link>
+                    ) : l.contact_private ? (
+                      <PrivateRecord label={tc('common.privateRecord')} />
                     ) : (
                       <span>{t('anyone')}</span>
                     )}

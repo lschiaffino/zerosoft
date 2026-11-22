@@ -99,6 +99,19 @@ export function bumpsChat(e: WaGroupEvent): boolean {
 }
 
 /**
+ * ¿El aviso cambia si la cuenta está en el grupo? 'left' si salió o la
+ * sacaron (el chat queda de solo lectura, como en WhatsApp), 'joined' si se
+ * creó el grupo, la agregaron o entró con el link; null si no la toca.
+ */
+export function selfMembershipChange(e: WaGroupEvent): 'left' | 'joined' | null {
+  if (e.t === 'leave') return isMe(e.by) ? 'left' : null;
+  if (e.t === 'remove') return (e.who ?? []).some(isMe) ? 'left' : null;
+  if (e.t === 'create') return 'joined';
+  if (e.t === 'add' || e.t === 'join') return bumpsChat(e) ? 'joined' : null;
+  return null;
+}
+
+/**
  * Id del aviso en el chat (único por chat): repetir el mismo evento (el
  * reintento de un webhook, el eco de lo que hicimos desde zerosoft) no lo
  * duplica. Crear es uno por grupo. El resto no trae id del proveedor: tipo,

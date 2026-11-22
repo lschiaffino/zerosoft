@@ -46,6 +46,8 @@ import CrmGroupsBlock from '@/components/groups/CrmGroupsBlock';
 import RecordMoreMenu from '@/components/crm/RecordMoreMenu';
 import RecordColumns, { RecordAssociationSummary, RecordIdentity, RecordRecentCommunications } from '@/components/crm/RecordColumns';
 import RecordCard from '@/components/crm/RecordCard';
+import RecordWorkflows from '@/components/crm/RecordWorkflows';
+import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { scopedCompanyRollup, visibleRecordIds } from '@/lib/crm-record-scope';
 import CompanyLogo from '@/components/crm/CompanyLogo';
@@ -75,9 +77,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const rawDetail = await getCompany(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.company.owner_id, user.id)) notFound();
   const detail = scopeCompanyDetail(rawDetail, scope);
-  const { company, contacts, deals, children } = detail;
+  const { contacts, deals, children } = detail;
   // El valor en deals y la cantidad de hijas, solo con lo que la persona puede ver.
-  const rollup = scope ? await scopedCompanyRollup(user.id, company.id, scope) : detail.rollup;
+  const rollup = scope ? await scopedCompanyRollup(user.id, detail.company.id, scope) : detail.rollup;
   // La madre y las abuelas vienen sin dueño: se muestran solo las que la persona puede ver
   // (mismo alcance que el resto de la ficha), ni su nombre ni su link si no.
   const companyScope = scopeAnd('crm_companies', scope);
@@ -91,6 +93,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const parent = detail.parent && visibleAncestorIds.has(detail.parent.id) ? detail.parent : null;
   // Con una madre que no se le muestra, tampoco se ofrece elegir otra (la pisaría sin verla).
   const parentHidden = !!detail.parent && !parent;
+  // Tampoco sale su id en la empresa que va a los componentes.
+  const company = parentHidden ? { ...detail.company, parent_company_id: null } : detail.company;
   const base = `/app/crm/companies/${company.id}`;
   const [allTags, recordTags, teamMembers, stageRows, assocLabels] = await Promise.all([
     listTags(user.id),
@@ -517,6 +521,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   );
 
   // ---------- Derecha: asociaciones ----------
+  // La persona ya ve la empresa (notFound arriba si no): sus inscripciones en workflows.
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'company', company.id, 20, sessionFieldViewer(user));
+
   const right = (
     <>
       <RecordCard id="company.ai" label={t('ai.summary.title')} bare>
@@ -631,6 +638,9 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       </RecordCard>
       <RecordCard id="company.track" label={t('record.cards.track')} bare>
         <CrmTrackRequests companyId={company.id} locale={locale} />
+      </RecordCard>
+      <RecordCard id="company.workflows" label={t('workflows.recordCard.title')} count={workflowEnrollments.length}>
+        <RecordWorkflows enrollments={workflowEnrollments} />
       </RecordCard>
     </>
   );
