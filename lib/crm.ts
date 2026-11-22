@@ -203,12 +203,15 @@ async function fireEvent(
         .prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`)
         .get(event.entityId, userId)) as ({ user_id: string; custom?: string } & Record<string, unknown>) | undefined;
       if (row) {
-        const { user_id: _owner, ...data } = row;
-        await emitEvent(userId, hook, {
-          ...data,
-          custom: parseCustom((data.custom as string | undefined) ?? null),
+        const { user_id: _owner, ...rest } = row;
+        const data = {
+          ...rest,
+          custom: parseCustom((rest.custom as string | undefined) ?? null),
           ...(event.payload ? { change: event.payload } : {}),
-        });
+        };
+        // Cada webhook y flow recibe lo que ve quien lo creó (sin campos ocultos ni registros fuera de su alcance).
+        const { crmPersonalizer } = await import('./crm-event-privacy');
+        await emitEvent(userId, hook, data, { personalize: crmPersonalizer(userId, hook, data), appsData: data });
       }
     } catch {
       /* el webhook nunca bloquea la operación */
@@ -218,6 +221,13 @@ async function fireEvent(
 
 /** Dispara workflows (+ webhook si corresponde) de un evento del CRM. Lo usan los quotes. */
 export const fireCrmEvent = fireEvent;
+
+/** company.created / company.updated: cada webhook con lo que ve quien lo creó. */
+async function emitCompanyHook(userId: string, event: 'company.created' | 'company.updated', company: Record<string, unknown>): Promise<void> {
+  const data = recordPayload(company);
+  const { crmPersonalizer } = await import('./crm-event-privacy');
+  await emitCrmHookSoon(userId, event, data, crmPersonalizer(userId, event, data));
+}
 
 /** Eventos del CRM que también salen como webhooks (lib/webhooks.ts). */
 const CRM_WEBHOOK_EVENTS: Partial<Record<import('./crm-workflows').TriggerType, Extract<WebhookEvent, import('./flow-schema').FlowEventType>>> = {
@@ -324,13 +334,12 @@ async function logPropertyEvents(
       changed.push({ property: col, oldValue: oldV, newValue: newV });
     }
   }
+  if (!changed.length) return;
+  const { crmPersonalizer } = await import('./crm-event-privacy');
   for (const c of changed) {
-    await emitCrmHookSoon(userId, `${entity}.property_changed`, {
-      objectType: entity,
-      id: entityId,
-      ...c,
-      changedBy: actorEmail || null,
-    });
+    const event = `${entity}.property_changed` as const;
+    const data = { objectType: entity, id: entityId, ...c, changedBy: actorEmail || null };
+    await emitCrmHookSoon(userId, event, data, crmPersonalizer(userId, event, data));
   }
 }
 
@@ -1303,7 +1312,7 @@ export async function createCompany(
   }
   if (data.parentCompanyId) await setParentCompany(userId, id, data.parentCompanyId, db);
   const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
-  await emitCrmHookSoon(userId, 'company.created', recordPayload(company as unknown as Record<string, unknown>));
+  await emitCompanyHook(userId, 'company.created', company as unknown as Record<string, unknown>);
   await fireEvent(userId, { type: 'company_created', entity: 'company', entityId: id });
   return company;
 }
@@ -1334,7 +1343,7 @@ export async function updateCompany(
   await logPropertyEvents(userId, 'company', id, existing as unknown as Record<string, unknown>, sets, actorEmail, db);
   const company = (await db.prepare('SELECT * FROM crm_companies WHERE id = ?').get(id)) as CrmCompanyRow;
   if (sets.length) {
-    await emitCrmHookSoon(userId, 'company.updated', recordPayload(company as unknown as Record<string, unknown>));
+    await emitCompanyHook(userId, 'company.updated', company as unknown as Record<string, unknown>);
     await fireEvent(userId, { type: 'company_updated', entity: 'company', entityId: id, payload: { changed: changedFields(existing as unknown as Record<string, unknown>, sets) } });
   }
   return company;

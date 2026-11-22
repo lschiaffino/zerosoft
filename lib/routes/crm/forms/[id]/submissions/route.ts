@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getForm, listSubmissions, redactSubmissionsFor, submissionsCsv } from '@/lib/crm-forms';
+import { getForm, listSubmissions, redactSubmissionsFor, submissionFieldsFor, submissionsCsv } from '@/lib/crm-forms';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { notFound, pageParams, unauthorized } from '@/lib/crm-http';
 import { sessionScope } from '@/lib/crm-visibility';
@@ -25,7 +25,9 @@ export async function GET(req: NextRequest, props: Ctx) {
     const rows = await redactSubmissionsFor(viewer, form, (await listSubmissions(user.id, id, { pageSize: 5000, ownerScope: scope })).rows);
     const date = new Date().toISOString().slice(0, 10);
     const name = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'form';
-    return new NextResponse(submissionsCsv(form, rows), {
+    // Tampoco la columna (con la etiqueta del form) de un campo que guarda en uno oculto.
+    const fields = await submissionFieldsFor(viewer, form);
+    return new NextResponse(submissionsCsv({ ...form, fields }, rows), {
       headers: {
         'content-type': 'text/csv; charset=utf-8',
         'content-disposition': `attachment; filename="${name}-submissions-${date}.csv"`,

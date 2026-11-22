@@ -13,7 +13,7 @@ import { open, seal } from './secret-box';
 import { signPayload } from './webhooks';
 import { normalizeRole, roleAtLeast, type TeamRole } from './teams';
 import { ownerScopeFor, canSeeEntity, type OwnerScope } from './crm-visibility';
-import { hiddenFieldsFor, redactCustomJson } from './crm-field-perms';
+import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, redactCustomJson, type FieldViewer } from './crm-field-perms';
 import { visibleRecordIds } from './crm-record-scope';
 import {
   BRANCH_OPS,
@@ -29,6 +29,7 @@ import {
   safeWebhookHeaders,
   triggerValueCondition,
   webhookBody,
+  workflowUsesHiddenField,
   type EnrollCondition,
   type WorkflowSettings,
 } from './crm-workflow-rules';
@@ -565,6 +566,36 @@ export async function listWorkflowRunViews(
   return out;
 }
 
+/** Campos propios ocultos para la persona, de contactos, empresas y deals juntos. */
+async function hiddenAnywhere(viewer: FieldViewer): Promise<Set<string>> {
+  if (isUnrestricted(viewer)) return new Set();
+  const sets = await hiddenFieldSets(viewer, ['contacts', 'companies', 'deals'] as const);
+  return new Set([...sets.contacts, ...sets.companies, ...sets.deals]);
+}
+
+/**
+ * Workflows que la persona puede ver: sin los que nombran un campo que tiene
+ * oculto (en un filtro, una condición, una acción o una plantilla). Owner y
+ * admins, todos.
+ */
+export async function workflowsForViewer<W extends Pick<Workflow, 'triggers' | 'actions' | 'settings'>>(viewer: FieldViewer, workflows: W[]): Promise<W[]> {
+  const hidden = await hiddenAnywhere(viewer);
+  return hidden.size ? workflows.filter((w) => !workflowUsesHiddenField(w, hidden)) : workflows;
+}
+
+/** hiddenAnywhere de una persona del workspace por id (sin persona: un miembro). */
+async function hiddenAnywhereFor(workspaceId: string, personId: string | null): Promise<Set<string>> {
+  const role = personId === null ? 'member' : await workspacePersonRole(workspaceId, personId);
+  return hiddenAnywhere({ workspaceId, personId: personId ?? '', role: role ?? 'member' });
+}
+
+/** getWorkflow si la persona lo puede ver (null si no existe o nombra un campo que tiene oculto). */
+export async function getWorkflowForViewer(viewer: FieldViewer, id: string): Promise<Workflow | null> {
+  const workflow = await getWorkflow(viewer.workspaceId, id);
+  if (!workflow) return null;
+  return (await workflowsForViewer(viewer, [workflow])).length ? workflow : null;
+}
+
 export interface RecordEnrollment {
   id: string;
   workflow_id: string;
@@ -585,8 +616,10 @@ export async function listRecordEnrollments(
   entity: RecordEntity,
   recordId: string,
   limit = 20,
+  /** Quien mira: no salen los workflows que nombran un campo que tiene oculto. */
+  viewer?: FieldViewer,
 ): Promise<RecordEnrollment[]> {
-  return (await getDb()
+  const rows = (await getDb()
     .prepare(
       `SELECT r.id, r.workflow_id, w.name AS workflow_name, r.status, r.started_at, r.finished_at,
          CASE WHEN r.status = 'waiting' THEN r.resume_at END AS resume_at
@@ -595,6 +628,11 @@ export async function listRecordEnrollments(
        ORDER BY r.started_at DESC, r.rowid DESC LIMIT ?`,
     )
     .all(workspaceId, entity, recordId, Math.min(Math.max(limit, 1), 100))) as RecordEnrollment[];
+  if (!viewer || isUnrestricted(viewer) || !rows.length) return rows;
+  const hidden = await hiddenAnywhere(viewer);
+  if (!hidden.size) return rows;
+  const allowed = new Set((await workflowsForViewer(viewer, await listWorkflows(workspaceId))).map((w) => w.id));
+  return rows.filter((r) => allowed.has(r.workflow_id));
 }
 
 /** Secreto de firma del webhook del workflow (lo crea la primera vez). Solo para owner/admin. */
@@ -889,6 +927,42 @@ async function contextFor(workspaceId: string, personId: string, role: TeamRole,
   return out;
 }
 
+/**
+ * El contexto como lo ve una persona del workspace (o nadie si ya no es
+ * parte). Sin persona (un flow viejo sin creador): como un miembro sin
+ * registros propios. Owner y admins lo ven entero.
+ */
+async function contextForPerson(workspaceId: string, personId: string | null, ctx: ActionContext): Promise<ActionContext> {
+  const role = personId === null ? 'member' : await workspacePersonRole(workspaceId, personId);
+  if (!role) return {};
+  if (personId !== null && (roleAtLeast(role, 'admin') || personId === workspaceId)) return ctx;
+  return (await contextFor(workspaceId, personId ?? '', role, ctx)) ?? {};
+}
+
+/** El contexto sin los campos que alguien del workspace tiene ocultos (para lo que ve todo el equipo). */
+async function contextForEveryone(workspaceId: string, ctx: ActionContext): Promise<ActionContext> {
+  const hidden = await hiddenForAnyone(workspaceId);
+  const out: ActionContext = {};
+  for (const e of ['contact', 'company', 'deal'] as const) {
+    const rec = ctx[e];
+    if (rec === undefined) continue;
+    (out as Record<string, unknown>)[e] = rec ? { ...rec, custom: redactCustomJson(rec.custom ?? '{}', hidden[e]) } : rec;
+  }
+  return out;
+}
+
+/** Persona del workspace con ese email (para avisos internos por email), o null. */
+async function workspacePersonByEmail(workspaceId: string, email: string): Promise<string | null> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT u.id FROM users u WHERE lower(u.email) = lower(?) AND (u.id = ? OR u.id IN (
+         SELECT m.user_id FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ?))
+       LIMIT 1`,
+    )
+    .get(email, workspaceId, workspaceId)) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
 const RECORD_HREF: Record<RecordEntity, string> = { contact: 'contacts', company: 'companies', deal: 'deals' };
 
 /**
@@ -974,8 +1048,11 @@ async function executeAction(
         if (!toEmail) {
           return { ok: false, type: action.type, error: 'missing_recipient' };
         }
-        const subject = renderTemplate(subjectTemplate, ctx);
-        const text = renderTemplate(bodyTemplate, ctx);
+        // A alguien del equipo: con lo que esa persona ve (sin campos ocultos ni registros fuera de su alcance).
+        const teammate = await workspacePersonByEmail(userId, toEmail);
+        const view = teammate ? await contextForPerson(userId, teammate, ctx) : ctx;
+        const subject = renderTemplate(subjectTemplate, view);
+        const text = renderTemplate(bodyTemplate, view);
         const res = await sendEmail({ to: toEmail, subject, text });
         return { ok: res.ok, type: action.type, result: res, error: res.error };
       }
@@ -1130,7 +1207,8 @@ async function executeAction(
       case 'create_deal': {
         const pipelineId = safeString(cfg.pipelineId);
         const stageId = safeString(cfg.stageId);
-        const name = renderTemplate(safeString(cfg.name), ctx).trim().slice(0, 300);
+        // El nombre lo ve quien vea el deal: sin campos que alguien tiene ocultos.
+        const name = renderTemplate(safeString(cfg.name), await contextForEveryone(userId, ctx)).trim().slice(0, 300);
         if (!name || !pipelineId || !stageId) return { ok: false, type: action.type, error: 'missing_field' };
         const amount = Number(cfg.amount);
         const source = primaryRecord(event, ctx, '');
@@ -1177,11 +1255,18 @@ async function executeAction(
         const { getFlowRow, enqueueRun, kickFlowWorker } = await import('./flow');
         const flow = await getFlowRow(userId, flowId);
         if (!flow) return { ok: false, type: action.type, error: 'flow_not_found' };
+        // El flow recibe lo que ve quien lo creó (como los flows que dispara un evento).
+        const view = await contextForPerson(userId, flow.created_by ?? null, ctx);
+        const hidden = flow.created_by && view === ctx ? new Set<string>() : await hiddenAnywhereFor(userId, flow.created_by ?? null);
+        const payload = event.payload ?? {};
+        const changed = Array.isArray(payload.changed)
+          ? (payload.changed as unknown[]).filter((f) => !(typeof f === 'string' && f.startsWith('custom.') && hidden.has(f.slice(7))))
+          : undefined;
         const runId = await enqueueRun(flow, 'manual', {
-          crm: { workflowId, event: { type: event.type, entity: event.entity, entityId: event.entityId, payload: event.payload ?? {} } },
-          contact: ctx.contact ?? null,
-          company: ctx.company ?? null,
-          deal: ctx.deal ?? null,
+          crm: { workflowId, event: { type: event.type, entity: event.entity, entityId: event.entityId, payload: changed ? { ...payload, changed } : payload } },
+          contact: view.contact ?? null,
+          company: view.company ?? null,
+          deal: view.deal ?? null,
         });
         if (!runId) return { ok: false, type: action.type, error: 'rate_limited' };
         kickFlowWorker();

@@ -425,6 +425,21 @@ export async function redactSubmissionsFor<T extends { data: string }>(
 }
 
 /**
+ * Campos del form que van como columnas en la tabla y el CSV de envíos para
+ * la persona: sin los que guardan en un campo propio que tiene oculto (ni la
+ * columna ni su etiqueta). Owner y admins ven todos.
+ */
+export async function submissionFieldsFor<F extends Pick<FormField, 'id' | 'property'>>(
+  viewer: FieldViewer,
+  form: { fields: F[] },
+  db: Db = getDb(),
+): Promise<F[]> {
+  if (isUnrestricted(viewer)) return form.fields;
+  const ids = formFieldIdsFor(form.fields, await hiddenFieldSets(viewer, ['contacts', 'companies'] as const, db));
+  return ids.size ? form.fields.filter((f) => !ids.has(f.id)) : form.fields;
+}
+
+/**
  * El form como lo ve la persona: los campos que guardan en una propiedad que
  * tiene oculta salen sin destino (no la nombran). `hiddenTargets` dice si
  * había alguno: entonces no lo puede editar (perdería ese destino sin verlo).
@@ -689,7 +704,7 @@ export async function submitForm(
       subject: `Form submitted: ${form.name} (${email}, existing contact not updated)`,
       body: lines.join('\n'),
     });
-    await emitEvent(workspaceId, 'form.submitted', {
+    await emitFormSubmitted(workspaceId, form, {
       form: { id: form.id, name: form.name },
       submission: { id: submissionId, values },
       contact: null,
@@ -829,7 +844,7 @@ export async function submitForm(
   } catch {
     /* no bloquea */
   }
-  await emitEvent(workspaceId, 'form.submitted', {
+  await emitFormSubmitted(workspaceId, form, {
     form: { id: form.id, name: form.name },
     submission: { id: submissionId, values },
     contact: { id: contact.id, email: contact.email, created },
@@ -840,6 +855,19 @@ export async function submitForm(
   await recalcContactScoreSafe(workspaceId, contact.id);
 
   return { ok: true, submissionId, contactId: contact.id, created, ...success };
+}
+
+/**
+ * form.submitted: cada webhook y flow recibe el envío sin lo que va a un campo
+ * propio que su creador tiene oculto, y no lo recibe si el contacto es de otro
+ * alcance (lib/crm-event-privacy.ts). Slack solo anuncia el form y el contacto.
+ */
+async function emitFormSubmitted(workspaceId: string, form: Pick<CrmForm, 'fields'>, data: Record<string, unknown>): Promise<void> {
+  const { crmPersonalizer } = await import('./crm-event-privacy');
+  await emitEvent(workspaceId, 'form.submitted', data, {
+    personalize: crmPersonalizer(workspaceId, 'form.submitted', data, { formFields: form.fields }),
+    appsData: data,
+  });
 }
 
 export async function getSubmission(

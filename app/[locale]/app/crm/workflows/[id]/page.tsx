@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { isWorkspaceAdmin, requireUser } from '@/lib/session';
-import { getWorkflow, listWorkflowRunViews, workflowWebhookSecret } from '@/lib/crm-workflows';
+import { getWorkflowForViewer, listWorkflowRunViews, workflowWebhookSecret } from '@/lib/crm-workflows';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { redactActionsForMember } from '@/lib/crm-workflow-rules';
 import { sessionScope } from '@/lib/crm-visibility';
 import { loadWorkflowEditorData } from '@/lib/crm-workflow-editor-data';
@@ -14,7 +15,8 @@ export default async function WorkflowDetailPage(props: { params: Promise<{ loca
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm.workflows' });
-  const found = await getWorkflow(user.id, id);
+  // Un workflow que nombra un campo que la persona tiene oculto no existe para ella.
+  const found = await getWorkflowForViewer(sessionFieldViewer(user), id);
   if (!found) notFound();
   const admin = isWorkspaceAdmin(user);
   // Un miembro ve la config sin cabeceras ni URLs completas de webhooks, y el

@@ -516,7 +516,7 @@ export default async function ContactDetailPage(props: {
     defaultPipeline?.stages.find((s) => !s.is_won && !s.is_lost) ?? defaultPipeline?.stages[0];
 
   // La persona ya ve el contacto (notFound arriba si no): sus inscripciones en workflows.
-  const workflowEnrollments = await listRecordEnrollments(user.id, 'contact', contact.id);
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'contact', contact.id, 20, sessionFieldViewer(user));
 
   const right = (
     <>

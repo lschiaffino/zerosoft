@@ -234,13 +234,18 @@ export async function trashRecords(
   // contact/company/deal.deleted para webhooks y apps (las actividades no tienen evento propio).
   if (entity !== 'activity') {
     const { emitCrmHookSoon } = await import('./crm-hooks');
+    const { crmPersonalizer } = await import('./crm-event-privacy');
     for (const row of present) {
-      await emitCrmHookSoon(userId, `${entity}.deleted`, {
+      const event = `${entity}.deleted` as const;
+      const data = {
         id: String(row.id),
         label: labelOf(entity, row),
         deletedBy: actorEmail || null,
         mergedInto: opts.mergedInto ?? null,
-      });
+      };
+      // Solo lo reciben los webhooks de quien veía el registro (por su owner de antes de borrarlo).
+      const ownerId = typeof row.owner_id === 'string' ? row.owner_id : null;
+      await emitCrmHookSoon(userId, event, data, crmPersonalizer(userId, event, data, { ownerId }));
     }
   }
   return changes;

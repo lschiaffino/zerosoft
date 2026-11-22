@@ -522,7 +522,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   // ---------- Derecha: asociaciones ----------
   // La persona ya ve la empresa (notFound arriba si no): sus inscripciones en workflows.
-  const workflowEnrollments = await listRecordEnrollments(user.id, 'company', company.id);
+  const workflowEnrollments = await listRecordEnrollments(user.id, 'company', company.id, 20, sessionFieldViewer(user));
 
   const right = (
     <>

@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
-import { formForViewer, getForm, listSubmissions, redactSubmissionsFor } from '@/lib/crm-forms';
+import { formForViewer, getForm, listSubmissions, redactSubmissionsFor, submissionFieldsFor } from '@/lib/crm-forms';
 import { listLists, listPipelinesWithStages } from '@/lib/crm';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { captchaConfigured } from '@/lib/crm-forms';
@@ -84,11 +84,13 @@ export default async function FormDetailPage(props: {
     });
     // Sin lo que se cargó en campos propios que la persona tiene ocultos.
     const rows = await redactSubmissionsFor(sessionFieldViewer(user), form, listed.rows);
+    // Ni la columna de un campo que guarda en uno oculto.
+    const columns = await submissionFieldsFor(sessionFieldViewer(user), form);
     const total = listed.total;
     body = (
       <FormSubmissions
         formId={form.id}
-        fields={form.fields.filter((f) => f.type !== 'step').map((f) => ({ id: f.id, label: f.label || f.id }))}
+        fields={columns.filter((f) => f.type !== 'step').map((f) => ({ id: f.id, label: f.label || f.id }))}
         rows={rows.map((r) => ({
           id: r.id,
           createdAt: formatDate(r.created_at, locale),

@@ -388,6 +388,24 @@ async function attempt(deliveryId: string, opts: { force?: boolean } = {}): Prom
     }
   }
 
+  // CRM: el cuerpo se arma con el acceso de quien creó el webhook. Al
+  // reintentar o reenviar se vuelve a armar con el acceso de hoy (un registro
+  // que dejó de ver o un campo que pasó a oculto ya no sale).
+  const { isPersonalCrmEvent, deliveryPayloadFor } = await import('./crm-event-privacy');
+  if (isPersonalCrmEvent(row.event)) {
+    const current = await deliveryPayloadFor(row.w_user, row.w_creator, row.event, row.payload);
+    if (current === null) {
+      await db
+        .prepare("UPDATE webhook_deliveries SET status = 'failed', last_error = 'audience_revoked', next_attempt_at = NULL, claimed_until = NULL WHERE id = ?")
+        .run(row.id);
+      return;
+    }
+    if (current !== row.payload) {
+      await db.prepare('UPDATE webhook_deliveries SET payload = ? WHERE id = ?').run(current, row.id);
+      row.payload = current;
+    }
+  }
+
   const attempts = row.attempts + 1;
   let code: number | null = null;
   let error: string | null = null;
