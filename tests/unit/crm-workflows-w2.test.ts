@@ -40,6 +40,8 @@ import { actionMissing } from '@/lib/crm-workflow-catalog';
 import { createSalesTeam, setMemberVisibility, sessionScope } from '@/lib/crm-visibility';
 import { sessionFieldViewer, setFieldPermissions } from '@/lib/crm-field-perms';
 import { getDb } from '@/lib/db';
+import { setAiModelOverride } from '@/lib/ai';
+import { mockModel } from './ai-mock';
 import type { SessionUser } from '@/lib/session';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 import { makeUser } from './helpers';
@@ -456,6 +458,47 @@ describe('W2: privacidad', () => {
     expect(await listRecordEnrollments(w.owner.id, 'contact', c.id, 20, sessionFieldViewer(member))).toEqual([]);
     const adminCard = await listRecordEnrollments(w.owner.id, 'contact', c.id, 20, sessionFieldViewer(asMember(w.owner, w.friend, 'admin')));
     expect(adminCard).toHaveLength(1);
+  });
+
+  it('el texto del paso de IA no se guarda en la inscripción: nadie lo puede leer del historial', async () => {
+    const w = await workspaceWithMember('w2-ai');
+    const prev = process.env.RATE_LIMIT_DISABLED;
+    process.env.RATE_LIMIT_DISABLED = 'true';
+    setAiModelOverride(mockModel('Confidential AI verdict 4242'));
+    try {
+      const wf = await createWorkflow(w.owner.id, {
+        name: 'AI',
+        triggers: [{ type: 'contact_created' }],
+        actions: [
+          { type: 'ai_step', config: { mode: 'prompt', prompt: 'Classify', output: 'note' } },
+          { type: 'delay', config: { amount: 1, unit: 'days' } },
+          task('after'),
+        ],
+      });
+      const c = await createContact(w.owner.id, { email: 'ai@w2.test', ownerId: w.member.id });
+      const [run] = await runs(w.owner.id, wf.id);
+      expect(run.status).toBe('waiting');
+      // El paso corrió (la nota tiene el texto), pero la inscripción no lo guarda.
+      const note = (await getDb().prepare("SELECT body FROM crm_activities WHERE user_id = ? AND contact_id = ? AND type = 'note'").get(w.owner.id, c.id)) as
+        | { body: string }
+        | undefined;
+      expect(note?.body).toContain('4242');
+      expect(`${run.output}${run.state}`).not.toContain('4242');
+      const member = asMember(w.owner, w.member);
+      const views = [
+        await listWorkflowRunViews(w.owner.id, wf.id, await sessionScope(member), 20, { log: true }),
+        await listWorkflowRunViews(w.owner.id, wf.id, undefined, 20, { log: true }),
+        await listRecordEnrollments(w.owner.id, 'contact', c.id, 20, sessionFieldViewer(member)),
+      ];
+      expect(JSON.stringify(views)).not.toContain('4242');
+      await expireAll(w.owner.id);
+      await resumeWaitingWorkflowRuns();
+      expect((await runs(w.owner.id, wf.id))[0].output).not.toContain('4242');
+    } finally {
+      setAiModelOverride(null);
+      if (prev === undefined) delete process.env.RATE_LIMIT_DISABLED;
+      else process.env.RATE_LIMIT_DISABLED = prev;
+    }
   });
 
   it('solo owner y admins editan esperas; un miembro, uno de un equipo de ventas y otro workspace no', async () => {

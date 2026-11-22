@@ -1526,7 +1526,7 @@ async function executeAction(
           entity === event.entity ? event.entityId : entity === 'deal' ? ctx.deal?.id : entity === 'contact' ? ctx.contact?.id : undefined;
         if (!entity || !recordId) return { ok: false, type: action.type, error: 'missing_target' };
         const out = await runAiStep(userId, stepCfg, { entity, id: recordId });
-        if (stepCfg.mode !== 'prompt') return { ok: true, type: action.type, result: { mode: stepCfg.mode, text: out.text.slice(0, 500) } };
+        if (stepCfg.mode !== 'prompt') return { ok: true, type: action.type, result: { mode: stepCfg.mode, chars: out.text.length } };
         if (stepCfg.output === 'field') {
           if (!stepCfg.field) return { ok: false, type: action.type, error: 'missing_field' };
           const updater = entity === 'contact' ? updateContact : entity === 'company' ? updateCompany : updateDeal;
@@ -1540,7 +1540,7 @@ async function executeAction(
           } else {
             await updater(userId, recordId, { [apiFieldKey(stepCfg.field)]: out.text.slice(0, 500) }, undefined, '');
           }
-          return { ok: true, type: action.type, result: { field: stepCfg.field, text: out.text.slice(0, 500) } };
+          return { ok: true, type: action.type, result: { field: stepCfg.field, chars: out.text.length } };
         }
         const note = await createActivity(userId, {
           type: 'note',
@@ -1550,7 +1550,7 @@ async function executeAction(
           companyId: entity === 'company' ? recordId : ctx.contact?.company_id ?? null,
           dealId: entity === 'deal' ? recordId : null,
         });
-        return { ok: true, type: action.type, result: { activityId: note.id, text: out.text.slice(0, 500) } };
+        return { ok: true, type: action.type, result: { activityId: note.id, chars: out.text.length } };
       }
       default:
         return { ok: false, type: action.type, error: 'unknown_action' };
