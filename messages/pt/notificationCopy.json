@@ -98,5 +98,7 @@
   "callsReady": "A chamada {title} está pronta: transcrição e análise",
   "timeSubmitted": "{who} enviou a semana de {week} para aprovação",
   "timeApproved": "{who} aprovou sua semana de {week}",
-  "timeReturned": "{who} devolveu sua semana de {week}"
+  "timeReturned": "{who} devolveu sua semana de {week}",
+  "sequenceSenderLeft": "A sequência \"{sequence}\" foi pausada: o remetente não está mais no workspace",
+  "sequenceSenderLeftBody": "As inscrições dessa caixa pararam de enviar. Remova-as e inscreva os contatos de novo com outro remetente."
 }

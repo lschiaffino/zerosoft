@@ -97,30 +97,131 @@ export function redactCustomJson(json: string | null | undefined, hidden: Readon
 }
 
 /**
- * Desglose del score sin el detalle de las reglas de propiedad: ese detalle
- * es el valor del campo, que puede ser uno oculto. El de una regla de
- * actividad ("3 / 30d") queda. Puro.
+ * Reglas de score que una persona puede ver en un desglose, por id: las de
+ * actividad y las de propiedad sobre un campo que no tiene oculto. Una regla
+ * que no está (sobre un campo oculto, o borrada) no sale ni por nombre ni por
+ * puntos.
  */
-export function redactScoreBreakdown(json: string): string {
+export type VisibleScoreRules = ReadonlyMap<string, 'activity' | 'property'>;
+
+/**
+ * Campos ocultos de una entidad. Los de contactos llevan además las reglas de
+ * score visibles (hiddenFieldsFor las carga), así cualquier fila con
+ * `score_breakdown` que pasa por redactRow sale sin las reglas sobre campos
+ * ocultos.
+ */
+export type HiddenFieldSet = Set<string> & {
+  scoreRules?: VisibleScoreRules;
+  /** Hay reglas de score sobre estos campos: el total y sus cambios pueden decir algo de ellos. */
+  hidesScoreRules?: boolean;
+};
+
+const isActivityDetail = (d: unknown) => typeof d === 'string' && /^\d+ \/ \d+d$/.test(d);
+
+/**
+ * Desglose de score para una persona con campos ocultos. Con `rules` (las que
+ * ve): solo esas reglas, y las de propiedad sin el detalle (es el valor del
+ * campo). Sin `rules` (no se sabe sobre qué campo es cada una): solo las de
+ * actividad. El detalle de una de actividad ("3 / 30d") queda. Puro.
+ */
+export function redactScoreBreakdown(json: string, rules?: VisibleScoreRules): string {
   try {
     const v: unknown = JSON.parse(json || '[]');
     if (!Array.isArray(v)) return '[]';
-    const activity = (d: unknown) => typeof d === 'string' && /^\d+ \/ \d+d$/.test(d);
-    return JSON.stringify(v.map((b) => (b && typeof b === 'object' && !activity((b as Record<string, unknown>).detail) ? { ...(b as Record<string, unknown>), detail: '' } : b)));
+    const out: unknown[] = [];
+    for (const b of v) {
+      if (!b || typeof b !== 'object') continue;
+      const item = b as Record<string, unknown>;
+      const kind = rules ? rules.get(typeof item.ruleId === 'string' ? item.ruleId : '') : isActivityDetail(item.detail) ? 'activity' : undefined;
+      if (!kind) continue;
+      out.push(kind === 'activity' ? item : { ...item, detail: '' });
+    }
+    return JSON.stringify(out);
   } catch {
     return '[]';
   }
 }
 
+/** Ítems de un desglose (ya parseado) que la persona ve: mismas reglas que redactScoreBreakdown. Puro. */
+export function visibleBreakdownItems<T extends { ruleId: string; detail: string }>(items: T[], rules: VisibleScoreRules): T[] {
+  return items.filter((b) => rules.has(b.ruleId)).map((b) => (rules.get(b.ruleId) === 'property' ? { ...b, detail: '' } : b));
+}
+
+/**
+ * Puntos del desglose que la persona no ve (reglas sobre campos ocultos o que
+ * no se pueden atribuir): se restan del total que se le muestra, así el total
+ * no dice lo que el desglose calla. Puro.
+ */
+export function hiddenBreakdownPoints(items: unknown, rules: VisibleScoreRules | undefined): number {
+  if (!Array.isArray(items)) return 0;
+  let out = 0;
+  for (const b of items) {
+    if (!b || typeof b !== 'object') continue;
+    const item = b as Record<string, unknown>;
+    const kind = rules ? rules.get(typeof item.ruleId === 'string' ? item.ruleId : '') : isActivityDetail(item.detail) ? 'activity' : undefined;
+    if (!kind) out += Number(item.points) || 0;
+  }
+  return out;
+}
+
+function parseItems(json: string): unknown {
+  try {
+    return JSON.parse(json || '[]');
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Copia de la fila sin los campos ocultos en `custom` (y, si la fila trae el
- * desglose del score, sin sus detalles: pueden ser valores de campos ocultos).
+ * desglose del score, sin las reglas sobre campos ocultos ni el detalle de
+ * las de propiedad).
  */
 export function redactRow<T extends { custom: string }>(row: T, hidden: ReadonlySet<string>): T {
   if (!hidden.size) return row;
   const out = { ...row, custom: redactCustomJson(row.custom, hidden) };
   const sb = (row as { score_breakdown?: unknown }).score_breakdown;
-  if (typeof sb === 'string') (out as { score_breakdown?: string }).score_breakdown = redactScoreBreakdown(sb);
+  if (typeof sb === 'string') {
+    const rules = (hidden as HiddenFieldSet).scoreRules;
+    (out as { score_breakdown?: string }).score_breakdown = redactScoreBreakdown(sb, rules);
+    // El total, sin los puntos de las reglas que no se muestran.
+    const score = (row as { score?: unknown }).score;
+    const minus = hiddenBreakdownPoints(parseItems(sb), rules);
+    if (typeof score === 'number' && minus) (out as { score?: number }).score = score - minus;
+  }
+  return out;
+}
+
+/**
+ * Reglas de score del workspace que ve quien tiene ocultos estos campos de
+ * contacto: todas las de actividad y las de propiedad sobre otro campo.
+ */
+export async function visibleScoreRules(workspaceId: string, hidden: ReadonlySet<string>, db: Db = getDb()): Promise<Map<string, 'activity' | 'property'> & { anyHidden?: boolean }> {
+  const rows = (await db.prepare('SELECT id, kind, config FROM crm_score_rules WHERE user_id = ?').all(workspaceId)) as Array<{
+    id: string;
+    kind: string;
+    config: string;
+  }>;
+  const out: Map<string, 'activity' | 'property'> & { anyHidden?: boolean } = new Map();
+  for (const r of rows) {
+    if (r.kind === 'activity') {
+      out.set(r.id, 'activity');
+      continue;
+    }
+    let field = '';
+    try {
+      const cfg: unknown = JSON.parse(r.config || '{}');
+      field = cfg && typeof cfg === 'object' && typeof (cfg as { field?: unknown }).field === 'string' ? (cfg as { field: string }).field : '';
+    } catch {
+      field = '';
+    }
+    // Sin campo legible no se sabe qué dice: no sale.
+    if (!field || (field.startsWith('custom.') && hidden.has(field.slice(7)))) {
+      out.anyHidden = true;
+      continue;
+    }
+    out.set(r.id, 'property');
+  }
   return out;
 }
 
@@ -166,8 +267,8 @@ export async function hiddenFieldSets<E extends string>(
   viewer: FieldViewer,
   entities: readonly E[],
   db: Db = getDb(),
-): Promise<Record<E, Set<string>>> {
-  const out = {} as Record<E, Set<string>>;
+): Promise<Record<E, HiddenFieldSet>> {
+  const out = {} as Record<E, HiddenFieldSet>;
   for (const e of new Set(entities)) out[e] = await hiddenFieldsFor(viewer, e, db);
   return out;
 }
@@ -266,7 +367,7 @@ export async function fieldAccessFor(
   viewer: FieldViewer,
   entity: string,
   db: Db = getDb(),
-): Promise<{ all: FieldWithAccess[]; visible: FieldWithAccess[]; hidden: Set<string>; restricted: Map<string, FieldRestriction> }> {
+): Promise<{ all: FieldWithAccess[]; visible: FieldWithAccess[]; hidden: HiddenFieldSet; restricted: Map<string, FieldRestriction> }> {
   const defs = (await db
     .prepare('SELECT * FROM crm_custom_fields WHERE user_id = ? AND entity = ? ORDER BY position ASC, label ASC')
     .all(viewer.workspaceId, entity)) as CrmCustomFieldRow[];
@@ -288,10 +389,17 @@ export async function fieldAccessFor(
   }
   const restricted = new Map<string, FieldRestriction>();
   for (const f of all) if (f.access !== 'edit') restricted.set(f.name, f.access);
+  const hidden: HiddenFieldSet = new Set(all.filter((f) => f.access === 'hidden').map((f) => f.name));
+  // Contactos: el desglose del score de cualquier fila sale sin las reglas sobre estos campos.
+  if (entity === 'contacts' && hidden.size) {
+    const rules = await visibleScoreRules(viewer.workspaceId, hidden, db);
+    hidden.scoreRules = rules;
+    hidden.hidesScoreRules = !!rules.anyHidden;
+  }
   return {
     all,
     visible: all.filter((f) => f.access !== 'hidden'),
-    hidden: new Set(all.filter((f) => f.access === 'hidden').map((f) => f.name)),
+    hidden,
     restricted,
   };
 }
@@ -350,8 +458,8 @@ export async function fieldsHiddenForAnyone(workspaceId: string, entity: string,
   return new Set(rows.map((r) => r.name));
 }
 
-/** Campos ocultos para la persona en la entidad (para redactar filas). */
-export async function hiddenFieldsFor(viewer: FieldViewer, entity: string, db: Db = getDb()): Promise<Set<string>> {
+/** Campos ocultos para la persona en la entidad (para redactar filas; en contactos, con las reglas de score que ve). */
+export async function hiddenFieldsFor(viewer: FieldViewer, entity: string, db: Db = getDb()): Promise<HiddenFieldSet> {
   if (isUnrestricted(viewer)) return new Set();
   return (await fieldAccessFor(viewer, entity, db)).hidden;
 }

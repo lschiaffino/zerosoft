@@ -98,5 +98,7 @@
   "callsReady": "The call {title} is ready: transcript and insights",
   "timeSubmitted": "{who} submitted the week of {week} for approval",
   "timeApproved": "{who} approved your week of {week}",
-  "timeReturned": "{who} returned your week of {week}"
+  "timeReturned": "{who} returned your week of {week}",
+  "sequenceSenderLeft": "Sequence \"{sequence}\" paused: its sender is no longer in the workspace",
+  "sequenceSenderLeftBody": "Enrollments from that mailbox stopped sending. Remove them and enroll the contacts again with another sender."
 }

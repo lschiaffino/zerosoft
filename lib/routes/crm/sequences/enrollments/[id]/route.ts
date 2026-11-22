@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { getEnrollment, setEnrollmentState } from '@/lib/crm-sequences';
+import { getEnrollment, SENDER_LEFT, setEnrollmentState } from '@/lib/crm-sequences';
 import { enrollmentActionSchema } from '@/lib/crm-email-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/crm-http';
+import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 import { canSeeRecord, sessionScope } from '@/lib/crm-visibility';
 
 export const runtime = 'nodejs';
@@ -22,5 +22,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const current = await getEnrollment(user.id, id);
   if (!current || !(await canSeeRecord(user.id, 'crm_contacts', current.contact_id, await sessionScope(user)))) return notFound();
   const enr = await setEnrollmentState(user.id, id, parsed.data.action);
-  return enr ? NextResponse.json(enr) : notFound();
+  if (!enr) return notFound();
+  // Quien enviaba ya no es del workspace: no se reanuda (se quita y se inscribe con otra persona).
+  if (parsed.data.action === 'resume' && enr.status === 'paused' && enr.exit_reason === SENDER_LEFT) return crmError(409, SENDER_LEFT);
+  return NextResponse.json(enr);
 }

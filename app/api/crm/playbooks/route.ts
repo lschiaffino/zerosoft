@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
-import { createPlaybook, listPlaybooks } from '@/lib/crm-playbooks';
+import { createPlaybook, listPlaybooks, playbooksForViewer } from '@/lib/crm-playbooks';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { PLAYBOOK_ENTITIES, playbookCreateSchema, type PlaybookEntity } from '@/lib/crm-playbooks-schema';
 import { forbidden, invalidBody, unauthorized } from '@/lib/crm-http';
 
@@ -17,7 +18,8 @@ export async function GET(req: NextRequest) {
     q: sp.get('q') ?? undefined,
     entity: entity && (PLAYBOOK_ENTITIES as readonly string[]).includes(entity) ? (entity as PlaybookEntity) : undefined,
   });
-  return NextResponse.json({ rows });
+  // Sin las preguntas que van a campos propios que la persona tiene ocultos.
+  return NextResponse.json({ rows: await playbooksForViewer(sessionFieldViewer(user), rows) });
 }
 
 /** Nuevo playbook (admins del workspace). */

@@ -98,5 +98,7 @@
   "callsReady": "La llamada {title} está lista: transcripción y análisis",
   "timeSubmitted": "{who} envió la semana del {week} para aprobar",
   "timeApproved": "{who} aprobó tu semana del {week}",
-  "timeReturned": "{who} te devolvió la semana del {week}"
+  "timeReturned": "{who} te devolvió la semana del {week}",
+  "sequenceSenderLeft": "Se pausó la secuencia \"{sequence}\": quien envía ya no está en el workspace",
+  "sequenceSenderLeftBody": "Las inscripciones de esa casilla dejaron de enviar. Quitalas e inscribí de nuevo los contactos con otra persona que envíe."
 }

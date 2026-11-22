@@ -20,6 +20,7 @@ import { PROVIDER_CAPS } from './groups-provider';
 import { listPinned, listTeams } from './groups-inbox';
 import { isWorkspaceAdmin } from './session';
 import { userCanUseApp } from './workspace';
+import { canSeeRecord, sessionScope } from './crm-visibility';
 import { canSeeChat, groupsViewer, maskChat, maskMember, maskMessage, type GroupsViewer } from './groups-access';
 
 /** Quién mira en una página de Groups (acceso por etiqueta y teléfonos ocultos). */
@@ -80,18 +81,23 @@ export async function loadChatPage(user: SessionUser, chatId: string) {
   // El CRM en los detalles, solo con la app CRM abierta para quien mira (Apps del workspace y sus apps).
   // Sin ella no se lee ni se manda nada del CRM; los vínculos del chat quedan como están.
   const crmOn = userCanUseApp(user, 'crm');
-  const contact = crmOn && chat.crmContactId
+  // Con la visibilidad del CRM de quien mira: un contacto o una empresa que no ve no se nombra (ni su id).
+  const crmScope = crmOn ? await sessionScope(user) : null;
+  const seen = async (table: 'crm_contacts' | 'crm_companies', id: string | null) => !!id && (await canSeeRecord(ws, table, id, crmScope));
+  const contactSeen = crmOn && (await seen('crm_contacts', chat.crmContactId));
+  const companySeen = crmOn && (await seen('crm_companies', chat.crmCompanyId));
+  const contact = contactSeen && chat.crmContactId
     ? ((await db
         .prepare("SELECT id, TRIM(first_name || ' ' || last_name) AS name, email FROM crm_contacts WHERE id = ? AND user_id = ?")
         .get(chat.crmContactId, ws)) as { id: string; name: string; email: string } | undefined)
     : undefined;
-  const company = crmOn && chat.crmCompanyId
+  const company = companySeen && chat.crmCompanyId
     ? ((await db.prepare('SELECT id, name FROM crm_companies WHERE id = ? AND user_id = ?').get(chat.crmCompanyId, ws)) as
         | { id: string; name: string }
         | undefined)
     : undefined;
   return {
-    chat: crmOn ? chat : { ...chat, crmContactId: null, crmCompanyId: null },
+    chat: { ...chat, crmContactId: contactSeen ? chat.crmContactId : null, crmCompanyId: companySeen ? chat.crmCompanyId : null },
     messages: messages.map((m) => maskMessage(viewer, m)),
     members: members.map((m) => maskMember(viewer, m, chat.id)),
     people,

@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));
   if (refsHidden instanceof CrmRefError) return crmError(400, refsHidden.code);
-  const contact = await catchContactWrite(updateContact(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email));
+  const contact = await catchContactWrite(updateContact(user.id, params.id, { ...parsed.data, custom: fp.custom }, undefined, user.actingUser?.email ?? user.email, { linkScope: scope }));
   if (contact instanceof CrmRefError) return crmError(400, contact.code);
   if (contact instanceof ContactEmailTakenError) return emailTakenResponse(contact, scope);
   if (!contact) return notFound();

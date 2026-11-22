@@ -222,6 +222,29 @@ async function sharedQuestions(workspaceId: string, questions: Playbook['questio
   return questions.filter((q) => !(q.property.startsWith(`${entity}:custom.`) && hidden.has(q.property.slice(entity.length + 8))));
 }
 
+/** ¿La pregunta va a un campo propio que está en `hidden` para su entidad? */
+function asksHiddenField(q: Playbook['questions'][number], hiddenBy: Partial<Record<PlaybookEntity, ReadonlySet<string>>>): boolean {
+  const m = /^(contact|company|deal):custom\.(.+)$/.exec(q.property);
+  return !!m && !!hiddenBy[m[1] as PlaybookEntity]?.has(m[2]);
+}
+
+/**
+ * Playbooks como los ve la persona: sin las preguntas que van a un campo
+ * propio que tiene oculto (la pregunta y su campo nombran algo que no ve).
+ * Owner y admins los ven enteros. Lo usan la lista, la ficha, el lanzador de
+ * los registros y la API (y por ella el MCP).
+ */
+export async function playbooksForViewer<P extends Playbook>(viewer: FieldViewer, playbooks: P[], db: Db = getDb()): Promise<P[]> {
+  if (!playbooks.length || isUnrestricted(viewer)) return playbooks;
+  const hiddenBy: Partial<Record<PlaybookEntity, ReadonlySet<string>>> = {};
+  for (const e of ['contact', 'company', 'deal'] as const) hiddenBy[e] = await hiddenFieldsFor(viewer, FIELD_ENTITY_OF[e], db);
+  if (!Object.values(hiddenBy).some((h) => h?.size)) return playbooks;
+  return playbooks.map((p) => {
+    const questions = p.questions.filter((q) => !asksHiddenField(q, hiddenBy));
+    return questions.length === p.questions.length ? p : { ...p, questions };
+  });
+}
+
 /**
  * Usos para la persona: solo los de registros que ve, y sin las respuestas a
  * preguntas que van a campos propios que tiene ocultos (sin el playbook, sin

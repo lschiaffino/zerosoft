@@ -504,7 +504,8 @@ function hiddenCustomField(field: string, hidden: ReadonlySet<string>): boolean 
 
 /**
  * Scores del contacto. Con `viewer`, el desglose no trae las reglas sobre
- * campos propios que la persona tiene ocultos (el detalle es el valor del campo).
+ * campos propios que la persona tiene ocultos (ni su nombre ni sus puntos),
+ * con el mismo helper que las filas de listas, API y MCP (redactRow).
  */
 export async function contactScores(
   workspaceId: string,
@@ -512,16 +513,18 @@ export async function contactScores(
   db: Db = getDb(),
   viewer?: import('./crm-field-perms').FieldViewer,
 ): Promise<ContactScoreView[]> {
-  let dropRules = new Set<string>();
+  let shown = (items: ScoreBreakdownItem[]) => items;
+  let hiddenPoints = (_items: ScoreBreakdownItem[]) => 0;
   if (viewer) {
-    const { hiddenFieldsFor } = await import('./crm-field-perms');
+    const { hiddenBreakdownPoints, hiddenFieldsFor, visibleBreakdownItems } = await import('./crm-field-perms');
     const hidden = await hiddenFieldsFor(viewer, 'contacts', db);
-    if (hidden.size) {
-      const rules = await listScoreRules(workspaceId, db);
-      dropRules = new Set(rules.filter((r) => r.kind === 'property' && hiddenCustomField((r.config as PropertyRuleConfig).field, hidden)).map((r) => r.id));
+    const rules = hidden.scoreRules;
+    if (hidden.size && rules) {
+      shown = (items) => visibleBreakdownItems(items, rules);
+      // El total y el tier, sin los puntos de las reglas que no se muestran.
+      hiddenPoints = (items) => hiddenBreakdownPoints(items, rules);
     }
   }
-  const shown = (items: ScoreBreakdownItem[]) => (dropRules.size ? items.filter((b) => !dropRules.has(b.ruleId)) : items);
   const { scoreTier } = await import('./crm-scoring-schema');
   const scores = await listScores(workspaceId, db);
   const rows = (await db
@@ -529,14 +532,15 @@ export async function contactScores(
     .all(contact.id, workspaceId)) as Array<{ score_id: string; score: number; breakdown: string }>;
   const byId = new Map(rows.map((r) => [r.score_id, r]));
   return scores.map((s) => {
-    const value = s.isPrimary ? Number(contact.score ?? 0) : Number(byId.get(s.id)?.score ?? 0);
+    const items = s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown);
+    const value = (s.isPrimary ? Number(contact.score ?? 0) : Number(byId.get(s.id)?.score ?? 0)) - hiddenPoints(items);
     return {
       scoreId: s.id,
       name: s.name,
       isPrimary: s.isPrimary,
       score: value,
       tier: scoreTier(value, s.thresholds),
-      breakdown: shown(s.isPrimary ? parseBreakdown(contact.score_breakdown) : parseBreakdown(byId.get(s.id)?.breakdown)),
+      breakdown: shown(items),
     };
   });
 }

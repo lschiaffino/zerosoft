@@ -74,7 +74,13 @@ export interface TrashRow {
   merged_into: string | null;
 }
 
-export type TrashListRow = TrashRow & { owner_name: string | null; expires_at: string; merged_into_name: string | null };
+export type TrashListRow = TrashRow & {
+  owner_name: string | null;
+  expires_at: string;
+  merged_into_name: string | null;
+  /** La empresa en la que se fusionó es una que quien mira no ve (sin id ni nombre). */
+  merged_into_private?: boolean;
+};
 
 export interface TrashOptions {
   /** Merge: el registro se fusionó en este otro (se muestra en la papelera). */
@@ -398,7 +404,7 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
     where.push(cond.sql);
     args.push(...cond.args);
   }
-  return (await db
+  const rows = (await db
     .prepare(
       `SELECT t.id, t.user_id, t.entity, t.record_id, ${label} AS label, t.owner_id, t.deleted_by, t.deleted_at, t.merged_into,
          u.name AS owner_name,
@@ -410,6 +416,10 @@ export async function listTrash(userId: string, f: TrashFilter = {}, db: Db = ge
        LIMIT ?`,
     )
     .all(...args, Math.min(Math.max(f.limit ?? 200, 1), 500))) as TrashListRow[];
+  // La empresa en la que se fusionó un registro: si quien mira no la ve, sale como "Registro privado".
+  if (!f.ownerScope) return rows;
+  const { maskPrivateRefs, PRIVATE_REFS } = await import('./crm-record-scope');
+  return maskPrivateRefs(userId, rows, [PRIVATE_REFS.mergedInto()], f.ownerScope, db);
 }
 
 /** Tablas de adjuntos: sus archivos viven en el almacenamiento mientras la entrada siga en la papelera. */

@@ -5,7 +5,7 @@ import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { workspaceTeamId } from '@/lib/workspace';
 import { getDb } from '@/lib/db';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
-import { getPlaybook, listPlaybookRuns, runsForViewer } from '@/lib/crm-playbooks';
+import { getPlaybook, listPlaybookRuns, playbooksForViewer, runsForViewer } from '@/lib/crm-playbooks';
 import { listMembers } from '@/lib/teams';
 import { formatDate } from '@/lib/utils';
 import PageHeader from '@/components/ui/PageHeader';
@@ -31,8 +31,10 @@ export default async function PlaybookPage(props: { params: Promise<{ locale: st
   const { locale, id } = await props.params;
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  const playbook = await getPlaybook(user.id, id);
-  if (!playbook) notFound();
+  const found = await getPlaybook(user.id, id);
+  if (!found) notFound();
+  // Sin las preguntas que van a campos propios que la persona tiene ocultos.
+  const [playbook] = await playbooksForViewer(sessionFieldViewer(user), [found]);
   const [contactFields, companyFields, dealFields, runs, members] = await Promise.all([
     fieldAccessFor(sessionFieldViewer(user), 'contacts').then((a) => a.visible),
     fieldAccessFor(sessionFieldViewer(user), 'companies').then((a) => a.visible),

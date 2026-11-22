@@ -1,3 +1,4 @@
+import { withViewerCrmContact } from '@/lib/chat-crm-contact';
 import { notFound } from 'next/navigation';
 import { realUserId, requireUser } from '@/lib/session';
 import {
@@ -27,8 +28,10 @@ export default async function ChatConversationPage(
   const access = await canAccessConversation(id, user);
   if (!access.ok) notFound();
 
-  const conversation = await getChatConversationWithVisitor(id);
-  if (!conversation) notFound();
+  const found = await getChatConversationWithVisitor(id);
+  if (!found) notFound();
+  // El contacto del CRM vinculado, como lo ve esta persona en el CRM.
+  const conversation = await withViewerCrmContact(found, user);
 
   const messages = await listChatMessagesWithUsers(id);
   const widget = await getChatWidget(conversation.widget_id);

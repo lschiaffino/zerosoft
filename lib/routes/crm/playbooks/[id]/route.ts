@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { deletePlaybook, getPlaybook, updatePlaybook } from '@/lib/crm-playbooks';
+import { deletePlaybook, getPlaybook, playbooksForViewer, updatePlaybook } from '@/lib/crm-playbooks';
+import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { playbookUpdateSchema } from '@/lib/crm-playbooks-schema';
 import { forbidden, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
@@ -14,7 +15,9 @@ export async function GET(_req: NextRequest, props: Ctx) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const playbook = await getPlaybook(user.id, id);
-  return playbook ? NextResponse.json(playbook) : notFound();
+  if (!playbook) return notFound();
+  // Sin las preguntas que van a campos propios que la persona tiene ocultos.
+  return NextResponse.json((await playbooksForViewer(sessionFieldViewer(user), [playbook]))[0]);
 }
 
 export async function PATCH(req: NextRequest, props: Ctx) {
