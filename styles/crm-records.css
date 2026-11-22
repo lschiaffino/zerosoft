@@ -947,6 +947,10 @@ button.cell-quick:focus-visible { outline: 2px solid var(--ink); outline-offset:
   .task-title-sub { margin-left: 0; }
   /* Los links bajo el título (de dónde viene la tarea) con área táctil propia, lejos del check. */
   .task-title-sub a { display: inline-flex; align-items: center; min-height: 40px; }
+  /* El check y el título de la fila, con su propia área táctil de 40px: el link de origen de
+     arriba ya la tiene y quedaban pegados. */
+  .task-row .task-check { min-width: 40px; min-height: 40px; }
+  .task-row .task-subject { display: inline-flex; align-items: center; min-height: 40px; }
   .task-queue-actions { margin-left: 0; }
 }
 .task-digest-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
