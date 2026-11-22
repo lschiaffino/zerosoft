@@ -3707,3 +3707,11 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 
 .all-views-filters { margin: 12px 0; }
 .all-views-empty { margin: 16px 0; }
+
+/* Con el dedo: el menú de la pestaña y los botones de "Editar columnas" miden 40px, como el resto. */
+@media (pointer: coarse) {
+  .views-tabs .view-tab-menu-btn { width: 40px; height: 40px; margin-right: 0; }
+  .view-tab-link { min-height: 40px; }
+  .edit-columns-actions .icon-btn { min-width: 40px; min-height: 40px; }
+  .edit-columns-item { min-height: 44px; }
+}
