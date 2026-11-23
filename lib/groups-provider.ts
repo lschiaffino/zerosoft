@@ -79,17 +79,19 @@ export interface ProviderCaps {
   contacts: boolean;
   /** Pedirle al teléfono el historial de un chat (los mensajes que no llegaron). Evolution con los parches de infra/evolution. */
   fetchHistory?: boolean;
+  /** "@all" en grupos: mencionar a todos los participantes (lib/wa-mention-all.ts). Evolution y WAHA; la Cloud API no tiene grupos. */
+  mentionAll: boolean;
 }
 
 export const PROVIDER_CAPS: Record<ProviderKind, ProviderCaps> = {
   // Cloud API: los mensajes no se editan ni se borran; las llamadas llegan por el webhook "calls" (Calling API).
-  cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true, contacts: false },
-  waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: false },
+  cloud: { groups: false, qr: false, templates: true, ephemeral: false, polls: false, edit: false, deleteForAll: false, pin: false, forward: false, calls: true, contacts: false, mentionAll: false },
+  waha: { groups: true, qr: true, templates: false, ephemeral: false, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: false, mentionAll: true },
   // Evolution API v2 edita y borra; no tiene endpoint para fijar ni reenviar.
-  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true },
-  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true },
-  sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false, contacts: true },
-  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: true, fetchHistory: true },
+  evolution: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true, mentionAll: true },
+  managed: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: false, forward: false, calls: true, contacts: true, fetchHistory: true, mentionAll: true },
+  sample: { groups: true, qr: false, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: false, contacts: true, mentionAll: true },
+  fake: { groups: true, qr: true, templates: false, ephemeral: true, polls: true, edit: true, deleteForAll: true, pin: true, forward: true, calls: true, contacts: true, fetchHistory: true, mentionAll: true },
 };
 
 export type ConnectStatus = 'pending' | 'qr' | 'connected' | 'disconnected' | 'error';
@@ -164,6 +166,8 @@ export interface MediaInput {
    * (los tipos que WhatsApp muestra con texto abajo).
    */
   mentions?: string[];
+  /** Grupos: "@all" en el pie menciona a todos los participantes (ProviderCaps.mentionAll). */
+  mentionAll?: boolean;
 }
 
 /** El mensaje desde el que se le piden al teléfono los anteriores. `timestamp` en segundos. */
@@ -500,7 +504,7 @@ export interface GroupsProvider {
   /** `mentions`: teléfonos mencionados con "@teléfono" en el texto (grupos). */
   /** `linkPreview: false`: sin vista previa del link (la persona la sacó en el composer). */
   /** `forward`: reenvío, sale con la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Solo al reenviar. */
-  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[]; linkPreview?: boolean; forward?: ForwardFlag }): Promise<SendResult>;
+  sendText(chatId: string, text: string, opts?: { replyTo?: string; mentions?: string[]; mentionAll?: boolean; linkPreview?: boolean; forward?: ForwardFlag }): Promise<SendResult>;
   sendMedia(chatId: string, media: MediaInput): Promise<SendResult>;
   react(chatId: string, providerMessageId: string, emoji: string, fromMe: boolean): Promise<void>;
   sendTemplate(chatId: string, name: string, language: string, params: string[]): Promise<SendResult>;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { checkAnswer, computePath, isEmptyAnswer, pipe, shuffleChoices, type AnswerError } from '@/lib/forms/engine';
+import { checkAnswer, computePath, isEmptyAnswer, pipe, pipeRedirectUrl, shuffleChoices, type AnswerError } from '@/lib/forms/engine';
 import type { AnswerValue, Answers, FileAnswer, FormDefinition, FormSettings, Question } from '@/lib/forms/types';
 import { QuestionInput } from './QuestionInputs';
 
@@ -232,8 +232,9 @@ export default function FormRunner(props: RunnerProps) {
       const end = def.endings.find((e) => e.id === data?.endingId) ?? def.endings[0];
       setEnding({ id: end?.id ?? '', vars: data.vars ?? {} });
       setScreen('ending');
-      if (embed && window.parent !== window) window.parent.postMessage({ type: 'zs-form:submitted', form: slug, redirectUrl: end?.redirectUrl ?? '' }, '*');
-      else if (end?.redirectUrl && /^https:\/\//i.test(end.redirectUrl)) setTimeout(() => window.location.assign(end.redirectUrl!), 1500);
+      const redirectUrl = end?.redirectUrl ? pipeRedirectUrl(end.redirectUrl, def, { answers: sending, vars: data.vars ?? {}, hidden: props.hidden, labels }) : '';
+      if (embed && window.parent !== window) window.parent.postMessage({ type: 'zs-form:submitted', form: slug, redirectUrl }, '*');
+      else if (redirectUrl) setTimeout(() => window.location.assign(redirectUrl), 1500);
       return;
     }
     if (data?.error === 'invalid' && data.errors && Object.keys(data.errors).length) {
@@ -515,15 +516,16 @@ export default function FormRunner(props: RunnerProps) {
     );
   } else if (screen === 'ending') {
     const end = def.endings.find((e) => e.id === ending?.id) ?? def.endings[0];
+    const endUrl = end?.redirectUrl ? pipeRedirectUrl(end.redirectUrl, def, { answers, vars: ending?.vars ?? state.vars, hidden: props.hidden, labels }) : '';
     body = (
       <div className="fr-screen" role="status">
         <h1 className="fr-title" tabIndex={-1} ref={headingRef}>
           {piped(end?.title ?? '') || t('thanks')}
         </h1>
         {end?.description && <p className="fr-desc">{piped(end.description)}</p>}
-        {end?.redirectUrl && !embed && (
+        {endUrl && !embed && (
           <p className="fr-desc">
-            <a href={end.redirectUrl} rel="noopener noreferrer">
+            <a href={endUrl} rel="noopener noreferrer" data-testid="form-ending-redirect">
               {end.button || t('continue')}
             </a>
           </p>

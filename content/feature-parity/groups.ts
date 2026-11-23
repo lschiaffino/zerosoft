@@ -222,6 +222,13 @@ const parity: ProductParity = {
         'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções, e também a legenda de fotos, vídeos e documentos. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
+    row('wa-mention-all', 'inbox', ['@all in groups: mention everyone', '@all en grupos: mencionar a todos', '@all em grupos: mencionar todos'], 'partial', {
+      detail: [
+        'Type @ in a group and Everyone comes first: it writes @all (@todos in Spanish and Portuguese, both words work) and every member of the group gets notified. Also in photo, video and document captions, scheduled and recurring messages to one group. Lines connected with the Cloud API have no groups, so the option is not there. Internal notes keep mentioning teammates. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ en un grupo aparece primero Todos: escribe @todos (@all en inglés, valen las dos palabras) y le llega el aviso a cada miembro del grupo. También en el pie de fotos, videos y documentos, y en mensajes programados y recurrentes a un solo grupo. Las líneas conectadas con la Cloud API no tienen grupos, así que ahí no aparece. Las notas internas siguen mencionando al equipo. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ em um grupo aparece primeiro Todos: escreve @todos (@all em inglês, as duas palavras valem) e cada membro do grupo recebe o aviso. Também na legenda de fotos, vídeos e documentos, e em mensagens agendadas e recorrentes para um só grupo. As linhas conectadas pela Cloud API não têm grupos, então ali não aparece. As notas internas continuam mencionando a equipe. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('archive', 'inbox', ['Archive chats and an Archived section, delete a chat from the list and restore it from Deleted', 'Archivar chats con la sección Archivados, eliminar un chat de la lista y recuperarlo desde Eliminados', 'Arquivar conversas com a seção Arquivadas, apagar uma conversa da lista e recuperá-la em Apagadas'], 'have', {
       detail: [
         'Synced with the phone both ways. Sending a message to an archived chat unarchives it, like on WhatsApp, and Keep archived holds a chosen chat in Archived',

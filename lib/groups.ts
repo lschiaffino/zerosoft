@@ -45,6 +45,7 @@ import {
   type ProviderConfig,
   type ProviderKind,
 } from './groups-provider';
+import { MENTION_ALL, keepMentionAll, mentionSendOpts } from './wa-mention-all';
 import { cloudProvider } from './groups-provider-cloud';
 import { privateQuoteAllowed } from './wa-person';
 import { bridgeProvider, MAX_INBOUND_MEDIA } from './groups-provider-bridge';
@@ -2254,6 +2255,8 @@ export interface SendInput {
 export function cleanMentions(raw: unknown, body: string, kind: 'dm' | 'group' | string): string[] {
   if (kind !== 'group' || !Array.isArray(raw) || !body.includes('@')) return [];
   const out: string[] = [];
+  // "@all" (o "@todos") en el texto: menciona a todo el grupo (lib/wa-mention-all.ts). Va primero.
+  if (keepMentionAll(raw, body, true)) out.push(MENTION_ALL);
   for (const m of raw) {
     if (typeof m !== 'string' || !/^\d{6,16}$/.test(m) || out.includes(m)) continue;
     if (!new RegExp(`(^|[^\\w@])@${m}(?!\\d)`).test(body)) continue;
@@ -2363,7 +2366,7 @@ export async function sendMessage(
         : await provider.sendText(chat.provider_chat_id, body, {
             replyTo: replyProviderId,
             ...(input.linkPreview === false ? { linkPreview: false } : {}),
-            ...(mentions.length ? { mentions } : {}),
+            ...mentionSendOpts(mentions, provider.caps),
             ...(forward ? { forward } : {}),
           });
     providerId = res.id || null;
@@ -2606,7 +2609,7 @@ async function sendMediaMessage(
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
       ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
       ...(forward ? { forward } : {}),
-      ...(mentions.length ? { mentions } : {}),
+      ...mentionSendOpts(mentions, provider.caps),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2695,7 +2698,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
             ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
             ...(forward ? { forward } : {}),
-            ...(mentions.length ? { mentions } : {}),
+            ...mentionSendOpts(mentions, provider.caps),
           })
         ).id || null;
     } else {
@@ -2706,7 +2709,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
         await provider.sendText(chat.provider_chat_id, row.body, {
           replyTo: replyProviderId,
           ...(noPreview ? { linkPreview: false } : {}),
-          ...(mentions.length ? { mentions } : {}),
+          ...mentionSendOpts(mentions, provider.caps),
           ...(forward ? { forward } : {}),
         })
       ).id || null;
