@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { deliverComposeDraft } from '@/components/ai/compose-insert';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ActionView } from '@/lib/assistant/engine';
@@ -85,6 +86,8 @@ function ActionCard({ action, onDecided, onGranted }: { action: ActionView; onDe
       return;
     }
     if (decision === 'confirm' && data?.action?.status === 'done') {
+      // Borradores de respuesta (Lines): al campo del chat si está abierto, o cuando se abra. Nunca se mandan.
+      for (const d of data.action.result?.drafts ?? []) deliverComposeDraft(d.chatId, d.text);
       window.dispatchEvent(new CustomEvent(ASSISTANT_APPLIED_EVENT, { detail: { tool: action.tool } }));
       router.refresh();
     }

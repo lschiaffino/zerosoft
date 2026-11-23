@@ -84,7 +84,7 @@ export interface ActionRow {
   destructive: boolean;
   confirm_text: string | null;
   status: ActionStatus;
-  result: { ok: boolean; message?: string; href?: string; error?: string; partial?: boolean } | null;
+  result: { ok: boolean; message?: string; href?: string; error?: string; partial?: boolean; drafts?: Array<{ app: 'lines' | 'inbox'; chatId: string; text: string }> } | null;
   created_at: string;
   decided_at: string | null;
 }

@@ -419,7 +419,9 @@
       "followUp": "Remind me ({count})",
       "archive": "Archive ({count})",
       "done": "Mark as done ({count})",
-      "folder": "Add to folder ({count})"
+      "folder": "Add to folder ({count})",
+      "note": "Notes on the chat, only you see them ({count})",
+      "schedule": "Scheduled messages, sent at that time ({count})"
     },
     "result": "Done: {done} of {total}.",
     "resultFailed": "Could not: {list}.",
@@ -435,6 +437,27 @@
       },
       "grantedOnce": "The assistant can read your {app} chats in this conversation.",
       "grantedAlways": "The assistant can read your {app} chats until you turn it off in Settings."
+    },
+    "sendsLabel": "Goes out on its own",
+    "sendsWarning": "Scheduled messages are sent at their time without asking again. Until then you can cancel them from the chat.",
+    "lines": {
+      "summary": "{count, plural, one {Apply # change in Lines} other {Apply # changes in Lines}}",
+      "working": "Applying…",
+      "do": {
+        "draft": "Reply draft for {chat}, put in the message field and not sent",
+        "note": "Internal note in {chat}, only your team sees it",
+        "assign": "Assign {chat}",
+        "task": "Task on {chat}",
+        "schedule": "WhatsApp message to {chat} at {when}, from {line}"
+      },
+      "due": "Due {when}",
+      "owner": "Owner: {who}",
+      "nobody": "Nobody",
+      "sendsLabel": "Goes out on WhatsApp",
+      "sendsWarning": "Scheduled messages are sent on WhatsApp at their time without asking again. Until then you can cancel them in the Tasks tab of the chat.",
+      "result": "Done: {done} of {total}.",
+      "resultFailed": "Could not: {list}.",
+      "draftsReady": "{count, plural, one {Open the chat to review the draft in the message field. Nothing was sent.} other {Open each chat to review its draft in the message field. Nothing was sent.}}"
     }
   },
   "consentCard": {

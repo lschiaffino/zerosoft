@@ -55,6 +55,8 @@ export interface ActionResult {
   error?: string;
   /** Se hizo una parte: el mensaje dice qué faltó y que repetir solo hace eso. */
   partial?: boolean;
+  /** Borradores de respuesta para el campo de un chat (la pantalla los inserta; nunca se mandan). */
+  drafts?: Array<{ app: 'lines' | 'inbox'; chatId: string; text: string }>;
 }
 
 interface BaseTool<S extends z.ZodTypeAny> {

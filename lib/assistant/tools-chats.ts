@@ -11,8 +11,11 @@
  *   corre nada. Lo que vuelve se marca como datos de terceros y no se guarda
  *   en la charla (`sensitive`).
  * - propose_inbox_actions: borradores, posponer, archivar, marcar como hecho,
- *   recordatorio y mover a carpeta, en una sola tarjeta. Usa las mismas
- *   acciones que la app (applyThreadAction, saveDraft).
+ *   recordatorio, mover a carpeta, nota del chat y mensaje programado, en una
+ *   sola tarjeta. Usa las mismas acciones que la app (applyThreadAction,
+ *   saveDraft, saveNotes, createScheduled). Un programado se confirma con el
+ *   botón rojo y, si su hora ya pasó al confirmar, no se programa.
+ * - Buscar chats y las acciones de Lines: lib/assistant/tools-chat-actions.ts.
  *
  * Acceso: Inbox es de la persona real de la sesión (nunca de otra). Lines
  * usa el acceso por línea y por chat de lib/groups-access.ts (groupsViewer,
@@ -22,7 +25,7 @@ import { z } from 'zod';
 import { getDb } from '../db';
 import { delegatedIdentity } from '../mcp/identity';
 import { wrapUntrusted } from '../mcp/untrusted';
-import { applyThreadAction, futureIso, getThreadRow, listMessages as listInboxMessages, saveDraft, type ThreadAction } from '../inbox/core';
+import { applyThreadAction, createScheduled, futureIso, getThreadRow, listMessages as listInboxMessages, saveDraft, saveNotes, type ThreadAction } from '../inbox/core';
 import { canSeeChat, groupsViewer, maskChat, maskMessage } from '../groups-access';
 import { getChat, listChats, listMessages as listLineMessages } from '../groups';
 import { createTranslator } from 'next-intl';
@@ -189,17 +192,23 @@ const readInput = z.object({
   messages: z.number().int().min(1).max(40).optional().describe('Last messages per chat (default 8; up to 40 to summarize one chat).'),
 });
 
-const ACTIONS = ['draft', 'snooze', 'followUp', 'archive', 'done', 'folder'] as const;
+const ACTIONS = ['draft', 'snooze', 'followUp', 'archive', 'done', 'folder', 'note', 'schedule'] as const;
+/** Un programado tiene que quedar al menos este tiempo en el futuro (nunca sale en el acto). */
+const SCHEDULE_MIN_LEAD_MS = 60_000;
 
 const proposeInput = z.object({
   actions: z
     .array(
       z.object({
         chat: z.string().trim().min(1).max(120).describe('Chat id from inbox_attention (or its exact name).'),
-        do: z.enum(ACTIONS).describe('draft: leave a reply draft in the chat (nothing is sent). snooze: hide until a date. followUp: remind me on a date. archive. done. folder: add to an Inbox folder.'),
-        until: z.string().max(40).optional().describe('snooze / followUp: ISO date-time in the future.'),
+        do: z
+          .enum(ACTIONS)
+          .describe(
+            'draft: leave a reply draft in the chat (nothing is sent). snooze: hide until a date. followUp: remind me on a date (use it for a task or reminder about the chat). archive. done. folder: add to an Inbox folder. note: add to the private notes of the chat (only the person sees them). schedule: a message sent on its channel at a future time.',
+          ),
+        until: z.string().max(40).optional().describe('snooze / followUp / schedule: ISO date-time in the future.'),
         folder: z.string().max(120).optional().describe('folder: the folder name.'),
-        text: z.string().max(2000).optional().describe('draft: the reply text, in the language of the chat.'),
+        text: z.string().max(2000).optional().describe('draft / note / schedule: the text, in the language of the chat.'),
       }),
     )
     .min(1)
@@ -345,7 +354,7 @@ export const chatTools: AssistantTool[] = [
     name: 'propose_inbox_actions',
     app: 'inbox',
     description:
-      'Prepare changes to chats in the person\'s own Inbox, all in ONE card: reply drafts (left in the chat, never sent), snooze, follow-up reminder, archive, done, add to folder. Nothing changes until the person clicks Confirm.',
+      'Prepare changes to chats in the person\'s own Inbox, all in ONE card: reply drafts (left in the chat, never sent), snooze, follow-up reminder (also for a task about the chat), archive, done, add to folder, a private note on the chat, or a message scheduled for a future time. Nothing changes and nothing is sent until the person clicks Confirm; a scheduled message goes out at its time, so say that when you propose it.',
     input: proposeInput,
     prepare: async (ctx, input: z.infer<typeof proposeInput>) => {
       if (delegatedIdentity()) return { error: 'not_available_here' };
@@ -363,11 +372,15 @@ export const chatTools: AssistantTool[] = [
         }
         const name = thread.title || thread.handle;
         const p: Planned = { threadId: thread.id, name, do: a.do };
-        if (a.do === 'snooze' || a.do === 'followUp') {
+        if (a.do === 'snooze' || a.do === 'followUp' || a.do === 'schedule') {
           try {
             p.until = futureIso(a.until ?? '', now);
           } catch {
             problems.push(`${name}: ${a.do} needs a future date in until`);
+            continue;
+          }
+          if (a.do === 'schedule' && Date.parse(p.until) < now.getTime() + SCHEDULE_MIN_LEAD_MS) {
+            problems.push(`${name}: schedule needs a time at least a minute from now`);
             continue;
           }
         }
@@ -382,9 +395,9 @@ export const chatTools: AssistantTool[] = [
           p.folderId = f.id;
           p.folder = f.name;
         }
-        if (a.do === 'draft') {
+        if (a.do === 'draft' || a.do === 'note' || a.do === 'schedule') {
           if (!a.text?.trim()) {
-            problems.push(`${name}: draft needs text`);
+            problems.push(`${name}: ${a.do} needs text`);
             continue;
           }
           p.text = a.text.trim();
@@ -394,8 +407,10 @@ export const chatTools: AssistantTool[] = [
       if (!planned.length) return { error: 'nothing_to_do', hint: problems };
       const fmt = (iso: string) => iso.slice(0, 16).replace('T', ' ');
       const line = (p: Planned) =>
-        p.do === 'draft'
+        p.do === 'draft' || p.do === 'note'
           ? `${p.name}: ${p.text}`
+          : p.do === 'schedule'
+            ? `${p.name} → ${fmt(p.until!)} UTC: ${p.text}`
           : p.do === 'snooze' || p.do === 'followUp'
             ? `${p.name} → ${fmt(p.until!)} UTC`
             : p.do === 'folder'
@@ -406,11 +421,14 @@ export const chatTools: AssistantTool[] = [
         const rows = planned.filter((p) => p.do === k);
         return rows.length ? [{ label: t(`do.${k}`, { count: rows.length }), after: rows.map(line).join('\n') }] : [];
       });
+      // Un programado sale por WhatsApp o por correo a su hora: la tarjeta lo dice y se confirma con el botón rojo.
+      const sends = planned.some((p) => p.do === 'schedule');
       return {
         summary: t('summary', { count: planned.length }),
-        details,
+        details: sends ? [...details, { label: t('sendsLabel'), after: t('sendsWarning') }] : details,
         input: { planned } as unknown as Record<string, unknown>,
         working: t('working'),
+        ...(sends ? { destructive: true, confirmText: null } : {}),
         forModel: { planned: planned.map((p) => ({ chat: p.name, do: p.do, ...(p.until ? { until: p.until } : {}), ...(p.folder ? { folder: p.folder } : {}) })), ...(problems.length ? { skipped: problems } : {}) },
       };
     },
@@ -425,7 +443,15 @@ export const chatTools: AssistantTool[] = [
           // getThreadRow tira si el chat ya no es de esta persona.
           await getThreadRow(owner, p.threadId);
           if (p.do === 'draft') await saveDraft(owner, p.threadId, p.text ?? '');
-          else {
+          else if (p.do === 'note') {
+            // Se suma a las notas que ya tenía el chat (no las pisa).
+            const prev = String((await getThreadRow(owner, p.threadId)).notes ?? '').trim();
+            await saveNotes(owner, p.threadId, prev ? `${prev}\n\n${p.text ?? ''}` : (p.text ?? ''));
+          } else if (p.do === 'schedule') {
+            // La hora se vuelve a mirar al confirmar: si ya pasó, no se programa (nunca sale en el acto).
+            if (!p.until || Date.parse(p.until) < Date.now() + SCHEDULE_MIN_LEAD_MS / 2) throw new Error('time_passed');
+            await createScheduled(owner, p.threadId, p.text ?? '', p.until);
+          } else {
             const a: ThreadAction =
               p.do === 'snooze'
                 ? { action: 'snooze', until: p.until! }

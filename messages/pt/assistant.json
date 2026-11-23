@@ -419,7 +419,9 @@
       "followUp": "Lembrar-me ({count})",
       "archive": "Arquivar ({count})",
       "done": "Marcar como feito ({count})",
-      "folder": "Adicionar à pasta ({count})"
+      "folder": "Adicionar à pasta ({count})",
+      "note": "Notas da conversa, só você vê ({count})",
+      "schedule": "Mensagens agendadas, saem nesse horário ({count})"
     },
     "result": "Pronto: {done} de {total}.",
     "resultFailed": "Não foi possível: {list}.",
@@ -435,6 +437,27 @@
       },
       "grantedOnce": "O assistente pode ler suas conversas do {app} nesta conversa.",
       "grantedAlways": "O assistente pode ler suas conversas do {app} até você desligar em Configurações."
+    },
+    "sendsLabel": "Sai sozinho",
+    "sendsWarning": "As mensagens agendadas são enviadas no horário sem perguntar de novo. Até lá você pode cancelá-las pela conversa.",
+    "lines": {
+      "summary": "{count, plural, one {Aplicar # mudança no Lines} other {Aplicar # mudanças no Lines}}",
+      "working": "Aplicando…",
+      "do": {
+        "draft": "Rascunho de resposta para {chat}, vai para o campo da mensagem e não é enviado",
+        "note": "Nota interna em {chat}, só a sua equipe vê",
+        "assign": "Atribuir {chat}",
+        "task": "Tarefa em {chat}",
+        "schedule": "Mensagem de WhatsApp para {chat} em {when}, pela linha {line}"
+      },
+      "due": "Vence {when}",
+      "owner": "Responsável: {who}",
+      "nobody": "Ninguém",
+      "sendsLabel": "Sai pelo WhatsApp",
+      "sendsWarning": "As mensagens agendadas são enviadas pelo WhatsApp no horário sem perguntar de novo. Até lá você pode cancelá-las na aba Tarefas da conversa.",
+      "result": "Pronto: {done} de {total}.",
+      "resultFailed": "Não foi possível: {list}.",
+      "draftsReady": "{count, plural, one {Abra a conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.} other {Abra cada conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.}}"
     }
   },
   "consentCard": {
