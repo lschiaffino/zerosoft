@@ -45,6 +45,13 @@
 }
 .vc-bar:hover { color: var(--ink); opacity: 1; background: var(--ui-hover); }
 .vc-bar:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; opacity: 1; }
+/* Dentro del campo de un chat (data-vc-inset, components/groups/wa/MentionTextarea.tsx): sin caja propia sobre el
+   fondo del campo, y el campo deja libre la esquina mientras el botón se ve (data-vc-bar, components/voice/DictationHost.tsx). */
+.vc-bar.is-inset { border-color: transparent; background: transparent; }
+.vc-bar.is-inset:hover { background: var(--ui-hover); }
+@media (pointer: fine) {
+  textarea[data-vc-inset][data-vc-bar='on'] { padding-right: 36px !important; }
+}
 
 .vc-toast {
   bottom: 60px;

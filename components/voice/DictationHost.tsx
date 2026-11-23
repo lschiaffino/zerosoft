@@ -100,10 +100,21 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
       setPos(null);
       return;
     }
+    // Campos que piden el botón adentro (data-vc-inset: el campo de un chat). Afuera flotaría sobre la conversación y
+    // taparía la hora del último mensaje, según dónde quedara cada mensaje al enfocar; adentro va siempre en la
+    // esquina de abajo a la derecha, y el campo deja ese lugar libre mientras se ve (data-vc-bar, styles/voice-host.css).
+    const inset = field.hasAttribute('data-vc-inset');
+    if (inset) field.setAttribute('data-vc-bar', 'on');
     const place = () => {
       const r = field.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      if (inset) {
+        // Centrado en un renglón de 40px; con varios renglones, a la altura del último.
+        const c = { top: r.bottom - BAR - Math.max(4, (Math.min(r.height, 40) - BAR) / 2), left: r.right - BAR - 6 };
+        setPos(c.top < 4 || c.left < 4 || c.top + BAR > vh - 4 || c.left + BAR > vw - 4 ? null : c);
+        return;
+      }
       const candidates = [
         { top: r.top - BAR - GAP, left: r.right - BAR },
         { top: r.bottom + GAP, left: r.right - BAR },
@@ -149,6 +160,7 @@ function useBarPosition(field: HTMLElement | null, barRef: RefObject<HTMLButtonE
       ro.disconnect();
       window.removeEventListener('scroll', place, true);
       window.removeEventListener('resize', place);
+      if (inset) field.removeAttribute('data-vc-bar');
     };
   }, [field, barRef]);
   return pos;
@@ -542,7 +554,7 @@ export default function DictationHost() {
         <button
           ref={barRef}
           type="button"
-          className="vc-bar"
+          className={`vc-bar${focused?.hasAttribute('data-vc-inset') ? ' is-inset' : ''}`}
           style={{ top: barPos!.top, left: barPos!.left }}
           aria-label={t('barLabel', { shortcut })}
           title={t('barLabel', { shortcut })}
@@ -556,7 +568,7 @@ export default function DictationHost() {
       {showBar && selection && focused && !transformsOpen && (
         <button
           type="button"
-          className="vc-bar vc-bar-transform"
+          className={`vc-bar vc-bar-transform${focused?.hasAttribute('data-vc-inset') ? ' is-inset' : ''}`}
           style={{ top: barPos!.top, left: barPos!.left - BAR - 4 }}
           aria-label={t('transformsLabel')}
           title={t('transformsLabel')}
