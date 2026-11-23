@@ -10,6 +10,8 @@ import { formatDate, relDate } from '@/lib/utils';
 import type { CommandAction } from '@/lib/cmdk-context';
 import { openCommandMenu } from '@/lib/cmdk-context';
 import IssueActivityTimeline from './IssueActivityTimeline';
+import InlineCommentComposer from './InlineCommentComposer';
+import { normalizeQuote, useInlineHighlights, type InlineAnchor } from './inlineComments';
 import IssueAttachments from './IssueAttachments';
 import dynamic from 'next/dynamic';
 import { IssueGithubPanel, useIssueGithub } from './IssueGithub';
@@ -410,6 +412,51 @@ export default function IssueDetailClient({
     setActivities(data.rows);
     if (data.reactions) setReactions(data.reactions);
   }, [issue.id]);
+
+  // ---------- Comentarios en línea sobre la descripción (como Linear) ----------
+  const descSection = useRef<HTMLElement>(null);
+  const [inlineDraft, setInlineDraft] = useState<{ quote: string; at: { top: number; left: number } } | null>(null);
+  const inlineAnchors = useMemo<InlineAnchor[]>(() => {
+    const out: InlineAnchor[] = [];
+    for (const a of activities) {
+      if (a.type !== 'comment') continue;
+      let meta: { commentId?: string; anchor?: string | null; parentId?: string | null; resolvedAt?: string | null } = {};
+      try {
+        meta = JSON.parse(a.meta) as typeof meta;
+      } catch {
+        continue;
+      }
+      if (meta.anchor && !meta.parentId && !meta.resolvedAt) out.push({ id: String(meta.commentId ?? a.id), quote: meta.anchor });
+    }
+    return out;
+  }, [activities]);
+  /** Lleva al hilo de un comentario en línea y lo marca un momento. */
+  const openInlineComment = useCallback((commentId: string) => {
+    const el = document.getElementById(`comment-${commentId}`);
+    if (!el) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    el.classList.add('is-flash');
+    window.setTimeout(() => el.classList.remove('is-flash'), 1600);
+  }, []);
+  // Después de publicar, el hilo nuevo se muestra cuando ya está en la lista.
+  const [pendingThread, setPendingThread] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingThread || !document.getElementById(`comment-${pendingThread}`)) return;
+    openInlineComment(pendingThread);
+    setPendingThread(null);
+  }, [activities, pendingThread, openInlineComment]);
+  // Al cerrar el composer el foco vuelve a la descripción (un segundo Esc no saca del issue).
+  const closeInline = useCallback(() => {
+    setInlineDraft(null);
+    requestAnimationFrame(() => descSection.current?.querySelector<HTMLElement>('.track-description-editor .track-rte-content')?.focus({ preventScroll: true }));
+  }, []);
+  useInlineHighlights(
+    () => descSection.current?.querySelector<HTMLElement>('.track-description-editor .track-rte-content') ?? null,
+    inlineAnchors,
+    descDraft,
+    openInlineComment,
+  );
 
   const refreshRelations = useCallback(async () => {
     // La marca de duplicado va con las relaciones: borrar la relación o un cambio de otro la saca.
@@ -1505,7 +1552,7 @@ export default function IssueDetailClient({
             />
           </h1>
 
-          <section className="track-detail-description" aria-label={labels.description}>
+          <section className="track-detail-description" aria-label={labels.description} ref={descSection}>
             {/* Siempre editable, como en Linear: se guarda solo al dejar de tipear y al salir. */}
             <RichEditor
               key={issue.id}
@@ -1521,8 +1568,26 @@ export default function IssueDetailClient({
                 descOpen.current = false;
                 void flushDescription();
               }}
+              onComment={(text, rect) => {
+                const quote = normalizeQuote(text);
+                if (quote) setInlineDraft({ quote, at: { top: rect.bottom + 8, left: rect.left } });
+              }}
               className="track-description-editor"
             />
+            {inlineDraft && (
+              <InlineCommentComposer
+                issueId={issue.id}
+                quote={inlineDraft.quote}
+                at={inlineDraft.at}
+                members={initialMembers}
+                onClose={closeInline}
+                onPosted={(commentId) => {
+                  setInlineDraft(null);
+                  setPendingThread(commentId);
+                  void refreshActivities();
+                }}
+              />
+            )}
           </section>
 
           {/* Debajo de la descripción, como Linear: + sub-issues, adjuntar y el resto en "…". */}

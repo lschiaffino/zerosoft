@@ -87,6 +87,8 @@ interface CommentItem {
   editedAt: string | null;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  /** Comentario en línea: el texto de la descripción al que apunta. */
+  anchor: string | null;
 }
 
 function toComment(a: TrackIssueActivityWithAuthor): CommentItem {
@@ -100,6 +102,7 @@ function toComment(a: TrackIssueActivityWithAuthor): CommentItem {
     editedAt: str(meta.editedAt),
     resolvedAt: str(meta.resolvedAt),
     resolvedBy: str(meta.resolvedBy),
+    anchor: str(meta.anchor),
   };
 }
 
@@ -463,10 +466,27 @@ export default function IssueActivityTimeline({
                   <TrackIcon name="reply" size={14} />
                 </button>
               )}
+              {isRoot && c.anchor && !c.resolvedAt && (
+                <button
+                  type="button"
+                  className="track-inline-trigger track-comment-tool"
+                  aria-label={tt('resolve')}
+                  title={tt('resolve')}
+                  onClick={() => void resolve(c.id, true)}
+                  data-testid="track-inline-resolve"
+                >
+                  <TrackIcon name="check" size={14} />
+                </button>
+              )}
               {commentMenu(c, isRoot)}
             </span>
           )}
         </div>
+        {isRoot && c.anchor && (
+          <blockquote className="track-comment-quote" data-testid="track-comment-quote">
+            {c.anchor}
+          </blockquote>
+        )}
         {editing ? (
           <div className="track-comment-edit">
             <RichEditor
