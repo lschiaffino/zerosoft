@@ -9,7 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createContact, createCustomField, createList } from '@/lib/crm';
 import { MEMBER_SUBJECT, hiddenBreakdownPoints, setFieldPermissions, visibleScoreSql, type VisibleScoreRules } from '@/lib/crm-field-perms';
-import { createScoreRule, listScores, recalcContactScore } from '@/lib/crm-scoring';
+import { createScore, createScoreRule, listScores, recalcContactScore } from '@/lib/crm-scoring';
+import { recordEventFor, subscriberFor } from '@/lib/crm-event-privacy';
+import { createRun } from '@/lib/crm-ai-agents';
+import { runQuery } from '@/lib/bi/run';
+import { scoreSqlRules, hiddenFieldsFor } from '@/lib/crm-field-perms';
 import { listForViewer, listsForViewer } from '@/lib/crm-list-access';
 import { resolveMatching } from '@/lib/crm-list-matching';
 import { runReport } from '@/lib/crm-custom-reports';
@@ -151,6 +155,67 @@ describe('orden y filtros por score con el total que ve cada persona', () => {
     expect(hot?.lines.join('\n')).not.toContain('lead score 50');
     const warm = await buildRecordContext(s.ws, 'contact', s.warm.id, null);
     expect(warm?.lines.join('\n')).toContain('lead score 10');
+  });
+});
+
+describe('score visible: otros scores, Analytics, eventos y agentes', () => {
+  /** Un segundo score con tramos: la regla oculta suma 50, la visible 10 (hot 50 / warm 10; para el miembro 0 / 10). */
+  async function withSecond(label: string) {
+    const s = await setup(label);
+    const res = await createScore(s.ws, { name: 'Fit', thresholds: [{ label: 'Cold', min: 0 }, { label: 'Hot', min: 20 }] });
+    if (!res.ok) throw new Error('score');
+    await createScoreRule(s.ws, { kind: 'property', scoreId: res.score.id, name: 'Hidden fit', config: { field: 'custom.secret', op: 'is_set', value: '' }, points: 50 });
+    await createScoreRule(s.ws, { kind: 'property', scoreId: res.score.id, name: 'Title fit', config: { field: 'jobTitle', op: 'equals', value: 'CEO' }, points: 10 });
+    await recalcContactScore(s.ws, s.hot.id);
+    await recalcContactScore(s.ws, s.warm.id);
+    return { ...s, second: res.score };
+  }
+
+  it('un score que no es el principal, por puntos y por tramo', async () => {
+    const s = await withSecond('vscore-second');
+    const tier = encodeURIComponent(JSON.stringify({ v: 1, groups: [{ rules: [{ f: `scoreTier:${s.second.id}`, o: 'is', v: '20|' }] }] }));
+    expect((await listIds(member(s), `filters=${filterParam(`score:${s.second.id}`, '20')}`)).ids).toEqual([]);
+    expect((await listIds(member(s), `filters=${tier}`)).ids).toEqual([]);
+    expect((await listIds(owner(s), `filters=${filterParam(`score:${s.second.id}`, '20')}`)).ids).toEqual([s.hot.id]);
+    expect((await listIds(owner(s), `filters=${tier}`)).ids).toEqual([s.hot.id]);
+  });
+
+  it('Analytics: la columna score de contactos es la que ve quien consulta', async () => {
+    const s = await setup('vscore-bi');
+    const q = { kind: 'sql' as const, sql: 'SELECT id, score FROM contacts WHERE score > 20 ORDER BY score DESC', params: [] };
+    const as = (personId: string, role: SessionUser['role']) => runQuery({ workspaceId: s.ws, personId, role, apps: '*' }, 'zerosoft', q, { fresh: true });
+    expect((await as(s.w.member.id, 'member')).rows).toEqual([]);
+    expect((await as(s.ws, 'owner')).rows.map((r) => r[0])).toEqual([s.hot.id]);
+  });
+
+  it('eventos (webhooks, Flow) de quien tiene el campo oculto: el total sin la regla oculta', async () => {
+    const s = await setup('vscore-evt');
+    const stored = (await getDb().prepare('SELECT * FROM crm_contacts WHERE id = ?').get(s.hot.id)) as { score: number; score_breakdown: string };
+    const data = { id: s.hot.id, custom: '{}', score: stored.score, score_breakdown: stored.score_breakdown };
+    const mine = await recordEventFor((await subscriberFor(s.ws, s.w.member.id))!, 'contact', data);
+    expect(mine?.score).toBe(0);
+    expect(String(mine?.score_breakdown)).not.toContain('Hidden flag');
+    const own = await recordEventFor((await subscriberFor(s.ws, s.ws))!, 'contact', data);
+    expect(own?.score).toBe(50);
+  });
+
+  it('un agente sobre una lista dinámica por score recorre los contactos que la lista le muestra', async () => {
+    const s = await setup('vscore-agent');
+    const list = await createList(s.ws, { name: 'Hot', kind: 'dynamic', filter: { filters: [{ f: 'score', o: 'gt', v: '20' }] } });
+    const rules = scoreSqlRules(await hiddenFieldsFor({ workspaceId: s.ws, personId: s.w.member.id, role: 'member' }, 'contacts'));
+    expect(rules).toBeDefined();
+    await expect(
+      createRun({ workspaceId: s.ws, personId: s.w.member.id, scope: null, scoreRules: rules, input: { agent: 'enrich_contacts', listId: list.id }, defaultName: 'Run' }),
+    ).rejects.toMatchObject({ code: 'no_targets' });
+    const run = await createRun({ workspaceId: s.ws, personId: s.ws, scope: null, input: { agent: 'enrich_contacts', listId: list.id }, defaultName: 'Run' });
+    expect(run).toBeTruthy();
+  });
+
+  it('sin reglas de score sobre campos ocultos, el orden y los filtros usan la columna guardada', async () => {
+    const s = await setup('vscore-norules');
+    const none = await makeUser('vscore-norules-x');
+    expect(scoreSqlRules(await hiddenFieldsFor({ workspaceId: none.id, personId: none.id, role: 'owner' }, 'contacts'))).toBeUndefined();
+    expect(scoreSqlRules(await hiddenFieldsFor({ workspaceId: s.ws, personId: s.w.member.id, role: 'member' }, 'contacts'))).toBeDefined();
   });
 });
 

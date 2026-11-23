@@ -1,5 +1,5 @@
 import { listSequences } from '@/lib/crm-sequences';
-import { fieldAccessFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, redactRow, scoreSqlRules, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
@@ -182,7 +182,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     filterEnv: { viewerId: realUserId(user), timeZone, strictCustom: true },
     customTypes,
     // Con campos ocultos: orden y filtros por el score que la persona ve.
-    scoreRules: fieldAccess.hidden.scoreRules,
+    scoreRules: scoreSqlRules(fieldAccess.hidden),
     sort: sort as ContactFilter['sort'],
     page,
     pageSize,

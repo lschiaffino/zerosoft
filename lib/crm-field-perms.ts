@@ -187,6 +187,16 @@ export function visibleScoreSql(scoreCol: string, breakdownCol: string, rules: V
   return `(${scoreCol} - COALESCE((SELECT SUM(${points}) FROM json_each(${items}) j), 0))`;
 }
 
+/**
+ * Reglas para ordenar, filtrar, contar o reportar por score con
+ * visibleScoreSql: solo si alguna regla de score es sobre un campo que la
+ * persona tiene oculto (si no, la columna guardada dice lo mismo y usa su
+ * índice; borrar una regla recalcula los scores). Puro.
+ */
+export function scoreSqlRules(hidden: HiddenFieldSet): VisibleScoreRules | undefined {
+  return hidden.hidesScoreRules ? hidden.scoreRules : undefined;
+}
+
 function parseItems(json: string): unknown {
   try {
     return JSON.parse(json || '[]');

@@ -7,7 +7,7 @@ import { createRun, defaultRunName, listRuns, runCreateSchema, sessionRunViewer,
 import { crmAiAvailable } from '@/lib/crm-ai';
 import { aiErrorResponse, aiLocale } from '@/lib/crm-ai-http';
 import { canSeeList } from '@/lib/crm-list-access';
-import { sessionFieldViewer } from '@/lib/crm-field-perms';
+import { hiddenFieldsFor, scoreSqlRules, sessionFieldViewer } from '@/lib/crm-field-perms';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       workspaceId: user.id,
       personId: realUserId(user),
       scope: await sessionScope(user),
+      scoreRules: scoreSqlRules(await hiddenFieldsFor(sessionFieldViewer(user), 'contacts')),
       input: { ...parsed.data, locale },
       defaultName: defaultRunName(parsed.data.agent, locale, listName),
     });

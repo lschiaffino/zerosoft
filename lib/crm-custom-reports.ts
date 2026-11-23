@@ -35,7 +35,7 @@ import {
   type ReportResult,
 } from './crm-report-builder';
 import { FORECAST_DEFAULTS } from './crm-forecast';
-import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, visibleScoreSql, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
+import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, scoreSqlRules, visibleScoreSql, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
 
 export interface CustomReportRow {
   id: string;
@@ -308,7 +308,7 @@ async function loadCustomDefs(workspaceId: string, objects: ReportObject[], view
     const hidden = await hiddenFieldsFor(viewer, entity, db);
     out[o] = new Map(rows.filter((r) => !hidden.has(r.name)).map((r) => [r.name, { label: r.label, type: r.type }]));
     // El score como lo ve (sin los puntos de reglas sobre sus campos ocultos): columna, agrupación, métrica y filtro.
-    if (o === 'contact' && hidden.scoreRules) out.scoreRules = hidden.scoreRules;
+    if (o === 'contact') out.scoreRules = scoreSqlRules(hidden);
   }
   return out;
 }

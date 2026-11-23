@@ -5,7 +5,7 @@
  */
 import { CRM_FILTER_FIELDS } from './crm';
 import { filterTypeFor } from './crm-custom-fields';
-import { fieldAccessFor, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
+import { fieldAccessFor, scoreSqlRules, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
 import { FilterError, parseStrictFilter, type FilterEnv, type FilterFieldType, type FilterModel } from './crm-filters';
 import { isValidTimeZone } from './user-tz';
 
@@ -40,7 +40,7 @@ export async function requestFilter(
   const raw = sp.get('filters');
   if (raw && raw.length > MAX_FILTER_PARAM) return { error: true };
   const access = raw || entity === 'contacts' ? await fieldAccessFor(who.viewer, entity) : null;
-  const scoreRules = entity === 'contacts' ? access?.hidden.scoreRules : undefined;
+  const scoreRules = entity === 'contacts' && access ? scoreSqlRules(access.hidden) : undefined;
   const score = scoreRules ? { scoreRules } : {};
   if (!raw || !access) return score;
   const tz = who.timeZone && who.timeZone.length <= 64 && isValidTimeZone(who.timeZone) ? who.timeZone : 'UTC';
