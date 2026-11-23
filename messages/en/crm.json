@@ -4873,7 +4873,9 @@
       "rescheduled": "Rescheduled",
       "no_show": "No show",
       "canceled": "Canceled"
-    }
+    },
+    "notePlaceholderSolo": "Start typing to leave a note",
+    "noteTooLong": "The note is too long."
   },
   "assocLabels": {
     "title": "Association labels",
@@ -5019,7 +5021,11 @@
     "perPage": "{count} per page",
     "perPageLabel": "Rows per page",
     "exportView": "Export view",
-    "exportViewHint": "Download every record in this view as CSV, not only this page"
+    "exportViewHint": "Download every record in this view as CSV, not only this page",
+    "exportPreparing": "Preparing export…",
+    "exportTruncated": "Exported the first {cap} of {total} records. Narrow the filters to export the rest.",
+    "exportError": "Couldn't export this view. Check the filters and try again.",
+    "exportNoticeClose": "Close"
   },
   "bulkBar": {
     "label": "Bulk actions",
@@ -5481,6 +5487,27 @@
     },
     "clear": "Clear selection",
     "error": "Couldn't select them. Try again."
+  },
+  "comments": {
+    "add": "Comment",
+    "count": "{count, plural, one {# comment} other {# comments}}",
+    "loading": "Loading comments…",
+    "loadError": "Couldn't load the comments.",
+    "retry": "Try again",
+    "listLabel": "Comments",
+    "edited": "(edited)",
+    "actions": "Comment actions",
+    "editLabel": "Edit comment",
+    "deleteConfirm": "Delete this comment?",
+    "composerLabel": "Add a comment",
+    "placeholder": "Add a comment",
+    "placeholderMention": "Add a comment. Type @ to mention a teammate",
+    "save": "Comment",
+    "saving": "Saving…",
+    "saveError": "Couldn't save the comment. Try again.",
+    "deleteError": "Couldn't delete the comment. Try again.",
+    "tooMany": "This activity has reached the comment limit.",
+    "tooLong": "The comment is too long."
   },
   "rowExpand": {
     "expand": "Show associations and last activity: {name}",

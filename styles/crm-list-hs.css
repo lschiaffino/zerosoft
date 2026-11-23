@@ -378,6 +378,16 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   .assoc-picker-search { height: 40px; min-height: 40px; }
 }
 
+/* "Exportar la vista": aviso cuando la vista pasa el tope de filas (o falla), debajo del botón. */
+.export-view-wrap { position: relative; display: inline-flex; }
+.export-view-notice {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: var(--z-dropdown);
+  display: flex; align-items: flex-start; gap: 8px; width: min(320px, calc(100vw - 32px)); padding: 10px 8px 10px 12px;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-1);
+  box-shadow: 0 4px 16px var(--ui-shadow); font-size: 0.8125rem; line-height: 1.4; white-space: normal;
+}
+.export-view-notice.is-error { border-color: var(--danger, var(--ink)); }
+.export-view-notice .icon-btn { flex: none; min-width: 40px; min-height: 40px; margin: -10px -4px -10px 0; }
 /* ============================================================
    C4: fila desplegada (asociados y última actividad), como la
    vista previa de fila de HubSpot. Solo tokens: los cinco aspectos.
