@@ -4,7 +4,7 @@ import { ownWorkspace } from './helpers/own-workspace';
 import { waLinkIp } from './helpers/wa-link';
 
 /**
- * El botón de dictar (DictationHost, .vc-bar) en el campo de un chat de Lines y de Inbox va dentro del campo, en la
+ * El botón de dictar (DictationHost, .vc-bar) en el campo de un chat de Inbox va dentro del campo, en la
  * esquina de abajo a la derecha, con el mismo lugar en los dos estilos de chat: antes flotaba encima del campo y
  * tapaba la hora del último mensaje según dónde quedara. Tampoco queda la pestaña de feedback cortada contra el
  * borde del chat. Cuenta propia: el estilo de chat y los ajustes de dictado se cambian en esa cuenta.
@@ -94,6 +94,13 @@ test('el botón de dictar va dentro del campo del chat en Lines y en Inbox, sin 
       await expect(page.locator('.gr-msg').last()).toBeVisible({ timeout: 45_000 });
       const input = page.getByTestId('composer-input');
       await input.click();
+      if (app === 'lines') {
+        // Lines tiene su propio micrófono en el campo (data-voice-off): sin el botón flotante, nada tapa los mensajes.
+        await expect(input).toBeFocused();
+        await expect(page.locator('.vc-bar')).toHaveCount(0);
+        await expect(page.locator('.fl-root')).toBeHidden();
+        continue;
+      }
       await expect(page.locator('.vc-bar')).toBeVisible();
       const m = await measure(page);
       expect(m.inside, `${app} ${style}`).toBe(true);
@@ -116,7 +123,7 @@ test('el botón de dictar va dentro del campo del chat en Lines y en Inbox, sin 
       expect(await input.getAttribute('data-vc-bar')).toBeNull();
     }
   }
-  // El mismo lugar en las dos apps y en los dos estilos de chat.
+  // El mismo lugar en los dos estilos de chat (antes cambiaba de lugar según el estilo).
   const spread = (k: 'fromRight' | 'fromBottom') => Math.max(...seen.map((s) => s[k])) - Math.min(...seen.map((s) => s[k]));
   expect(spread('fromRight')).toBeLessThanOrEqual(1);
   expect(spread('fromBottom')).toBeLessThanOrEqual(2);
