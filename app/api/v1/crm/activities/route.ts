@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireApiUser, apiError } from '@/lib/api-auth';
+import { bodyTooLong } from '@/lib/crm-note-format';
 import { createActivity, listTimeline } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
 import { ACTIVITY_TYPES, type ActivityType } from '@/lib/crm-constants';
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = v1ActivitySchema.safeParse(body);
   if (!parsed.success) return apiError(400, zodErrorCode(parsed.error), 'The request body is not valid.');
+  if (bodyTooLong(parsed.data)) return apiError(400, 'invalid_input', 'The body is too long: 5,000 characters, or 20,000 for a note with bodyFormat md.');
   const { contactId, companyId, dealId } = parsed.data;
   if (!contactId && !companyId && !dealId) {
     return apiError(400, 'missing_record', 'Pass contactId, companyId or dealId.');
