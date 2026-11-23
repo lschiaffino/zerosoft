@@ -451,3 +451,21 @@ describe('Time: equipo y tareas por proyecto', () => {
     session.user = null;
   });
 });
+
+describe('sheetShortcut', () => {
+  it('maps the day view keys', async () => {
+    const { sheetShortcut } = await import('@/lib/time/types');
+    expect(sheetShortcut({ key: 'n' }, false)).toBe('new');
+    expect(sheetShortcut({ key: 'N' }, false)).toBe('new');
+    expect(sheetShortcut({ key: 'ArrowLeft' }, false)).toBe('prevDay');
+    expect(sheetShortcut({ key: 'ArrowRight' }, false)).toBe('nextDay');
+    expect(sheetShortcut({ key: 't' }, false)).toBe('today');
+    expect(sheetShortcut({ key: 'x' }, false)).toBeNull();
+  });
+  it('ignores typing and modifiers', async () => {
+    const { sheetShortcut } = await import('@/lib/time/types');
+    expect(sheetShortcut({ key: 'n' }, true)).toBeNull();
+    expect(sheetShortcut({ key: 'n', metaKey: true }, false)).toBeNull();
+    expect(sheetShortcut({ key: 'ArrowLeft', altKey: true }, false)).toBeNull();
+  });
+});

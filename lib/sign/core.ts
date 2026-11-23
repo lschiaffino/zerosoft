@@ -17,7 +17,7 @@ import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from '../email';
 import { createNotification } from '../notifications';
 import { sha256Hex } from '../esign';
 import { deleteSignFiles, readSignFile, storeSignFile } from './files';
-import { sanitizePdf, type PageBox } from './pdf';
+import { sanitizePdf, signDocumentName, type PageBox } from './pdf';
 import { formatDate, signCopy, signLocale, type SignCopyKey, type SignLocale } from './i18n';
 import {
   activeRecipients,
@@ -451,7 +451,7 @@ function clampDays(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(Number.isFinite(v) ? v : min)));
 }
 
-/** Guarda un PDF (limpio) como documento del borrador. Los campos de páginas que ya no existen se borran. */
+/** Guarda un PDF (limpio), o una imagen convertida a PDF, como documento del borrador. Los campos de páginas que ya no existen se borran. */
 export async function setDocument(actor: SignActor, id: string, file: { bytes: Buffer; name: string }): Promise<EnvelopeRow> {
   const { env } = await requireManage(actor, id);
   assertEditable(env);
@@ -460,14 +460,14 @@ export async function setDocument(actor: SignActor, id: string, file: { bytes: B
   const ts = nowIso();
   const res = await getDb()
     .prepare("UPDATE sign_envelopes SET document_ref = ?, document_name = ?, document_hash = ?, upload_hash = ?, pages = ?, updated_at = ? WHERE id = ? AND status = 'draft'")
-    .run(ref, file.name.slice(0, 200), sha256Hex(clean.bytes), sha256Hex(file.bytes), JSON.stringify(clean.pages), ts, env.id);
+    .run(ref, signDocumentName(file.name), sha256Hex(clean.bytes), sha256Hex(file.bytes), JSON.stringify(clean.pages), ts, env.id);
   if (!res.changes) {
     await deleteSignFiles([ref]);
     throw new SignError('envelope_locked', 409);
   }
   await getDb().prepare('DELETE FROM sign_fields WHERE envelope_id = ? AND page > ?').run(env.id, clean.pages.length);
   if (env.document_ref) await deleteSignFiles([env.document_ref]);
-  await addEvent(env.id, 'document', { actorId: actor.person, detail: { name: file.name.slice(0, 200), pages: clean.pages.length } });
+  await addEvent(env.id, 'document', { actorId: actor.person, detail: { name: signDocumentName(file.name), pages: clean.pages.length } });
   return (await getEnvelopeRow(actor.ws, env.id))!;
 }
 

@@ -6,6 +6,7 @@ import type { TrackStatusRow } from "@/lib/db";
 import type { TrackIssueWithStatus } from "@/lib/track-data";
 import {
   groupIssues,
+  orderGroups,
   groupPreset,
   groupDropTarget,
   type GroupContext,
@@ -22,6 +23,7 @@ import TrackIcon from "./TrackIcon";
 import { PriorityIcon, StatusDot } from "./InlineEditors";
 import EmptyState from "@/components/ui/EmptyState";
 import type { IssueSelection } from "./BulkEdit";
+import { GroupReorderControls, useGroupReorder } from "./GroupReorder";
 
 interface GroupedIssuesTableProps {
   issues: TrackIssueWithStatus[];
@@ -65,6 +67,12 @@ interface GroupedIssuesTableProps {
   subCounts?: Record<string, number>;
   /** Trae la página siguiente: aparece al pie de un grupo con más issues en el servidor que los cargados. */
   loadMore?: { onLoad: () => void; label: string; busy?: boolean };
+  /** Orden propio de los grupos (claves), guardado en la vista. */
+  groupOrder?: string[];
+  /** Arrastrar encabezados o "Mover arriba/abajo": el orden nuevo de las claves visibles. */
+  onReorderGroups?: (keys: string[]) => void;
+  /** "Restablecer orden" en el menú del grupo (solo con un orden propio). */
+  onResetGroupOrder?: () => void;
 }
 
 const SEP = "\u0001";
@@ -103,6 +111,9 @@ export default function GroupedIssuesTable({
   counts,
   subCounts,
   loadMore,
+  groupOrder,
+  onReorderGroups,
+  onResetGroupOrder,
 }: GroupedIssuesTableProps) {
   const td = useTranslations("track.ux.display");
   // Grupos contraídos (clic o Enter en el encabezado), como en Linear.
@@ -119,6 +130,13 @@ export default function GroupedIssuesTable({
       subs: sub ? groupIssues(g.issues, sub, { ...ctx, includeEmpty: false }) : null,
     }));
   }, [issues, groupBy, sub, statuses, projectNames, statusByName, milestones, showEmpty]);
+  // Orden propio de los grupos (arrastrar el asa o el menú del encabezado), como Linear.
+  const ordered = useMemo(() => orderGroups(groups, groupOrder), [groups, groupOrder]);
+  const reorder = useGroupReorder(
+    ordered.map((g) => g.key),
+    "y",
+    onReorderGroups,
+  );
 
   if (groups.length === 0) return <EmptyState quiet title={labels.empty} />;
 
@@ -208,8 +226,8 @@ export default function GroupedIssuesTable({
     ) : null;
 
   return (
-    <div className="track-mytasks track-groups">
-      {groups.map((g) => {
+    <div className={`track-mytasks track-groups${reorder.dragging ? " is-reordering" : ""}`} data-group-list="">
+      {ordered.map((g, index) => {
         const id = `track-group-${groupBy}-${g.key || "none"}`;
         const preset = groupPreset(groupBy, g.key);
         const projectId = groupBy === "project" ? g.key : undefined;
@@ -218,13 +236,23 @@ export default function GroupedIssuesTable({
         return (
           <section
             key={g.key || "none"}
-            className={`track-mytasks-group${isCollapsed ? " is-collapsed" : ""}`}
+            className={`track-mytasks-group${isCollapsed ? " is-collapsed" : ""}${reorder.itemClass(g.key)}`}
             aria-labelledby={id}
             data-testid="track-group"
+            data-group-key={g.key}
             // Soltar issues arrastrados en el grupo cambia esa propiedad (TrackIssueDnd), como Linear.
             data-track-drop={groupDropTarget(groupBy, g.key, !!statusByName)}
           >
             <h2 className="track-mytasks-title track-group-title">
+              <GroupReorderControls
+                part="grip"
+                groupKey={g.key}
+                name={title(g.key, g.name)}
+                index={index}
+                count={ordered.length}
+                axis="y"
+                reorder={reorder}
+              />
               <button
                 type="button"
                 id={id}
@@ -255,6 +283,16 @@ export default function GroupedIssuesTable({
                   <TrackIcon name="plus" size={13} />
                 </button>
               )}
+              <GroupReorderControls
+                part="menu"
+                groupKey={g.key}
+                name={title(g.key, g.name)}
+                index={index}
+                count={ordered.length}
+                axis="y"
+                reorder={reorder}
+                onReset={groupOrder?.length ? onResetGroupOrder : undefined}
+              />
             </h2>
             {!isCollapsed && !g.subs && table(g.issues, preset, projectId)}
             {!isCollapsed && !g.subs && more(total, g.issues.length)}
