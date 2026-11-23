@@ -48,6 +48,9 @@ async function feedbackFromMenu(page: Page) {
 }
 
 test.describe('dashboards', () => {
+  // El service worker de la app (build de producción) atiende los fetch: page.route no los vería.
+  test.use({ serviceWorkers: 'block' });
+
   test('KPI values line up in a row, KPI height while loading; switcher uses the app font and icons (1280)', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 860 });
     const id = await kpiDashboard(request);
