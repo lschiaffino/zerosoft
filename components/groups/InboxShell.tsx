@@ -1446,8 +1446,9 @@ export default function InboxShell({
   }
 
   // En la bandeja, sin búsqueda; se cierra por hoy. En la lista, primer renglón; vacía o en tablero, arriba.
+  const briefOn = !archivedView && !deletedView && !debounced;
   const briefCard = (as: 'li' | 'div') =>
-    !archivedView && !deletedView && !debounced ? (
+    briefOn ? (
       <DailyBrief
         brief={brief}
         as={as}
@@ -1741,7 +1742,8 @@ export default function InboxShell({
               {archivedRow}
               <InboxKanban query={query} listRows={rows} current={current} listSuffix={listSuffix} numbers={numbers} people={people} manyLines={manyLines && numbers.length > 1} emptyText={emptyText} />
             </>
-          ) : !loaded ? (
+          ) : !loaded || (briefOn && !brief.settled) ? (
+            // La lista espera a la tarjeta del día (un rato como mucho): así no se corre cuando llega.
             <div className="ui-loading-stack gr-list-loading" aria-busy="true" aria-label={t('common.loading')}>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="ui-skeleton ui-skeleton-row" />

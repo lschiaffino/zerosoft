@@ -1,6 +1,6 @@
 import { iJson, withOwner } from '@/lib/inbox/http';
 import { InboxError } from '@/lib/inbox/types';
-import { briefDismissed, briefEmailOn, briefKey, cleanDay, dismissBrief, inboxBrief, restoreBrief } from '@/lib/daily-brief';
+import { briefKey, cleanDay, dismissBrief, inboxBriefPayload, restoreBrief } from '@/lib/daily-brief';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,10 +10,7 @@ export async function GET(req: Request) {
   return withOwner(async (owner) => {
     const day = cleanDay(new URL(req.url).searchParams.get('day'));
     if (!day) throw new InboxError('invalid_input', 400);
-    const dismissed = await briefDismissed(owner, briefKey('inbox'), day);
-    if (dismissed) return iJson({ day, dismissed, email: false, brief: null });
-    const [brief, email] = await Promise.all([inboxBrief(owner), briefEmailOn(owner)]);
-    return iJson({ day, dismissed, email, brief });
+    return iJson(await inboxBriefPayload(owner, day));
   });
 }
 

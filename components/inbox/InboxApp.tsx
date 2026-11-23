@@ -42,6 +42,7 @@ import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import InboxNewChat from './InboxNewChat';
 import ImportBanner from './ImportBanner';
 import DailyBrief, { useDailyBrief } from '@/components/groups/DailyBrief';
+import type { BriefPayload } from '@/lib/daily-brief';
 import RemovedList from './RemovedList';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
@@ -151,6 +152,8 @@ export default function InboxApp(props: {
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
+  /** El resumen del día de la bandeja, armado con la página (null fuera de la bandeja). */
+  initialBrief?: BriefPayload | null;
   /** Cursor de la página que sigue a initialThreads (null si no hay más). */
   initialNext?: string | null;
   /** Cuántos de initialThreads son los fijados de adelante. */
@@ -197,7 +200,7 @@ export default function InboxApp(props: {
   const [listErr, setListErr] = useState(false);
   const [q, setQ] = useState('');
   // Resumen del día (lib/daily-brief.ts): se pide una vez; la tarjeta va donde esté la lista.
-  const brief = useDailyBrief('/api/inbox/brief');
+  const brief = useDailyBrief('/api/inbox/brief', props.initialBrief);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);

@@ -19,6 +19,7 @@
 import { getDb } from './db';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { maskPhone, maskPhoneText } from './groups-mask';
+import { localDayIn } from './track-recurrence';
 
 export type BriefApp = 'lines' | 'inbox';
 
@@ -44,6 +45,14 @@ export interface BriefItem {
 export interface DailyBrief {
   app: BriefApp;
   items: BriefItem[];
+}
+
+/** Lo que recibe la tarjeta (las rutas de cada app y la primera pantalla de Inbox). */
+export interface BriefPayload {
+  day: string;
+  dismissed: boolean;
+  email: boolean;
+  brief: DailyBrief | null;
 }
 
 export const BRIEF_TOP = 3;
@@ -245,6 +254,24 @@ export async function dismissBrief(userId: string, key: string, day: string): Pr
 /** Deshacer el cierre. */
 export async function restoreBrief(userId: string, key: string): Promise<void> {
   await getDb().prepare('DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = ?').run(userId, key);
+}
+
+/** La tarjeta de Inbox de `owner` para su día local `day` (null si la cerró hoy). */
+export async function inboxBriefPayload(owner: string, day: string, now = new Date()): Promise<BriefPayload> {
+  if (await briefDismissed(owner, briefKey('inbox'), day)) return { day, dismissed: true, email: false, brief: null };
+  const [brief, email] = await Promise.all([inboxBrief(owner, now), briefEmailOn(owner)]);
+  return { day, dismissed: false, email, brief };
+}
+
+/** El día local de una persona en el servidor (la zona que guardó; si no, UTC). El navegador corrige si difiere. */
+export async function serverLocalDay(userId: string, now = new Date()): Promise<string> {
+  const row = (await getDb()
+    .prepare(
+      `SELECT COALESCE(NULLIF((SELECT time_zone FROM daily_brief_prefs WHERE user_id = u.id), ''), NULLIF(u.time_zone, ''), 'UTC') AS tz
+       FROM users u WHERE u.id = ?`,
+    )
+    .get(userId)) as { tz: string } | undefined;
+  return localDayIn(row?.tz || 'UTC', now);
 }
 
 export async function briefEmailOn(userId: string): Promise<boolean> {

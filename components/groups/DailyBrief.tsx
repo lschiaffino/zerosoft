@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { api } from './dialog-kit';
 import { Close } from './wa/icons';
-import type { BriefChat, BriefItem, BriefKind, DailyBrief as Brief } from '@/lib/daily-brief';
+import type { BriefChat, BriefItem, BriefKind, BriefPayload } from '@/lib/daily-brief';
 
 /** El día local de quien mira ("2026-11-23") y cuándo termina (la medianoche que viene): la tarjeta es por ese día. */
 export function localDay(now = new Date()): { day: string; end: string } {
@@ -14,36 +14,67 @@ export function localDay(now = new Date()): { day: string; end: string } {
   return { day: `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`, end: end.toISOString() };
 }
 
-interface Payload {
-  day: string;
-  dismissed: boolean;
-  email: boolean;
-  brief: Brief | null;
-}
-
 /** Cuánto queda a la vista "Oculto hasta mañana · Deshacer" después de cerrar. */
 const UNDO_MS = 8000;
+/** Al volver a la pestaña, se vuelve a pedir si pasó este rato (o si cambió el día). */
+const STALE_MS = 5 * 60_000;
+/**
+ * Cuánto espera la lista de Lines a la tarjeta (se piden a la vez): así la tarjeta ya está cuando aparecen los chats
+ * y no los corre hacia abajo al llegar (un clic iría a otro chat). Si tarda más, la lista no espera.
+ */
+const WAIT_MS = 3000;
 
 /**
  * El estado de la tarjeta (lib/daily-brief.ts), en quien la muestra: así la
  * tarjeta puede cambiar de lugar (lista, vacío, tablero) sin volver a pedirla
  * ni perder el Deshacer. Cerrar y Deshacer van en fila (uno espera al otro),
- * así lo que queda en el servidor es lo último que se tocó.
+ * así lo que queda en el servidor es lo último que se tocó. `initial`: la que
+ * armó la página (Inbox), así está al pintar. `settled`: ya llegó (o no vale la
+ * pena seguir esperándola) y la lista se puede mostrar sin que después se corra.
  */
-export function useDailyBrief(endpoint: '/api/groups/brief' | '/api/inbox/brief') {
-  const [data, setData] = useState<Payload | null>(null);
+export function useDailyBrief(endpoint: '/api/groups/brief' | '/api/inbox/brief', initial?: BriefPayload | null) {
+  const [data, setData] = useState<BriefPayload | null>(initial ?? null);
+  const [settled, setSettled] = useState(!!initial);
   const [state, setState] = useState<'shown' | 'undo' | 'hidden'>('shown');
   const [error, setError] = useState<'' | 'dismiss' | 'restore'>('');
   const pending = useRef<Promise<unknown>>(Promise.resolve());
+  const first = useRef(initial);
 
+  // Se pide al montar (si la página no la trajo para este día) y, al volver a la pestaña, de nuevo si cambió el día
+  // o pasó un rato: la tarjeta vive en el layout y si no quedaría con las cuentas de la mañana (o con la de ayer).
   useEffect(() => {
     let live = true;
-    const { day, end } = localDay();
-    void api<Payload>(`${endpoint}?day=${day}&end=${encodeURIComponent(end)}`).then((res) => {
-      if (live && res.data) setData(res.data);
-    });
+    let at = first.current ? Date.now() : 0;
+    let shownDay = first.current?.day ?? '';
+    const load = () => {
+      const { day, end } = localDay();
+      at = Date.now();
+      void api<BriefPayload>(`${endpoint}?day=${day}&end=${encodeURIComponent(end)}`).then((res) => {
+        if (!live) return;
+        setSettled(true);
+        if (!res.data) return;
+        if (res.data.day !== shownDay) {
+          // Otro día: lo cerrado ayer ya no cuenta.
+          shownDay = res.data.day;
+          setState('shown');
+          setError('');
+        }
+        setData(res.data);
+      });
+    };
+    const back = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (localDay().day !== shownDay || Date.now() - at > STALE_MS) load();
+    };
+    if (!first.current || first.current.day !== localDay().day) load();
+    const wait = window.setTimeout(() => setSettled(true), WAIT_MS);
+    document.addEventListener('visibilitychange', back);
+    window.addEventListener('focus', back);
     return () => {
       live = false;
+      window.clearTimeout(wait);
+      document.removeEventListener('visibilitychange', back);
+      window.removeEventListener('focus', back);
     };
   }, [endpoint]);
 
@@ -78,7 +109,7 @@ export function useDailyBrief(endpoint: '/api/groups/brief' | '/api/inbox/brief'
       setError('restore');
     }
   };
-  return { data, state, error, dismiss, undo };
+  return { data, settled, state, error, dismiss, undo };
 }
 
 export type DailyBriefState = ReturnType<typeof useDailyBrief>;

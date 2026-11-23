@@ -12,7 +12,7 @@ import { connectNumber, createNumber, getNumberRowById, ingestEvents, listChats,
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
-import { briefDismissed, briefEmailOn, briefKey, briefName, cleanDay, cleanDayEnd, dismissBrief, inboxBrief, linesBrief, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
+import { briefDismissed, briefEmailOn, briefKey, briefName, cleanDay, cleanDayEnd, dismissBrief, inboxBrief, inboxBriefPayload, linesBrief, serverLocalDay, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
 import { briefEmailDue, buildBriefEmail, dayEndIn, sendDailyBriefEmails } from '@/lib/daily-brief-email';
 import { createNotification } from '@/lib/notifications';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
@@ -273,6 +273,24 @@ describe('resumen del día: rutas', () => {
     session.user = asMember(w.owner, w.member);
     expect((await route.POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ action: 'restore' }) }))).status).toBe(200);
     expect(((await (await get()).json()) as { dismissed: boolean }).dismissed).toBe(false);
+  });
+
+  it('Inbox: la tarjeta que arma la página (su día en su zona; cerrada, nada)', async () => {
+    const w = await workspaceWithMember('brief-page');
+    const now = new Date('2026-11-23T02:00:00Z');
+    expect(await serverLocalDay(w.member.id, now)).toBe('2026-11-23');
+    await getDb().prepare("UPDATE users SET time_zone = 'America/Argentina/Buenos_Aires' WHERE id = ?").run(w.member.id);
+    expect(await serverLocalDay(w.member.id, now)).toBe('2026-11-22');
+    // La que eligió para el email gana.
+    await setBriefEmail(w.member.id, false, 'Asia/Tokyo');
+    expect(await serverLocalDay(w.member.id, now)).toBe('2026-11-23');
+    const open = await inboxBriefPayload(w.member.id, '2026-11-23');
+    expect(open).toMatchObject({ day: '2026-11-23', dismissed: false, email: false });
+    expect(open.brief?.app).toBe('inbox');
+    await dismissBrief(w.member.id, briefKey('inbox'), '2026-11-23');
+    expect(await inboxBriefPayload(w.member.id, '2026-11-23')).toEqual({ day: '2026-11-23', dismissed: true, email: false, brief: null });
+    // De otra persona no cambia nada.
+    expect((await inboxBriefPayload(w.friend.id, '2026-11-23')).dismissed).toBe(false);
   });
 
   it('Inbox y el email: de la persona real; anónimo 401', async () => {

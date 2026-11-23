@@ -158,6 +158,8 @@ for (const width of [1280, 390]) {
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     const card = page.getByTestId('daily-brief');
     await expect(card).toBeVisible({ timeout: 90_000 });
+    // Viene con la página (en el HTML): ya está cuando se ven los chats y no los corre al llegar.
+    expect(await (await request.get('/en/app/inbox')).text()).toContain('data-testid="daily-brief"');
     const reply = card.locator('[data-kind="reply"]');
     await expect(reply).toContainText('to reply');
     await noSideScroll(page);
@@ -175,11 +177,11 @@ for (const width of [1280, 390]) {
     await Promise.all([page.waitForResponse((r) => r.url().includes('/api/inbox/brief') && r.request().method() === 'POST'), page.getByTestId('daily-brief-dismiss').click()]);
     await expect(page.getByTestId('daily-brief')).toBeHidden();
     await expect(page.getByTestId('daily-brief-undo')).toBeVisible();
-    const answered = page.waitForResponse((r) => r.url().includes('/api/inbox/brief') && r.request().method() === 'GET');
+    // La página la trae armada (sin pedido aparte): al recargar, la lista está y la tarjeta no.
     await page.reload({ waitUntil: 'networkidle' });
-    expect(((await (await answered).json()) as { dismissed: boolean }).dismissed).toBe(true);
     await expect(page.locator('.ib-item').first()).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId('daily-brief')).toHaveCount(0);
+    expect((await sql("SELECT dismissed_day FROM daily_brief_dismissals WHERE user_id = ? AND app = 'inbox'", [me])).length).toBe(1);
     expect(errors, errors.join('\n')).toEqual([]);
   });
 }
