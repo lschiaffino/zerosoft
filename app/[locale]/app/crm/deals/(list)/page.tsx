@@ -23,6 +23,7 @@ import { formatDate, parseDbUtc } from '@/lib/utils';
 import DealsBoard from '@/components/crm/DealsBoard';
 import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
+import { TableColumnsProvider } from '@/components/crm/EditColumns';
 import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
 import { dealFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
 import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
@@ -282,7 +283,8 @@ export default async function DealsPage(props: DealsPageProps) {
   Object.assign(query, viewState, views.keep);
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
-  const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze' && k !== 'qf');
+  if (state.widths) viewState.widths = state.widths;
+  const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze' && k !== 'widths' && k !== 'qf');
 
   // Pasar de board a tabla, o de pipeline, mantiene la vista activa.
   const activeViewQ: Record<string, string> = views.keep.sv ? { sv: views.keep.sv } : {};
@@ -515,8 +517,6 @@ export default async function DealsPage(props: DealsPageProps) {
           <>
             <DealsTable
               rows={tableRows}
-              viewCols={state.cols}
-              viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
               customColumns={customColumns(customFieldDefs)}
               sort={sort}
               stages={pipeline.stages.map((s) => ({
@@ -584,6 +584,14 @@ export default async function DealsPage(props: DealsPageProps) {
         }
       />
 
+      {/* Columnas (orden, fija, anchos) para "Editar columnas" de la barra y para la tabla. */}
+      <TableColumnsProvider
+        entity="deals"
+        customColumns={customColumns(customFieldDefs)}
+        viewCols={state.cols}
+        viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
+        viewWidths={state.widths}
+      >
       {filterBar}
 
       {view === 'board' && boardStages && totals ? (
@@ -632,6 +640,7 @@ export default async function DealsPage(props: DealsPageProps) {
       ) : (
         tableContent
       )}
+      </TableColumnsProvider>
     </div>
   );
 }

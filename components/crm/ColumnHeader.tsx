@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,17 +8,8 @@ import { usePathname, useRouter } from '@/i18n/navigation';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
 import SortTh from './SortTh';
 import CrmIcon from './CrmIcon';
-
-/** Lo que el menú de cada columna necesita de la tabla (useTableColumns). */
-export interface ColumnMenuApi {
-  order: string[];
-  /** La primera columna (el nombre): no se mueve ni se quita. */
-  first: string;
-  freeze: boolean;
-  apply: (order: string[], freeze: boolean) => void;
-}
-
-export const ColumnMenuContext = createContext<ColumnMenuApi | null>(null);
+import { useIndexColumns, type TableColumnsState } from './EditColumns';
+import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH, clampColumnWidth } from '@/lib/crm-views-shared';
 
 interface HeaderCellProps {
   id: string;
@@ -42,6 +33,7 @@ interface HeaderCellProps {
  * afuera. Mover y quitar cambian las columnas de la vista (`cols`).
  */
 export default function HeaderCell({ id, label, asc, desc, sort, className, card, reset = 'newest', children }: HeaderCellProps) {
+  const api = useIndexColumns();
   return (
     <th className={className} data-card={card} data-col={id}>
       <span className="th-wrap">
@@ -49,13 +41,179 @@ export default function HeaderCell({ id, label, asc, desc, sort, className, card
         {children}
         <ColumnMenu id={id} label={label} asc={asc} desc={desc} sort={sort} reset={reset} />
       </span>
+      {api && <ResizeHandle api={api} id={id} label={label} />}
     </th>
+  );
+}
+
+/** Flechas: 10 px (con Mayúsculas, 50). */
+const KEY_STEP = 10;
+const KEY_STEP_BIG = 50;
+
+/** Ancho que la columna ocupa ahora en pantalla. */
+function measured(th: HTMLElement | null): number {
+  return th ? Math.round(th.getBoundingClientRect().width) : 0;
+}
+
+/**
+ * Los anchos de todas las columnas a la vista, con los que ya tenían ancho
+ * guardado. La primera vez que se cambia uno, la tabla pasa de acomodarse
+ * sola a anchos fijos: se toman los que se ven, así nada salta.
+ */
+function snapshot(api: TableColumnsState, th: HTMLElement | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  const row = th?.parentElement;
+  for (const id of api.order) {
+    if (api.widths[id]) {
+      out[id] = api.widths[id];
+      continue;
+    }
+    const cell = row?.querySelector<HTMLElement>(`:scope > th[data-col="${CSS.escape(id)}"]`) ?? null;
+    const w = measured(cell);
+    if (w > 0) out[id] = clampColumnWidth(w);
+  }
+  return out;
+}
+
+/** ¿La tabla ya tiene un ancho para cada columna a la vista? */
+function allSized(api: TableColumnsState, widths: Record<string, number>): boolean {
+  return api.order.every((id) => (api.widths[id] ?? 0) === (widths[id] ?? 0));
+}
+
+/**
+ * Ancho que pide lo que la columna muestra (doble clic en el borde, como en
+ * HubSpot): una copia oculta de la tabla, sin anchos fijos ni topes, dice
+ * cuánto ocupan el encabezado y la celda más ancha.
+ */
+function fitWidth(th: HTMLTableCellElement): number {
+  const table = th.closest('table');
+  if (!table?.parentElement) return measured(th);
+  const clone = table.cloneNode(true) as HTMLTableElement;
+  clone.querySelector('colgroup')?.remove();
+  clone.classList.add('is-sized', 'is-fitting');
+  clone.setAttribute('aria-hidden', 'true');
+  clone.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+  clone.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;table-layout:auto;width:max-content;min-width:0;';
+  table.parentElement.appendChild(clone);
+  const cell = clone.tHead?.rows[0]?.cells[th.cellIndex];
+  const w = measured(cell ?? null);
+  clone.remove();
+  return clampColumnWidth(w || measured(th));
+}
+
+/**
+ * Borde del encabezado para cambiar el ancho de la columna, como en HubSpot:
+ * arrastrar, doble clic para ajustarla a lo que muestra, y con el teclado
+ * (foco en el borde, flechas izquierda y derecha, Enter ajusta). El ancho
+ * queda en la URL y se guarda con la vista (`widths`).
+ */
+function ResizeHandle({ api, id, label }: { api: TableColumnsState; id: string; label: string }) {
+  const t = useTranslations('crm.columnMenu');
+  const ref = useRef<HTMLSpanElement>(null);
+  const drag = useRef<{ x: number; start: number; base: Record<string, number>; prev: Record<string, number>; last: number } | null>(null);
+  const th = () => (ref.current?.parentElement ?? null) as HTMLTableCellElement | null;
+  const current = api.widths[id] ?? 0;
+
+  /** Mientras se arrastra cambia solo la columna en pantalla (sin volver a dibujar la tabla en cada paso). */
+  function paint(w: number): boolean {
+    const table = th()?.closest('table');
+    const col = table?.querySelector<HTMLElement>(`col[data-col="${CSS.escape(id)}"]`);
+    if (!table || !col) return false;
+    col.style.width = `${w}px`;
+    let total = 0;
+    table.querySelectorAll<HTMLElement>('col').forEach((c) => {
+      total += parseFloat(c.style.width) || 0;
+    });
+    table.style.setProperty('--crm-table-w', `${total}px`);
+    ref.current?.setAttribute('aria-valuenow', String(w));
+    return true;
+  }
+
+  function onPointerDown(e: ReactPointerEvent<HTMLSpanElement>) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const base = snapshot(api, th());
+    const start = base[id] ?? measured(th());
+    drag.current = { x: e.clientX, start, base, prev: api.widths, last: start };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // La primera vez la tabla pasa a anchos fijos con los que se ven: nada salta.
+    if (!allSized(api, base)) api.setWidths(base, false);
+  }
+
+  function onPointerMove(e: ReactPointerEvent<HTMLSpanElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const w = clampColumnWidth(d.start + e.clientX - d.x);
+    if (w === d.last) return;
+    d.last = w;
+    if (!paint(w)) api.setWidths({ ...d.base, [id]: w }, false);
+  }
+
+  function onPointerUp(e: ReactPointerEvent<HTMLSpanElement>) {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    // Un clic sin mover no cambia nada (y no deja la vista modificada).
+    if (d.last !== d.start) api.setWidths({ ...d.base, [id]: d.last }, true);
+    else api.setWidths(d.prev, false);
+  }
+
+  function fit() {
+    const cell = th();
+    if (!cell) return;
+    api.setWidths({ ...snapshot(api, cell), [id]: fitWidth(cell) }, true);
+  }
+
+  function onKeyDown(e: ReactKeyboardEvent<HTMLSpanElement>) {
+    const step = e.shiftKey ? KEY_STEP_BIG : KEY_STEP;
+    const now = current || measured(th());
+    let next: number | null = null;
+    if (e.key === 'ArrowLeft') next = now - step;
+    else if (e.key === 'ArrowRight') next = now + step;
+    else if (e.key === 'Home') next = MIN_COLUMN_WIDTH;
+    else if (e.key === 'End') next = MAX_COLUMN_WIDTH;
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      fit();
+      return;
+    }
+    if (next === null) return;
+    e.preventDefault();
+    api.setWidths({ ...snapshot(api, th()), [id]: clampColumnWidth(next) }, true);
+  }
+
+  return (
+    <span
+      ref={ref}
+      className="th-resize"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t('resize', { name: label })}
+      aria-valuemin={MIN_COLUMN_WIDTH}
+      aria-valuemax={MAX_COLUMN_WIDTH}
+      aria-valuenow={current || undefined}
+      title={t('resizeHint')}
+      tabIndex={0}
+      data-testid={`col-resize-${id}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        fit();
+      }}
+      onKeyDown={onKeyDown}
+      onClick={(e) => e.stopPropagation()}
+    />
   );
 }
 
 function ColumnMenu({ id, label, asc, desc, sort, reset }: { id: string; label: string; asc?: string; desc?: string; sort: string; reset: string }) {
   const t = useTranslations('crm.columnMenu');
-  const api = useContext(ColumnMenuContext);
+  const api = useIndexColumns();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();

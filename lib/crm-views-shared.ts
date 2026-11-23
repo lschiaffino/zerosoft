@@ -4,7 +4,7 @@
  *
  * Una vista guarda el estado del listado, nunca resultados: los filtros
  * (simples, `custom_<name>` y el avanzado `filters`), el orden y las columnas
- * (`cols`, `freeze`). Cada persona que la abre ve sus propios resultados, con
+ * (`cols`, `freeze` y sus anchos, `widths`). Cada persona que la abre ve sus propios resultados, con
  * su visibilidad por owner y sus permisos por campo; lo que no puede ver de la
  * vista (reglas, orden o columnas de campos que tiene ocultos) se le quita con
  * redactViewQuery antes de mandarlo.
@@ -41,9 +41,9 @@ const MAX_VALUE = 4000;
 export const VIEW_STATE_KEYS: Record<ViewEntity, readonly string[]> = {
   // createdFrom/To y activityFrom/To: los filtros rápidos de fecha (DateRangeFilter), días en la zona de la persona.
   // noActivity=1: "Sin actividad" en el filtro de última actividad. qf: los filtros rápidos que la vista muestra (lib/crm-quick-filters.ts).
-  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
-  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
-  deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'closeFrom', 'closeTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'qf'],
+  contacts: ['q', 'lifecycle', 'leadStatus', 'source', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'widths', 'qf'],
+  companies: ['q', 'industry', 'lifecycle', 'owner', 'tag', 'createdFrom', 'createdTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'widths', 'qf'],
+  deals: ['q', 'stageId', 'priority', 'source', 'owner', 'tag', 'stalled', 'createdFrom', 'createdTo', 'closeFrom', 'closeTo', 'activityFrom', 'activityTo', 'noActivity', 'filters', 'sort', 'cols', 'freeze', 'widths', 'qf'],
   // Tareas (A3): vencimiento, tipo, prioridad, owner, cola, proyecto, texto y orden (lib/crm-tasks-shared.ts).
   tasks: ['bucket', 'type', 'priority', 'owner', 'queue', 'project', 'q', 'sort', 'cols', 'freeze'],
 };
@@ -131,6 +131,11 @@ export function pickViewState(entity: ViewEntity, params: Record<string, unknown
       if (cols) out.cols = cols;
       continue;
     }
+    if (key === 'widths') {
+      const widths = serializeWidths(parseWidths(value));
+      if (widths) out.widths = widths;
+      continue;
+    }
     if (key === 'filters') {
       const f = serializeFilterModel(parseFilterModel(value));
       if (f) out.filters = f;
@@ -180,6 +185,48 @@ export function serializeColumns(ids: readonly string[]): string {
   return parseColumns(ids.join(',')).join(',');
 }
 
+// ---------- Anchos de columna ----------
+
+/** Ancho mínimo y máximo de una columna (px), como el arrastre de HubSpot. */
+export const MIN_COLUMN_WIDTH = 64;
+export const MAX_COLUMN_WIDTH = 800;
+
+export function clampColumnWidth(px: number): number {
+  return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, Math.round(px)));
+}
+
+/**
+ * Anchos guardados (`widths`): `id:px` separados por coma, por ejemplo
+ * `email:240,custom:plan:180` (el id de una propiedad propia lleva dos
+ * puntos: el ancho va después del último). Lo que no tiene forma de ancho se
+ * descarta y cada ancho queda entre el mínimo y el máximo.
+ */
+export function parseWidths(raw: string | null | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw) return out;
+  let count = 0;
+  for (const part of raw.split(',')) {
+    const i = part.lastIndexOf(':');
+    if (i <= 0) continue;
+    const id = part.slice(0, i).trim();
+    const px = part.slice(i + 1).trim();
+    if (!COLUMN_ID.test(id) || !/^\d{1,4}$/.test(px) || Object.prototype.hasOwnProperty.call(out, id)) continue;
+    out[id] = clampColumnWidth(Number(px));
+    if (++count >= MAX_COLUMNS) break;
+  }
+  return out;
+}
+
+export function serializeWidths(widths: Readonly<Record<string, number>>): string {
+  const parts: string[] = [];
+  for (const [id, px] of Object.entries(widths)) {
+    if (!COLUMN_ID.test(id) || !Number.isFinite(px)) continue;
+    parts.push(`${id}:${clampColumnWidth(px)}`);
+    if (parts.length >= MAX_COLUMNS) break;
+  }
+  return parts.join(',');
+}
+
 /**
  * Columnas a mostrar, en orden: las de la vista que existen para quien mira;
  * la primera (`first`, el nombre) siempre va y va primera.
@@ -194,7 +241,7 @@ export function orderedColumns(saved: readonly string[], available: readonly str
 
 /**
  * Quita de una vista lo que toca campos propios ocultos para quien mira:
- * `custom_<name>`, el orden `cf:<name>`, la columna `custom:<name>` y las
+ * `custom_<name>`, el orden `cf:<name>`, la columna `custom:<name>` (y su ancho) y las
  * reglas `custom:<name>` del filtro avanzado. Así una vista compartida no
  * revela ni el nombre de un campo oculto ni los valores por los que filtra.
  */
@@ -215,6 +262,13 @@ export function redactViewQuery(query: ViewQuery, hidden: ReadonlySet<string>): 
     if (key === 'cols') {
       const cols = serializeColumns(parseColumns(value).filter((id) => !(id.startsWith('custom:') && hidden.has(id.slice(7)))));
       if (cols) out.cols = cols;
+      continue;
+    }
+    if (key === 'widths') {
+      const widths = serializeWidths(
+        Object.fromEntries(Object.entries(parseWidths(value)).filter(([id]) => !(id.startsWith('custom:') && hidden.has(id.slice(7))))),
+      );
+      if (widths) out.widths = widths;
       continue;
     }
     if (key === 'filters') {

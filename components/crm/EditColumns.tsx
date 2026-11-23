@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
-import { COLUMNS_SLOT_ID } from './ColumnToggle';
+import type { CustomColumn } from './customFieldViews';
+import { CHECK_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, INDEX_TABLES, type IndexEntity } from './tableColumns';
 import {
   MODIFIED_PARAM,
   SAVED_VIEW_PARAM,
   orderedColumns,
   parseColumns,
+  parseWidths,
   serializeColumns,
+  serializeWidths,
   type ViewEntity,
 } from '@/lib/crm-views-shared';
 
@@ -23,11 +25,14 @@ export interface ColumnDef {
 }
 
 // Columnas que la tabla muestra ahora, para "Guardar vista" (ViewTabs las guarda con la vista).
-const current = new Map<ViewEntity, { cols: string; freeze: boolean }>();
+const current = new Map<ViewEntity, { cols: string; freeze: boolean; widths?: string }>();
 
-export function currentColumns(entity: ViewEntity): { cols: string; freeze: boolean } | undefined {
+export function currentColumns(entity: ViewEntity): { cols: string; freeze: boolean; widths?: string } | undefined {
   return current.get(entity);
 }
+
+/** Cuánto espera un cambio de ancho (flechas del teclado) antes de pasar a la URL. */
+const WIDTHS_COMMIT_MS = 400;
 
 function readStorage(key: string): string[] | null {
   try {
@@ -61,10 +66,12 @@ export function useTableColumns(opts: {
   first: string;
   viewCols?: string;
   viewFreeze?: boolean;
+  /** Anchos de la URL o de la vista activa (`widths`, lib/crm-views-shared.ts). */
+  viewWidths?: string;
   /** Primera columna fija si nadie eligió (contactos y empresas, como HubSpot). */
   defaultFreeze?: boolean;
 }) {
-  const { entity, columns, storageKey, first, viewCols, viewFreeze, defaultFreeze = false } = opts;
+  const { entity, columns, storageKey, first, viewCols, viewFreeze, viewWidths, defaultFreeze = false } = opts;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -73,12 +80,17 @@ export function useTableColumns(opts: {
     () => orderedColumns(columns.filter((c) => c.defaultVisible !== false).map((c) => c.id), ids, first),
     [columns, ids, first],
   );
-  const [stored, setStored] = useState<{ order: string[] | null; freeze: boolean | null }>({ order: null, freeze: null });
+  const [stored, setStored] = useState<{ order: string[] | null; freeze: boolean | null; widths: string | null }>({
+    order: null,
+    freeze: null,
+    widths: null,
+  });
 
   useEffect(() => {
     const order = readStorage(storageKey);
     const freeze = readStorage(`${storageKey}:freeze`);
-    setStored({ order, freeze: freeze ? freeze[0] === '1' : null });
+    const widths = readStorage(`${storageKey}:widths`);
+    setStored({ order, freeze: freeze ? freeze[0] === '1' : null, widths: widths?.[0] ?? null });
   }, [storageKey]);
 
   const order = viewCols
@@ -89,9 +101,53 @@ export function useTableColumns(opts: {
   const freeze = viewFreeze ?? stored.freeze ?? defaultFreeze;
   const cols = serializeColumns(order);
 
+  // Anchos: mientras se arrastra (o se usan las flechas) mandan los de la mano; al soltar pasan a la URL
+  // (y a la vista) y vuelven a venir del server. Sin anchos, la tabla se acomoda sola como siempre.
+  const savedWidths = viewWidths ?? stored.widths ?? '';
+  const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Llegaron los de la URL: mandan ellos, salvo que haya un cambio más nuevo esperando para subir.
   useEffect(() => {
-    current.set(entity, { cols, freeze });
-  }, [entity, cols, freeze]);
+    if (!commitTimer.current) setLiveWidths(null);
+  }, [savedWidths]);
+  const widths = useMemo(() => liveWidths ?? parseWidths(savedWidths), [liveWidths, savedWidths]);
+  const widthsText = serializeWidths(widths);
+
+  useEffect(() => {
+    current.set(entity, { cols, freeze, widths: widthsText || undefined });
+  }, [entity, cols, freeze, widthsText]);
+
+  useEffect(() => () => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+  }, []);
+
+  /**
+   * Anchos nuevos. `commit`: pasan a la URL (la vista queda modificada y "Guardar" los guarda) un
+   * momento después del último cambio, sin volver arriba de la página.
+   */
+  const setWidths = useCallback(
+    (next: Record<string, number>, commit: boolean) => {
+      setLiveWidths(next);
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+      if (!commit) return;
+      commitTimer.current = setTimeout(() => {
+        commitTimer.current = null;
+        const q = new URLSearchParams(window.location.search);
+        const text = serializeWidths(next);
+        if (text) q.set('widths', text);
+        else q.delete('widths');
+        if (q.get(MODIFIED_PARAM) !== '1') q.delete(MODIFIED_PARAM);
+        // Sin vista guardada activa, también queda como la elección de este navegador.
+        if (!q.get(SAVED_VIEW_PARAM)) {
+          writeStorage(`${storageKey}:widths`, [text]);
+          setStored((prev) => ({ ...prev, widths: text }));
+        }
+        const qs = q.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      }, WIDTHS_COMMIT_MS);
+    },
+    [pathname, router, storageKey],
+  );
 
   function apply(next: string[], nextFreeze: boolean) {
     const clean = orderedColumns(next, ids, first);
@@ -113,7 +169,94 @@ export function useTableColumns(opts: {
     apply(defaults, defaultFreeze);
   }
 
-  return { order, freeze, apply, reset, visible: new Set(order) };
+  return { order, freeze, apply, reset, widths, setWidths, visible: new Set(order) };
+}
+
+export type TableColumnsState = ReturnType<typeof useTableColumns> & { columns: ColumnDef[]; first: string };
+
+const TableColumnsContext = createContext<TableColumnsState | null>(null);
+
+/** Las columnas del índice que envuelve el proveedor (tabla, menú de columna y "Editar columnas"). */
+export function useIndexColumns(): TableColumnsState | null {
+  return useContext(TableColumnsContext);
+}
+
+/**
+ * Columnas de un índice (contactos, empresas, deals) para la barra de filtros
+ * y la tabla a la vez: va por encima de las dos en la página, así "Editar
+ * columnas" se dibuja con el resto de la barra (antes esperaba a que la
+ * tabla montara para aparecer) y los dos ven el mismo orden y los mismos anchos.
+ */
+const NO_CUSTOM: CustomColumn[] = [];
+
+export function TableColumnsProvider({
+  entity,
+  customColumns = NO_CUSTOM,
+  viewCols,
+  viewFreeze,
+  viewWidths,
+  children,
+}: {
+  entity: IndexEntity;
+  /** Columnas de propiedades propias que la persona ve (ocultas por defecto). */
+  customColumns?: CustomColumn[];
+  viewCols?: string;
+  viewFreeze?: boolean;
+  viewWidths?: string;
+  children: ReactNode;
+}) {
+  const t = useTranslations('crm');
+  const spec = INDEX_TABLES[entity];
+  const columns = useMemo(
+    () => [
+      ...spec.columns.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
+      ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
+    ],
+    [spec, customColumns, t],
+  );
+  const state = useTableColumns({
+    entity,
+    columns,
+    storageKey: spec.storageKey,
+    first: 'name',
+    viewCols,
+    viewFreeze,
+    viewWidths,
+    defaultFreeze: spec.defaultFreeze,
+  });
+  return <TableColumnsContext.Provider value={{ ...state, columns, first: 'name' }}>{children}</TableColumnsContext.Provider>;
+}
+
+/**
+ * Anchos de la tabla del índice: con alguno guardado, la tabla deja de
+ * acomodarse sola y usa los de cada columna (`<colgroup>`; la columna sin
+ * ancho toma uno por defecto). En el teléfono la tabla es de tarjetas y esto
+ * no se aplica (styles/crm-list-hs.css).
+ */
+export function IndexColGroup({ cols }: { cols: Pick<TableColumnsState, 'order' | 'widths'> }) {
+  if (!cols.order.some((id) => cols.widths[id])) return null;
+  return (
+    <colgroup>
+      <col style={{ width: CHECK_COLUMN_WIDTH }} />
+      {cols.order.map((id) => (
+        <col key={id} data-col={id} style={{ width: cols.widths[id] ?? DEFAULT_COLUMN_WIDTH }} />
+      ))}
+    </colgroup>
+  );
+}
+
+/** Clase y ancho total de la tabla cuando tiene anchos (ver IndexColGroup). */
+export function sizedTable(cols: Pick<TableColumnsState, 'order' | 'widths'>): { className: string; style?: CSSProperties } {
+  if (!cols.order.some((id) => cols.widths[id])) return { className: '' };
+  const total = cols.order.reduce((sum, id) => sum + (cols.widths[id] ?? DEFAULT_COLUMN_WIDTH), CHECK_COLUMN_WIDTH);
+  return { className: ' is-sized', style: { '--crm-table-w': `${total}px` } as CSSProperties };
+}
+
+/** "Editar columnas" del índice, en la barra de filtros (ColumnsSlot). */
+export function IndexEditColumns() {
+  const cols = useIndexColumns();
+  if (!cols) return null;
+  return <EditColumns columns={cols.columns} first={cols.first} order={cols.order} freeze={cols.freeze} onApply={cols.apply} onReset={cols.reset} />;
 }
 
 interface EditColumnsProps {
@@ -341,20 +484,5 @@ export default function EditColumns({ columns, first, order, freeze, onApply, on
         )}
       </dialog>
     </>
-  );
-}
-
-/** "Editar columnas" en la fila de filtros (ColumnsSlot) o, si la página no lo tiene, arriba de la tabla. */
-export function EditColumnsInBar(props: EditColumnsProps) {
-  const [slot, setSlot] = useState<HTMLElement | null | undefined>(undefined);
-  useEffect(() => {
-    setSlot(document.getElementById(COLUMNS_SLOT_ID));
-  }, []);
-  if (slot === undefined) return null;
-  if (slot) return createPortal(<EditColumns {...props} />, slot);
-  return (
-    <div className="table-toolbar">
-      <EditColumns {...props} />
-    </div>
   );
 }
