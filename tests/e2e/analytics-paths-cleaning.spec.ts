@@ -18,8 +18,11 @@ test('caminos: saltear /admin/* y agrupar /blog/* desde el formulario', async ({
   );
   expect((await request.post('/api/ingest/batch', { headers: { origin: 'http://shop.test' }, data: { api_key: project.publicKey, batch } })).status()).toBeLessThan(300);
 
+  // '-24h' y no '-1d': '-1d' es el día de hoy del proyecto, y entre las 00:00 y
+  // las 01:00 las visitas de hace una hora caen en el día anterior. El servidor
+  // usa su propio reloj, así que la ventana tiene que valer a cualquier hora.
   await page.context().addCookies([{ name: 'zs_analytics_project', value: project.id, url: baseURL! }]);
-  await page.goto(`/en/app/pulse/insights/new?query=${encodeURIComponent(JSON.stringify({ kind: 'paths', dateRange: { from: '-1d' } }))}`, { waitUntil: 'networkidle' });
+  await page.goto(`/en/app/pulse/insights/new?query=${encodeURIComponent(JSON.stringify({ kind: 'paths', dateRange: { from: '-24h' } }))}`, { waitUntil: 'networkidle' });
   const result = page.getByTestId('an-result');
   await expect(result.locator('.an-path-from').first()).toBeVisible({ timeout: 15_000 });
 
