@@ -5,14 +5,15 @@
  * guarda: la respuesta vuelve a quien la pidió. Server-only.
  */
 import { AiError, aiEnabled } from './ai';
-import { GroupsError, chatDisplayName, getChatRow, listMessages } from './groups';
-import { canSeeChat, maskChat, maskMessage, maskPhoneText, type GroupsViewer } from './groups-access';
+import { GroupsError, getChatRow, listMessages } from './groups';
+import { canSeeChat, maskMessage, maskPhoneText, maskedChatName, type GroupsViewer } from './groups-access';
 import { groupsAiFakeState, groupsObject } from './groups-ai';
 import { sameChatIds } from './groups-same-chat';
 import {
   INSIGHT_MAX_MESSAGES,
   cleanInsights,
   fakeInsights,
+  fitMessages,
   insightsInstructions,
   insightsPrompt,
   insightsSchema,
@@ -21,6 +22,7 @@ import {
   type ChatInsights,
   type InsightMessage,
   type InsightRange,
+  type InsightsOutput,
 } from './wa-insights';
 
 export type LinesAiState = 'ready' | 'off' | 'not_configured';
@@ -54,28 +56,38 @@ export async function linesInsightMessages(viewer: GroupsViewer, chatId: string,
         return t?.name ? `${pre}@${t.name}` : all;
       });
       const text = body || (m.media ? `[${m.media.kind || m.media.type || 'file'}]` : '');
-      return { at: m.createdAt, fromMe: m.direction === 'out', who: hide(m.senderName || (m.senderPhone && !viewer.mask ? `+${m.senderPhone}` : '')), text: hide(text) };
+      return { id: m.id, at: m.createdAt, fromMe: m.direction === 'out', who: hide(m.senderName || (m.senderPhone && !viewer.mask ? `+${m.senderPhone}` : '')), text: hide(text) };
     })
     .filter((m) => m.text);
-  const messages = range.kind === 'unread' ? sliceUnread(all, range.unread) : all;
-  return { name: maskChat(viewer, { name: chatDisplayName(chat), phone: chat.phone }).name, group: chat.kind === 'group', messages };
+  const messages = range.kind === 'unread' ? sliceUnread(all, range.unread, range.from) : all;
+  // El nombre del chat como lo ve quien mira (un 1:1 sin nombre ni teléfono no manda el id de WhatsApp a la vista).
+  return { name: hide(maskedChatName(viewer, chat)), group: chat.kind === 'group', messages };
 }
 
 /** La pestaña AI de un chat de Lines: resumen, preguntas, compromisos, respuestas sugeridas y ánimo. */
 export async function linesChatInsights(viewer: GroupsViewer, chatId: string, range: InsightRange, locale = 'en'): Promise<ChatInsights> {
-  const { name, group, messages } = await linesInsightMessages(viewer, chatId, range);
-  if (!messages.length) throw new GroupsError('no_messages');
+  // La IA primero: apagada, no se lee nada.
   const state = await linesAiState();
   if (state === 'off') throw new AiError('ai_disabled');
   if (state === 'not_configured') throw new GroupsError('ai_not_configured', 503);
-  const out = await groupsObject({
-    ws: viewer.ws,
-    feature: 'groups_insights',
-    instructions: insightsInstructions(locale),
-    prompt: insightsPrompt(name, group, messages, range),
-    schema: insightsSchema,
-    fake: () => fakeInsights(messages),
-    maxOutputTokens: 1500,
-  });
+  const read = await linesInsightMessages(viewer, chatId, range);
+  const messages = fitMessages(read.messages);
+  if (!messages.length) throw new GroupsError('no_messages');
+  let out: InsightsOutput;
+  try {
+    out = await groupsObject({
+      ws: viewer.ws,
+      feature: 'groups_insights',
+      instructions: insightsInstructions(locale),
+      prompt: insightsPrompt(read.name, read.group, messages, range),
+      schema: insightsSchema,
+      fake: () => fakeInsights(messages),
+      maxOutputTokens: 1500,
+    });
+  } catch (err) {
+    // Cuota, rate limit o IA apagada: su código. Lo demás (el proveedor falló): ai_failed, sin detalles.
+    if (err instanceof AiError || err instanceof GroupsError) throw err;
+    throw new GroupsError('ai_failed', 502);
+  }
   return { ...cleanInsights(out), messages: messages.length, range };
 }

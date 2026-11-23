@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { composeErrorKey } from '@/lib/ai-compose';
 import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
@@ -9,6 +9,13 @@ import { Sparkle } from './icons';
 
 type AiState = 'ready' | 'off' | 'not_configured';
 type RangeKey = 'unread' | '1' | '7' | '30';
+type Result = { key: RangeKey; insights: ChatInsights };
+
+/**
+ * El último resultado de cada chat, solo en la memoria de esta pestaña del navegador (no se guarda en ningún lado):
+ * cerrar y volver a abrir el panel (en el teléfono se cierra al insertar) no obliga a pedirlo de nuevo.
+ */
+const lastResult = new Map<string, Result>();
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; data: T & { error?: string } }> {
   try {
@@ -35,6 +42,7 @@ export default function ChatAiTab({
   stateUrl,
   run,
   unread,
+  unreadFrom,
   sectionClass,
   titleClass,
   onInserted,
@@ -44,6 +52,8 @@ export default function ChatAiTab({
   stateUrl: string;
   run: (range: InsightRange) => Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }>;
   unread: number;
+  /** El primer mensaje sin leer al abrir el chat (si se sabe): lo que llega después no corre la ventana. */
+  unreadFrom?: string;
   sectionClass: string;
   titleClass: string;
   onInserted?: () => void;
@@ -52,12 +62,15 @@ export default function ChatAiTab({
 }) {
   const t = useTranslations('groups.wa.details.ai');
   const te = useTranslations('common.aiCompose.errors');
+  const uid = useId();
   const [ai, setAi] = useState<AiState | null>(null);
-  const [range, setRange] = useState<RangeKey>(unread > 0 ? 'unread' : '7');
+  const [result, setResult] = useState<Result | null>(() => lastResult.get(chatKey) ?? null);
+  const [range, setRange] = useState<RangeKey>(() => result?.key ?? (unread > 0 ? 'unread' : '7'));
   const [busy, setBusy] = useState(false);
+  // Dos clics en el mismo cuadro no piden dos veces (el estado todavía no cambió): la marca va en un ref.
+  const running = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ key: RangeKey; insights: ChatInsights } | null>(null);
-  const [inserted, setInserted] = useState<number | null>(null);
+  const [inserted, setInserted] = useState<{ i: number; ok: boolean } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -72,21 +85,25 @@ export default function ChatAiTab({
   }, [stateUrl]);
 
   const ask = useCallback(async () => {
-    if (busy) return;
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError(null);
     setInserted(null);
     const key = range;
-    const res = await run(key === 'unread' ? { kind: 'unread', unread } : { kind: 'days', days: Number(key) as 1 | 7 | 30 });
+    const res = await run(key === 'unread' ? { kind: 'unread', unread, ...(unreadFrom ? { from: unreadFrom } : {}) } : { kind: 'days', days: Number(key) as 1 | 7 | 30 });
+    running.current = false;
     setBusy(false);
     if (res.ok) {
-      setResult({ key, insights: res.insights });
+      const r = { key, insights: res.insights };
+      lastResult.set(chatKey, r);
+      setResult(r);
       return;
     }
     if (res.code === 'ai_disabled') setAi('off');
     else if (res.code === 'ai_not_configured') setAi('not_configured');
     else setError(res.code);
-  }, [busy, range, run, unread]);
+  }, [chatKey, range, run, unread, unreadFrom]);
 
   const ranges: Array<{ key: RangeKey; label: string; disabled?: boolean; title?: string }> = [
     { key: 'unread', label: unread > 0 ? t('unreadCount', { n: unread }) : t('unread'), disabled: unread <= 0, title: unread > 0 ? undefined : t('unreadNone') },
@@ -94,6 +111,7 @@ export default function ChatAiTab({
     { key: '7', label: t('week') },
     { key: '30', label: t('month') },
   ];
+  const rangeName = (key: RangeKey) => (key === 'unread' ? t('unread') : ranges.find((r) => r.key === key)?.label ?? '');
   const insights = result?.insights ?? null;
   const off = ai === 'off' || ai === 'not_configured';
 
@@ -110,7 +128,7 @@ export default function ChatAiTab({
           </p>
         ) : (
           <>
-            <div className="wa-ai-range" role="group" aria-label={t('rangeLabel')}>
+            <div className="wa-ai-range" role="group" aria-label={t('rangeLabel')} data-testid="details-ai-range">
               {ranges.map((r) => (
                 <button
                   key={r.key}
@@ -128,7 +146,8 @@ export default function ChatAiTab({
             </div>
             {!unread && <p className="ui-help wa-ai-hint">{t('unreadNone')}</p>}
             <div className="wa-ai-run">
-              <button type="button" className="btn btn-secondary btn-sm" data-testid="details-ai-run" onClick={() => void ask()} disabled={busy || ai === null} aria-busy={busy || undefined}>
+              {/* aria-disabled mientras trabaja (no disabled): el foco del teclado no se pierde. */}
+              <button type="button" className="btn btn-secondary btn-sm" data-testid="details-ai-run" onClick={() => void ask()} aria-disabled={busy || undefined} aria-busy={busy || undefined}>
                 {busy ? t('working') : insights && result?.key === range ? t('again') : t('run')}
               </button>
             </div>
@@ -136,6 +155,11 @@ export default function ChatAiTab({
           </>
         )}
       </section>
+
+      {/* Lo que cambia, para el lector de pantalla (siempre montado, así se anuncia). */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {busy ? t('working') : insights ? t('basedOn', { n: insights.messages }) : ''}
+      </p>
 
       {!off && busy && (
         <section className={sectionClass} aria-busy="true" data-testid="details-ai-loading">
@@ -154,13 +178,15 @@ export default function ChatAiTab({
       )}
 
       {!off && !busy && insights && (
-        <div className="wa-ai-results" aria-live="polite" data-testid="details-ai-results">
+        <div className="wa-ai-results" data-testid="details-ai-results" data-range={result?.key}>
           <section className={sectionClass}>
             <h3 className={titleClass}>{t('summary')}</h3>
             <p className="wa-ai-text" dir="auto" data-testid="details-ai-summary">
               {insights.summary}
             </p>
-            <p className="ui-help">{t('basedOn', { n: insights.messages })}</p>
+            <p className="ui-help" data-testid="details-ai-based-on">
+              {t('basedOnRange', { n: insights.messages, range: rangeName(result!.key) })}
+            </p>
           </section>
 
           <section className={sectionClass} data-testid="details-ai-questions">
@@ -199,18 +225,21 @@ export default function ChatAiTab({
               <ul className="wa-ai-replies">
                 {insights.replies.map((r, i) => (
                   <li key={i} className="wa-ai-reply" data-testid="details-ai-reply">
-                    <p dir="auto">{r}</p>
+                    <p dir="auto" id={`${uid}-reply-${i}`}>
+                      {r}
+                    </p>
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
                       data-testid="details-ai-insert"
+                      aria-describedby={`${uid}-reply-${i}`}
                       onClick={() => {
-                        requestComposeInsert(chatKey, r);
-                        setInserted(i);
-                        onInserted?.();
+                        const ok = requestComposeInsert(chatKey, r);
+                        setInserted({ i, ok });
+                        if (ok) onInserted?.();
                       }}
                     >
-                      {inserted === i ? t('insertedShort') : t('insert')}
+                      {inserted?.i === i && inserted.ok ? t('insertedShort') : t('insert')}
                     </button>
                   </li>
                 ))}
@@ -218,7 +247,13 @@ export default function ChatAiTab({
             ) : (
               <p className="ui-help">{t('none')}</p>
             )}
-            <p className="ui-help">{t('insertHint')}</p>
+            {inserted && !inserted.ok ? (
+              <p className="ui-help wa-ai-error" role="alert" data-testid="details-ai-insert-failed">
+                {t('insertFailed')}
+              </p>
+            ) : (
+              <p className="ui-help">{t('insertHint')}</p>
+            )}
           </section>
 
           <section className={sectionClass} data-testid="details-ai-mood">

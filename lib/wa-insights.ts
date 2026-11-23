@@ -9,13 +9,18 @@
  * lib/inbox/insights.ts (Inbox). Nada se guarda: la respuesta vuelve a la pantalla de quien la pidió.
  */
 import { z } from 'zod';
-import { DATA_RULE, fence } from './ai-compose';
+import { DATA_RULE, defuse, fence } from './ai-compose';
 
 export const INSIGHT_DAYS = [1, 7, 30] as const;
 export type InsightDays = (typeof INSIGHT_DAYS)[number];
 
-/** El rango pedido: desde la última lectura (los `unread` mensajes entrantes que había al abrir el chat) o N días. */
-export type InsightRange = { kind: 'unread'; unread: number } | { kind: 'days'; days: InsightDays };
+/**
+ * El rango pedido: desde la última lectura (los `unread` mensajes entrantes que había al abrir el chat; `from` es el
+ * primero de ellos, si la pantalla lo sabe, así lo que llega después no corre la ventana) o N días.
+ */
+export type InsightRange = { kind: 'unread'; unread: number; from?: string } | { kind: 'days'; days: InsightDays };
+/** Tope de "sin leer" que se toma (un grupo muy activo puede tener miles). */
+const MAX_UNREAD = 1000;
 
 /** Tope de mensajes que van al modelo (los más nuevos del rango). */
 export const INSIGHT_MAX_MESSAGES = 300;
@@ -48,7 +53,9 @@ export function parseInsightRange(raw: unknown): InsightRange | null {
   const r = (raw ?? {}) as { kind?: unknown; unread?: unknown; days?: unknown };
   if (r.kind === 'unread') {
     const n = Number(r.unread);
-    return Number.isInteger(n) && n >= 1 && n <= 1000 ? { kind: 'unread', unread: n } : null;
+    if (!Number.isInteger(n) || n < 1) return null;
+    const from = (r as { from?: unknown }).from;
+    return { kind: 'unread', unread: Math.min(n, MAX_UNREAD), ...(typeof from === 'string' && from.length >= 1 && from.length <= 100 ? { from } : {}) };
   }
   if (r.kind === 'days') {
     const d = Number(r.days);
@@ -64,6 +71,7 @@ export function rangeSince(range: InsightRange, now = new Date()): string | null
 
 /** Un mensaje como lo arma cada app (ya con lo que quien mira ve: teléfonos ocultos, menciones con nombre). */
 export interface InsightMessage {
+  id: string;
   at: string;
   fromMe: boolean;
   who: string;
@@ -71,10 +79,15 @@ export interface InsightMessage {
 }
 
 /**
- * "Desde la última lectura": desde el primero de los últimos `unread` mensajes entrantes (con lo que vino después,
- * también lo propio). Con menos entrantes que eso, todo lo que hay.
+ * "Desde la última lectura": desde el primer mensaje sin leer al abrir el chat (`from`, si está entre los que quien
+ * mira ve) o, si no, desde el primero de los últimos `unread` mensajes entrantes; con lo que vino después, también lo
+ * propio. Con menos entrantes que eso, todo lo que hay.
  */
-export function sliceUnread(messages: InsightMessage[], unread: number): InsightMessage[] {
+export function sliceUnread(messages: InsightMessage[], unread: number, from?: string): InsightMessage[] {
+  if (from) {
+    const i = messages.findIndex((m) => m.id === from);
+    if (i >= 0) return messages.slice(i);
+  }
   let seen = 0;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (!messages[i].fromMe) seen++;
@@ -83,17 +96,36 @@ export function sliceUnread(messages: InsightMessage[], unread: number): Insight
   return messages;
 }
 
-/** Los renglones de la transcripción, del más viejo al más nuevo, con un tope de largo total. */
-export function transcript(messages: InsightMessage[]): string {
-  const lines = messages.map((m) => `[${m.at.slice(0, 16).replace('T', ' ')}] ${m.fromMe ? 'Us' : m.who || 'Contact'}: ${m.text.replace(/\s+/g, ' ').slice(0, MAX_LINE)}`);
-  // Se corta por arriba (lo más viejo): lo último es lo que más importa.
+/** Un nombre de WhatsApp como dato: en un renglón, sin corchetes ni etiquetas de bloque, corto. */
+function cleanName(name: string): string {
+  return defuse(name).replace(/[\s[\]]+/g, ' ').trim().slice(0, 60);
+}
+
+/**
+ * Un renglón de la transcripción. Quién escribió va en una marca que un nombre no puede imitar: `[us]` (la persona o
+ * su equipo) o `[them]` seguido del nombre del contacto.
+ */
+function line(m: InsightMessage): string {
+  const who = m.fromMe ? '[us]' : `[them] ${cleanName(m.who) || 'Contact'}`;
+  return `[${m.at.slice(0, 16).replace('T', ' ')}] ${who}: ${m.text.replace(/\s+/g, ' ').slice(0, MAX_LINE)}`;
+}
+
+/** Lo que entra en el pedido: los más nuevos hasta el tope de largo (lo último es lo que más importa). */
+export function fitMessages(messages: InsightMessage[]): InsightMessage[] {
   let total = 0;
-  let start = lines.length;
-  while (start > 0 && total + lines[start - 1].length + 1 <= MAX_TRANSCRIPT) {
-    total += lines[start - 1].length + 1;
+  let start = messages.length;
+  while (start > 0) {
+    const n = line(messages[start - 1]).length + 1;
+    if (total + n > MAX_TRANSCRIPT) break;
+    total += n;
     start--;
   }
-  return lines.slice(start).join('\n');
+  return messages.slice(start);
+}
+
+/** Los renglones de la transcripción, del más viejo al más nuevo (ya recortada con fitMessages). */
+export function transcript(messages: InsightMessage[]): string {
+  return messages.map(line).join('\n');
 }
 
 const LOCALE_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
@@ -101,7 +133,7 @@ const LOCALE_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 
 export function insightsInstructions(locale: string): string {
   const lang = LOCALE_NAME[locale] ?? 'English';
   return [
-    'You help someone who handles a WhatsApp chat ("Us" in the transcript: the user or their team). Read the conversation and fill every field.',
+    'You help someone who handles a WhatsApp chat. In the transcript, lines marked [us] are the user or their team; lines marked [them] are the contact or other people in the chat, whatever name they use. Read the conversation and fill every field.',
     `Write summary, questions, commitments and sentimentNote in ${lang}.`,
     'Write the replies in the language the contact writes in, as short WhatsApp messages in the tone of the chat, ready to send. Plain text, no quotes around them.',
     'Only use what is in the conversation. Never invent facts, prices, dates, names or promises. If a reply needs a detail that is not there, leave a short placeholder in square brackets.',
@@ -113,6 +145,7 @@ export function insightsInstructions(locale: string): string {
 
 export function insightsPrompt(chatName: string, group: boolean, messages: InsightMessage[], range: InsightRange): string {
   const what = range.kind === 'unread' ? 'the messages since the user last read the chat' : `the last ${range.days === 1 ? '24 hours' : `${range.days} days`}`;
+  // La transcripción ya viene recortada (fitMessages): el conteo de la pantalla es el de lo que se mandó.
   return [
     `WhatsApp ${group ? 'group' : 'chat'} ${fence('recipient', chatName)}`,
     `This is ${what}, oldest first:`,

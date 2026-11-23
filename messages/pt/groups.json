@@ -2122,7 +2122,7 @@
         "unread": "Desde a última leitura",
         "unreadCount": "Desde a última leitura ({n})",
         "unreadNone": "Não havia nada sem ler quando você abriu esta conversa: escolha um período.",
-        "day": "Hoje",
+        "day": "24 horas",
         "week": "7 dias",
         "month": "30 dias",
         "run": "Resumir estas mensagens",
@@ -2146,8 +2146,10 @@
           "negative": "Negativo",
           "mixed": "Misto"
         },
-        "none": "Nenhuma.",
-        "noMessages": "Não há mensagens neste período. Escolha um mais longo."
+        "none": "Nada.",
+        "noMessages": "Não há mensagens neste período. Escolha um mais longo.",
+        "basedOnRange": "Com {n, plural, one {# mensagem} other {# mensagens}} ({range}).",
+        "insertFailed": "Não foi possível colocar no campo da mensagem. Termine a mensagem ou a nota que está escrevendo, ou feche a edição, e tente de novo."
       }
     },
     "contactSheet": {

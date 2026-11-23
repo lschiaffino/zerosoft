@@ -11,7 +11,7 @@
  */
 import { hasScope, type ApiScope } from './api-scopes';
 import { GroupsError, CHAT_FILTERS, getChat, listChats, listLabels, listMessages, sendMessage, type ChatFilter } from './groups';
-import { canSeeChat, maskChat, maskMessage, ticketsForViewer, type GroupsViewer } from './groups-access';
+import { canSeeChat, maskChat, maskMessage, maskTicket, ticketsForViewer, type GroupsViewer } from './groups-access';
 import { patchChatAs } from './groups-chat-ops';
 import { recordAudit } from './groups-audit';
 import { normalizePoll } from './groups-polls';
@@ -234,7 +234,8 @@ const TOOLS: ToolDef[] = [
         const chat = await getChat(ctx.ws, id);
         await recordAudit(ctx.ws, { chatId: id, chatName: chat?.name ?? '', actorId: ctx.personId, actorKind: 'mcp', action: 'ticket_created', detail: { number: res.ticket.number } });
       }
-      return { created: res.created, ticket: { id: res.ticket.id, number: res.ticket.number, title: res.ticket.title, status: res.ticket.status, priority: res.ticket.priority } };
+      const shown = maskTicket(ctx.viewer, res.ticket);
+      return { created: res.created, ticket: { id: shown.id, number: shown.number, title: shown.title, status: shown.status, priority: shown.priority } };
     },
   },
   {

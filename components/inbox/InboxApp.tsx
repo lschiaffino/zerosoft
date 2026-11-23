@@ -469,7 +469,7 @@ export default function InboxApp(props: {
   const detailCache = useRef(new ListCache<Detail>(20)).current;
   const detailEtag = useRef({ id: '', etag: '' });
   // Cuántos mensajes había sin leer al abrir el chat abierto (la pestaña AI: "desde la última lectura").
-  const [unreadAtOpen, setUnreadAtOpen] = useState<{ id: string; n: number } | null>(null);
+  const [unreadAtOpen, setUnreadAtOpen] = useState<{ id: string; n: number; from?: string } | null>(null);
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
     const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
@@ -657,6 +657,15 @@ export default function InboxApp(props: {
       });
     }
   }, [openId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // El primer mensaje sin leer al abrir (una vez, con la primera página): la pestaña AI resume desde ahí aunque después
+  // lleguen más.
+  useEffect(() => {
+    if (!detail || !unreadAtOpen || unreadAtOpen.from !== undefined || unreadAtOpen.n <= 0 || detail.thread.id !== unreadAtOpen.id) return;
+    const incoming = detail.messages.filter((m) => !m.fromMe);
+    const first = incoming.length >= unreadAtOpen.n ? incoming[incoming.length - unreadAtOpen.n] : null;
+    setUnreadAtOpen({ ...unreadAtOpen, from: first?.id ?? '' });
+  }, [detail, unreadAtOpen]);
 
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, otra pestaña.
   // Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista y el estado cada pocos segundos:
@@ -1761,6 +1770,7 @@ export default function InboxApp(props: {
           onChanged={() => void loadDetail(detail.thread.id, true)}
           me={props.me ?? ''}
           aiUnread={unreadAtOpen?.id === detail.thread.id ? unreadAtOpen.n : 0}
+          aiUnreadFrom={unreadAtOpen?.id === detail.thread.id ? unreadAtOpen.from : undefined}
           starredKey={detail.messages.filter((m) => m.starred).map((m) => m.id).join(',')}
           onJumpToMessage={(id) => {
             // Un destacado: la conversación se abre alrededor de ese mensaje y lo marca. En el teléfono la info tapa el chat.

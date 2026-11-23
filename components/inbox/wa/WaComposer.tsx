@@ -127,8 +127,9 @@ const WaComposer = forwardRef<
   // La respuesta sugerida de la pestaña AI del panel: al campo, con Deshacer (nunca se manda sola). Editando un
   // mensaje no se pisa lo que se está editando.
   useComposeInsert(thread.id, (draft) => {
-    if (editing || paused) return;
+    if (editing || paused || disabled) return false;
     ai.insertText(draft);
+    return true;
   });
 
   // Editar: el texto del mensaje en el campo; al salir, vuelve lo que había.

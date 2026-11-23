@@ -2,23 +2,11 @@ import { NextResponse } from 'next/server';
 import { summarizeChat } from '@/lib/groups-ai';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson } from '@/lib/groups-http';
 import { parseInsightRange } from '@/lib/wa-insights';
-import { linesAiState, linesChatInsights } from '@/lib/groups-insights';
+import { linesChatInsights } from '@/lib/groups-insights';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-/**
- * ¿Hay IA para la pestaña AI del panel de este chat? { ai: 'ready' | 'off' | 'not_configured' }. No llama a ningún
- * modelo. Solo sobre un chat que la persona ve.
- */
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const s = await groupsSession();
-  if (s instanceof NextResponse) return s;
-  const guard = await chatGuard(s, (await ctx.params).id);
-  if (guard instanceof NextResponse) return guard;
-  return NextResponse.json({ ai: await linesAiState() });
-}
 
 /**
  * Resumen AI de los últimos días. Con la AI apagada responde 503 ai_disabled.

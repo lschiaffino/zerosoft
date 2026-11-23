@@ -14,7 +14,7 @@ const SHARED = ['media', 'docs', 'links', 'starred', 'notes'] as const;
 /**
  * El chat y sus miembros. Para el panel del chat: ?shared=media|docs|links|starred|notes (lo compartido, los
  * destacados y las notas internas, como la info de WhatsApp) y ?part=deals (los negocios del CRM del contacto o la
- * empresa vinculados, con la visibilidad del CRM de quien mira).
+ * empresa vinculados, con la visibilidad del CRM de quien mira) y ?part=ai (si hay IA para la pestaña AI).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
@@ -33,6 +33,11 @@ export async function GET(req: Request, ctx: Ctx) {
     } catch (err) {
       return handleGroupsError(err);
     }
+  }
+  // La pestaña AI: si hay IA (sin llamar a ningún modelo). La pide quien ve el chat.
+  if (params.get('part') === 'ai') {
+    const { linesAiState } = await import('@/lib/groups-insights');
+    return NextResponse.json({ ai: await linesAiState() });
   }
   if (params.get('part') === 'deals') {
     try {

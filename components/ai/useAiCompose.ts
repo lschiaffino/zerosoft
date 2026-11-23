@@ -52,8 +52,11 @@ export interface AiCompose {
   cancel: () => void;
   /** Pone el borrador en el composer (nunca manda) y guarda lo que había para deshacer. */
   insert: () => void;
-  /** Pone un texto que llega de afuera (la respuesta sugerida de la pestaña AI) en el composer, con Deshacer. Nunca manda. */
-  insertText: (text: string) => void;
+  /**
+   * Pone un texto que llega de afuera (la respuesta sugerida de la pestaña AI) en el composer, con Deshacer. Nunca
+   * manda. `onUndo` corre al deshacer (Lines: volver a la nota interna si se estaba escribiendo una).
+   */
+  insertText: (text: string, onUndo?: () => void) => void;
   undoInsert: () => void;
   /** Lo llama el composer al mandar: ya no hay nada que deshacer. */
   clearUndo: () => void;
@@ -199,25 +202,40 @@ export function useAiCompose(opts: {
     requestAnimationFrame(() => live.current.focusComposer());
   }, []);
 
+  /** Qué más deshacer además del texto (lo que pasó al insertar desde afuera). */
+  const undoExtra = useRef<(() => void) | null>(null);
+
   const insertText = useCallback(
-    (text: string) => {
+    (text: string, onUndo?: () => void) => {
+      // Un borrador de "Ayudame a escribir" en curso se corta: no puede caer después en la barra cerrada.
+      stop();
+      dispatch({ type: 'discard' });
+      setPrompt('');
+      described.current = '';
       const before = live.current.text;
       live.current.setText(text);
       setUndo(before);
-      if (open) setOpen(false);
+      undoExtra.current = onUndo ?? null;
+      setOpen(false);
       requestAnimationFrame(() => live.current.focusComposer());
     },
-    [open],
+    [stop],
   );
 
   const undoInsert = useCallback(() => {
     if (undo === null) return;
     live.current.setText(undo);
     setUndo(null);
+    const extra = undoExtra.current;
+    undoExtra.current = null;
+    extra?.();
     live.current.focusComposer();
   }, [undo]);
 
-  const clearUndo = useCallback(() => setUndo(null), []);
+  const clearUndo = useCallback(() => {
+    undoExtra.current = null;
+    setUndo(null);
+  }, []);
 
   return {
     open,

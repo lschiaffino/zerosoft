@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GroupsError, cleanContacts, getChatRow, getNumberRow, listMessages, messageByClientId, presenceWithName, sendGate, sendMessage, toMessageDto } from '@/lib/groups';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
-import { canSeeChat, chatAccessSql, maskMessage } from '@/lib/groups-access';
+import { canSeeChat, chatAccessSql, maskMessage, maskPresence } from '@/lib/groups-access';
 import { limitWrites } from '@/lib/write-limit';
 import { cleanClientId } from '@/lib/optimistic-send';
 import { normalizePoll } from '@/lib/groups-polls';
@@ -48,7 +48,7 @@ export async function GET(req: Request, ctx: Ctx) {
     // Escribiendo, grabando o en línea (llega por webhook; dura unos segundos).
     presenceWithName(chat).catch(() => null),
   ]);
-  return conditionalJson(req, { messages: messages.map((m) => maskMessage(guard.viewer, m)), presence });
+  return conditionalJson(req, { messages: messages.map((m) => maskMessage(guard.viewer, m)), presence: maskPresence(guard.viewer, presence) });
 }
 
 /** Manda texto, media (ver mediaFromBody), una encuesta ({ poll: { question, options, multi } }), contactos ({ contacts: [{ name, phone }] }) o una nota interna ({ note: true }). */

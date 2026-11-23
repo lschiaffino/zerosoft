@@ -15,6 +15,7 @@ import {
   INSIGHT_MAX_MESSAGES,
   cleanInsights,
   fakeInsights,
+  fitMessages,
   insightsInstructions,
   insightsPrompt,
   insightsSchema,
@@ -61,6 +62,7 @@ export async function inboxInsightMessages(owner: string, threadId: string, rang
         return n ? `${pre}@${n}` : whole;
       });
       return {
+        id: m.id,
         at: m.sentAt,
         fromMe: m.fromMe,
         who: m.fromMe ? 'Us' : m.senderName || (m.senderHandle ? `+${m.senderHandle.replace(/\D/g, '')}` : ''),
@@ -68,16 +70,20 @@ export async function inboxInsightMessages(owner: string, threadId: string, rang
       };
     })
     .filter((m) => m.text);
-  return { name: t.title || t.handle, group: t.kind === 'group', messages: range.kind === 'unread' ? sliceUnread(all, range.unread) : all };
+  return { name: t.title || t.handle, group: t.kind === 'group', messages: range.kind === 'unread' ? sliceUnread(all, range.unread, range.from) : all };
 }
 
 /** La pestaña AI de un chat de Inbox: resumen, preguntas, compromisos, respuestas sugeridas y ánimo. */
 export async function inboxChatInsights(owner: string, threadId: string, range: InsightRange, locale = 'en'): Promise<ChatInsights> {
-  const { name, group, messages } = await inboxInsightMessages(owner, threadId, range);
-  if (!messages.length) throw new InboxError('no_messages', 400);
+  // La IA primero: apagada, no se lee nada (el chat igual tiene que ser de la persona).
   const state = await inboxAiTabState();
+  if (state !== 'ready') await getThreadRow(owner, threadId);
   if (state === 'off') throw new InboxError('ai_disabled', 503);
   if (state === 'not_configured') throw new InboxError('ai_not_configured', 503);
+  const read = await inboxInsightMessages(owner, threadId, range);
+  const { name, group } = read;
+  const messages = fitMessages(read.messages);
+  if (!messages.length) throw new InboxError('no_messages', 400);
   let out: InsightsOutput;
   if (inboxFakeAllowed()) {
     try {
