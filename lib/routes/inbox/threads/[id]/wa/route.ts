@@ -145,14 +145,18 @@ export async function POST(req: Request, ctx: Ctx) {
   // { action: 'crm', crmContactId?, crmCompanyId? }: vincula o desvincula (null) el contacto o la empresa del CRM.
   if (b?.action === 'crm') {
     const body = b as { crmContactId?: unknown; crmCompanyId?: unknown };
-    const ref = (v: unknown) => (v === null ? null : typeof v === 'string' && v.length <= 100 ? v : undefined);
+    // null desvincula; un id es un texto de 1 a 100; lo que no está no se toca. Cualquier otra cosa es invalid_input.
+    const ref = (v: unknown) => (v === undefined || v === null ? v : typeof v === 'string' && v.length >= 1 && v.length <= 100 ? v : false);
+    const contactRef = ref(body.crmContactId);
+    const companyRef = ref(body.crmCompanyId);
     return withOwner(async (owner) => {
+      if (contactRef === false || companyRef === false || (contactRef === undefined && companyRef === undefined)) throw new InboxError('invalid_input', 400);
       const limitedW = await limitWrites('inbox', owner);
       if (limitedW) return limitedW;
       const user = await getCurrentUser();
       if (!user) throw new InboxError('unauthorized', 401);
       const { linkInboxCrm } = await import('@/lib/inbox/crm');
-      return iJson({ crm: await linkInboxCrm(user, owner, id, { crmContactId: ref(body.crmContactId), crmCompanyId: ref(body.crmCompanyId) }) });
+      return iJson({ crm: await linkInboxCrm(user, owner, id, { crmContactId: contactRef, crmCompanyId: companyRef }) });
     });
   }
   const limited = await limitByIp(req, 'inbox-ai', 60, 60).catch(() => null);

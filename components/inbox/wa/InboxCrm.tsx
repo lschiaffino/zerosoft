@@ -50,11 +50,16 @@ export default function InboxCrm({ threadId, onError }: { threadId: string; onEr
       setHits([]);
       return;
     }
+    // Una búsqueda vieja que llega tarde (otra más nueva, o ya se vinculó) no pisa la lista.
+    let live = true;
     const id = setTimeout(async () => {
       const r = await api<{ items: Hit[] }>(`/api/search?q=${encodeURIComponent(q)}`);
-      setHits((r.ok ? r.data.items : []).filter((i) => i.group === 'contacts' || i.group === 'companies').slice(0, 8));
+      if (live) setHits((r.ok ? r.data.items : []).filter((i) => i.group === 'contacts' || i.group === 'companies').slice(0, 8));
     }, 250);
-    return () => clearTimeout(id);
+    return () => {
+      live = false;
+      clearTimeout(id);
+    };
   }, [query, crm]);
 
   // La lista de resultados se cierra con Esc o con un toque afuera.
@@ -110,7 +115,7 @@ export default function InboxCrm({ threadId, onError }: { threadId: string; onEr
               <li data-testid="inbox-crm-contact">
                 <Link href={`/app/crm/contacts/${crm.contact.id}`}>{crm.contact.name || td('noName')}</Link>
                 <span className="ui-help">{td('contact')}</span>
-                <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void link({ crmContactId: null })}>
+                <button type="button" className="btn btn-ghost btn-sm" data-testid="inbox-crm-unlink" disabled={busy} onClick={() => void link({ crmContactId: null })}>
                   {tc('remove')}
                 </button>
               </li>
@@ -119,7 +124,7 @@ export default function InboxCrm({ threadId, onError }: { threadId: string; onEr
               <li data-testid="inbox-crm-company">
                 <Link href={`/app/crm/companies/${crm.company.id}`}>{crm.company.name || td('noName')}</Link>
                 <span className="ui-help">{td('company')}</span>
-                <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void link({ crmCompanyId: null })}>
+                <button type="button" className="btn btn-ghost btn-sm" data-testid="inbox-crm-unlink" disabled={busy} onClick={() => void link({ crmCompanyId: null })}>
                   {tc('remove')}
                 </button>
               </li>
@@ -133,7 +138,7 @@ export default function InboxCrm({ threadId, onError }: { threadId: string; onEr
               {crm.suggestions.map((s) => (
                 <li key={s.id}>
                   <Link href={`/app/crm/contacts/${s.id}`}>{s.name || td('noName')}</Link>
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void link({ crmContactId: s.id })}>
+                  <button type="button" className="btn btn-secondary btn-sm" data-testid="inbox-crm-link" disabled={busy} onClick={() => void link({ crmContactId: s.id })}>
                     {td('crmLink')}
                   </button>
                 </li>

@@ -35,10 +35,22 @@ export function inboxCrmOn(user: SessionUser): boolean {
   return user.role !== 'guest' && userCanUseApp(user, 'crm');
 }
 
-async function linkRow(ws: string, owner: string, threadId: string) {
-  return (await getDb()
-    .prepare('SELECT crm_contact_id, crm_company_id FROM inbox_crm_links WHERE thread_id = ? AND workspace_id = ? AND owner_id = ?')
-    .get(threadId, ws, owner)) as { crm_contact_id: string | null; crm_company_id: string | null } | undefined;
+/**
+ * El vínculo del chat. El mismo chat en otra cuenta de WhatsApp de la persona (Inbox lo lista una vez) comparte el
+ * vínculo: se lee el del chat pedido y, si no tiene, el de uno de sus hermanos.
+ */
+async function linkRow(ws: string, owner: string, ids: string[]) {
+  const rows = (await getDb()
+    .prepare(`SELECT thread_id, crm_contact_id, crm_company_id FROM inbox_crm_links WHERE workspace_id = ? AND owner_id = ? AND thread_id IN (${ids.map(() => '?').join(',')})`)
+    .all(ws, owner, ...ids)) as Array<{ thread_id: string; crm_contact_id: string | null; crm_company_id: string | null }>;
+  return rows.find((r) => r.thread_id === ids[0]) ?? rows[0];
+}
+
+/** El chat y sus hermanos en otras cuentas de la persona (el pedido primero). */
+async function sameChat(owner: string, threadId: string): Promise<string[]> {
+  const { withInboxSameChatIds } = await import('./same-chat');
+  const ids = await withInboxSameChatIds(owner, [threadId]).catch(() => [threadId]);
+  return [threadId, ...ids.filter((id) => id !== threadId)].slice(0, 10);
 }
 
 async function contactRef(ws: string, id: string): Promise<InboxCrmRef | null> {
@@ -61,21 +73,21 @@ export function threadPhone(t: Pick<ThreadRow, 'kind' | 'channel' | 'handle' | '
   return fromId || (digits.length >= 8 && digits.length <= 15 ? digits : '');
 }
 
-/** Contactos del CRM con ese teléfono (compara los últimos 8 dígitos), solo los que quien mira ve. */
+/** El teléfono guardado sin espacios, guiones, puntos, paréntesis ni "+", para comparar los últimos dígitos en SQL. */
+const PHONE_DIGITS_SQL = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone, ' ', ''), '-', ''), '.', ''), '(', ''), ')', ''), '+', '')";
+
+/** Contactos del CRM con ese teléfono (los mismos últimos 8 dígitos), solo los que quien mira ve. */
 async function contactsByPhone(user: SessionUser, ws: string, phone: string): Promise<InboxCrmRef[]> {
   if (phone.length < 8) return [];
   const tail = phone.slice(-8);
   const cond = scopeAnd('c', await sessionScope(user));
   const rows = (await getDb()
     .prepare(
-      `SELECT c.id, TRIM(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) AS name, c.email, c.phone FROM crm_contacts c
-       WHERE c.user_id = ? AND c.phone LIKE ?${cond.sql} ORDER BY c.created_at ASC LIMIT 20`,
+      `SELECT c.id, TRIM(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) AS name, c.email FROM crm_contacts c
+       WHERE c.user_id = ? AND c.phone <> '' AND ${PHONE_DIGITS_SQL} LIKE ?${cond.sql} ORDER BY c.created_at ASC LIMIT 3`,
     )
-    .all(ws, `%${tail.slice(-4)}%`, ...cond.args)) as Array<{ id: string; name: string; email: string | null; phone: string | null }>;
-  return rows
-    .filter((r) => (r.phone ?? '').replace(/\D/g, '').endsWith(tail))
-    .slice(0, 3)
-    .map((r) => ({ id: r.id, name: r.name || r.email || '' }));
+    .all(ws, `%${tail}`, ...cond.args)) as Array<{ id: string; name: string; email: string | null }>;
+  return rows.map((r) => ({ id: r.id, name: r.name || r.email || '' }));
 }
 
 /** El CRM del chat para quien mira. null: sin CRM para esta persona (la pestaña lo explica). */
@@ -84,7 +96,7 @@ export async function inboxCrm(user: SessionUser, owner: string, threadId: strin
   if (!inboxCrmOn(user)) return null;
   const ws = user.id;
   const scope = await sessionScope(user);
-  const link = await linkRow(ws, owner, thread.id);
+  const link = await linkRow(ws, owner, await sameChat(owner, thread.id));
   const contact = link?.crm_contact_id && (await canSeeRecord(ws, 'crm_contacts', link.crm_contact_id, scope)) ? await contactRef(ws, link.crm_contact_id) : null;
   const company = link?.crm_company_id && (await canSeeRecord(ws, 'crm_companies', link.crm_company_id, scope)) ? await companyRef(ws, link.crm_company_id) : null;
   const suggestions = contact ? [] : await contactsByPhone(user, ws, threadPhone(thread));
@@ -108,19 +120,23 @@ export async function linkInboxCrm(
   const scope = await sessionScope(user);
   if (patch.crmContactId && !(await canSeeRecord(ws, 'crm_contacts', patch.crmContactId, scope))) throw new InboxError('invalid_contact', 400);
   if (patch.crmCompanyId && !(await canSeeRecord(ws, 'crm_companies', patch.crmCompanyId, scope))) throw new InboxError('invalid_company', 400);
-  const prev = await linkRow(ws, owner, thread.id);
+  // El mismo chat en otras cuentas de la persona lleva el mismo vínculo (se escribe en todos).
+  const ids = await sameChat(owner, thread.id);
+  const prev = await linkRow(ws, owner, ids);
   const contact = patch.crmContactId !== undefined ? patch.crmContactId || null : (prev?.crm_contact_id ?? null);
   const company = patch.crmCompanyId !== undefined ? patch.crmCompanyId || null : (prev?.crm_company_id ?? null);
   const db = getDb();
-  if (!contact && !company) {
-    await db.prepare('DELETE FROM inbox_crm_links WHERE thread_id = ? AND workspace_id = ? AND owner_id = ?').run(thread.id, ws, owner);
-  } else {
-    await db
-      .prepare(
-        `INSERT INTO inbox_crm_links (thread_id, workspace_id, owner_id, crm_contact_id, crm_company_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(thread_id, workspace_id) DO UPDATE SET crm_contact_id = excluded.crm_contact_id, crm_company_id = excluded.crm_company_id, updated_at = excluded.updated_at`,
-      )
-      .run(thread.id, ws, owner, contact, company, nowIso());
+  for (const id of ids) {
+    if (!contact && !company) {
+      await db.prepare('DELETE FROM inbox_crm_links WHERE thread_id = ? AND workspace_id = ? AND owner_id = ?').run(id, ws, owner);
+    } else {
+      await db
+        .prepare(
+          `INSERT INTO inbox_crm_links (thread_id, workspace_id, owner_id, crm_contact_id, crm_company_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(thread_id, workspace_id) DO UPDATE SET crm_contact_id = excluded.crm_contact_id, crm_company_id = excluded.crm_company_id, updated_at = excluded.updated_at`,
+        )
+        .run(id, ws, owner, contact, company, nowIso());
+    }
   }
   return inboxCrm(user, owner, thread.id);
 }

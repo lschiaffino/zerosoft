@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import type { GroupsPerson } from '@/lib/groups';
 import type { ChatCrmDeal } from '@/lib/groups-crm-deals';

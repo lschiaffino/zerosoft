@@ -109,6 +109,32 @@ describe('Lines: la pestaña Notas junta las líneas del chat', () => {
   });
 });
 
+describe('Lines: notas de las líneas con acceso por etiqueta y asignación', () => {
+  it('un member que ve el chat de una línea por asignación no ve las notas del mismo chat en la otra', async () => {
+    const w = await workspaceWithMember('l1-notes-assigned');
+    const ws = w.owner.id;
+    const a = await line(ws, 'Uno demo');
+    const b = await line(ws, 'Dos demo');
+    const p = phone();
+    await ingestEvents(a, [ev(`${p}@c.us`, { body: 'por uno' })]);
+    await ingestEvents(b, [ev(`${p}@c.us`, { body: 'por dos' })]);
+    const rows = (await getDb().prepare('SELECT id, number_id FROM groups_chats WHERE user_id = ? AND phone = ?').all(ws, p)) as Array<{ id: string; number_id: string }>;
+    const onA = rows.find((r) => r.number_id === a.id)!.id;
+    const onB = rows.find((r) => r.number_id === b.id)!.id;
+    await note(ws, onA, 'Nota en uno', ws);
+    await note(ws, onB, 'Nota en dos', ws);
+    // Acceso por etiqueta: el member ve solo lo que tiene asignado (el chat de la línea Uno).
+    const { updatePlatformSettings } = await import('@/lib/groups-access');
+    await updatePlatformSettings(ws, { labelAccess: true, maskRoles: [] });
+    await getDb().prepare('UPDATE groups_chats SET assigned_to = ? WHERE id = ?').run(w.member.id, onA);
+    const member = await groupsViewer(ws, w.member.id, 'member');
+    expect(member.restricted).toBe(true);
+    const seen = await sharedContent(member, onA, 'notes');
+    expect(seen.map((i) => i.body)).toEqual(['Nota en uno']);
+    await expect(sharedContent(member, onB, 'notes')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 /** Una cuenta de WhatsApp de Inbox de `person` con un chat 1:1 con `p`. */
 async function inboxDm(person: string, p: string) {
   const a = await createAccount(person, { kind: 'whatsapp', provider: 'fake', label: 'Personal demo' });
@@ -223,6 +249,9 @@ describe('Inbox: pestaña CRM con el CRM de zerosoft', () => {
     expect(denied.status).toBe(400);
     expect(await denied.json()).toMatchObject({ error: 'invalid_contact' });
 
+    // Un id que no es texto, uno vacío o un pedido sin nada que cambiar: invalid_input.
+    for (const bad of [{ crmContactId: 7 }, { crmContactId: '' }, {}]) expect((await post(t.id, { action: 'crm', ...bad })).status).toBe(400);
+
     // La misma persona como admin del workspace ve todo el CRM: lo sugiere y lo vincula.
     session.user = asMember(w.owner, w.member, 'admin');
     const asAdmin = (await (await get(t.id, 'part=crm')).json()) as { crm: { suggestions: Array<{ id: string }> } };
@@ -230,6 +259,24 @@ describe('Inbox: pestaña CRM con el CRM de zerosoft', () => {
     const ok = await post(t.id, { action: 'crm', crmContactId: ownerContact });
     expect(ok.status).toBe(200);
     expect(((await ok.json()) as { crm: { contact: { id: string } } }).crm.contact.id).toBe(ownerContact);
+  });
+
+  it('el mismo chat en dos cuentas de la persona comparte el vínculo; una mezcla de repetidos lo conserva', async () => {
+    const w = await workspaceWithMember('l1-inbox-crm-siblings');
+    const p = phone();
+    const t1 = await inboxDm(w.member.id, p);
+    const t2 = await inboxDm(w.member.id, p);
+    expect(t2.id).not.toBe(t1.id);
+    const c = await crmContact(w.owner.id, 'Compartido Demo', `+${p}`, null);
+    const member = asMember(w.owner, w.member, 'admin');
+    await linkInboxCrm(member, w.member.id, t1.id, { crmContactId: c });
+    expect((await inboxCrm(member, w.member.id, t2.id))!.contact?.id).toBe(c);
+    await linkInboxCrm(member, w.member.id, t2.id, { crmContactId: null });
+    expect((await inboxCrm(member, w.member.id, t1.id))!.contact).toBeNull();
+    // La mezcla de chats repetidos (lib/wa-dedupe.ts) pasa el vínculo al que queda, si se lo pide.
+    const { mergeStatements } = await import('@/lib/wa-dedupe');
+    expect(mergeStatements('inbox', 'r1', { crmLinks: true }).stmts.some((x) => String(x.sql).includes('inbox_crm_links'))).toBe(true);
+    expect(mergeStatements('inbox', 'r1').stmts.some((x) => String(x.sql).includes('inbox_crm_links'))).toBe(false);
   });
 
   it('un chat de otra persona del mismo workspace no se vincula', async () => {

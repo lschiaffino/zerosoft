@@ -32,7 +32,7 @@ export async function chatCrmDeals(user: SessionUser, ws: string, chatId: string
  * quien mira: un contacto o una empresa que no ve no cuenta, y un negocio fuera de su alcance no aparece.
  */
 export async function crmDealsFor(user: SessionUser, ws: string, refs: { contactId: string | null; companyId: string | null }): Promise<ChatCrmDeal[]> {
-  if (!userCanUseApp(user, 'crm') || user.role === 'guest') return [];
+  if (!userCanUseApp(user, 'crm')) return [];
   const db = getDb();
   const scope = await sessionScope(user);
   const contactId = refs.contactId && (await canSeeRecord(ws, 'crm_contacts', refs.contactId, scope)) ? refs.contactId : null;

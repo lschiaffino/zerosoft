@@ -101,6 +101,18 @@ async function openChat(page: Page, url: string) {
   await expect(page.locator('.gr-msg').first()).toBeVisible({ timeout: 45_000 });
 }
 
+/** "Ayudame a escribir": en el teléfono el lápiz va en el menú "+"; en la computadora, en la fila del campo. */
+async function openAiBar(page: Page, scope: string) {
+  const narrow = (page.viewportSize()?.width ?? 1280) < 721;
+  if (narrow) {
+    await page.locator(scope).getByRole('button', { name: 'Attach', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Help me write', exact: true }).click();
+  } else {
+    await page.locator(scope).getByTestId('ai-compose-open').click();
+  }
+  await expect(page.getByTestId('ai-compose')).toBeVisible();
+}
+
 /** El chip de la AI está afuera de la lista de mensajes y el último mensaje se ve entero. */
 async function chipClearOfMessages(page: Page, chip: Locator) {
   await expect(chip).toBeVisible();
@@ -175,7 +187,7 @@ for (const width of [1280, 390]) {
     // El contacto con el mismo teléfono, sugerido; un toque lo vincula.
     const suggest = crm.getByTestId('inbox-crm-suggestions');
     await expect(suggest).toContainText(`Paula Demo ${tag}`);
-    await suggest.getByRole('button', { name: 'Link' }).click();
+    await suggest.getByTestId('inbox-crm-link').click();
     const linked = crm.getByTestId('inbox-crm-contact');
     await expect(linked.getByRole('link', { name: `Paula Demo ${tag}` })).toHaveAttribute('href', `/en/app/crm/contacts/${contactId}`);
     await expect(suggest).toHaveCount(0);
@@ -188,6 +200,8 @@ for (const width of [1280, 390]) {
     await expect(results).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(results).toHaveCount(0);
+    // Esc cierra solo la lista: el panel sigue abierto.
+    await expect(crm).toBeVisible();
     await search.fill(`Acme ${tag} `);
     await expect(results).toBeVisible();
     await panel.locator('.ib-wa-card-title').first().click();
@@ -204,7 +218,7 @@ for (const width of [1280, 390]) {
     await shot(page, `inbox-crm-${width}`);
 
     // Desvincular el contacto: vuelve la sugerencia y se recuerda al recargar.
-    await linked.getByRole('button', { name: 'Remove' }).click();
+    await linked.getByTestId('inbox-crm-unlink').click();
     await expect(crm.getByTestId('inbox-crm-contact')).toHaveCount(0);
     await expect(suggest).toBeVisible();
     await page.reload({ waitUntil: 'networkidle' });
@@ -219,12 +233,26 @@ for (const width of [1280, 390]) {
     const tag = uid();
     const long = Array.from({ length: 16 }, (_, i) => `palabra${i}`).join(' ');
 
-    // Lines: "Pulir" va en la fila de las solapas.
+    // Lines: "Pulir" e "Insertado · Deshacer" van en la fila de las solapas, sin pisarlas.
     const lines = await linesOnTwoLines(request, tag);
     await openChat(page, `/en/app/lines/inbox/${lines.onVentas}`);
     await page.getByTestId('composer-input').fill(long);
     await chipClearOfMessages(page, page.getByTestId('ai-compose-polish'));
     await shot(page, `lines-chip-polish-${width}`);
+    await page.getByTestId('composer-input').fill('');
+    await openAiBar(page, '.gr-inbox');
+    await page.getByTestId('ai-compose').getByTestId('ai-compose-suggest').click();
+    await expect(page.getByTestId('ai-compose-draft')).not.toHaveAttribute('aria-busy', 'true');
+    await page.getByTestId('ai-compose-insert').click();
+    const linesUndo = page.getByTestId('ai-compose-undo');
+    await chipClearOfMessages(page, linesUndo);
+    const chipBox = (await linesUndo.boundingBox())!;
+    for (const tab of await page.locator('.wa-mode-tab').all()) {
+      const b = (await tab.boundingBox())!;
+      expect(chipBox.x >= b.x + b.width || chipBox.x + chipBox.width <= b.x, 'el chip no pisa las solapas').toBe(true);
+    }
+    expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
+    await shot(page, `lines-chip-undo-${width}`);
 
     // Inbox: "Pulir" y, después de insertar un borrador, "Insertado · Deshacer", en su fila arriba del campo.
     const chat = await inboxDm(request, tag);
@@ -235,13 +263,7 @@ for (const width of [1280, 390]) {
     await shot(page, `inbox-chip-polish-${width}`);
     await field.fill('');
     await expect(page.getByTestId('ai-compose-polish')).toHaveCount(0);
-    if (width === 390) {
-      // En el teléfono el lápiz va en el menú "+".
-      await page.locator('.ib-wa-thread').getByRole('button', { name: 'Attach', exact: true }).click();
-      await page.getByRole('menuitem', { name: 'Help me write', exact: true }).click();
-    } else {
-      await page.getByTestId('ai-compose-open').click();
-    }
+    await openAiBar(page, '.ib-wa-thread');
     const bar = page.getByTestId('ai-compose');
     await bar.getByTestId('ai-compose-suggest').click();
     await expect(bar.getByTestId('ai-compose-draft')).not.toHaveAttribute('aria-busy', 'true');

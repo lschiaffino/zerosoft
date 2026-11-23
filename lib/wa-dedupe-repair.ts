@@ -13,7 +13,7 @@
  */
 import type { Client } from '@libsql/client';
 import type { BatchStatement } from './db';
-import { contactPairsInsert, DEDUPE_COUNTS, inboxQuotePairsInsert, inboxSharedPairsInsert, MERGE_PAIRS_DDL, runMerge, TEAM_FOLDERS_TABLE_SQL, type MergeCounts } from './wa-dedupe';
+import { contactPairsInsert, DEDUPE_COUNTS, inboxQuotePairsInsert, inboxSharedPairsInsert, MERGE_PAIRS_DDL, INBOX_CRM_LINKS_TABLE_SQL, runMerge, TEAM_FOLDERS_TABLE_SQL, type MergeCounts } from './wa-dedupe';
 
 export interface LidRepairReport {
   applied: boolean;
@@ -38,7 +38,8 @@ export async function repairLidDuplicates(client: Client, opts: { apply: boolean
     const before = await counts();
     // Inbox: la libreta, los mensajes repetidos (recibidos y propios) y las respuestas que citan un mensaje del chat
     // del teléfono. Lines: la libreta (allí un mismo id de WhatsApp no puede estar en dos chats del mismo número).
-    const inbox = await runMerge('inbox', (run) => [contactPairsInsert('inbox', run), inboxSharedPairsInsert(run, { own: true }), inboxQuotePairsInsert(run)], batch);
+    const crmLinks = (await tx.execute(INBOX_CRM_LINKS_TABLE_SQL)).rows.length > 0;
+    const inbox = await runMerge('inbox', (run) => [contactPairsInsert('inbox', run), inboxSharedPairsInsert(run, { own: true }), inboxQuotePairsInsert(run)], batch, { crmLinks });
     const teamFolders = (await tx.execute(TEAM_FOLDERS_TABLE_SQL)).rows.length > 0;
     const lines = await runMerge('lines', (run) => [contactPairsInsert('lines', run)], batch, { agentLinks: true, chatFolders: true, teamFolders });
     const handles = await tx.execute("UPDATE inbox_threads SET handle = '' WHERE kind = 'dm' AND external_id LIKE '%@lid' AND handle <> ''");

@@ -116,9 +116,16 @@ function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'cha
   if (ai.undo === null) return null;
   return (
     <p className={`aic-undo aic-${tone}${float}`} role="status" data-testid="ai-compose-undo">
-      <span className="aic-undo-text" title={t('inserted')}>
-        {t('inserted')}
-      </span>
+      {floating ? (
+        // Flotando sobre el campo va corto ("Insertado"), para no pisar las solapas en el teléfono; el lector de
+        // pantalla lee la frase entera.
+        <span className="aic-undo-text" title={t('inserted')}>
+          <span aria-hidden="true">{t('insertedShort')}</span>
+          <span className="sr-only">{t('inserted')}</span>
+        </span>
+      ) : (
+        <span>{t('inserted')}</span>
+      )}
       <button type="button" className="aic-link" onMouseDown={floating ? (e) => e.preventDefault() : undefined} onClick={ai.undoInsert}>
         {t('undo')}
       </button>

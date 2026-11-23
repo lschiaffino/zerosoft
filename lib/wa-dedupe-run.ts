@@ -8,7 +8,7 @@
  */
 import { dbBatch, getDb } from './db';
 import { rememberContacts, type ContactScope } from './wa-contacts';
-import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, runMerge, TEAM_FOLDERS_TABLE_SQL, twinPairs, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
+import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, INBOX_CRM_LINKS_TABLE_SQL, runMerge, TEAM_FOLDERS_TABLE_SQL, twinPairs, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
 
 const EMPTY: MergeCounts = { merged: 0, renamed: 0, messages: 0 };
 
@@ -28,6 +28,19 @@ async function hasTeamFolders(): Promise<boolean> {
     }
   }
   return teamFoldersReady;
+}
+
+/** La tabla de vínculos de Inbox con el CRM: igual que la de carpetas del equipo, una vez que está, queda. */
+let crmLinksReady = false;
+export async function hasInboxCrmLinks(): Promise<boolean> {
+  if (!crmLinksReady) {
+    try {
+      crmLinksReady = Boolean(await getDb().prepare(INBOX_CRM_LINKS_TABLE_SQL).get());
+    } catch {
+      crmLinksReady = false;
+    }
+  }
+  return crmLinksReady;
 }
 
 export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: string[]; pairs?: ChatPair[]; all?: boolean } = {}): Promise<MergeCounts> {
@@ -53,7 +66,7 @@ export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: st
         ...explicitPairsInsert(app, run, scope, pairs),
       ],
       dbBatch,
-      { mediaFiles: true, agentLinks: true, chatFolders: true, teamFolders: await hasTeamFolders() },
+      { mediaFiles: true, agentLinks: true, chatFolders: true, teamFolders: await hasTeamFolders(), crmLinks: app === 'inbox' && (await hasInboxCrmLinks()) },
     );
   } catch (err) {
     // eslint-disable-next-line no-console
