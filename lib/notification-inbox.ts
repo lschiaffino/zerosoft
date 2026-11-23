@@ -5,13 +5,13 @@
  * pocos (se borran a los 30 días): se leen de una vez, se les deduce el
  * project (track_plans) y el issue que nombran, y se filtran y paginan acá.
  *
- * Privacidad: un aviso de un issue que hoy la persona no puede ver (dejó el
+ * Privacidad: un aviso de algo que hoy la persona no puede ver (dejó el
  * workspace, el team pasó a privado, es invitada sin ese team) no se muestra:
- * ni el título del issue ni el aviso.
+ * ni el título ni el aviso. La regla vive en lib/notification-access.ts.
  */
 import { getDb } from './db';
 import type { NotificationRow } from './db';
-import { trackVisibleExpr } from './track-access';
+import { chunks, issueIdOf, memberArgs, memberSql, notificationAccess, type VisibleIssue } from './notification-access';
 import {
   compareInbox,
   inboxKind,
@@ -29,14 +29,9 @@ import {
 const SCAN_LIMIT = 2000;
 
 /** El issue que nombra el aviso, tal como está hoy (título y status actuales). */
-export interface InboxIssue {
-  id: string;
-  identifier: string;
-  title: string;
-  statusName: string | null;
-  statusColor: string | null;
-  statusCategory: string | null;
-}
+export type InboxIssue = VisibleIssue;
+
+export { issueIdOf };
 
 export interface InboxItem extends NotificationRow, InboxFacts {
   projectName: string | null;
@@ -82,51 +77,6 @@ function parseMeta(meta: string): Record<string, unknown> {
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
-/** Id del issue de Track al que apunta un aviso (por su origen o por el link). */
-const ISSUE_SOURCES = new Set(['track_issue', 'track_triage', 'track_sla', 'track_agent']);
-
-export function issueIdOf(n: Pick<NotificationRow, 'source_type' | 'source_id' | 'href'>): string | null {
-  if (n.source_type && ISSUE_SOURCES.has(n.source_type) && n.source_id) return n.source_id;
-  const m = /\/app\/track\/issues\/([A-Za-z0-9_-]+)/.exec(n.href ?? '');
-  return m ? m[1] : null;
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
-
-/**
- * Condición "la persona es del workspace de `alias`" (project o iniciativa):
- * dueña o miembro del team, o dueña si es personal, y no invitada (los
- * invitados de Track no ven projects ni iniciativas, lib/track-plans).
- * Usa los 4 argumentos de memberArgs.
- */
-function memberSql(alias: string): string {
-  return `((${alias}.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
-      OR ${alias}.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-      OR (${alias}.team_id IS NULL AND ${alias}.owner_id = ?))
-    AND NOT EXISTS (SELECT 1 FROM track_guests g WHERE g.workspace_id = COALESCE(${alias}.team_id, ${alias}.owner_id)
-      AND g.email = (SELECT lower(u0.email) FROM users u0 WHERE u0.id = ?)))`;
-}
-
-function memberArgs(userId: string): string[] {
-  return [userId, userId, userId, userId];
-}
-
-/** Ids de `table` (track_plans o track_initiatives) que existen y la persona hoy no ve. */
-async function hiddenEntities(userId: string, table: 'track_plans' | 'track_initiatives', ids: string[]): Promise<Set<string>> {
-  const out = new Set<string>();
-  for (const part of chunks([...new Set(ids)], 400)) {
-    const rows = (await getDb()
-      .prepare(`SELECT e.id FROM ${table} e WHERE e.id IN (${part.map(() => '?').join(', ')}) AND NOT ${memberSql('e')}`)
-      .all(...part, ...memberArgs(userId))) as Array<{ id: string }>;
-    for (const r of rows) out.add(r.id);
-  }
-  return out;
-}
-
 /**
  * Project de cada issue, solo de los projects que la persona puede ver (de un
  * workspace del que es dueña o miembro, o propios).
@@ -147,58 +97,6 @@ async function plansForIssues(userId: string, issueIds: string[]): Promise<Map<s
     for (const r of rows) out.set(r.issue_id, { id: r.plan_id, name: r.plan_name });
   }
   return out;
-}
-
-/**
- * Issues que nombran los avisos: los que la persona ve hoy (con título y
- * status) y el conjunto de los que existen pero no ve. Un issue se ve si su
- * team es de un workspace de la persona (dueña o miembro, o propio) y, si es
- * privado o ella es invitada, si tiene acceso (lib/track-access).
- */
-async function issuesFor(userId: string, issueIds: string[]): Promise<{ visible: Map<string, InboxIssue>; hidden: Set<string> }> {
-  const visible = new Map<string, InboxIssue>();
-  const hidden = new Set<string>();
-  if (!issueIds.length) return { visible, hidden };
-  const db = getDb();
-  for (const part of chunks([...new Set(issueIds)], 300)) {
-    const marks = part.map(() => '?').join(', ');
-    const rows = (await db
-      .prepare(
-        `SELECT i.id, i.identifier, i.title, s.name AS status_name, s.color AS status_color, s.category AS status_category,
-                CASE WHEN (p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
-                        OR p.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-                        OR (p.team_id IS NULL AND p.owner_id = ?))
-                      AND ${trackVisibleExpr('p', '?')} THEN 1 ELSE 0 END AS can_see
-           FROM track_issues i
-           JOIN track_projects p ON p.id = i.project_id
-           LEFT JOIN track_statuses s ON s.id = i.status_id
-          WHERE i.id IN (${marks})`,
-      )
-      .all(userId, userId, userId, userId, userId, userId, ...part)) as Array<{
-      id: string;
-      identifier: string;
-      title: string;
-      status_name: string | null;
-      status_color: string | null;
-      status_category: string | null;
-      can_see: number;
-    }>;
-    for (const r of rows) {
-      if (!r.can_see) {
-        hidden.add(r.id);
-        continue;
-      }
-      visible.set(r.id, {
-        id: r.id,
-        identifier: r.identifier,
-        title: r.title,
-        statusName: r.status_name,
-        statusColor: r.status_color,
-        statusCategory: r.status_category,
-      });
-    }
-  }
-  return { visible, hidden };
 }
 
 async function plansById(userId: string, ids: string[]): Promise<Map<string, string>> {
@@ -289,27 +187,21 @@ export async function listInboxNotifications(
   const planIds = raw.map((n, i) => (n.source_type === 'track_plan' && n.source_id ? n.source_id : str(metas[i].planId)));
   const presentIssues = issueIds.filter((v): v is string => Boolean(v));
   const presentPlans = planIds.filter((v): v is string => Boolean(v));
-  const initiativeIds = raw.map((n) => (n.source_type === 'track_initiative' && n.source_id ? n.source_id : null));
-  const [issuePlans, directPlans, issues, hiddenPlans, hiddenInitiatives] = await Promise.all([
+  const [issuePlans, directPlans, access] = await Promise.all([
     plansForIssues(userId, presentIssues),
     plansById(userId, presentPlans),
-    issuesFor(userId, presentIssues),
-    hiddenEntities(userId, 'track_plans', presentPlans),
-    hiddenEntities(userId, 'track_initiatives', initiativeIds.filter((v): v is string => Boolean(v))),
+    // Privacidad (lib/notification-access): lo que hoy no ve no se muestra.
+    notificationAccess(userId, raw),
   ]);
 
   const all: InboxItem[] = [];
   const snoozedNow = new Set<string>();
   raw.forEach((n, i) => {
+    if (access.hidden.has(n.id)) return;
     const issueId = issueIds[i];
-    // Privacidad: el issue existe y hoy no lo ve (o es de un workspace ajeno).
-    if (issueId && issues.hidden.has(issueId)) return;
     const meta = metas[i];
     const viaIssue = issueId ? issuePlans.get(issueId) : undefined;
     const planId = planIds[i];
-    // Lo mismo con un aviso de un project o una iniciativa (update, comentario) que existe y no ve.
-    if (!issueId && n.source_type === 'track_plan' && planId && hiddenPlans.has(planId)) return;
-    if (initiativeIds[i] && hiddenInitiatives.has(initiativeIds[i]!)) return;
     const direct = planId && directPlans.has(planId) ? { id: planId, name: directPlans.get(planId)! } : undefined;
     const plan = viaIssue ?? direct ?? null;
     const facts = { type: n.type, source_type: n.source_type, meta };
@@ -326,7 +218,7 @@ export async function listInboxNotifications(
       at: n.snoozed_until ?? n.created_at,
       tab: inboxTab(facts),
       reason: inboxReason(facts),
-      issue: issueId ? (issues.visible.get(issueId) ?? null) : null,
+      issue: issueId ? (access.issues.get(issueId) ?? null) : null,
     });
     if (n.snoozed_until && n.snoozed_until > now) snoozedNow.add(n.id);
   });

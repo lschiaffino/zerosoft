@@ -4873,7 +4873,9 @@
       "rescheduled": "Reprogramada",
       "no_show": "No se presentó",
       "canceled": "Cancelada"
-    }
+    },
+    "notePlaceholderSolo": "Escribí una nota",
+    "noteTooLong": "La nota es demasiado larga."
   },
   "assocLabels": {
     "title": "Labels de asociación",
@@ -5019,7 +5021,11 @@
     "perPage": "{count} por página",
     "perPageLabel": "Filas por página",
     "exportView": "Exportar vista",
-    "exportViewHint": "Bajá en CSV todos los registros de esta vista, no solo esta página"
+    "exportViewHint": "Bajá en CSV todos los registros de esta vista, no solo esta página",
+    "exportPreparing": "Preparando el export…",
+    "exportTruncated": "Se exportaron los primeros {cap} de {total} registros. Acotá los filtros para exportar el resto.",
+    "exportError": "No se pudo exportar esta vista. Revisá los filtros y probá de nuevo.",
+    "exportNoticeClose": "Cerrar"
   },
   "bulkBar": {
     "label": "Acciones en masa",
@@ -5484,5 +5490,26 @@
     },
     "clear": "Quitar la selección",
     "error": "No se pudieron elegir. Probá de nuevo."
+  },
+  "comments": {
+    "add": "Comentar",
+    "count": "{count, plural, one {# comentario} other {# comentarios}}",
+    "loading": "Cargando comentarios…",
+    "loadError": "No se pudieron cargar los comentarios.",
+    "retry": "Reintentar",
+    "listLabel": "Comentarios",
+    "edited": "(editado)",
+    "actions": "Acciones del comentario",
+    "editLabel": "Editar comentario",
+    "deleteConfirm": "¿Borrar este comentario?",
+    "composerLabel": "Agregar un comentario",
+    "placeholder": "Agregá un comentario",
+    "placeholderMention": "Agregá un comentario. Con @ mencionás a alguien del equipo",
+    "save": "Comentar",
+    "saving": "Guardando…",
+    "saveError": "No se pudo guardar el comentario. Probá de nuevo.",
+    "deleteError": "No se pudo borrar el comentario. Probá de nuevo.",
+    "tooMany": "Esta actividad llegó al tope de comentarios.",
+    "tooLong": "El comentario es demasiado largo."
   }
 }
