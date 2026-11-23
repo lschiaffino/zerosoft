@@ -58,6 +58,9 @@ import { listAssociationLabels } from '@/lib/crm-assoc-labels';
 import HubspotSyncPanel from '@/components/crm/HubspotSyncPanel';
 import { listApps } from '@/lib/crm-apps';
 import { parseDbUtc } from '@/lib/utils';
+import { CardLayoutPanel, PreviewLayoutPanel } from '@/components/crm/LayoutSettings';
+import { resolveCardLayout, resolvePreviewLayout } from '@/lib/crm-layouts';
+import { isLayoutEntity, LAYOUT_ENTITIES } from '@/lib/crm-layouts-shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +81,7 @@ async function workspacePeople(user: SessionUser) {
  */
 export default async function CrmSettingsPage(props: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ tab?: string; gmail?: string; outlook?: string; from?: string }>;
+  searchParams: Promise<{ tab?: string; gmail?: string; outlook?: string; from?: string; object?: string; pipeline?: string }>;
 }) {
   const sp = await props.searchParams;
   const { locale } = await props.params;
@@ -134,6 +137,10 @@ export default async function CrmSettingsPage(props: {
       }),
       listApprovalRules(user.id),
     ]);
+    // Tarjetas del board por pipeline (sin las personalizadas ocultas para quien mira).
+    const cardLayouts = Object.fromEntries(
+      await Promise.all(pipelines.map(async (p) => [p.id, await resolveCardLayout(sessionFieldViewer(user), p.id)] as const)),
+    );
     body = (
       <>
         <FormSection setting="crm-lead-stages" title={t('leads.stagesTitle')} description={t('leads.stagesDesc')}>
@@ -146,6 +153,18 @@ export default async function CrmSettingsPage(props: {
           <PipelinesEditor
             initialPipelines={pipelines}
             customFields={dealFields.map((f) => ({ name: f.name, label: f.label }))}
+          />
+        </FormSection>
+        <FormSection id="board-cards" setting="crm-board-cards" title={t('layouts.cardSettingsTitle')} description={t('layouts.cardSettingsDesc')}>
+          <CardLayoutPanel
+            pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))}
+            initial={cardLayouts}
+            customFields={dealFields.map((f) => ({ name: f.name, label: f.label, type: f.type, options: f.options }))}
+            canEdit={admin}
+            initialPipelineId={sp.pipeline}
+            baseCurrency={crmSettings.baseCurrency}
+            locale={locale}
+            me={{ id: realUserId(user), name: people.find((p) => p.id === realUserId(user))?.label ?? user.name ?? user.email }}
           />
         </FormSection>
         <FormSection setting="crm-approvals" title={t('approvals.rules.title')} description={t('approvals.rules.desc')}>
@@ -195,6 +214,9 @@ export default async function CrmSettingsPage(props: {
       resolveCreateForm(viewer, 'companies'),
       resolveCreateForm(viewer, 'deals'),
     ]);
+    const [contactPreview, companyPreview, dealPreview] = await Promise.all(
+      LAYOUT_ENTITIES.map((e) => resolvePreviewLayout(viewer, e)),
+    );
     const plain = (fields: Array<{ key: string; required: boolean }>) => fields.map(({ key, required }) => ({ key, required }));
     const entityLabel = (entity: string): string => {
       const obj = objects.find((o) => objectEntity(o.id) === entity);
@@ -213,6 +235,16 @@ export default async function CrmSettingsPage(props: {
               .filter((f) => f.entity === 'contacts' || f.entity === 'companies' || f.entity === 'deals')
               .map((f) => ({ entity: f.entity, name: f.name, label: f.label, type: f.type }))}
             canEdit={admin}
+          />
+        </FormSection>
+        <FormSection id="preview-layout" setting="crm-preview-layout" title={t('layouts.previewSettingsTitle')} description={t('layouts.previewSettingsDesc')}>
+          <PreviewLayoutPanel
+            initial={{ contacts: contactPreview, companies: companyPreview, deals: dealPreview }}
+            customFields={customFields
+              .filter((f) => isLayoutEntity(f.entity))
+              .map((f) => ({ entity: f.entity, name: f.name, label: f.label, type: f.type }))}
+            canEdit={admin}
+            initialEntity={isLayoutEntity(sp.object) ? sp.object : undefined}
           />
         </FormSection>
         <FormSection setting="crm-field-permissions" title={t('fieldPerms.title')} description={t('fieldPerms.desc')}>

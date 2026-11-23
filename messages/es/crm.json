@@ -94,7 +94,8 @@
     "primary": "Principal",
     "makePrimary": "Hacer principal",
     "label": "Etiqueta",
-    "noLabel": "Sin etiqueta"
+    "noLabel": "Sin etiqueta",
+    "typeToSearch": "Escribí para buscar"
   },
   "enums": {
     "lifecycle": {
@@ -5341,5 +5342,85 @@
       "noDashBody": "Creá un dashboard, o empezá con la plantilla de ventas y sus 12 reportes listos.",
       "noData": "Todavía no hay datos del CRM en este período. Los reportes se llenan a medida que tu equipo carga deals, contactos y actividades."
     }
+  },
+  "layouts": {
+    "editCards": "Editar tarjetas",
+    "customize": "Personalizar",
+    "cardSettingsTitle": "Tarjetas del board",
+    "cardSettingsDesc": "Elegí qué propiedades muestra cada tarjeta de deal en el board, por pipeline. El nombre del deal va siempre arriba.",
+    "previewSettingsTitle": "Vista previa de registros",
+    "previewSettingsDesc": "Elegí qué muestra el panel de vista previa cuando abrís un contacto, una empresa o un deal desde una lista o el board: las propiedades de \"Acerca de\" y las tarjetas de abajo, en orden.",
+    "about": {
+      "contacts": "Acerca de este contacto",
+      "companies": "Acerca de esta empresa",
+      "deals": "Acerca de este deal"
+    },
+    "aboutHelp": "Estas propiedades se ven primero. El resto queda a un clic en \"Ver todas las propiedades\".",
+    "cardsTitle": "Tarjetas de la vista previa",
+    "cardsHelp": "Las tarjetas debajo de \"Acerca de\", en este orden.",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "hiddenCards": "Tarjetas ocultas",
+    "remove": "Quitar",
+    "addLabel": "Propiedad para agregar",
+    "full": "Hasta {max} propiedades",
+    "allAdded": "Ya están todas las propiedades",
+    "noProps": "Todavía no hay propiedades.",
+    "privacyHelp": "Cada persona ve solo las propiedades que tiene permitidas. Una propiedad oculta para alguien no aparece en su vista previa.",
+    "cardPrivacyHelp": "Hasta {max} propiedades. Una propiedad oculta para alguien no aparece en sus tarjetas.",
+    "noPipelines": "Primero creá un pipeline.",
+    "sampleLabel": "Tarjeta de muestra",
+    "sample": {
+      "deal": "Deal de muestra",
+      "company": "Empresa",
+      "contact": "Contacto",
+      "nextStep": "Mandar la propuesta"
+    },
+    "cardProps": {
+      "company": "Empresa",
+      "contact": "Contacto",
+      "createdAt": "Fecha de creación",
+      "lastActivity": "Última actividad"
+    },
+    "sections": {
+      "stage": "Etapa del deal",
+      "activity": "Actividad reciente",
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "custom": "Propiedades personalizadas"
+    }
+  },
+  "previewActions": {
+    "logged": {
+      "note": "Nota guardada.",
+      "email": "Email enviado.",
+      "call": "Llamada registrada.",
+      "task": "Tarea creada."
+    },
+    "title": {
+      "note": "Nota nueva",
+      "email": "Email nuevo",
+      "call": "Registrar una llamada",
+      "task": "Tarea nueva"
+    },
+    "to": "Para",
+    "subject": "Asunto",
+    "taskTitle": "Tarea",
+    "taskNotes": "Notas",
+    "body": {
+      "note": "Nota",
+      "email": "Mensaje",
+      "call": "Qué se habló"
+    },
+    "send": "Enviar",
+    "save": "Guardar",
+    "viewActivity": "Ver toda la actividad",
+    "noActivity": "Todavía no hay actividad.",
+    "done": "Hecha",
+    "recent": "Actividad reciente",
+    "addCompany": "Agregar empresa",
+    "addDeal": "Agregar deal",
+    "addContact": "Agregar contacto"
   }
 }

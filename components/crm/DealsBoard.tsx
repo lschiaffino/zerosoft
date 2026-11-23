@@ -13,7 +13,8 @@ import { scoreBand } from './DealInsightCard';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
 import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
-import PrivateRecord from './PrivateRecord';
+import DealCardFields, { type CardCustomDef } from './DealCardFields';
+import { DEFAULT_CARD_PROPERTIES } from '@/lib/crm-layouts-shared';
 import StageRequirementsDialog, {
   checkStageMove,
   readRequirements,
@@ -43,11 +44,16 @@ interface DealsBoardProps {
   locale: string;
   /** Moneda base del workspace: los totales de columna se muestran en ella. */
   baseCurrency?: string;
-  priorities: Array<{ value: string; label: string }>;
+  /** Ya no se usa (la prioridad sale de las tarjetas configuradas); se acepta por compatibilidad. */
+  priorities?: Array<{ value: string; label: string }>;
   /** Ya no se usa (el alta inline sigue el formulario de alta); se acepta por compatibilidad. */
   sources?: Array<{ value: string; label: string }>;
   /** Personas del workspace: el propietario en la card y en la vista previa. */
   owners?: Array<{ value: string; label: string }>;
+  /** Propiedades de las tarjetas de este pipeline ("Editar tarjetas"), sin las ocultas para quien mira. */
+  cardKeys?: readonly string[];
+  /** Definiciones de las personalizadas configuradas que la persona ve. */
+  cardCustomDefs?: readonly CardCustomDef[];
 }
 
 interface DragState {
@@ -113,13 +119,15 @@ function applyMove(cols: BoardStage[], dealId: string, stageId: string, beforeId
   });
 }
 
-/** Iniciales para el avatar del propietario. */
-function ownerInitials(name: string): string {
-  const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·';
-}
-
-export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 'USD', priorities, owners = [] }: DealsBoardProps) {
+export default function DealsBoard({
+  pipelineId,
+  stages,
+  locale,
+  baseCurrency = 'USD',
+  owners = [],
+  cardKeys = DEFAULT_CARD_PROPERTIES,
+  cardCustomDefs = [],
+}: DealsBoardProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [cols, setCols] = useState<BoardStage[]>(stages);
@@ -285,7 +293,6 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
     };
   }, []);
 
-  const priorityLabel = new Map(priorities.map((p) => [p.value, p.label]));
   const ownerName = new Map(owners.map((o) => [o.value, o.label]));
 
   const fmtMoney = (amount: number, currency: string): string =>
@@ -294,13 +301,6 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
       currency: currency || 'USD',
       maximumFractionDigits: 0,
     }).format(amount);
-
-  const fmtClose = (cd: string | null): string =>
-    cd
-      ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
-          new Date(`${cd.slice(0, 10)}T00:00:00Z`),
-        )
-      : '';
 
   // ---------- Drag & drop (pointer events, sin deps) ----------
 
@@ -673,53 +673,31 @@ export default function DealsBoard({ pipelineId, stages, locale, baseCurrency = 
                     >
                       {deal.name}
                     </Link>
-                    <span className="kb-card-amount">{fmtMoney(deal.amount, deal.currency)}</span>
-                    {deal.company_name || deal.contact_name ? (
-                      <span className="kb-card-meta">{deal.company_name ?? deal.contact_name}</span>
-                    ) : deal.company_private || deal.contact_private ? (
-                      <span className="kb-card-meta">
-                        <PrivateRecord label={t('common.privateRecord')} />
-                      </span>
-                    ) : null}
-                    <div className="kb-card-foot">
-                      {deal.close_date && (
-                        <span className="kb-card-date" title={t('deals.table.closeDate')}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                            <rect x="3" y="5" width="18" height="16" rx="1" />
-                            <path d="M3 10h18M8 3v4M16 3v4" />
-                          </svg>
-                          {fmtClose(deal.close_date)}
-                        </span>
-                      )}
-                      {deal.priority === 'high' && (
-                        <span className="badge prio-high">{priorityLabel.get(deal.priority) ?? deal.priority}</span>
-                      )}
-                      {deal.ai_score != null && (
-                        <span
-                          className={`ai-score ai-score-${scoreBand(deal.ai_score)} kb-card-score`}
-                          title={deal.ai_reason ? `${t('ai.score.title')}: ${deal.ai_reason}` : t('ai.score.title')}
-                          aria-label={`${t('ai.score.title')} ${deal.ai_score}`}
-                        >
-                          {deal.ai_score}
-                        </span>
-                      )}
-                      {isDealRotting(deal.idle_days, col.stage) && (
-                        <span className="kb-card-rotting" title={t('deals.rotting', { days: deal.idle_days ?? 0 })}>
-                          {t('deals.rotting', { days: deal.idle_days ?? 0 })}
-                        </span>
-                      )}
-                      {deal.owner_id && ownerName.get(deal.owner_id) && (
-                        <span
-                          className="kb-card-owner"
-                          title={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
-                          role="img"
-                          aria-label={t('deals.cardOwner', { name: ownerName.get(deal.owner_id)! })}
-                          data-testid="kb-card-owner"
-                        >
-                          {ownerInitials(ownerName.get(deal.owner_id)!)}
-                        </span>
-                      )}
-                    </div>
+                    <DealCardFields
+                      deal={deal}
+                      keys={cardKeys}
+                      customDefs={cardCustomDefs}
+                      owners={ownerName}
+                      locale={locale}
+                      footExtra={
+                        <>
+                          {deal.ai_score != null && (
+                            <span
+                              className={`ai-score ai-score-${scoreBand(deal.ai_score)} kb-card-score`}
+                              title={deal.ai_reason ? `${t('ai.score.title')}: ${deal.ai_reason}` : t('ai.score.title')}
+                              aria-label={`${t('ai.score.title')} ${deal.ai_score}`}
+                            >
+                              {deal.ai_score}
+                            </span>
+                          )}
+                          {isDealRotting(deal.idle_days, col.stage) && (
+                            <span className="kb-card-rotting" title={t('deals.rotting', { days: deal.idle_days ?? 0 })}>
+                              {t('deals.rotting', { days: deal.idle_days ?? 0 })}
+                            </span>
+                          )}
+                        </>
+                      }
+                    />
                     <select
                       className="filter-select kb-move"
                       value=""

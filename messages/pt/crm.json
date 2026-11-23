@@ -94,7 +94,8 @@
     "primary": "Principal",
     "makePrimary": "Tornar principal",
     "label": "Rótulo",
-    "noLabel": "Sem rótulo"
+    "noLabel": "Sem rótulo",
+    "typeToSearch": "Digite para buscar"
   },
   "enums": {
     "lifecycle": {
@@ -5341,5 +5342,85 @@
       "noDashBody": "Crie um dashboard, ou comece pelo modelo de vendas com 12 relatórios prontos.",
       "noData": "Ainda não há dados do CRM neste período. Os relatórios se preenchem conforme sua equipe cadastra negócios, contatos e atividades."
     }
+  },
+  "layouts": {
+    "editCards": "Editar cartões",
+    "customize": "Personalizar",
+    "cardSettingsTitle": "Cartões do quadro",
+    "cardSettingsDesc": "Escolha quais propriedades cada cartão de negócio mostra no quadro, por pipeline. O nome do negócio fica sempre em cima.",
+    "previewSettingsTitle": "Pré-visualização de registros",
+    "previewSettingsDesc": "Escolha o que o painel de pré-visualização mostra quando você abre um contato, uma empresa ou um negócio de uma lista ou do quadro: as propriedades de \"Sobre\" e os cartões abaixo, em ordem.",
+    "about": {
+      "contacts": "Sobre este contato",
+      "companies": "Sobre esta empresa",
+      "deals": "Sobre este negócio"
+    },
+    "aboutHelp": "Estas propriedades aparecem primeiro. O resto fica a um clique em \"Ver todas as propriedades\".",
+    "cardsTitle": "Cartões da pré-visualização",
+    "cardsHelp": "Os cartões abaixo de \"Sobre\", nesta ordem.",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "hiddenCards": "Cartões ocultos",
+    "remove": "Remover",
+    "addLabel": "Propriedade para adicionar",
+    "full": "Até {max} propriedades",
+    "allAdded": "Todas as propriedades já foram adicionadas",
+    "noProps": "Ainda não há propriedades.",
+    "privacyHelp": "Cada pessoa vê só as propriedades que tem permissão para ver. Uma propriedade oculta para alguém não aparece na pré-visualização dessa pessoa.",
+    "cardPrivacyHelp": "Até {max} propriedades. Uma propriedade oculta para alguém não aparece nos cartões dessa pessoa.",
+    "noPipelines": "Crie um pipeline primeiro.",
+    "sampleLabel": "Cartão de exemplo",
+    "sample": {
+      "deal": "Negócio de exemplo",
+      "company": "Empresa",
+      "contact": "Contato",
+      "nextStep": "Enviar a proposta"
+    },
+    "cardProps": {
+      "company": "Empresa",
+      "contact": "Contato",
+      "createdAt": "Data de criação",
+      "lastActivity": "Última atividade"
+    },
+    "sections": {
+      "stage": "Etapa do negócio",
+      "activity": "Atividade recente",
+      "contacts": "Contatos",
+      "companies": "Empresas",
+      "deals": "Negócios",
+      "custom": "Propriedades personalizadas"
+    }
+  },
+  "previewActions": {
+    "logged": {
+      "note": "Nota salva.",
+      "email": "E-mail enviado.",
+      "call": "Ligação registrada.",
+      "task": "Tarefa criada."
+    },
+    "title": {
+      "note": "Nova nota",
+      "email": "Novo e-mail",
+      "call": "Registrar uma ligação",
+      "task": "Nova tarefa"
+    },
+    "to": "Para",
+    "subject": "Assunto",
+    "taskTitle": "Tarefa",
+    "taskNotes": "Notas",
+    "body": {
+      "note": "Nota",
+      "email": "Mensagem",
+      "call": "O que foi conversado"
+    },
+    "send": "Enviar",
+    "save": "Salvar",
+    "viewActivity": "Ver toda a atividade",
+    "noActivity": "Ainda não há atividade.",
+    "done": "Concluída",
+    "recent": "Atividade recente",
+    "addCompany": "Adicionar empresa",
+    "addDeal": "Adicionar negócio",
+    "addContact": "Adicionar contato"
   }
 }

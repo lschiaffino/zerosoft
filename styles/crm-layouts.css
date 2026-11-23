@@ -1,0 +1,98 @@
+/* CRM P4: vista previa y tarjetas del board configurables, acciones rápidas en la vista previa. */
+
+/* ---------- Tarjeta de deal ---------- */
+.kb-card-props { display: flex; flex-direction: column; gap: 2px; margin: 0; min-width: 0; }
+.kb-card-prop { display: flex; gap: 6px; min-width: 0; font-size: 0.75rem; line-height: 1.35; }
+.kb-card-prop dt { flex-shrink: 0; color: var(--brand-gray-2); }
+.kb-card-prop dt::after { content: ':'; }
+.kb-card-prop dd { margin: 0; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-card-prio { display: inline-flex; align-items: center; gap: 3px; color: var(--brand-gray-2); }
+.kb-card-prio-high { color: var(--ink); font-weight: 500; }
+.kb-card-foot .kb-card-owner { margin-left: auto; }
+.kb-totals-tools { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+
+/* ---------- Ajustes ---------- */
+.layout-sub { margin: 10px 0 0; font-size: 0.9375rem; font-weight: 500; }
+.layout-sub-help { margin: 0; }
+.layout-row { grid-template-columns: minmax(0, 1fr) auto; }
+.layout-hide { min-width: 64px; }
+.layout-empty { font-size: 0.875rem; margin: 0; }
+.layout-hidden { display: flex; flex-direction: column; gap: 4px; }
+.layout-hidden-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.layout-hidden-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 40px; border-bottom: 1px dashed var(--line); color: var(--brand-gray-2); font-size: 0.875rem;
+}
+.layout-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.layout-cards { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 24px; align-items: start; }
+.layout-cards-edit { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.layout-cards-sample {
+  margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  border-radius: var(--r-md); background: color-mix(in srgb, var(--ink) 3%, var(--bg));
+}
+.layout-sample-card { cursor: default; }
+.layout-sample-card .kb-card-name { padding-right: 0; }
+@media (max-width: 720px) {
+  .layout-cards { grid-template-columns: minmax(0, 1fr); }
+  .layout-row .btn-icon, .layout-hide, .layout-hidden-list .btn { min-height: 40px; min-width: 40px; }
+}
+
+/* ---------- Vista previa ---------- */
+.preview-head-tools { display: inline-flex; align-items: center; gap: 4px; }
+.preview-customize { min-height: 32px; }
+.preview-facts { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 4px 0 0; }
+.preview-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.preview-fact dt { font-size: 0.75rem; color: var(--brand-gray-2); }
+.preview-fact dd { margin: 0; font-size: 0.875rem; color: var(--ink); overflow-wrap: anywhere; }
+.preview-fact-amount dd { font-size: 1.0625rem; font-weight: 500; }
+
+.preview-quick-wrap { display: flex; flex-direction: column; gap: 10px; }
+.preview-quick .book-meeting { display: flex; min-width: 0; }
+.preview-quick .book-meeting > .rec-quick-btn { width: 100%; }
+.preview-quick .book-meeting-menu { left: auto; right: 0; }
+.preview-quick .rec-quick-btn.is-active { border-color: var(--ink); background: var(--ui-hover); }
+.preview-composer {
+  display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg);
+}
+.preview-composer-title { margin: 0; font-size: 0.875rem; font-weight: 500; }
+.preview-composer-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; color: var(--brand-gray-2); }
+.preview-composer-field .input { color: var(--ink); }
+.preview-composer-body { resize: vertical; min-height: 64px; }
+.preview-composer-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.preview-composer-actions .btn { min-height: 36px; }
+.preview-notice { margin: 0; }
+
+.preview-recent { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; }
+.preview-recent-item {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: start;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.preview-recent-item:last-child { border-bottom: 0; }
+.preview-recent-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+  border-radius: var(--r-md); background: var(--ui-hover); color: var(--ink);
+}
+.preview-recent-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.preview-recent-type { font-size: 0.8125rem; font-weight: 500; color: var(--ink); }
+.preview-recent-text { font-size: 0.8125rem; color: var(--brand-gray-2); overflow-wrap: anywhere; }
+.preview-recent-when { font-size: 0.75rem; color: var(--brand-gray-2); white-space: nowrap; }
+.preview-recent-all { font-size: 0.8125rem; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+
+.preview-panel .association-panel { display: flex; flex-direction: column; gap: 8px; }
+.preview-panel .assoc-add-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding-left: 4px; }
+.preview-panel .assoc-search { flex-wrap: nowrap; }
+.preview-panel .assoc-search .crm-combo { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 520px) {
+  .preview-panel .assoc-add-btn, .preview-composer-actions .btn, .preview-customize { min-height: 40px; }
+  .preview-panel .assoc-remove { min-width: 40px; min-height: 40px; }
+}
+/* En el teléfono el formulario de alta baja sus herramientas a otra fila; acá no hay casilla y entran al lado. */
+@media (max-width: 520px) {
+  .layout-row .create-form-tools { grid-column: auto; justify-content: flex-end; }
+}
+
+/* Cola de trabajo: el nombre y el email del contacto, uno debajo del otro, con área táctil de 40px en el teléfono. */
+@media (max-width: 640px) {
+  .wq-record dd > a { display: inline-flex; align-items: center; min-height: 40px; }
+}

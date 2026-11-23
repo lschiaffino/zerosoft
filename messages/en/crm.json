@@ -94,7 +94,8 @@
     "primary": "Primary",
     "makePrimary": "Make primary",
     "label": "Label",
-    "noLabel": "No label"
+    "noLabel": "No label",
+    "typeToSearch": "Type to search"
   },
   "enums": {
     "lifecycle": {
@@ -5341,5 +5342,85 @@
       "noDashBody": "Create a dashboard, or start from the Sales template with 12 ready-made reports.",
       "noData": "There's no CRM data in this period yet. Reports fill in as your team adds deals, contacts and activities."
     }
+  },
+  "layouts": {
+    "editCards": "Edit cards",
+    "customize": "Customize",
+    "cardSettingsTitle": "Board cards",
+    "cardSettingsDesc": "Choose which properties each deal card shows on the board, per pipeline. The deal name is always on top.",
+    "previewSettingsTitle": "Record preview",
+    "previewSettingsDesc": "Choose what the preview panel shows when you open a contact, company or deal from a list or the board: the properties in \"About\" and the cards below it, in order.",
+    "about": {
+      "contacts": "About this contact",
+      "companies": "About this company",
+      "deals": "About this deal"
+    },
+    "aboutHelp": "These properties show first. The rest stay one click away in \"View all properties\".",
+    "cardsTitle": "Cards in the preview",
+    "cardsHelp": "The cards below \"About\", in this order.",
+    "hide": "Hide",
+    "show": "Show",
+    "hiddenCards": "Hidden cards",
+    "remove": "Remove",
+    "addLabel": "Property to add",
+    "full": "Up to {max} properties",
+    "allAdded": "Every property is already added",
+    "noProps": "No properties yet.",
+    "privacyHelp": "People only see the properties they are allowed to see. A property hidden from someone is left out of their preview.",
+    "cardPrivacyHelp": "Up to {max} properties. A property hidden from someone is left out of their cards.",
+    "noPipelines": "Create a pipeline first.",
+    "sampleLabel": "Sample card",
+    "sample": {
+      "deal": "Sample deal",
+      "company": "Company",
+      "contact": "Contact",
+      "nextStep": "Send the proposal"
+    },
+    "cardProps": {
+      "company": "Company",
+      "contact": "Contact",
+      "createdAt": "Create date",
+      "lastActivity": "Last activity"
+    },
+    "sections": {
+      "stage": "Deal stage",
+      "activity": "Recent activity",
+      "contacts": "Contacts",
+      "companies": "Companies",
+      "deals": "Deals",
+      "custom": "Custom properties"
+    }
+  },
+  "previewActions": {
+    "logged": {
+      "note": "Note saved.",
+      "email": "Email sent.",
+      "call": "Call logged.",
+      "task": "Task created."
+    },
+    "title": {
+      "note": "New note",
+      "email": "New email",
+      "call": "Log a call",
+      "task": "New task"
+    },
+    "to": "To",
+    "subject": "Subject",
+    "taskTitle": "Task",
+    "taskNotes": "Notes",
+    "body": {
+      "note": "Note",
+      "email": "Message",
+      "call": "What was said"
+    },
+    "send": "Send",
+    "save": "Save",
+    "viewActivity": "View all activity",
+    "noActivity": "No activity yet.",
+    "done": "Done",
+    "recent": "Recent activity",
+    "addCompany": "Add company",
+    "addDeal": "Add deal",
+    "addContact": "Add contact"
   }
 }
