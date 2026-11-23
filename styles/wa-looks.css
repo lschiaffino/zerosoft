@@ -192,3 +192,8 @@ html[data-look='retro'] .gr-inbox .gr-emoji-picker button:is(:hover, :focus-visi
 html[data-look='retro'] .gr-inbox .wa-emoji { background: var(--rt-face); border-radius: 0; box-shadow: var(--pop-shadow); }
 html[data-look='retro'] .gr-inbox .wa-emoji-grid button { border-radius: 0; }
 html[data-look='retro'] .gr-inbox .wa-emoji-grid button:is(:hover, :focus-visible) { color: var(--rt-select-fg); background: var(--rt-select); }
+
+/* Info del contacto o del grupo en Inbox: entre las tarjetas se veía el azul de selección (--wa-row-active); la cara
+   gris de la ventana, como el panel de Lines. */
+html[data-look='retro'] .ib-app.gr-inbox .ib-wa-details,
+html[data-look='retro'] .ib-wa-details { background: var(--rt-face); }
