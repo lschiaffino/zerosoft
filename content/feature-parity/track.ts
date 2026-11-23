@@ -624,7 +624,12 @@ const parity: ProductParity = {
       id: 'request-forms',
       area: 'automation',
       label: { en: 'Form templates and request forms into triage', es: 'Plantillas de formulario y formularios de pedidos a triage', pt: 'Modelos de formulário e formulários de pedidos para triagem' },
-      status: 'missing',
+      detail: {
+        en: 'An issue template with fields (short text, long text, options, checkbox; required or not, with help) is a form: anyone who can see the team fills it in from its link, Track › Request forms or quick create, and it creates an issue with the answers in triage, with the template\'s properties; triage rules can match the form source. Only for people in the workspace: no Slack Asks or email intake yet',
+        es: 'Una plantilla de issue con campos (texto corto, largo, opciones, casilla; obligatorios o no, con ayuda) es un formulario: quien ve el team lo completa desde su link, Track › Formularios de pedidos o el alta rápida, y crea un issue con las respuestas en triage, con las propiedades de la plantilla; las reglas de triage pueden filtrar por origen formulario. Solo para gente del workspace: todavía sin Asks de Slack ni entrada por email',
+        pt: 'Um modelo de issue com campos (texto curto, longo, opções, caixa; obrigatórios ou não, com ajuda) é um formulário: quem vê o team o preenche pelo link, Track › Formulários de pedidos ou a criação rápida, e ele cria um issue com as respostas na triagem, com as propriedades do modelo; as regras de triagem podem filtrar pela origem formulário. Só para pessoas do workspace: ainda sem Asks do Slack nem entrada por e-mail',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {

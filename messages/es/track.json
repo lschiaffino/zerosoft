@@ -8,7 +8,8 @@
     "settings": "Ajustes",
     "inbox": "Bandeja",
     "customers": "Clientes",
-    "workspace": "Workspace",
+    "forms": "Formularios de pedidos",
+    "workspace":"Workspace",
     "yourTeams": "Tus equipos",
     "more": "Más",
     "newIssue": "Nuevo issue",
@@ -717,7 +718,8 @@
       "sentry": "Sentry",
       "support": "soporte",
       "import": "import",
-      "recurring": "issue recurrente"
+      "recurring": "issue recurrente",
+      "form": "un formulario de pedidos"
     },
     "emptyBody": "Los issues que llegan por API, Chat, Flow o GitHub esperan acá hasta que alguien los acepte.",
     "createdInApp": "Creado en la app"
@@ -856,6 +858,53 @@
     "error": "No se pudo guardar la plantilla. Probá de nuevo.",
     "pick": "Plantilla",
     "none": "Sin plantilla"
+  },
+  "forms": {
+    "fieldsTitle": "Campos del formulario",
+    "fieldsHelp": "Sumá campos para que esta plantilla sea un formulario de pedidos. Quien ve el team lo completa desde su link o desde el alta rápida, y se crea un issue con las respuestas, en triage si el team lo usa. La descripción se muestra arriba del formulario.",
+    "fieldLabel": "Pregunta",
+    "fieldLabelPlaceholder": "¿Qué pasó?",
+    "fieldType": "Tipo",
+    "types": {
+      "text": "Texto corto",
+      "textarea": "Texto largo",
+      "select": "Opciones",
+      "checkbox": "Casilla"
+    },
+    "fieldOptions": "Opciones, una por línea",
+    "fieldOptionsPlaceholder": "Web\nEscritorio\nMobile",
+    "fieldHelp": "Texto de ayuda",
+    "fieldRequired": "Obligatorio",
+    "moveUp": "Subir {name}",
+    "moveDown": "Bajar {name}",
+    "removeField": "Quitar",
+    "addField": "Agregar campo",
+    "kind": "{count, plural, one {Formulario, # campo} other {Formulario, # campos}}",
+    "open": "Abrir formulario",
+    "copyLink": "Copiar link",
+    "linkCopied": "Link del formulario copiado",
+    "copyError": "No se pudo copiar el link.",
+    "indexTitle": "Formularios de pedidos",
+    "indexDesc": "Formularios de los teams que ves. Cada uno crea un issue para ese team.",
+    "indexEmptyTitle": "Todavía no hay formularios",
+    "indexEmptyBody": "Sumá campos a una plantilla de issue en los ajustes de un team, en Plantillas, y aparece acá.",
+    "pageDesc": "Crea un issue en {team}.",
+    "pageDescTriage": "Crea un issue en {team}. Espera en triage hasta que alguien lo acepte.",
+    "titleLabel": "Título",
+    "choose": "Elegí…",
+    "details": "Más detalles",
+    "submit": "Enviar pedido",
+    "sendError": "No se pudo enviar el pedido. Probá de nuevo.",
+    "errors": {
+      "required": "Este campo es obligatorio.",
+      "invalid_option": "Elegí una de las opciones.",
+      "too_long": "La respuesta es demasiado larga."
+    },
+    "sentTitle": "Pedido enviado como {id}",
+    "sentTriage": "Está en el triage de {team}. Quedaste suscripto y te avisamos cuando cambie.",
+    "sentList": "Está en los issues de {team}. Quedaste suscripto y te avisamos cuando cambie.",
+    "sendAnother": "Enviar otro",
+    "openIssue": "Abrir issue"
   },
   "recurring": {
     "help": "Issues que Track crea según un calendario, como una revisión semanal o el control mensual de facturas.",
