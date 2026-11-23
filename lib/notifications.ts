@@ -101,30 +101,37 @@ export async function listNotifications(
   return (await db
     .prepare(
       `SELECT * FROM notifications ${where}
-       ORDER BY ${options.snoozed ? 'snoozed_until ASC' : 'COALESCE(snoozed_until, created_at) DESC'} LIMIT ? OFFSET ?`,
+       ORDER BY ${options.snoozed ? 'snoozed_until ASC, id ASC' : 'COALESCE(snoozed_until, created_at) DESC, id DESC'} LIMIT ? OFFSET ?`,
     )
     .all(...args, limit, offset)) as NotificationRow[];
 }
 
 /**
+ * Condición SQL "el link no es de una de estas apps" (paths /app/crm,
+ * /app/track…), con o sin locale delante y la raíz de la app exacta. Vacía si
+ * no hay paths.
+ */
+export function hidePathsSql(hidePaths: readonly string[] = []): { sql: string; args: string[] } {
+  const hide = hidePaths.filter((p) => /^\/app\/[a-z]+$/.test(p));
+  if (!hide.length) return { sql: '', args: [] };
+  const sql = hide.map(() => '(href = ? OR href LIKE ? OR href LIKE ? OR href LIKE ? OR href LIKE ?)').join(' OR ');
+  return { sql: ` AND NOT (href IS NOT NULL AND (${sql}))`, args: hide.flatMap((p) => [p, `${p}/%`, `${p}?%`, `/__${p}`, `/__${p}/%`]) };
+}
+
+/**
  * Sin leer. `hidePaths`: paths de apps (/app/crm, /app/track…) cuyos avisos no
- * cuentan (las apps que la persona no tiene en el workspace activo).
+ * cuentan (las apps que la persona no tiene en el workspace activo). Cuenta
+ * también los avisos de cosas que la persona ya no ve: para el contador de la
+ * campana, countVisibleUnread (lib/notification-access).
  */
 export async function countUnreadNotifications(userId: string, opts: { hidePaths?: readonly string[] } = {}): Promise<number> {
   const db = getDb();
-  const hide = (opts.hidePaths ?? []).filter((p) => /^\/app\/[a-z]+$/.test(p));
-  // Con o sin locale delante (/app/crm/…, /es/app/crm/…), y la raíz de la app exacta.
-  const hideSql = hide
-    .map(() => "(href = ? OR href LIKE ? OR href LIKE ? OR href LIKE ? OR href LIKE ?)")
-    .join(' OR ');
-  const hideArgs = hide.flatMap((p) => [p, `${p}/%`, `${p}?%`, `/__${p}`, `/__${p}/%`]);
+  const hide = hidePathsSql(opts.hidePaths);
   const row = (await db
     .prepare(
-      `SELECT COUNT(*) AS c FROM notifications INDEXED BY idx_notifications_unread WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${
-        hide.length ? ` AND NOT (href IS NOT NULL AND (${hideSql}))` : ''
-      }`,
+      `SELECT COUNT(*) AS c FROM notifications INDEXED BY idx_notifications_unread WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${hide.sql}`,
     )
-    .get(userId, nowIso(), ...hideArgs)) as { c: number } | undefined;
+    .get(userId, nowIso(), ...hide.args)) as { c: number } | undefined;
   return row?.c ?? 0;
 }
 

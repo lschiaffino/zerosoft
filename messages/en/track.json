@@ -1566,7 +1566,8 @@
       "menu": {
         "slash": "Insert",
         "mention": "People and issues",
-        "issue": "Issues"
+        "issue": "Issues",
+        "people": "People"
       },
       "toolbar": "Formatting",
       "bold": "Bold",
@@ -1575,7 +1576,8 @@
       "link": "Link",
       "linkPlaceholder": "Paste or type a link and press Enter",
       "tooLong": "Too long: the limit is 200,000 characters. The rest will not be saved.",
-      "comment": "Comment on selection"
+      "comment": "Comment on selection",
+      "mention": "Mention a teammate"
     },
     "thread": {
       "postError": "Couldn’t post the comment. Try again.",
