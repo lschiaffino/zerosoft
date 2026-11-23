@@ -27,7 +27,8 @@ import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
 import { companyFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
-import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { countFilterRules, serializeFilterModel } from '@/lib/crm-filter-model';
+import { listFilterModel } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
@@ -126,7 +127,12 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     industries: industries.map((ind) => ({ value: ind, label: ind })),
     lifecycles,
   });
-  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  // El mismo filtro que aplican "Seleccionar todos" y "Exportar la vista" (lib/crm-filter-http.ts).
+  const filterModel = listFilterModel(rawFilters, 'companies', {
+    customTypes,
+    env: { viewerId: realUserId(user), timeZone, strictCustom: true },
+    shapes: filterFieldShapes(filterFields),
+  });
   const advancedCount = countFilterRules(filterModel);
   const filtersParam = serializeFilterModel(filterModel);
 
