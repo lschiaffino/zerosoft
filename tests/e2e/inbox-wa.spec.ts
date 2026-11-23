@@ -1,6 +1,7 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { waLinkIp } from './helpers/wa-link';
+import { detailsTab } from './helpers/details-tab';
 
 /**
  * Inbox con la cara de WhatsApp Web, con el WhatsApp falso (GROUPS_FAKE=1):
@@ -304,11 +305,13 @@ test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen c
   const panel = page.getByRole('complementary', { name: 'Group info' });
   await expect(panel).toBeVisible();
   await expect(panel.locator('.ib-wa-hero-name')).toHaveText(title);
-  // Lo compartido: la foto del grupo y el documento.
-  await expect(panel.locator('.ib-wa-grid .ib-wa-thumb img')).toHaveCount(1);
+  // Lo compartido (pestaña Archivos): la foto del grupo y el documento.
+  await detailsTab(page, 'media');
+  await expect(panel.locator('.wa-sheet-grid .wa-sheet-thumb img')).toHaveCount(1);
   await panel.getByRole('tab', { name: 'Docs' }).click();
-  await expect(panel.locator('.ib-wa-row', { hasText: 'Lista de compras.pdf' })).toBeVisible();
-  // Resumen con IA (modelo falso en e2e).
+  await expect(panel.locator('.wa-sheet-row', { hasText: 'Lista de compras.pdf' })).toBeVisible();
+  // Resumen con IA (modelo falso en e2e), en Info.
+  await detailsTab(page, 'info');
   await panel.getByRole('button', { name: 'Summarize' }).click();
   await expect(panel.locator('.ib-wa-summary-text')).toContainText('mensajes');
   await shot(page, 'info-group-1440');
@@ -506,9 +509,12 @@ test('cabecera y campo de la conversación de WhatsApp: todas las acciones de In
   for (const name of ['Archive', 'Snooze', 'Remind me', 'Folder', 'Notes', 'More actions']) {
     await expect(actions.getByRole('button', { name })).toBeVisible();
   }
+  // Notas abre la pestaña Notas del panel de info (components/inbox/wa/ThreadNotes.tsx); Esc lo cierra.
   await actions.getByRole('button', { name: 'Notes' }).click();
-  await expect(thread.getByLabel('Notes about this chat')).toBeVisible();
-  await actions.getByRole('button', { name: 'Notes' }).click();
+  await expect(page.locator('.ib-wa-details').getByLabel('Notes about this chat')).toBeVisible();
+  await page.locator('.ib-wa-details [role="tab"][aria-selected="true"]').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ib-wa-details')).toHaveCount(0);
 
   // Menú "…": el resto, sin pasar por un diálogo.
   const more = actions.getByRole('button', { name: 'More actions' });

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { detailsTab } from './helpers/details-tab';
 import { e2eDb } from './helpers/db';
 import { waLinkIp } from './helpers/wa-link';
 
@@ -53,6 +54,8 @@ async function openLinesInfo(page: Page): Promise<Locator> {
     else await page.locator('.wa-head-avatar').click();
   }
   await expect(aside).toBeVisible();
+  // Los miembros van en su pestaña del panel.
+  await detailsTab(page, 'members');
   return aside.getByTestId('group-members');
 }
 
@@ -196,6 +199,7 @@ for (const width of [1280, 390]) {
 
     await page.goto(`/en/app/inbox?t=${thread.id}`, { waitUntil: 'networkidle' });
     await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 20_000 });
+    await detailsTab(page, 'members');
     const panel = page.getByRole('complementary', { name: 'Group info' }).getByTestId('group-members');
     await panel.getByTestId('group-add-members').scrollIntoViewIfNeeded();
     await expect(panel.getByTestId('group-add-members')).toBeVisible();
@@ -227,6 +231,7 @@ for (const width of [1280, 390]) {
     }
     await page.goto(`/en/app/inbox?t=${otherId}`, { waitUntil: 'networkidle' });
     await page.locator('.ib-wa-thread .wa-head-who').click();
+    await detailsTab(page, 'members');
     const panel2 = page.getByRole('complementary', { name: 'Group info' }).getByTestId('group-members');
     // Los participantes llegan de WhatsApp al abrir el chat.
     await expect(panel2.getByTestId('group-not-admin')).toBeVisible({ timeout: 20_000 });

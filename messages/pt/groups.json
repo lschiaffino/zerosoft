@@ -2084,6 +2084,34 @@
         "film": "Filme"
       }
     },
+    "details": {
+      "tabsLabel": "Detalhes da conversa",
+      "tabs": {
+        "info": "Info",
+        "members": "Membros",
+        "media": "Arquivos",
+        "notes": "Notas",
+        "tasks": "Tarefas",
+        "crm": "CRM"
+      },
+      "empty": {
+        "media": "Ainda não há fotos nem vídeos nesta conversa",
+        "docs": "Ainda não há documentos nesta conversa",
+        "links": "Ainda não há links nesta conversa",
+        "notes": "Ainda não há notas internas nesta conversa."
+      },
+      "loadError": "Não foi possível carregar.",
+      "retry": "Tentar de novo",
+      "saveError": "Não foi possível salvar. Tente de novo.",
+      "you": "Você",
+      "teammate": "Alguém da equipe",
+      "notesTitle": "Notas internas",
+      "notesHint": "Escreva uma com Nota interna embaixo da conversa. Sua equipe vê; o contato não.",
+      "deals": "Negócios",
+      "noDeals": "Nenhum negócio do contato ou da empresa vinculados.",
+      "untitledDeal": "Negócio sem nome",
+      "crmOff": "O app CRM está desligado para você. O HubSpot aparece aqui quando seu workspace o conecta."
+    },
     "contactSheet": {
       "title": "Dados do contato",
       "close": "Fechar",
