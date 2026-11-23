@@ -1,13 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
 import RichText from '@/components/groups/wa/RichText';
-import MediaViewer, { type ViewerItem } from '@/components/groups/wa/MediaViewer';
-import { ArchiveIcon, Ban, Close, DocIcon, ExitIcon, MuteIcon, Sparkle } from '@/components/groups/wa/icons';
-import { fileSize, posterFrame } from '@/components/groups/wa/format';
+import MediaViewer from '@/components/groups/wa/MediaViewer';
+import DetailsTabs from '@/components/groups/wa/DetailsTabs';
+import SharedMedia from '@/components/groups/wa/SharedMedia';
+import type { SheetSharedItem } from '@/components/groups/wa/ContactSheet';
+import ThreadNotes from './ThreadNotes';
+import { ArchiveIcon, Ban, BriefcaseIcon, Close, ExitIcon, GroupIcon, InfoIcon, MuteIcon, Note, PhotoIcon, Sparkle } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
@@ -61,7 +64,10 @@ export default function ContactPanel({
   onChanged,
   onJumpToMessage,
   starredKey = '',
+  me = '',
 }: {
+  /** La persona (la pestaña elegida queda guardada por persona). */
+  me?: string;
   /** Un destacado lleva a su mensaje en la conversación. */
   onJumpToMessage?: (id: string) => void;
   /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
@@ -79,16 +85,14 @@ export default function ContactPanel({
   onChanged: () => void;
 }) {
   const w = useTranslations('inboxWa');
+  const tdet = useTranslations('groups.wa.details');
   const locale = useLocale();
   const group = thread.kind === 'group';
   const name = chatName(thread, w('group'));
   // Nombre y descripción del grupo con su lápiz (se cambian en WhatsApp).
   const editable = group && thread.channel === 'whatsapp';
-  const [tab, setTab] = useState<SharedKind>('media');
-  const [shared, setShared] = useState<Record<string, SharedItem[] | null>>({});
   const [summary, setSummary] = useState<Summary | null>(null);
   const [summaryBusy, setSummaryBusy] = useState(false);
-  const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
@@ -97,36 +101,33 @@ export default function ContactPanel({
   // Un participante abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1.
   const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast });
 
-  const load = useCallback(
-    async (kind: SharedKind) => {
-      setShared((s) => ({ ...s, [kind]: s[kind] ?? null }));
+  // Lo compartido y los destacados, para la pestaña Archivos (components/groups/wa/SharedMedia.tsx).
+  const loadShared = useCallback(
+    async (kind: SharedKind): Promise<SheetSharedItem[] | null> => {
       const r = await api<{ items: SharedItem[] }>(`/api/inbox/threads/${thread.id}/wa?kind=${kind}`);
-      setShared((s) => ({ ...s, [kind]: r.ok ? r.data.items : [] }));
+      if (!r.ok) return null;
+      return r.data.items.map((m) => ({
+        id: m.id,
+        url: ['image', 'video', 'document'].includes(m.mediaType) ? `/api/inbox/media/${m.id}` : '',
+        video: m.mediaType === 'video',
+        kind: (['image', 'video', 'audio', 'document', 'sticker'] as const).find((k) => k === m.mediaType),
+        name: m.mediaName,
+        body: m.body,
+        sentAt: m.sentAt,
+        fromMe: m.fromMe,
+        senderName: m.senderName || formatPhone(m.senderHandle),
+        ...(m.urls ? { urls: m.urls } : {}),
+      }));
     },
     [thread.id],
   );
 
   useEffect(() => {
-    setShared({});
     setSummary(null);
     setConfirmBlock(false);
     setConfirmExit(false);
-    void load('media');
-    void load('starred');
     void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => r.ok && setSummary(r.data.summary));
-  }, [thread.id, load]);
-
-  useEffect(() => {
-    if (shared[tab] === undefined) void load(tab);
-  }, [tab, shared, load]);
-
-  // Se destacó o se sacó un destacado en la conversación: la lista se vuelve a leer (la primera vez la lee la de arriba).
-  const starredSeen = useRef(starredKey);
-  useEffect(() => {
-    if (starredSeen.current === starredKey) return;
-    starredSeen.current = starredKey;
-    void load('starred');
-  }, [starredKey, load]);
+  }, [thread.id]);
 
   const summarize = async () => {
     setSummaryBusy(true);
@@ -159,23 +160,6 @@ export default function ContactPanel({
     }
   };
 
-  const media = shared.media ?? null;
-  const viewerItems: ViewerItem[] = useMemo(
-    () =>
-      (media ?? [])
-        .filter((m) => m.mediaType === 'image' || m.mediaType === 'video')
-        .map((m) => ({
-          id: m.id,
-          url: `/api/inbox/media/${m.id}`,
-          type: m.mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
-          name: m.mediaName,
-          caption: m.body,
-          author: m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name,
-          createdAt: m.sentAt,
-        })),
-    [media, name, w],
-  );
-  const viewerIndex = viewerAt ? viewerItems.findIndex((v) => v.id === viewerAt) : -1;
   // Los participantes del panel de miembros (se corrigen con lo que devuelve WhatsApp al agregar o quitar).
   const [members, setMembers] = useState<GroupMember[]>([]);
   const participantsKey = (wa?.participants ?? []).map((p) => `${p.phone}:${p.role}:${p.name}`).join(',');
@@ -184,8 +168,6 @@ export default function ContactPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participantsKey]);
   const muted = !!thread.mutedUntil;
-  const starred = shared.starred ?? null;
-  const list = shared[tab] ?? null;
 
   return (
     <aside className="ib-wa-details" aria-label={group ? w('groupInfo') : w('contactInfo')}>
@@ -198,7 +180,7 @@ export default function ContactPanel({
       <div className="ib-wa-details-body">
         <section className="ib-wa-card ib-wa-hero">
           <button type="button" className="ib-wa-hero-photo" onClick={() => thread.avatar && setPhotoOpen(true)} aria-label={w('viewPhoto')} disabled={!thread.avatar}>
-            <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={176} />
+            <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={112} />
           </button>
           {editable ? (
             <GroupNameEdit threadId={thread.id} value={name} onSaved={onChanged} onToast={onToast} onError={onError} />
@@ -218,6 +200,16 @@ export default function ContactPanel({
           </p>
         </section>
 
+        <DetailsTabs
+          storageKey={`zs-inbox-details-tab:${me}`}
+          label={tdet('tabsLabel')}
+          tabs={[
+            {
+              id: 'info',
+              label: tdet('tabs.info'),
+              icon: <InfoIcon size={18} />,
+              content: (
+                <>
         {(wa?.about || group) && (
           <section className="ib-wa-card">
             <h3 className="ib-wa-card-title">{group ? w('description') : w('about')}</h3>
@@ -233,8 +225,6 @@ export default function ContactPanel({
             {group && wa?.createdAt && <p className="ib-wa-muted">{w('createdOn', { date: new Date(wa.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) })}</p>}
           </section>
         )}
-
-        {!group && thread.channel === 'whatsapp' && <InboxHubspotCard threadId={thread.id} />}
 
         <section className="ib-wa-card ib-wa-summary" aria-busy={summaryBusy || undefined}>
           <h3 className="ib-wa-card-title">
@@ -263,142 +253,7 @@ export default function ContactPanel({
           )}
         </section>
 
-        <section className="ib-wa-card">
-          <div className="ib-wa-tabs" role="tablist" aria-label={w('shared')}>
-            {(['media', 'docs', 'links'] as const).map((k) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'is-on' : ''} onClick={() => setTab(k)}>
-                {w(`sharedTabs.${k}`)}
-              </button>
-            ))}
-          </div>
-          {list === null ? (
-            <div className="ib-wa-grid" aria-busy="true">
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="ui-skeleton ib-wa-thumb" />
-              ))}
-            </div>
-          ) : list.length === 0 ? (
-            <p className="ib-wa-muted">{w(`sharedEmpty.${tab === 'starred' ? 'media' : tab}`)}</p>
-          ) : tab === 'media' ? (
-            <ul className="ib-wa-grid">
-              {list.slice(0, 60).map((m) => (
-                <li key={m.id}>
-                  <button type="button" className="ib-wa-thumb" onClick={() => setViewerAt(m.id)} aria-label={m.body || m.mediaName || w(`kind.${m.mediaType === 'video' ? 'video' : 'image'}`)}>
-                    {m.mediaType === 'video' ? (
-                      <video src={posterFrame(`/api/inbox/media/${m.id}`)} muted preload="metadata" tabIndex={-1} aria-hidden="true" />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`/api/inbox/media/${m.id}`} alt="" loading="lazy" />
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : tab === 'docs' ? (
-            <ul className="ib-wa-rows">
-              {list.map((m) => (
-                <li key={m.id}>
-                  <a className="ib-wa-row" href={`/api/inbox/media/${m.id}`} download>
-                    <DocIcon size={22} />
-                    <span className="ib-wa-row-main">
-                      <span className="ib-wa-row-name">{m.mediaName || w('kind.document')}</span>
-                      <span className="ib-wa-muted">
-                        {[m.size ? fileSize(m.size, locale) : '', longWhen(m.sentAt, locale)].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ul className="ib-wa-rows">
-              {list.flatMap((m) =>
-                (m.urls ?? []).map((u, i) => (
-                  <li key={`${m.id}-${i}`}>
-                    <a className="ib-wa-row" href={u} target="_blank" rel="noopener noreferrer nofollow">
-                      <span className="ib-wa-row-main">
-                        <span className="ib-wa-row-name ib-wa-link">{u.replace(/^https?:\/\//, '')}</span>
-                        <span className="ib-wa-muted">{longWhen(m.sentAt, locale)}</span>
-                      </span>
-                    </a>
-                  </li>
-                )),
-              )}
-            </ul>
-          )}
-        </section>
-
-        <section className="ib-wa-card">
-          <h3 className="ib-wa-card-title">{w('starredMessages')}</h3>
-          {starred === null ? (
-            <span className="ui-skeleton ui-skeleton-row" />
-          ) : starred.length === 0 ? (
-            <p className="ib-wa-muted">{w('noStarred')}</p>
-          ) : (
-            <ul className="ib-wa-rows">
-              {starred.slice(0, 20).map((m) => (
-                <li key={m.id}>
-                  <button type="button" className="ib-wa-starred" data-testid="chat-starred-item" onClick={() => onJumpToMessage?.(m.id)} disabled={!onJumpToMessage}>
-                    <span className="ib-wa-muted">
-                      {(m.fromMe ? w('you') : m.senderName || formatPhone(m.senderHandle) || name) + ' · ' + longWhen(m.sentAt, locale)}
-                    </span>
-                    <span dir="auto" className="ib-wa-starred-text">
-                      {m.body || w(`kind.${['image', 'video', 'audio', 'document', 'sticker'].includes(m.mediaType) ? m.mediaType : 'document'}`)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {group ? (
-          <section className="ib-wa-card ib-wa-members" data-testid="inbox-members-section">
-            <GroupMembers
-              members={members}
-              size={wa?.size}
-              groupName={name}
-              canManage={thread.channel === 'whatsapp'}
-              showPhone={formatPhone}
-              toast={(text) => onToast(text)}
-              onMembers={(list) => setMembers(list)}
-              run={async (action, targets) => {
-                const r = await api<{ results: MemberTargetResult[]; participants: ParticipantDto[] }>(`/api/inbox/threads/${thread.id}/wa`, {
-                  method: 'POST',
-                  json: { action: 'members', op: action, phones: targets.phones },
-                });
-                if (!r.ok) return { ok: false, error: r.data.error ?? 'generic' };
-                onChanged();
-                return { ok: true, results: r.data.results, members: r.data.participants.map(toMember) };
-              }}
-              searchContacts={async (query) => {
-                const r = await api<{ frequent: NewChatEntry[]; contacts: NewChatEntry[] }>(`/api/inbox/contacts?q=${encodeURIComponent(query)}&limit=50`);
-                if (!r.ok) return [];
-                const seen = new Set<string>();
-                return [...(r.data.frequent ?? []), ...(r.data.contacts ?? [])]
-                  .filter((e) => e.phone && !seen.has(e.phone) && seen.add(e.phone))
-                  .map((e) => ({ key: e.key, name: e.name, phoneLabel: e.phoneLabel, phone: e.phone, pictureUrl: e.pictureUrl }));
-              }}
-              getInviteLink={async (revoke) => {
-                const r = await api<{ link: string }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'invite', revoke } });
-                return r.ok ? { link: r.data.link } : { error: r.data.error ?? 'generic' };
-              }}
-              sendInvite={async (targets, text) => {
-                const r = await api<{ results: MemberTargetResult[] }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'inviteSend', phones: targets.phones, text } });
-                return r.ok ? { results: r.data.results } : { error: r.data.error ?? 'generic' };
-              }}
-              onOpen={(m) => personSheet.open(m.phone, m.name || formatPhone(m.phone), m.picture || undefined)}
-              onMessage={(m) => {
-                const known = (wa?.participants ?? []).find((p) => p.phone === m.phone)?.threadId;
-                if (known) onOpenThread(known);
-                else void onStartChat(m.phone);
-              }}
-            >
-              {(wa?.participants.length ?? 0) === 0 && <p className="ib-wa-muted">{w('membersUnknown')}</p>}
-              {wa && wa.size > members.length && members.length > 0 && <p className="ib-wa-muted">{w('membersHidden', { n: wa.size - members.length })}</p>}
-            </GroupMembers>
-          </section>
-        ) : (
+                  {!group && (
           (wa?.commonGroups?.length ?? 0) > 0 && (
             <section className="ib-wa-card">
               <h3 className="ib-wa-card-title">{w('commonGroups', { n: wa!.commonGroups!.length })}</h3>
@@ -416,8 +271,7 @@ export default function ContactPanel({
               </ul>
             </section>
           )
-        )}
-
+                  )}
         <section className="ib-wa-card ib-wa-actions">
           <button
             type="button"
@@ -515,10 +369,81 @@ export default function ContactPanel({
               </button>
             ))}
         </section>
+                </>
+              ),
+            },
+            ...(group
+              ? [
+                  {
+                    id: 'members',
+                    label: tdet('tabs.members'),
+                    icon: <GroupIcon size={18} />,
+                    count: wa?.size || members.length,
+                    content: (
+          <section className="ib-wa-card ib-wa-members" data-testid="inbox-members-section">
+            <GroupMembers
+              members={members}
+              size={wa?.size}
+              groupName={name}
+              canManage={thread.channel === 'whatsapp'}
+              showPhone={formatPhone}
+              toast={(text) => onToast(text)}
+              onMembers={(list) => setMembers(list)}
+              run={async (action, targets) => {
+                const r = await api<{ results: MemberTargetResult[]; participants: ParticipantDto[] }>(`/api/inbox/threads/${thread.id}/wa`, {
+                  method: 'POST',
+                  json: { action: 'members', op: action, phones: targets.phones },
+                });
+                if (!r.ok) return { ok: false, error: r.data.error ?? 'generic' };
+                onChanged();
+                return { ok: true, results: r.data.results, members: r.data.participants.map(toMember) };
+              }}
+              searchContacts={async (query) => {
+                const r = await api<{ frequent: NewChatEntry[]; contacts: NewChatEntry[] }>(`/api/inbox/contacts?q=${encodeURIComponent(query)}&limit=50`);
+                if (!r.ok) return [];
+                const seen = new Set<string>();
+                return [...(r.data.frequent ?? []), ...(r.data.contacts ?? [])]
+                  .filter((e) => e.phone && !seen.has(e.phone) && seen.add(e.phone))
+                  .map((e) => ({ key: e.key, name: e.name, phoneLabel: e.phoneLabel, phone: e.phone, pictureUrl: e.pictureUrl }));
+              }}
+              getInviteLink={async (revoke) => {
+                const r = await api<{ link: string }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'invite', revoke } });
+                return r.ok ? { link: r.data.link } : { error: r.data.error ?? 'generic' };
+              }}
+              sendInvite={async (targets, text) => {
+                const r = await api<{ results: MemberTargetResult[] }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'inviteSend', phones: targets.phones, text } });
+                return r.ok ? { results: r.data.results } : { error: r.data.error ?? 'generic' };
+              }}
+              onOpen={(m) => personSheet.open(m.phone, m.name || formatPhone(m.phone), m.picture || undefined)}
+              onMessage={(m) => {
+                const known = (wa?.participants ?? []).find((p) => p.phone === m.phone)?.threadId;
+                if (known) onOpenThread(known);
+                else void onStartChat(m.phone);
+              }}
+            >
+              {(wa?.participants.length ?? 0) === 0 && <p className="ib-wa-muted">{w('membersUnknown')}</p>}
+              {wa && wa.size > members.length && members.length > 0 && <p className="ib-wa-muted">{w('membersHidden', { n: wa.size - members.length })}</p>}
+            </GroupMembers>
+          </section>
+                    ),
+                  },
+                ]
+              : []),
+            {
+              id: 'media',
+              label: tdet('tabs.media'),
+              icon: <PhotoIcon size={18} />,
+              content: <SharedMedia key={thread.id} load={loadShared} chatName={name} starredKey={starredKey} onJumpToMessage={onJumpToMessage} />,
+            },
+            { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ThreadNotes key={thread.id} threadId={thread.id} /> },
+            ...(!group && thread.channel === 'whatsapp'
+              ? [{ id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: <InboxHubspotCard threadId={thread.id} /> }]
+              : []),
+          ]}
+        />
       </div>
       {personSheet.sheet}
-      {viewerIndex >= 0 && <MediaViewer items={viewerItems} index={viewerIndex} onIndex={(i) => setViewerAt(viewerItems[i]?.id ?? null)} onClose={() => setViewerAt(null)} />}
-      {photoOpen && thread.avatar && (
+            {photoOpen && thread.avatar && (
         <MediaViewer
           items={[{ id: 'photo', url: thread.avatar, type: 'image/jpeg', name, caption: '', author: name, createdAt: new Date().toISOString() }]}
           index={0}
