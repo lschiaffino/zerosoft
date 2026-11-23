@@ -339,7 +339,10 @@ export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
 /** Para los campos `phone` de los DTO: la interfaz les antepone "+", así que van sin él. */
 const maskField = (phone: string) => maskPhone(phone).replace(/^\+/, '');
 
-export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string }>(viewer: GroupsViewer | null | undefined, chat: T): T {
+export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string; presence?: { name: string } | null }>(
+  viewer: GroupsViewer | null | undefined,
+  chat: T,
+): T {
   if (!viewer?.mask) return chat;
   const phone = chat.phone;
   const name = phone && chat.name === `+${phone}` ? maskPhone(phone) : chat.name;
@@ -350,7 +353,14 @@ export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: s
     ...(chat.match ? { match: maskPhoneText(chat.match) } : {}),
     // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
     ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
+    // Quien escribe en un grupo, si solo se sabe su teléfono ("+<teléfono>").
+    ...(chat.presence?.name ? { presence: { ...chat.presence, name: maskPhoneText(chat.presence.name) } } : {}),
   };
+}
+
+/** La presencia de un chat (quién escribe) con la máscara de teléfonos de quien mira. */
+export function maskPresence<P extends { name: string }>(viewer: GroupsViewer | null | undefined, presence: P | null): P | null {
+  return viewer?.mask && presence?.name ? { ...presence, name: maskPhoneText(presence.name) } : presence;
 }
 
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
