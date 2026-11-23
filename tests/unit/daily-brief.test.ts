@@ -13,7 +13,7 @@ import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
 import { briefDismissed, briefEmailOn, briefKey, briefName, cleanDay, cleanDayEnd, dismissBrief, inboxBrief, linesBrief, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
-import { briefEmailDue, buildBriefEmail, sendDailyBriefEmails } from '@/lib/daily-brief-email';
+import { briefEmailDue, buildBriefEmail, dayEndIn, sendDailyBriefEmails } from '@/lib/daily-brief-email';
 import { createNotification } from '@/lib/notifications';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
 import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
@@ -162,8 +162,11 @@ describe('Lines: solo lo que la persona ve', () => {
       await createGroupTask(w.owner.id, w.owner.id, { chatId, title: SECRET, ownerId: w.member.id, dueAt: new Date(Date.now() + 60 * 60_000).toISOString() });
       await createGroupTask(w.owner.id, w.owner.id, { chatId, title: SECRET, ownerId: w.member.id, dueAt: new Date(Date.now() + 7 * 86_400_000).toISOString() });
     }
-    // Un aviso de mención de un chat de otro workspace (id ajeno) tampoco entra.
-    await createNotification({ userId: w.member.id, type: 'mention', title: 'x', href: '/', sourceType: 'groups_chat', sourceId: 'chat-de-otro-workspace' });
+    // Un aviso de mención de un chat de verdad de otro workspace tampoco entra.
+    const foreign = await line(w.stranger.id);
+    await ingestEvents(foreign, [msg('120363000000000513@g.us', C)]);
+    const foreignChat = (await listChats(w.stranger.id, w.stranger.id)).rows[0];
+    await createNotification({ userId: w.member.id, type: 'mention', title: 'x', href: '/', sourceType: 'groups_chat', sourceId: foreignChat.id });
     const b = await linesBrief(await groupsViewer(w.owner.id, w.member.id, 'member'));
     expect(count(b, 'tasks')).toBe(1);
     expect(ids(b, 'tasks')).toEqual([seen.id]);
@@ -174,6 +177,7 @@ describe('Lines: solo lo que la persona ve', () => {
     expect(ids(b, 'mentions')).toEqual([seen.id]);
     expect(JSON.stringify(b)).not.toContain(SECRET);
     expect(JSON.stringify(b)).not.toContain(hidden.id);
+    expect(JSON.stringify(b)).not.toContain(foreignChat.id);
     // El owner ve los dos chats: dos de cada cosa.
     const owner = await linesBrief(await groupsViewer(w.owner.id, w.owner.id, 'owner'));
     expect(count(owner, 'tickets')).toBe(2);
@@ -182,7 +186,7 @@ describe('Lines: solo lo que la persona ve', () => {
   it('con los teléfonos ocultos, los nombres van ocultos', async () => {
     const w = await workspaceWithMember('brief-mask');
     const n = await line(w.owner.id);
-    await ingestEvents(n, [{ ...msg(`${A}@s.whatsapp.net`, A), senderName: '' }]);
+    await ingestEvents(n, [{ ...msg(`${A}@s.whatsapp.net`, A), senderName: '' } as InboundEvent]);
     const chat = (await listChats(w.owner.id, w.owner.id)).rows[0];
     await getDb().prepare("UPDATE groups_chats SET name = '' WHERE id = ?").run(chat.id);
     await updateChat(w.owner.id, chat.id, { assignedTo: w.member.id }, w.owner.id);
@@ -321,21 +325,31 @@ describe('resumen del día: el email', () => {
       await setBriefEmail(w.member.id, true);
       return w;
     };
-    const at = () => new Date(`2026-12-0${++day}T09:00:00Z`);
+    const at = () => new Date(`2026-12-${String(++day).padStart(2, '0')}T09:00:00Z`);
     let day = 0;
-    const mfa = await mk('brief-mfa');
-    await getDb().prepare('UPDATE teams SET require_mfa = 1 WHERE id = ?').run(mfa.team.id);
-    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
-    const off = await mk('brief-off');
-    await saveWorkspaceAppRule(off.owner.id, 'groups', { mode: 'some', people: [off.friend.id], teams: [], denied: [] }, off.owner.id);
-    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
-    const gone = await mk('brief-gone');
-    await getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(gone.team.id, gone.member.id);
-    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
-    const guest = await mk('brief-guest');
-    await getDb().prepare("UPDATE team_members SET role = 'guest' WHERE team_id = ? AND user_id = ?").run(guest.team.id, guest.member.id);
-    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
-    expect(mail.sent).toEqual([]);
+    // Cada caso: primero sale (el control), después de la restricción ya no.
+    const blocked = async (label: string, restrict: (w: Awaited<ReturnType<typeof mk>>) => Promise<unknown>) => {
+      const w = await mk(label);
+      mail.sent = [];
+      expect(await sendDailyBriefEmails({ now: at() })).toBe(1);
+      expect(mail.sent.map((m) => m.to)).toEqual([w.member.email]);
+      await restrict(w);
+      mail.sent = [];
+      expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
+      expect(mail.sent).toEqual([]);
+    };
+    await blocked('brief-mfa', (w) => getDb().prepare('UPDATE teams SET require_mfa = 1 WHERE id = ?').run(w.team.id));
+    await blocked('brief-off', (w) => saveWorkspaceAppRule(w.owner.id, 'groups', { mode: 'some', people: [w.friend.id], teams: [], denied: [] }, w.owner.id));
+    await blocked('brief-gone', (w) => getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(w.team.id, w.member.id));
+    await blocked('brief-guest', (w) => getDb().prepare("UPDATE team_members SET role = 'guest' WHERE team_id = ? AND user_id = ?").run(w.team.id, w.member.id));
+  });
+
+  it('el fin del día local también con zonas de media hora', () => {
+    const now = new Date('2026-11-23T10:00:00Z');
+    // India (+5:30): son las 15:30, termina a las 18:30 UTC.
+    expect(dayEndIn('Asia/Kolkata', now).toISOString()).toBe('2026-11-23T18:30:00.000Z');
+    expect(dayEndIn('UTC', now).toISOString()).toBe('2026-11-24T00:00:00.000Z');
+    expect(dayEndIn('no/existe', now).toISOString()).toBe('2026-11-24T00:00:00.000Z');
   });
 
   it('el texto del email en el idioma de la persona', () => {

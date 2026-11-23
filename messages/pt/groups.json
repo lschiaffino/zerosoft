@@ -2090,6 +2090,7 @@
       "hidden": "Oculto até amanhã",
       "undo": "Desfazer",
       "dismissError": "Não foi possível ocultar. Tente de novo.",
+      "restoreError": "Não foi possível mostrar de novo. Tente de novo.",
       "unnamed": "Conversa",
       "andMore": "{list} e mais {n}",
       "kind": {

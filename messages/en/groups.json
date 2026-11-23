@@ -2090,6 +2090,7 @@
       "hidden": "Hidden until tomorrow",
       "undo": "Undo",
       "dismissError": "Could not hide it. Try again.",
+      "restoreError": "Could not bring it back. Try again.",
       "unnamed": "Chat",
       "andMore": "{list} and {n} more",
       "kind": {

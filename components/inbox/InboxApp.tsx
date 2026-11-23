@@ -1468,16 +1468,6 @@ export default function InboxApp(props: {
         </div>
         {/* El avance de la importación, como en Lines. */}
         {!q && <ImportBanner />}
-        {/* Resumen del día (lib/daily-brief.ts): en la bandeja; se cierra por hoy. */}
-        {!q && !folder && view === 'inbox' && (
-          <DailyBrief
-            endpoint="/api/inbox/brief"
-            onOpen={(kind, chats) => {
-              if (kind === 'reply') go({ view: 'reply', folderId: null });
-              else if (chats[0]) open(chats[0].id);
-            }}
-          />
-        )}
         {!q && !folder && view !== 'archived' && view !== 'nofolder' && (state.counts.archived ?? 0) > 0 && (
           <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />
@@ -1590,6 +1580,16 @@ export default function InboxApp(props: {
           </div>
         ) : (
           <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list data-tour="inbox-chat-list">
+            {/* Resumen del día (lib/daily-brief.ts): en la bandeja; se cierra por hoy. */}
+            {!q && !folder && view === 'inbox' && (
+              <DailyBrief
+                endpoint="/api/inbox/brief"
+                onOpen={(kind, chats) => {
+                  if (kind === 'reply') go({ view: 'reply', folderId: null });
+                  else if (chats[0]) open(chats[0].id);
+                }}
+              />
+            )}
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
               <li>
                 <AgentsRow {...props.agentsRow} />

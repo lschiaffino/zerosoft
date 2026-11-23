@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { api } from './dialog-kit';
@@ -29,7 +29,8 @@ const UNDO_MS = 8000;
  * lo que espera a la persona hoy, en cuentas y con los primeros chats. Cada
  * fila lleva a lo suyo (`onOpen`). Se cierra por el día (vuelve mañana), con
  * Deshacer un rato, y avisa si el email de la mañana está prendido (Ajustes ›
- * Avisos). Si no hay nada pendiente, no aparece.
+ * Avisos). Si no hay nada pendiente, no aparece. Va como primer renglón de la
+ * lista (un <li>): cuando llega no mueve la caja de la lista.
  */
 export default function DailyBrief({
   endpoint,
@@ -39,12 +40,19 @@ export default function DailyBrief({
   /** Abrir lo de una fila: la vista o el filtro que le corresponde, o el primer chat. */
   onOpen: (kind: BriefKind, chats: BriefChat[]) => void;
 }) {
+  const item = (node: ReactNode) => (
+    <li className="wa-brief-li" role="presentation">
+      {node}
+    </li>
+  );
   const t = useTranslations('groups.wa.brief');
   const locale = useLocale();
   const titleId = useId();
   const [data, setData] = useState<Payload | null>(null);
   const [state, setState] = useState<'shown' | 'undo' | 'hidden'>('shown');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<'' | 'dismiss' | 'restore'>('');
+  // El cierre en curso: Deshacer espera a que termine, así el servidor no queda cerrado con la tarjeta a la vista.
+  const dismissing = useRef<Promise<unknown> | null>(null);
 
   const load = useCallback(async () => {
     const { day, end } = localDay();
@@ -67,28 +75,34 @@ export default function DailyBrief({
   if (items.length === 0) return null;
 
   const dismiss = async () => {
-    setError(false);
+    setError('');
     setState('undo');
-    const res = await api(endpoint, { method: 'POST', body: { action: 'dismiss', day: data.day } });
+    const req = api(endpoint, { method: 'POST', body: { action: 'dismiss', day: data.day } });
+    dismissing.current = req;
+    const res = await req;
     if (!res.data) {
       setState('shown');
-      setError(true);
+      setError('dismiss');
     }
   };
   const undo = async () => {
+    await dismissing.current;
     setState('shown');
     const res = await api(endpoint, { method: 'POST', body: { action: 'restore' } });
-    if (!res.data) setError(true);
+    if (!res.data) {
+      setState('undo');
+      setError('restore');
+    }
   };
 
   if (state === 'undo')
-    return (
+    return item(
       <div className="wa-brief wa-brief-undo" role="status" data-testid="daily-brief-undo">
-        <span>{t('hidden')}</span>
+        <span>{error === 'restore' ? t('restoreError') : t('hidden')}</span>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void undo()}>
           {t('undo')}
         </button>
-      </div>
+      </div>,
     );
 
   const day = new Date(`${data.day}T12:00:00`).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -98,7 +112,7 @@ export default function DailyBrief({
     return more > 0 ? t('andMore', { list, n: more }) : list;
   };
 
-  return (
+  return item(
     <section className="wa-brief" aria-labelledby={titleId} data-testid="daily-brief" data-app={data.brief.app}>
       <div className="wa-brief-head">
         <h2 className="wa-brief-title" id={titleId}>
@@ -109,7 +123,7 @@ export default function DailyBrief({
           <Close size={18} />
         </button>
       </div>
-      {error && (
+      {error === 'dismiss' && (
         <p className="ui-error" role="alert">
           {t('dismissError')}
         </p>
@@ -132,6 +146,6 @@ export default function DailyBrief({
           {data.email ? t('emailOn') : t('emailOff')}
         </Link>
       </p>
-    </section>
+    </section>,
   );
 }

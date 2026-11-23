@@ -81,7 +81,7 @@ export function briefIsEmpty(b: DailyBrief): boolean {
 /** Un nombre para mostrar: sin saltos ni caracteres de control, corto, y con los teléfonos ocultos si corresponde. */
 export function briefName(raw: string, mask = false): string {
   // eslint-disable-next-line no-control-regex
-  const clean = String(raw ?? '').replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const clean = String(raw ?? '').replace(/[\u0000-\u001f\u007f\u200e\u200f\u2028-\u202e\u2066-\u2069]+/g, ' ').replace(/\s+/g, ' ').trim();
   const shown = mask ? maskPhoneText(clean) : clean;
   return shown.length > NAME_MAX ? `${shown.slice(0, NAME_MAX - 1)}…` : shown;
 }
@@ -201,8 +201,9 @@ export async function inboxBrief(owner: string, now = new Date()): Promise<Daily
     'm.from_me = 0',
     'm.hidden_at IS NULL',
     'm.sent_at >= ?',
-    'json_valid(m.meta)',
-    mine.length ? `(${mine.map(() => "(t.account_id = ? AND EXISTS (SELECT 1 FROM json_each(json_extract(m.meta, '$.mentions')) je WHERE je.value = ?))").join(' OR ')})` : '0',
+    mine.length
+      ? `(${mine.map(() => "(t.account_id = ? AND EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(m.meta) THEN json_extract(m.meta, '$.mentions') END) je WHERE je.value = ?))").join(' OR ')})`
+      : '0',
   ];
   const [reply, reminders, groups, mentions] = await Promise.all([
     inboxPart('reply', threads, [...active, 't.last_from_me = 0', "t.kind <> 'group'", 't.last_message_at IS NOT NULL'], [owner, nowS], 'MIN(t.last_message_at) ASC'),

@@ -119,17 +119,18 @@ for (const width of [1280, 390]) {
     await expect(page.getByTestId('lines-tab-unanswered')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.gr-row', { hasText: `Cliente ${tag}` })).toBeVisible({ timeout: 30_000 });
 
-    // Cerrar: queda "Oculto hasta mañana" con Deshacer; deshacer la trae de vuelta.
-    await card.getByTestId('daily-brief-dismiss').click();
+    // Cerrar: queda "Oculto hasta mañana" con Deshacer; deshacer la trae de vuelta (cada pedido, esperado).
+    const post = () => page.waitForResponse((r) => r.url().includes('/api/groups/brief') && r.request().method() === 'POST');
+    await Promise.all([post(), card.getByTestId('daily-brief-dismiss').click()]);
     const undo = page.getByTestId('daily-brief-undo');
     await expect(undo).toBeVisible();
     await shot(page, `lines-brief-undo-${width}`);
-    await undo.getByRole('button', { name: 'Undo' }).click();
+    await Promise.all([post(), undo.getByRole('button', { name: 'Undo' }).click()]);
     await expect(page.getByTestId('daily-brief')).toBeVisible();
     // Cerrada otra vez: sigue cerrada al recargar (es por hoy).
-    await page.getByTestId('daily-brief-dismiss').click();
+    await Promise.all([post(), page.getByTestId('daily-brief-dismiss').click()]);
     await expect(page.getByTestId('daily-brief')).toBeHidden();
-    const answered = page.waitForResponse((r) => r.url().includes('/api/groups/brief'));
+    const answered = page.waitForResponse((r) => r.url().includes('/api/groups/brief') && r.request().method() === 'GET');
     await page.reload({ waitUntil: 'networkidle' });
     expect(((await (await answered).json()) as { dismissed: boolean }).dismissed).toBe(true);
     await expect(page.locator('.gr-row').first()).toBeVisible({ timeout: 60_000 });
@@ -169,10 +170,10 @@ for (const width of [1280, 390]) {
     // De vuelta en la bandeja: cerrar la deja cerrada por hoy.
     await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
     await expect(page.getByTestId('daily-brief')).toBeVisible({ timeout: 60_000 });
-    await page.getByTestId('daily-brief-dismiss').click();
+    await Promise.all([page.waitForResponse((r) => r.url().includes('/api/inbox/brief') && r.request().method() === 'POST'), page.getByTestId('daily-brief-dismiss').click()]);
     await expect(page.getByTestId('daily-brief')).toBeHidden();
     await expect(page.getByTestId('daily-brief-undo')).toBeVisible();
-    const answered = page.waitForResponse((r) => r.url().includes('/api/inbox/brief'));
+    const answered = page.waitForResponse((r) => r.url().includes('/api/inbox/brief') && r.request().method() === 'GET');
     await page.reload({ waitUntil: 'networkidle' });
     expect(((await (await answered).json()) as { dismissed: boolean }).dismissed).toBe(true);
     await expect(page.locator('.ib-item').first()).toBeVisible({ timeout: 60_000 });

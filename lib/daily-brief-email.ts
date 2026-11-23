@@ -60,15 +60,25 @@ async function accessOf(user: UserRow): Promise<{ ws: string; role: TeamRole; ca
   return { ws: owner.id, role, can: (app) => role !== 'guest' && userCanUseApp({ role, apps, blockedApps }, app) };
 }
 
-/** El fin del día local (para las tareas "de hoy"): la próxima hora en punto después de la última de este día. */
-function dayEndIn(timeZone: string, now: Date): Date {
-  const hour = localHourIn(timeZone || 'UTC', now);
-  return new Date(now.getTime() + (24 - hour) * 60 * 60 * 1000 - now.getUTCMinutes() * 60 * 1000);
+/** El fin del día local (para las tareas "de hoy"): la medianoche que viene en esa zona (también con media hora). */
+export function dayEndIn(timeZone: string, now: Date): Date {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-US', { timeZone: timeZone || 'UTC', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  } catch {
+    parts = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  }
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const elapsed = ((get('hour') % 24) * 3600 + get('minute') * 60 + get('second')) * 1000 + now.getUTCMilliseconds();
+  return new Date(now.getTime() - elapsed + 24 * 60 * 60 * 1000);
 }
 
 /** El email (texto y HTML) con lo que haya de cada app. Los nombres ya vienen limpios y cortos (briefName). */
 export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject: string; text: string; html: string } {
-  const t = createTranslator({ locale, messages: MESSAGES[locale] as never, namespace: 'wa.brief' as never }) as unknown as (key: string, values?: Record<string, string | number>) => string;
+  const t = createTranslator({ locale, messages: MESSAGES[locale] as never, namespace: 'wa.brief' as never }) as unknown as (
+    key: string,
+    values?: Record<string, string | number>,
+  ) => string;
   const base = siteUrl();
   const appName = { lines: 'Lines', inbox: 'Inbox' } as const;
   const href = { lines: `${base}/app/lines/inbox`, inbox: `${base}/app/inbox` } as const;
@@ -112,56 +122,69 @@ async function briefsFor(c: Candidate, now: Date): Promise<DailyBrief[]> {
 }
 
 /**
- * Los emails de la mañana (tick horario). Primero quienes hace más que no lo reciben (los de hoy, al final), con
- * un tope de tiempo. Cada persona se reclama antes de armarlo (email_day) para que dos ticks a la vez no lo
- * manden dos veces; si algo falla, el reclamo se devuelve y sale en el próximo tick. Devuelve cuántos salieron.
+ * Los emails de la mañana (tick horario). Recorre a quienes lo pidieron de a páginas (por id), y para cada una mira
+ * si en su zona es la hora: así nadie queda afuera porque otros llenaron la página. `limit`: cuántos se mandan como
+ * mucho por tick; además hay un tope de tiempo. Cada persona se reclama antes de armarlo (email_day) para que dos
+ * ticks a la vez no lo manden dos veces; si algo falla, el reclamo se devuelve y sale en el próximo tick (si
+ * todavía es la hora). Devuelve cuántos salieron.
  */
 export async function sendDailyBriefEmails(opts: { now?: Date; limit?: number; budgetMs?: number } = {}): Promise<number> {
   const now = opts.now ?? new Date();
   const started = Date.now();
   const budget = opts.budgetMs ?? 60_000;
+  const maxSends = Math.min(Math.max(opts.limit ?? 500, 1), 2000);
   const db = getDb();
-  const candidates = (await db
-    .prepare(
-      `SELECT p.user_id, p.email_day, u.locale, COALESCE(NULLIF(p.time_zone, ''), NULLIF(u.time_zone, ''), 'UTC') AS tz
-       FROM daily_brief_prefs p JOIN users u ON u.id = p.user_id
-       WHERE p.email = 1 AND u.email <> '' AND (p.email_day IS NULL OR p.email_day < ?)
-       ORDER BY (p.email_day IS NOT NULL), p.email_day ASC LIMIT ?`,
-    )
-    .all(localDayIn('Pacific/Kiritimati', now), Math.min(Math.max(opts.limit ?? 500, 1), 2000))) as Candidate[];
+  // Ya salió hoy en la zona más adelantada: hoy no le toca a nadie más.
+  const latest = localDayIn('Pacific/Kiritimati', now);
+  const candidatesAfter = async (after: string) =>
+    (await db
+      .prepare(
+        `SELECT p.user_id, p.email_day, u.locale, COALESCE(NULLIF(p.time_zone, ''), NULLIF(u.time_zone, ''), 'UTC') AS tz
+         FROM daily_brief_prefs p JOIN users u ON u.id = p.user_id
+         WHERE p.email = 1 AND u.email <> '' AND (p.email_day IS NULL OR p.email_day < ?) AND p.user_id > ?
+         ORDER BY p.user_id LIMIT 500`,
+      )
+      .all(latest, after)) as Candidate[];
   let sent = 0;
-  for (const c of candidates) {
-    if (Date.now() - started > budget) break;
-    const day = briefEmailDue(c.tz, c.email_day, now);
-    if (!day) continue;
-    const claimed = await db
-      .prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email = 1 AND (email_day IS NULL OR email_day <> ?)')
-      .run(day, c.user_id, day);
-    if (!claimed.changes) continue;
-    let ok = false;
-    try {
-      const briefs = await briefsFor(c, now);
-      if (!briefs.length) {
-        ok = true;
-        continue;
+  let attempted = 0;
+  let after = '';
+  for (let page = await candidatesAfter(after); page.length && attempted < maxSends; page = await candidatesAfter(after)) {
+    after = page[page.length - 1].user_id;
+    for (const c of page) {
+      if (Date.now() - started > budget || attempted >= maxSends) break;
+      const day = briefEmailDue(c.tz, c.email_day, now);
+      if (!day) continue;
+      attempted++;
+      const claimed = await db
+        .prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email = 1 AND (email_day IS NULL OR email_day <> ?)')
+        .run(day, c.user_id, day);
+      if (!claimed.changes) continue;
+      let ok = false;
+      try {
+        const briefs = await briefsFor(c, now);
+        if (!briefs.length) {
+          ok = true;
+          continue;
+        }
+        const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(c.user_id)) as { email: string } | undefined;
+        if (!user?.email) {
+          ok = true;
+          continue;
+        }
+        const locale: Locale = c.locale === 'es' || c.locale === 'pt' ? c.locale : 'en';
+        const res = await sendEmail({ to: user.email, from: appSender(), ...buildBriefEmail(briefs, locale) });
+        ok = res.ok;
+        if (res.ok) sent++;
+      } catch (err) {
+        // Sin datos de la persona en el log: solo que falló.
+        // eslint-disable-next-line no-console
+        console.error('[daily-brief] email failed', (err as Error)?.name ?? 'error');
+      } finally {
+        // No salió: el reclamo vuelve atrás y el próximo tick lo intenta (si todavía es la hora).
+        if (!ok) await db.prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email_day = ?').run(c.email_day, c.user_id, day);
       }
-      const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(c.user_id)) as { email: string } | undefined;
-      if (!user?.email) {
-        ok = true;
-        continue;
-      }
-      const locale: Locale = c.locale === 'es' || c.locale === 'pt' ? c.locale : 'en';
-      const res = await sendEmail({ to: user.email, from: appSender(), ...buildBriefEmail(briefs, locale) });
-      ok = res.ok;
-      if (res.ok) sent++;
-    } catch (err) {
-      // Sin datos de la persona en el log: solo que falló.
-      // eslint-disable-next-line no-console
-      console.error('[daily-brief] email failed', (err as Error)?.name ?? 'error');
-    } finally {
-      // No salió: el reclamo vuelve atrás y el próximo tick lo intenta (si todavía es la hora).
-      if (!ok) await db.prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email_day = ?').run(c.email_day, c.user_id, day);
     }
+    if (Date.now() - started > budget) break;
   }
   return sent;
 }

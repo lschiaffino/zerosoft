@@ -1701,19 +1701,6 @@ export default function InboxShell({
           )}
           {/* Con una línea o un grupo de líneas elegido, solo sus avisos. */}
           <LinesImportNotices imports={imports.filter((im) => inLine(im.numberId))} line="all" />
-          {/* Resumen del día (lib/daily-brief.ts): en la bandeja, sin búsqueda; se cierra por hoy. */}
-          {!archivedView && !deletedView && !debounced && (
-            <DailyBrief
-              endpoint="/api/groups/brief"
-              onOpen={(kind, chats) => {
-                if (kind === 'waiting') setFilters({ waiting: 'yes', assignees: [ME] });
-                else if (kind === 'groups') setFilters({ waiting: 'yes', kinds: ['group'], assignees: [NONE] });
-                else if (kind === 'sla' || kind === 'tickets') router.push('/app/lines/tickets');
-                else if (kind === 'tasks') router.push('/app/lines/tasks');
-                else if (chats[0]) router.push(`/app/lines/inbox/${chats[0].id}${listSuffix}`);
-              }}
-            />
-          )}
           {error && (
             <div className="gr-error" role="alert">
               {t('inbox.loadError')}
@@ -1742,6 +1729,19 @@ export default function InboxShell({
             </>
           ) : (
             <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list data-tour="lines-chat-list">
+              {/* Resumen del día (lib/daily-brief.ts): en la bandeja, sin búsqueda; se cierra por hoy. */}
+              {!archivedView && !deletedView && !debounced && (
+                <DailyBrief
+                  endpoint="/api/groups/brief"
+                  onOpen={(kind, chats) => {
+                    if (kind === 'waiting') setFilters({ waiting: 'yes', assignees: [ME] });
+                    else if (kind === 'groups') setFilters({ waiting: 'yes', kinds: ['group'], assignees: [NONE] });
+                    else if (kind === 'sla' || kind === 'tickets') router.push('/app/lines/tickets');
+                    else if (kind === 'tasks') router.push('/app/lines/tasks');
+                    else if (chats[0]) router.push(`/app/lines/inbox/${chats[0].id}${listSuffix}`);
+                  }}
+                />
+              )}
               {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (
