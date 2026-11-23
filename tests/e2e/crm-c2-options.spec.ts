@@ -81,12 +81,12 @@ test('editar opciones en Ajustes y usarlas en la ficha', async ({ browser }) => 
     await select.selectOption({ label: 'Partner' });
     await expect(await lifecycleShown(page)).toHaveText('Partner');
 
-    // Archivar Partner: el contacto la sigue mostrando.
+    // Archivar Partner: el contacto la sigue mostrando, marcada como archivada.
     await page.goto('/en/app/crm/settings?tab=data', { waitUntil: 'networkidle' });
     await page.getByTestId('property-options-lifecycle').locator('li', { has: page.locator('input[value="Partner"]') }).getByRole('button', { name: /Archive/i }).click();
     await expect(page.getByTestId('property-options-lifecycle').locator('ul input[value="Partner"]')).toHaveCount(1);
     await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
-    await expect(await lifecycleShown(page)).toHaveText('Partner');
+    await expect(await lifecycleShown(page)).toHaveText('Partner (archived)');
 
     // La API no acepta una archivada en otro registro.
     const other = await ok<{ id: string }>(ctx.request.post('/api/crm/contacts', { data: { firstName: 'Other', lastName: uid() } }));
@@ -106,7 +106,7 @@ test('lifecycle automático con los deals, en el timeline, y apagado por un admi
     const contact = await ok<{ id: string }>(ctx.request.post('/api/crm/contacts', { data: { firstName: 'Auto', lastName: uid() } }));
     const deal = await ok<{ id: string }>(ctx.request.post('/api/crm/deals', { data: { name: `Auto ${uid()}`, pipelineId: p.id, stageId: p.open, contactIds: [contact.id] } }));
     const page = await ctx.newPage();
-    await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/crm/contacts/${contact.id}?tab=activity`, { waitUntil: 'networkidle' });
     await expect(await lifecycleShown(page)).toHaveText('Opportunity');
     await expect(page.getByTestId('crm-timeline-change').first()).toContainText('Opportunity');
 
@@ -125,7 +125,7 @@ test('lifecycle automático con los deals, en el timeline, y apagado por un admi
     await expect(section.getByText(/Saved/i)).toBeVisible();
     const second = await ok<{ id: string }>(ctx.request.post('/api/crm/contacts', { data: { firstName: 'Manual', lastName: uid() } }));
     await ok(ctx.request.post('/api/crm/deals', { data: { name: `Manual ${uid()}`, pipelineId: p.id, stageId: p.open, contactIds: [second.id] } }));
-    await page.goto(`/en/app/crm/contacts/${second.id}`, { waitUntil: 'networkidle' });
+    await page.goto(`/en/app/crm/contacts/${second.id}?tab=activity`, { waitUntil: 'networkidle' });
     await expect(await lifecycleShown(page)).toHaveText('Lead');
     await expect(page.getByTestId('crm-timeline-change')).toHaveCount(0);
   } finally {
