@@ -115,7 +115,7 @@ async function run(page: Page, request: APIRequestContext, look: string, style: 
       await page.locator('.wa-composer [data-emoji-toggle]').click();
       await shot(page, `${p}-04-emoji`);
       await page.keyboard.press('Escape');
-      await page.locator('.wa-head-avatar').first().click();
+      await page.locator('.wa-head-avatar, .wa-head-who').first().click();
       await page.waitForTimeout(600);
       await shot(page, `${p}-06-info`);
       for (const tab of ['members', 'media', 'notes', 'tasks', 'crm']) {
@@ -130,7 +130,7 @@ async function run(page: Page, request: APIRequestContext, look: string, style: 
       await openChat('Mariana');
       await page.getByTestId('composer-input').fill('Te lo mando hoy a la tarde sin falta');
       await shot(page, `${p}-08-dm`);
-      await page.locator('.wa-head-avatar').first().click();
+      await page.locator('.wa-head-avatar, .wa-head-who').first().click();
       await page.waitForTimeout(600);
       await shot(page, `${p}-08b-dm-info`);
     });
@@ -142,7 +142,10 @@ async function run(page: Page, request: APIRequestContext, look: string, style: 
 }
 
 test('zz l1 shots', async ({ page, request }) => {
-  test.setTimeout(3_600_000);
+  test.setTimeout(3_300_000);
+  // Un paso que no encuentra algo falla rápido y sigue con el resto (sin esto, un clic espera hasta el final).
+  page.setDefaultTimeout(12_000);
+  page.setDefaultNavigationTimeout(30_000);
   await request.patch('/api/voice/settings', { data: { showBar: true } });
   if (APPS.includes('lines')) await seedLines(request);
   if (APPS.includes('inbox')) await seedInbox(request);
