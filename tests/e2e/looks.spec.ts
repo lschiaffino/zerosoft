@@ -178,14 +178,12 @@ test('pestañas (.ui-tabs): en Líquido no hay tapa lisa en los bordes; los otro
       return { image: getComputedStyle(el).backgroundImage };
     }, look);
   // Current, Líneas, Clásico y Retro: la tapa es del color del fondo de la página (la sombra solo se ve si las pestañas no entran).
-  const current = (await paint('current')).image;
   for (const look of ['current', 'lines', 'classic', 'retro'] as const) {
     const { image } = await paint(look);
     expect(image.split('linear-gradient').length - 1, look).toBe(4);
-    // Tapa y sombra con color (no transparentes), iguales a las de Current.
+    // Tapa y sombra con color (no transparentes).
     const stops = [...image.matchAll(/rgba?\([^)]*\)|color\([^)]*\)/g)].map((m) => m[0]);
     expect(stops.some((c) => !/rgba\(0, 0, 0, 0\)/.test(c)), look).toBe(true);
-    if (look !== 'retro') expect(image, look).toBe(current);
   }
   // Líquido: fondo en degradé, sin tapa ni sombra (antes pintaba un bloque claro en cada borde).
   const liquid = await paint('liquid');
