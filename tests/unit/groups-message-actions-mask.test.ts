@@ -114,6 +114,10 @@ describe('Lines: acciones sobre un mensaje con la máscara de quien pide', () =>
     );
     expect(patched.status).toBe(200);
     bodies.push(await patched.text());
+    // Cambiar la prioridad no registra un cambio de título ni guarda el teléfono de más en el registro.
+    const log = (await getDb().prepare("SELECT detail FROM groups_audit WHERE chat_id = ? AND action = 'ticket_updated'").all(s.dm.id)) as Array<{ detail: string }>;
+    expect(log.length).toBeGreaterThan(0);
+    for (const l of log) expect(l.detail).not.toContain('title');
     for (const text of bodies) expect(text).not.toContain(SENDER);
     expect(bodies[0]).toContain('"senderPhone"');
   });
@@ -123,7 +127,8 @@ describe('Lines: acciones sobre un mensaje con la máscara de quien pide', () =>
     const viewer = await groupsViewer(s.ws, s.w.member.id, 'member');
     const rows = (await listChats(s.ws, s.w.member.id, { viewer })).rows;
     const group = rows.find((r) => r.id === s.chat.id) as { lastSender?: string | null } | undefined;
-    expect(group?.lastSender ?? '').not.toContain(SENDER);
+    expect(group).toBeDefined();
+    expect(group?.lastSender).toMatch(/•••/);
     expect(JSON.stringify(rows)).not.toContain(SENDER);
   });
 

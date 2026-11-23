@@ -32,7 +32,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
-  const before = await visibleTicket(s, id);
+  // Se compara y se registra contra el ticket guardado (sin máscara); la máscara es solo para la respuesta.
+  const before = (await visibleTicket(s, id)) ? await getTicket(s.ws, id) : null;
   if (!before) return groupsError(404, 'not_found');
   const b = await readJson(req);
   const patch: TicketPatch = {};
@@ -63,7 +64,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
-  const t = await visibleTicket(s, id);
+  const t = (await visibleTicket(s, id)) ? await getTicket(s.ws, id) : null;
   if (!t || !(await deleteTicket(s.ws, id))) return groupsError(404, 'not_found');
   await recordAudit(s.ws, { chatId: t.chatId, chatName: t.chatName, actorId: s.me, action: 'ticket_deleted', detail: { number: t.number } });
   return NextResponse.json({ ok: true });
