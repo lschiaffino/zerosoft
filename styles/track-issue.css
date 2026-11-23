@@ -817,3 +817,13 @@
   font-size: 0.75rem;
   color: var(--ink-3);
 }
+
+/* La entrada con resumen ocupa varias líneas: el ícono y la hora van con la primera, no al medio. */
+.track-activity-event:has(.track-dup-summary) .track-event-icon {
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.track-activity-event:has(.track-dup-summary) .track-activity-time {
+  align-self: flex-start;
+}
