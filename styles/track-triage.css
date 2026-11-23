@@ -183,15 +183,17 @@ a.track-request-customer:hover { text-decoration: underline; text-underline-offs
 }
 
 /* ---------- Panel lateral ---------- */
-.track-x-props { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0; }
+/* Ícono + valor, alineado con las demás propiedades del issue (.track-prop-chip). */
+.track-x-props { display: flex; flex-direction: column; gap: 1px; margin: 1px 0 0; }
 .track-x-prop {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+  min-height: 30px;
   font-size: 0.8125rem;
 }
-.track-x-prop > dt { color: var(--brand-gray-2); }
+.track-x-prop > dt { position: relative; display: inline-flex; color: var(--brand-gray-2); }
 .track-x-prop > dd { margin: 0; min-width: 0; }
 .track-x-menu-note { padding: 6px 10px; }
 

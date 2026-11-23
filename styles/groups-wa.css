@@ -1869,6 +1869,10 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
   .wa-emoji-tabs { flex-wrap: wrap; row-gap: 2px; }
   .wa-emoji-tabs button { flex: 1 0 40px; min-height: 40px; }
 }
+/* En el teléfono no entran las 9 en un renglón: dos renglones parejos (5 y 4), no 8 y una sola abajo. */
+@media (max-width: 420px) {
+  .wa-emoji-tabs { display: grid; grid-template-columns: repeat(5, minmax(40px, 1fr)); gap: 2px 4px; }
+}
 
 /* Teléfono del contacto en su ficha (Inbox y Lines): un toque lo copia (PhoneCopy). */
 .wa-phone-copy { display: inline-flex; align-items: center; min-height: 28px; padding: 2px 8px; font: inherit; font-size: var(--wa-fs-ui, 0.9375rem); color: var(--wa-text-2); background: none; border: 0; border-radius: 6px; cursor: copy; font-variant-numeric: tabular-nums; }

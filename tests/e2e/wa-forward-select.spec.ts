@@ -219,6 +219,16 @@ for (const width of [1280, 390]) {
     await app.open(s.to);
     await expect(app.outgoing.first()).toBeVisible();
     await expect(page.getByTestId('selection-bar')).toHaveCount(0);
+
+    // "Select" del menú de la burbuja también entra en selección (como en Lines), con ese mensaje tildado; Esc sale.
+    await app.open(s.from);
+    await app.openMenu(app.msg(s.texts[1]));
+    await page.getByTestId('menu-select').click();
+    await expect(page.getByTestId('selection-bar')).toBeVisible();
+    await expect(app.msg(s.texts[1]).getByRole('checkbox')).toBeChecked();
+    await expect(app.msg(s.texts[0]).getByRole('checkbox')).not.toBeChecked();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('selection-bar')).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 

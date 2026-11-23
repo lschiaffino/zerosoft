@@ -209,3 +209,33 @@ export async function setProjectVisibility(
       .catch(() => undefined);
   }
 }
+
+/**
+ * ¿Todo el que ve el team `innerId` ve también el team `outerId`? Sirve para
+ * copiar texto de un issue de `outer` a uno de `inner` (el resumen de un
+ * duplicado, las notas de un release) sin mostrarlo a quien no lo ve.
+ * Conservador: un `outer` privado distinto de `inner` nunca alcanza, y un
+ * invitado que tiene `inner` en su lista tiene que tener también `outer`.
+ */
+export async function projectAudienceWithin(innerId: string, outerId: string): Promise<boolean> {
+  if (innerId === outerId) return true;
+  const rows = (await getDb()
+    .prepare('SELECT id, team_id, owner_id, visibility FROM track_projects WHERE id IN (?, ?)')
+    .all(innerId, outerId)) as Array<{ id: string; team_id: string | null; owner_id: string | null; visibility: string | null }>;
+  const inner = rows.find((r) => r.id === innerId);
+  const outer = rows.find((r) => r.id === outerId);
+  if (!inner || !outer) return false;
+  const ws = inner.team_id ?? inner.owner_id;
+  if (!ws || ws !== (outer.team_id ?? outer.owner_id)) return false;
+  if ((outer.visibility ?? 'workspace') === 'private') return false;
+  const guest = await getDb()
+    .prepare(
+      `SELECT 1 AS hit FROM track_guests g
+       WHERE g.workspace_id = ?
+         AND EXISTS (SELECT 1 FROM json_each(g.project_ids) a WHERE a.value = ?)
+         AND NOT EXISTS (SELECT 1 FROM json_each(g.project_ids) b WHERE b.value = ?)
+       LIMIT 1`,
+    )
+    .get(ws, innerId, outerId);
+  return !guest;
+}

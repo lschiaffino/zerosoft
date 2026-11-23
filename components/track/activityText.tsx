@@ -93,6 +93,7 @@ function eventIcon(type: string, meta: Record<string, unknown> = {}): TrackIconN
     case 'description_change':
       return 'pencil' as const;
     case 'relation_added':
+      return meta.merged === true ? ('duplicate' as const) : ('link' as const);
     case 'relation_removed':
       return 'link' as const;
     case 'attachment_added':
@@ -207,6 +208,39 @@ export function describeActivity(
       return labels.descriptionChange.replace('{user}', name);
     case 'relation_added': {
       const relatedIssueId = String(meta.relatedIssueId ?? '');
+      // Marca de duplicado vista desde el original: quién, cuál y el resumen de lo que trajo.
+      if (meta.merged === true) {
+        const n = (k: string) => (typeof meta[k] === 'number' ? (meta[k] as number) : 0);
+        const title = typeof meta.title === 'string' ? meta.title : '';
+        const excerpt = typeof meta.excerpt === 'string' ? meta.excerpt : '';
+        const counts = [
+          n('comments') ? tt('dupComments', { count: n('comments') }) : '',
+          n('attachments') ? tt('dupAttachments', { count: n('attachments') }) : '',
+          n('subscribers') ? tt('dupSubscribers', { count: n('subscribers') }) : '',
+          n('requests') ? tt('dupRequests', { count: n('requests') }) : '',
+        ].filter(Boolean);
+        if (!relatedIssueId) return tt('dupMergedHidden', { user: name });
+        return (
+          <>
+            {tt('dupMergedBefore', { user: name })}{' '}
+            {relatedIssueId ? (
+              <Link href={`/app/track/issues/${relatedIssueId}`} className="track-activity-link" data-testid="track-dup-merged-link">
+                {String(meta.identifier ?? relatedIssueId)}
+              </Link>
+            ) : (
+              String(meta.identifier ?? '')
+            )}{' '}
+            {tt('dupMergedAfter')}
+            {(title || excerpt || counts.length > 0) && (
+              <span className="track-dup-summary" data-testid="track-dup-summary">
+                {title && <span className="track-dup-summary-title">{title}</span>}
+                {excerpt && <span className="track-dup-summary-excerpt">{excerpt}</span>}
+                {counts.length > 0 && <span className="track-dup-summary-counts">{counts.join(' · ')}</span>}
+              </span>
+            )}
+          </>
+        );
+      }
       return (
         <>
           {labels.relationAdded.replace('{user}', name)}{' '}

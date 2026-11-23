@@ -9,6 +9,7 @@
  */
 import { getDb } from '../db';
 import { ownerScopeFor, ownerScopeSql } from '../crm-visibility';
+import { hiddenFieldsFor, scoreSqlRules, visibleScoreSql, type VisibleScoreRules } from '../crm-field-perms';
 import { trackVisibleSql } from '../track-access';
 import { groupsViewer, chatAccessSql } from '../groups-access';
 import { booksActor } from '../books';
@@ -25,6 +26,8 @@ export const ZS_EVENTS_DAYS = 90;
 type Ctx = {
   viewer: BiViewer;
   crmScope: string[] | null;
+  /** Reglas de score que ve, si alguna es sobre un campo de contactos que tiene oculto. */
+  crmScoreRules?: VisibleScoreRules;
   booksInvoices: boolean;
   booksBills: boolean;
   groupsAccess: { sql: string; args: string[] } | null;
@@ -58,7 +61,8 @@ const TABLES: ZsTableDef[] = [
       const w = crmWhere('c', ctx);
       return {
         sql: `SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.job_title, c.city, c.country, c.lifecycle_stage, c.lead_status, c.source,
-          c.company_id, COALESCE(c.owner_id, c.user_id) AS owner_id, c.score, datetime(c.created_at) AS created_at, datetime(c.updated_at) AS updated_at
+          c.company_id, COALESCE(c.owner_id, c.user_id) AS owner_id, ${visibleScoreSql('c.score', 'c.score_breakdown', ctx.crmScoreRules)} AS score,
+          datetime(c.created_at) AS created_at, datetime(c.updated_at) AS updated_at
           FROM crm_contacts c WHERE c.user_id = ?${w.sql} ORDER BY c.created_at DESC LIMIT ${ZS_TABLE_ROW_CAP}`,
         args: [ctx.viewer.workspaceId, ...w.args],
       };
@@ -222,6 +226,8 @@ async function context(viewer: BiViewer, now: number): Promise<Ctx> {
   const books = viewerCan(viewer, 'books');
   const groups = viewerCan(viewer, 'groups');
   const crmScope = crm ? await ownerScopeFor({ workspaceId: viewer.workspaceId, personId: viewer.personId, role: viewer.role }, getDb()) : [];
+  // El score de contactos como lo ve la persona (sin los puntos de reglas sobre sus campos ocultos).
+  const crmScoreRules = crm ? scoreSqlRules(await hiddenFieldsFor({ workspaceId: viewer.workspaceId, personId: viewer.personId, role: viewer.role }, 'contacts')) : undefined;
   let booksInvoices = false;
   let booksBills = false;
   if (books) {
@@ -236,7 +242,7 @@ async function context(viewer: BiViewer, now: number): Promise<Ctx> {
     groupsAccess = chatAccessSql(gv, 'c');
     groupsMask = gv.mask;
   }
-  return { viewer, crmScope, booksInvoices, booksBills, groupsAccess, groupsMask, now };
+  return { viewer, crmScope, crmScoreRules, booksInvoices, booksBills, groupsAccess, groupsMask, now };
 }
 
 function tableVisible(t: ZsTableDef, viewer: BiViewer): boolean {

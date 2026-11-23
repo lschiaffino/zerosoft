@@ -29,7 +29,7 @@ import { aiStepScope, buildRecordContext, crmGenerateObject, LOCALE_NAME } from 
 import { crmAiFakeActive } from './crm-ai-fake';
 import { safeFetch } from './safe-fetch';
 import { canSeeEntity, canSeeRecord, scopeAnd, sessionScope, type OwnerScope } from './crm-visibility';
-import { isUnrestricted, sessionFieldViewer } from './crm-field-perms';
+import { isUnrestricted, sessionFieldViewer, type VisibleScoreRules } from './crm-field-perms';
 import type { TeamRole } from './teams';
 import { subscriberFor } from './crm-event-privacy';
 import { updateCompany, updateContact } from './crm';
@@ -219,9 +219,15 @@ async function contactGapTargets(ws: string, scope: OwnerScope | undefined): Pro
   return rows.map((r) => ({ id: r.id, label: contactLabel(r) }));
 }
 
-async function listTargets(ws: string, listId: string, scope: OwnerScope | undefined): Promise<Array<{ id: string; label: string }>> {
+async function listTargets(
+  ws: string,
+  listId: string,
+  scope: OwnerScope | undefined,
+  scoreRules?: VisibleScoreRules,
+): Promise<Array<{ id: string; label: string }>> {
   const { getList } = await import('./crm');
-  const list = await getList(ws, listId);
+  // Una lista dinámica por score: con el total que ve quien corre el agente (como la lista en pantalla).
+  const list = await getList(ws, listId, undefined, scoreRules);
   if (!list) throw new AiRunError('not_found', 404);
   const members = list.members.filter((m) => !scope || scope.includes(m.owner_id ?? m.user_id));
   return members.slice(0, MAX_RUN_ITEMS).map((m) => ({ id: m.id, label: contactLabel(m) }));
@@ -233,6 +239,8 @@ export async function createRun(opts: {
   workspaceId: string;
   personId: string;
   scope: OwnerScope | undefined;
+  /** Reglas de score que ve quien lo corre (scoreSqlRules), para una lista dinámica por score. */
+  scoreRules?: VisibleScoreRules;
   input: RunCreateInput;
   defaultName: string;
 }): Promise<RunView> {
@@ -244,11 +252,11 @@ export async function createRun(opts: {
     targets = await companyTargets(opts.workspaceId, opts.scope);
   } else if (input.agent === 'enrich_contacts') {
     entity = 'contact';
-    targets = input.listId ? await listTargets(opts.workspaceId, input.listId, opts.scope) : await contactGapTargets(opts.workspaceId, opts.scope);
+    targets = input.listId ? await listTargets(opts.workspaceId, input.listId, opts.scope, opts.scoreRules) : await contactGapTargets(opts.workspaceId, opts.scope);
   } else {
     entity = 'contact';
     if (!input.listId) throw new AiRunError('invalid_input');
-    targets = await listTargets(opts.workspaceId, input.listId, opts.scope);
+    targets = await listTargets(opts.workspaceId, input.listId, opts.scope, opts.scoreRules);
   }
   if (targets.length === 0) throw new AiRunError('no_targets');
   const id = crypto.randomUUID();

@@ -425,6 +425,22 @@ export function IssueMainExtras({
   );
 }
 
+/**
+ * Rótulo de una propiedad del panel: el ícono a la vista, como las demás
+ * propiedades del issue (estado, prioridad…), y el nombre para lectores de
+ * pantalla y en el tooltip.
+ */
+function PropLabel({ icon, label }: { icon: 'clock' | 'flag' | 'user'; label: string }) {
+  return (
+    <dt className="track-x-prop-label" title={label}>
+      <span className="track-prop-icon" aria-hidden>
+        <TrackIcon name={icon} size={14} />
+      </span>
+      <span className="sr-only">{label}</span>
+    </dt>
+  );
+}
+
 /** Propiedades del panel lateral: SLA y agente (delegate). */
 /**
  * Time in status (como Linear): el status actual y desde hace cuánto; al
@@ -437,7 +453,7 @@ function StatusTimeProp({ data }: { data: StatusTime }) {
   const now = data.totals.find((x) => x.key === data.currentKey) ?? null;
   return (
     <div className="track-x-prop track-status-time">
-      <dt>{t('label')}</dt>
+      <PropLabel icon="clock" label={t('label')} />
       <dd>
         <button
           type="button"
@@ -503,7 +519,7 @@ export function IssueSideExtras({ issueId, watch }: { issueId: string; watch?: s
       {data.statusTime && data.statusTime.totals.length > 0 && <StatusTimeProp data={data.statusTime} />}
       {(data.slaEnabled || data.sla) && (
         <div className="track-x-prop">
-          <dt>{t('sla.label')}</dt>
+          <PropLabel icon="flag" label={t('sla.label')} />
           <dd data-testid="track-issue-sla">
             {data.sla ? (
               data.sla.completedAt ? (
@@ -518,7 +534,7 @@ export function IssueSideExtras({ issueId, watch }: { issueId: string; watch?: s
         </div>
       )}
       <div className="track-x-prop">
-        <dt>{t('agents.label')}</dt>
+        <PropLabel icon="user" label={t('agents.label')} />
         <dd>
           <Popover
             ariaLabel={t('agents.delegate')}
