@@ -15,14 +15,14 @@ import { setMemberVisibility } from '@/lib/crm-visibility';
 import {
   fieldRule,
   fieldRuleState,
-  parseFilterModel,
-  sanitizeFilterModel,
   serializeFilterModel,
   setFieldRule,
   MAX_GROUP_RULES,
   type FilterModel,
 } from '@/lib/crm-filter-model';
 import { resolveMatching } from '@/lib/crm-list-matching';
+import { listFilterModel } from '@/lib/crm-filter-http';
+import { filterTypeFor } from '@/lib/crm-custom-fields';
 import { columnFilterKey, INDEX_TABLES, type IndexEntity } from '@/components/crm/tableColumns';
 import { companyFilterFields, contactFilterFields, dealFilterFields, filterFieldShapes, type AdvFilterField } from '@/components/crm/advancedFilterFields';
 import type { SessionUser } from '@/lib/session';
@@ -172,22 +172,34 @@ describe('column filter: who sees what', () => {
     expect(res).toEqual({ ids: [], total: 0 });
   });
 
-  it('a member cannot filter by a property hidden to them: the page drops the rule and select-all rejects it', async () => {
+  it('a member cannot filter by a property hidden to them: the page and select-all drop the rule (listFilterModel)', async () => {
     const member = asMember(w.owner, w.member);
-    // Select all / export: un filtro sobre un campo oculto no se aplica (sería una forma de leerlo).
-    expect(await resolveMatching(member, 'contacts', query(bySalary), 100)).toEqual({ error: 'invalid_filter' });
-    // La página: el filtro se valida contra las propiedades que la persona puede filtrar (sin las ocultas).
+    // Select all / export: la regla sobre el campo oculto no se aplica (sería una forma de leerlo): salen sus dos contactos.
+    const res = await resolveMatching(member, 'contacts', query(bySalary), 100);
+    expect('ids' in res && [...res.ids].sort()).toEqual([ids.mine, ids.rich].sort());
+    // La página: las propiedades que la persona puede filtrar no incluyen la oculta, y el filtro la descarta.
     const visible = (await fieldAccessFor(sessionFieldViewer(member), 'contacts')).visible;
     const fields = contactFilterFields({ t, owners: [], tags: [], customDefs: visible, companies: [], lifecycles: [], leadStatuses: [], sources: [], scores: [] });
     expect(fields.some((f) => f.key === 'custom:salary')).toBe(false);
-    expect(sanitizeFilterModel(parseFilterModel(serializeFilterModel(bySalary)), filterFieldShapes(fields)).groups).toEqual([]);
+    const customTypes = Object.fromEntries(visible.map((d) => [d.name, filterTypeFor(d.type)]));
+    const model = listFilterModel(serializeFilterModel(bySalary), 'contacts', {
+      customTypes,
+      env: { viewerId: w.member.id, timeZone: 'UTC', strictCustom: true },
+      shapes: filterFieldShapes(fields),
+    });
+    expect(model.groups).toEqual([]);
+    // El owner sí: la misma regla se aplica.
+    const ownerTypes = Object.fromEntries((await fieldAccessFor(sessionFieldViewer(asOwner(w.owner)), 'contacts')).visible.map((d) => [d.name, filterTypeFor(d.type)]));
+    expect(listFilterModel(serializeFilterModel(bySalary), 'contacts', { customTypes: ownerTypes, env: { viewerId: w.owner.id, timeZone: 'UTC', strictCustom: true } }).groups).toHaveLength(1);
   });
 
   it('counts of associated records only count what the member sees (Contacts column of companies, deals of a contact)', async () => {
     const member = asMember(w.owner, w.member);
+    // Otra marca: estos contactos no deben entrar en los filtros por email de los otros tests.
+    const k = 'cntq';
     const co = await createCompany(w.owner.id, { name: `Counted ${tag}`, ownerId: w.member.id });
-    await createContact(w.owner.id, { firstName: 'Seen', email: `seen-${tag}@count.test`, companyId: co.id, ownerId: w.member.id });
-    for (const i of [1, 2]) await createContact(w.owner.id, { firstName: 'Unseen', email: `unseen${i}-${tag}@count.test`, companyId: co.id, ownerId: w.friend.id });
+    await createContact(w.owner.id, { firstName: 'Seen', email: `seen-${k}@count.test`, companyId: co.id, ownerId: w.member.id });
+    for (const i of [1, 2]) await createContact(w.owner.id, { firstName: 'Unseen', email: `unseen${i}-${k}@count.test`, companyId: co.id, ownerId: w.friend.id });
     const count = (o: string, v: string) => setFieldRule({ v: 1, groups: [] }, 'contactCount', { f: 'contactCount', o, v })!;
     const named = (m: FilterModel) => `${query(m)}&q=${encodeURIComponent(`Counted ${tag}`)}`;
     expect(await resolveMatching(member, 'companies', named(count('eq', '1')), 100)).toEqual({ ids: [co.id], total: 1 });
@@ -198,10 +210,10 @@ describe('column filter: who sees what', () => {
 
     const p = await createPipeline(w.owner.id, 'Count pipe');
     const stage = (await createStage(w.owner.id, p.id, { name: 'Open' }))!;
-    const c = await createContact(w.owner.id, { firstName: 'Dealt', email: `dealt-${tag}@count.test`, ownerId: w.member.id });
+    const c = await createContact(w.owner.id, { firstName: 'Dealt', email: `dealt-${k}@count.test`, ownerId: w.member.id });
     const d = await createDeal(w.owner.id, { name: `Hidden deal ${tag}`, pipelineId: p.id, stageId: stage.id, ownerId: w.friend.id, contactIds: [c.id] });
     expect(d.ok).toBe(true);
-    const deals = (rule: { f: string; o: string; v?: string }) => `${query(setFieldRule({ v: 1, groups: [] }, rule.f, rule)!)}&q=${encodeURIComponent(`dealt-${tag}`)}`;
+    const deals = (rule: { f: string; o: string; v?: string }) => `${query(setFieldRule({ v: 1, groups: [] }, rule.f, rule)!)}&q=${encodeURIComponent(`dealt-${k}`)}`;
     expect(await resolveMatching(member, 'contacts', deals({ f: 'dealCount', o: 'gte', v: '1' }), 100)).toEqual({ ids: [], total: 0 });
     expect(await resolveMatching(member, 'contacts', deals({ f: 'hasOpenDeal', o: 'true' }), 100)).toEqual({ ids: [], total: 0 });
     expect(await resolveMatching(asOwner(w.owner), 'contacts', deals({ f: 'dealCount', o: 'gte', v: '1' }), 100)).toEqual({ ids: [c.id], total: 1 });
