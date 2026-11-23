@@ -69,6 +69,8 @@ async function seedInbox(request: APIRequestContext) {
   await send(dm('Leo Prueba', `1555${Math.floor(1e6 + Math.random() * 8e6)}`, `${tag}b`));
 }
 
+test.use({ actionTimeout: 8_000, navigationTimeout: 45_000 });
+
 const notes: string[] = [];
 async function shot(page: Page, name: string) {
   await page.waitForTimeout(350);
@@ -76,6 +78,7 @@ async function shot(page: Page, name: string) {
   if (overflow > 1) notes.push(`${name}: scroll lateral ${overflow}px`);
   await page.screenshot({ path: `${DIR}/${name}.png` });
   console.log(`[shot] ${name}`);
+  notes.length && console.log(notes[notes.length - 1]);
 }
 async function tryStep(name: string, fn: () => Promise<void>) {
   try {
@@ -141,7 +144,7 @@ async function run(page: Page, context: import('@playwright/test').BrowserContex
     });
     if (has('dm')) await tryStep(`${p}-dm`, async () => {
       await openChat('Mariana');
-      await page.getByRole('textbox', { name: 'Message' }).fill('Te lo mando hoy a la tarde sin falta');
+      await page.locator('.wa-composer textarea').first().fill('Te lo mando hoy a la tarde sin falta');
       await shot(page, `${p}-08-dm`);
       await page.getByTestId('chat-search-open').first().click();
       await page.getByTestId('chat-search-input').fill('presu');
