@@ -157,9 +157,12 @@ describe('Lines: vínculos al CRM según lo que quien mira ve en el CRM', () => 
       session.user = user;
       const res = await createRoute.POST(req('POST', '/api/groups/create', { numberId: s.n.id, name, phones: ['5491100000001'], crmCompanyId: s.hiddenCompany.id }));
       expect(res.status).toBe(201);
+      expect(((await res.json()) as { results: Array<{ ok: boolean }> }).results[0]?.ok).toBe(true);
       return (await getDb().prepare('SELECT crm_company_id FROM groups_chats WHERE user_id = ? AND name = ?').get(s.ws, name)) as { crm_company_id: string | null } | undefined;
     };
-    expect((await make(member(s), 'From member'))?.crm_company_id ?? null).toBeNull();
+    const fromMember = await make(member(s), 'From member');
+    expect(fromMember).toBeDefined();
+    expect(fromMember?.crm_company_id).toBeNull();
     expect((await make(owner(s), 'From owner'))?.crm_company_id).toBe(s.hiddenCompany.id);
   });
 });
