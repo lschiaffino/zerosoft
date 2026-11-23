@@ -457,7 +457,8 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 }
 /* Pestañas de vistas en el teléfono: la activa se lee entera ("Todos los contactos"); la que sigue se corta. */
 @media (max-width: 640px) {
-  .views-tabs .view-tab.active { flex: 0 1 auto; }
+  /* La activa no se achica (su tope deja lugar a Más y Agregar vista); la otra cede. */
+  .views-tabs .view-tab.active { flex: none; }
   .views-tabs .view-tab:not(.active) { flex-shrink: 1000; }
   .views-tabs .view-tab.active .view-tab-link { max-width: min(220px, calc(100vw - 200px)); }
 }
