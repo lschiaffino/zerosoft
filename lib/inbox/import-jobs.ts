@@ -27,7 +27,7 @@
 import { createHash } from 'crypto';
 import { getDb } from '../db';
 import { ProviderError, type GroupsProvider } from '../groups-provider';
-import { deleteUploads } from '../uploads';
+import { deleteOwnedUploads } from '../uploads';
 import { isFileUrlPath } from '../files/url';
 import { listAccounts, newId, nowIso, upsertThread, type AccountRow } from './core';
 import { importGmailThread, isGmailRateLimit, listGmailThreadPage } from './gmail';
@@ -288,7 +288,7 @@ export async function setImportState(owner: string, id: string, action: 'pause' 
       .run(nowS, id);
   else {
     const r = await db.prepare(`UPDATE inbox_imports SET status = 'cancelled', finished_at = ?, updated_at = ? WHERE id = ? AND status IN ${ACTIVE.replace(')', ",'failed')")}`).run(nowS, nowS, id);
-    if (r.changes && job.kind === 'file' && job.source_url) await deleteUploads([job.source_url]);
+    if (r.changes && job.kind === 'file' && job.source_url) await deleteOwnedUploads({ userId: owner }, [job.source_url]);
   }
   return dto(await getJob(owner, id));
 }
@@ -556,7 +556,7 @@ async function stepFile(job: JobRow, deadline: number, now: Date): Promise<void>
   const done = cursor.offset >= size;
   progress.failures = 0;
   await save(job, { status: done ? 'done' : 'running', cursor, progress }, now);
-  if (done) await deleteUploads([job.source_url]);
+  if (done) await deleteOwnedUploads({ userId: job.owner_id }, [job.source_url]);
 }
 
 /** Un paso de una importación (si nadie la tiene tomada). Devuelve cómo quedó. */

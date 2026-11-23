@@ -10,7 +10,7 @@
 import { isFileUrlPath } from '../files/url';
 import { readFile } from 'fs/promises';
 import { getDb } from '../db';
-import { deleteUploads, localUploadPath } from '../uploads';
+import { deleteOwnedUploads, localUploadPath } from '../uploads';
 import { futureIso, getScheduledOwned, getThreadRow, listScheduled, newId, nowIso, type ScheduledRow } from './core';
 import { InboxError, LIMITS, type ScheduledDto } from './types';
 import { cleanWaMentionPicks, type WaMentionPick } from '../wa-compose-mentions';
@@ -66,6 +66,15 @@ export function isInboxMediaUrl(url: string): boolean {
     return u.protocol === 'https:' && /\.public\.blob\.vercel-storage\.com$/.test(u.hostname) && /^\/inbox\/[A-Za-z0-9._%-]{1,240}$/.test(u.pathname);
   } catch {
     return false;
+  }
+}
+
+/** Un archivo de /api/files en las partes tiene que ser de quien programa (si no, como una URL inválida). */
+async function assertOwnedMedia(owner: string, parts: CleanPart[]): Promise<void> {
+  const { ownedFileRow } = await import('../files/store');
+  for (const p of parts) {
+    const url = p.media?.url;
+    if (url && isFileUrlPath(url) && !(await ownedFileRow(url, { userId: owner }))) throw new InboxError('invalid_input', 400);
   }
 }
 
@@ -163,6 +172,7 @@ async function insertParts(owner: string, threadId: string, batchId: string, fir
 export async function createBatch(owner: string, input: { threadId: string; sendAt: string; parts: PartInput[]; key?: string }, now = new Date()): Promise<ScheduledDto[]> {
   const thread = await getThreadRow(owner, input.threadId);
   const parts = cleanParts(input.parts, thread.channel);
+  await assertOwnedMedia(owner, parts);
   await checkReplies(owner, thread.id, parts);
   const at = futureIso(input.sendAt, now);
   const key = input.key && /^[A-Za-z0-9_-]{8,64}$/.test(input.key) ? `ibb_${input.key}` : newId('ibb');
@@ -195,6 +205,7 @@ export async function replaceBatch(owner: string, id: string, input: { sendAt: s
   if (rows.some((r) => r.status === 'sending')) throw new InboxError('busy', 409);
   const thread = await getThreadRow(owner, row.thread_id);
   const parts = cleanParts(input.parts, thread.channel);
+  await assertOwnedMedia(owner, parts);
   await checkReplies(owner, thread.id, parts);
   const at = futureIso(input.sendAt, now);
   const open = rows.filter((r) => OPEN.has(r.status));
@@ -203,7 +214,7 @@ export async function replaceBatch(owner: string, id: string, input: { sendAt: s
   const nowS = nowIso(now);
   for (const r of open) await db.prepare("UPDATE inbox_scheduled SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending','failed','missed')").run(nowS, r.id);
   const kept = new Set(parts.map((p) => p.media?.url).filter(Boolean));
-  await deleteUploads(open.map((r) => r.media_url).filter((u) => u && !kept.has(u)));
+  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter((u) => u && !kept.has(u)));
   const batchId = row.batch_id || newId('ibb');
   const nextSeq = Math.max(-1, ...rows.map((r) => Number(r.seq))) + 1;
   await insertParts(owner, thread.id, batchId, row.batch_id ? nextSeq : 0, at, parts, now);
@@ -218,7 +229,7 @@ export async function cancelBatch(owner: string, id: string, now = new Date()): 
   for (const r of open) {
     await getDb().prepare("UPDATE inbox_scheduled SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending','failed','missed')").run(nowIso(now), r.id);
   }
-  await deleteUploads(open.map((r) => r.media_url).filter(Boolean));
+  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter(Boolean));
 }
 
 /** La primera parte que falta mandar de la secuencia (para "Enviar ya"). */

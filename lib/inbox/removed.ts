@@ -17,7 +17,7 @@
  * 20261115_2222_inbox_removed_chats).
  */
 import { getDb } from '../db';
-import { deleteUploads } from '../uploads';
+import { deleteOwnedUploads } from '../uploads';
 import { threadDto, type ThreadRow } from './core';
 import type { ThreadDto } from './types';
 
@@ -71,16 +71,19 @@ async function purgeRows(where: string, args: Array<string>): Promise<string[]> 
   const list = rows.map((r) => r.id);
   const m = marks(list.length);
   const media = (await db
-    .prepare(`SELECT media_url FROM inbox_scheduled WHERE thread_id IN (${m}) AND media_url <> '' AND status NOT IN ('sent', 'sending')`)
+    .prepare(`SELECT media_url, owner_id FROM inbox_scheduled WHERE thread_id IN (${m}) AND media_url <> '' AND status NOT IN ('sent', 'sending')`)
     .all(...list)
-    .catch(() => [])) as Array<{ media_url: string }>;
+    .catch(() => [])) as Array<{ media_url: string; owner_id: string }>;
   await db
     .prepare(`DELETE FROM wa_transcripts WHERE scope = 'inbox' AND message_id IN (SELECT id FROM inbox_messages WHERE thread_id IN (${m}))`)
     .run(...list)
     .catch(() => null);
   // Compare-and-set: solo lo que sigue sacado (si alguien lo recuperó recién, se queda).
   const gone = (await db.prepare(`DELETE FROM inbox_threads WHERE removed_at IS NOT NULL AND id IN (${m}) RETURNING id`).all(...list)) as Array<{ id: string }>;
-  if (media.length) await deleteUploads(media.map((r) => r.media_url)).catch(() => null);
+  // Cada archivo, solo si es de quien lo programó (la URL la mandó la pantalla).
+  for (const ownerId of new Set(media.map((r) => r.owner_id))) {
+    await deleteOwnedUploads({ userId: ownerId }, media.filter((r) => r.owner_id === ownerId).map((r) => r.media_url)).catch(() => null);
+  }
   return gone.map((r) => r.id);
 }
 

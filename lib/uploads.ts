@@ -260,6 +260,21 @@ export async function deleteUploads(urls: string[]): Promise<void> {
   }
 }
 
+/**
+ * deleteUploads para URLs que llegaron del cliente (o se guardaron desde él):
+ * un archivo de /api/files se borra solo si es de `owner` (ownedFileRow); uno
+ * ajeno queda como está. Las URLs de antes (Blob, /uploads) siguen igual.
+ */
+export async function deleteOwnedUploads(owner: FileOwner, urls: string[]): Promise<void> {
+  const { ownedFileRow } = await import('./files/store');
+  const keep: string[] = [];
+  for (const url of urls) {
+    if (!url) continue;
+    if (!isFileUrl(url) || (await ownedFileRow(url, owner))) keep.push(url);
+  }
+  if (keep.length) await deleteUploads(keep);
+}
+
 let migration: Promise<void> | null = null;
 
 /**

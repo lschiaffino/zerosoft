@@ -8,7 +8,7 @@
 import { isFileUrlPath } from '../files/url';
 import { baseMime, MEDIA_KINDS, MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
 import { ProviderError } from '../groups-provider';
-import { deleteUploads } from '../uploads';
+import { deleteOwnedUploads } from '../uploads';
 import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { onceInFlight } from '../send-once';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
@@ -105,14 +105,14 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   if (sent) {
     // Ya salió: lo que se volvió a subir para este reintento no se usa.
-    if (f.url && isInboxBlobUrl(f.url)) await deleteUploads([f.url]).catch(() => null);
+    if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
     return '';
   }
   return onceInFlight(
     f.clientId ? `inbox:${threadId}:${f.clientId}` : null,
     () => sendMediaNow(owner, thread, f),
     async () => {
-      if (f.url && isInboxBlobUrl(f.url)) await deleteUploads([f.url]).catch(() => null);
+      if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
       return '';
     },
     // Un archivo tarda más: el servidor espera hasta 90 s al gateway.
@@ -164,8 +164,8 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     if (err instanceof InboxError) throw err;
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
   } finally {
-    // El archivo grande ya lo bajó el servidor de WhatsApp (o falló): no queda en Blob.
-    if (f.url) await deleteUploads([f.url]).catch(() => null);
+    // El archivo grande ya lo bajó el servidor de WhatsApp (o falló): no queda guardado. Solo si es de quien manda.
+    if (f.url) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
   }
   const meta: WaMessageMeta = { mime: mimetype, size: f.size, ...(f.clientId ? { cid: f.clientId } : {}) };
   if (kind === 'voice') meta.ptt = true;
