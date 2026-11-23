@@ -19,13 +19,16 @@ interface BookMeetingMenuProps {
   name?: string;
   email?: string;
   locale: string;
+  /** Botón con otro aspecto (la fila de acciones rápidas de la vista previa). */
+  triggerClassName?: string;
+  triggerContent?: React.ReactNode;
 }
 
 /**
  * Popover "Book meeting" (paridad HubSpot Meetings): lista los event types de
  * Cal y genera el link público /book/[handle]/[slug] con pre-fill del contacto.
  */
-export default function BookMeetingMenu({ eventTypes, name, email, locale }: BookMeetingMenuProps) {
+export default function BookMeetingMenu({ eventTypes, name, email, locale, triggerClassName, triggerContent }: BookMeetingMenuProps) {
   const t = useTranslations('crm');
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<MeetingEventType[]>(eventTypes ?? []);
@@ -117,12 +120,14 @@ export default function BookMeetingMenu({ eventTypes, name, email, locale }: Boo
       <button
         type="button"
         ref={triggerRef}
-        className="btn btn-secondary btn-sm"
+        className={triggerClassName ?? 'btn btn-secondary btn-sm'}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-label={triggerContent ? t('meetings.book') : undefined}
+        data-testid={triggerContent ? 'preview-quick-meeting' : undefined}
       >
-        {t('meetings.book')}
+        {triggerContent ?? t('meetings.book')}
       </button>
       {open && (
         <div className="book-meeting-menu">

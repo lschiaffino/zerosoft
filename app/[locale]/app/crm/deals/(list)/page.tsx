@@ -47,6 +47,7 @@ import { customCells, customColumns, customFilterTypes, extraSortOptions } from 
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { redactStagesFor } from '@/lib/crm-stage-move';
+import { resolveCardLayout } from '@/lib/crm-layouts';
 
 export const dynamic = 'force-dynamic';
 
@@ -547,6 +548,11 @@ export default async function DealsPage(props: DealsPageProps) {
   const aiScores = rawBoard ? await dealScoresFor(user.id, rawBoard.flatMap((c) => c.deals.map((d) => d.id))) : null;
   // Las tarjetas son filas enteras que llegan al cliente: sin los campos ocultos para la persona.
   const hiddenDealFields = (await fieldAccessP).hidden;
+  // Tarjetas de este pipeline ("Editar tarjetas"): sin las personalizadas que la persona tiene ocultas.
+  const cardLayout = view === 'board' ? await resolveCardLayout(sessionFieldViewer(user), pipeline.id) : null;
+  const cardCustomDefs = customFieldDefs
+    .filter((d) => cardLayout?.properties.includes(`custom.${d.name}`))
+    .map((d) => ({ name: d.name, label: d.label, type: d.type, options: d.options }));
   const boardStages = rawBoard
     ? rawBoard.map((col) => ({
         ...col,
@@ -597,7 +603,18 @@ export default async function DealsPage(props: DealsPageProps) {
                 <dd className="num">{formatMoney(totals.forecast, currencyCtx.base, locale)}</dd>
               </div>
             </dl>
-            <ScoreDealsButton pipelineId={pipeline.id} locale={locale} />
+            <span className="kb-totals-tools">
+              {isWorkspaceAdmin(user) && (
+                <Link
+                  href={`/app/crm/settings?tab=sales&pipeline=${encodeURIComponent(pipeline.id)}#board-cards`}
+                  className="btn btn-secondary btn-sm"
+                  data-testid="deals-edit-cards"
+                >
+                  {t('layouts.editCards')}
+                </Link>
+              )}
+              <ScoreDealsButton pipelineId={pipeline.id} locale={locale} />
+            </span>
           </div>
           <DealsBoard
             key={pipeline.id}
@@ -608,6 +625,8 @@ export default async function DealsPage(props: DealsPageProps) {
             priorities={priorities}
             sources={sources}
             owners={owners}
+            cardKeys={cardLayout?.properties}
+            cardCustomDefs={cardCustomDefs}
           />
         </>
       ) : (

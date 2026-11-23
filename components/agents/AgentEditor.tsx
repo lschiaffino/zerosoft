@@ -857,7 +857,8 @@ export default function AgentEditor(props: Props) {
         </div>
       )}
 
-      <div className="ui-tabs" role="tablist" aria-label={t('editor.tabsLabel')}>
+      {/* Anclajes del tour de Agents (lib/tours/agents.ts): las pestañas, el playground y las conversaciones. */}
+      <div className="ui-tabs" role="tablist" aria-label={t('editor.tabsLabel')} data-tour="agents-tabs">
         {TABS.map((k) => (
           <button
             key={k}
@@ -871,6 +872,7 @@ export default function AgentEditor(props: Props) {
             aria-controls={`ag-panel-${k}`}
             tabIndex={tab === k ? 0 : -1}
             className="ui-tab"
+            data-tour={k === 'playground' ? 'agents-tab-playground' : k === 'conversations' ? 'agents-tab-conversations' : undefined}
             onClick={() => setTab(k)}
             onKeyDown={onTabKey}
           >

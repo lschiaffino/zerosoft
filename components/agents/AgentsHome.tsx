@@ -92,6 +92,8 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
       disabled={busy !== null}
       aria-busy={busy === 'new' || undefined}
       onClick={() => create('new')}
+      // Anclaje del tour de Agents (lib/tours/agents.ts): crear el primer agente.
+      data-tour="agents-new"
     >
       {t('list.new')}
     </button>
@@ -128,7 +130,8 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
           rowKey={(a) => a.id}
           rowHref={(a) => `/app/agents/${a.id}`}
           columns={[
-            { key: 'name', header: t('list.name'), cell: (a) => a.name },
+            // Anclaje del tour de Agents (lib/tours/agents.ts): abrir un agente (gana la primera fila).
+            { key: 'name', header: t('list.name'), cell: (a) => <span data-tour="agents-item">{a.name}</span> },
             {
               key: 'tools',
               header: t('tabs.tools'),
@@ -208,8 +211,8 @@ export default function AgentsHome({ agents: initial, canEdit, aiEnabled }: Prop
           <p className="ui-section-desc">{t('templates.subtitle')}</p>
         </div>
         <ul className="ag-templates">
-          {AGENT_TEMPLATE_KEYS.map((key) => (
-            <li className="ag-template" key={key}>
+          {AGENT_TEMPLATE_KEYS.map((key, i) => (
+            <li className="ag-template" key={key} data-tour={i === 0 ? 'agents-template' : undefined}>
               <div className="ag-template-text">
                 <h3 className="ag-template-name">{t(`templates.${key}.name`)}</h3>
                 <p className="ag-template-desc">{t(`templates.${key}.desc`)}</p>

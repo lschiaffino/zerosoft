@@ -1600,6 +1600,40 @@
         "body": "You can take it again from your account menu."
       }
     },
+    "agents": {
+      "intro": {
+        "title": "Welcome to Agents",
+        "body": "Agents are AI assistants that answer your customers in Chat, on a public page or through the API, and take actions across the suite. This tour points out the main parts."
+      },
+      "newAgent": {
+        "title": "Create an agent",
+        "body": "Start from a blank agent: give it a name and instructions, and pick what it can use."
+      },
+      "templates": {
+        "title": "Start from a template",
+        "body": "Each template comes with instructions and turns on the tools it needs. You can change anything after you create it."
+      },
+      "openAgent": {
+        "title": "Open an agent",
+        "body": "Select an agent to edit it, test it and read its conversations."
+      },
+      "configure": {
+        "title": "Set it up",
+        "body": "Instructions say how it answers, Knowledge is what it reads, Tools are what it can do and Channels are where it answers."
+      },
+      "playground": {
+        "title": "Try it",
+        "body": "Chat with the agent as a visitor would and see each tool it calls, before it answers anyone."
+      },
+      "conversations": {
+        "title": "Conversations",
+        "body": "Every conversation it had, with the thumbs up or down people gave. Analytics, next to it, has the numbers."
+      },
+      "done": {
+        "title": "That's the tour",
+        "body": "You can take it again from your account menu."
+      }
+    },
     "social": {
       "intro": {
         "title": "Welcome to Social",
