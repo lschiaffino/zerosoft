@@ -3,6 +3,8 @@ import { Link } from '@/i18n/navigation';
 import { parseDbUtc } from '@/lib/utils';
 import RecordShell from './RecordShell';
 import RecordQuickActions from './RecordQuickActions';
+import RecordNav from './RecordNav';
+import CrmLiveMount, { liveRecordOf } from './CrmLiveMount';
 import { recordInitials, type ComposeType, type LayoutTab } from './recordLayout';
 
 /**
@@ -29,11 +31,14 @@ export default function RecordColumns({
   activity,
   right,
   rightLabel,
+  liveRev,
 }: {
   tab: LayoutTab;
   /** Ruta del registro sin locale (`/app/crm/contacts/<id>`). */
   base: string;
   back: { href: string; label: string };
+  /** Contador de CRM en vivo leído al empezar la página (components/crm/CrmLiveMount.tsx). */
+  liveRev?: Promise<number>;
   /** Arriba de todo (la jerarquía de empresas). */
   before?: ReactNode;
   /** Acciones que no son del día a día: playbooks, firma, agendar, menú Más. */
@@ -52,14 +57,18 @@ export default function RecordColumns({
     <div className="ui-page record-page rec3-page">
       {before}
       <div className="rec-topbar">
-        <Link href={back.href} className="ui-page-back">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M15 6l-6 6 6 6" />
-          </svg>
-          {back.label}
-        </Link>
+        <div className="rec-topbar-lead">
+          <Link href={back.href} className="ui-page-back">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+            {back.label}
+          </Link>
+          <RecordNav base={base} />
+        </div>
         {actions && <div className="ui-page-actions rec-topbar-actions">{actions}</div>}
       </div>
+      <CrmLiveMount rev={liveRev} record={liveRecordOf(base)} back={back} />
       <RecordShell
         tab={tab}
         base={base}

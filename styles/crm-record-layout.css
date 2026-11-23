@@ -23,6 +23,25 @@
   min-height: 32px;
 }
 .rec-topbar-actions { justify-content: flex-end; margin-left: auto; }
+.rec-topbar-lead { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; min-width: 0; }
+
+/* Anterior / siguiente de la vista (components/crm/RecordNav.tsx). */
+.rec-nav { display: inline-flex; align-items: center; gap: 6px; }
+.rec-nav-pos { min-width: 4.5em; text-align: center; font-size: 0.8125rem; color: var(--brand-gray-2); white-space: nowrap; }
+
+/* Otra persona borró el registro (components/crm/CrmLive.tsx). */
+.crm-live-gone {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--ui-hover);
+  color: var(--ink);
+  font-size: 0.875rem;
+}
 
 .rec3 {
   display: grid;

@@ -41,6 +41,7 @@ import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import CrmLiveMount, { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   // Las lecturas que no dependen de la lista de contactos arrancan juntas (en Turso cada query
   // es una ida y vuelta); se esperan donde se usan.
   const scopeP = sessionScope(user);
@@ -300,6 +303,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
 
   return (
     <div className="ui-page crm-list-page">
+      <CrmLiveMount rev={liveRev} entities={['contact', 'company']} />
       <PageHeader
         title={t('contacts.title')}
         actions={

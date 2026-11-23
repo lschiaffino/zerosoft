@@ -20,6 +20,7 @@ import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { OwnerCell } from './TableExtraColumns';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
+import { rememberCrmView } from './recordNavContext';
 
 export interface ContactRow {
   id: string;
@@ -145,6 +146,8 @@ export default function ContactsTable({ viewCols, viewFreeze,
   // Otro filtro u orden con las mismas filas en la página: "todos los que coinciden" tampoco sigue.
   const listQuery = useListQuery();
   useEffect(() => setMatching(null), [listQuery]);
+  // La ficha recorre esta vista con anterior / siguiente (components/crm/RecordNav.tsx).
+  useEffect(() => rememberCrmView('contacts', listQuery), [listQuery]);
   const liveMatching = matching && matching.query === listQuery ? matching : null;
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));

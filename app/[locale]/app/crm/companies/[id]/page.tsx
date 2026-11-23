@@ -51,6 +51,7 @@ import RecordWorkflows from '@/components/crm/RecordWorkflows';
 import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { scopedCompanyRollup, visibleRecordIds } from '@/lib/crm-record-scope';
+import { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 import CompanyLogo from '@/components/crm/CompanyLogo';
 import CompanyEnrichButton from '@/components/crm/CompanyEnrichButton';
 import { normalizeCompanyDomain } from '@/lib/crm-domain';
@@ -72,6 +73,8 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -655,6 +658,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
 
   return (
     <RecordColumns
+      liveRev={liveRev}
       tab={tab}
       base={base}
       back={{ href: '/app/crm/companies', label: t('record.back.companies') }}

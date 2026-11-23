@@ -7,6 +7,7 @@ import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
 import TableScroll from './TableScroll';
 import SelectAllMatching, { useListQuery, type MatchingSelection } from './SelectAllMatching';
 import { customSortValue } from '@/lib/crm-list-sort';
+import { rememberCrmView } from './recordNavContext';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
@@ -116,6 +117,8 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
   // Otro filtro u orden con las mismas filas en la página: "todos los que coinciden" tampoco sigue.
   const listQuery = useListQuery();
   useEffect(() => setMatching(null), [listQuery]);
+  // La ficha recorre esta vista con anterior / siguiente (components/crm/RecordNav.tsx).
+  useEffect(() => rememberCrmView('companies', listQuery), [listQuery]);
   const liveMatching = matching && matching.query === listQuery ? matching : null;
 
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
