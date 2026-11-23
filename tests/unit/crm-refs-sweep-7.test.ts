@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { createCompany, createContact, createCustomField, updateCompany } from '@/lib/crm';
+import { createCompany, createContact, createCustomField } from '@/lib/crm';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { createLead } from '@/lib/crm-leads';
@@ -97,7 +97,7 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     const s = await setup('s7filter');
     await getDb().prepare('INSERT INTO crm_contact_companies (contact_id, company_id, user_id) VALUES (?, ?, ?)').run(s.mineContact.id, s.hiddenCo.id, s.ws).catch(() => null);
     await getDb().prepare('UPDATE crm_contacts SET company_id = ? WHERE id = ?').run(s.hiddenCo.id, s.mineContact.id);
-    await createLead(s.ws, { title: 'Lead', companyId: s.hiddenCo.id, ownerId: s.w.member.id });
+    await createLead(s.ws, { name: 'Lead', companyId: s.hiddenCo.id, ownerId: s.w.member.id });
     session.user = member(s);
     const contacts = (await (await contactsRoute.GET(send('GET', `/api/crm/contacts?companyId=${s.hiddenCo.id}`))).json()) as { rows: unknown[]; total: number };
     expect(contacts).toMatchObject({ rows: [], total: 0 });
@@ -116,8 +116,7 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     const merged = await mergeRoute.POST(send('POST', '/api/crm/contacts/merge', { keepId: keep.id, dropId: drop.id }));
     expect(merged.status).toBe(200);
     expect(JSON.stringify(await merged.json())).not.toContain(s.hiddenCo.id);
-    // Empresa del miembro cuya madre pasa a ser una que no ve.
-    await updateCompany(s.ws, s.mineCo.id, { parentCompanyId: s.hiddenCo.id } as never, undefined, 'owner@test.local').catch(() => null);
+    // La empresa del miembro pasó a tener como madre una que no ve (registro del historial).
     await getDb()
       .prepare("INSERT INTO crm_property_events (id, user_id, entity, entity_id, field, old_value, new_value, actor_email) VALUES (?, ?, 'company', ?, 'parent_company_id', '', ?, 'x@test.local')")
       .run(crypto.randomUUID(), s.ws, s.mineCo.id, s.hiddenCo.id);
