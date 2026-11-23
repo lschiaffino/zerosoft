@@ -659,6 +659,11 @@ test('buscar: el chat que coincide por nombre va primero, aunque sea más viejo 
   // La lista dice qué es cada parte: primero "Chats" con el de nombre, después los encontrados en mensajes.
   const kinds = () => page.locator('[data-chat-list] > li').evaluateAll((els) => els.slice(0, 3).map((el) => el.getAttribute('data-testid')));
   await expect.poll(kinds).toEqual(['inbox-search-chats', 'inbox-row', 'inbox-search-in-messages']);
+  // Solo esos títulos van en mayúsculas: la cabecera de la lista (título y pestañas, como WhatsApp) no las hereda.
+  const textTransform = (el: Element) => getComputedStyle(el).textTransform;
+  expect(await page.getByTestId('inbox-search-chats').evaluate(textTransform)).toBe('uppercase');
+  expect(await page.locator('.ib-list-pane .ib-h1').evaluate(textTransform)).toBe('none');
+  expect(await page.locator('.ib-tabs > *').first().evaluate(textTransform)).toBe('none');
 
   // A 390 px los títulos no agregan scroll de costado.
   await page.setViewportSize({ width: 390, height: 800 });

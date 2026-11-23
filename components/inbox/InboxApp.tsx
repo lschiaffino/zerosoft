@@ -1588,7 +1588,7 @@ export default function InboxApp(props: {
             {threads.flatMap((th, i) => {
               const head =
                 q.trim() && th.nameHit !== undefined && th.nameHit !== threads[i - 1]?.nameHit ? (
-                  <li key={`head-${th.id}`} className="ib-list-head" role="presentation" data-testid={th.nameHit ? 'inbox-search-chats' : 'inbox-search-in-messages'}>
+                  <li key={`head-${th.id}`} className="ib-list-sep" role="presentation" data-testid={th.nameHit ? 'inbox-search-chats' : 'inbox-search-in-messages'}>
                     {th.nameHit ? t('list.chatsFound') : t('list.foundInMessages')}
                   </li>
                 ) : null;
