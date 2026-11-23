@@ -18,6 +18,16 @@ export const MAX_FORM_FIELDS = 20;
 export const MAX_FIELD_OPTIONS = 30;
 export const MAX_ANSWER_LENGTH = 10_000;
 
+/** Un campo del formulario, como queda guardado. */
+export interface TrackFormField {
+  id: string;
+  label: string;
+  type: TrackFormFieldType;
+  required: boolean;
+  help?: string;
+  options?: string[];
+}
+
 export const formFieldSchema = z
   .object({
     id: z.string().trim().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/),
@@ -27,12 +37,17 @@ export const formFieldSchema = z
     help: z.string().trim().max(300).optional(),
     options: z.array(z.string().trim().min(1).max(100)).max(MAX_FIELD_OPTIONS).optional(),
   })
-  .transform((f) => ({
-    ...f,
-    help: f.help || undefined,
-    // Solo las opciones de una lista se guardan, sin repetidas.
-    options: f.type === 'select' ? [...new Set(f.options ?? [])] : undefined,
-  }))
+  .transform(
+    (f): TrackFormField => ({
+      id: f.id,
+      label: f.label,
+      type: f.type,
+      required: f.required,
+      ...(f.help ? { help: f.help } : {}),
+      // Solo las opciones de una lista se guardan, sin repetidas.
+      ...(f.type === 'select' ? { options: [...new Set(f.options ?? [])] } : {}),
+    }),
+  )
   .refine((f) => f.type !== 'select' || (f.options?.length ?? 0) > 0, { message: 'options_required', path: ['options'] });
 
 export const formFieldsSchema = z
@@ -40,7 +55,6 @@ export const formFieldsSchema = z
   .max(MAX_FORM_FIELDS)
   .refine((list) => new Set(list.map((f) => f.id)).size === list.length, { message: 'duplicate_field_id' });
 
-export type TrackFormField = z.output<typeof formFieldSchema>;
 
 /** Respuestas tal como llegan del formulario: texto o casilla. */
 export type TrackFormAnswers = Record<string, string | boolean | undefined>;

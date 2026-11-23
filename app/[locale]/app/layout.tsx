@@ -357,6 +357,7 @@ export default async function AppLayout(
                 { href: '/app/track/team', label: tTrack('sidebar.projects') },
                 { href: '/app/track/issues', label: tTrack('sidebar.issues') },
                 { href: '/app/track/customers', label: tTrack('sidebar.customers') },
+                { href: '/app/track/forms', label: tTrack('sidebar.forms') },
                 { href: '/app/track/inbox', label: tTrack('sidebar.inbox') },
                 { href: '/app/track/projects', label: tPlanning('sidebar.plans') },
                 { href: '/app/track/plans', label: tPlanning('sidebar.plans') },
