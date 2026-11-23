@@ -159,7 +159,7 @@ export function useTableColumns(opts: {
     if (!q.get(SAVED_VIEW_PARAM)) {
       writeStorage(storageKey, clean);
       writeStorage(`${storageKey}:freeze`, [nextFreeze ? '1' : '0']);
-      setStored({ order: clean, freeze: nextFreeze });
+      setStored((prev) => ({ ...prev, order: clean, freeze: nextFreeze }));
     }
     if (q.get(MODIFIED_PARAM) !== '1') q.delete(MODIFIED_PARAM);
     router.push(`${pathname}?${q.toString()}`);
