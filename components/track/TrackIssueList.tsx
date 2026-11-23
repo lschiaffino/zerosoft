@@ -347,6 +347,15 @@ export default function TrackIssueList({
   // vista y persona y guardado con la vista; ⌘Z lo vuelve atrás.
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
+  // ⌘Z solo vuelve atrás en la misma vista: con otra vista abierta (o la lista desmontada) no toca nada.
+  const viewNow = useRef({ viewKey, activeViewId, mounted: true });
+  viewNow.current = { viewKey, activeViewId, mounted: true };
+  useEffect(() => {
+    const ref = viewNow;
+    return () => {
+      ref.current.mounted = false;
+    };
+  }, []);
   const setGroupOrder = useCallback(
     (field: IssueGroupBy, keys: string[] | null) => {
       const before = prefsRef.current.groupOrder ?? {};
@@ -354,7 +363,17 @@ export default function TrackIssueList({
       if (keys) next[field] = mergeGroupOrder(keys, before[field]);
       else delete next[field];
       setPrefs({ groupOrder: next });
-      pushUndo(tx('display.groupsReordered'), () => setPrefs({ groupOrder: before }), () => setPrefs({ groupOrder: next }));
+      const at = { viewKey: viewNow.current.viewKey, activeViewId: viewNow.current.activeViewId };
+      const same = () => viewNow.current.mounted && viewNow.current.viewKey === at.viewKey && viewNow.current.activeViewId === at.activeViewId;
+      pushUndo(
+        tx('display.groupsReordered'),
+        () => {
+          if (same()) setPrefs({ groupOrder: before });
+        },
+        () => {
+          if (same()) setPrefs({ groupOrder: next });
+        },
+      );
     },
     [setPrefs, tx],
   );

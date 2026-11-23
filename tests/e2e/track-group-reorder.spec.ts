@@ -65,9 +65,26 @@ test('lista: arrastrar el asa, ⌘Z, flechas, menú del grupo y el orden recorda
   await page.goto(`/en/app/track/team/${s.team}?group=priority`, { waitUntil: 'networkidle' });
   await expect.poll(() => order(page)).toEqual(['urgent', 'high', 'low']);
 
+  // Esc a mitad del arrastre: no cambia nada (y se ve la línea de destino mientras tanto).
+  const highGrip = group(page, 'high').getByTestId('track-group-grip');
+  await highGrip.hover();
+  const hb = (await highGrip.boundingBox())!;
+  const ub = (await group(page, 'urgent').boundingBox())!;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2, ub.y + 4, { steps: 8 });
+  await expect(page.locator('.is-group-drop-before')).toHaveCount(1);
+  await shot(page, 'track-group-reorder-dragging-1280');
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(page.locator('.is-group-drop-before, .is-group-dragging')).toHaveCount(0);
+  expect(await order(page)).toEqual(['urgent', 'high', 'low']);
+
   // Arrastrar Low arriba de Urgent.
   await mouseDrag(page, group(page, 'low').getByTestId('track-group-grip'), group(page, 'urgent'), 'y');
   await expect.poll(() => order(page)).toEqual(['low', 'urgent', 'high']);
+  // Soltar no contrae ni abre ningún grupo.
+  await expect(page.getByTestId('track-group-toggle').and(page.locator('[aria-expanded="false"]'))).toHaveCount(0);
   await shot(page, 'track-group-reorder-list-1280');
 
   // ⌘Z vuelve al orden de antes.

@@ -26,7 +26,8 @@ interface DragState {
 
 /** Contenedor que scrollea en ese eje (el tablero de costado, la página para abajo). */
 function scrollParent(el: HTMLElement, axis: Axis): HTMLElement {
-  let node: HTMLElement | null = el.parentElement;
+  // Desde la lista misma: el tablero (.track-board) es el que scrollea de costado.
+  let node: HTMLElement | null = el;
   while (node && node !== document.body) {
     const style = getComputedStyle(node);
     const overflow = axis === 'x' ? style.overflowX : style.overflowY;
@@ -51,7 +52,8 @@ export function useGroupReorder(keys: string[], axis: Axis, onReorder?: (keys: s
       if (!onReorderRef.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
       const list = e.currentTarget.closest<HTMLElement>('[data-group-list]');
       if (!list) return;
-      e.preventDefault();
+      // Sin preventDefault: el mousedown sigue llegando (cierra los menús abiertos). El asa no
+      // selecciona texto (user-select) ni scrollea con el dedo (touch-action).
       cleanup.current?.();
       const pointerId = e.pointerId;
       const origin = axis === 'y' ? e.clientY : e.clientX;
@@ -60,6 +62,13 @@ export function useGroupReorder(keys: string[], axis: Axis, onReorder?: (keys: s
       let to = keysRef.current.indexOf(key);
       let last = origin;
       let frame = 0;
+      // El estado (y el render de la lista) cambia solo cuando cambia el lugar de destino.
+      let shown = -1;
+      const show = () => {
+        if (to === shown) return;
+        shown = to;
+        setDrag({ key, to });
+      };
 
       const items = () => Array.from(list.querySelectorAll<HTMLElement>('[data-group-key]')).filter((el) => el.closest('[data-group-list]') === list);
       const place = (pos: number) => {
@@ -92,7 +101,7 @@ export function useGroupReorder(keys: string[], axis: Axis, onReorder?: (keys: s
         if (axis === 'y') scroller.scrollBy(0, delta);
         else scroller.scrollBy(delta, 0);
         to = place(last);
-        setDrag({ key, to });
+        show();
         frame = window.requestAnimationFrame(autoscroll);
       };
       const onMove = (ev: PointerEvent) => {
@@ -103,7 +112,7 @@ export function useGroupReorder(keys: string[], axis: Axis, onReorder?: (keys: s
         ev.preventDefault();
         last = pos;
         to = place(pos);
-        setDrag({ key, to });
+        show();
         if (!frame) frame = window.requestAnimationFrame(autoscroll);
       };
       const finish = (commit: boolean) => {
@@ -141,7 +150,6 @@ export function useGroupReorder(keys: string[], axis: Axis, onReorder?: (keys: s
         cleanup.current = null;
       };
       window.addEventListener('click', onClick, true);
-      setDrag({ key, to });
     },
     [axis],
   );
@@ -209,20 +217,37 @@ export function GroupReorderControls({ groupKey, name, index, count, axis, reord
     reorder.move(groupKey, to);
     focusGrip(list, groupKey);
   };
-  const item = (id: string, label: string, run: () => void, disabled = false) => (
-    <button
-      key={id}
-      type="button"
-      role="menuitem"
-      className="track-menu-item"
-      disabled={disabled}
-      aria-disabled={disabled || undefined}
-      data-testid={`track-group-${id}`}
-      onClick={run}
-    >
-      <span className="track-menu-label">{label}</span>
-    </button>
-  );
+  // Deshabilitados con aria-disabled (siguen enfocables): las flechas del menú pasan por todos.
+  let autofocused = false;
+  const item = (id: string, label: string, run: () => void, disabled = false) => {
+    const autofocus = !disabled && !autofocused;
+    if (autofocus) autofocused = true;
+    return (
+      <button
+        key={id}
+        type="button"
+        role="menuitem"
+        className="track-menu-item"
+        aria-disabled={disabled || undefined}
+        data-autofocus={autofocus ? '' : undefined}
+        data-testid={`track-group-${id}`}
+        onClick={() => {
+          if (!disabled) run();
+        }}
+      >
+        <span className="track-menu-label">{label}</span>
+      </button>
+    );
+  };
+  // Desde el menú: el grupo cambia de lugar y el foco vuelve a su "…" (React lo movió y lo soltó).
+  const moveFromMenu = (close: () => void, to: number) => {
+    close();
+    reorder.move(groupKey, to);
+    window.requestAnimationFrame(() => {
+      const el = Array.from(document.querySelectorAll<HTMLElement>('[data-group-key]')).find((x) => x.dataset.groupKey === groupKey);
+      el?.querySelector<HTMLElement>('.track-group-menu')?.focus();
+    });
+  };
   if (part === 'grip') {
     return (
       <button
@@ -250,42 +275,10 @@ export function GroupReorderControls({ groupKey, name, index, count, axis, reord
     >
       {(close) => (
         <>
-          {item(
-            'move-back',
-            back,
-            () => {
-              close();
-              reorder.move(groupKey, index - 1);
-            },
-            index === 0,
-          )}
-          {item(
-            'move-forward',
-            fwd,
-            () => {
-              close();
-              reorder.move(groupKey, index + 1);
-            },
-            index >= count - 1,
-          )}
-          {item(
-            'move-first',
-            axis === 'y' ? td('groupMoveTop') : td('groupMoveStart'),
-            () => {
-              close();
-              reorder.move(groupKey, 0);
-            },
-            index === 0,
-          )}
-          {item(
-            'move-last',
-            axis === 'y' ? td('groupMoveBottom') : td('groupMoveEnd'),
-            () => {
-              close();
-              reorder.move(groupKey, count - 1);
-            },
-            index >= count - 1,
-          )}
+          {item('move-back', back, () => moveFromMenu(close, index - 1), index === 0)}
+          {item('move-forward', fwd, () => moveFromMenu(close, index + 1), index >= count - 1)}
+          {item('move-first', axis === 'y' ? td('groupMoveTop') : td('groupMoveStart'), () => moveFromMenu(close, 0), index === 0)}
+          {item('move-last', axis === 'y' ? td('groupMoveBottom') : td('groupMoveEnd'), () => moveFromMenu(close, count - 1), index >= count - 1)}
           {onReset && (
             <>
               <div className="track-menu-sep" role="separator" />
