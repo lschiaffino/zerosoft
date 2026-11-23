@@ -10,8 +10,14 @@ import SortTh from './SortTh';
 import CrmIcon from './CrmIcon';
 import { useIndexColumns, type TableColumnsState } from './EditColumns';
 import ColumnFilter from './ColumnFilter';
-import { columnFilterKey } from './tableColumns';
-import { fieldRule } from '@/lib/crm-filter-model';
+import { columnFilterAliases, columnFilterKey } from './tableColumns';
+import { fieldRuleState, type FilterModel } from '@/lib/crm-filter-model';
+import { OPEN_FILTERS_EVENT } from './advancedFilterText';
+
+/** ¿Algo filtra lo que muestra la columna? Una regla sobre su propiedad (o una equivalente) o un filtro rápido. */
+function columnFiltered(model: FilterModel, keys: readonly string[], quick: readonly string[] = []): boolean {
+  return keys.some((k) => quick.includes(k) || model.groups.some((g) => g.rules.some((r) => r.f === k)));
+}
 import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH, clampColumnWidth } from '@/lib/crm-views-shared';
 
 interface HeaderCellProps {
@@ -39,7 +45,12 @@ export default function HeaderCell({ id, label, asc, desc, sort, className, card
   const api = useIndexColumns();
   const t = useTranslations('crm.columnMenu');
   const filterKey = api?.entity ? columnFilterKey(api.entity, id) : null;
-  const filtered = !!(filterKey && api?.filters && fieldRule(api.filters.model, filterKey));
+  const filtered = !!(
+    filterKey &&
+    api?.entity &&
+    api.filters &&
+    columnFiltered(api.filters.model, [filterKey, ...columnFilterAliases(api.entity, id)], api.filters.quick)
+  );
   return (
     <th className={className} data-card={card} data-col={id} data-filtered={filtered ? 'true' : undefined}>
       <span className="th-wrap">
@@ -248,7 +259,8 @@ function ColumnMenu({ id, label, asc, desc, sort, reset }: { id: string; label: 
   // La propiedad que filtra esta columna, si la persona la puede filtrar (las ocultas no vienen en `fields`).
   const filterKey = api?.entity ? columnFilterKey(api.entity, id) : null;
   const filterField = filterKey ? api?.filters?.fields.find((f) => f.key === filterKey) : undefined;
-  const filterActive = !!(filterField && api?.filters && fieldRule(api.filters.model, filterField.key));
+  // Una regla que la columna no puede mostrar tal cual (en algunos grupos, o un mínimo y un máximo) se edita en el panel.
+  const filterState = filterField && api?.filters ? fieldRuleState(api.filters.model, filterField.key) : { kind: 'none' as const };
 
   useDismiss(open, (reason) => {
     setOpen(false);
@@ -363,13 +375,16 @@ function ColumnMenu({ id, label, asc, desc, sort, reset }: { id: string; label: 
                   type="button"
                   role="menuitem"
                   className="th-menu-item"
+                  aria-haspopup="dialog"
                   onClick={() => {
                     setOpen(false);
-                    setFiltering(true);
+                    if (filterState.kind === 'complex') window.dispatchEvent(new CustomEvent(OPEN_FILTERS_EVENT));
+                    else setFiltering(true);
                   }}
+                  data-active={filterState.kind}
                   data-testid={`col-menu-${id}-filter`}
                 >
-                  {filterActive ? t('editFilter') : t('filter')}
+                  {filterState.kind === 'complex' ? t('editInPanel') : filterState.kind === 'simple' ? t('editFilter') : t('filter')}
                 </button>
                 <span className="th-menu-sep" role="separator" />
               </>

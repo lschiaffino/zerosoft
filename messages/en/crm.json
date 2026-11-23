@@ -5464,7 +5464,9 @@
     "filterTitle": "Filter: {name}",
     "applyFilter": "Apply",
     "clearFilter": "Remove filter",
-    "filtered": "Filtered"
+    "filtered": "Filtered",
+    "editInPanel": "Edit in Advanced filters",
+    "groupFull": "A filter group already has 20 rules. Remove one in Advanced filters first."
   },
   "quickFilterPicker": {
     "button": "Edit quick filters",

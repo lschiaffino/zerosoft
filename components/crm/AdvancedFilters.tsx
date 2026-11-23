@@ -643,7 +643,7 @@ function OptionList({ t, field, values, onChange }: { t: FilterT; field: AdvFilt
         {shown.length === 0 && <p className="crm-af-empty">{t('filters.noOptions')}</p>}
         {shown.map((o) => (
           <label key={o.value} className="ui-check crm-af-option">
-            <input type="checkbox" checked={values.includes(o.value)} onChange={() => toggle(o.value)} />
+            <input type="checkbox" value={o.value} checked={values.includes(o.value)} onChange={() => toggle(o.value)} />
             <span>{o.label}</span>
           </label>
         ))}

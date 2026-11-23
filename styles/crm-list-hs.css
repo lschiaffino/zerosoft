@@ -449,9 +449,10 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 .th-filter .crm-af-options-list { max-height: 220px; overflow-y: auto; }
 .th-filter-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 4px; }
 .th-filter-clear { margin-right: auto; }
+/* En el teléfono el filtro es una hoja abajo, con telón, como los otros menús (app-shared.css). */
 @media (max-width: 640px) {
-  /* En el teléfono, una hoja abajo de borde a borde (el encabezado de la tarjeta queda arriba). */
-  .th-menu.th-filter { position: fixed; top: auto; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: none; max-height: 70vh; box-shadow: 0 12px 40px var(--ui-shadow-strong, rgba(0, 0, 0, 0.2)); }
   .th-filter :is(.btn, .select, .input) { min-height: 40px; }
-  .th-menu-item { min-height: 40px; }
+}
+@media (pointer: coarse) {
+  .th-menu-item { min-height: 44px; }
 }

@@ -62,16 +62,24 @@ test.describe('column filters at 1280', () => {
     await expect(pop).toHaveCount(0);
     await expect(page.getByTestId('col-menu-email')).toBeFocused();
     await openFilter(page, 'email');
+    await expect(pop).toBeVisible();
     await page.locator('h1').first().click();
     await expect(pop).toHaveCount(0);
     expect(filtersParam(page)).toBe('');
+
+    // Un overlay a la vez: abrir el menú de la columna cierra el filtro.
+    await openFilter(page, 'email');
+    await expect(pop).toBeVisible();
+    await page.getByTestId('col-menu-email').click();
+    await expect(pop).toHaveCount(0);
+    await expect(page.getByTestId('col-menu-email-list')).toBeVisible();
+    await page.keyboard.press('Escape');
 
     // Texto: contiene "acme" (Enter aplica).
     await openFilter(page, 'email');
     await expect(pop.getByTestId('col-filter-op')).toHaveValue('contains');
     await pop.getByTestId('adv-filters-value').fill('acme');
     await pop.getByTestId('adv-filters-value').press('Enter');
-    await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/filters=/);
     await expect(rows(page)).toHaveCount(2);
     await expect(page.getByTestId('adv-filters-chips').getByTestId('adv-filters-chip')).toHaveCount(1);
@@ -81,7 +89,7 @@ test.describe('column filters at 1280', () => {
     // Opciones: lifecycle es "Customer" (Y con el anterior).
     await openFilter(page, 'lifecycle');
     const life = page.getByTestId('col-filter-lifecycle');
-    await life.getByRole('checkbox', { name: 'Customer' }).check();
+    await life.locator('input[type="checkbox"][value="customer"]').check();
     await life.getByTestId('col-filter-apply').click();
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toContainText(`cora-${tag}`);
@@ -122,6 +130,18 @@ test.describe('column filters at 1280', () => {
     }
     await page.goto(`/en/app/crm/deals?pipeline=${p.id}&view=table&q=${tag}&cols=name,amount,created`, { waitUntil: 'networkidle' });
     await expect(rows(page)).toHaveCount(3);
+    const day = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
+
+    // Fecha entre dos días que no incluyen hoy: nada; se quita desde su chip.
+    await openFilter(page, 'created');
+    const past = page.getByTestId('col-filter-created');
+    await past.getByTestId('col-filter-op').selectOption('between');
+    await past.getByTestId('adv-filters-value').fill(day(-10));
+    await past.getByTestId('adv-filters-value-to').fill(day(-5));
+    await past.getByTestId('col-filter-apply').click();
+    await expect(rows(page)).toHaveCount(0);
+    await page.getByTestId('adv-filters-chip').locator('.ui-filter-chip-x').click();
+    await expect(rows(page)).toHaveCount(3);
 
     // Número entre dos valores.
     await openFilter(page, 'amount');
@@ -133,8 +153,7 @@ test.describe('column filters at 1280', () => {
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toContainText(`Mid colf ${tag}`);
 
-    // Fecha entre dos días (hoy entra; ayer y mañana como bordes).
-    const day = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
+    // Fecha entre dos días que incluyen hoy.
     await openFilter(page, 'created');
     const created = page.getByTestId('col-filter-created');
     await created.getByTestId('col-filter-op').selectOption('between');
@@ -148,7 +167,7 @@ test.describe('column filters at 1280', () => {
     // El menú ofrece editarla y trae lo aplicado.
     await page.locator('.crm-table thead th[data-col="amount"]').hover();
     await page.getByTestId('col-menu-amount').click();
-    await expect(page.getByTestId('col-menu-amount-filter')).toHaveText('Edit column filter');
+    await expect(page.getByTestId('col-menu-amount-filter')).toHaveAttribute('data-active', 'simple');
     await page.getByTestId('col-menu-amount-filter').click();
     await expect(page.getByTestId('col-filter-amount').getByTestId('adv-filters-value')).toHaveValue('100');
     await page.keyboard.press('Escape');
@@ -175,6 +194,26 @@ test.describe('column filters at 1280', () => {
   });
 });
 
+test.describe('column filters on companies at 1280', () => {
+  test.use({ viewport: { width: 1280, height: 860 } });
+
+  test('options and text columns', async ({ page, request }) => {
+    const tag = uid();
+    await json(request.post('/api/crm/companies', { data: { name: `Colf one ${tag}`, domain: `one-${tag}.example`, industry: 'Retail' } }));
+    await json(request.post('/api/crm/companies', { data: { name: `Colf two ${tag}`, domain: `two-${tag}.example`, industry: 'Software' } }));
+    await page.goto(`/en/app/crm/companies?q=${tag}&cols=name,domain,industry`, { waitUntil: 'networkidle' });
+    await expect(rows(page)).toHaveCount(2);
+    await openFilter(page, 'domain');
+    const domain = page.getByTestId('col-filter-domain');
+    await domain.getByTestId('adv-filters-value').fill(`two-${tag}`);
+    await domain.getByTestId('adv-filters-value').press('Enter');
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText(`Colf two ${tag}`);
+    await expect(page.getByTestId('col-filtered-domain')).toBeVisible();
+    await noSideScroll(page);
+  });
+});
+
 test.describe('column filters at 390 (touch)', () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
 
@@ -189,9 +228,12 @@ test.describe('column filters at 390 (touch)', () => {
     await item.click();
     const pop = page.getByTestId('col-filter-name');
     await expect(pop).toBeVisible();
+    // Hoja abajo, de borde a borde.
     const box = (await pop.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(PHONE.width);
+    expect(box.width).toBeGreaterThan(PHONE.width - 40);
+    expect(box.y + box.height).toBeGreaterThan(PHONE.height - 60);
     await pop.getByTestId('adv-filters-value').fill('Cora');
     await expect(pop.getByTestId('col-filter-apply')).toBeVisible();
     expect((await pop.getByTestId('col-filter-apply').boundingBox())!.height).toBeGreaterThanOrEqual(40);

@@ -9,11 +9,12 @@
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { createContact, createCustomField } from '@/lib/crm';
+import { createCompany, createContact, createCustomField, createDeal, createPipeline, createStage } from '@/lib/crm';
 import { MEMBER_SUBJECT, fieldAccessFor, sessionFieldViewer, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import {
   fieldRule,
+  fieldRuleState,
   parseFilterModel,
   sanitizeFilterModel,
   serializeFilterModel,
@@ -54,31 +55,57 @@ function fieldsOf(entity: IndexEntity): AdvFilterField[] {
 
 describe('column filter: the rule', () => {
   const email = { f: 'email', o: 'contains', v: ['acme'] };
+  const lead = { f: 'lifecycle', o: 'is', v: ['lead'] };
+  const customer = { f: 'lifecycle', o: 'is', v: ['customer'] };
+  const mine = { f: 'owner', o: 'is', v: ['me'] };
 
   it('adds the rule as one more AND condition, in every OR group', () => {
     expect(setFieldRule({ v: 1, groups: [] }, 'email', email)).toEqual({ v: 1, groups: [{ rules: [email] }] });
-    const two: FilterModel = { v: 1, groups: [{ rules: [{ f: 'lifecycle', o: 'is', v: ['lead'] }] }, { rules: [{ f: 'owner', o: 'is', v: ['me'] }] }] };
-    expect(setFieldRule(two, 'email', email).groups).toEqual([
-      { rules: [{ f: 'lifecycle', o: 'is', v: ['lead'] }, email] },
-      { rules: [{ f: 'owner', o: 'is', v: ['me'] }, email] },
-    ]);
+    const two: FilterModel = { v: 1, groups: [{ rules: [lead] }, { rules: [mine] }] };
+    expect(setFieldRule(two, 'email', email)!.groups).toEqual([{ rules: [lead, email] }, { rules: [mine, email] }]);
   });
 
   it('replaces the column’s own rule, reads it back and removes it', () => {
-    const withRule = setFieldRule({ v: 1, groups: [{ rules: [{ f: 'email', o: 'known' }, { f: 'city', o: 'equals', v: ['Rosario'] }] }] }, 'email', email);
+    const withRule = setFieldRule({ v: 1, groups: [{ rules: [{ f: 'email', o: 'known' }, { f: 'city', o: 'equals', v: ['Rosario'] }] }] }, 'email', email)!;
     expect(withRule.groups[0].rules).toEqual([{ f: 'city', o: 'equals', v: ['Rosario'] }, email]);
     expect(fieldRule(withRule, 'email')).toEqual(email);
     expect(fieldRule(withRule, 'phone')).toBeUndefined();
-    const cleared = setFieldRule(withRule, 'email', null);
+    const cleared = setFieldRule(withRule, 'email', null)!;
     expect(cleared.groups).toEqual([{ rules: [{ f: 'city', o: 'equals', v: ['Rosario'] }] }]);
     // Sin otra regla, quitarla deja el filtro vacío (y la URL sin `filters`).
-    expect(serializeFilterModel(setFieldRule(setFieldRule({ v: 1, groups: [] }, 'email', email), 'email', null))).toBe('');
+    expect(serializeFilterModel(setFieldRule(setFieldRule({ v: 1, groups: [] }, 'email', email)!, 'email', null)!)).toBe('');
   });
 
-  it('a full group keeps its rules', () => {
+  it('the same rule in every group is edited and removed in all of them; editing without changes keeps the filter', () => {
+    const both: FilterModel = { v: 1, groups: [{ rules: [lead, email] }, { rules: [mine, email] }] };
+    expect(fieldRuleState(both, 'email')).toEqual({ kind: 'simple', rule: email });
+    expect(setFieldRule(both, 'email', email)).toEqual(both);
+    expect(setFieldRule(both, 'email', null)!.groups).toEqual([{ rules: [lead] }, { rules: [mine] }]);
+    // Si un grupo era solo esa regla, sin ella acepta todo: el filtro entero también.
+    expect(setFieldRule({ v: 1, groups: [{ rules: [email] }, { rules: [mine, email] }] }, 'email', null)).toEqual({ v: 1, groups: [] });
+  });
+
+  it('what a column cannot show as one rule goes to Advanced filters, untouched', () => {
+    // En un grupo sí y en otro no: "lead O (cliente Y reciente)".
+    const partial: FilterModel = { v: 1, groups: [{ rules: [lead] }, { rules: [customer, { f: 'created', o: 'last_days', v: '30' }] }] };
+    expect(fieldRuleState(partial, 'created')).toEqual({ kind: 'complex' });
+    expect(setFieldRule(partial, 'created', { f: 'created', o: 'last_days', v: '30' })).toBeNull();
+    expect(setFieldRule(partial, 'created', null)).toBeNull();
+    // Distinta entre grupos.
+    expect(fieldRuleState({ v: 1, groups: [{ rules: [lead] }, { rules: [customer] }] }, 'lifecycle')).toEqual({ kind: 'complex' });
+    // Un mínimo y un máximo en el mismo grupo.
+    const range: FilterModel = { v: 1, groups: [{ rules: [{ f: 'amount', o: 'gt', v: '100' }, { f: 'amount', o: 'lt', v: '1000' }] }] };
+    expect(fieldRuleState(range, 'amount')).toEqual({ kind: 'complex' });
+    expect(fieldRule(range, 'amount')).toBeUndefined();
+    expect(setFieldRule(range, 'amount', { f: 'amount', o: 'gt', v: '5' })).toBeNull();
+  });
+
+  it('a full group refuses the rule instead of dropping it', () => {
     const full: FilterModel = { v: 1, groups: [{ rules: Array.from({ length: MAX_GROUP_RULES }, (_, i) => ({ f: `custom:f${i}`, o: 'known' })) }] };
-    expect(setFieldRule(full, 'email', email).groups[0].rules).toHaveLength(MAX_GROUP_RULES);
-    expect(fieldRule(setFieldRule(full, 'email', email), 'email')).toBeUndefined();
+    expect(setFieldRule(full, 'email', email)).toBeNull();
+    // Reemplazar una que ya está no necesita lugar.
+    const withEmail: FilterModel = { v: 1, groups: [{ rules: [...full.groups[0].rules.slice(1), email] }] };
+    expect(setFieldRule(withEmail, 'email', { f: 'email', o: 'known' })!.groups[0].rules).toHaveLength(MAX_GROUP_RULES);
   });
 
   it('every filterable column points at a property the filter panel offers', () => {
@@ -91,9 +118,14 @@ describe('column filter: the rule', () => {
       expect(columnFilterKey(entity, 'custom:plan')).toBe('custom:plan');
       expect(columnFilterKey(entity, 'nope')).toBeNull();
     }
-    // Lo esencial de cada tabla se filtra desde su encabezado.
-    for (const id of ['name', 'email', 'lifecycle', 'owner', 'created']) expect(columnFilterKey('contacts', id)).not.toBeNull();
-    for (const id of ['name', 'amount', 'stage', 'closeDate', 'owner']) expect(columnFilterKey('deals', id)).not.toBeNull();
+    // Lo esencial de cada tabla se filtra desde su encabezado, con el control del tipo de lo que muestra.
+    const typeOf = (entity: IndexEntity, col: string) => fieldsOf(entity).find((f) => f.key === columnFilterKey(entity, col))?.type;
+    expect(['name', 'email', 'phone', 'company'].map((c) => typeOf('contacts', c))).toEqual(['text', 'text', 'text', 'text']);
+    expect(['lifecycle', 'leadStatus', 'source', 'owner', 'tags'].map((c) => typeOf('contacts', c))).toEqual(['select', 'select', 'select', 'select', 'select']);
+    expect(['created', 'lastActivity', 'nextActivity'].map((c) => typeOf('contacts', c))).toEqual(['date', 'date', 'date']);
+    expect(typeOf('contacts', 'score')).toBe('number');
+    expect([typeOf('companies', 'contacts'), typeOf('companies', 'industry'), typeOf('companies', 'domain')]).toEqual(['number', 'select', 'text']);
+    expect([typeOf('deals', 'amount'), typeOf('deals', 'stage'), typeOf('deals', 'closeDate'), typeOf('deals', 'priority')]).toEqual(['number', 'select', 'date', 'select']);
   });
 });
 
@@ -101,8 +133,8 @@ describe('column filter: who sees what', () => {
   let w: AccessWorkspace;
   const tag = 'colfilt';
   const query = (model: FilterModel) => `filters=${encodeURIComponent(serializeFilterModel(model))}`;
-  const byEmail = setFieldRule({ v: 1, groups: [] }, 'email', { f: 'email', o: 'contains', v: [tag] });
-  const bySalary = setFieldRule({ v: 1, groups: [] }, 'custom:salary', { f: 'custom:salary', o: 'gt', v: '1000' });
+  const byEmail = setFieldRule({ v: 1, groups: [] }, 'email', { f: 'email', o: 'contains', v: [tag] })!;
+  const bySalary = setFieldRule({ v: 1, groups: [] }, 'custom:salary', { f: 'custom:salary', o: 'gt', v: '1000' })!;
   const ids = {} as Record<'mine' | 'friend' | 'rich', string>;
 
   beforeAll(async () => {
@@ -131,7 +163,7 @@ describe('column filter: who sees what', () => {
   });
 
   it('a member without access to those records gets none of them', async () => {
-    const res = await resolveMatching(asMember(w.owner, w.friend), 'contacts', query(setFieldRule({ v: 1, groups: [] }, 'email', { f: 'email', o: 'contains', v: ['mine-colfilt'] })), 100);
+    const res = await resolveMatching(asMember(w.owner, w.friend), 'contacts', query(setFieldRule({ v: 1, groups: [] }, 'email', { f: 'email', o: 'contains', v: ['mine-colfilt'] })!), 100);
     expect(res).toEqual({ ids: [], total: 0 });
   });
 
@@ -149,6 +181,31 @@ describe('column filter: who sees what', () => {
     const fields = contactFilterFields({ t, owners: [], tags: [], customDefs: visible, companies: [], lifecycles: [], leadStatuses: [], sources: [], scores: [] });
     expect(fields.some((f) => f.key === 'custom:salary')).toBe(false);
     expect(sanitizeFilterModel(parseFilterModel(serializeFilterModel(bySalary)), filterFieldShapes(fields)).groups).toEqual([]);
+  });
+
+  it('counts of associated records only count what the member sees (Contacts column of companies, deals of a contact)', async () => {
+    const member = asMember(w.owner, w.member);
+    const co = await createCompany(w.owner.id, { name: `Counted ${tag}`, ownerId: w.member.id });
+    await createContact(w.owner.id, { firstName: 'Seen', email: `seen-${tag}@count.test`, companyId: co.id, ownerId: w.member.id });
+    for (const i of [1, 2]) await createContact(w.owner.id, { firstName: 'Unseen', email: `unseen${i}-${tag}@count.test`, companyId: co.id, ownerId: w.friend.id });
+    const count = (o: string, v: string) => setFieldRule({ v: 1, groups: [] }, 'contactCount', { f: 'contactCount', o, v })!;
+    const named = (m: FilterModel) => `${query(m)}&q=${encodeURIComponent(`Counted ${tag}`)}`;
+    expect(await resolveMatching(member, 'companies', named(count('eq', '1')), 100)).toEqual({ ids: [co.id], total: 1 });
+    expect(await resolveMatching(member, 'companies', named(count('eq', '3')), 100)).toEqual({ ids: [], total: 0 });
+    expect(await resolveMatching(member, 'companies', named(count('gt', '1')), 100)).toEqual({ ids: [], total: 0 });
+    // El owner ve los tres.
+    expect(await resolveMatching(asOwner(w.owner), 'companies', named(count('eq', '3')), 100)).toEqual({ ids: [co.id], total: 1 });
+
+    const p = await createPipeline(w.owner.id, 'Count pipe');
+    const stage = (await createStage(w.owner.id, p.id, { name: 'Open' }))!;
+    const c = await createContact(w.owner.id, { firstName: 'Dealt', email: `dealt-${tag}@count.test`, ownerId: w.member.id });
+    const d = await createDeal(w.owner.id, { name: `Hidden deal ${tag}`, pipelineId: p.id, stageId: stage.id, ownerId: w.friend.id, contactIds: [c.id] });
+    expect(d.ok).toBe(true);
+    const deals = (rule: { f: string; o: string; v?: string }) => `${query(setFieldRule({ v: 1, groups: [] }, rule.f, rule)!)}&q=${encodeURIComponent(`dealt-${tag}`)}`;
+    expect(await resolveMatching(member, 'contacts', deals({ f: 'dealCount', o: 'gte', v: '1' }), 100)).toEqual({ ids: [], total: 0 });
+    expect(await resolveMatching(member, 'contacts', deals({ f: 'hasOpenDeal', o: 'true' }), 100)).toEqual({ ids: [], total: 0 });
+    expect(await resolveMatching(asOwner(w.owner), 'contacts', deals({ f: 'dealCount', o: 'gte', v: '1' }), 100)).toEqual({ ids: [c.id], total: 1 });
+    expect(await resolveMatching(asOwner(w.owner), 'contacts', deals({ f: 'hasOpenDeal', o: 'true' }), 100)).toEqual({ ids: [c.id], total: 1 });
   });
 
   it('export of a column-filtered view: anonymous 401, member 403, admin gets the matching rows', async () => {

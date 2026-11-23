@@ -137,3 +137,18 @@ export function columnFilterKey(entity: IndexEntity, columnId: string): string |
   if (columnId.startsWith('custom:')) return columnId;
   return FILTER_KEYS[entity][columnId] ?? null;
 }
+
+/**
+ * Otras propiedades del filtro avanzado que también filtran lo que muestra
+ * la columna (el nombre por nombre o apellido, la empresa elegida de la
+ * lista): con una regla sobre ellas el encabezado también se marca filtrado.
+ */
+const FILTER_ALIASES: Record<IndexEntity, Record<string, readonly string[]>> = {
+  contacts: { name: ['firstName', 'lastName'], company: ['company'] },
+  companies: {},
+  deals: { stage: ['status'] },
+};
+
+export function columnFilterAliases(entity: IndexEntity, columnId: string): readonly string[] {
+  return FILTER_ALIASES[entity][columnId] ?? [];
+}

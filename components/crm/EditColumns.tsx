@@ -209,6 +209,8 @@ export interface ColumnFilters {
   fields: AdvFilterField[];
   model: FilterModel;
   baseQuery: Record<string, string>;
+  /** Propiedades que ya filtra un filtro rápido de la barra (owner, fechas, etapa…): su columna se marca filtrada. */
+  quick?: string[];
 }
 
 export type TableColumnsState = ReturnType<typeof useTableColumns> & {

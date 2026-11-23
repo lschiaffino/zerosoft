@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useDismiss } from '@/components/groups/wa/useDismiss';
@@ -61,16 +61,20 @@ export default function ColumnFilter({
   const pathname = usePathname();
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const errorId = useId();
   const [rule, setRule] = useState<DraftRule>(() => draftFor(field, filters));
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<'incomplete' | 'full' | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [placed, setPlaced] = useState(false);
   const active = !!fieldRule(filters.model, field.key);
   const ops = opsOf(field, rule.o);
 
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useDismiss(true, (reason) => onClose(reason === 'escape'), [ref, anchor]);
 
-  // Debajo del botón del encabezado, dentro de la pantalla; en el teléfono, hoja abajo (CSS).
+  // Debajo del botón del encabezado (o arriba si abajo no entra), dentro de la pantalla; en el
+  // teléfono, hoja abajo (CSS). Si la página o la tabla se desplazan, se cierra (como el menú).
   useLayoutEffect(() => {
     const place = () => {
       const btn = anchor.current;
@@ -79,13 +83,26 @@ export default function ColumnFilter({
       } else {
         const r = btn.getBoundingClientRect();
         const w = Math.min(ref.current?.offsetWidth ?? WIDTH, window.innerWidth - 16);
-        setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.right - w, window.innerWidth - 8 - w)) });
+        const h = ref.current?.offsetHeight ?? 0;
+        const below = r.bottom + 4;
+        const top = below + h > window.innerHeight - 8 && r.top - 4 - h >= 8 ? r.top - 4 - h : below;
+        setPos({ top, left: Math.max(8, Math.min(r.right - w, window.innerWidth - 8 - w)) });
       }
       setPlaced(true);
     };
     place();
+    const onScroll = (e: Event) => {
+      // En el teléfono es una hoja fija (y abrir el teclado desplaza la página): no se cierra.
+      if (window.matchMedia?.(PHONE).matches) return;
+      if (e.target instanceof Node && ref.current?.contains(e.target)) return;
+      closeRef.current(false);
+    };
     window.addEventListener('resize', place);
-    return () => window.removeEventListener('resize', place);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', onScroll, true);
+    };
   }, [anchor]);
 
   // Ya ubicado: el foco va al valor (o al operador si no lleva valor).
@@ -97,8 +114,13 @@ export default function ColumnFilter({
     el?.focus({ preventScroll: true });
   }, [placed]);
 
-  function go(next: Parameters<typeof filterHref>[2]) {
-    onClose(false);
+  function go(next: Parameters<typeof filterHref>[2] | null) {
+    if (!next) {
+      setError('full');
+      return;
+    }
+    // El foco vuelve al botón de la columna (la tabla se vuelve a dibujar con el filtro).
+    onClose(true);
     router.push(filterHref(pathname, filters.baseQuery, next));
   }
 
@@ -106,17 +128,34 @@ export default function ColumnFilter({
     e.preventDefault();
     const cond = toCond(rule, field);
     if (!isRuleComplete(field.type, cond, ops)) {
-      setError(true);
+      setError('incomplete');
       return;
     }
     go(setFieldRule(filters.model, field.key, cond));
+  }
+
+  // Enter en el texto aplica de una (en Filtros avanzados, el primer Enter suma el valor a la lista).
+  function onKeyDownCapture(e: KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+    const target = e.target as HTMLElement;
+    if (target instanceof HTMLInputElement && target.type === 'text' && target.dataset.testid === 'adv-filters-value') {
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.requestSubmit();
+    }
+  }
+
+  // El foco sale del filtro (Tab): se cierra, sin aplicar. Un selector nativo abierto no cuenta.
+  function onBlur(e: FocusEvent<HTMLDivElement>) {
+    const next = e.relatedTarget;
+    if (next instanceof Node && !e.currentTarget.contains(next) && next !== anchor.current) onClose(false);
   }
 
   function changeOp(o: string) {
     // Si el operador nuevo lleva otro tipo de valor, lo cargado no sirve.
     const same = opArity(field.type, o) === opArity(field.type, rule.o);
     setRule((r) => (same ? { ...r, o } : { ...r, o, values: [], v2: '', text: '' }));
-    setError(false);
+    setError(null);
   }
 
   return (
@@ -124,11 +163,13 @@ export default function ColumnFilter({
       ref={ref}
       role="dialog"
       aria-labelledby={titleId}
+      aria-describedby={error ? errorId : undefined}
       className="record-more-menu th-menu th-filter"
       style={pos ? { top: pos.top, left: pos.left } : placed ? undefined : { visibility: 'hidden' }}
+      onBlur={onBlur}
       data-testid={`col-filter-${field.key}`}
     >
-      <form className="th-filter-form" onSubmit={apply} noValidate>
+      <form className="th-filter-form" onSubmit={apply} onKeyDownCapture={onKeyDownCapture} noValidate>
         <p className="th-filter-title" id={titleId}>
           {tc('filterTitle', { name: label })}
         </p>
@@ -145,12 +186,12 @@ export default function ColumnFilter({
           rule={rule}
           onChange={(patch) => {
             setRule((r) => ({ ...r, ...patch }));
-            setError(false);
+            setError(null);
           }}
         />
         {error && (
-          <p className="crm-af-error" role="alert" data-testid="col-filter-error">
-            {t('filters.incomplete')}
+          <p className="crm-af-error" role="alert" id={errorId} data-testid="col-filter-error">
+            {error === 'full' ? tc('groupFull') : t('filters.incomplete')}
           </p>
         )}
         <div className="th-filter-foot">
