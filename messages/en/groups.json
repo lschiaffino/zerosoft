@@ -2087,7 +2087,9 @@
     "brief": {
       "title": "Today",
       "dismiss": "Hide until tomorrow",
-      "empty": "Nothing waiting on you right now.",
+      "hidden": "Hidden until tomorrow",
+      "undo": "Undo",
+      "dismissError": "Could not hide it. Try again.",
       "unnamed": "Chat",
       "andMore": "{list} and {n} more",
       "kind": {

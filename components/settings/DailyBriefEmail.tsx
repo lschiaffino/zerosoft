@@ -19,7 +19,7 @@ export default function DailyBriefEmail({ initial }: { initial: boolean }) {
       title={t('title')}
       description={t('desc')}
       onSubmit={async () => {
-        const res = await fetch('/api/daily-brief', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: on }) }).catch(() => null);
+        const res = await fetch('/api/daily-brief', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: on, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }) }).catch(() => null);
         if (!res?.ok) return t('saveError');
         setOn(((await res.json()) as { email: boolean }).email);
       }}

@@ -2087,7 +2087,9 @@
     "brief": {
       "title": "Hoy",
       "dismiss": "Ocultar hasta mañana",
-      "empty": "No hay nada esperándote ahora.",
+      "hidden": "Oculto hasta mañana",
+      "undo": "Deshacer",
+      "dismissError": "No se pudo ocultar. Probá de nuevo.",
       "unnamed": "Chat",
       "andMore": "{list} y {n} más",
       "kind": {

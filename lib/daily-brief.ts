@@ -1,13 +1,14 @@
 /**
  * Resumen del día (Lines e Inbox): lo que espera a una persona hoy, como una
  * tarjeta arriba de la lista (se cierra por el día) y, si lo pide en Ajustes ›
- * Avisos, por email a la mañana.
+ * Avisos, por email a la mañana (lib/daily-brief-email.ts).
  *
  * - Lines (por workspace, con lo que esa persona ve: líneas, acceso por
- *   etiqueta, teléfonos ocultos): chats asignados a ella que esperan
- *   respuesta, grupos sin asignar que esperan respuesta, tickets cerca de
- *   vencer su SLA (o vencidos), tickets nuevos, sus tareas de hoy y las
- *   menciones en notas internas.
+ *   etiqueta, teléfonos ocultos; todo pasa por chatAccessSql en la misma
+ *   consulta y cada chat queda atado al workspace): chats asignados a ella
+ *   que esperan respuesta, grupos sin asignar que esperan respuesta, tickets
+ *   cerca de vencer su SLA (o vencidos), tickets nuevos, sus tareas que
+ *   vencen hoy y las menciones en notas internas.
  * - Inbox (personal: solo sus filas): chats por responder, grupos con
  *   mensajes sin leer, recordatorios vencidos y menciones a su número en
  *   grupos.
@@ -16,23 +17,27 @@
  * nota. Sin IA. Server-only.
  */
 import { getDb } from './db';
-import { chatAccessSql, canSeeChat, maskedChatName, ticketsForViewer, type GroupsViewer } from './groups-access';
+import { chatAccessSql, type GroupsViewer } from './groups-access';
+import { maskPhone, maskPhoneText } from './groups-mask';
 
-export const BRIEF_APPS = ['lines', 'inbox'] as const;
-export type BriefApp = (typeof BRIEF_APPS)[number];
+export type BriefApp = 'lines' | 'inbox';
 
 /** Lines: waiting, sla, groups, tickets, tasks, mentions. Inbox: reply, reminders, unreadGroups, groupMentions. */
 export type BriefKind = 'waiting' | 'groups' | 'sla' | 'tickets' | 'tasks' | 'mentions' | 'reply' | 'reminders' | 'unreadGroups' | 'groupMentions';
 
 export interface BriefChat {
   id: string;
+  /** '' si no tiene nombre ni teléfono a la vista (la pantalla dice "Chat"). */
   name: string;
 }
 
 export interface BriefItem {
   kind: BriefKind;
+  /** Cuántas cosas (chats, tickets, tareas o menciones). */
   count: number;
-  /** Hasta BRIEF_TOP chats (o tickets y tareas, con el id de su chat) para abrir desde la tarjeta. */
+  /** En cuántos chats distintos (para "y N más"). */
+  chatTotal: number;
+  /** Hasta BRIEF_TOP chats para abrir desde la tarjeta. */
   chats: BriefChat[];
 }
 
@@ -46,6 +51,7 @@ export const BRIEF_TOP = 3;
 export const BRIEF_SLA_SOON_MS = 4 * 60 * 60 * 1000;
 /** "Nuevo" es de las últimas 24 horas. */
 export const BRIEF_RECENT_MS = 24 * 60 * 60 * 1000;
+const NAME_MAX = 80;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,203 +63,183 @@ export function cleanDay(raw: unknown): string | null {
   return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === s ? s : null;
 }
 
-/** ¿Hay algo? (una tarjeta sin nada muestra "nada pendiente"; un email sin nada no sale). */
+/**
+ * El fin del día local de quien mira (lo manda la pantalla: la medianoche que viene en su zona). Tiene que caer
+ * entre ahora y 26 horas; si no, se toman 24 horas desde ahora.
+ */
+export function cleanDayEnd(raw: unknown, now = new Date()): Date {
+  const t = typeof raw === 'string' ? Date.parse(raw) : NaN;
+  if (Number.isFinite(t) && t > now.getTime() && t <= now.getTime() + 26 * 60 * 60 * 1000) return new Date(t);
+  return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+}
+
+/** ¿Hay algo? (sin nada, la tarjeta no aparece y el email no sale). */
 export function briefIsEmpty(b: DailyBrief): boolean {
   return b.items.every((i) => i.count === 0);
 }
 
-type ChatRowLite = { id: string; name: string; phone: string; provider_chat_id: string; total?: number };
+/** Un nombre para mostrar: sin saltos ni caracteres de control, corto, y con los teléfonos ocultos si corresponde. */
+export function briefName(raw: string, mask = false): string {
+  // eslint-disable-next-line no-control-regex
+  const clean = String(raw ?? '').replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const shown = mask ? maskPhoneText(clean) : clean;
+  return shown.length > NAME_MAX ? `${shown.slice(0, NAME_MAX - 1)}…` : shown;
+}
 
-function topChats(viewer: GroupsViewer, rows: ChatRowLite[]): BriefChat[] {
-  const seen = new Set<string>();
-  const out: BriefChat[] = [];
-  for (const r of rows) {
-    if (seen.has(r.id)) continue;
-    seen.add(r.id);
-    out.push({ id: r.id, name: maskedChatName(viewer, r) });
-    if (out.length >= BRIEF_TOP) break;
-  }
-  return out;
+type Arg = string | number;
+type ChatLite = { id: string; name: string; phone: string };
+
+/** Nombre de un chat de Lines: el suyo o su teléfono (oculto si quien mira no los ve). Nunca el id del proveedor. */
+function linesChatName(viewer: GroupsViewer, r: ChatLite): string {
+  const raw = r.name || (r.phone ? (viewer.mask ? maskPhone(r.phone) : `+${r.phone}`) : '');
+  return briefName(raw, viewer.mask);
 }
 
 /**
- * Lines: el resumen de `viewer.me` en el workspace `viewer.ws`. Todo pasa por
- * chatAccessSql (las líneas que ve y el acceso por etiqueta): un chat que no
- * ve no cuenta ni aparece.
+ * Una fila del resumen de Lines: cuántas filas cumplen, en cuántos chats y los primeros chats. `from` arma el FROM
+ * con groups_chats como `c` (y su workspace ya atado); a `where` se le suma el acceso de quien mira. `chatless`:
+ * cuentan también las filas sin chat (tickets sueltos), pero solo para quien ve todo.
  */
-export async function linesBrief(viewer: GroupsViewer, now = new Date()): Promise<DailyBrief> {
+async function linesPart(viewer: GroupsViewer, kind: BriefKind, from: string, where: string[], args: Arg[], order: string, opts: { chatless?: boolean } = {}): Promise<BriefItem> {
   const db = getDb();
-  const me = viewer.me;
   const access = chatAccessSql(viewer, 'c');
-  const acc = access ? ` AND ${access.sql}` : '';
-  const accArgs = access?.args ?? [];
-  const live = "c.status = 'open' AND c.archived_at IS NULL AND c.hidden_at IS NULL AND c.awaiting_since IS NOT NULL";
-  const chatCols = 'c.id, c.name, c.phone, c.provider_chat_id, COUNT(*) OVER () AS total';
+  const conds = [...where];
+  const condArgs: Arg[] = [...args];
+  if (access) {
+    conds.push('c.id IS NOT NULL', access.sql);
+    condArgs.push(...access.args);
+  } else if (!opts.chatless) conds.push('c.id IS NOT NULL');
+  const whereSql = conds.join(' AND ');
+  const totals = (await db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT c.id) AS d ${from} WHERE ${whereSql}`).get(...condArgs)) as { n: number; d: number } | undefined;
+  const top = (await db
+    .prepare(`SELECT c.id, MAX(c.name) AS name, MAX(c.phone) AS phone ${from} WHERE ${whereSql} AND c.id IS NOT NULL GROUP BY c.id ORDER BY ${order} LIMIT ${BRIEF_TOP}`)
+    .all(...condArgs)) as ChatLite[];
+  return { kind, count: Number(totals?.n ?? 0), chatTotal: Number(totals?.d ?? 0), chats: top.map((r) => ({ id: r.id, name: linesChatName(viewer, r) })) };
+}
 
-  // Chats asignados a mí que esperan respuesta (los más viejos primero).
-  const waiting = (await db
-    .prepare(`SELECT ${chatCols} FROM groups_chats c WHERE c.user_id = ? AND c.assigned_to = ? AND ${live}${acc} ORDER BY c.awaiting_since ASC LIMIT ?`)
-    .all(viewer.ws, me, ...accArgs, BRIEF_TOP)) as ChatRowLite[];
-  // Grupos sin asignar que esperan respuesta: los puede tomar cualquiera.
-  const groups = (await db
-    .prepare(`SELECT ${chatCols} FROM groups_chats c WHERE c.user_id = ? AND c.kind = 'group' AND c.assigned_to IS NULL AND ${live}${acc} ORDER BY c.awaiting_since ASC LIMIT ?`)
-    .all(viewer.ws, ...accArgs, BRIEF_TOP)) as ChatRowLite[];
-
-  // Tickets: los míos o sin asignar, de chats que veo (ticketsForViewer), activos.
+/**
+ * Lines: el resumen de `viewer.me` en el workspace `viewer.ws`. Un chat que
+ * no ve no cuenta ni aparece. `dayEnd`: el fin del día local de la persona
+ * (sus tareas "de hoy").
+ */
+export async function linesBrief(viewer: GroupsViewer, now = new Date(), opts: { dayEnd?: Date } = {}): Promise<DailyBrief> {
+  const ws = viewer.ws;
+  const me = viewer.me;
   const soon = new Date(now.getTime() + BRIEF_SLA_SOON_MS).toISOString();
   const since = new Date(now.getTime() - BRIEF_RECENT_MS).toISOString();
-  const tickets = (await db
-    .prepare(
-      `SELECT t.id, t.chat_id, t.created_at, t.due_at, t.first_response_due_at, t.first_response_at, t.breached_at, COALESCE(c.name, '') AS name,
-         COALESCE(c.phone, '') AS phone, COALESCE(c.provider_chat_id, '') AS provider_chat_id
-       FROM groups_tickets t LEFT JOIN groups_chats c ON c.id = t.chat_id
-       WHERE t.user_id = ? AND t.status IN ('open', 'in_progress') AND (t.assignee_id = ? OR t.assignee_id IS NULL)
-       ORDER BY t.created_at DESC LIMIT 500`,
-    )
-    .all(viewer.ws, me)) as Array<{
-    id: string;
-    chat_id: string | null;
-    created_at: string;
-    due_at: string | null;
-    first_response_due_at: string | null;
-    first_response_at: string | null;
-    breached_at: string | null;
-    name: string;
-    phone: string;
-    provider_chat_id: string;
-  }>;
-  const visibleTickets = await ticketsForViewer(
-    viewer,
-    tickets.map((t) => ({ ...t, chatId: t.chat_id, chatName: '' })),
-  );
-  const atRisk = visibleTickets.filter(
-    (t) => !!t.breached_at || (!!t.due_at && t.due_at <= soon) || (!t.first_response_at && !!t.first_response_due_at && t.first_response_due_at <= soon),
-  );
-  const fresh = visibleTickets.filter((t) => t.created_at >= since);
-  const ticketChats = (list: typeof visibleTickets) => topChats(viewer, list.filter((t) => t.chat_id).map((t) => ({ id: t.chat_id as string, name: t.name, phone: t.phone, provider_chat_id: t.provider_chat_id })));
-
-  // Mis tareas abiertas que vencen hoy (o antes) o que me dieron en las últimas 24 horas, de chats que veo.
-  const endOfDay = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-  const tasks = (await db
-    .prepare(
-      `SELECT c.id, c.name, c.phone, c.provider_chat_id, COUNT(*) OVER () AS total
-       FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id
-       WHERE t.user_id = ? AND a.done = 0 AND a.owner_id = ? AND ((a.due_at IS NOT NULL AND a.due_at <= ?) OR t.created_at >= ?)${acc}
-       ORDER BY CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END, a.due_at ASC LIMIT ?`,
-    )
-    .all(viewer.ws, me, endOfDay, since, ...accArgs, BRIEF_TOP)) as ChatRowLite[];
-
-  // Menciones en notas internas (los avisos de la persona), de chats que todavía ve.
-  const notes = (await db
-    .prepare(
-      `SELECT n.source_id AS id FROM notifications n
-       WHERE n.user_id = ? AND n.type = 'mention' AND n.source_type = 'groups_chat' AND n.created_at >= ?
-       ORDER BY n.created_at DESC LIMIT 50`,
-    )
-    .all(me, since)) as Array<{ id: string }>;
-  const mentionRows: ChatRowLite[] = [];
-  let mentionCount = 0;
-  for (const n of notes) {
-    if (!n.id || !(await canSeeChat(viewer, n.id))) continue;
-    mentionCount++;
-    if (mentionRows.some((r) => r.id === n.id)) continue;
-    const c = (await db.prepare('SELECT id, name, phone, provider_chat_id FROM groups_chats WHERE id = ? AND user_id = ?').get(n.id, viewer.ws)) as ChatRowLite | undefined;
-    if (c) mentionRows.push(c);
-  }
-
-  const count = (rows: ChatRowLite[]) => Number(rows[0]?.total ?? 0);
-  return {
-    app: 'lines',
-    items: [
-      { kind: 'waiting', count: count(waiting), chats: topChats(viewer, waiting) },
-      { kind: 'sla', count: atRisk.length, chats: ticketChats(atRisk) },
-      { kind: 'groups', count: count(groups), chats: topChats(viewer, groups) },
-      { kind: 'tickets', count: fresh.length, chats: ticketChats(fresh) },
-      { kind: 'tasks', count: count(tasks), chats: topChats(viewer, tasks) },
-      { kind: 'mentions', count: mentionCount, chats: topChats(viewer, mentionRows) },
-    ],
-  };
+  const dayEnd = (opts.dayEnd ?? new Date(now.getTime() + 24 * 60 * 60 * 1000)).toISOString();
+  const chats = 'FROM groups_chats c';
+  const live = ['c.user_id = ?', "c.status = 'open'", 'c.archived_at IS NULL', 'c.hidden_at IS NULL', 'c.awaiting_since IS NOT NULL'];
+  const tickets = 'FROM groups_tickets t LEFT JOIN groups_chats c ON c.id = t.chat_id AND c.user_id = t.user_id';
+  const myTickets = ['t.user_id = ?', "t.status IN ('open', 'in_progress')", '(t.assignee_id = ? OR t.assignee_id IS NULL)'];
+  const risk =
+    '(t.breached_at IS NOT NULL OR (t.due_at IS NOT NULL AND t.due_at <= ?) OR (t.first_response_at IS NULL AND t.first_response_due_at IS NOT NULL AND t.first_response_due_at <= ?))';
+  const [waiting, groups, sla, fresh, tasks, mentions] = await Promise.all([
+    // Chats asignados a mí que esperan respuesta (los más viejos primero).
+    linesPart(viewer, 'waiting', chats, [...live, 'c.assigned_to = ?'], [ws, me], 'MIN(c.awaiting_since) ASC'),
+    // Grupos sin asignar que esperan respuesta: los puede tomar cualquiera.
+    linesPart(viewer, 'groups', chats, [...live, "c.kind = 'group'", 'c.assigned_to IS NULL'], [ws], 'MIN(c.awaiting_since) ASC'),
+    // Tickets míos o sin asignar con el SLA vencido o por vencer.
+    linesPart(viewer, 'sla', tickets, [...myTickets, risk], [ws, me, soon, soon], "MIN(COALESCE(t.first_response_due_at, t.due_at, '9999')) ASC", { chatless: true }),
+    // Tickets nuevos (últimas 24 horas), míos o sin asignar.
+    linesPart(viewer, 'tickets', tickets, [...myTickets, 't.created_at >= ?'], [ws, me, since], 'MAX(t.created_at) DESC', { chatless: true }),
+    // Mis tareas abiertas que vencen hoy (o ya vencieron).
+    linesPart(
+      viewer,
+      'tasks',
+      'FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id JOIN groups_chats c ON c.id = t.chat_id AND c.user_id = t.user_id',
+      ['t.user_id = ?', 'a.done = 0', 'a.owner_id = ?', 'a.due_at IS NOT NULL', 'a.due_at <= ?'],
+      [ws, me, dayEnd],
+      'MIN(a.due_at) ASC',
+    ),
+    // Menciones en notas internas (los avisos de la persona) de las últimas 24 horas, de chats que todavía ve.
+    linesPart(
+      viewer,
+      'mentions',
+      'FROM notifications n JOIN groups_chats c ON c.id = n.source_id AND c.user_id = ?',
+      ['n.user_id = ?', "n.type = 'mention'", "n.source_type = 'groups_chat'", 'n.created_at >= ?'],
+      [ws, me, since],
+      'MAX(n.created_at) DESC',
+    ),
+  ]);
+  return { app: 'lines', items: [waiting, sla, groups, fresh, tasks, mentions] };
 }
 
-type ThreadLite = { id: string; title: string; handle: string; kind: string; total?: number };
+type ThreadLite = { id: string; title: string; handle: string; kind: string };
 
-const threadName = (t: ThreadLite) => t.title || (t.handle && t.kind !== 'group' ? (t.handle.includes('@') ? t.handle : `+${t.handle}`) : '');
+const threadName = (t: ThreadLite) => briefName(t.title || (t.handle && t.kind !== 'group' ? (t.handle.includes('@') ? t.handle : `+${t.handle}`) : ''));
+
+/** Una fila del resumen de Inbox: cuántas filas, en cuántos chats y los primeros (siempre de `owner`). */
+async function inboxPart(kind: BriefKind, from: string, where: string[], args: Arg[], order: string): Promise<BriefItem> {
+  const db = getDb();
+  const whereSql = where.join(' AND ');
+  const totals = (await db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT t.id) AS d ${from} WHERE ${whereSql}`).get(...args)) as { n: number; d: number } | undefined;
+  const top = (await db
+    .prepare(`SELECT t.id, MAX(t.title) AS title, MAX(t.handle) AS handle, MAX(t.kind) AS kind ${from} WHERE ${whereSql} GROUP BY t.id ORDER BY ${order} LIMIT ${BRIEF_TOP}`)
+    .all(...args)) as ThreadLite[];
+  return { kind, count: Number(totals?.n ?? 0), chatTotal: Number(totals?.d ?? 0), chats: top.map((r) => ({ id: r.id, name: threadName(r) })) };
+}
 
 /**
- * Inbox: el resumen de `owner` (su id real). Solo sus filas, en ninguna
- * consulta entra otra persona. `notReply`: una condición extra sobre los
- * chats por responder (alias t), la misma que usa la vista.
+ * Inbox: el resumen de `owner` (su id real). Cada consulta filtra por
+ * owner_id: en ninguna entra otra persona.
  */
-export async function inboxBrief(owner: string, now = new Date(), notReply: { sql: string; args: string[] } | null = null): Promise<DailyBrief> {
+export async function inboxBrief(owner: string, now = new Date()): Promise<DailyBrief> {
   const db = getDb();
   const nowS = now.toISOString();
   const since = new Date(now.getTime() - BRIEF_RECENT_MS).toISOString();
-  const active = 't.removed_at IS NULL AND t.done_at IS NULL AND t.archived_at IS NULL AND (t.snoozed_until IS NULL OR t.snoozed_until <= ?)';
-  const cols = 't.id, t.title, t.handle, t.kind, COUNT(*) OVER () AS total';
-  const skip = notReply;
-
-  const reply = (await db
-    .prepare(
-      `SELECT ${cols} FROM inbox_threads t WHERE t.owner_id = ? AND ${active} AND t.last_from_me = 0 AND t.kind <> 'group' AND t.last_message_at IS NOT NULL${skip ? ` AND NOT ${skip.sql}` : ''}
-       ORDER BY t.last_message_at ASC LIMIT ?`,
-    )
-    .all(owner, nowS, ...(skip?.args ?? []), BRIEF_TOP)) as ThreadLite[];
-  const groups = (await db
-    .prepare(`SELECT ${cols} FROM inbox_threads t WHERE t.owner_id = ? AND ${active} AND t.kind = 'group' AND t.unread > 0 AND t.last_from_me = 0 ORDER BY t.last_message_at DESC LIMIT ?`)
-    .all(owner, nowS, BRIEF_TOP)) as ThreadLite[];
-  const reminders = (await db
-    .prepare(`SELECT ${cols} FROM inbox_threads t WHERE t.owner_id = ? AND t.removed_at IS NULL AND t.follow_up_at IS NOT NULL AND t.follow_up_at <= ? ORDER BY t.follow_up_at ASC LIMIT ?`)
-    .all(owner, nowS, BRIEF_TOP)) as ThreadLite[];
-
-  // Menciones a mi número (el de cada cuenta de WhatsApp) en grupos, en las últimas 24 horas.
+  const threads = 'FROM inbox_threads t';
+  const active = ['t.owner_id = ?', 't.removed_at IS NULL', 't.done_at IS NULL', 't.archived_at IS NULL', '(t.snoozed_until IS NULL OR t.snoozed_until <= ?)'];
+  // Mi número en cada cuenta de WhatsApp: las menciones a él en grupos.
   const accounts = (await db.prepare("SELECT id, address FROM inbox_accounts WHERE owner_id = ? AND kind = 'whatsapp'").all(owner)) as Array<{ id: string; address: string }>;
-  const mentioned: ThreadLite[] = [];
-  let mentionCount = 0;
-  for (const a of accounts) {
-    const phone = String(a.address ?? '').replace(/\D/g, '');
-    if (!/^\d{8,15}$/.test(phone)) continue;
-    const rows = (await db
-      .prepare(
-        `SELECT t.id, t.title, t.handle, t.kind FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id
-         WHERE m.owner_id = ? AND t.owner_id = m.owner_id AND t.account_id = ? AND t.kind = 'group' AND t.removed_at IS NULL AND m.from_me = 0 AND m.sent_at >= ?
-           AND m.hidden_at IS NULL AND json_valid(m.meta) AND EXISTS (SELECT 1 FROM json_each(json_extract(m.meta, '$.mentions')) je WHERE je.value = ?)
-         ORDER BY m.sent_at DESC LIMIT 50`,
-      )
-      .all(owner, a.id, since, phone)) as ThreadLite[];
-    mentionCount += rows.length;
-    for (const r of rows) if (!mentioned.some((x) => x.id === r.id)) mentioned.push(r);
-  }
-
-  const count = (rows: ThreadLite[]) => Number(rows[0]?.total ?? 0);
-  const top = (rows: ThreadLite[]) => rows.slice(0, BRIEF_TOP).map((r) => ({ id: r.id, name: threadName(r) }));
-  return {
-    app: 'inbox',
-    items: [
-      { kind: 'reply', count: count(reply), chats: top(reply) },
-      { kind: 'reminders', count: count(reminders), chats: top(reminders) },
-      { kind: 'unreadGroups', count: count(groups), chats: top(groups) },
-      { kind: 'groupMentions', count: mentionCount, chats: top(mentioned) },
-    ],
-  };
+  const mine = accounts.map((a) => ({ id: a.id, phone: String(a.address ?? '').replace(/\D/g, '') })).filter((a) => /^\d{8,15}$/.test(a.phone));
+  const mentionFrom = 'FROM inbox_messages m JOIN inbox_threads t ON t.id = m.thread_id AND t.owner_id = m.owner_id';
+  const mentionWhere = [
+    'm.owner_id = ?',
+    "t.kind = 'group'",
+    't.removed_at IS NULL',
+    'm.from_me = 0',
+    'm.hidden_at IS NULL',
+    'm.sent_at >= ?',
+    'json_valid(m.meta)',
+    mine.length ? `(${mine.map(() => "(t.account_id = ? AND EXISTS (SELECT 1 FROM json_each(json_extract(m.meta, '$.mentions')) je WHERE je.value = ?))").join(' OR ')})` : '0',
+  ];
+  const [reply, reminders, groups, mentions] = await Promise.all([
+    inboxPart('reply', threads, [...active, 't.last_from_me = 0', "t.kind <> 'group'", 't.last_message_at IS NOT NULL'], [owner, nowS], 'MIN(t.last_message_at) ASC'),
+    inboxPart('reminders', threads, ['t.owner_id = ?', 't.removed_at IS NULL', 't.follow_up_at IS NOT NULL', 't.follow_up_at <= ?'], [owner, nowS], 'MIN(t.follow_up_at) ASC'),
+    inboxPart('unreadGroups', threads, [...active, "t.kind = 'group'", 't.unread > 0', 't.last_from_me = 0'], [owner, nowS], 'MAX(t.last_message_at) DESC'),
+    inboxPart('groupMentions', mentionFrom, mentionWhere, [owner, since, ...mine.flatMap((a) => [a.id, a.phone])], 'MAX(m.sent_at) DESC'),
+  ]);
+  return { app: 'inbox', items: [reply, reminders, groups, mentions] };
 }
 
 // ---------------------------------------------------------------------------
 // Estado por persona: cerrada por hoy y el email de la mañana
 // ---------------------------------------------------------------------------
 
-/** La tarjeta de esa app quedó cerrada para ese día local. */
-export async function briefDismissed(userId: string, app: BriefApp, day: string): Promise<boolean> {
-  const row = (await getDb().prepare('SELECT dismissed_day FROM daily_brief_dismissals WHERE user_id = ? AND app = ?').get(userId, app)) as { dismissed_day: string } | undefined;
+/** La clave de la tarjeta cerrada: Lines es por workspace (cerrarla en uno no la cierra en otro); Inbox es uno solo. */
+export function briefKey(app: BriefApp, ws?: string): string {
+  return app === 'lines' ? `lines:${ws ?? ''}` : 'inbox';
+}
+
+/** La tarjeta quedó cerrada para ese día local. */
+export async function briefDismissed(userId: string, key: string, day: string): Promise<boolean> {
+  const row = (await getDb().prepare('SELECT dismissed_day FROM daily_brief_dismissals WHERE user_id = ? AND app = ?').get(userId, key)) as { dismissed_day: string } | undefined;
   return row?.dismissed_day === day;
 }
 
-export async function dismissBrief(userId: string, app: BriefApp, day: string): Promise<void> {
+export async function dismissBrief(userId: string, key: string, day: string): Promise<void> {
   await getDb()
     .prepare(
       `INSERT INTO daily_brief_dismissals (user_id, app, dismissed_day) VALUES (?, ?, ?)
        ON CONFLICT(user_id, app) DO UPDATE SET dismissed_day = excluded.dismissed_day`,
     )
-    .run(userId, app, day);
+    .run(userId, key, day);
+}
+
+/** Deshacer el cierre. */
+export async function restoreBrief(userId: string, key: string): Promise<void> {
+  await getDb().prepare('DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = ?').run(userId, key);
 }
 
 export async function briefEmailOn(userId: string): Promise<boolean> {
@@ -261,11 +247,25 @@ export async function briefEmailOn(userId: string): Promise<boolean> {
   return row?.email === 1;
 }
 
-export async function setBriefEmail(userId: string, on: boolean, now = new Date()): Promise<void> {
+/** Una zona horaria que Intl conoce, o ''. */
+export function cleanTimeZone(raw: unknown): string {
+  const tz = typeof raw === 'string' ? raw.trim().slice(0, 64) : '';
+  if (!tz) return '';
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return tz;
+  } catch {
+    return '';
+  }
+}
+
+/** Prende o apaga el email. `timeZone`: la del navegador al guardar (para mandarlo a su mañana). */
+export async function setBriefEmail(userId: string, on: boolean, timeZone = '', now = new Date()): Promise<void> {
   await getDb()
     .prepare(
-      `INSERT INTO daily_brief_prefs (user_id, email, email_day, updated_at) VALUES (?, ?, NULL, ?)
-       ON CONFLICT(user_id) DO UPDATE SET email = excluded.email, updated_at = excluded.updated_at`,
+      `INSERT INTO daily_brief_prefs (user_id, email, email_day, time_zone, updated_at) VALUES (?, ?, NULL, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET email = excluded.email, updated_at = excluded.updated_at,
+         time_zone = CASE WHEN excluded.time_zone <> '' THEN excluded.time_zone ELSE daily_brief_prefs.time_zone END`,
     )
-    .run(userId, on ? 1 : 0, now.toISOString());
+    .run(userId, on ? 1 : 0, cleanTimeZone(timeZone), now.toISOString());
 }

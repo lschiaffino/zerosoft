@@ -259,7 +259,8 @@
 .wa-brief-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .wa-brief-label { font-size: var(--wa-fs-preview, 0.875rem); line-height: 1.3; }
 .wa-brief-chats { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--wa-fs-meta, 0.75rem); color: var(--wa-text-2, var(--ink-2)); }
-.wa-brief-empty { margin: 2px 0 4px; font-size: var(--wa-fs-preview, 0.875rem); color: var(--wa-text-2, var(--ink-2)); }
+.wa-brief-undo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 2px 12px; font-size: var(--wa-fs-preview, 0.875rem); color: var(--wa-text-2, var(--ink-2)); }
+.wa-brief-undo .btn { min-height: 40px; }
 .wa-brief-foot { margin: 2px 0 0; font-size: var(--wa-fs-meta, 0.75rem); }
 .wa-brief-foot a { display: inline-flex; align-items: center; min-height: 32px; color: var(--wa-text-2, var(--ink-2)); text-decoration: underline; text-underline-offset: 2px; }
 .wa-brief-foot a:hover { color: var(--wa-text, var(--ink)); }

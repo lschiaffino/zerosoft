@@ -3,17 +3,26 @@
  * las personas que lo pidieron en Ajustes › Avisos, una vez por día, entre
  * las 8 y las 11 de su zona horaria y solo si hay algo pendiente. Lleva lo
  * mismo que la tarjeta: cuentas y nombres de chats de Lines (del workspace
- * activo, con lo que la persona ve) y de su Inbox. Nunca el texto de un
- * mensaje ni de una nota. Por lib/email.ts (Resend o la consola). Server-only.
+ * activo, con lo que la persona ve allí) y de su Inbox. Nunca el texto de un
+ * mensaje ni de una nota.
+ *
+ * El acceso es el mismo que el de la sesión (como lib/wa-live-auth.ts): el
+ * workspace activo, sin la app si el workspace pide dos pasos y la persona no
+ * los tiene, y sin las apps que el workspace le apagó o limitó a otros. Por
+ * lib/email.ts (Resend o la consola). Server-only.
  */
 import { createTranslator } from 'next-intl';
-import { getDb } from './db';
+import { getDb, getUserById, type UserRow } from './db';
 import { appSender, escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { siteUrl } from './board-urls';
 import { groupsViewer } from './groups-access';
+import { mfaEnabled } from './account-security';
+import { resolveWorkspace, type TeamRole } from './teams';
+import { userCanUseApp } from './workspace';
+import { blockedAppsFor } from './workspace-apps';
 import { localDayIn, localHourIn } from './track-recurrence';
-import { canUseApp, getMembership } from './workspace';
 import { briefIsEmpty, inboxBrief, linesBrief, type DailyBrief } from './daily-brief';
+import type { ProductKey } from './products';
 import en from '@/messages/en/groups.json';
 import es from '@/messages/es/groups.json';
 import pt from '@/messages/pt/groups.json';
@@ -34,42 +43,32 @@ export function briefEmailDue(timeZone: string, sentDay: string | null, now: Dat
 
 interface Candidate {
   user_id: string;
-  email: string;
   locale: string | null;
-  time_zone: string | null;
-  active_team_id: string | null;
+  tz: string;
   email_day: string | null;
 }
 
-/** Lo de Lines de la persona: del workspace activo si sigue siendo parte (no invitada) y tiene la app; si no, del propio. */
-async function linesFor(c: Candidate, now: Date): Promise<DailyBrief | null> {
-  const db = getDb();
-  let ws = c.user_id;
-  let role: 'owner' | 'admin' | 'member' = 'owner';
-  let apps: Parameters<typeof canUseApp>[0]['apps'] = '*';
-  if (c.active_team_id) {
-    const team = (await db.prepare('SELECT id, owner_id FROM teams WHERE id = ?').get(c.active_team_id)) as { id: string; owner_id: string } | undefined;
-    const m = team ? await getMembership(team, c.user_id) : null;
-    if (team && m && m.role !== 'guest') {
-      ws = team.owner_id;
-      role = m.role === 'owner' ? 'owner' : m.role === 'admin' ? 'admin' : 'member';
-      apps = m.apps;
-    }
-  }
-  if (!canUseApp({ role, apps }, 'groups')) return null;
-  const lines = await db.prepare('SELECT 1 AS x FROM groups_numbers WHERE user_id = ? LIMIT 1').get(ws);
-  if (!lines) return null;
-  return linesBrief(await groupsViewer(ws, c.user_id, role), now);
+/**
+ * Lo que la persona puede abrir ahora, como lo arma la sesión: el workspace activo, su rol y si puede usar Lines e
+ * Inbox. null si el workspace pide dos pasos y no los tiene (la sesión la manda a su propio workspace, que no es
+ * el que se resumiría).
+ */
+async function accessOf(user: UserRow): Promise<{ ws: string; role: TeamRole; can: (app: ProductKey) => boolean } | null> {
+  const { owner, workspace, role, apps } = await resolveWorkspace(user);
+  if (owner.id !== user.id && workspace?.require_mfa && !mfaEnabled(user)) return null;
+  const blockedApps = await blockedAppsFor({ ownerId: owner.id, personId: user.id, role, email: user.email });
+  return { ws: owner.id, role, can: (app) => role !== 'guest' && userCanUseApp({ role, apps, blockedApps }, app) };
 }
 
-async function inboxFor(c: Candidate, now: Date): Promise<DailyBrief | null> {
-  const has = await getDb().prepare('SELECT 1 AS x FROM inbox_accounts WHERE owner_id = ? LIMIT 1').get(c.user_id);
-  return has ? inboxBrief(c.user_id, now) : null;
+/** El fin del día local (para las tareas "de hoy"): la próxima hora en punto después de la última de este día. */
+function dayEndIn(timeZone: string, now: Date): Date {
+  const hour = localHourIn(timeZone || 'UTC', now);
+  return new Date(now.getTime() + (24 - hour) * 60 * 60 * 1000 - now.getUTCMinutes() * 60 * 1000);
 }
 
-/** El email (texto y HTML) con lo que haya de cada app. Puro salvo por las URLs. */
+/** El email (texto y HTML) con lo que haya de cada app. Los nombres ya vienen limpios y cortos (briefName). */
 export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject: string; text: string; html: string } {
-  const t = createTranslator({ locale, messages: MESSAGES[locale] as unknown as Record<string, unknown>, namespace: 'wa.brief' as never }) as unknown as (key: string, values?: Record<string, string | number>) => string;
+  const t = createTranslator({ locale, messages: MESSAGES[locale] as never, namespace: 'wa.brief' as never }) as unknown as (key: string, values?: Record<string, string | number>) => string;
   const base = siteUrl();
   const appName = { lines: 'Lines', inbox: 'Inbox' } as const;
   const href = { lines: `${base}/app/lines/inbox`, inbox: `${base}/app/inbox` } as const;
@@ -79,13 +78,13 @@ export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject
     const items = b.items.filter((i) => i.count > 0);
     if (!items.length) continue;
     const lines = items.map((i) => {
+      const label = t(`kind.${i.kind}`, { n: i.count });
       const names = i.chats.map((ch) => ch.name || t('unnamed')).join(', ');
-      return { text: `${i.count} ${t(`kind.${i.kind}`, { n: i.count })}${names ? `: ${names}` : ''}`, html: `<strong>${i.count}</strong> ${escapeHtml(t(`kind.${i.kind}`, { n: i.count }))}${names ? `: ${escapeHtml(names)}` : ''}` };
+      return { text: `${i.count} ${label}${names ? `: ${names}` : ''}`, html: `<strong>${i.count}</strong> ${escapeHtml(label)}${names ? `: ${escapeHtml(names)}` : ''}` };
     });
-    textParts.push(`${appName[b.app]}\n${lines.map((l) => `- ${l.text}`).join('\n')}\n${t('email.open', { app: appName[b.app] })}: ${href[b.app]}`);
-    htmlParts.push(
-      `<strong>${appName[b.app]}</strong><br />${lines.map((l) => l.html).join('<br />')}<br /><a href="${escapeHtml(href[b.app])}">${escapeHtml(t('email.open', { app: appName[b.app] }))}</a>`,
-    );
+    const open = t('email.open', { app: appName[b.app] });
+    textParts.push(`${appName[b.app]}\n${lines.map((l) => `- ${l.text}`).join('\n')}\n${open}: ${href[b.app]}`);
+    htmlParts.push(`<strong>${appName[b.app]}</strong><br />${lines.map((l) => l.html).join('<br />')}<br /><a href="${escapeHtml(href[b.app])}">${escapeHtml(open)}</a>`);
   }
   const footer = t('email.footer');
   return {
@@ -95,40 +94,73 @@ export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject
   };
 }
 
+/** Lo de cada app para la persona, o null si no hay nada (o no puede ver nada). */
+async function briefsFor(c: Candidate, now: Date): Promise<DailyBrief[]> {
+  const user = await getUserById(c.user_id);
+  if (!user?.email) return [];
+  const access = await accessOf(user);
+  const db = getDb();
+  const out: DailyBrief[] = [];
+  if (access?.can('groups') && (await db.prepare('SELECT 1 AS x FROM groups_numbers WHERE user_id = ? LIMIT 1').get(access.ws))) {
+    out.push(await linesBrief(await groupsViewer(access.ws, user.id, access.role), now, { dayEnd: dayEndIn(c.tz, now) }));
+  }
+  // Inbox es personal, pero la app la habilita el workspace activo (como en la sesión).
+  if ((access ? access.can('inbox') : true) && (await db.prepare('SELECT 1 AS x FROM inbox_accounts WHERE owner_id = ? LIMIT 1').get(user.id))) {
+    out.push(await inboxBrief(user.id, now));
+  }
+  return out.filter((b) => !briefIsEmpty(b));
+}
+
 /**
- * Los emails de la mañana (tick horario). Cada persona se reclama antes de
- * mandar (email_day), así dos ticks a la vez no lo mandan dos veces.
- * Devuelve cuántos salieron.
+ * Los emails de la mañana (tick horario). Primero quienes hace más que no lo reciben (los de hoy, al final), con
+ * un tope de tiempo. Cada persona se reclama antes de armarlo (email_day) para que dos ticks a la vez no lo
+ * manden dos veces; si algo falla, el reclamo se devuelve y sale en el próximo tick. Devuelve cuántos salieron.
  */
-export async function sendDailyBriefEmails(opts: { now?: Date; limit?: number } = {}): Promise<number> {
+export async function sendDailyBriefEmails(opts: { now?: Date; limit?: number; budgetMs?: number } = {}): Promise<number> {
   const now = opts.now ?? new Date();
+  const started = Date.now();
+  const budget = opts.budgetMs ?? 60_000;
   const db = getDb();
   const candidates = (await db
     .prepare(
-      `SELECT p.user_id, p.email_day, u.email, u.locale, u.time_zone, u.active_team_id
+      `SELECT p.user_id, p.email_day, u.locale, COALESCE(NULLIF(p.time_zone, ''), NULLIF(u.time_zone, ''), 'UTC') AS tz
        FROM daily_brief_prefs p JOIN users u ON u.id = p.user_id
-       WHERE p.email = 1 AND u.email <> '' LIMIT ?`,
+       WHERE p.email = 1 AND u.email <> '' AND (p.email_day IS NULL OR p.email_day < ?)
+       ORDER BY (p.email_day IS NOT NULL), p.email_day ASC LIMIT ?`,
     )
-    .all(Math.min(Math.max(opts.limit ?? 500, 1), 2000))) as Candidate[];
+    .all(localDayIn('Pacific/Kiritimati', now), Math.min(Math.max(opts.limit ?? 500, 1), 2000))) as Candidate[];
   let sent = 0;
   for (const c of candidates) {
-    const day = briefEmailDue(c.time_zone ?? 'UTC', c.email_day, now);
+    if (Date.now() - started > budget) break;
+    const day = briefEmailDue(c.tz, c.email_day, now);
     if (!day) continue;
     const claimed = await db
       .prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email = 1 AND (email_day IS NULL OR email_day <> ?)')
       .run(day, c.user_id, day);
     if (!claimed.changes) continue;
+    let ok = false;
     try {
-      const briefs = [await linesFor(c, now), await inboxFor(c, now)].filter((b): b is DailyBrief => !!b && !briefIsEmpty(b));
-      if (!briefs.length) continue;
+      const briefs = await briefsFor(c, now);
+      if (!briefs.length) {
+        ok = true;
+        continue;
+      }
+      const user = (await db.prepare('SELECT email FROM users WHERE id = ?').get(c.user_id)) as { email: string } | undefined;
+      if (!user?.email) {
+        ok = true;
+        continue;
+      }
       const locale: Locale = c.locale === 'es' || c.locale === 'pt' ? c.locale : 'en';
-      const mail = buildBriefEmail(briefs, locale);
-      const res = await sendEmail({ to: c.email, from: appSender(), ...mail });
+      const res = await sendEmail({ to: user.email, from: appSender(), ...buildBriefEmail(briefs, locale) });
+      ok = res.ok;
       if (res.ok) sent++;
     } catch (err) {
       // Sin datos de la persona en el log: solo que falló.
       // eslint-disable-next-line no-console
       console.error('[daily-brief] email failed', (err as Error)?.name ?? 'error');
+    } finally {
+      // No salió: el reclamo vuelve atrás y el próximo tick lo intenta (si todavía es la hora).
+      if (!ok) await db.prepare('UPDATE daily_brief_prefs SET email_day = ? WHERE user_id = ? AND email_day = ?').run(c.email_day, c.user_id, day);
     }
   }
   return sent;

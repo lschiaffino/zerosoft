@@ -114,14 +114,24 @@ for (const width of [1280, 390]) {
     await tapTargets(page);
     await shot(page, `lines-brief-${width}`);
 
-    // La fila lleva a los chats que esperan: el nuestro está en la lista.
+    // La fila pone el filtro de los que esperan respuesta (asignados a mí): el nuestro está en la lista.
     await waiting.click();
+    await expect(page.getByTestId('lines-tab-unanswered')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.gr-row', { hasText: `Cliente ${tag}` })).toBeVisible({ timeout: 30_000 });
 
-    // Cerrar: se va y sigue cerrada al recargar (es por hoy).
+    // Cerrar: queda "Oculto hasta mañana" con Deshacer; deshacer la trae de vuelta.
     await card.getByTestId('daily-brief-dismiss').click();
-    await expect(card).toBeHidden();
+    const undo = page.getByTestId('daily-brief-undo');
+    await expect(undo).toBeVisible();
+    await shot(page, `lines-brief-undo-${width}`);
+    await undo.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('daily-brief')).toBeVisible();
+    // Cerrada otra vez: sigue cerrada al recargar (es por hoy).
+    await page.getByTestId('daily-brief-dismiss').click();
+    await expect(page.getByTestId('daily-brief')).toBeHidden();
+    const answered = page.waitForResponse((r) => r.url().includes('/api/groups/brief'));
     await page.reload({ waitUntil: 'networkidle' });
+    expect(((await (await answered).json()) as { dismissed: boolean }).dismissed).toBe(true);
     await expect(page.locator('.gr-row').first()).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId('daily-brief')).toHaveCount(0);
     expect(errors, errors.join('\n')).toEqual([]);
@@ -161,7 +171,10 @@ for (const width of [1280, 390]) {
     await expect(page.getByTestId('daily-brief')).toBeVisible({ timeout: 60_000 });
     await page.getByTestId('daily-brief-dismiss').click();
     await expect(page.getByTestId('daily-brief')).toBeHidden();
+    await expect(page.getByTestId('daily-brief-undo')).toBeVisible();
+    const answered = page.waitForResponse((r) => r.url().includes('/api/inbox/brief'));
     await page.reload({ waitUntil: 'networkidle' });
+    expect(((await (await answered).json()) as { dismissed: boolean }).dismissed).toBe(true);
     await expect(page.locator('.ib-item').first()).toBeVisible({ timeout: 60_000 });
     await expect(page.getByTestId('daily-brief')).toHaveCount(0);
     expect(errors, errors.join('\n')).toEqual([]);

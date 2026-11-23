@@ -12,11 +12,13 @@ import { connectNumber, createNumber, getNumberRowById, ingestEvents, listChats,
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
-import { briefDismissed, briefEmailOn, cleanDay, dismissBrief, inboxBrief, linesBrief, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
+import { briefDismissed, briefEmailOn, briefKey, briefName, cleanDay, cleanDayEnd, dismissBrief, inboxBrief, linesBrief, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
 import { briefEmailDue, buildBriefEmail, sendDailyBriefEmails } from '@/lib/daily-brief-email';
 import { createNotification } from '@/lib/notifications';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
 import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
+import { saveWorkspaceAppRule } from '@/lib/workspace-apps';
+import { createGroupTask } from '@/lib/groups-tasks';
 
 const session = vi.hoisted(() => ({ user: null as SessionUser | null }));
 vi.mock('@/lib/session', async (orig) => ({ ...((await orig()) as object), getCurrentUser: async () => session.user }));
@@ -77,6 +79,17 @@ describe('resumen del día: lo puro', () => {
     expect(cleanDay('2026-02-30')).toBeNull();
     expect(cleanDay('ayer')).toBeNull();
     expect(cleanDay(undefined)).toBeNull();
+    const now = new Date('2026-11-23T12:00:00Z');
+    expect(cleanDayEnd('2026-11-24T03:00:00Z', now).toISOString()).toBe('2026-11-24T03:00:00.000Z');
+    // Fuera de rango (pasado o más de 26 horas): 24 horas desde ahora.
+    expect(cleanDayEnd('2026-11-20T03:00:00Z', now).toISOString()).toBe('2026-11-24T12:00:00.000Z');
+    expect(cleanDayEnd('basura', now).toISOString()).toBe('2026-11-24T12:00:00.000Z');
+  });
+
+  it('los nombres van limpios, cortos y con los teléfonos ocultos si corresponde', () => {
+    expect(briefName('Grupo\nde prueba\u0007')).toBe('Grupo de prueba');
+    expect(briefName('x'.repeat(200))).toHaveLength(80);
+    expect(briefName('Cliente +54 9 11 0000-0301', true)).not.toContain('0000-0301');
   });
 
   it('el email sale entre las 8 y las 11 de la persona, una vez por día', () => {
@@ -145,8 +158,15 @@ describe('Lines: solo lo que la persona ve', () => {
     await getDb().prepare('UPDATE groups_tickets SET first_response_due_at = ? WHERE user_id = ?').run(new Date(Date.now() - 60_000).toISOString(), w.owner.id);
     for (const chatId of [seen.id, hidden.id]) {
       await createNotification({ userId: w.member.id, type: 'mention', title: 'x', body: SECRET, href: `/app/lines/inbox/${chatId}`, sourceType: 'groups_chat', sourceId: chatId });
+      // Una tarea de la persona en cada chat, para hoy; y otra para la semana que viene (no cuenta).
+      await createGroupTask(w.owner.id, w.owner.id, { chatId, title: SECRET, ownerId: w.member.id, dueAt: new Date(Date.now() + 60 * 60_000).toISOString() });
+      await createGroupTask(w.owner.id, w.owner.id, { chatId, title: SECRET, ownerId: w.member.id, dueAt: new Date(Date.now() + 7 * 86_400_000).toISOString() });
     }
+    // Un aviso de mención de un chat de otro workspace (id ajeno) tampoco entra.
+    await createNotification({ userId: w.member.id, type: 'mention', title: 'x', href: '/', sourceType: 'groups_chat', sourceId: 'chat-de-otro-workspace' });
     const b = await linesBrief(await groupsViewer(w.owner.id, w.member.id, 'member'));
+    expect(count(b, 'tasks')).toBe(1);
+    expect(ids(b, 'tasks')).toEqual([seen.id]);
     expect(count(b, 'tickets')).toBe(1);
     expect(ids(b, 'tickets')).toEqual([seen.id]);
     expect(count(b, 'sla')).toBe(1);
@@ -154,6 +174,22 @@ describe('Lines: solo lo que la persona ve', () => {
     expect(ids(b, 'mentions')).toEqual([seen.id]);
     expect(JSON.stringify(b)).not.toContain(SECRET);
     expect(JSON.stringify(b)).not.toContain(hidden.id);
+    // El owner ve los dos chats: dos de cada cosa.
+    const owner = await linesBrief(await groupsViewer(w.owner.id, w.owner.id, 'owner'));
+    expect(count(owner, 'tickets')).toBe(2);
+  });
+
+  it('con los teléfonos ocultos, los nombres van ocultos', async () => {
+    const w = await workspaceWithMember('brief-mask');
+    const n = await line(w.owner.id);
+    await ingestEvents(n, [{ ...msg(`${A}@s.whatsapp.net`, A), senderName: '' }]);
+    const chat = (await listChats(w.owner.id, w.owner.id)).rows[0];
+    await getDb().prepare("UPDATE groups_chats SET name = '' WHERE id = ?").run(chat.id);
+    await updateChat(w.owner.id, chat.id, { assignedTo: w.member.id }, w.owner.id);
+    await updatePlatformSettings(w.owner.id, { maskRoles: ['member'] });
+    const b = await linesBrief(await groupsViewer(w.owner.id, w.member.id, 'member'));
+    expect(ids(b, 'waiting')).toEqual([chat.id]);
+    expect(JSON.stringify(b)).not.toContain(A);
   });
 });
 
@@ -165,7 +201,9 @@ describe('Inbox: solo el de la persona', () => {
     const dm = await upsertThread(mine, { externalId: `${A}@s.whatsapp.net`, kind: 'dm', handle: A });
     await addMessage(dm, { externalId: 'b-1', fromMe: false, body: 'consulta', senderHandle: A });
     const group = await upsertThread(mine, { externalId: '120363000000000521@g.us', kind: 'group', handle: '' });
-    await addMessage(group, { externalId: 'b-2', fromMe: false, body: '@549000000399 mirá', senderHandle: B, meta: JSON.stringify({ mentions: ['549000000399'] }) });
+    await addMessage(group, { externalId: 'b-2', fromMe: false, body: '@5490000000399 mirá', senderHandle: B, meta: JSON.stringify({ mentions: ['5490000000399'] }) });
+    // Una mención a otro número no cuenta.
+    await addMessage(group, { externalId: 'b-2b', fromMe: false, body: '@5490000000398 otra', senderHandle: B, meta: JSON.stringify({ mentions: ['5490000000398'] }) });
     const other = await upsertThread(theirs, { externalId: `${C}@s.whatsapp.net`, kind: 'dm', handle: C });
     await addMessage(other, { externalId: 'b-3', fromMe: false, body: 'para otra persona', senderHandle: C });
     await getDb().prepare('UPDATE inbox_threads SET follow_up_at = ? WHERE id = ?').run(new Date(Date.now() - 60_000).toISOString(), dm.id);
@@ -175,6 +213,7 @@ describe('Inbox: solo el de la persona', () => {
     expect(ids(b, 'unreadGroups')).toEqual([group.id]);
     expect(ids(b, 'reminders')).toEqual([dm.id]);
     expect(count(b, 'groupMentions')).toBe(1);
+    expect(ids(b, 'groupMentions')).toEqual([group.id]);
     expect(JSON.stringify(b)).not.toContain(other.id);
     expect(JSON.stringify(b)).not.toContain('mirá');
     const friend = await inboxBrief(w.friend.id);
@@ -213,8 +252,14 @@ describe('resumen del día: rutas', () => {
     // Cerrarla una persona no la cierra para otra.
     session.user = asMember(w.owner, w.friend);
     expect(((await (await get()).json()) as { dismissed: boolean }).dismissed).toBe(false);
-    expect(await briefDismissed(w.member.id, 'lines', '2026-11-23')).toBe(true);
-    expect(await briefDismissed(w.member.id, 'inbox', '2026-11-23')).toBe(false);
+    expect(await briefDismissed(w.member.id, briefKey('lines', w.owner.id), '2026-11-23')).toBe(true);
+    // Es por workspace: en el suyo propio no quedó cerrada; Inbox tampoco.
+    expect(await briefDismissed(w.member.id, briefKey('lines', w.member.id), '2026-11-23')).toBe(false);
+    expect(await briefDismissed(w.member.id, briefKey('inbox'), '2026-11-23')).toBe(false);
+    // Deshacer (la persona que la cerró).
+    session.user = asMember(w.owner, w.member);
+    expect((await route.POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ action: 'restore' }) }))).status).toBe(200);
+    expect(((await (await get()).json()) as { dismissed: boolean }).dismissed).toBe(false);
   });
 
   it('Inbox y el email: de la persona real; anónimo 401', async () => {
@@ -227,7 +272,8 @@ describe('resumen del día: rutas', () => {
     session.user = asMember(w.owner, w.member);
     expect((await inbox.GET(new Request('http://x/api/inbox/brief?day=2026-11-23'))).status).toBe(200);
     expect((await pref.PATCH(new Request('http://x', { method: 'PATCH', body: JSON.stringify({ email: 'yes' }) }))).status).toBe(400);
-    expect((await pref.PATCH(new Request('http://x', { method: 'PATCH', body: JSON.stringify({ email: true }) }))).status).toBe(200);
+    expect((await pref.PATCH(new Request('http://x', { method: 'PATCH', body: JSON.stringify({ email: true, timeZone: 'America/Argentina/Buenos_Aires' }) }))).status).toBe(200);
+    expect(((await getDb().prepare('SELECT time_zone FROM daily_brief_prefs WHERE user_id = ?').get(w.member.id)) as { time_zone: string }).time_zone).toBe('America/Argentina/Buenos_Aires');
     expect(await briefEmailOn(w.member.id)).toBe(true);
     expect(await briefEmailOn(w.owner.id)).toBe(false);
     session.user = asOwner(w.owner);
@@ -264,18 +310,47 @@ describe('resumen del día: el email', () => {
     expect(await sendDailyBriefEmails({ now: new Date('2026-11-25T08:30:00Z') })).toBe(0);
   });
 
+  it('no sale si el workspace pide dos pasos y no los tiene, si le apagaron Lines, si ya no es parte o si es invitada', async () => {
+    const mk = async (label: string) => {
+      const w = await workspaceWithMember(label);
+      const n = await line(w.owner.id);
+      await ingestEvents(n, [msg(`${A}@s.whatsapp.net`, A)]);
+      const chat = (await listChats(w.owner.id, w.owner.id)).rows[0];
+      await updateChat(w.owner.id, chat.id, { assignedTo: w.member.id }, w.owner.id);
+      await getDb().prepare("UPDATE users SET time_zone = 'UTC', active_team_id = ? WHERE id = ?").run(w.team.id, w.member.id);
+      await setBriefEmail(w.member.id, true);
+      return w;
+    };
+    const at = () => new Date(`2026-12-0${++day}T09:00:00Z`);
+    let day = 0;
+    const mfa = await mk('brief-mfa');
+    await getDb().prepare('UPDATE teams SET require_mfa = 1 WHERE id = ?').run(mfa.team.id);
+    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
+    const off = await mk('brief-off');
+    await saveWorkspaceAppRule(off.owner.id, 'groups', { mode: 'some', people: [off.friend.id], teams: [], denied: [] }, off.owner.id);
+    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
+    const gone = await mk('brief-gone');
+    await getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(gone.team.id, gone.member.id);
+    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
+    const guest = await mk('brief-guest');
+    await getDb().prepare("UPDATE team_members SET role = 'guest' WHERE team_id = ? AND user_id = ?").run(guest.team.id, guest.member.id);
+    expect(await sendDailyBriefEmails({ now: at() })).toBe(0);
+    expect(mail.sent).toEqual([]);
+  });
+
   it('el texto del email en el idioma de la persona', () => {
-    const brief: DailyBrief = { app: 'inbox', items: [{ kind: 'reply', count: 2, chats: [{ id: 'x', name: 'Uno' }] }] };
+    const brief: DailyBrief = { app: 'inbox', items: [{ kind: 'reply', count: 2, chatTotal: 2, chats: [{ id: 'x', name: 'Uno' }] }] };
     const es = buildBriefEmail([brief], 'es');
     expect(es.subject).toBe('Tu día en zerosoft');
     expect(es.text).toContain('2 chats por responder: Uno');
-    const html = buildBriefEmail([{ app: 'inbox', items: [{ kind: 'reply', count: 1, chats: [{ id: 'x', name: '<b>x</b>' }] }] }], 'en').html;
+    const html = buildBriefEmail([{ app: 'inbox', items: [{ kind: 'reply', count: 1, chatTotal: 1, chats: [{ id: 'x', name: '<b>x</b>' }] }] }], 'en').html;
     expect(html).not.toContain('<b>x</b>');
   });
 });
 
 it('dismissBrief y briefDismissed', async () => {
   const w = await workspaceWithMember('brief-dismiss');
-  await dismissBrief(w.member.id, 'inbox', '2026-11-23');
-  expect(await briefDismissed(w.member.id, 'inbox', '2026-11-23')).toBe(true);
+  await dismissBrief(w.member.id, briefKey('inbox'), '2026-11-23');
+  expect(await briefDismissed(w.member.id, briefKey('inbox'), '2026-11-23')).toBe(true);
+  expect(await briefDismissed(w.member.id, briefKey('inbox'), '2026-11-24')).toBe(false);
 });

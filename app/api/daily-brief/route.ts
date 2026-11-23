@@ -23,14 +23,14 @@ export async function GET() {
   return NextResponse.json({ email: await briefEmailOn(me) }, { headers: NO_STORE });
 }
 
-/** { email: boolean } */
+/** { email: boolean, timeZone?: string } (la zona del navegador: el email sale a su mañana). */
 export async function PATCH(req: Request) {
   const me = await person();
   if (me instanceof NextResponse) return me;
   const limited = await limitWrites('settings', me);
   if (limited) return limited;
-  const b = (await req.json().catch(() => null)) as { email?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { email?: unknown; timeZone?: unknown } | null;
   if (typeof b?.email !== 'boolean') return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
-  await setBriefEmail(me, b.email);
+  await setBriefEmail(me, b.email, typeof b.timeZone === 'string' ? b.timeZone : '');
   return NextResponse.json({ email: b.email }, { headers: NO_STORE });
 }
