@@ -3047,7 +3047,9 @@
     "description": "HubSpot: The timeline loads older activity as you scroll, grouped by month, with no cap (https://knowledge.hubspot.com/records/filter-activities-on-a-record-timeline). Today: app/[locale]/app/crm/contacts/[id]/page.tsx:255-256 limit: 100; no load-more in components/crm/Timeline.tsx. After a migration records carry years of history and the page stops at the latest 100 items. First scope: cursor pagination in listTimeline with a load-more at the end, a multi-select of activity types, a filter by person or team, a search box, and formatting (bold, lists, links) in notes. Also covers the parity rows timeline-filters, rich-text-notes.",
     "product": "crm",
     "kind": "idea",
-    "parity": "timeline-full-history"
+    "parity": "timeline-full-history",
+    "status": "done",
+    "changelog": "2026-11-23-0419-crm-notes-comments"
   },
   {
     "title": "CRM: Make saved views hold columns and sort, update in place and share with a team",

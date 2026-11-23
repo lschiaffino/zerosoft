@@ -15,7 +15,10 @@ import { useCrmOptions } from './CrmViewer';
 import FilesPanel, { type FileItem } from './FilesPanel';
 import CallDetails from './CallDetails';
 import type { CallView } from '@/lib/crm-voice';
-import MentionTextarea, { MentionText } from './MentionTextarea';
+import MentionTextarea from './MentionTextarea';
+import NoteEditor, { RichNoteBody } from './RichNote';
+import ActivityComments from './ActivityComments';
+import { NOTE_MD_MAX, noteMarkdownToText, plainToMarkdown } from '@/lib/crm-note-format';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
 import TimelineMenu from './TimelineMenu';
@@ -47,6 +50,11 @@ export interface TimelineItem {
   task_kind?: '' | 'call' | 'email';
   subject: string;
   body: string;
+  /** Notas: 'md' = con formato (C1); sin dato o 'text', texto plano. */
+  body_format?: 'text' | 'md';
+  /** Comentarios del hilo de la actividad (C1) y la actividad donde cuelga (un thread de emails: la suya). */
+  comment_count?: number;
+  comment_activity_id?: string;
   due_at: string | null;
   done: 0 | 1;
   pinned: 0 | 1;
@@ -232,6 +240,8 @@ export default function Timeline({
   const canEmail = recordType !== 'lead' && recordType !== 'objectRecord';
   const recordKind = recordType === 'contact' || recordType === 'company' || recordType === 'deal' ? recordType : null;
   const hasAssociated = recordType === 'company' || recordType === 'deal';
+  // Notas con formato (C1) en contactos, empresas y deals: ahí las personas mencionables traen email.
+  const richNotes = recordKind !== null;
   const tabs: TimelineTab[] = ['all', 'note', ...(canEmail ? (['email'] as const) : []), 'call', 'task', 'meeting'];
 
   // ---------- Lista y filtros ----------
@@ -363,7 +373,7 @@ export default function Timeline({
       const form = wrapRef.current?.querySelector<HTMLFormElement>('.tl-composer');
       if (!form || form.offsetParent === null) return;
       form.scrollIntoView({ block: 'nearest' });
-      form.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea')?.focus({ preventScroll: true });
+      form.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea, [contenteditable="true"]')?.focus({ preventScroll: true });
     }, 0);
   }
 
@@ -503,7 +513,7 @@ export default function Timeline({
   const canSubmit =
     !posting &&
     (composing === 'note'
-      ? body.trim() !== ''
+      ? body.trim() !== '' && !(richNotes && body.length > NOTE_MD_MAX)
       : composing === 'email'
         ? emailTo.trim() !== '' && (subject.trim() !== '' || body.trim() !== '')
         : subject.trim() !== '' || body.trim() !== '' || (composing === 'call' && outcome !== ''));
@@ -554,6 +564,7 @@ export default function Timeline({
       body: body.trim() || undefined,
       [`${recordType}Id`]: recordId,
     };
+    if (composing === 'note' && richNotes) payload.bodyFormat = 'md';
     const owner = composing === 'task' ? assignee : currentPersonId;
     if (owner) payload.ownerId = owner;
     if (composing === 'task') {
@@ -658,11 +669,14 @@ export default function Timeline({
     setAssocId(null);
     setEditingId(item.id);
     setEditSubject(item.subject);
-    setEditBody(item.body);
+    // Una nota de antes (texto plano) se abre en el editor con formato tal como se leía.
+    setEditBody(richNotes && item.type === 'note' && item.body_format !== 'md' ? plainToMarkdown(item.body) : item.body);
   }
 
   async function saveEdit(item: TimelineItem) {
-    const res = await patch(item.id, { subject: editSubject.trim(), body: editBody.trim() });
+    const rich = richNotes && item.type === 'note';
+    if (rich && editBody.length > NOTE_MD_MAX) return;
+    const res = await patch(item.id, { subject: editSubject.trim(), body: editBody.trim(), ...(rich ? { bodyFormat: 'md' } : {}) });
     if (res && res.ok) {
       const saved = (await res.json().catch(() => null)) as MentionsReply | null;
       setEditingId(null);
@@ -797,7 +811,19 @@ export default function Timeline({
             maxLength={500}
           />
         )}
-        {MENTION_TYPES.has(type) && people.length > 1 ? (
+        {composing === 'note' && richNotes ? (
+          <NoteEditor
+            value={body}
+            onChange={setBody}
+            people={people}
+            placeholder={people.length > 1 ? tl('notePlaceholder') : tl('notePlaceholderSolo')}
+            ariaLabel={t('enums.activityType.note')}
+            testId="timeline-note-editor"
+            onSubmit={() => wrapRef.current?.querySelector<HTMLFormElement>('.tl-composer')?.requestSubmit()}
+            onEscape={closeComposer}
+            autoFocus
+          />
+        ) : MENTION_TYPES.has(type) && people.length > 1 ? (
           <MentionTextarea
             className="textarea"
             rows={3}
@@ -964,6 +990,7 @@ export default function Timeline({
                     : tl('logActivity')}
           </button>
         </div>
+        {composing === 'note' && richNotes && body.length > NOTE_MD_MAX && <p className="form-error">{tl('noteTooLong')}</p>}
         {emailError && <p className="form-error">{emailError}</p>}
       </form>
     );
@@ -1004,7 +1031,18 @@ export default function Timeline({
           {(item.type !== 'note' || item.subject) && (
             <input className="input" value={editSubject} onChange={(e) => setEditSubject(e.target.value)} placeholder={tl('title')} aria-label={tl('title')} maxLength={500} />
           )}
-          {MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
+          {richNotes && item.type === 'note' ? (
+            <NoteEditor
+              value={editBody}
+              onChange={setEditBody}
+              people={mentionables}
+              ariaLabel={t('enums.activityType.note')}
+              testId="timeline-note-edit"
+              onSubmit={() => void saveEdit(item)}
+              onEscape={() => setEditingId(null)}
+              autoFocus
+            />
+          ) : MENTION_TYPES.has(item.type) && mentionables.length > 1 ? (
             <MentionTextarea className="textarea" rows={3} value={editBody} onChange={setEditBody} people={mentionables} placeholder={t('tasks.form.body')} maxLength={5000} aria-label={t('tasks.form.body')} />
           ) : (
             <textarea className="textarea" rows={3} value={editBody} onChange={(e) => setEditBody(e.target.value)} placeholder={t('tasks.form.body')} aria-label={t('tasks.form.body')} maxLength={5000} />
@@ -1030,11 +1068,7 @@ export default function Timeline({
         ) : (
           item.subject && <p className="tl-subject atl-subject">{item.subject}</p>
         )}
-        {item.body && (
-          <p className="tl-body">
-            <MentionText text={item.body} people={mentionables} />
-          </p>
-        )}
+        {item.body && <RichNoteBody body={item.body} format={item.body_format} people={mentionables} testId="timeline-item-body" />}
         {item.voice && <CallDetails voice={item.voice} />}
         <div className="tl-meta">
           {item.type === 'task' && item.due_at && (
@@ -1147,11 +1181,20 @@ export default function Timeline({
     );
   }
 
+  /** Hilo de comentarios (C1): notas, emails, llamadas, reuniones y tareas; no en chats de Lines ni en tareas de un chat que no se ve. */
+  function renderComments(item: TimelineItem) {
+    if (item.chat_private || item.type === 'whatsapp' || editingId === item.id) return null;
+    const target = item.comment_activity_id ?? (item.external ? null : item.id);
+    if (!target) return null;
+    return <ActivityComments key={target} activityId={target} initialCount={item.comment_count} people={mentionables} locale={locale} />;
+  }
+
   function renderItem(item: TimelineItem) {
     if (item.type === 'change' && item.change) return renderChange(item as TimelineItem & { change: NonNullable<TimelineItem['change']> });
     const open = isOpen(item.id);
     const date = item.due_at ?? item.created_at;
-    const preview = item.chat_private ? item.subject : item.subject || item.body.split('\n')[0] || item.wa?.messages[item.wa.messages.length - 1]?.text || '';
+    const plainBody = item.body_format === 'md' ? noteMarkdownToText(item.body) : item.body;
+    const preview = item.chat_private ? item.subject : item.subject || plainBody.split('\n')[0] || item.wa?.messages[item.wa.messages.length - 1]?.text || '';
     const canPin = !item.external && !item.rollup;
     return (
       <article
@@ -1236,7 +1279,12 @@ export default function Timeline({
             </button>
           </div>
         )}
-        {open && <div className="atl-card-body">{renderBody(item)}</div>}
+        {open && (
+          <div className="atl-card-body">
+            {renderBody(item)}
+            {renderComments(item)}
+          </div>
+        )}
       </article>
     );
   }

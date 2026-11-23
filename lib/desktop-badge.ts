@@ -8,7 +8,7 @@
  * vez (en Talk) y la campana excluye /app/talk.
  */
 import { getDb } from './db';
-import { countUnreadNotifications } from './notifications';
+import { countVisibleUnread, notificationAccess } from './notification-access';
 import { appFromPath, userCanUseApp } from './workspace';
 import { PRODUCT_CONFIG, type ProductKey } from './products';
 import { realUserId, type SessionUser } from './session';
@@ -72,32 +72,37 @@ export async function desktopBadge(user: SessionUser, since: string | null): Pro
       talk = 0;
     }
   }
-  const bell = await countUnreadNotifications(userId, { hidePaths: [...hide, '/app/talk'] });
+  const bell = await countVisibleUnread(userId, { hidePaths: [...hide, '/app/talk'] });
   // Avisos nuevos desde la última consulta (como mucho 10); sin `since`, los de los últimos 2 minutos.
   const from = since && !Number.isNaN(Date.parse(since)) ? new Date(Date.parse(since)).toISOString() : new Date(Date.now() - 2 * 60_000).toISOString();
   const rows = (await getDb()
     .prepare(
-      `SELECT id, title, body, href, created_at FROM notifications
+      `SELECT id, title, body, href, source_type, source_id, created_at FROM notifications
        WHERE user_id = ? AND read_at IS NULL AND created_at > ? AND (snoozed_until IS NULL OR snoozed_until <= ?)
        ORDER BY created_at DESC LIMIT 10`,
     )
-    .all(userId, from, now)) as Array<{ id: string; title: string; body: string | null; href: string | null; created_at: string }>;
+    .all(userId, from, now)) as Array<{ id: string; title: string; body: string | null; href: string | null; source_type: string | null; source_id: string | null; created_at: string }>;
+  // Para los puntos de las pestañas: de qué app son los avisos sin leer (los más nuevos, con tope).
+  const unread = (await getDb()
+    .prepare(
+      `SELECT id, href, source_type, source_id FROM notifications
+       WHERE user_id = ? AND read_at IS NULL AND href IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
+       ORDER BY created_at DESC LIMIT 200`,
+    )
+    .all(userId, now)) as Array<{ id: string; href: string | null; source_type: string | null; source_id: string | null }>;
+  // Ni títulos ni puntos de algo que la persona hoy no ve (lib/notification-access), en una sola pasada.
+  const byId = new Map<string, { id: string; href: string | null; source_type: string | null; source_id: string | null }>();
+  for (const r of [...rows, ...unread]) byId.set(r.id, r);
+  const { hidden } = byId.size ? await notificationAccess(userId, [...byId.values()]) : { hidden: new Set<string>() };
   const notifications = rows
+    .filter((r) => !hidden.has(r.id))
     .filter((r) => {
       const app = appFromPath(r.href);
       return !app || userCanUseApp(user, app);
     })
     .map((r) => ({ id: r.id, title: r.title, body: r.body, href: r.href, createdAt: r.created_at }));
-  // Para los puntos de las pestañas: de qué app son los avisos sin leer (los más nuevos, con tope).
-  const unread = (await getDb()
-    .prepare(
-      `SELECT href FROM notifications
-       WHERE user_id = ? AND read_at IS NULL AND href IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
-       ORDER BY created_at DESC LIMIT 200`,
-    )
-    .all(userId, now)) as Array<{ href: string | null }>;
   const byPath = unreadByPath(
-    unread.map((r) => r.href).filter((h) => {
+    unread.filter((r) => !hidden.has(r.id)).map((r) => r.href).filter((h) => {
       const app = appFromPath(h);
       return !app || userCanUseApp(user, app);
     }),

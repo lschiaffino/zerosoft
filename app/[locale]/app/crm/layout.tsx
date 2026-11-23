@@ -13,6 +13,10 @@ import '@/styles/crm-timeline.css';
 import '@/styles/crm-ai.css';
 import '@/styles/crm-layouts.css';
 import '@/styles/track-triage.css';
+// Notas con formato y comentarios (C1): el editor y la lectura de markdown de Track.
+import '@/styles/track.css';
+import '@/styles/track-ux.css';
+import '@/styles/track-editor.css';
 import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
@@ -32,7 +36,7 @@ export default async function CrmLayout(props: { children: ReactNode; params: Pr
   // Opciones de Lifecycle stage y Lead status del workspace, para los selectores y nombres del cliente.
   const options = user ? await listOptionSets(user.id).catch(() => undefined) : undefined;
   return (
-    <ClientMessages locale={locale} namespaces={['crm', 'trackTriage.customers']}>
+    <ClientMessages locale={locale} namespaces={['crm', 'trackTriage.customers', 'track.ux.editor']}>
       <Suspense fallback={null}>
         <OfflineSync />
       </Suspense>

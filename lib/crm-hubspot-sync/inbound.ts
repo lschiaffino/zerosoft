@@ -1026,6 +1026,8 @@ async function applyActivity(ctx: PageCtx, object: ActivityObject, rec: HsRecord
     if (field === 'at') cols.push(['created_at', remote.at]);
     else cols.push([field, columnValue(field, remote[field] ?? '')]);
     if (field === 'done') cols.push(['done_at', remote.done === '1' ? remote.at : null]);
+    // El texto de HubSpot llega plano (lib/crm-note-format.ts): una nota con formato vuelve a texto plano.
+    if (field === 'body') cols.push(['body_format', 'text']);
   }
   if (cols.length) await db.prepare(`UPDATE crm_activities SET ${cols.map(([c]) => `${c} = ?`).join(', ')}, updated_at = ? WHERE id = ? AND user_id = ?`).run(...cols.map(([, v]) => v), nowDb(), recordId, ws);
   if (res.conflicts.length) {

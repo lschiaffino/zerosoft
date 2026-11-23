@@ -332,6 +332,11 @@ export async function buildRecordTimeline(
   const merged = mergeTimelineWithThreads(acts.rows, threads).map((i) => ('thread' in i && i.thread ? { ...i, rollup: 0 as const } : i));
   const extra = [...chats, ...changes];
   const withChats = extra.length ? mergeTimelineWithThreads([...merged, ...extra], { threads: [], activityIds: [] }) : merged;
-  const items = await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(withChats))));
+  const { withCommentCounts } = await import('./crm-activity-comments');
+  const items = await withCommentCounts(
+    user.id,
+    await withCallSummaries(user.id, await withCallDetails(user.id, await withTaskSources(user, await withActivityFiles(withChats)))),
+    opts.ownerScope,
+  );
   return { items, hasMore: acts.hasMore, nextOffset: offset + TIMELINE_PAGE };
 }

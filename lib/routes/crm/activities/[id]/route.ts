@@ -8,6 +8,7 @@ import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '
 import { requestLocale } from '@/lib/request-locale';
 import { canChangeTaskQueue, getQueue, maskQueueRefs, sessionQueueViewer } from '@/lib/crm-task-queues';
 import { activityUpdateSchema } from '@/lib/crm-schema';
+import { bodyTooLong } from '@/lib/crm-note-format';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 
 export const runtime = 'nodejs';
@@ -23,6 +24,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  if (bodyTooLong(parsed.data, (await getActivity(user.id, params.id))?.type)) return crmError(400, 'invalid_input');
   // Asociar a otro registro (timeline › Asociaciones): solo a registros que la persona ve.
   const { contactId, companyId, dealId } = parsed.data;
   if (
@@ -41,7 +43,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   // reescribir un texto que no ve, y la respuesta tampoco lo trae.
   const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
   const reader = await sessionChatReader(user, locale);
-  const textEdit = parsed.data.subject !== undefined || parsed.data.body !== undefined;
+  // Cambiar el tipo o el formato también reescribe el texto (lib/crm.ts bodyToStore).
+  const textEdit =
+    parsed.data.subject !== undefined || parsed.data.body !== undefined || parsed.data.bodyFormat !== undefined || parsed.data.type !== undefined;
   if (textEdit && (await isChatHidden(user.id, params.id, reader))) return crmError(403, 'chat_private');
   // No se vincula un registro que la persona no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(user.id, parsed.data, await sessionScope(user)));

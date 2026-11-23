@@ -574,7 +574,11 @@
       "title": "Profit and loss",
       "desc": "Income, costs and expenses for a period."
     },
-    "balance": "Balance",
+    "balance": {
+      "title": "Balance sheet",
+      "desc": "Assets, liabilities and equity on a date."
+    },
+    "runningBalance": "Balance",
     "cashflow": {
       "title": "Cash flow",
       "desc": "Money in and out of your bank and cash accounts."
