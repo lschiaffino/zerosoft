@@ -2895,6 +2895,44 @@
       },
       "nextSteps": "Próximos passos"
     },
+    "followup": {
+      "open": "Sugerir alterações com IA",
+      "title": "Alterações sugeridas",
+      "loading": "Lendo a chamada…",
+      "regenerate": "Sugerir de novo",
+      "empty": "A chamada não sugere alterações.",
+      "pending": "{count, plural, =0 {Tudo revisado} one {# para revisar} other {# para revisar}}",
+      "hint": "Nada muda até você aplicar.",
+      "kind": {
+        "field": "Propriedade",
+        "stage": "Etapa do negócio",
+        "email": "Email de acompanhamento",
+        "task": "Tarefa"
+      },
+      "apply": "Aplicar",
+      "send": "Enviar",
+      "addTask": "Criar tarefa",
+      "move": "Mover negócio",
+      "edit": "Editar",
+      "discard": "Descartar",
+      "cancel": "Cancelar",
+      "applied": "Aplicado",
+      "sent": "Enviado",
+      "taskAdded": "Tarefa criada",
+      "moved": "Negócio movido",
+      "emptyValue": "Vazio",
+      "yes": "Sim",
+      "no": "Não",
+      "toLabel": "Para",
+      "subject": "Assunto",
+      "body": "Mensagem",
+      "taskTitle": "Tarefa",
+      "due": "Vencimento",
+      "errors": {
+        "already_done": "Esta sugestão já foi resolvida.",
+        "field_readonly": "Você não pode editar esta propriedade."
+      }
+    },
     "board": {
       "scoreDeals": "Calcular scores com IA",
       "progress": "{done} calculados, faltam {left}",

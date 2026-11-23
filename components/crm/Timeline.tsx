@@ -20,6 +20,7 @@ import ActivityComments from './ActivityComments';
 import { NOTE_MD_MAX, noteMarkdownToText, plainToMarkdown } from '@/lib/crm-note-format';
 import type { Mentionable } from '@/lib/crm-mentions';
 import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
+import CallFollowupBlock from './CallFollowupBlock';
 import TimelineMenu from './TimelineMenu';
 import RecordCombobox, { type ComboOption } from './RecordCombobox';
 import {
@@ -1149,6 +1150,7 @@ export default function Timeline({
             links={{ contactId: item.contact_id, companyId: item.company_id, dealId: item.deal_id }}
           />
         )}
+        {!item.external && (item.type === 'call' || item.type === 'meeting') && <CallFollowupBlock activityId={item.id} locale={locale} />}
         {!item.external && <FilesPanel compact endpoint={`/api/crm/activities/${item.id}/files`} files={item.files ?? []} />}
       </>
     );

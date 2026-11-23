@@ -2895,6 +2895,44 @@
       },
       "nextSteps": "Next steps"
     },
+    "followup": {
+      "open": "Suggest updates with AI",
+      "title": "Suggested updates",
+      "loading": "Reading the call…",
+      "regenerate": "Suggest again",
+      "empty": "The call does not suggest any updates.",
+      "pending": "{count, plural, =0 {All reviewed} one {# to review} other {# to review}}",
+      "hint": "Nothing changes until you apply it.",
+      "kind": {
+        "field": "Property",
+        "stage": "Deal stage",
+        "email": "Follow-up email",
+        "task": "Task"
+      },
+      "apply": "Apply",
+      "send": "Send",
+      "addTask": "Add task",
+      "move": "Move deal",
+      "edit": "Edit",
+      "discard": "Discard",
+      "cancel": "Cancel",
+      "applied": "Applied",
+      "sent": "Sent",
+      "taskAdded": "Task added",
+      "moved": "Deal moved",
+      "emptyValue": "Empty",
+      "yes": "Yes",
+      "no": "No",
+      "toLabel": "To",
+      "subject": "Subject",
+      "body": "Message",
+      "taskTitle": "Task",
+      "due": "Due date",
+      "errors": {
+        "already_done": "This suggestion was already handled.",
+        "field_readonly": "You can't edit this property."
+      }
+    },
     "board": {
       "scoreDeals": "Score deals with AI",
       "progress": "{done} scored, {left} left",
