@@ -64,10 +64,10 @@
     "forbidden": "Solo quien lo envió o un admin puede hacer esto.",
     "invalid_input": "Revisá los datos y probá de nuevo.",
     "envelope_locked": "Este sobre ya se envió y no cambia. Anulalo y copialo a un borrador nuevo.",
-    "pdf_invalid": "Ese archivo no es un PDF que podamos leer.",
+    "pdf_invalid": "Ese archivo no es un PDF, JPEG o PNG que podamos leer.",
     "pdf_encrypted": "El PDF tiene contraseña. Sacala y volvé a subirlo.",
     "pdf_pages": "El PDF tiene más de 100 páginas.",
-    "pdf_too_large": "El PDF pesa más de 4 MB.",
+    "pdf_too_large": "El archivo pesa más de 4 MB.",
     "pdf_unicode": "Esta página usa caracteres que las fuentes del PDF no muestran. Exportala desde Docs con el navegador y subí el PDF.",
     "storage_unavailable": "El almacenamiento de archivos no está configurado en este servidor.",
     "file_unavailable": "No se pudo leer el archivo. Probá más tarde.",
@@ -120,15 +120,16 @@
     "pdf_unsupported": "Este PDF usa una compresión que no aceptamos. Imprimilo a un PDF nuevo y subí ese.",
     "admin_only": "Solo un admin puede borrar un sobre completo.",
     "document_changed": "El documento guardado no coincide con el que se envió. No se firmó nada; escribí a soporte.",
-    "bulk_daily_cap": "El envío masivo está limitado a 1.000 sobres por día por workspace."
+    "bulk_daily_cap": "El envío masivo está limitado a 1.000 sobres por día por workspace.",
+    "image_too_large": "La imagen es demasiado grande. Usá una de hasta 10.000 píxeles por lado (un PNG de hasta 16 megapíxeles) o exportala como PDF."
   },
   "new": {
     "title": "Nuevo sobre",
-    "desc": "Empezá desde un PDF, una página de Docs o una plantilla.",
+    "desc": "Empezá desde un PDF, una imagen, una página de Docs o una plantilla.",
     "fromCrm": "Vinculado a {label} en el CRM. Cuando firmen todos, el PDF firmado queda adjunto ahí.",
     "source": "De dónde sale el documento",
     "sources": {
-      "upload": "Subir un PDF",
+      "upload": "Subir un archivo",
       "docs": "Página de Docs",
       "template": "Plantilla"
     },
@@ -137,8 +138,8 @@
     "templateNoDoc": "Sin documento todavía",
     "envelopeTitle": "Título del sobre",
     "titlePlaceholder": "Contrato de servicios",
-    "file": "Archivo PDF",
-    "fileHint": "Hasta {mb} MB y 100 páginas. Se sacan los scripts, acciones, formularios y adjuntos del PDF.",
+    "file": "PDF o imagen",
+    "fileHint": "PDF, JPEG o PNG, hasta {mb} MB. Un PDF puede tener hasta 100 páginas; se sacan sus scripts, acciones, formularios y adjuntos. Una imagen se convierte en un PDF de una página.",
     "docsPage": "Página de Docs",
     "docsSearch": "Buscar tus páginas",
     "docsEmpty": "Ninguna página coincide.",
@@ -147,7 +148,7 @@
     "docsUnavailable": "No tenés Docs en este workspace.",
     "crmRecipient": "{name} queda como primer firmante.",
     "continue": "Continuar",
-    "pickFile": "Elegí un archivo PDF.",
+    "pickFile": "Elegí un PDF o una imagen.",
     "pickPage": "Elegí una página."
   },
   "editor": {
@@ -159,8 +160,8 @@
     "document": "Documento",
     "noDocument": "Sin documento todavía",
     "pages": "{n, plural, one {# página} other {# páginas}}",
-    "replace": "Reemplazar PDF",
-    "upload": "Subir PDF",
+    "replace": "Reemplazar documento",
+    "upload": "Subir documento",
     "steps": "Pasos",
     "step": {
       "recipients": "Destinatarios",
@@ -180,7 +181,7 @@
     "next": "Siguiente",
     "back": "Atrás",
     "rolesHelp": "Los firmantes firman sus campos. Los aprobadores aprueban, con o sin campos. Quien recibe copia recibe el PDF firmado al final. En orden, el mismo número firma a la vez.",
-    "uploadFirst": "Primero subí el PDF.",
+    "uploadFirst": "Primero subí el documento.",
     "message": "Mensaje para los destinatarios",
     "messagePlaceholder": "Por favor revisalo y firmalo.",
     "expires": "Vence a los (días)",

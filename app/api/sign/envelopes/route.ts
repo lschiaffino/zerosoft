@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     if ((req.headers.get('content-type') ?? '').startsWith('multipart/form-data')) {
       const file = await pdfFromForm(req, MAX_PDF_BYTES);
       const form = file.form;
-      const title = String(form.get('title') ?? '').trim() || file.name.replace(/\.pdf$/i, '');
+      const title = String(form.get('title') ?? '').trim() || file.name.replace(/\.(pdf|jpe?g|png)$/i, '');
       const crm = String(form.get('crm') ?? '');
       const prefill = crm ? await crmPrefill(a.user, crm) : null;
       const env = await createEnvelope(a.actor, { title, locale: String(form.get('locale') ?? 'en'), links: prefill ? [prefill.link] : [], source: prefill ? 'crm' : 'upload' });

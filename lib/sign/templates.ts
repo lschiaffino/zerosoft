@@ -11,7 +11,7 @@ import { getDb } from '../db';
 import { parseCsv } from '../csv-parse';
 import { sha256Hex } from '../esign';
 import { deleteSignFiles, readSignFile, storeSignFile } from './files';
-import { sanitizePdf, type PageBox } from './pdf';
+import { sanitizePdf, signDocumentName, type PageBox } from './pdf';
 import { addEvent, cleanFieldInput, createEnvelope, newId, nowIso, parseJson, sendEnvelope, type EnvelopeRow } from './core';
 import { isEmail, RECIPIENT_ROLES, SignError, type FieldKind, type RecipientRole, type SignActor, type SigningOrder } from './types';
 
@@ -118,7 +118,7 @@ export async function setTemplateDocument(actor: SignActor, id: string, file: { 
   const fields = parseJson<TemplateField[]>(t.fields, []).filter((f) => f.page <= clean.pages.length);
   await getDb()
     .prepare('UPDATE sign_templates SET document_ref = ?, document_name = ?, document_hash = ?, pages = ?, fields = ?, updated_at = ? WHERE id = ?')
-    .run(ref, file.name.slice(0, 200), sha256Hex(clean.bytes), JSON.stringify(clean.pages), JSON.stringify(fields), nowIso(), t.id);
+    .run(ref, signDocumentName(file.name), sha256Hex(clean.bytes), JSON.stringify(clean.pages), JSON.stringify(fields), nowIso(), t.id);
   if (t.document_ref) await deleteSignFiles([t.document_ref]);
   return getTemplate(actor, id);
 }

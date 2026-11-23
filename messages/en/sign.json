@@ -64,10 +64,10 @@
     "forbidden": "Only the sender or an admin can do this.",
     "invalid_input": "Check the fields and try again.",
     "envelope_locked": "This envelope was already sent and cannot change. Void it and copy it to a new draft.",
-    "pdf_invalid": "That file is not a PDF we can read.",
+    "pdf_invalid": "That file is not a PDF, JPEG or PNG we can read.",
     "pdf_encrypted": "The PDF is password protected. Remove the password and upload it again.",
     "pdf_pages": "The PDF has more than 100 pages.",
-    "pdf_too_large": "The PDF is larger than 4 MB.",
+    "pdf_too_large": "The file is larger than 4 MB.",
     "pdf_unicode": "This page uses characters the PDF fonts cannot show. Export it from Docs with your browser and upload the PDF.",
     "storage_unavailable": "File storage is not configured on this server.",
     "file_unavailable": "The file could not be read. Try again later.",
@@ -120,15 +120,16 @@
     "pdf_unsupported": "This PDF uses a compression we do not accept. Print it to a new PDF and upload that.",
     "admin_only": "Only an admin can delete a completed envelope.",
     "document_changed": "The stored document does not match the one that was sent. Nothing was signed; contact support.",
-    "bulk_daily_cap": "Bulk send is limited to 1,000 envelopes a day per workspace."
+    "bulk_daily_cap": "Bulk send is limited to 1,000 envelopes a day per workspace.",
+    "image_too_large": "The image is too large. Use one up to 10,000 pixels per side (a PNG up to 16 megapixels) or export it as a PDF."
   },
   "new": {
     "title": "New envelope",
-    "desc": "Start from a PDF, a Docs page or a template.",
+    "desc": "Start from a PDF, an image, a Docs page or a template.",
     "fromCrm": "Linked to {label} in the CRM. The signed PDF is attached there when everyone signs.",
     "source": "Where the document comes from",
     "sources": {
-      "upload": "Upload a PDF",
+      "upload": "Upload a file",
       "docs": "Docs page",
       "template": "Template"
     },
@@ -137,8 +138,8 @@
     "templateNoDoc": "No document yet",
     "envelopeTitle": "Envelope title",
     "titlePlaceholder": "Services agreement",
-    "file": "PDF file",
-    "fileHint": "Up to {mb} MB and 100 pages. Scripts, actions, forms and attachments inside the PDF are removed.",
+    "file": "PDF or image",
+    "fileHint": "PDF, JPEG or PNG, up to {mb} MB. A PDF can have up to 100 pages; scripts, actions, forms and attachments inside it are removed. An image becomes a one-page PDF.",
     "docsPage": "Docs page",
     "docsSearch": "Search your pages",
     "docsEmpty": "No pages match.",
@@ -147,7 +148,7 @@
     "docsUnavailable": "You do not have Docs in this workspace.",
     "crmRecipient": "{name} is added as the first signer.",
     "continue": "Continue",
-    "pickFile": "Pick a PDF file.",
+    "pickFile": "Pick a PDF or an image.",
     "pickPage": "Pick a page."
   },
   "editor": {
@@ -159,8 +160,8 @@
     "document": "Document",
     "noDocument": "No document yet",
     "pages": "{n, plural, one {# page} other {# pages}}",
-    "replace": "Replace PDF",
-    "upload": "Upload PDF",
+    "replace": "Replace document",
+    "upload": "Upload document",
     "steps": "Steps",
     "step": {
       "recipients": "Recipients",
@@ -180,7 +181,7 @@
     "next": "Next",
     "back": "Back",
     "rolesHelp": "Signers sign their fields. Approvers approve, with or without fields. People who receive a copy get the signed PDF at the end. In order, the same number signs at the same time.",
-    "uploadFirst": "Upload the PDF first.",
+    "uploadFirst": "Upload the document first.",
     "message": "Message to recipients",
     "messagePlaceholder": "Please review and sign.",
     "expires": "Expires after (days)",
