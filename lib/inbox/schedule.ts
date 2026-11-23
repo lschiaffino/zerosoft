@@ -69,12 +69,18 @@ export function isInboxMediaUrl(url: string): boolean {
   }
 }
 
-/** Un archivo de /api/files en las partes tiene que ser de quien programa (si no, como una URL inválida). */
-async function assertOwnedMedia(owner: string, parts: CleanPart[]): Promise<void> {
+/** ¿Es un archivo de Inbox (carpeta 'inbox') subido por esta persona? Lo de otra app no sale ni se borra desde Inbox. */
+export async function ownedInboxFile(url: string, owner: string): Promise<boolean> {
   const { ownedFileRow } = await import('../files/store');
+  const row = await ownedFileRow(url, { userId: owner });
+  return !!row && row.folder === 'inbox';
+}
+
+/** Un archivo de /api/files en las partes tiene que ser de Inbox y de quien programa (si no, como una URL inválida). */
+async function assertOwnedMedia(owner: string, parts: CleanPart[]): Promise<void> {
   for (const p of parts) {
     const url = p.media?.url;
-    if (url && isFileUrlPath(url) && !(await ownedFileRow(url, { userId: owner }))) throw new InboxError('invalid_input', 400);
+    if (url && isFileUrlPath(url) && !(await ownedInboxFile(url, owner))) throw new InboxError('invalid_input', 400);
   }
 }
 
@@ -214,7 +220,7 @@ export async function replaceBatch(owner: string, id: string, input: { sendAt: s
   const nowS = nowIso(now);
   for (const r of open) await db.prepare("UPDATE inbox_scheduled SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending','failed','missed')").run(nowS, r.id);
   const kept = new Set(parts.map((p) => p.media?.url).filter(Boolean));
-  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter((u) => u && !kept.has(u)));
+  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter((u) => u && !kept.has(u)), { folder: 'inbox' });
   const batchId = row.batch_id || newId('ibb');
   const nextSeq = Math.max(-1, ...rows.map((r) => Number(r.seq))) + 1;
   await insertParts(owner, thread.id, batchId, row.batch_id ? nextSeq : 0, at, parts, now);
@@ -229,7 +235,7 @@ export async function cancelBatch(owner: string, id: string, now = new Date()): 
   for (const r of open) {
     await getDb().prepare("UPDATE inbox_scheduled SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('pending','failed','missed')").run(nowIso(now), r.id);
   }
-  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter(Boolean));
+  await deleteOwnedUploads({ userId: owner }, open.map((r) => r.media_url).filter(Boolean), { folder: 'inbox' });
 }
 
 /** La primera parte que falta mandar de la secuencia (para "Enviar ya"). */
@@ -271,6 +277,7 @@ export const BLOCKED_SQL =
 export async function readInboxMedia(url: string, owner: string): Promise<Buffer> {
   if (!isInboxMediaUrl(url)) throw new InboxError('media_unavailable', 410);
   if (isFileUrlPath(url)) {
+    if (!(await ownedInboxFile(url, owner))) throw new InboxError('media_unavailable', 410);
     const { readUploadBytes } = await import('../uploads');
     const data = await readUploadBytes(url, { userId: owner }, MAX_SCHEDULED_MEDIA);
     if (!data) throw new InboxError('media_unavailable', 410);

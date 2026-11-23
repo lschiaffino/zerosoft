@@ -82,7 +82,7 @@ async function purgeRows(where: string, args: Array<string>): Promise<string[]> 
   const gone = (await db.prepare(`DELETE FROM inbox_threads WHERE removed_at IS NOT NULL AND id IN (${m}) RETURNING id`).all(...list)) as Array<{ id: string }>;
   // Cada archivo, solo si es de quien lo programó (la URL la mandó la pantalla).
   for (const ownerId of new Set(media.map((r) => r.owner_id))) {
-    await deleteOwnedUploads({ userId: ownerId }, media.filter((r) => r.owner_id === ownerId).map((r) => r.media_url)).catch(() => null);
+    await deleteOwnedUploads({ userId: ownerId }, media.filter((r) => r.owner_id === ownerId).map((r) => r.media_url), { folder: 'inbox' }).catch(() => null);
   }
   return gone.map((r) => r.id);
 }

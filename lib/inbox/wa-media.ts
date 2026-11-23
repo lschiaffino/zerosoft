@@ -78,7 +78,8 @@ async function providerUrl(owner: string, url: string): Promise<string> {
   if (!isFileUrlPath(url)) return url;
   const { ownedFileRow, signedFileUrl } = await import('../files/store');
   const row = await ownedFileRow(url, { userId: owner });
-  if (!row) throw new InboxError('invalid_input', 400);
+  // Solo un archivo de Inbox de la persona (no uno suyo de otra app del workspace).
+  if (!row || row.folder !== 'inbox') throw new InboxError('invalid_input', 400);
   return signedFileUrl(row, (process.env.NEXTAUTH_URL || 'https://zerosoft.ai').replace(/\/$/, ''), 30 * 60);
 }
 
@@ -105,14 +106,14 @@ export async function sendWhatsappMedia(owner: string, threadId: string, f: Outg
   if (thread.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   if (sent) {
     // Ya salió: lo que se volvió a subir para este reintento no se usa.
-    if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
+    if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url], { folder: 'inbox' }).catch(() => null);
     return '';
   }
   return onceInFlight(
     f.clientId ? `inbox:${threadId}:${f.clientId}` : null,
     () => sendMediaNow(owner, thread, f),
     async () => {
-      if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
+      if (f.url && isInboxBlobUrl(f.url)) await deleteOwnedUploads({ userId: owner }, [f.url], { folder: 'inbox' }).catch(() => null);
       return '';
     },
     // Un archivo tarda más: el servidor espera hasta 90 s al gateway.
@@ -165,7 +166,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
   } finally {
     // El archivo grande ya lo bajó el servidor de WhatsApp (o falló): no queda guardado. Solo si es de quien manda.
-    if (f.url) await deleteOwnedUploads({ userId: owner }, [f.url]).catch(() => null);
+    if (f.url) await deleteOwnedUploads({ userId: owner }, [f.url], { folder: 'inbox' }).catch(() => null);
   }
   const meta: WaMessageMeta = { mime: mimetype, size: f.size, ...(f.clientId ? { cid: f.clientId } : {}) };
   if (kind === 'voice') meta.ptt = true;

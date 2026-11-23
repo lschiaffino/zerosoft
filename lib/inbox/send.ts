@@ -159,7 +159,7 @@ async function sendScheduledPart(id: string, now: Date, force: boolean): Promise
       await deliver(account, thread, out.body, undefined, out.mentions);
     }
     await finishScheduled(id, true);
-    if (row.media_url) await deleteOwnedUploads({ userId: row.owner_id }, [row.media_url]);
+    if (row.media_url) await deleteOwnedUploads({ userId: row.owner_id }, [row.media_url], { folder: 'inbox' });
     return { result: 'sent', next: await scheduleNextPart(row, now) };
   } catch (err) {
     await finishScheduled(id, false, err instanceof InboxError ? err.code : 'send_failed');

@@ -22,6 +22,9 @@ beforeEach(() => {
   vi.stubEnv('GROUPS_FAKE', '1');
   vi.stubEnv('INBOX_FAKE', '1');
   vi.stubEnv('BLOB_READ_WRITE_TOKEN', '');
+  vi.stubEnv('FILES_BLOB_READ_WRITE_TOKEN', '');
+  vi.stubEnv('BLOB_PRIVATE_READ_WRITE_TOKEN', '');
+  vi.stubEnv('VERCEL', '');
   vi.stubEnv('UPLOADS_DIR', mkdtempSync(path.join(os.tmpdir(), 'inbox-own-')));
   resetFakeProvider();
 });
@@ -62,6 +65,18 @@ describe('Inbox: archivos ajenos no se borran ni se programan', () => {
     const own = await saveUpload('inbox', 'e.jpg', 'image/jpeg', Buffer.from('e'), { workspaceId: w.owner.id, userId: w.member.id });
     await sendWhatsappMedia(w.member.id, thread.id, { url: own, mimetype: 'image/jpeg', filename: 'e.jpg', size: 1 });
     expect(await exists(own)).toBe(false);
+  });
+
+  it('un archivo propio de otra app (no de Inbox) tampoco sale ni se borra desde Inbox', async () => {
+    const w = await workspaceWithMember('own-app');
+    const thread = await chatOf(w.member.id);
+    const fromLines = await saveUpload('chat', 'g.jpg', 'image/jpeg', Buffer.from('g'), { workspaceId: w.owner.id, userId: w.member.id, app: 'groups' });
+    await expect(
+      sendWhatsappMedia(w.member.id, thread.id, { url: fromLines, mimetype: 'image/jpeg', filename: 'g.jpg', size: 1 }),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+    expect(await exists(fromLines)).toBe(true);
+    await deleteOwnedUploads({ userId: w.member.id }, [fromLines], { folder: 'inbox' });
+    expect(await exists(fromLines)).toBe(true);
   });
 
   it('programar con la URL de un archivo ajeno no se acepta', async () => {
