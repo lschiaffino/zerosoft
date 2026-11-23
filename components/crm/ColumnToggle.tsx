@@ -1,9 +1,16 @@
 'use client';
 
-/** Id del lugar en la barra de filtros donde va "Editar columnas" (al lado del orden; ver EditColumns.tsx). */
-export const COLUMNS_SLOT_ID = 'crm-columns-slot';
+import { IndexEditColumns } from './EditColumns';
 
-/** Lugar para "Editar columnas" dentro de la barra de filtros. */
+/**
+ * "Editar columnas" dentro de la barra de filtros, al lado del orden. Lo
+ * dibuja la barra misma (con las columnas de TableColumnsProvider), así sale
+ * con la página y no cuando monta la tabla.
+ */
 export function ColumnsSlot() {
-  return <div id={COLUMNS_SLOT_ID} className="filter-columns" />;
+  return (
+    <div className="filter-columns">
+      <IndexEditColumns />
+    </div>
+  );
 }

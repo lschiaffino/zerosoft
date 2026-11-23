@@ -60,6 +60,7 @@ export async function loadListViews(
   }
   if (state.cols) keep.cols = state.cols;
   if (state.freeze) keep.freeze = state.freeze;
+  if (state.widths) keep.widths = state.widths;
   return {
     tabs,
     defaultKey: ctx.defaultKey,

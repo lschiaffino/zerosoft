@@ -324,6 +324,10 @@
   box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
 }
 :root[data-look='classic'] :is(.btn-primary, .btn-solid):not(:disabled) { box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+/* Classic: un grupo de segmentos (Ajustes › Visualización del chat, entre otros) es una sola placa: solo las
+   esquinas de afuera van redondeadas; con 8px en cada segmento quedaban cápsulas pegadas. */
+:root[data-look='classic'] .btn-group > .btn:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+:root[data-look='classic'] .btn-group > .btn:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 
 /* Liquid: la primaria lleva brillo arriba y una sombra de su color; la secundaria es vidrio. */
 :root[data-look='liquid'] :is(.btn-primary, .btn-solid):not(:disabled):not([aria-disabled='true']) {
@@ -457,6 +461,28 @@
 }
 /* scale (no transform): no pisa el transform con el que un menú ya se ubica. */
 @keyframes look-glass-in { from { opacity: 0; scale: 0.97; } }
+
+/* ---------- Lines e Inbox: paneles del chat de WhatsApp (Líneas y Clásico) ---------- */
+
+/* El panel de emojis/GIFs/stickers y las ventanitas de reacciones e info del mensaje son superficies
+   flotantes como los menús del chat: con el aspecto Líneas o Clásico llevan el mismo fondo, borde,
+   esquina y sombra que esos menús (en WhatsApp quedaban con su gris y su esquina propios). */
+:root:is([data-look='lines'], [data-look='classic']) :is(.wa-emoji, .wa-rx-pop) {
+  background-color: var(--pop-bg);
+  border: 1px solid var(--pop-edge);
+  box-shadow: var(--pop-shadow);
+}
+:root:is([data-look='lines'], [data-look='classic']) .wa-emoji { border-radius: var(--radius-pop); }
+:root:is([data-look='lines'], [data-look='classic']) .wa-rx-pop:not(.is-sheet) { border-radius: var(--radius-modal); }
+:root:is([data-look='lines'], [data-look='classic']) .wa-rx-pop.is-sheet { border-width: 1px 0 0; border-radius: var(--radius-modal) var(--radius-modal) 0 0; }
+:root:is([data-look='lines'], [data-look='classic']) .wa-emoji .wa-emoji-title { background: transparent; }
+:root:is([data-look='lines'], [data-look='classic']) .wa-xp-tabs button[aria-selected='true'] { background: var(--pop-bg); }
+/* Líneas: recto. Las pestañas, el buscador del panel y los filtros de reacciones (píldoras en WhatsApp)
+   con la esquina de los controles. */
+:root[data-look='lines'] :is(.wa-xp-tabs, .wa-xp-tabs button, .wa-emoji-search, .wa-rx-tab, .wa-emoji-grid button) { border-radius: var(--radius-1); }
+:root[data-look='lines'] .wa-xp-tabs button[aria-selected='true'] { box-shadow: inset 0 0 0 1px var(--accent-ink); }
+/* Clásico: los filtros de reacciones como chips de 8px, no píldoras. */
+:root[data-look='classic'] .wa-rx-tab { border-radius: var(--radius-1); }
 
 /* ---------- Ajustes › Apariencia: muestras ---------- */
 
