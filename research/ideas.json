@@ -2999,7 +2999,9 @@
     "title": "Forms: Pass the answers to the redirect URL as query parameters",
     "description": "Typeform redirects after submit and can append answers and hidden fields to the URL using variables (https://www.typeform.com/help/a/redirect-on-completion-360029618711/). Forms redirects to a fixed https URL per ending (redirectUrl in lib/forms/types.ts) and drops the answers. Teams use this to prefill a Calendly, Cal or payment page with the name and email just collected. First scope: placeholders like {{email}} in the redirect URL, piped with the form's own pipe function and URL encoded.",
     "product": "forms",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-23-1703-forms-redirect-answers"
   },
   {
     "title": "Rec: Start embedded videos at a given second and autoplay from the embed URL",

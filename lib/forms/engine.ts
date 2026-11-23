@@ -521,12 +521,6 @@ export function answerDisplay(q: Question, v: AnswerValue | undefined, labels: D
 const PIPE_RE = /\{\{\s*([a-z][a-z0-9_]{0,39})\s*\}\}/gi;
 
 /**
- * Reemplaza {{ref}} por la respuesta (por ref de pregunta), {{score}} y otras
- * variables, y campos ocultos. Devuelve texto plano: quien lo muestra lo
- * escapa (React o escapeHtml), así que una respuesta con HTML queda como
- * texto. Cada valor insertado se corta en 200 caracteres.
- */
-/**
  * Mezcla las opciones de las preguntas con `randomize` (una mezcla distinta
  * por semilla, la misma para la misma semilla). Solo cambia el orden en que
  * se muestran: las respuestas guardan ids, así que el motor no se entera.
@@ -555,16 +549,47 @@ export function shuffleChoices(def: FormDefinition, seed: number): FormDefinitio
   };
 }
 
-export function pipe(text: string, def: FormDefinition, ctx: { answers: Answers; vars?: Record<string, number>; hidden?: Record<string, string>; labels?: DisplayLabels }): string {
+export type PipeContext = { answers: Answers; vars?: Record<string, number>; hidden?: Record<string, string>; labels?: DisplayLabels };
+
+function pipeValue(key: string, def: FormDefinition, ctx: PipeContext): string {
+  const q = def.questions.find((x) => x.ref === key);
+  let out = '';
+  if (q) out = answerDisplay(q, ctx.answers[q.id], ctx.labels);
+  else if (ctx.vars && key in ctx.vars) out = String(Math.round(ctx.vars[key] * 100) / 100);
+  else if (ctx.hidden && key in ctx.hidden) out = ctx.hidden[key];
+  return out.slice(0, 200);
+}
+
+/**
+ * Reemplaza {{ref}} por la respuesta (por ref de pregunta), {{score}} y otras
+ * variables, y campos ocultos. Devuelve texto plano: quien lo muestra lo
+ * escapa (React o escapeHtml), así que una respuesta con HTML queda como
+ * texto. Cada valor insertado se corta en 200 caracteres.
+ */
+export function pipe(text: string, def: FormDefinition, ctx: PipeContext): string {
   if (!text.includes('{{')) return text;
-  return text.replace(PIPE_RE, (_, key: string) => {
-    const q = def.questions.find((x) => x.ref === key);
-    let out = '';
-    if (q) out = answerDisplay(q, ctx.answers[q.id], ctx.labels);
-    else if (ctx.vars && key in ctx.vars) out = String(Math.round(ctx.vars[key] * 100) / 100);
-    else if (ctx.hidden && key in ctx.hidden) out = ctx.hidden[key];
-    return out.slice(0, 200);
-  });
+  return text.replace(PIPE_RE, (_, key: string) => pipeValue(key, def, ctx));
+}
+
+/**
+ * URL de redirección de un final con {{ref}} reemplazado por la respuesta,
+ * codificada para la URL (para precargar un Cal, un pago o un CRM con lo que
+ * se acaba de responder). Solo se reemplaza después del host: una respuesta o
+ * un campo oculto (que viene de la URL del formulario) nunca cambia el dominio
+ * de destino. Devuelve '' si la plantilla no da una URL https válida.
+ */
+export function pipeRedirectUrl(template: string, def: FormDefinition, ctx: PipeContext): string {
+  const m = /^(https:\/\/[^/?#]*)(.*)$/is.exec(template.trim());
+  if (!m) return '';
+  const origin = m[1].replace(PIPE_RE, '');
+  const rest = m[2].replace(PIPE_RE, (_, key: string) => encodeURIComponent(pipeValue(key, def, ctx)));
+  try {
+    const url = new URL(origin + rest);
+    if (url.protocol !== 'https:' || !url.hostname) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
 }
 
 /** Escape para HTML (emails de aviso). */

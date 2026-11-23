@@ -172,6 +172,8 @@
   "unpin": "Desafixar",
   "pinnedHereOnly": "Fixada aqui. O WhatsApp do celular não mostra.",
   "mention": "Mencionar alguém",
+  "mentionAll": "Todos (@{word})",
+  "mentionAllHint": "{count, plural, =0 {Avisa todo o grupo} one {Avisa o único membro} other {Avisa os # membros}}",
   "mentionSomeone": "alguém",
   "styleUseZerosoft": "Estilo das conversas: zerosoft",
   "styleUseWhatsapp": "Estilo das conversas: WhatsApp",

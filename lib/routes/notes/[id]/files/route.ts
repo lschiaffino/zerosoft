@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const mime = file.type || 'application/octet-stream';
   let url: string;
   try {
-    url = await saveUpload('docs', name, mime, Buffer.from(await file.arrayBuffer()));
+    url = await saveUpload('docs', name, mime, Buffer.from(await file.arrayBuffer()), { app: 'notes' });
   } catch (err) {
     if (err instanceof UploadError) return jsonError(err.status, err.code);
     throw err;
