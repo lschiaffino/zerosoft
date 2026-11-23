@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { ensureDetailsTab } from './helpers/details-tab';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
 
 /**
@@ -287,7 +288,7 @@ test('pantalla de HubSpot: todas las propiedades, editar, sincronizar, fijar, bu
 
   // ---------- También desde los detalles del chat en la bandeja ----------
   await page.goto(`/en/app/lines/inbox/${group.id}`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await ensureDetailsTab(page, 'crm', () => page.getByRole('button', { name: 'Details', exact: true }).click());
   await hubspotRegion(page).getByRole('button', { name: 'All properties' }).click();
   await expect(hubspotScreen(page).locator('[data-prop="plan_tier"]')).toContainText('Scale');
   await page.keyboard.press('Escape');

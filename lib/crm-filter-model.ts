@@ -261,3 +261,65 @@ function legacyOps(def: FilterFieldShape): readonly string[] {
   const ops = def.ops ?? FILTER_OPS[def.type];
   return def.type === 'boolean' ? [...ops, 'is', 'isnot'] : ops;
 }
+
+// ---------- Filtro de una columna (menú del encabezado, C4) ----------
+
+/**
+ * Cómo filtra hoy una propiedad, para el filtro de su columna:
+ * - `none`: ninguna regla la nombra;
+ * - `simple`: una sola regla, la misma en todos los grupos (lo que deja el
+ *   filtro de columna: una condición Y con todo lo demás), y la columna la edita;
+ * - `complex`: algo que una columna no puede mostrar sin cambiar el sentido del
+ *   filtro (está en algunos grupos y no en otros, distinta entre grupos, o dos
+ *   reglas en un grupo, como un mínimo y un máximo): se edita en Filtros avanzados.
+ */
+export type FieldRuleState = { kind: 'none' } | { kind: 'simple'; rule: FilterCond } | { kind: 'complex' };
+
+export function fieldRuleState(model: FilterModel, field: string): FieldRuleState {
+  let rule: FilterCond | undefined;
+  let missing = false;
+  for (const g of model.groups) {
+    const own = g.rules.filter((r) => r.f === field);
+    if (own.length > 1) return { kind: 'complex' };
+    if (own.length === 0) {
+      missing = true;
+      continue;
+    }
+    if (rule && JSON.stringify(rule) !== JSON.stringify(own[0])) return { kind: 'complex' };
+    rule = own[0];
+  }
+  if (!rule) return { kind: 'none' };
+  return missing ? { kind: 'complex' } : { kind: 'simple', rule };
+}
+
+/** La regla que muestra el filtro de la columna (solo si es `simple`). */
+export function fieldRule(model: FilterModel, field: string): FilterCond | undefined {
+  const state = fieldRuleState(model, field);
+  return state.kind === 'simple' ? state.rule : undefined;
+}
+
+/**
+ * El filtro con `cond` como la regla de su propiedad, una condición Y con
+ * todo lo demás: va en cada grupo ((A O B) Y C = (A Y C) O (B Y C)), en lugar
+ * de la que tenía. `null` la quita de todos; si un grupo queda vacío, ese
+ * grupo ya aceptaba todo, y el filtro entero también. `null` si el cambio no
+ * se puede hacer así: la propiedad filtra de una forma que la columna no
+ * muestra (`complex`) o un grupo no tiene lugar para otra regla.
+ */
+export function setFieldRule(model: FilterModel, field: string, cond: FilterCond | null): FilterModel | null {
+  if (fieldRuleState(model, field).kind === 'complex') return null;
+  const base = model.groups.length ? model.groups : [{ rules: [] }];
+  const groups: FilterGroup[] = [];
+  for (const g of base.slice(0, MAX_FILTER_GROUPS)) {
+    const rest = g.rules.filter((r) => r.f !== field);
+    if (!cond) {
+      // Sin esta regla el grupo no pide nada: acepta todo, y con un O, el filtro entero.
+      if (!rest.length) return { v: 1, groups: [] };
+      groups.push({ rules: rest });
+      continue;
+    }
+    if (rest.length >= MAX_GROUP_RULES) return null;
+    groups.push({ rules: [...rest, { ...cond, f: field }] });
+  }
+  return { v: 1, groups };
+}

@@ -8,7 +8,8 @@
  * mismas reglas que las notas (lib/crm-mentions.ts): "@" + el nombre o el
  * teléfono de un participante, sin importar mayúsculas, el más largo primero.
  */
-import { findMentionHits, type MentionHit, type Mentionable } from './crm-mentions';
+import { findMentionHits, mentionSuggestions, type MentionHit, type Mentionable } from './crm-mentions';
+import { MENTION_ALL, MENTION_ALL_WORDS } from './wa-mention-all';
 
 /** Un participante del grupo que se puede mencionar. */
 export interface WaParticipant {
@@ -29,7 +30,7 @@ export function waMentionLabel(p: WaParticipant): string {
  * menciona). `picked` (etiqueta → teléfono, lo elegido en la lista) va
  * primero: con dos personas del mismo nombre gana la que se eligió.
  */
-export function waMentionables(participants: ReadonlyArray<WaParticipant>, picked?: ReadonlyMap<string, string>): Mentionable[] {
+export function waMentionables(participants: ReadonlyArray<WaParticipant>, picked?: ReadonlyMap<string, string>, all?: string | null): Mentionable[] {
   const out: Mentionable[] = [];
   const seen = new Set<string>();
   const add = (phone: string, label: string) => {
@@ -41,7 +42,43 @@ export function waMentionables(participants: ReadonlyArray<WaParticipant>, picke
   };
   for (const [label, phone] of picked ?? []) add(phone, label);
   for (const p of participants) add(p.phone, waMentionLabel(p));
+  // "@all" (y la palabra del idioma, "@todos"): menciona a todo el grupo. Solo donde el proveedor lo manda
+  // (quien llama pasa la palabra; sin ella no se ofrece). Va al final: con alguien que se llama igual ("Todos"),
+  // gana esa persona (findMentionHits desempata por orden) y "todos" pasa a escribirse "@all".
+  if (all) {
+    // La palabra que escribe: la del idioma, o la otra ("all" / "todos") si alguien se llama así; si las dos están
+    // tomadas por personas, no se ofrece (mencionaría a una persona en vez de al grupo).
+    const taken = new Set(out.map((p) => (p.name ?? '').toLowerCase()));
+    const word = [all, ...MENTION_ALL_WORDS].find((w) => !taken.has(w.toLowerCase()));
+    if (word) out.push({ id: MENTION_ALL, name: word, email: taken.has(MENTION_ALL) ? word : MENTION_ALL });
+  }
   return out;
+}
+
+/**
+ * La lista del "@". Con el campo recién abierto ("@"), Todos primero, como WhatsApp. Escribiendo, Todos aparece
+ * solo si su palabra empieza así ("@to", "@al") y después de las personas cuyo nombre también empieza así: una
+ * letra suelta nunca deja a todo el grupo elegido por defecto. Todos no ocupa lugar del tope: en un grupo grande
+ * sigue estando.
+ */
+export function waMentionSuggestions(query: string, pool: Mentionable[], limit = 50): Mentionable[] {
+  const all = pool.find((p) => p.id === MENTION_ALL);
+  if (!all) return mentionSuggestions(query, pool, limit);
+  const people = mentionSuggestions(
+    query,
+    pool.filter((p) => p !== all),
+    Math.max(1, limit - 1),
+  );
+  const q = query.trim().toLowerCase();
+  // Sin texto, o con la palabra entera ("@all", "@todos"): Todos primero.
+  if (!q || q === (all.name ?? '').toLowerCase() || q === all.email.toLowerCase()) return [all, ...people];
+  if (![all.name ?? '', all.email].some((w) => w.toLowerCase().startsWith(q))) return people;
+  // mentionSuggestions ordena por puntaje: primero los que empiezan así (nombre, una palabra del nombre o teléfono).
+  const strong = people.filter((p) => {
+    const name = (p.name ?? '').toLowerCase();
+    return name.startsWith(q) || p.email.toLowerCase().startsWith(q) || name.split(/\s+/).some((w) => w.startsWith(q));
+  }).length;
+  return [...people.slice(0, strong), all, ...people.slice(strong)];
 }
 
 /** Tramos de las menciones del texto (para pintarlas en el campo). */
@@ -60,12 +97,15 @@ export function serializeWaMentions(text: string, people: Mentionable[]): { body
   let pos = 0;
   const mentions: string[] = [];
   for (const h of hits) {
-    body += `${text.slice(pos, h.start)}@${h.id}`;
+    // "@all" queda como se escribió ("@all" o "@todos"): WhatsApp avisa a todos por la marca, no por el texto.
+    body += h.id === MENTION_ALL ? text.slice(pos, h.end) : `${text.slice(pos, h.start)}@${h.id}`;
     pos = h.end;
     if (!mentions.includes(h.id)) mentions.push(h.id);
   }
   body += text.slice(pos);
-  return { body, mentions: mentions.slice(0, 50) };
+  // "all" primero, así el tope de 50 nunca lo deja afuera.
+  const ordered = mentions.includes(MENTION_ALL) ? [MENTION_ALL, ...mentions.filter((m) => m !== MENTION_ALL)] : mentions;
+  return { body, mentions: ordered.slice(0, 50) };
 }
 
 /**
@@ -106,7 +146,7 @@ export function cleanWaMentionPicks(raw: unknown): WaMentionPick[] {
     const o = (it ?? {}) as { phone?: unknown; label?: unknown };
     const phone = typeof o.phone === 'string' ? o.phone : '';
     const label = typeof o.label === 'string' ? o.label.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
-    if (!PHONE.test(phone)) continue;
+    if (!PHONE.test(phone) && !(phone === MENTION_ALL && label)) continue;
     if (!out.some((p) => p.phone === phone && p.label === label)) out.push({ phone, label });
     if (out.length >= 50) break;
   }
@@ -121,7 +161,16 @@ export function cleanWaMentionPicks(raw: unknown): WaMentionPick[] {
 export function applyWaMentionPicks(text: string, picks: unknown): { body: string; mentions: string[] } {
   const list = cleanWaMentionPicks(picks);
   if (!list.length) return { body: text, mentions: [] };
-  return serializeWaMentions(text, waMentionables(list.map((p) => ({ phone: p.phone, name: p.label }))));
+  // "todos" reconoce también "@all" (el id va como segundo texto): sirve con la palabra de cualquier idioma.
+  const all = list.some((p) => p.phone === MENTION_ALL) ? 'todos' : null;
+  return serializeWaMentions(
+    text,
+    waMentionables(
+      list.filter((p) => p.phone !== MENTION_ALL).map((p) => ({ phone: p.phone, name: p.label })),
+      undefined,
+      all,
+    ),
+  );
 }
 
 /**

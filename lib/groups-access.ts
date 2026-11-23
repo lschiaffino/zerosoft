@@ -353,6 +353,44 @@ export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: s
   };
 }
 
+/**
+ * Los vínculos de chats al CRM (crmContactId, crmCompanyId) con la visibilidad
+ * del CRM de quien mira (lib/crm-visibility.ts): un contacto o una empresa que
+ * no ve sale en null, así su id no llega en la lista, el export, la tabla ni
+ * la info del chat. Un invitado no ve ninguno. Sin viewer (cron, webhooks,
+ * Flow) o con alcance total, sin cambios. El vínculo guardado no se toca.
+ */
+export async function scopeChatCrmRefs<T extends { crmContactId: string | null; crmCompanyId: string | null }>(
+  viewer: GroupsViewer | null | undefined,
+  chats: T[],
+): Promise<T[]> {
+  if (!viewer || !chats.some((c) => c.crmContactId || c.crmCompanyId)) return chats;
+  if (viewer.role === 'guest') return chats.map((c) => ({ ...c, crmContactId: null, crmCompanyId: null }));
+  const { ownerScopeFor, visibleIds } = await import('./crm-visibility');
+  const scope = await ownerScopeFor({ workspaceId: viewer.ws, personId: viewer.me, role: viewer.role });
+  if (!scope) return chats;
+  const ids = (key: 'crmContactId' | 'crmCompanyId') => chats.map((c) => c[key]).filter((id): id is string => !!id);
+  const [contacts, companies] = await Promise.all([
+    visibleIds(viewer.ws, 'crm_contacts', ids('crmContactId'), scope),
+    visibleIds(viewer.ws, 'crm_companies', ids('crmCompanyId'), scope),
+  ]);
+  const seeContact = new Set(contacts);
+  const seeCompany = new Set(companies);
+  return chats.map((c) => {
+    const contact = c.crmContactId && seeContact.has(c.crmContactId) ? c.crmContactId : null;
+    const company = c.crmCompanyId && seeCompany.has(c.crmCompanyId) ? c.crmCompanyId : null;
+    return contact === c.crmContactId && company === c.crmCompanyId ? c : { ...c, crmContactId: contact, crmCompanyId: company };
+  });
+}
+
+/** scopeChatCrmRefs de un solo chat. */
+export async function scopeChatCrmRef<T extends { crmContactId: string | null; crmCompanyId: string | null }>(
+  viewer: GroupsViewer | null | undefined,
+  chat: T,
+): Promise<T> {
+  return (await scopeChatCrmRefs(viewer, [chat]))[0];
+}
+
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
   if (!viewer?.mask) return m;
   return {

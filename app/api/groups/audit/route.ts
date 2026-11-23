@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { listAudit } from '@/lib/groups-audit';
-import { canSeeChat, maskPhoneText, visibleChatIds } from '@/lib/groups-access';
+import { canSeeChat, maskPhoneText, scopeChatCrmRefs, visibleChatIds } from '@/lib/groups-access';
 import { groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 export const dynamic = 'force-dynamic';
 
 /**
@@ -26,5 +28,11 @@ export async function GET(req: Request) {
     chatIds: chatId ? null : await visibleChatIds(viewer),
     limit: Number(p.get('limit')) || 100,
   });
-  return NextResponse.json({ entries: viewer.mask ? entries.map((e) => ({ ...e, chatName: maskPhoneText(e.chatName) })) : entries });
+  // Un cambio de vínculo al CRM: solo los ids del contacto y la empresa que quien mira ve en el CRM.
+  const links = await scopeChatCrmRefs(
+    viewer,
+    entries.map((e) => (e.action === 'crm_link' ? { crmContactId: str(e.detail.contactId), crmCompanyId: str(e.detail.companyId) } : { crmContactId: null, crmCompanyId: null })),
+  );
+  const scoped = entries.map((e, i) => (e.action === 'crm_link' ? { ...e, detail: { ...e.detail, contactId: links[i].crmContactId, companyId: links[i].crmCompanyId } } : e));
+  return NextResponse.json({ entries: viewer.mask ? scoped.map((e) => ({ ...e, chatName: maskPhoneText(e.chatName) })) : scoped });
 }

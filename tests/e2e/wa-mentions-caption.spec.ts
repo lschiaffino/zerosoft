@@ -176,7 +176,9 @@ test('Lines: en el teléfono la lista del pie entra en la pantalla, sin scroll l
     await pane.getByTestId('attach-caption').pressSequentially('@');
     const list = pane.getByTestId('caption-mentions');
     await expect(list).toBeVisible();
-    await expect(list.getByRole('option')).toHaveCount(2);
+    // Todos (@all) primero, y las dos personas.
+    await expect(list.getByRole('option')).toHaveCount(3);
+    await expect(list.getByRole('option').first().getByTestId('mention-all')).toBeVisible();
     const box = (await list.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
