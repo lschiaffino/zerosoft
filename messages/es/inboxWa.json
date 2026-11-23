@@ -107,7 +107,9 @@
     "voice_too_short": "Grabá al menos un segundo para programarla.",
     "invalid_name": "El grupo necesita un nombre.",
     "not_group_admin": "Solo los admins del grupo pueden cambiar esto, y tu número no es admin del grupo.",
-    "group_left": "Ya saliste de este grupo."
+    "group_left": "Ya saliste de este grupo.",
+    "invalid_contact": "Ese contacto no está en tu CRM.",
+    "invalid_company": "Esa empresa no está en tu CRM."
   },
   "groupEdit": {
     "editName": "Editar el nombre del grupo",

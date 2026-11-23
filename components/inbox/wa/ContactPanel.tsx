@@ -18,6 +18,7 @@ import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
 import { useInboxPersonSheet } from './person-sheet';
 import InboxHubspotCard from './InboxHubspotCard';
+import InboxCrm from './InboxCrm';
 import { GroupDescriptionEdit, GroupNameEdit } from './GroupInfoEdit';
 import GroupMembers, { type GroupMember } from '@/components/groups/wa/GroupMembers';
 import type { ParticipantDto } from '@/lib/inbox/types';
@@ -466,8 +467,21 @@ export default function ContactPanel({
               content: <SharedMedia key={thread.id} load={loadShared} chatName={name} starredKey={starredKey} onJumpToMessage={onJumpToMessage} />,
             },
             { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ThreadNotes key={thread.id} threadId={thread.id} /> },
-            ...(!group && thread.channel === 'whatsapp'
-              ? [{ id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: <InboxHubspotCard threadId={thread.id} /> }]
+            // CRM: el de zerosoft (contacto, empresa y negocios, como en Lines) y, en un 1:1, HubSpot si está conectado.
+            ...(thread.channel === 'whatsapp'
+              ? [
+                  {
+                    id: 'crm',
+                    label: tdet('tabs.crm'),
+                    icon: <BriefcaseIcon size={18} />,
+                    content: (
+                      <>
+                        <InboxCrm key={thread.id} threadId={thread.id} onError={onError} />
+                        {!group && <InboxHubspotCard threadId={thread.id} />}
+                      </>
+                    ),
+                  },
+                ]
               : []),
             {
               id: 'ai',

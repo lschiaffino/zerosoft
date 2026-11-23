@@ -1,9 +1,11 @@
 import { iJson, withOwner } from '@/lib/inbox/http';
 import { limitByIp } from '@/lib/rate-limit';
+import { limitWrites } from '@/lib/write-limit';
 import { InboxError } from '@/lib/inbox/types';
 import { personCard, reactionDetails, sendMyPresence, setBlocked, sharedContent, type SharedKind } from '@/lib/inbox/wa-meta';
 import { makeSummary, readSummary } from '@/lib/inbox/wa-summary';
 import { MEMBER_ACTIONS } from '@/lib/wa-group-members';
+import { getCurrentUser } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,8 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
  * ?part=person&phone=<dígitos> (la ficha de una persona del grupo) o
  * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes) o
  * ?part=info&message=<id> (la Info de un mensaje propio: quién lo recibió y lo leyó) o
+ * ?part=notes (las notas propias del chat, para su pestaña: sin armar la conversación) o
+ * ?part=crm (el contacto, la empresa y los negocios del CRM de zerosoft vinculados, con la visibilidad del CRM) o
  * ?part=ai (si hay IA para la pestaña AI del panel; no llama a ningún modelo).
  */
 export async function GET(req: Request, ctx: Ctx) {
@@ -25,6 +29,17 @@ export async function GET(req: Request, ctx: Ctx) {
   return withOwner(async (owner) => {
     const sp = new URL(req.url).searchParams;
     if (sp.get('part') === 'summary') return iJson({ summary: await readSummary(owner, id) });
+    // El CRM de zerosoft del chat (lib/inbox/crm.ts): null si quien mira no usa el CRM del workspace activo.
+    if (sp.get('part') === 'crm') {
+      const [{ inboxCrm }, user] = await Promise.all([import('@/lib/inbox/crm'), getCurrentUser()]);
+      if (!user) throw new InboxError('unauthorized', 401);
+      return iJson({ crm: await inboxCrm(user, owner, id) });
+    }
+    // Las notas del chat (solo las ve la persona dueña de la bandeja): una fila, sin mensajes ni la info de WhatsApp.
+    if (sp.get('part') === 'notes') {
+      const { getThreadRow } = await import('@/lib/inbox/core');
+      return iJson({ notes: (await getThreadRow(owner, id)).notes ?? '' });
+    }
     // La pestaña AI: si hay IA (el chat tiene que ser de la persona igual).
     if (sp.get('part') === 'ai') {
       const [{ getThreadRow }, { inboxAiTabState }] = await Promise.all([import('@/lib/inbox/core'), import('@/lib/inbox/insights')]);
@@ -58,7 +73,8 @@ export async function GET(req: Request, ctx: Ctx) {
  * { action: 'fetchMissing', auto: true } le pide al teléfono el historial de un chat con huecos;
  * { action: 'loadOlder' } le pide los mensajes anteriores al más viejo guardado;
  * { action: 'members', op, phones } agrega, quita o cambia admins del grupo (resultado por persona),
- * { action: 'invite', revoke? } da el link y { action: 'inviteSend', phones, text } lo manda por 1:1.
+ * { action: 'invite', revoke? } da el link y { action: 'inviteSend', phones, text } lo manda por 1:1,
+ * { action: 'crm', crmContactId?, crmCompanyId? } vincula el chat al CRM de zerosoft (lib/inbox/crm.ts).
  */
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -132,6 +148,23 @@ export async function POST(req: Request, ctx: Ctx) {
       const op = MEMBER_ACTIONS.find((a) => a === body.op);
       if (!op) throw new InboxError('invalid_input', 400);
       return iJson(await updateGroupMembers(owner, id, op, body.phones));
+    });
+  }
+  // { action: 'crm', crmContactId?, crmCompanyId? }: vincula o desvincula (null) el contacto o la empresa del CRM.
+  if (b?.action === 'crm') {
+    const body = b as { crmContactId?: unknown; crmCompanyId?: unknown };
+    // null desvincula; un id es un texto de 1 a 100; lo que no está no se toca. Cualquier otra cosa es invalid_input.
+    const ref = (v: unknown) => (v === undefined || v === null ? v : typeof v === 'string' && v.length >= 1 && v.length <= 100 ? v : false);
+    const contactRef = ref(body.crmContactId);
+    const companyRef = ref(body.crmCompanyId);
+    return withOwner(async (owner) => {
+      if (contactRef === false || companyRef === false || (contactRef === undefined && companyRef === undefined)) throw new InboxError('invalid_input', 400);
+      const limitedW = await limitWrites('inbox', owner);
+      if (limitedW) return limitedW;
+      const user = await getCurrentUser();
+      if (!user) throw new InboxError('unauthorized', 401);
+      const { linkInboxCrm } = await import('@/lib/inbox/crm');
+      return iJson({ crm: await linkInboxCrm(user, owner, id, { crmContactId: contactRef, crmCompanyId: companyRef }) });
     });
   }
   const limited = await limitByIp(req, 'inbox-ai', 60, 60).catch(() => null);
