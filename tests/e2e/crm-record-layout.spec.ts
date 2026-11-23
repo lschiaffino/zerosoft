@@ -369,11 +369,11 @@ test.describe('ficha en tres columnas a 1280', () => {
     await expect(items.filter({ hasText: subject })).toBeVisible();
     // Lo que se estaba escribiendo no se pierde al ir al Resumen y volver.
     await quick(page, 'note').click();
-    await composer(page).locator('textarea').fill('Half written');
+    await composer(page).getByTestId('timeline-note-editor').fill('Half written');
     await tab(page, 'overview').click();
     await page.getByTestId('record-see-activity').click();
     await expect(composer(page)).toBeVisible();
-    await expect(composer(page).locator('textarea')).toHaveValue('Half written');
+    await expect(composer(page).getByTestId('timeline-note-editor')).toContainText('Half written');
 
     // Los links guardados: Actividad (también en plural), y las pestañas de la ficha anterior.
     await page.goto(`${s.paths.contact}?tab=activities`, { waitUntil: 'networkidle' });
