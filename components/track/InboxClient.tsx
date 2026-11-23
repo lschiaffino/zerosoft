@@ -3,7 +3,7 @@
 import LocalText from '@/components/ui/LocalText';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   EMPTY_INBOX_FILTER,
   inboxFilterCount,
@@ -28,6 +28,8 @@ import { parseStoredDate } from '@/lib/track-status-time';
 import TrackIcon, { type TrackIconName } from './TrackIcon';
 import { useShortDuration } from './IssueRowProps';
 import { isTextEntry } from './IssueFilters';
+import { announceSubscription, TRACK_SUBSCRIPTION_EVENT } from './IssueSubscription';
+import { pushNotice } from './trackUndo';
 
 interface Notification {
   id: string;
@@ -48,7 +50,8 @@ interface Notification {
   actorName?: string | null;
   tab?: InboxTab;
   reason?: InboxReason;
-  issue?: InboxIssue | null;
+  /** `subscribed`: si la persona sigue el issue (lo agrega la ruta de la bandeja). */
+  issue?: (InboxIssue & { subscribed?: boolean }) | null;
 }
 
 /** Filtro, orden y agrupado guardados por persona en este navegador (la URL manda si trae alguno). */
@@ -87,7 +90,15 @@ function writeUrl(f: InboxFilter, tab: TabKey) {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+/** El issue abierto en el panel (/app/track/inbox/<id>, con o sin idioma delante). */
+function openIssueOf(pathname: string | null): string | null {
+  const m = /\/app\/track\/inbox\/([^/?#]+)/.exec(pathname ?? '');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 interface InboxClientProps {
+  /** El panel del aviso abierto (inbox/[issueId]), al lado de la lista. */
+  children?: ReactNode;
   locale: string;
   labels: {
     title: string;
@@ -173,7 +184,7 @@ function parseTab(v: string | null | undefined): TabKey {
  * por qué llegó, y todo desde el teclado: J/K o flechas para moverse, Enter
  * abre, U marca leído o sin leer, H pospone, Backspace borra.
  */
-export default function InboxClient({ locale, labels }: InboxClientProps) {
+export default function InboxClient({ locale, labels, children }: InboxClientProps) {
   const tr = useTranslations('track');
   const tp = useTranslations('trackPlanning');
   const tTriage = useTranslations('trackTriage');
@@ -181,6 +192,10 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
   const short = useShortDuration();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  // Panel abierto: el issue (de la ruta) y el aviso (?n=) que lo abrió.
+  const openIssue = openIssueOf(pathname);
+  const openNote = openIssue ? (searchParams?.get('n') ?? null) : null;
   const [tab, setTab] = useState<TabKey>(() => parseTab(searchParams?.get('tab')));
   const [actionError, setActionError] = useState<string | null>(null);
   const [rows, setRows] = useState<Notification[]>([]);
@@ -457,6 +472,61 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     el?.scrollIntoView({ block: 'nearest' });
   };
 
+  /** Link de un aviso: los de un issue se abren en el panel de al lado; el resto, en su página. */
+  const rowHref = (n: Notification): string => {
+    if (!n.issue) return n.href ?? '/app/track';
+    const sp = inboxFilterParams(filter);
+    if (tab !== 'priority') sp.set('tab', tab);
+    sp.set('n', n.id);
+    return `/app/track/inbox/${encodeURIComponent(n.issue.id)}?${sp.toString()}`;
+  };
+
+  /** Abre el aviso (Enter, clic, o J/K con el panel abierto) y lo marca leído. */
+  const openRow = (n: Notification, how: 'push' | 'replace' = 'push') => {
+    if (!n.read_at) void setRead(n, true);
+    const href = rowHref(n);
+    if (how === 'replace') router.replace(href, { scroll: false });
+    else router.push(href, { scroll: false });
+  };
+
+  // El aviso abierto queda marcado en la lista (al llegar por un link también).
+  useEffect(() => {
+    if (openNote) setActive(openNote);
+  }, [openNote]);
+
+  // Darse de baja del issue desde la fila (y volver a seguirlo), como Linear.
+  const [subs, setSubs] = useState<Record<string, boolean>>({});
+  const isSubscribed = (n: Notification) => (n.issue ? (subs[n.issue.id] ?? n.issue.subscribed ?? true) : false);
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const d = (e as CustomEvent<{ issueId: string; subscribed: boolean }>).detail;
+      if (d?.issueId) setSubs((prev) => ({ ...prev, [d.issueId]: d.subscribed }));
+    };
+    window.addEventListener(TRACK_SUBSCRIPTION_EVENT, onChange);
+    return () => window.removeEventListener(TRACK_SUBSCRIPTION_EVENT, onChange);
+  }, []);
+  async function toggleSubscription(n: Notification) {
+    const issue = n.issue;
+    if (!issue || busy.current.has(`sub:${issue.id}`)) return;
+    busy.current.add(`sub:${issue.id}`);
+    setActionError(null);
+    const next = !isSubscribed(n);
+    setSubs((prev) => ({ ...prev, [issue.id]: next }));
+    const res = await fetch(`/api/track/issues/${issue.id}/subscription`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscribed: next }),
+    }).catch(() => null);
+    busy.current.delete(`sub:${issue.id}`);
+    if (!res?.ok) {
+      setSubs((prev) => ({ ...prev, [issue.id]: !next }));
+      setActionError(tr('subscription.error'));
+      return;
+    }
+    announceSubscription(issue.id, next);
+    pushNotice(next ? ti('resubscribed', { id: issue.identifier }) : ti('unsubscribed', { id: issue.identifier }));
+  }
+
   // Teclado como la Inbox de Linear (fuera de campos de texto y con los menús cerrados).
   const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
   keys.current = (e: KeyboardEvent) => {
@@ -467,25 +537,30 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     const onLink = Boolean(target?.classList?.contains('track-inbox-link'));
     const inRow = Boolean(target?.closest?.('[data-testid="track-inbox-item"]'));
     const free = !target || target === document.body || target === document.documentElement;
-    if (!onLink && !inRow && !free) return;
+    // Desde el issue abierto al lado, J/K siguen recorriendo la bandeja (el resto de las teclas son del issue).
+    const inPane = Boolean(target?.closest?.('.track-inbox-pane'));
+    if (inPane && !onLink && !inRow) {
+      if (e.key !== 'j' && e.key !== 'k') return;
+    } else if (!onLink && !inRow && !free) return;
     // Un botón de la fila (Posponer, leída, borrar) conserva Enter, espacio y flechas.
     if (inRow && !onLink && (e.key === 'Enter' || e.key === ' ' || e.key.startsWith('Arrow'))) return;
     if (ordered.length === 0) return;
     const i = active ? ordered.findIndex((x) => x.id === active) : -1;
     const cur = i >= 0 ? ordered[i] : null;
     const k = e.key;
-    if (k === 'j' || k === 'ArrowDown') {
+    if (k === 'j' || k === 'ArrowDown' || k === 'k' || k === 'ArrowUp') {
       e.preventDefault();
-      focusRow(ordered[Math.min(ordered.length - 1, i + 1)].id);
-    } else if (k === 'k' || k === 'ArrowUp') {
-      e.preventDefault();
-      focusRow(ordered[Math.max(0, i - 1)].id);
+      const down = k === 'j' || k === 'ArrowDown';
+      const from = i >= 0 ? i : openNote ? ordered.findIndex((x) => x.id === openNote) : -1;
+      const next = ordered[down ? Math.min(ordered.length - 1, from + 1) : Math.max(0, from - 1)];
+      focusRow(next.id);
+      // Con un issue abierto al lado, el panel sigue a la fila (como Linear); los que no son de un issue no se abren solos.
+      if (openIssue && next.issue && next.id !== openNote) openRow(next, 'replace');
     } else if (!cur) {
       return;
     } else if (k === 'Enter' || k === 'o') {
       e.preventDefault();
-      if (!cur.read_at) void setRead(cur, true);
-      router.push(cur.href ?? '/app/track');
+      openRow(cur);
     } else if (k === 'u' || k === 'U') {
       e.preventDefault();
       void setRead(cur, !cur.read_at);
@@ -561,10 +636,13 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     const isActive = active === n.id;
     const titleText = issue ? issue.title || tr('notifications.untitled') : notificationTitle(n, textLabels);
     const readToggle = unread ? ti('markRead') : ti('markUnread');
+    const subscribed = isSubscribed(n);
+    const subToggle = subscribed ? ti('unsubscribeIssue') : ti('subscribeIssue');
     return (
       <li
         key={n.id}
-        className={`track-inbox-item${unread ? ' is-unread' : ''}${isActive ? ' is-kb-active' : ''}`}
+        className={`track-inbox-item${unread ? ' is-unread' : ''}${isActive ? ' is-kb-active' : ''}${openNote === n.id ? ' is-open' : ''}`}
+        aria-current={openNote === n.id ? 'true' : undefined}
         data-testid="track-inbox-item"
         data-id={n.id}
         data-kind={n.kind}
@@ -582,7 +660,8 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
           )}
         </span>
         <Link
-          href={n.href ?? '/app/track'}
+          href={rowHref(n)}
+          scroll={n.issue ? false : undefined}
           className="track-inbox-link"
           onFocus={() => setActive(n.id)}
           onClick={() => {
@@ -638,6 +717,19 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                 >
                   <TrackIcon name={unread ? 'check' : 'eye'} size={14} />
                 </button>
+                {n.issue && (
+                  <button
+                    type="button"
+                    className={`track-inline-trigger track-inbox-icon${subscribed ? '' : ' is-off'}`}
+                    aria-label={subToggle}
+                    title={subToggle}
+                    aria-pressed={!subscribed}
+                    onClick={() => void toggleSubscription(n)}
+                    data-testid="track-inbox-unsubscribe"
+                  >
+                    <TrackIcon name={subscribed ? 'bell-off' : 'bell'} size={14} />
+                  </button>
+                )}
                 <button
                   type="button"
                   className="track-inline-trigger track-inbox-icon"
@@ -663,6 +755,20 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
                     >
                       <span className="track-menu-label">{readToggle}</span>
                     </button>
+                    {n.issue && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="track-menu-item"
+                        data-testid="track-inbox-unsubscribe-menu"
+                        onClick={() => {
+                          close();
+                          void toggleSubscription(n);
+                        }}
+                      >
+                        <span className="track-menu-label">{subToggle}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       role="menuitem"
@@ -687,143 +793,151 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
   const tabLabel = (t: TabKey) => (t === 'snoozed' ? tr('inboxSnooze.tab') : ti(`tabs.${t}`));
 
   return (
-    <div className="ui-page track-inbox-page">
-      <PageHeader
-        title={labels.title}
-        actions={
-          rows.length > 0 ? (
-            <button type="button" className="btn" onClick={() => void markAllRead()}>
-              {labels.markAllRead}
-            </button>
-          ) : null
-        }
-      />
-
-      <div className="ui-tabs track-inbox-tabs" role="tablist" aria-label={labels.title}>
-        {TABS.map((t, i) => {
-          const count = t === 'snoozed' ? null : (counts?.[t] ?? null);
-          return (
-            <button
-              key={t}
-              ref={(el) => {
-                tabRefs.current[t] = el;
-              }}
-              type="button"
-              role="tab"
-              className="ui-tab"
-              aria-selected={tab === t}
-              aria-describedby={t === 'snoozed' ? undefined : `track-inbox-rule-${t}`}
-              title={t === 'snoozed' ? undefined : ti(`rule.${t}`)}
-              tabIndex={tab === t ? 0 : -1}
-              onClick={() => changeTab(t)}
-              onKeyDown={(e) => onTabKey(e, i)}
-              data-testid={`track-inbox-tab-${t}`}
-            >
-              {tabLabel(t)}
-              {count !== null && count > 0 && (
-                <span className="track-inbox-tab-count" data-testid={`track-inbox-count-${t}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <span className="sr-only" id="track-inbox-rule-priority">
-        {ti('rule.priority')}
-      </span>
-      <span className="sr-only" id="track-inbox-rule-other">
-        {ti('rule.other')}
-      </span>
-
-      <InboxFilters filter={filter} onChange={changeFilter} facets={facets} showDisplay={tab !== 'snoozed'} />
-
-      <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel" ref={listRef} onBlur={onListBlur}>
-        {firstLoad ? (
-          <div className="ui-loading-stack">
-            <span className="sr-only" role="status">
-              {labels.loading}
-            </span>
-            {Array.from({ length: 6 }, (_, i) => (
-              <span key={i} className="ui-skeleton ui-skeleton-row" />
-            ))}
-          </div>
-        ) : error && rows.length === 0 ? (
-          <EmptyState
-            quiet
-            title={labels.loadError}
-            action={
-              <button type="button" className="btn btn-primary" onClick={() => void load(true)}>
-                {labels.retry}
+    <div className={`track-inbox-split${openIssue ? ' has-open' : ''}`} data-testid="track-inbox-split">
+      <div className="ui-page track-inbox-page">
+        <PageHeader
+          title={labels.title}
+          actions={
+            rows.length > 0 ? (
+              <button type="button" className="btn" onClick={() => void markAllRead()}>
+                {labels.markAllRead}
               </button>
-            }
-          />
-        ) : rows.length === 0 ? (
-          filtered ? (
+            ) : null
+          }
+        />
+
+        <div className="ui-tabs track-inbox-tabs" role="tablist" aria-label={labels.title}>
+          {TABS.map((t, i) => {
+            const count = t === 'snoozed' ? null : (counts?.[t] ?? null);
+            return (
+              <button
+                key={t}
+                ref={(el) => {
+                  tabRefs.current[t] = el;
+                }}
+                type="button"
+                role="tab"
+                className="ui-tab"
+                aria-selected={tab === t}
+                aria-describedby={t === 'snoozed' ? undefined : `track-inbox-rule-${t}`}
+                title={t === 'snoozed' ? undefined : ti(`rule.${t}`)}
+                tabIndex={tab === t ? 0 : -1}
+                onClick={() => changeTab(t)}
+                onKeyDown={(e) => onTabKey(e, i)}
+                data-testid={`track-inbox-tab-${t}`}
+              >
+                {tabLabel(t)}
+                {count !== null && count > 0 && (
+                  <span className="track-inbox-tab-count" data-testid={`track-inbox-count-${t}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <span className="sr-only" id="track-inbox-rule-priority">
+          {ti('rule.priority')}
+        </span>
+        <span className="sr-only" id="track-inbox-rule-other">
+          {ti('rule.other')}
+        </span>
+
+        <InboxFilters filter={filter} onChange={changeFilter} facets={facets} showDisplay={tab !== 'snoozed'} />
+
+        <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel" ref={listRef} onBlur={onListBlur}>
+          {firstLoad ? (
+            <div className="ui-loading-stack">
+              <span className="sr-only" role="status">
+                {labels.loading}
+              </span>
+              {Array.from({ length: 6 }, (_, i) => (
+                <span key={i} className="ui-skeleton ui-skeleton-row" />
+              ))}
+            </div>
+          ) : error && rows.length === 0 ? (
             <EmptyState
               quiet
-              title={tr('inbox.filter.emptyTitle')}
-              body={tr('inbox.filter.emptyBody')}
+              title={labels.loadError}
               action={
-                <button type="button" className="btn" onClick={() => changeFilter({ ...EMPTY_INBOX_FILTER, order: filter.order, group: filter.group })} data-testid="track-inbox-empty-clear">
-                  {tr('filters.clear')}
+                <button type="button" className="btn btn-primary" onClick={() => void load(true)}>
+                  {labels.retry}
                 </button>
               }
             />
-          ) : tab === 'snoozed' ? (
-            <EmptyState quiet title={tr('inboxSnooze.empty')} body={tr('inboxSnooze.emptyBody')} />
-          ) : tab === 'priority' ? (
-            <EmptyState quiet title={ti('emptyPriority')} body={ti('rule.priority')} />
+          ) : rows.length === 0 ? (
+            filtered ? (
+              <EmptyState
+                quiet
+                title={tr('inbox.filter.emptyTitle')}
+                body={tr('inbox.filter.emptyBody')}
+                action={
+                  <button type="button" className="btn" onClick={() => changeFilter({ ...EMPTY_INBOX_FILTER, order: filter.order, group: filter.group })} data-testid="track-inbox-empty-clear">
+                    {tr('filters.clear')}
+                  </button>
+                }
+              />
+            ) : tab === 'snoozed' ? (
+              <EmptyState quiet title={tr('inboxSnooze.empty')} body={tr('inboxSnooze.emptyBody')} />
+            ) : tab === 'priority' ? (
+              <EmptyState quiet title={ti('emptyPriority')} body={ti('rule.priority')} />
+            ) : (
+              <EmptyState quiet title={labels.empty} body={labels.emptyBody} />
+            )
+          ) : grouped ? (
+            groups.map((g, i) => (
+              <section key={g.key} className="track-inbox-group" aria-labelledby={`track-inbox-group-${i}`} data-testid="track-inbox-group" data-group={g.key}>
+                <h2 className="track-inbox-group-head" id={`track-inbox-group-${i}`}>
+                  <span className="track-inbox-group-name">{g.label}</span>
+                  <span className="track-inbox-group-count">{g.rows.length}</span>
+                </h2>
+                <ul className="track-inbox-list">{g.rows.map(renderRow)}</ul>
+              </section>
+            ))
           ) : (
-            <EmptyState quiet title={labels.empty} body={labels.emptyBody} />
-          )
-        ) : grouped ? (
-          groups.map((g, i) => (
-            <section key={g.key} className="track-inbox-group" aria-labelledby={`track-inbox-group-${i}`} data-testid="track-inbox-group" data-group={g.key}>
-              <h2 className="track-inbox-group-head" id={`track-inbox-group-${i}`}>
-                <span className="track-inbox-group-name">{g.label}</span>
-                <span className="track-inbox-group-count">{g.rows.length}</span>
-              </h2>
-              <ul className="track-inbox-list">{g.rows.map(renderRow)}</ul>
-            </section>
-          ))
-        ) : (
-          <ul className="track-inbox-list">{rows.map(renderRow)}</ul>
-        )}
-        {actionError && (
-          <p className="ui-error" role="alert">
-            {actionError}
-          </p>
-        )}
-        {error && rows.length > 0 && (
-          <p className="ui-error" role="alert">
-            {labels.loadError}
-          </p>
-        )}
-        {hasMore && rows.length > 0 && (
-          <div className="track-pagination">
-            <button type="button" className="btn btn-sm" onClick={() => void load(false)} aria-busy={loading || undefined}>
-              {labels.loadMore}
-            </button>
-          </div>
-        )}
-        {rows.length > 0 && (
-          <p className="track-inbox-keys" aria-hidden>
-            <span>
-              <kbd className="kbd">J</kbd> <kbd className="kbd">K</kbd> {ti('keys.move')}
-            </span>
-            <span>
-              <kbd className="kbd">U</kbd> {ti('keys.read')}
-            </span>
-            <span>
-              <kbd className="kbd">H</kbd> {ti('keys.snooze')}
-            </span>
-            <span>
-              <kbd className="kbd">⌫</kbd> {ti('keys.delete')}
-            </span>
-          </p>
-        )}
+            <ul className="track-inbox-list">{rows.map(renderRow)}</ul>
+          )}
+          {actionError && (
+            <p className="ui-error" role="alert">
+              {actionError}
+            </p>
+          )}
+          {error && rows.length > 0 && (
+            <p className="ui-error" role="alert">
+              {labels.loadError}
+            </p>
+          )}
+          {hasMore && rows.length > 0 && (
+            <div className="track-pagination">
+              <button type="button" className="btn btn-sm" onClick={() => void load(false)} aria-busy={loading || undefined}>
+                {labels.loadMore}
+              </button>
+            </div>
+          )}
+          {rows.length > 0 && (
+            <p className="track-inbox-keys" aria-hidden>
+              <span>
+                <kbd className="kbd">J</kbd> <kbd className="kbd">K</kbd> {ti('keys.move')}
+              </span>
+              <span>
+                <kbd className="kbd">↵</kbd> {ti('keys.open')}
+              </span>
+              <span>
+                <kbd className="kbd">U</kbd> {ti('keys.read')}
+              </span>
+              <span>
+                <kbd className="kbd">H</kbd> {ti('keys.snooze')}
+              </span>
+              <span>
+                <kbd className="kbd">⌫</kbd> {ti('keys.delete')}
+              </span>
+            </p>
+          )}
+        </div>
       </div>
+      <section className="track-inbox-pane" aria-label={ti('panel.label')} data-testid="track-inbox-pane">
+        {openIssue ? children : <p className="track-inbox-pane-empty">{rows.length > 0 ? ti('panel.empty') : null}</p>}
+      </section>
     </div>
   );
 }

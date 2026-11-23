@@ -90,3 +90,29 @@ export async function listIssueSubscriberIds(issueId: string): Promise<string[]>
 export async function isSubscribedToIssue(issueId: string, userId: string): Promise<boolean> {
   return (await listIssueSubscriberIds(issueId)).includes(userId);
 }
+
+/**
+ * De estos issues (que la persona ya ve), a cuáles está suscripta: fila
+ * activa, o creadora o asignada sin baja explícita (la regla de
+ * listIssueSubscriberIds). Para la bandeja, que ofrece darse de baja por fila.
+ */
+export async function subscribedIssueIds(userId: string, issueIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  const ids = [...new Set(issueIds.filter(Boolean))];
+  for (let i = 0; i < ids.length; i += 400) {
+    const part = ids.slice(i, i + 400);
+    const rows = (await getDb()
+      .prepare(
+        `SELECT i.id FROM track_issues i
+          WHERE i.id IN (${part.map(() => '?').join(', ')})
+            AND (
+              EXISTS (SELECT 1 FROM track_issue_subscriptions s WHERE s.issue_id = i.id AND s.user_id = ? AND s.subscribed = 1)
+              OR ((i.creator_id = ? OR i.assignee_id = ?)
+                AND NOT EXISTS (SELECT 1 FROM track_issue_subscriptions s WHERE s.issue_id = i.id AND s.user_id = ? AND s.subscribed = 0))
+            )`,
+      )
+      .all(...part, userId, userId, userId, userId)) as Array<{ id: string }>;
+    for (const r of rows) out.add(r.id);
+  }
+  return out;
+}

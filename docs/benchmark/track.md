@@ -12,6 +12,10 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
 - Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
 
+### Tanda T3 (2026-11-23)
+
+- **Inbox vuelve a tiene:** abrir un aviso muestra el issue al lado de la lista (la lista queda, J/K mueven el panel, Esc y la cruz lo cierran) y a página completa en el teléfono; dejar de seguir el issue desde la fila (ícono o menú "…") o desde el issue abierto, sincronizados. Falta: los avisos de projects e iniciativas abren su página, no el panel.
+
 > **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 
 Cómo se hizo:
@@ -86,7 +90,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Comentarios con @menciones, editar y borrar | tiene | |
 | Suscribirse a un issue | tiene | |
-| Inbox con Priority, filtros, snooze y recordatorios | parcial | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, U, H, Backspace). Abrir un aviso va a la página del issue: Linear lo muestra al costado y deja desuscribirse desde la fila |
+| Inbox con Priority, filtros, snooze y recordatorios | tiene | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, Enter, U, H, Backspace). Abrir un aviso muestra el issue al lado de la lista (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. Los avisos de projects e iniciativas todavía abren su página, no el panel |
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |

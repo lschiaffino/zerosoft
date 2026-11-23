@@ -394,7 +394,8 @@
       "move": "mover",
       "read": "lida ou não lida",
       "snooze": "adiar",
-      "delete": "excluir"
+      "delete": "excluir",
+      "open": "abrir"
     },
     "reason": {
       "assigned": "{actor} atribuiu a você",
@@ -413,6 +414,15 @@
       "agent": "{agent} publicou uma atualização",
       "project": "{actor} publicou uma atualização do projeto",
       "approval": "Aguarda sua aprovação"
+    },
+    "unsubscribeIssue": "Deixar de seguir o issue",
+    "subscribeIssue": "Seguir o issue",
+    "unsubscribed": "Você deixou de seguir {id}",
+    "resubscribed": "Seguindo {id}",
+    "panel": {
+      "close": "Fechar",
+      "empty": "Escolha um aviso para ver aqui",
+      "label": "Aviso aberto"
     }
   },
   "notifications": {

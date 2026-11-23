@@ -17,6 +17,7 @@ export type TrackIconName =
   | 'list'
   | 'link'
   | 'bell'
+  | 'bell-off'
   | 'clock'
   | 'reply'
   | 'smile'
@@ -80,6 +81,7 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   list: <path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1" />,
   link: <path d="M10 14l4-4M9 7l2-2a4 4 0 0 1 6 6l-2 2M15 17l-2 2a4 4 0 0 1-6-6l2-2" />,
   bell: <path d="M6 16V10a6 6 0 0 1 12 0v6l2 2H4zM10 21h4" />,
+  'bell-off': <path d="M8.5 5.2A6 6 0 0 1 18 10v4M6 9.5V16l-2 2h14M10 21h4M3 3l18 18" />,
   clock: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 3" />,
   reply: <path d="M10 7L4 12l6 5M4 12h10a6 6 0 0 1 6 6v1" />,
   smile: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8.5 14a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01" />,
