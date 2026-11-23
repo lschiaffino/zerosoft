@@ -95,7 +95,7 @@ describe('CRM: campos con el mismo nombre y conteos de asociados', () => {
     const s = await setup('fc7count');
     const p = await createPipeline(s.ws, 'Sales');
     const stage = await createStage(s.ws, p.id, { name: 'Open' });
-    const deal = await createDeal(s.ws, { name: 'Hidden deal', pipelineId: p.id, stageId: stage.id, ownerId: s.ws, contactIds: [s.contact.id] });
+    const deal = await createDeal(s.ws, { name: 'Hidden deal', pipelineId: p.id, stageId: stage!.id, ownerId: s.ws, contactIds: [s.contact.id] });
     expect(deal.ok).toBe(true);
     const company = await createCompany(s.ws, { name: 'Mine Co', domain: 'mine-fc7count.test', ownerId: s.w.member.id });
     const hiddenPerson = await createContact(s.ws, { firstName: 'Hidden', email: 'hidden-fc7count@client.test', ownerId: s.ws });
