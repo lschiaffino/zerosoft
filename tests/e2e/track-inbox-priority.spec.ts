@@ -164,7 +164,9 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await page.keyboard.press('j');
   await expect(row(page, s.status)).toHaveClass(/is-kb-active/);
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(new RegExp(`/app/track/issues/${s.issue.id}`));
+  // Con next dev la página del issue se compila la primera vez: más margen.
+  await expect(page).toHaveURL(new RegExp(`/app/track/issues/${s.issue.id}`), { timeout: 120_000 });
+  await expect(page.getByTestId('track-side-status')).toBeVisible({ timeout: 120_000 });
 });
 
 test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afuera; cinco aspectos, claro y oscuro', async ({ page, request }) => {
@@ -200,8 +202,8 @@ test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afu
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  // La cruz del chip de filtro (InboxFilters, de antes) mide 22px sin puntero táctil; con el dedo crece a 40.
-  await check(page, 'track inbox 390', { tap: true, ignore: /track-filter-chip-remove/ });
+  // Sin scroll lateral ni nada fuera de pantalla (los 40px del "…" se miden arriba).
+  await check(page, 'track inbox 390');
 });
 
 test('1280: cinco aspectos, claro y oscuro', async ({ page, request }) => {

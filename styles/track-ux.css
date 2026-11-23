@@ -1421,6 +1421,14 @@ a.track-issue-link .track-status-glyph {
 }
 
 /* ---------- Time in status en el panel del issue ---------- */
+.track-x-prop.track-status-time {
+  align-items: start;
+}
+
+.track-x-prop.track-status-time > dt {
+  padding-top: 5px;
+}
+
 .track-status-time-btn {
   display: inline-flex;
   align-items: center;

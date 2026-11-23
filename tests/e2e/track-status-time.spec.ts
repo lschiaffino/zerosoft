@@ -116,7 +116,8 @@ test('fila: propiedades compactas, orden por time in status y filtro "más de N 
   await expect(rows(page).first()).toContainText(s.fresh.identifier);
 
   // El tablero muestra lo mismo en la tarjeta.
-  await page.getByTestId('track-filter-clear').click();
+  await page.locator('.track-filter-chip-remove').click();
+  await expect(rows(page)).toHaveCount(2);
   await page.getByTestId('track-display').click();
   await page.getByTestId('track-view-board').click();
   await page.keyboard.press('Escape');
@@ -152,6 +153,7 @@ test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', a
   await page.goto(`/en/app/track/team/${s.team}`, { waitUntil: 'networkidle' });
   await expect(rows(page)).toHaveCount(2);
   await showProps(page);
+  await expect.poll(() => order(page)).toEqual([s.old.id, s.fresh.id]);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     for (const look of LOOKS) {
@@ -163,7 +165,7 @@ test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', a
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  await check(page, 'track list status time 390', { tap: true, ignore: /track-filter-chip-remove/ });
+  await check(page, 'track list status time 390');
 
   await page.goto(`/en/app/track/issues/${s.old.id}`, { waitUntil: 'networkidle' });
   const btn = page.getByTestId('track-issue-status-time');

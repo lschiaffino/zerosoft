@@ -883,6 +883,12 @@ dialog.ui-drawer.track-drawer {
   border-radius: var(--radius-1);
 }
 
+/* Las iniciales arriba a la izquierda: el ícono de la acción ocupa la esquina de abajo. */
+.track-inbox-avatar:not(.is-system) {
+  box-sizing: border-box;
+  padding: 0 4px 5px 0;
+}
+
 .track-inbox-avatar.is-system {
   color: var(--brand-gray-1);
   background: transparent;
@@ -892,8 +898,8 @@ dialog.ui-drawer.track-drawer {
 /* El ícono de la acción, abajo a la derecha del avatar (asignó, mencionó, comentó…). */
 .track-inbox-badge {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
+  right: -5px;
+  bottom: -5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

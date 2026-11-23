@@ -728,13 +728,13 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
             </button>
           );
         })}
-        <span className="sr-only" id="track-inbox-rule-priority">
-          {ti('rule.priority')}
-        </span>
-        <span className="sr-only" id="track-inbox-rule-other">
-          {ti('rule.other')}
-        </span>
       </div>
+      <span className="sr-only" id="track-inbox-rule-priority">
+        {ti('rule.priority')}
+      </span>
+      <span className="sr-only" id="track-inbox-rule-other">
+        {ti('rule.other')}
+      </span>
 
       <InboxFilters filter={filter} onChange={changeFilter} facets={facets} showDisplay={tab !== 'snoozed'} />
 

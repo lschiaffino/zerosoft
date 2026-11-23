@@ -106,7 +106,8 @@ test('filtrar por quién, estado, tipo y project; ordenar y agrupar; se recuerda
   await page.getByTestId('track-inbox-chip-values-kind').click();
   await page.getByTestId('track-inbox-filter-value-kind-mention').click();
   await page.getByTestId('track-inbox-filter-value-kind-comment').click();
-  await page.getByTestId('track-inbox-panel').click({ position: { x: 2, y: 2 } });
+  // Clic afuera, lejos del menú (con la lista vacía, el menú tapa el comienzo del panel).
+  await page.mouse.click(900, 700);
   await expect(page.getByTestId('track-inbox-filter-value-kind-mention')).toHaveCount(0);
   await expect.poll(() => ids(page)).toEqual([s.mention]);
   await page.getByTestId('track-inbox-chip-remove-kind').click();
