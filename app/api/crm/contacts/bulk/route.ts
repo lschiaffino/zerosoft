@@ -3,7 +3,8 @@ import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { bulkDeleteContacts, bulkUpdateContacts, LIFECYCLE_STAGES } from '@/lib/crm';
-import { crmError, forbidden, unauthorized } from '@/lib/crm-http';
+import { catchRef, crmError, CrmRefError, forbidden, unauthorized } from '@/lib/crm-http';
+import { assertVisibleRefs, sessionScope } from '@/lib/crm-visibility';
 import { bulkSetProperty } from '@/lib/crm-bulk';
 import { BULK_TASKS_CAP, bulkCreateTasks, bulkTargetFields, bulkTargetIds, bulkTaskFields } from '@/lib/crm-bulk-target';
 import { getUserTimeZone } from '@/lib/user-tz';
@@ -51,6 +52,11 @@ export async function POST(req: NextRequest) {
     if (field.startsWith('custom:')) {
       const { restricted } = await fieldAccessFor(sessionFieldViewer(user), 'contacts');
       if (restricted.has(field.slice(7))) return crmError(403, 'field_readonly');
+    }
+    // La empresa a vincular tiene que ser una que la persona ve (el mismo error que una que no existe).
+    if (field === 'companyId' && typeof value === 'string' && value) {
+      const hidden = await catchRef(assertVisibleRefs(user.id, { companyId: value }, await sessionScope(user)));
+      if (hidden instanceof CrmRefError) return crmError(400, hidden.code);
     }
     const res = await bulkSetProperty(user.id, 'contact', ids, field, value, user.actingUser?.email ?? user.email);
     if (!res.ok) return crmError(400, res.code);
