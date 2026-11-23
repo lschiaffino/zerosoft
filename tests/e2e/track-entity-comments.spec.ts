@@ -26,7 +26,7 @@ const thread = (page: Page) => page.getByTestId('track-entity-comments');
 
 async function comment(page: Page, text: string) {
   const input = thread(page).getByTestId('track-comment-input');
-  await input.locator('.track-rte-content').click();
+  await input.click();
   await page.keyboard.type(text);
   await thread(page).locator('.track-activity-composer button[type="submit"]').click();
   await expect(thread(page).getByTestId('track-comment').filter({ hasText: text })).toBeVisible();
@@ -53,7 +53,7 @@ for (const kind of ['plan', 'initiative'] as const) {
     // Responder.
     await root.hover();
     await root.getByTestId('track-comment-reply').click();
-    await thread(page).getByTestId('track-reply-input').locator('.track-rte-content').click();
+    await thread(page).getByTestId('track-reply-input').click();
     await page.keyboard.type('Agreed');
     await thread(page).getByTestId('track-reply-submit').click();
     await expect(thread(page).getByTestId('track-comment').filter({ hasText: 'Agreed' })).toBeVisible();
