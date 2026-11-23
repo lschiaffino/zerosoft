@@ -30,6 +30,7 @@ const chatRoute = await import('@/lib/routes/groups/chats/[id]/route');
 const createRoute = await import('@/app/api/groups/create/route');
 const v1ChatsRoute = await import('@/app/api/v1/groups/chats/route');
 const v1ChatRoute = await import('@/lib/routes/v1/groups/chats/[id]/route');
+const auditRoute = await import('@/app/api/groups/audit/route');
 
 beforeEach(() => {
   session.user = null;
@@ -116,6 +117,22 @@ describe('Lines: vínculos al CRM según lo que quien mira ve en el CRM', () => 
     // El vínculo guardado no cambia.
     const stored = (await getDb().prepare('SELECT crm_contact_id, crm_company_id FROM groups_chats WHERE id = ?').get(s.linked.id)) as Record<string, string>;
     expect(stored).toMatchObject({ crm_contact_id: s.hiddenContact.id, crm_company_id: s.hiddenCompany.id });
+  });
+
+  it('el log del chat: un cambio de vínculo no trae los ids que el miembro no ve', async () => {
+    const s = await setup('lcrm-audit');
+    session.user = owner(s);
+    expect((await chatRoute.PATCH(req('PATCH', `/api/groups/chats/${s.mine.id}`, { crmCompanyId: s.hiddenCompany.id }), ctx(s.mine.id))).status).toBe(200);
+    const entriesAs = async (user: SessionUser) => {
+      session.user = user;
+      const res = await auditRoute.GET(req('GET', `/api/groups/audit?chat=${s.mine.id}`));
+      return ((await res.json()) as { entries: Array<{ action: string; detail: Record<string, unknown> }> }).entries.filter((e) => e.action === 'crm_link');
+    };
+    const mine = await entriesAs(member(s));
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine[0].detail).toMatchObject({ companyId: null, contactId: s.ownContact.id });
+    expect(JSON.stringify(mine)).not.toContain(s.hiddenCompany.id);
+    expect((await entriesAs(owner(s)))[0].detail).toMatchObject({ companyId: s.hiddenCompany.id });
   });
 
   it('API v1 con la key de un miembro: lista y chat sin los ids que no ve', async () => {
