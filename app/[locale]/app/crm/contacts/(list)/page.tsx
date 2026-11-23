@@ -37,6 +37,7 @@ import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import ViewTabs from '@/components/crm/ViewTabs';
+import { TableColumnsProvider } from '@/components/crm/EditColumns';
 import { loadListViews } from '@/components/crm/viewTabsData';
 import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
@@ -284,6 +285,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   }
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
+  if (state.widths) viewState.widths = state.widths;
   Object.assign(query, views.keep);
   // El tamaño de página es de la URL (no de la vista): lo conservan los links del listado.
   if (pageSize !== PAGE_SIZES[0]) query.per = String(pageSize);
@@ -330,6 +332,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
         teams={views.teams}
       />
 
+      {/* Columnas (orden, fija, anchos) para "Editar columnas" de la barra y para la tabla. */}
+      <TableColumnsProvider
+        entity="contacts"
+        customColumns={customColumns(customFieldDefs)}
+        viewCols={state.cols}
+        viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
+        viewWidths={state.widths}
+      >
       <ContactsFilters
         q={q}
         lifecycle={lifecycle}
@@ -390,8 +400,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
         <>
           <ContactsTable
             rows={tableRows}
-            viewCols={state.cols}
-            viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             lifecycles={[...LIFECYCLE_STAGES]}
             leadStatuses={[...LEAD_STATUSES]}
@@ -414,6 +422,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
           </div>
         </>
       )}
+      </TableColumnsProvider>
     </div>
   );
 }
