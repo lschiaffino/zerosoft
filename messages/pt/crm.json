@@ -5464,7 +5464,15 @@
     "remove": "Remover coluna",
     "resize": "Mudar a largura da coluna: {name}",
     "resizeHint": "Arraste para mudar a largura. Clique duas vezes para ajustar ao conteúdo. Com o teclado: setas, e Enter para ajustar.",
-    "widthValue": "{px} px"
+    "widthValue": "{px} px",
+    "filter": "Filtrar por esta coluna",
+    "editFilter": "Editar o filtro da coluna",
+    "filterTitle": "Filtrar: {name}",
+    "applyFilter": "Aplicar",
+    "clearFilter": "Remover filtro",
+    "filtered": "Filtrada",
+    "editInPanel": "Editar em Filtros avançados",
+    "groupFull": "Um grupo de filtros já tem 20 regras. Remova uma em Filtros avançados primeiro."
   },
   "quickFilterPicker": {
     "button": "Editar filtros rápidos",

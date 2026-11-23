@@ -197,3 +197,12 @@ html[data-look='retro'] .gr-inbox .wa-emoji-grid button:is(:hover, :focus-visibl
    gris de la ventana, como el panel de Lines. */
 html[data-look='retro'] .ib-app.gr-inbox .ib-wa-details,
 html[data-look='retro'] .ib-wa-details { background: var(--rt-face); }
+
+/* Pestañas del panel del chat (components/groups/wa/DetailsTabs.tsx): solapas de Windows, la elegida en relieve. */
+html[data-look='retro'] .wa-dtabs { background: var(--rt-face); border-bottom: 0; box-shadow: inset 0 -1px var(--rt-shadow); }
+html[data-look='retro'] .wa-dtab { border-bottom: 0; }
+html[data-look='retro'] .wa-dtab:hover { background: transparent; }
+html[data-look='retro'] .wa-dtab.is-on { color: var(--ink); background: var(--rt-face); box-shadow: var(--rt-raised); }
+html[data-look='retro'] .wa-dtab.is-on .wa-dtab-icon { color: var(--ink); }
+html[data-look='retro'] .wa-dtab:focus-visible { outline: 1px dotted var(--ink); outline-offset: -5px; }
+html[data-look='retro'] .wa-dtab-count { border-radius: 0; }

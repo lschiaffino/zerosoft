@@ -597,6 +597,7 @@ export default async function DealsPage(props: DealsPageProps) {
         viewCols={state.cols}
         viewFreeze={state.freeze === '1' ? true : searchParams.freeze === '0' ? false : undefined}
         viewWidths={state.widths}
+        filters={{ fields: filterFields, model: filterModel, baseQuery: query, quick: [viewStageId && 'stage', priority && 'priority', source && 'source', owner && 'owner', tag && 'tag', (createdFrom || createdTo) && 'created', (closeFrom || closeTo) && 'closeDate', (activityFrom || activityTo || noActivity) && 'lastActivity'].filter((k): k is string => !!k) }}
       >
       {filterBar}
 
