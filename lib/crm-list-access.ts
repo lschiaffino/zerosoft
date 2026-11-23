@@ -12,7 +12,7 @@
  */
 import { getDb, type Db } from './db';
 import { getList, listLists, parseListFilter, type ListDetail, type ListFilterJson, type ListWithCount } from './crm';
-import { hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { hiddenFieldsFor, isUnrestricted, scoreSqlRules, type FieldViewer, type HiddenFieldSet } from './crm-field-perms';
 import type { OwnerScope } from './crm-visibility';
 
 const CUSTOM_PREFIX = 'custom:';
@@ -35,14 +35,16 @@ export function isListRestricted(list: { kind: string; filter: string }, hidden:
 }
 
 /** Campos propios de contactos que la persona tiene ocultos (vacío para owner y admins). */
-export async function hiddenContactFields(viewer: FieldViewer, db: Db = getDb()): Promise<Set<string>> {
+export async function hiddenContactFields(viewer: FieldViewer, db: Db = getDb()): Promise<HiddenFieldSet> {
   if (isUnrestricted(viewer)) return new Set();
   return hiddenFieldsFor(viewer, 'contacts', db);
 }
 
 /** Índice de listas de la persona: sin las que no puede ver y con los conteos de lo que ve. */
 export async function listsForViewer(viewer: FieldViewer, scope: OwnerScope | undefined): Promise<ListWithCount[]> {
-  const [lists, hidden] = await Promise.all([listLists(viewer.workspaceId, scope), hiddenContactFields(viewer)]);
+  // Los conteos de las dinámicas con reglas por score, con el total que la persona ve.
+  const hidden = await hiddenContactFields(viewer);
+  const lists = await listLists(viewer.workspaceId, scope, scoreSqlRules(hidden));
   return hidden.size ? lists.filter((l) => !isListRestricted(l, hidden)) : lists;
 }
 
@@ -50,7 +52,7 @@ export async function listsForViewer(viewer: FieldViewer, scope: OwnerScope | un
 export async function listForViewer(viewer: FieldViewer, id: string, scope: OwnerScope | undefined): Promise<ListDetail | null> {
   const hidden = await hiddenContactFields(viewer);
   if (hidden.size && (await isListIdRestricted(viewer.workspaceId, id, hidden))) return null;
-  return getList(viewer.workspaceId, id, scope);
+  return getList(viewer.workspaceId, id, scope, scoreSqlRules(hidden));
 }
 
 /** ¿La persona puede ver la lista? false si no existe en el workspace o le queda fuera. */

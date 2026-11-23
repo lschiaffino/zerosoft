@@ -3377,5 +3377,46 @@
     "description": "Slack apps post messages with buttons and menus that call back the app (https://api.slack.com/interactivity). Talk supports slash commands with signed POST and response_url (lib/talk-commands.ts) and incoming webhooks, but no interactive components, as the api-bots row says. Without buttons, an approval or a deploy confirmation from a flow needs the person to type a reply. First scope: an optional actions array of buttons in the webhook and API v1 message payload, a signed POST to the app when one is pressed, and the button showing who pressed it.",
     "product": "chat",
     "kind": "idea"
+  },
+  {
+    "title": "Time: Email an alert when a project passes a budget percentage",
+    "description": "Harvest lets you set an email alert at a percentage of a project budget and sends it the morning after the project goes over (https://support.getharvest.com/hc/en-us/articles/4407283487629). Time shows a budget bar on each project (components/time/BudgetBar.tsx) but nobody is told when a project is about to run out. A small team that bills by the hour finds out at invoice time instead of while it can still talk to the client. First scope: an optional alert percentage on the project, one email to the owner and admins the first time the total crosses it, tracked so it is not sent twice.",
+    "product": "time",
+    "kind": "idea",
+    "parity": "budget-alerts"
+  },
+  {
+    "title": "Time: Enter start and end times instead of a duration",
+    "description": "Harvest can track an entry by start and end time instead of a duration, and its API accepts started_time and ended_time (https://help.getharvest.com/api-v2/timesheets-api/timesheets/time-entries/). Time only stores minutes per entry (lib/time/types.ts, time_entries.minutes), so you cannot say you worked 9:00 to 11:30. People who reconstruct their day from a calendar think in clock times. First scope: an optional start and end in the entry dialog that fills the duration, and a setting to switch the dialog between the two modes.",
+    "product": "time",
+    "kind": "idea",
+    "parity": "start-end"
+  },
+  {
+    "title": "Time: Let admins edit and add time for a teammate",
+    "description": "Harvest lets administrators and managers add and edit time on behalf of a person (https://support.getharvest.com/hc/en-us/articles/360048181612). In Time every entry is bound to the person who logs it (lib/time/core.ts, TimeActor.person), so an admin cannot fix a forgotten Friday. Small teams need this the day before invoicing. First scope: a person picker for admins on the timesheet, entries marked as edited by someone else, and the same lock rules as the approval flow.",
+    "product": "time",
+    "kind": "idea",
+    "parity": "edit-others"
+  },
+  {
+    "title": "Time: Send a weekly reminder to people who have not logged hours",
+    "description": "Harvest sends reminder emails to members who have not tracked time, on days and at a time the admin picks (https://support.getharvest.com/hc/en-us/articles/360053255031). Time has no reminders, and the hourly cron (app/api/cron/tick) already runs per workspace. Without a nudge, hours get filled in at the end of the month from memory. First scope: a workspace setting for days and hour, an email to people with fewer hours than a daily minimum, and an opt out per person.",
+    "product": "time",
+    "kind": "idea",
+    "parity": "reminders"
+  },
+  {
+    "title": "Time: Show uninvoiced billable hours per client in reports",
+    "description": "Harvest has an Uninvoiced report that lists billable hours and amounts not yet on an invoice, by client and project (https://support.getharvest.com/hc/en-us/articles/360048181892). Time reports group hours by project, client, task and person with the billable amount (components/time/Reports.tsx) but have no billed or unbilled state on an entry. First scope: a billed flag on entries that an admin can set from a report selection, and a report filter for billable hours not yet billed, with a CSV export.",
+    "product": "time",
+    "kind": "idea",
+    "parity": "uninvoiced"
+  },
+  {
+    "title": "Time: Add a keyboard shortcuts help dialog to the timesheet",
+    "description": "Harvest documents N for a new entry and Esc to close it in Day and Week views (https://support.getharvest.com/hc/en-us/articles/360048181892). Time now has N, the arrow keys and T in the day view (components/time/Timesheet.tsx) but nothing tells a person they exist beyond a tooltip. First scope: a ? key that opens a small dialog with the shortcut list in the app language, plus the week view row shortcut.",
+    "product": "time",
+    "kind": "idea"
   }
 ]

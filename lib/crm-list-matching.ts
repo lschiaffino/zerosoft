@@ -9,7 +9,7 @@
  * permisos por campo (un campo oculto no filtra ni ordena: la regla que lo
  * nombra se descarta, igual que en la página). Siempre con tope.
  */
-import { fieldAccessFor, sessionFieldViewer } from './crm-field-perms';
+import { fieldAccessFor, scoreSqlRules, sessionFieldViewer } from './crm-field-perms';
 import { filterTypeFor } from './crm-custom-fields';
 import { listFilterModel } from './crm-filter-http';
 import { sessionScope } from './crm-visibility';
@@ -124,6 +124,8 @@ export async function resolveMatching(user: MatchingUser, entity: MatchingEntity
       leadStatus: str(state.leadStatus),
       source: str(state.source),
       sort: sortOf(CONTACT_SORTS) as ContactFilter['sort'],
+      // Orden y filtros por score con el total que la persona ve (sin reglas sobre sus campos ocultos).
+      scoreRules: scoreSqlRules(hidden),
     };
     return listContactIds(user.id, f, cap);
   }

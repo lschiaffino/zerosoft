@@ -15,6 +15,7 @@ import {
   ISSUE_SORTS,
   STATUS_NAME_KEY,
   TEAM_SCOPES,
+  mergeGroupOrder,
   scopeStatusIds,
   type BoardGroupBy,
   type GroupPreset,
@@ -55,6 +56,7 @@ import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } fr
 import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { requestMarkDuplicate, undoMarkDuplicate } from './duplicateApi';
 import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import { useTrackLive } from './useTrackLive';
 import { useIssuePages } from './useIssuePages';
@@ -228,6 +230,7 @@ export default function TrackIssueList({
     sort: p.sort,
     showSub: p.showSub,
     completed: p.completed,
+    groupOrder: p.groupOrder ?? {},
   });
   const applyView = useCallback(
     (base: ListPrefs, view: TrackSavedView): ListPrefs => {
@@ -340,6 +343,41 @@ export default function TrackIssueList({
   const subGroup: IssueGroupBy =
     prefs.layout === 'list' && listGroup !== 'none' && prefs.subGroup && prefs.subGroup !== listGroup && groups.includes(prefs.subGroup) ? prefs.subGroup : 'none';
   const countGroup: IssueGroupBy = prefs.layout === 'list' ? listGroup : prefs.layout === 'board' ? boardGroup : 'none';
+
+  // Orden propio de grupos y columnas (arrastrar el asa o el menú del encabezado), recordado por
+  // vista y persona y guardado con la vista; ⌘Z lo vuelve atrás.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  // ⌘Z solo vuelve atrás en la misma vista: con otra vista abierta (o la lista desmontada) no toca nada.
+  const viewNow = useRef({ viewKey, activeViewId, mounted: true });
+  viewNow.current = { viewKey, activeViewId, mounted: true };
+  useEffect(() => {
+    const ref = viewNow;
+    return () => {
+      ref.current.mounted = false;
+    };
+  }, []);
+  const setGroupOrder = useCallback(
+    (field: IssueGroupBy, keys: string[] | null) => {
+      const before = prefsRef.current.groupOrder ?? {};
+      const next = { ...before };
+      if (keys) next[field] = mergeGroupOrder(keys, before[field]);
+      else delete next[field];
+      setPrefs({ groupOrder: next });
+      const at = { viewKey: viewNow.current.viewKey, activeViewId: viewNow.current.activeViewId };
+      const same = () => viewNow.current.mounted && viewNow.current.viewKey === at.viewKey && viewNow.current.activeViewId === at.activeViewId;
+      pushUndo(
+        tx('display.groupsReordered'),
+        () => {
+          if (same()) setPrefs({ groupOrder: before });
+        },
+        () => {
+          if (same()) setPrefs({ groupOrder: next });
+        },
+      );
+    },
+    [setPrefs, tx],
+  );
 
   const teamStatuses = team ? (projectMap[team.projectId]?.statuses ?? []) : [];
   const scopeIds = team ? scopeStatusIds(teamStatuses, teamScope, true) : null;
@@ -617,6 +655,28 @@ export default function TrackIssueList({
             }).catch(() => null);
             await reload();
           });
+        })(),
+      // Como Linear: estado Duplicate, relación y suscriptos al original; ⌘Z lo deshace.
+      markDuplicate: (target, canonical) =>
+        void (async () => {
+          const res = await requestMarkDuplicate(target.id, canonical.id);
+          if (!res.ok) {
+            setNotice(tx('dup.error'));
+            return;
+          }
+          await reload();
+          const previous = res.previousOriginalId;
+          pushUndo(
+            tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }),
+            async () => {
+              if (!(await undoMarkDuplicate(target.id, previous)).ok) setNotice(tx('dup.error'));
+              await reload();
+            },
+            async () => {
+              await requestMarkDuplicate(target.id, canonical.id);
+              await reload();
+            },
+          );
         })(),
     },
     t: (k, v) => tc(k, v),
@@ -920,6 +980,9 @@ export default function TrackIssueList({
           editing={{ ...editing, members }}
           onQuickCreate={(title, preset) => quickCreate(title, preset as GroupPreset, defaultTeam)}
           show={prefs.props}
+          groupOrder={prefs.groupOrder?.[boardGroup]}
+          onReorderGroups={(keys) => setGroupOrder(boardGroup, keys)}
+          onResetGroupOrder={() => setGroupOrder(boardGroup, null)}
         />
       );
     }
@@ -963,6 +1026,9 @@ export default function TrackIssueList({
         counts={groupCounts}
         subCounts={subCounts}
         loadMore={loadMore}
+        groupOrder={prefs.groupOrder?.[listGroup]}
+        onReorderGroups={(keys) => setGroupOrder(listGroup, keys)}
+        onResetGroupOrder={() => setGroupOrder(listGroup, null)}
       />
     );
   };

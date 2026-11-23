@@ -1,0 +1,199 @@
+/* ============================================================
+   Lines e Inbox en los aspectos Líquido y Retro (lib/look.ts).
+   La bandeja tiene su paleta propia (--wa-* en styles/groups-wa.css, con
+   el estilo de chats WhatsApp o zerosoft), así que las reglas generales de
+   styles/looks.css y styles/looks-retro.css no le llegaban: acá se le
+   pasan los tokens y las formas de cada aspecto. Lo cargan los layouts de
+   Lines y de Inbox, después de groups-wa.css.
+   `html[data-look]` (0,2,2 con .gr-inbox) gana a los bloques oscuros de
+   groups-wa.css (0,2,1); el estilo zerosoft (0,3,0) lleva su propio bloque.
+   ============================================================ */
+
+/* ---------- Líquido ---------- */
+
+/* Chips, pestañas y etiquetas chicas: con la esquina de 10px del aspecto quedaban como pastillas. */
+html[data-look='liquid'] :is(.gr-inbox, .wa-contact-sheet) :is(.gr-view, .gr-filter, .gr-line-badge, .wa-gm-badge, .wa-archived-tag, .ib-tabs .ui-tab, .gr-row-meta .badge) {
+  border-radius: 6px;
+}
+/* El panel de emoji, GIF y stickers flota sobre el chat como los demás menús: vidrio. */
+html[data-look='liquid'] .gr-inbox .wa-emoji {
+  background-color: var(--pop-bg);
+  background-image: var(--glass-sheen);
+  border: 1px solid var(--pop-edge);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--pop-shadow);
+  -webkit-backdrop-filter: var(--pop-blur);
+  backdrop-filter: var(--pop-blur);
+}
+html[data-look='liquid'] .gr-inbox .wa-emoji-title { background: transparent; }
+
+/* ---------- Retro: tokens de la bandeja ---------- */
+
+/* Estilo WhatsApp: la lista es un campo blanco hundido, encabezado y composer en la cara gris, el chat sobre el
+   verde azulado del escritorio. Las burbujas salientes conservan su verde (es el estilo WhatsApp). */
+html[data-look='retro'] :is(.gr-inbox, .wa-contact-sheet, .wa-rx-pop, .ib-wa-react-full.is-floating) {
+  --wa-panel: var(--rt-field);
+  --wa-panel-header: var(--rt-face);
+  --wa-conv-bg: var(--rt-desk);
+  --wa-doodle: transparent;
+  --wa-bubble-in: var(--rt-field);
+  --wa-primary: var(--rt-select);
+  --wa-primary-ink: var(--ink);
+  --wa-badge: var(--rt-select);
+  --wa-badge-ink: var(--rt-select-fg);
+  --wa-text: var(--ink);
+  --wa-text-2: var(--brand-gray-3);
+  --wa-icon: var(--ink);
+  --wa-border: transparent;
+  --wa-border-strong: var(--rt-shadow);
+  --wa-row-hover: var(--brand-enamel);
+  --wa-row-active: var(--rt-select);
+  --wa-search-bg: var(--rt-field);
+  --wa-chip-bg: var(--rt-face);
+  --wa-chip-on-bg: var(--brand-enamel);
+  --wa-chip-on-ink: var(--ink);
+  --wa-mention-ink: var(--ink);
+  --wa-system-chip: var(--rt-face);
+  --wa-shadow-bubble: none;
+  --wa-input: var(--rt-field);
+  --wa-menu: var(--rt-face);
+  --wa-reply-surface: var(--rt-face);
+  --wa-font: var(--font-ui);
+}
+/* Estilo zerosoft: lo mismo con las burbujas de la app (entrantes blancas, salientes en el color de selección). */
+html[data-look='retro'] .gr-inbox[data-chat-style='zerosoft'] {
+  --wa-panel: var(--rt-field);
+  --wa-panel-header: var(--rt-face);
+  --wa-conv-bg: var(--rt-desk);
+  --wa-bubble-in: var(--rt-field);
+  --wa-bubble-out: var(--ui-selected);
+  --wa-meta-out: var(--brand-gray-2);
+  --wa-primary: var(--rt-select);
+  --wa-badge: var(--rt-select);
+  --wa-badge-ink: var(--rt-select-fg);
+  --wa-tick-blue: var(--rt-select);
+  --wa-text-2: var(--brand-gray-3);
+  --wa-border: transparent;
+  --wa-border-strong: var(--rt-shadow);
+  --wa-row-hover: var(--brand-enamel);
+  --wa-row-active: var(--rt-select);
+  --wa-search-bg: var(--rt-field);
+  --wa-chip-bg: var(--rt-face);
+  --wa-chip-on-bg: var(--brand-enamel);
+  --wa-system-chip: var(--rt-face);
+  --wa-quote-bg: var(--rt-face);
+  --wa-input: var(--rt-field);
+  --wa-menu: var(--rt-face);
+  --wa-reply-surface: var(--rt-face);
+}
+/* La fila abierta es una selección de Windows: azul con texto blanco (los tokens de la fila pasan a sus hijos). */
+html[data-look='retro'] .gr-inbox :is(.gr-row.is-active, li.ib-item.is-open > .ib-row-btn, li.ib-item.is-selected > .ib-row-btn) {
+  --wa-text: var(--rt-select-fg);
+  --wa-text-2: var(--rt-select-fg);
+  --wa-icon: var(--rt-select-fg);
+  --wa-tick-blue: var(--rt-select-fg);
+  --wa-meta-out: var(--rt-select-fg);
+  color: var(--rt-select-fg);
+}
+html[data-look='retro'] .gr-inbox :is(.gr-row.is-active, li.ib-item.is-open > .ib-row-btn) :is(.gr-line-badge, .badge) { color: var(--ink); background: var(--rt-face); }
+
+/* ---------- Retro: paneles ---------- */
+
+html[data-look='retro'] .gr-inbox :is(.gr-list-head, .ib-list-head) { background: var(--rt-face); }
+html[data-look='retro'] .gr-inbox :is(.gr-rows, .ib-list) { box-shadow: var(--rt-sunken); }
+html[data-look='retro'] .gr-inbox :is(.gr-list, .ib-list-pane, .gr-thread) { border-right: 0; }
+html[data-look='retro'] .gr-inbox .gr-details,
+html[data-look='retro'] .ib-app.gr-inbox .ib-details { background: var(--rt-face); box-shadow: inset 1px 0 var(--rt-light), inset 2px 0 var(--rt-hi); }
+/* Encabezado del chat y composer: barras de herramientas con el filete grabado. */
+html[data-look='retro'] .gr-inbox .wa-head { border-bottom: 0; box-shadow: inset 0 -1px var(--rt-shadow), inset 0 -2px var(--rt-light); }
+html[data-look='retro'] .gr-inbox .wa-composer { box-shadow: inset 0 1px var(--rt-light); }
+html[data-look='retro'] .gr-inbox .gr-pinned { border-bottom: 0; box-shadow: inset 0 -1px var(--rt-shadow); }
+
+/* ---------- Retro: campos y botones ---------- */
+
+html[data-look='retro'] .gr-inbox :is(.gr-search, .wa-input, .ib-search .input) {
+  background: var(--rt-field);
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--rt-sunken);
+}
+html[data-look='retro'] .gr-inbox :is(.gr-search, .wa-input, .ib-search .input):focus-visible { outline: 1px dotted var(--ink); outline-offset: -4px; }
+html[data-look='retro'] .wa-composer.is-note .wa-input { background: var(--wa-note); }
+
+/* Pestañas de filtro y listas guardadas: botones en relieve; la elegida, hundida y en negrita. */
+html[data-look='retro'] .gr-inbox :is(.gr-filter, .gr-view, .ib-tabs .ui-tab) {
+  color: var(--ink);
+  background: var(--rt-face);
+  border: 0;
+  border-radius: 0;
+  box-shadow: var(--rt-raised);
+}
+html[data-look='retro'] .gr-inbox :is(.gr-filter, .gr-view, .ib-tabs .ui-tab):hover { color: var(--ink); background: var(--rt-face); }
+html[data-look='retro'] .gr-inbox :is(.gr-filter.is-on, .gr-view.is-on, .ib-tabs .ui-tab.is-active) {
+  color: var(--ink);
+  background: var(--brand-enamel);
+  box-shadow: var(--rt-pressed);
+  font-weight: 700;
+}
+html[data-look='retro'] .gr-inbox :is(.gr-filter, .gr-view, .ib-tabs .ui-tab):focus-visible { outline: 1px dotted var(--ink); outline-offset: -4px; }
+
+/* Botones de ícono: planos como en una barra de herramientas; en relieve al pasar, hundidos al estar activos. */
+html[data-look='retro'] :is(.gr-inbox, .wa-contact-sheet) :is(.wa-icon-btn, .wa-react-btn) { border-radius: 0; }
+html[data-look='retro'] :is(.gr-inbox, .wa-contact-sheet) :is(.wa-icon-btn, .wa-react-btn):hover { background: transparent; box-shadow: var(--rt-raised); }
+html[data-look='retro'] :is(.gr-inbox, .wa-contact-sheet) .wa-icon-btn:is(.is-on, [aria-pressed='true'], [aria-expanded='true']) {
+  color: var(--ink);
+  background: var(--brand-enamel);
+  box-shadow: var(--rt-pressed);
+}
+html[data-look='retro'] :is(.gr-inbox, .wa-contact-sheet) :is(.wa-icon-btn, .wa-react-btn, .wa-send):focus-visible { outline: 1px dotted var(--ink); outline-offset: -5px; }
+/* Enviar y grabar: el botón por defecto de la ventana (relieve con marco), como .btn-primary en Retro (sin el color
+   de la app que le pone styles/wa-accent.css). */
+html[data-look='retro'] .gr-inbox .wa-send,
+html[data-look='retro'] .gr-inbox[data-chat-style] .wa-send:not(.is-mic):not(.is-note):not(:disabled),
+html[data-look='retro'] .gr-inbox[data-chat-style] .wa-send:not(.is-mic):not(.is-note):not(:disabled):is(:hover, :active) {
+  color: var(--ink);
+  background: var(--rt-face);
+  border-radius: 0;
+  box-shadow: 0 0 0 1px var(--rt-dark), var(--rt-raised);
+}
+html[data-look='retro'] .gr-inbox :is(.wa-send.is-mic, .wa-send:disabled),
+html[data-look='retro'] .gr-inbox[data-chat-style='zerosoft'] :is(.wa-send.is-mic, .wa-send:disabled) { color: var(--ink); background: var(--rt-face); box-shadow: var(--rt-raised); }
+html[data-look='retro'] .gr-inbox .wa-send:disabled { color: var(--rt-shadow); text-shadow: 1px 1px var(--rt-light); }
+html[data-look='retro'] .gr-inbox[data-chat-style] .wa-send:active:not(:disabled) { box-shadow: 0 0 0 1px var(--rt-dark), var(--rt-pressed); transform: none; }
+html[data-look='retro'] .gr-inbox .wa-to-end { border-radius: 0; background: var(--rt-face); box-shadow: var(--rt-raised); }
+
+/* ---------- Retro: mensajes ---------- */
+
+/* Burbujas: ventanitas cuadradas con borde en relieve, sin cola. */
+html[data-look='retro'] .gr-inbox .gr-bubble,
+html[data-look='retro'] .gr-inbox[data-chat-style='zerosoft'] .gr-bubble { border: 0; border-radius: 0; box-shadow: var(--rt-window); }
+html[data-look='retro'] .gr-inbox .gr-msg.has-tail .gr-bubble { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-msg.has-tail .gr-bubble::before { display: none; }
+html[data-look='retro'] .gr-inbox .gr-msg.is-bare .gr-bubble { box-shadow: none; }
+html[data-look='retro'] .gr-inbox .gr-msg.is-bare .gr-msg-foot { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-msg-note .gr-bubble { border: 0; border-radius: 0; box-shadow: var(--rt-window); }
+/* Fechas, avisos del grupo y "mensajes sin leer": etiquetas en relieve sobre el escritorio. */
+html[data-look='retro'] .gr-inbox :is(.wa-day > span, .gr-system, .wa-empty-thread, .wa-unread-sep > span, .wa-older-chip) {
+  color: var(--ink);
+  background: var(--rt-face);
+  border-radius: 0;
+  box-shadow: var(--rt-raised);
+}
+html[data-look='retro'] .gr-inbox .wa-unread-sep { background: transparent; }
+html[data-look='retro'] .gr-inbox :is(.gr-quote, .wa-replying, .wa-image, .wa-video-thumb, .wa-video, .wa-doc, .wa-location, .wa-media-ph, .wa-tray, .wa-tray-item > img) { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .wa-chevron { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-reactions { background: var(--rt-face); border: 0; border-radius: 0; box-shadow: var(--rt-raised); }
+html[data-look='retro'] .gr-inbox :is(.gr-unread, .wa-unread, .wa-to-end-n, .wa-gm-badge, .gr-line-badge) { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-emoji-picker button { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .gr-emoji-picker button:is(:hover, :focus-visible) { background: transparent; box-shadow: var(--rt-raised); transform: none; }
+
+/* Panel de emoji, GIF y stickers: una ventana más. */
+html[data-look='retro'] .gr-inbox .wa-emoji { background: var(--rt-face); border-radius: 0; box-shadow: var(--pop-shadow); }
+html[data-look='retro'] .gr-inbox .wa-emoji-grid button { border-radius: 0; }
+html[data-look='retro'] .gr-inbox .wa-emoji-grid button:is(:hover, :focus-visible) { color: var(--rt-select-fg); background: var(--rt-select); }
+
+/* Info del contacto o del grupo en Inbox: entre las tarjetas se veía el azul de selección (--wa-row-active); la cara
+   gris de la ventana, como el panel de Lines. */
+html[data-look='retro'] .ib-app.gr-inbox .ib-wa-details,
+html[data-look='retro'] .ib-wa-details { background: var(--rt-face); }
