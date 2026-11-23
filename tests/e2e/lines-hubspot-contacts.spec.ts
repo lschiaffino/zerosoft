@@ -1,6 +1,7 @@
 import { expect as baseExpect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { e2eDb } from './helpers/db';
 import { waLinkIp } from './helpers/wa-link';
+import { ensureDetailsTab } from './helpers/details-tab';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
 
 /**
@@ -89,10 +90,9 @@ const dock = (page: Page) => page.getByTestId('hubspot-dock');
 async function openLinesDetails(page: Page) {
   // A 1280 los detalles van detrás del botón (como en lines-hubspot.spec.ts).
   // Hasta que la página hidrata, el botón todavía no abre nada: se reintenta.
-  await expect(async () => {
-    if (!(await hubspotRegion(page).isVisible())) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await baseExpect(hubspotRegion(page)).toBeVisible({ timeout: 3_000 });
-  }).toPass();
+  // HubSpot va en la pestaña CRM del panel.
+  if (!(await hubspotRegion(page).isVisible())) await ensureDetailsTab(page, 'crm', () => page.getByRole('button', { name: 'Details', exact: true }).click());
+  await baseExpect(hubspotRegion(page)).toBeVisible();
 }
 
 test.afterAll(async ({ request }) => {
@@ -228,10 +228,8 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
   await page.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'networkidle' });
   const card = page.getByTestId('inbox-chat-hubspot');
   // Abre la info del contacto (reintenta hasta que la página hidrata).
-  await expect(async () => {
-    if (!(await card.isVisible())) await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 });
-    await baseExpect(card).toBeVisible({ timeout: 5_000 });
-  }).toPass();
+  // HubSpot va en la pestaña CRM de la info.
+  await ensureDetailsTab(page, 'crm', () => page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 }));
   await expect(card).toBeVisible();
   // Su teléfono ya está en HubSpot: se propone vincular (no se crea otro).
   await expect(card.getByTestId('contact-hs-matches')).toBeVisible();
@@ -277,7 +275,7 @@ test('Inbox: el contacto y la empresa en la info del chat, propiedades elegidas,
       await setTheme(phone, baseURL!, theme);
       await mobile.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'domcontentloaded' });
       await settle(mobile);
-      await mobile.locator('.ib-wa-thread .wa-head-who').click();
+      await ensureDetailsTab(mobile, 'crm', () => mobile.locator('.ib-wa-thread .wa-head-who').click());
       await expect(mobile.getByTestId('inbox-chat-hubspot').getByTestId('contact-hs-contact')).toBeVisible();
       await expect(mobile.getByTestId('inbox-hs-company')).toBeVisible();
       // La cabecera del chat queda debajo de la hoja de info (no es parte de este cambio).
@@ -413,10 +411,8 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
   const card = page.getByTestId('inbox-chat-hubspot');
   const openInbox = async (p: Page) => {
     await p.goto(`/en/app/inbox?t=${th.id}`, { waitUntil: 'networkidle' });
-    await expect(async () => {
-      if (!(await p.getByTestId('inbox-chat-hubspot').isVisible())) await p.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 });
-      await baseExpect(p.getByTestId('inbox-chat-hubspot')).toBeVisible({ timeout: 5_000 });
-    }).toPass();
+    await ensureDetailsTab(p, 'crm', () => p.locator('.ib-wa-thread .wa-head-who').click({ timeout: 5_000 }));
+    await baseExpect(p.getByTestId('inbox-chat-hubspot')).toBeVisible();
   };
   await openInbox(page);
   await expect(card.getByTestId('inbox-hs-props-contact').locator('[data-prop="hs_lead_status"]')).toBeVisible();
@@ -465,10 +461,8 @@ test('Lines e Inbox: propiedades del contacto y del negocio, elegirlas, editarla
         await setTheme(phone, baseURL!, theme);
         await mobile.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'domcontentloaded' });
         await settle(mobile);
-        await expect(async () => {
-          if (!(await hubspotRegion(mobile).isVisible())) await mobile.locator('.gr-thread-head .wa-head-avatar').click();
-          await baseExpect(hubspotRegion(mobile)).toBeVisible({ timeout: 3_000 });
-        }).toPass();
+        await ensureDetailsTab(mobile, 'crm', () => mobile.locator('.gr-thread-head .wa-head-avatar').click());
+        await baseExpect(hubspotRegion(mobile)).toBeVisible();
         await hubspotRegion(mobile).getByTestId('hubspot-props-deal').scrollIntoViewIfNeeded();
         // La cabecera del chat queda debajo de la hoja de detalles (no es parte de este cambio, como en Inbox).
         await check(mobile, `lines hubspot detalles 390 ${look} ${theme}`, { ignore: /wa-head/ });
