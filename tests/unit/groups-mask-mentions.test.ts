@@ -1,8 +1,9 @@
 /**
- * Lines: para quien no ve teléfonos, un mensaje no los trae en las
- * menciones (texto, lista de mencionados), en los avisos del grupo ni en la
- * cita de un mensaje de otro chat. Quien los ve recibe el mensaje igual.
- * Teléfonos de prueba (555), datos inventados.
+ * Lines: para quien no ve teléfonos, un mensaje no los trae en la lista de
+ * mencionados, en los avisos del grupo ni en la cita de un mensaje de otro
+ * chat (el texto del mensaje queda como está: se edita y se traduce tal
+ * cual). Quien los ve recibe el mensaje igual. Teléfonos de prueba (555),
+ * datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { maskMessage, viewerFrom, DEFAULT_PLATFORM } from '@/lib/groups-access';
@@ -32,14 +33,13 @@ const masked = viewerFrom('w', 'p', 'member', { ...DEFAULT_PLATFORM, maskRoles: 
 const plain = viewerFrom('w', 'w', 'owner', { ...DEFAULT_PLATFORM, maskRoles: ['member'] });
 
 describe('maskMessage: menciones, avisos y citas sin teléfonos', () => {
-  it('quien no ve teléfonos: ninguno en el mensaje; la mención con nombre sigue con el nombre', () => {
-    const out = maskMessage(masked, message());
-    const json = JSON.stringify(out);
-    expect(json).not.toContain(A);
-    expect(json).not.toContain(B);
-    expect(out.body.startsWith('@Ana and @+15 ••• 88')).toBe(true);
-    expect((out.meta as Record<string, unknown>).mentions).toBeUndefined();
-    expect(out.replyQuote?.senderPhone).not.toContain(A);
+  it('quien no ve teléfonos: sin teléfonos en la lista de mencionados, los nombres ni la cita', () => {
+    const out = maskMessage(masked, message({ meta: { mentions: [A, B, '123456789012345@lid'] } }));
+    expect(out.body).toBe(message().body);
+    expect((out.meta as Record<string, unknown>).mentions).toEqual(['123456789012345@lid']);
+    expect(out.mentionNames?.[A]).toEqual({ name: 'Ana', phone: '15 ••• 77' });
+    expect(out.replyQuote?.senderPhone).toBe('15 ••• 77');
+    expect(out.senderPhone).not.toContain(B);
   });
 
   it('aviso del grupo: las personas sin nombre salen con el teléfono enmascarado', () => {
