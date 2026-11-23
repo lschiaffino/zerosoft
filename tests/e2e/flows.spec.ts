@@ -439,7 +439,12 @@ test('CRM: tarea rápida con la tecla C', async ({ page }) => {
 });
 
 test('CRM: los widgets del dashboard no se superponen', async ({ page }) => {
-  await page.goto('/en/app/crm/dashboards');
+  // Su propio dashboard con la plantilla de ventas: sin ?d abre el último que se usó, y otras pruebas
+  // de la misma persona dejan dashboards vacíos.
+  const res = await page.request.post('/api/crm/dashboards', { data: { name: `Overlap ${uid()}`, template: 'sales' } });
+  expect(res.ok(), await res.text()).toBe(true);
+  const { id } = (await res.json()) as { id: string };
+  await page.goto(`/en/app/crm/dashboards?d=${id}`);
   const widgets = page.getByTestId('cdb-tile');
   await expect(widgets.first()).toBeVisible();
   const boxes = await widgets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
