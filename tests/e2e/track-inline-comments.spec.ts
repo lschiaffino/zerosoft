@@ -83,10 +83,21 @@ test('1280: comentar una parte de la descripción, resaltado, ir al hilo y resol
   await expect(page.getByTestId('track-inline-quote')).toHaveText(QUOTE);
   await page.keyboard.press('Escape');
   await expect(composer).toHaveCount(0);
+  // Esc cierra solo el composer: el foco vuelve a la descripción y otro Esc no saca del issue.
+  await expect(editor(page)).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`/app/track/(issues/${issue.id}|issue/${issue.identifier})`));
   await select(page, QUOTE);
   await page.getByTestId('track-rte-comment').click();
   await expect(composer).toBeVisible();
   await page.mouse.click(1200, 780);
+  await expect(composer).toHaveCount(0);
+  // Con algo escrito, un clic afuera no tira el borrador.
+  await select(page, QUOTE);
+  await page.getByTestId('track-rte-comment').click();
+  await page.keyboard.type('draft');
+  await page.mouse.click(1200, 780);
+  await expect(composer).toBeVisible();
+  await composer.getByRole('button', { name: 'Cancel' }).click();
   await expect(composer).toHaveCount(0);
 
   // Publicar: ⌘↵ o el botón.
@@ -101,6 +112,8 @@ test('1280: comentar una parte de la descripción, resaltado, ir al hilo y resol
   await expect(thread).toHaveCount(1);
   await expect(thread.getByTestId('track-comment-quote')).toHaveText(QUOTE);
   await expect(thread).toContainText('Repro on Safari too');
+  // El hilo nuevo se muestra y se marca un momento.
+  await expect(thread.getByTestId('track-comment').first()).toHaveClass(/is-flash/);
   await expect.poll(() => highlighted(page)).toBe(1);
   await page.evaluate(() => window.scrollTo(0, 0));
   await shot(page, 'track-inline-highlight-1280');
@@ -120,6 +133,14 @@ test('1280: comentar una parte de la descripción, resaltado, ir al hilo y resol
     return null;
   }, QUOTE);
   expect(box).not.toBeNull();
+  // Escribiendo en la descripción, un clic en el resaltado solo pone el cursor.
+  await editor(page).focus();
+  const before = await page.evaluate(() => window.scrollY);
+  await page.mouse.click(box!.x, box!.y);
+  await expect(thread.getByTestId('track-comment').first()).not.toHaveClass(/is-flash/);
+  expect(await page.evaluate(() => window.scrollY)).toBe(before);
+  // Sin estar escribiendo, lleva al hilo.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.mouse.click(box!.x, box!.y);
   await expect(thread.getByTestId('track-comment').first()).toHaveClass(/is-flash/);
 
@@ -158,6 +179,7 @@ test('390: comentar desde el teléfono; sin scroll lateral; cinco aspectos', asy
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
+  await check(page, 'track inline composer 390', { tap: true, ignore: /track-detail-title-input/ });
   await page.getByTestId('track-inline-editor').locator('.track-rte-content').click();
   await page.keyboard.type('Phone note');
   await submit.click();

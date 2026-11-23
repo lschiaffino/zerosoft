@@ -35,10 +35,20 @@ export default function InlineCommentComposer({
   const [error, setError] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const editor = useRef<RichEditorHandle>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: at.top, left: at.left, width: WIDTH });
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>({ top: at.top, left: at.left, width: WIDTH });
+  const busyRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
 
-  // Dentro de la pantalla: angosta en el teléfono, arriba de la selección si abajo no entra.
+  // Dentro de la pantalla, arriba de la selección si abajo no entra. En el teléfono va abajo,
+  // de lado a lado (styles: .track-inline-composer.is-sheet).
   useLayoutEffect(() => {
+    if (window.matchMedia('(max-width: 599px)').matches) {
+      setPos(null);
+      return;
+    }
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const width = Math.min(WIDTH, vw - MARGIN * 2);
@@ -48,22 +58,38 @@ export default function InlineCommentComposer({
     setPos({ top, left, width });
   }, [at.top, at.left]);
 
+  // Teléfono: el teclado en pantalla achica el visualViewport; la hoja sube con él.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (pos || !vv) return;
+    const on = () => box.current?.style.setProperty('--kb-inset', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+    on();
+    vv.addEventListener('resize', on);
+    vv.addEventListener('scroll', on);
+    return () => {
+      vv.removeEventListener('resize', on);
+      vv.removeEventListener('scroll', on);
+    };
+  }, [pos]);
+
   useEffect(() => {
     editor.current?.focus();
-    const onDown = (e: MouseEvent) => {
+    // Un clic afuera cierra solo si no hay nada escrito (no se pierde un borrador).
+    const onDown = (e: PointerEvent) => {
       const t = e.target as Node | null;
       if (t && box.current?.contains(t)) return;
-      // Los menús del editor (menciones) viven fuera de la caja.
       if ((t as HTMLElement | null)?.closest?.('.track-md-menu, [role="listbox"]')) return;
-      onClose();
+      if (bodyRef.current.trim()) return;
+      onCloseRef.current();
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [onClose]);
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, []);
 
   async function submit() {
     const text = body.trim();
-    if (!text || busy) return;
+    if (!text || busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     const res = await fetch(`/api/track/issues/${issueId}/comments`, {
@@ -71,6 +97,7 @@ export default function InlineCommentComposer({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: text, anchor: quote }),
     }).catch(() => null);
+    busyRef.current = false;
     setBusy(false);
     if (!res?.ok) {
       setError(tt('postError'));
@@ -83,11 +110,12 @@ export default function InlineCommentComposer({
   return (
     <div
       ref={box}
-      className="track-inline-composer"
+      className={`track-inline-composer${pos ? '' : ' is-sheet'}`}
       role="dialog"
       aria-modal="false"
       aria-label={ti('title')}
-      style={{ top: pos.top, left: pos.left, width: pos.width }}
+      aria-describedby="track-inline-quote"
+      style={pos ? { top: pos.top, left: pos.left, width: pos.width } : undefined}
       data-testid="track-inline-composer"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
@@ -97,7 +125,7 @@ export default function InlineCommentComposer({
         }
       }}
     >
-      <blockquote className="track-comment-quote" data-testid="track-inline-quote">
+      <blockquote className="track-comment-quote" id="track-inline-quote" data-testid="track-inline-quote">
         {quote}
       </blockquote>
       <RichEditor

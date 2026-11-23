@@ -412,9 +412,22 @@ export default function IssueDetailClient({
   const openInlineComment = useCallback((commentId: string) => {
     const el = document.getElementById(`comment-${commentId}`);
     if (!el) return;
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
     el.classList.add('is-flash');
     window.setTimeout(() => el.classList.remove('is-flash'), 1600);
+  }, []);
+  // Después de publicar, el hilo nuevo se muestra cuando ya está en la lista.
+  const [pendingThread, setPendingThread] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingThread || !document.getElementById(`comment-${pendingThread}`)) return;
+    openInlineComment(pendingThread);
+    setPendingThread(null);
+  }, [activities, pendingThread, openInlineComment]);
+  // Al cerrar el composer el foco vuelve a la descripción (un segundo Esc no saca del issue).
+  const closeInline = useCallback(() => {
+    setInlineDraft(null);
+    requestAnimationFrame(() => descSection.current?.querySelector<HTMLElement>('.track-description-editor .track-rte-content')?.focus({ preventScroll: true }));
   }, []);
   useInlineHighlights(
     () => descSection.current?.querySelector<HTMLElement>('.track-description-editor .track-rte-content') ?? null,
@@ -1429,10 +1442,11 @@ export default function IssueDetailClient({
                 quote={inlineDraft.quote}
                 at={inlineDraft.at}
                 members={initialMembers}
-                onClose={() => setInlineDraft(null)}
+                onClose={closeInline}
                 onPosted={(commentId) => {
                   setInlineDraft(null);
-                  void refreshActivities().then(() => openInlineComment(commentId));
+                  setPendingThread(commentId);
+                  void refreshActivities();
                 }}
               />
             )}
