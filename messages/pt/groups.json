@@ -2149,7 +2149,13 @@
         "none": "Nada.",
         "noMessages": "Não há mensagens neste período. Escolha um mais longo.",
         "basedOnRange": "Com {n, plural, one {# mensagem} other {# mensagens}} ({range}).",
-        "insertFailed": "Não foi possível colocar no campo da mensagem. Termine a mensagem ou a nota que está escrevendo, ou feche a edição, e tente de novo."
+        "insertFailed": "Não foi possível colocar no campo da mensagem. Termine a mensagem ou a nota que está escrevendo, ou feche a edição, e tente de novo.",
+        "rangeNames": {
+          "unread": "desde a última leitura",
+          "day": "últimas 24 horas",
+          "week": "últimos 7 dias",
+          "month": "últimos 30 dias"
+        }
       }
     },
     "contactSheet": {

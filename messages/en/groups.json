@@ -2149,7 +2149,13 @@
         "none": "None found.",
         "noMessages": "There are no messages in this period. Pick a longer one.",
         "basedOnRange": "Based on {n, plural, one {# message} other {# messages}} ({range}).",
-        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again."
+        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again.",
+        "rangeNames": {
+          "unread": "since you last read it",
+          "day": "last 24 hours",
+          "week": "last 7 days",
+          "month": "last 30 days"
+        }
       }
     },
     "contactSheet": {
