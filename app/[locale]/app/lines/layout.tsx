@@ -18,6 +18,7 @@ import '@/styles/chat-gestures.css';
 import '@/styles/wa-touch.css';
 import '@/styles/wa-mobile.css';
 import '@/styles/wa-accent.css';
+import '@/styles/wa-looks.css';
 import '@/styles/groups-later.css';
 import '@/styles/groups-hubspot.css';
 import '@/styles/lines-groups-table.css';
