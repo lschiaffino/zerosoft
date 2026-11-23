@@ -51,7 +51,7 @@ import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Clo
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import LinesImportNotices from './LinesImportNotices';
-import DailyBrief from './DailyBrief';
+import DailyBrief, { useDailyBrief } from './DailyBrief';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { EMPTY_FOLDERS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineFoldersResponse, type LineGroupOption, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
@@ -273,6 +273,8 @@ export default function InboxShell({
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name || p.email])), [people]);
   const pathname = usePathname();
   const router = useRouter();
+  // Resumen del día (lib/daily-brief.ts): se pide una vez; la tarjeta va donde esté la lista.
+  const brief = useDailyBrief('/api/groups/brief');
   const params = useSearchParams();
   const listId = params.get('list');
   const current = chatIdFromPath(pathname);
@@ -1436,6 +1438,22 @@ export default function InboxShell({
     pushUrl(window.location.pathname);
   }
 
+  // En la bandeja, sin búsqueda; se cierra por hoy. En la lista, primer renglón; vacía o en tablero, arriba.
+  const briefCard = (as: 'li' | 'div') =>
+    !archivedView && !deletedView && !debounced ? (
+      <DailyBrief
+        brief={brief}
+        as={as}
+        onOpen={(kind, chats) => {
+          if (kind === 'waiting') setFilters({ waiting: 'yes', assignees: [ME] });
+          else if (kind === 'groups') setFilters({ waiting: 'yes', kinds: ['group'], assignees: [NONE] });
+          else if (kind === 'sla' || kind === 'tickets') router.push('/app/lines/tickets');
+          else if (kind === 'tasks') router.push('/app/lines/tasks');
+          else if (chats[0]) router.push(`/app/lines/inbox/${chats[0].id}${listSuffix}`);
+        }}
+      />
+    ) : null;
+
   return (
     <Ctx.Provider value={value}>
       <div className={`gr-inbox${current ? ' has-chat' : ''}${detailsHidden ? ' is-details-hidden' : ''}${kanban ? ' is-kanban' : ''}`} data-chat-style={chatStyle}>
@@ -1711,6 +1729,7 @@ export default function InboxShell({
           )}
           {kanban ? (
             <>
+              {briefCard('div')}
               {agentsRowEl}
               {archivedRow}
               <InboxKanban query={query} listRows={rows} current={current} listSuffix={listSuffix} numbers={numbers} people={people} manyLines={manyLines && numbers.length > 1} emptyText={emptyText} />
@@ -1723,25 +1742,14 @@ export default function InboxShell({
             </div>
           ) : rows.length === 0 && !error ? (
             <>
+              {briefCard('div')}
               {agentsRowEl}
               {archivedRow}
               <p className="gr-list-empty">{emptyText}</p>
             </>
           ) : (
             <ul ref={rowsBox} className={`gr-rows${visibleSelected.length > 0 || selectMode ? ' is-selecting' : ''}${switching ? ' is-stale' : ''}`} aria-busy={switching || undefined} data-list={shownKey} data-chat-list data-tour="lines-chat-list">
-              {/* Resumen del día (lib/daily-brief.ts): en la bandeja, sin búsqueda; se cierra por hoy. */}
-              {!archivedView && !deletedView && !debounced && (
-                <DailyBrief
-                  endpoint="/api/groups/brief"
-                  onOpen={(kind, chats) => {
-                    if (kind === 'waiting') setFilters({ waiting: 'yes', assignees: [ME] });
-                    else if (kind === 'groups') setFilters({ waiting: 'yes', kinds: ['group'], assignees: [NONE] });
-                    else if (kind === 'sla' || kind === 'tickets') router.push('/app/lines/tickets');
-                    else if (kind === 'tasks') router.push('/app/lines/tasks');
-                    else if (chats[0]) router.push(`/app/lines/inbox/${chats[0].id}${listSuffix}`);
-                  }}
-                />
-              )}
+              {briefCard('li')}
               {agentsRowEl && <li>{agentsRowEl}</li>}
               {archivedRow && <li>{archivedRow}</li>}
               {debounced ? (

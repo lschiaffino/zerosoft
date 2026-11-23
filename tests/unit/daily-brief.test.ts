@@ -90,6 +90,10 @@ describe('resumen del día: lo puro', () => {
     expect(briefName('Grupo\nde prueba\u0007')).toBe('Grupo de prueba');
     expect(briefName('x'.repeat(200))).toHaveLength(80);
     expect(briefName('Cliente +54 9 11 0000-0301', true)).not.toContain('0000-0301');
+    // Marcas invisibles (dirección, ancho cero) fuera: un teléfono cortado por una igual queda oculto.
+    expect(briefName('Grupo \u202edado vuelta\u2066')).toBe('Grupo dado vuelta');
+    expect(briefName('Cliente +54 9 11 0000\u200b-0302', true)).not.toMatch(/0000.?-?0302/);
+    expect(briefName('Cliente +54 9 11 0000\u061c-0303', true)).not.toMatch(/0000.?-?0303/);
   });
 
   it('el email sale entre las 8 y las 11 de la persona, una vez por día', () => {
@@ -291,6 +295,18 @@ describe('resumen del día: rutas', () => {
 });
 
 describe('resumen del día: el email', () => {
+  /** Un workspace con un chat asignado a la integrante, que pidió el email (en UTC). */
+  const mk = async (label: string) => {
+    const w = await workspaceWithMember(label);
+    const n = await line(w.owner.id);
+    await ingestEvents(n, [msg(`${A}@s.whatsapp.net`, A)]);
+    const chat = (await listChats(w.owner.id, w.owner.id)).rows[0];
+    await updateChat(w.owner.id, chat.id, { assignedTo: w.member.id }, w.owner.id);
+    await getDb().prepare("UPDATE users SET time_zone = 'UTC', active_team_id = ? WHERE id = ?").run(w.team.id, w.member.id);
+    await setBriefEmail(w.member.id, true);
+    return w;
+  };
+
   it('solo a quien lo pidió, una vez por día, con nombres y sin textos; no sale si no hay nada', async () => {
     const w = await workspaceWithMember('brief-email');
     const n = await line(w.owner.id);
@@ -320,16 +336,6 @@ describe('resumen del día: el email', () => {
   });
 
   it('no sale si el workspace pide dos pasos y no los tiene, si le apagaron Lines, si ya no es parte o si es invitada', async () => {
-    const mk = async (label: string) => {
-      const w = await workspaceWithMember(label);
-      const n = await line(w.owner.id);
-      await ingestEvents(n, [msg(`${A}@s.whatsapp.net`, A)]);
-      const chat = (await listChats(w.owner.id, w.owner.id)).rows[0];
-      await updateChat(w.owner.id, chat.id, { assignedTo: w.member.id }, w.owner.id);
-      await getDb().prepare("UPDATE users SET time_zone = 'UTC', active_team_id = ? WHERE id = ?").run(w.team.id, w.member.id);
-      await setBriefEmail(w.member.id, true);
-      return w;
-    };
     const at = () => new Date(`2026-12-${String(++day).padStart(2, '0')}T09:00:00Z`);
     let day = 0;
     // Cada caso: primero sale (el control), después de la restricción ya no.
@@ -347,6 +353,21 @@ describe('resumen del día: el email', () => {
     await blocked('brief-off', (w) => saveWorkspaceAppRule(w.owner.id, 'groups', { mode: 'some', people: [w.friend.id], teams: [], denied: [] }, w.owner.id));
     await blocked('brief-gone', (w) => getDb().prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(w.team.id, w.member.id));
     await blocked('brief-guest', (w) => getDb().prepare("UPDATE team_members SET role = 'guest' WHERE team_id = ? AND user_id = ?").run(w.team.id, w.member.id));
+  });
+
+  it('el email: si un tick no llega a todos, el próximo empieza por quienes quedaron', async () => {
+    // Solo estas dos lo piden (los de los tests de arriba, no).
+    await getDb().prepare('UPDATE daily_brief_prefs SET email = 0').run();
+    const a = await mk('brief-turn-a');
+    const b = await mk('brief-turn-b');
+    const now = new Date('2026-12-20T09:00:00Z');
+    mail.sent = [];
+    expect(await sendDailyBriefEmails({ now, limit: 1 })).toBe(1);
+    const first = mail.sent.map((m) => m.to);
+    expect(await sendDailyBriefEmails({ now: new Date(now.getTime() + 60 * 60_000), limit: 1 })).toBe(1);
+    // Los dos, cada uno una vez.
+    expect([...mail.sent.map((m) => m.to)].sort()).toEqual([a.member.email, b.member.email].sort());
+    expect(first).toHaveLength(1);
   });
 
   it('el fin del día local también con zonas de media hora', () => {

@@ -122,8 +122,9 @@ async function briefsFor(c: Candidate, now: Date): Promise<DailyBrief[]> {
 }
 
 /**
- * Los emails de la mañana (tick horario). Recorre a quienes lo pidieron de a páginas (por id), y para cada una mira
- * si en su zona es la hora: así nadie queda afuera porque otros llenaron la página. `limit`: cuántos se mandan como
+ * Los emails de la mañana (tick horario). Recorre a quienes lo pidieron de a páginas, primero quienes hace más que no
+ * lo reciben (y por id), y para cada una mira si en su zona es la hora: así nadie queda afuera porque otros llenaron la
+ * página, y si un tick no llega a todos, el próximo empieza por quienes quedaron. `limit`: cuántos se arman como
  * mucho por tick; además hay un tope de tiempo. Cada persona se reclama antes de armarlo (email_day) para que dos
  * ticks a la vez no lo manden dos veces; si algo falla, el reclamo se devuelve y sale en el próximo tick (si
  * todavía es la hora). Devuelve cuántos salieron.
@@ -136,20 +137,23 @@ export async function sendDailyBriefEmails(opts: { now?: Date; limit?: number; b
   const db = getDb();
   // Ya salió hoy en la zona más adelantada: hoy no le toca a nadie más.
   const latest = localDayIn('Pacific/Kiritimati', now);
-  const candidatesAfter = async (after: string) =>
+  // Cursor (último día de envío, id): quien acaba de recibirlo pasa al final y no se vuelve a armar hoy.
+  const candidatesAfter = async (afterDay: string, afterId: string) =>
     (await db
       .prepare(
         `SELECT p.user_id, p.email_day, u.locale, COALESCE(NULLIF(p.time_zone, ''), NULLIF(u.time_zone, ''), 'UTC') AS tz
          FROM daily_brief_prefs p JOIN users u ON u.id = p.user_id
-         WHERE p.email = 1 AND u.email <> '' AND (p.email_day IS NULL OR p.email_day < ?) AND p.user_id > ?
-         ORDER BY p.user_id LIMIT 500`,
+         WHERE p.email = 1 AND u.email <> '' AND (p.email_day IS NULL OR p.email_day < ?)
+           AND (COALESCE(p.email_day, ''), p.user_id) > (?, ?)
+         ORDER BY COALESCE(p.email_day, ''), p.user_id LIMIT 500`,
       )
-      .all(latest, after)) as Candidate[];
+      .all(latest, afterDay, afterId)) as Candidate[];
   let sent = 0;
   let attempted = 0;
-  let after = '';
-  for (let page = await candidatesAfter(after); page.length && attempted < maxSends; page = await candidatesAfter(after)) {
-    after = page[page.length - 1].user_id;
+  let after = { day: '', id: '' };
+  for (let page = await candidatesAfter(after.day, after.id); page.length && attempted < maxSends; page = await candidatesAfter(after.day, after.id)) {
+    const last = page[page.length - 1];
+    after = { day: last.email_day ?? '', id: last.user_id };
     for (const c of page) {
       if (Date.now() - started > budget || attempted >= maxSends) break;
       const day = briefEmailDue(c.tz, c.email_day, now);

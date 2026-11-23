@@ -80,8 +80,12 @@ export function briefIsEmpty(b: DailyBrief): boolean {
 
 /** Un nombre para mostrar: sin saltos ni caracteres de control, corto, y con los teléfonos ocultos si corresponde. */
 export function briefName(raw: string, mask = false): string {
-  // eslint-disable-next-line no-control-regex
-  const clean = String(raw ?? '').replace(/[\u0000-\u001f\u007f\u200e\u200f\u2028-\u202e\u2066-\u2069]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // Sin controles ni marcas invisibles (dirección, ancho cero): ni texto dado vuelta ni un teléfono cortado que no se oculte.
+  const clean = String(raw ?? '')
+    .replace(/\p{Cf}+/gu, '')
+    .replace(/[\p{Cc}\u2028\u2029]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   const shown = mask ? maskPhoneText(clean) : clean;
   return shown.length > NAME_MAX ? `${shown.slice(0, NAME_MAX - 1)}…` : shown;
 }

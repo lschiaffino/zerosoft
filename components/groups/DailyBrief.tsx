@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { api } from './dialog-kit';
@@ -25,44 +25,27 @@ interface Payload {
 const UNDO_MS = 8000;
 
 /**
- * Resumen del día arriba de la lista de Lines o de Inbox (lib/daily-brief.ts):
- * lo que espera a la persona hoy, en cuentas y con los primeros chats. Cada
- * fila lleva a lo suyo (`onOpen`). Se cierra por el día (vuelve mañana), con
- * Deshacer un rato, y avisa si el email de la mañana está prendido (Ajustes ›
- * Avisos). Si no hay nada pendiente, no aparece. Va como primer renglón de la
- * lista (un <li>): cuando llega no mueve la caja de la lista.
+ * El estado de la tarjeta (lib/daily-brief.ts), en quien la muestra: así la
+ * tarjeta puede cambiar de lugar (lista, vacío, tablero) sin volver a pedirla
+ * ni perder el Deshacer. Cerrar y Deshacer van en fila (uno espera al otro),
+ * así lo que queda en el servidor es lo último que se tocó.
  */
-export default function DailyBrief({
-  endpoint,
-  onOpen,
-}: {
-  endpoint: '/api/groups/brief' | '/api/inbox/brief';
-  /** Abrir lo de una fila: la vista o el filtro que le corresponde, o el primer chat. */
-  onOpen: (kind: BriefKind, chats: BriefChat[]) => void;
-}) {
-  const item = (node: ReactNode) => (
-    <li className="wa-brief-li" role="presentation">
-      {node}
-    </li>
-  );
-  const t = useTranslations('groups.wa.brief');
-  const locale = useLocale();
-  const titleId = useId();
+export function useDailyBrief(endpoint: '/api/groups/brief' | '/api/inbox/brief') {
   const [data, setData] = useState<Payload | null>(null);
   const [state, setState] = useState<'shown' | 'undo' | 'hidden'>('shown');
   const [error, setError] = useState<'' | 'dismiss' | 'restore'>('');
-  // El cierre en curso: Deshacer espera a que termine, así el servidor no queda cerrado con la tarjeta a la vista.
-  const dismissing = useRef<Promise<unknown> | null>(null);
-
-  const load = useCallback(async () => {
-    const { day, end } = localDay();
-    const res = await api<Payload>(`${endpoint}?day=${day}&end=${encodeURIComponent(end)}`);
-    if (res.data) setData(res.data);
-  }, [endpoint]);
+  const pending = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    const { day, end } = localDay();
+    void api<Payload>(`${endpoint}?day=${day}&end=${encodeURIComponent(end)}`).then((res) => {
+      if (live && res.data) setData(res.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, [endpoint]);
 
   useEffect(() => {
     if (state !== 'undo') return;
@@ -70,30 +53,71 @@ export default function DailyBrief({
     return () => window.clearTimeout(timer);
   }, [state]);
 
-  if (!data || data.dismissed || !data.brief || state === 'hidden') return null;
-  const items = data.brief.items.filter((i) => i.count > 0);
-  if (items.length === 0) return null;
-
+  /** Encola un pedido detrás del anterior. */
+  const send = (body: Record<string, unknown>) => {
+    const req = pending.current.then(() => api(endpoint, { method: 'POST', body }));
+    pending.current = req.catch(() => undefined);
+    return req;
+  };
   const dismiss = async () => {
+    if (!data) return;
     setError('');
     setState('undo');
-    const req = api(endpoint, { method: 'POST', body: { action: 'dismiss', day: data.day } });
-    dismissing.current = req;
-    const res = await req;
+    const res = await send({ action: 'dismiss', day: data.day });
     if (!res.data) {
       setState('shown');
       setError('dismiss');
     }
   };
   const undo = async () => {
-    await dismissing.current;
+    setError('');
     setState('shown');
-    const res = await api(endpoint, { method: 'POST', body: { action: 'restore' } });
+    const res = await send({ action: 'restore' });
     if (!res.data) {
       setState('undo');
       setError('restore');
     }
   };
+  return { data, state, error, dismiss, undo };
+}
+
+export type DailyBriefState = ReturnType<typeof useDailyBrief>;
+
+/**
+ * Resumen del día arriba de la lista de Lines o de Inbox (lib/daily-brief.ts):
+ * lo que espera a la persona hoy, en cuentas y con los primeros chats. Cada
+ * fila lleva a lo suyo (`onOpen`). Se cierra por el día (vuelve mañana), con
+ * Deshacer un rato, y avisa si el email de la mañana está prendido (Ajustes ›
+ * Avisos). Si no hay nada pendiente, no aparece. En la lista va como primer
+ * renglón (`as="li"`): cuando llega no mueve la caja de la lista; con la lista
+ * vacía o el tablero, como bloque (`as="div"`).
+ */
+export default function DailyBrief({
+  brief,
+  as,
+  onOpen,
+}: {
+  brief: DailyBriefState;
+  as: 'li' | 'div';
+  /** Abrir lo de una fila: la vista o el filtro que le corresponde, o el primer chat. */
+  onOpen: (kind: BriefKind, chats: BriefChat[]) => void;
+}) {
+  const t = useTranslations('groups.wa.brief');
+  const locale = useLocale();
+  const titleId = useId();
+  const { data, state, error, dismiss, undo } = brief;
+  const item = (node: ReactNode) =>
+    as === 'li' ? (
+      <li className="wa-brief-li" role="presentation">
+        {node}
+      </li>
+    ) : (
+      <div className="wa-brief-block">{node}</div>
+    );
+
+  if (!data || data.dismissed || !data.brief || state === 'hidden') return null;
+  const items = data.brief.items.filter((i) => i.count > 0);
+  if (items.length === 0) return null;
 
   if (state === 'undo')
     return item(

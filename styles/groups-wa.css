@@ -253,6 +253,10 @@
 .wa-brief .wa-brief-close.wa-icon-btn { flex: none; width: 40px; height: 40px; min-width: 40px; min-height: 40px; color: var(--wa-icon, var(--ink-2)); }
 /* Dentro de la lista (primer renglón): sin los estilos de un chat. */
 .wa-brief-li { list-style: none; padding: 0; border: 0; }
+/* Fuera de la lista (lista vacía, tablero): un bloque arriba, sin estirarse a todo el ancho del tablero. */
+.wa-brief-block { min-width: 0; }
+.gr-inbox.is-kanban .wa-brief-block { max-width: 560px; }
+.ib-list-empty .wa-brief-block .wa-brief { margin: 0 0 16px; }
 .wa-brief-list { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; }
 .wa-brief-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 4px 8px 4px 0; font: inherit; text-align: left; color: inherit; background: none; border: 0; border-radius: var(--radius-1, 6px); cursor: pointer; min-width: 0; }
 .wa-brief-row:hover { background: var(--wa-row-hover, var(--ui-hover)); }
