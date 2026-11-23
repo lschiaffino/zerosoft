@@ -363,6 +363,7 @@ export default async function AppLayout(
                 { href: '/app/track/initiatives', label: tPlanning('sidebar.initiatives') },
                 { href: '/app/track/roadmap', label: tPlanning('sidebar.roadmap') },
                 { href: '/app/track/cycles', label: tPlanning('sidebar.cycles') },
+                { href: '/app/track/releases', label: tTrack('sidebar.releases') },
                 { href: '/app/track/analytics', label: tPlanning('sidebar.analytics') },
                 { href: '/app/track/insights', label: tPlanning('sidebar.insights') },
                 { href: '/app/track/dashboards', label: tPlanning('sidebar.dashboards') },
