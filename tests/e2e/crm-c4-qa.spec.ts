@@ -67,9 +67,10 @@ test.describe('dashboards', () => {
     // Cargando (otro período): los KPI tienen el alto de un KPI, no el de un gráfico.
     let release: () => void = () => {};
     const held = new Promise<void>((r) => (release = r));
+    // La ruta queda puesta: después de soltarla, los pedidos pasan sin esperar.
     await page.route('**/api/crm/dashboards/data', async (route) => {
       await held;
-      await route.continue();
+      await route.continue().catch(() => {});
     });
     try {
       await page.getByTestId('cdb-filter-range').click();
@@ -80,7 +81,6 @@ test.describe('dashboards', () => {
       for (const h of heights) expect(h).toBeLessThan(220);
     } finally {
       release();
-      await page.unroute('**/api/crm/dashboards/data');
     }
     await expect(page.locator('.cdb-tile-loading')).toHaveCount(0);
 
