@@ -125,8 +125,13 @@ async function openLines(page: Page, chat: string, mobile = false) {
       await settle(page);
     }
     if (!(await hubspotRegion(page).isVisible())) {
-      if (mobile) await page.locator('.gr-thread-head .wa-head-avatar').click();
-      else await page.getByRole('button', { name: 'Details', exact: true }).click();
+      // HubSpot y el CRM van en la pestaña CRM del panel.
+      const tab = page.locator('[role="tab"][data-details-tab="crm"]:visible').first();
+      if (!(await tab.isVisible())) {
+        if (mobile) await page.locator('.gr-thread-head .wa-head-avatar').click();
+        else await page.getByRole('button', { name: 'Details', exact: true }).click();
+      }
+      await tab.click({ timeout: 5_000 });
     }
     await baseExpect(hubspotRegion(page).getByTestId('hubspot-props-deal')).toBeVisible({ timeout: 5_000 });
   }).toPass();
@@ -142,7 +147,12 @@ async function openInbox(page: Page, thread: string) {
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await settle(page);
     }
-    if (!(await inboxCard(page).isVisible())) await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 10_000 });
+    if (!(await inboxCard(page).isVisible())) {
+      // HubSpot va en la pestaña CRM de la info.
+      const tab = page.locator('[role="tab"][data-details-tab="crm"]:visible').first();
+      if (!(await tab.isVisible())) await page.locator('.ib-wa-thread .wa-head-who').click({ timeout: 10_000 });
+      await tab.click({ timeout: 10_000 });
+    }
     await baseExpect(inboxCard(page).getByTestId('inbox-hs-deal')).toBeVisible({ timeout: 10_000 });
     await baseExpect(inboxCard(page).getByTestId('contact-hs-contact')).toBeVisible({ timeout: 10_000 });
   }).toPass();

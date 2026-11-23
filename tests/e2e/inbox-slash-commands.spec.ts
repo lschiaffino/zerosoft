@@ -137,7 +137,8 @@ test('"/" en un chat de WhatsApp: lista las acciones, fija el chat, silencia con
   await expect(menu).toBeVisible();
   await menu.getByRole('option', { name: /^\/notes,/ }).click();
   await expect(menu).toHaveCount(0);
-  await expect(thread.getByLabel('Notes about this chat')).toBeVisible();
+  // /notes abre la pestaña Notas de la info del chat (components/inbox/wa/ThreadNotes.tsx).
+  await expect(page.locator('.ib-wa-details').getByLabel('Notes about this chat')).toBeVisible();
   expect(errors, errors.join('\n')).toEqual([]);
 });
 

@@ -339,7 +339,12 @@ export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
 /** Para los campos `phone` de los DTO: la interfaz les antepone "+", así que van sin él. */
 const maskField = (phone: string) => maskPhone(phone).replace(/^\+/, '');
 
-export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string }>(viewer: GroupsViewer | null | undefined, chat: T): T {
+export function maskChat<
+  T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string; lastSender?: string | null; presence?: { name: string } | null },
+>(
+  viewer: GroupsViewer | null | undefined,
+  chat: T,
+): T {
   if (!viewer?.mask) return chat;
   const phone = chat.phone;
   const name = phone && chat.name === `+${phone}` ? maskPhone(phone) : chat.name;
@@ -348,9 +353,56 @@ export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: s
     phone: phone ? maskField(phone) : '',
     name,
     ...(chat.match ? { match: maskPhoneText(chat.match) } : {}),
+    // Quien mandó el último mensaje de un grupo, si solo se sabe su teléfono ("+<teléfono>").
+    ...(chat.lastSender ? { lastSender: maskPhoneText(chat.lastSender) } : {}),
     // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
     ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
+    // Quien escribe en un grupo, si solo se sabe su teléfono ("+<teléfono>").
+    ...(chat.presence?.name ? { presence: { ...chat.presence, name: maskPhoneText(chat.presence.name) } } : {}),
   };
+}
+
+/** La presencia de un chat (quién escribe) con la máscara de teléfonos de quien mira. */
+export function maskPresence<P extends { name: string }>(viewer: GroupsViewer | null | undefined, presence: P | null): P | null {
+  return viewer?.mask && presence?.name ? { ...presence, name: maskPhoneText(presence.name) } : presence;
+}
+
+/**
+ * Los vínculos de chats al CRM (crmContactId, crmCompanyId) con la visibilidad
+ * del CRM de quien mira (lib/crm-visibility.ts): un contacto o una empresa que
+ * no ve sale en null, así su id no llega en la lista, el export, la tabla ni
+ * la info del chat. Un invitado no ve ninguno. Sin viewer (cron, webhooks,
+ * Flow) o con alcance total, sin cambios. El vínculo guardado no se toca.
+ */
+export async function scopeChatCrmRefs<T extends { crmContactId: string | null; crmCompanyId: string | null }>(
+  viewer: GroupsViewer | null | undefined,
+  chats: T[],
+): Promise<T[]> {
+  if (!viewer || !chats.some((c) => c.crmContactId || c.crmCompanyId)) return chats;
+  if (viewer.role === 'guest') return chats.map((c) => ({ ...c, crmContactId: null, crmCompanyId: null }));
+  const { ownerScopeFor, visibleIds } = await import('./crm-visibility');
+  const scope = await ownerScopeFor({ workspaceId: viewer.ws, personId: viewer.me, role: viewer.role });
+  if (!scope) return chats;
+  const ids = (key: 'crmContactId' | 'crmCompanyId') => chats.map((c) => c[key]).filter((id): id is string => !!id);
+  const [contacts, companies] = await Promise.all([
+    visibleIds(viewer.ws, 'crm_contacts', ids('crmContactId'), scope),
+    visibleIds(viewer.ws, 'crm_companies', ids('crmCompanyId'), scope),
+  ]);
+  const seeContact = new Set(contacts);
+  const seeCompany = new Set(companies);
+  return chats.map((c) => {
+    const contact = c.crmContactId && seeContact.has(c.crmContactId) ? c.crmContactId : null;
+    const company = c.crmCompanyId && seeCompany.has(c.crmCompanyId) ? c.crmCompanyId : null;
+    return contact === c.crmContactId && company === c.crmCompanyId ? c : { ...c, crmContactId: contact, crmCompanyId: company };
+  });
+}
+
+/** scopeChatCrmRefs de un solo chat. */
+export async function scopeChatCrmRef<T extends { crmContactId: string | null; crmCompanyId: string | null }>(
+  viewer: GroupsViewer | null | undefined,
+  chat: T,
+): Promise<T> {
+  return (await scopeChatCrmRefs(viewer, [chat]))[0];
 }
 
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
@@ -386,9 +438,25 @@ export function maskedChatName(viewer: GroupsViewer | null | undefined, row: Pic
 }
 
 /** Tickets que la persona puede ver (chats visibles) con el nombre del chat enmascarado si hace falta. */
-export async function ticketsForViewer<T extends { chatId: string | null; chatName: string }>(viewer: GroupsViewer | null | undefined, tickets: T[]): Promise<T[]> {
+export async function ticketsForViewer<T extends { chatId: string | null; chatName: string; title?: string }>(viewer: GroupsViewer | null | undefined, tickets: T[]): Promise<T[]> {
   const visible = await visibleChatIds(viewer);
-  return tickets
-    .filter((t) => !visible || (t.chatId !== null && visible.has(t.chatId)))
-    .map((t) => (viewer?.mask ? { ...t, chatName: maskPhoneText(t.chatName) } : t));
+  return tickets.filter((t) => !visible || (t.chatId !== null && visible.has(t.chatId))).map((t) => maskTicket(viewer, t));
+}
+
+/** Un nombre que es solo un teléfono ("+<dígitos>", el de un chat 1:1 sin nombre): enmascarado. */
+const maskPhoneName = (name: string) => (/^\+\d{6,}$/.test(name) ? maskPhone(name) : name);
+
+/**
+ * Un ticket con la máscara de teléfonos de quien mira: el nombre del chat y
+ * un título que es solo el teléfono (un ticket de un mensaje sin texto en un
+ * 1:1 sin nombre). Para lo que ya se sabe que ve (el chat pasó el guard).
+ */
+export function maskTicket<T extends { chatName: string; title?: string }>(viewer: GroupsViewer | null | undefined, t: T): T {
+  if (!viewer?.mask) return t;
+  return { ...t, chatName: maskPhoneText(t.chatName), ...(typeof t.title === 'string' ? { title: maskPhoneName(t.title) } : {}) };
+}
+
+/** El nombre de un chat (reenviar, avisos) con la máscara de quien mira, como maskChat. */
+export function maskChatName(viewer: GroupsViewer | null | undefined, name: string): string {
+  return viewer?.mask ? maskPhoneName(name) : name;
 }

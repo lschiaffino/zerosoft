@@ -28,11 +28,24 @@ export function useScrollEdges<T extends HTMLElement>(): (el: T | null) => void 
     };
     update();
     el.addEventListener('scroll', update, { passive: true });
+    // El ancho del contenido cambia sin que cambie la caja de la fila (la letra de la app termina de cargar, una
+    // pestaña suma su número): se miden también las pestañas, y se vuelve a medir cuando cambian o llega la letra.
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
-    ro?.observe(el);
+    const observeAll = () => {
+      ro?.disconnect();
+      ro?.observe(el);
+      for (const child of el.children) ro?.observe(child);
+    };
+    observeAll();
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => (observeAll(), update())) : null;
+    mo?.observe(el, { childList: true, subtree: true, characterData: true });
+    let live = true;
+    void document.fonts?.ready.then(() => live && update());
     cleanup.current = () => {
+      live = false;
       el.removeEventListener('scroll', update);
       ro?.disconnect();
+      mo?.disconnect();
     };
   }, []);
 }

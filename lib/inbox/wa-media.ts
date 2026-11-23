@@ -8,6 +8,7 @@
 import { isFileUrlPath } from '../files/url';
 import { baseMime, MEDIA_KINDS, MediaPlanError, planOutboundKind, WA_MEDIA_LIMITS, type MediaKind } from '../groups-media';
 import { ProviderError } from '../groups-provider';
+import { MENTION_ALL, keepMentionAll, mentionSendOpts } from '../wa-mention-all';
 import { deleteOwnedUploads } from '../uploads';
 import { addMessage, getAccount, getMessageRow, getThreadRow, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { onceInFlight } from '../send-once';
@@ -44,7 +45,8 @@ export interface OutgoingFile {
 /** Menciones del pie que valen: solo en grupos, en un tipo con pie, y cada teléfono escrito como "@<teléfono>". */
 export function captionMentions(raw: unknown, caption: string, group: boolean, kind: MediaKind): string[] {
   if (!group || !caption.includes('@') || !(kind === 'image' || kind === 'video' || kind === 'document') || !Array.isArray(raw)) return [];
-  const out: string[] = [];
+  // "@all" en el pie: todo el grupo (lib/wa-mention-all.ts). Va primero.
+  const out: string[] = keepMentionAll(raw, caption, group) ? [MENTION_ALL] : [];
   for (const p of raw) {
     if (typeof p !== 'string' || !/^\d{6,16}$/.test(p) || out.includes(p)) continue;
     if (!new RegExp(`(^|[^\\w@])@${p}(?!\\d)`).test(caption)) continue;
@@ -158,7 +160,7 @@ async function sendMediaNow(owner: string, thread: Awaited<ReturnType<typeof get
         ...(f.data ? { base64: f.data.toString('base64') } : {}),
         ...(replyExternal ? { replyTo: replyExternal } : {}),
         ...(gif ? { gifPlayback: true } : {}),
-        ...(mentions.length ? { mentions } : {}),
+        ...mentionSendOpts(mentions, p.caps),
       })
     ).id;
   } catch (err) {
