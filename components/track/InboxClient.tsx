@@ -205,6 +205,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [active, setActive] = useState<string | null>(null);
+  // Suscripción al issue cambiada desde la fila o el panel (encima de la que trajo el servidor).
+  const [subs, setSubs] = useState<Record<string, boolean>>({});
   const request = useRef(0);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const listRef = useRef<HTMLDivElement>(null);
@@ -258,6 +260,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
         const data = (await res.json()) as { rows: Notification[]; hasMore: boolean; facets: InboxFacets; counts?: InboxCounts };
         const newRows = data.rows ?? [];
         setRows((prev) => (reset ? newRows : [...prev, ...newRows]));
+        // La suscripción de cada fila vuelve a ser la del servidor.
+        if (reset) setSubs({});
         setHasMore(Boolean(data.hasMore));
         setFacets(data.facets ?? null);
         setCounts(data.counts ?? null);
@@ -481,21 +485,86 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     return `/app/track/inbox/${encodeURIComponent(n.issue.id)}?${sp.toString()}`;
   };
 
-  /** Abre el aviso (Enter, clic, o J/K con el panel abierto) y lo marca leído. */
-  const openRow = (n: Notification, how: 'push' | 'replace' = 'push') => {
+  // Escritorio (lista y panel lado a lado) o teléfono (el issue ocupa la página).
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  // En el teléfono la lista se esconde: se guarda dónde estaba para volver ahí al cerrar.
+  const listScroll = useRef<number | null>(null);
+  const rememberScroll = () => {
+    if (!window.matchMedia('(min-width: 1024px)').matches && !openIssue) listScroll.current = window.scrollY;
+  };
+
+  /**
+   * Abre el aviso (Enter, clic, o J/K con el panel abierto) y lo marca leído.
+   * Con un panel ya abierto reemplaza (no suma historial, como J/K).
+   */
+  const openRow = (n: Notification) => {
     if (!n.read_at) void setRead(n, true);
     const href = rowHref(n);
-    if (how === 'replace') router.replace(href, { scroll: false });
-    else router.push(href, { scroll: false });
+    if (!n.issue) {
+      router.push(href);
+      return;
+    }
+    rememberScroll();
+    const scroll = !window.matchMedia('(min-width: 1024px)').matches;
+    if (openIssue) router.replace(href, { scroll });
+    else router.push(href, { scroll });
   };
+  // J/K con el panel abierto: la fila se mueve al instante y el panel la sigue un momento después
+  // (mantener J apretada no pide un issue por fila).
+  const follow = useRef<number | null>(null);
+  const openSoon = (n: Notification) => {
+    if (follow.current) window.clearTimeout(follow.current);
+    follow.current = window.setTimeout(() => {
+      follow.current = null;
+      openRow(n);
+    }, 150);
+  };
+  useEffect(() => () => {
+    if (follow.current) window.clearTimeout(follow.current);
+  }, []);
 
   // El aviso abierto queda marcado en la lista (al llegar por un link también).
   useEffect(() => {
     if (openNote) setActive(openNote);
   }, [openNote]);
 
+  // Al cerrar el panel: el foco vuelve a la fila y, en el teléfono, la lista a donde estaba.
+  const lastOpen = useRef<string | null>(null);
+  useEffect(() => {
+    if (openNote) {
+      lastOpen.current = openNote;
+      return;
+    }
+    if (openIssue || !lastOpen.current) return;
+    const id = lastOpen.current;
+    lastOpen.current = null;
+    const y = listScroll.current;
+    listScroll.current = null;
+    requestAnimationFrame(() => {
+      if (y !== null) window.scrollTo(0, y);
+      rowEl(id)?.querySelector<HTMLElement>('.track-inbox-link')?.focus({ preventScroll: y !== null });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIssue, openNote]);
+
+  // Un issue borrado desde el panel: sus avisos salen de la lista.
+  useEffect(() => {
+    const onDeleted = (e: Event) => {
+      const issueId = (e as CustomEvent<{ issueId: string }>).detail?.issueId;
+      if (issueId) setRows((prev) => prev.filter((x) => x.issue?.id !== issueId));
+    };
+    window.addEventListener('zs:track-issue-deleted', onDeleted);
+    return () => window.removeEventListener('zs:track-issue-deleted', onDeleted);
+  }, []);
+
   // Darse de baja del issue desde la fila (y volver a seguirlo), como Linear.
-  const [subs, setSubs] = useState<Record<string, boolean>>({});
   const isSubscribed = (n: Notification) => (n.issue ? (subs[n.issue.id] ?? n.issue.subscribed ?? true) : false);
   useEffect(() => {
     const onChange = (e: Event) => {
@@ -542,6 +611,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     if (inPane && !onLink && !inRow) {
       if (e.key !== 'j' && e.key !== 'k') return;
     } else if (!onLink && !inRow && !free) return;
+    // Con el panel abierto y el foco en ningún lado, solo J/K (Backspace o U no tocan el aviso abierto sin querer).
+    if (openIssue && free && e.key !== 'j' && e.key !== 'k' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     // Un botón de la fila (Posponer, leída, borrar) conserva Enter, espacio y flechas.
     if (inRow && !onLink && (e.key === 'Enter' || e.key === ' ' || e.key.startsWith('Arrow'))) return;
     if (ordered.length === 0) return;
@@ -555,7 +626,7 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
       const next = ordered[down ? Math.min(ordered.length - 1, from + 1) : Math.max(0, from - 1)];
       focusRow(next.id);
       // Con un issue abierto al lado, el panel sigue a la fila (como Linear); los que no son de un issue no se abren solos.
-      if (openIssue && next.issue && next.id !== openNote) openRow(next, 'replace');
+      if (openIssue && next.issue && next.id !== openNote) openSoon(next);
     } else if (!cur) {
       return;
     } else if (k === 'Enter' || k === 'o') {
@@ -661,10 +732,12 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
         </span>
         <Link
           href={rowHref(n)}
-          scroll={n.issue ? false : undefined}
+          scroll={n.issue && wide ? false : undefined}
+          replace={Boolean(n.issue && openIssue)}
           className="track-inbox-link"
           onFocus={() => setActive(n.id)}
           onClick={() => {
+            if (n.issue) rememberScroll();
             if (unread) void setRead(n, true);
           }}
         >
@@ -723,7 +796,7 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
                     className={`track-inline-trigger track-inbox-icon${subscribed ? '' : ' is-off'}`}
                     aria-label={subToggle}
                     title={subToggle}
-                    aria-pressed={!subscribed}
+                    data-subscribed={subscribed ? 'true' : 'false'}
                     onClick={() => void toggleSubscription(n)}
                     data-testid="track-inbox-unsubscribe"
                   >

@@ -168,6 +168,7 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await expect(page).toHaveURL(new RegExp(`/app/track/inbox/${s.issue.id}\\?.*n=${s.status}`), { timeout: 120_000 });
   await expect(page.getByTestId('track-inbox-issue').getByTestId('track-side-status')).toBeVisible({ timeout: 120_000 });
   await expect(row(page, s.status)).toHaveAttribute('data-read', 'true');
+  await expect(row(page, s.status)).toBeVisible();
 });
 
 test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afuera; cinco aspectos, claro y oscuro', async ({ browser, request, baseURL }) => {

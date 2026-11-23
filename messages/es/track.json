@@ -422,7 +422,10 @@
     "panel": {
       "close": "Cerrar",
       "empty": "Elegí un aviso para verlo acá",
-      "label": "Aviso abierto"
+      "label": "Aviso abierto",
+      "missing": "Este issue no se puede abrir acá. Puede que se haya borrado o que sea de otro workspace.",
+      "retry": "Reintentar",
+      "openPage": "Abrir la página del issue"
     }
   },
   "notifications": {

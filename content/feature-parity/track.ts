@@ -230,10 +230,6 @@ const parity: ProductParity = {
       competitorHas: true,
       weight: 2,
     },
-      status: 'partial',
-      competitorHas: true,
-      weight: 2,
-    },
     {
       id: 'email-notifications',
       area: 'collaboration',

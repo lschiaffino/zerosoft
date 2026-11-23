@@ -1183,7 +1183,6 @@ dialog.ui-drawer.track-drawer {
     padding: 24px 0 24px 24px;
     border-left: 1px solid var(--line);
     z-index: 0;
-    container: inbox-pane / inline-size;
   }
 
   .track-inbox-pane-empty {
@@ -1191,11 +1190,14 @@ dialog.ui-drawer.track-drawer {
   }
 
   /* Lista angosta: las acciones de la fila se superponen a la hora al pasar, sin robar ancho. */
+  /* Sin transform: un transform haría de los menús fijos (Posponer) hijos de la fila y se correrían. */
   .track-inbox-split .track-inbox-actions {
     position: absolute;
-    top: 50%;
+    top: 0;
+    bottom: 0;
     right: 4px;
-    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
     background: inherit;
   }
 
@@ -1205,7 +1207,9 @@ dialog.ui-drawer.track-drawer {
     background: var(--ui-selected);
   }
 
+  /* Sin pasar ni foco no se ven (tampoco "Traer de vuelta" en Pospuestos, que taparía la hora). */
   .track-inbox-split .track-inbox-item:not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
+    visibility: hidden;
     pointer-events: none;
   }
 
@@ -1234,36 +1238,47 @@ dialog.ui-drawer.track-drawer {
   }
 }
 
-/* Panel angosto: el issue apila las propiedades como en el teléfono. */
-@container inbox-pane (max-width: 720px) {
-  .track-issue-page .track-detail-grid {
+/* Panel angosto (pantallas de hasta 1599px: el panel queda por debajo de ~720px): el issue apila
+   las propiedades como en el teléfono. Media query y no container query: un contenedor de tamaño
+   haría del panel el bloque de los menús fijos del issue y los cortaría. */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .track-inbox-pane .track-issue-page .track-detail-grid {
     grid-template-columns: 1fr;
   }
 
-  .track-issue-page .track-detail-main {
+  .track-inbox-pane .track-issue-page .track-detail-main {
     padding: 8px 0 24px;
   }
 
-  .track-issue-page .track-detail-side {
+  .track-inbox-pane .track-issue-page .track-detail-side {
     padding: 12px 0;
     border-top: 1px solid var(--line);
     border-left: 0;
   }
 
-  .track-issue-page .track-side {
+  .track-inbox-pane .track-issue-page .track-side {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 6px;
   }
 
-  .track-issue-page .track-prop-chip {
+  .track-inbox-pane .track-issue-page .track-prop-chip {
     margin-left: 0;
     border: 1px solid var(--line);
   }
 
-  .track-issue-page .track-prop-group {
+  .track-inbox-pane .track-issue-page .track-prop-group {
     padding: 0;
   }
+}
+
+/* El issue que no se puede abrir en el panel (borrado, de otro workspace). */
+.track-inbox-pane-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 0;
 }
 
 /* ---------- Detalle del issue ----------
@@ -3595,4 +3610,10 @@ body:has(.track-bulk-bar) .track-undo-toasts { bottom: 72px; }
     max-width: none;
     max-height: 60vh;
   }
+}
+
+.track-inbox-pane-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

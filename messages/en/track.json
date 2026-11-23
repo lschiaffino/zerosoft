@@ -422,7 +422,10 @@
     "panel": {
       "close": "Close",
       "empty": "Select a notification to see it here",
-      "label": "Opened notification"
+      "label": "Opened notification",
+      "missing": "This issue can't be opened here. It may have been deleted, or it belongs to another workspace.",
+      "retry": "Try again",
+      "openPage": "Open issue page"
     }
   },
   "notifications": {

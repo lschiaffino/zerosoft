@@ -733,7 +733,11 @@ export default function IssueDetailClient({
       },
       restore: () => router.push(`/app/track/issues/${id}`),
     });
-    router.push(panel ? inboxHref() : teamPath(teamKeyOf(issue)));
+    if (panel) {
+      // La bandeja saca de la lista los avisos de este issue (InboxClient).
+      window.dispatchEvent(new CustomEvent('zs:track-issue-deleted', { detail: { issueId: id } }));
+      router.replace(inboxHref(), { scroll: false });
+    } else router.push(teamPath(teamKeyOf(issue)));
   }
 
   // ⌘⌫ borra (con confirmación), ⌘⇧, copia el link y ⌘⇧↑ abre el padre, como en Linear.
@@ -1089,7 +1093,8 @@ export default function IssueDetailClient({
         // En el panel, cierra el panel y la bandeja sigue donde estaba.
         e.preventDefault();
         if (panel) {
-          router.push(inboxHref(), { scroll: false });
+          // Cerrar no suma historial: Atrás no vuelve a abrir el panel.
+          router.replace(inboxHref(), { scroll: false });
           return;
         }
         restoreCursorOnReturn(issueRef.current.id);
@@ -1309,7 +1314,7 @@ export default function IssueDetailClient({
               <button
                 type="button"
                 className="btn btn-ghost btn-icon track-head-icon track-panel-close"
-                onClick={() => router.push(inboxHref(), { scroll: false })}
+                onClick={() => router.replace(inboxHref(), { scroll: false })}
                 aria-label={t('inbox.panel.close')}
                 title={`${t('inbox.panel.close')} · Esc`}
                 aria-keyshortcuts="Escape"

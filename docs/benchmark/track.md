@@ -14,7 +14,7 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 
 ### Tanda T3 (2026-11-23)
 
-- **Inbox vuelve a tiene:** abrir un aviso muestra el issue al lado de la lista (la lista queda, J/K mueven el panel, Esc y la cruz lo cierran) y a página completa en el teléfono; dejar de seguir el issue desde la fila (ícono o menú "…") o desde el issue abierto, sincronizados. Falta: los avisos de projects e iniciativas abren su página, no el panel.
+- **Inbox vuelve a tener:** abrir un aviso muestra el issue al lado de la lista (la lista queda, J/K mueven el panel, Esc y la cruz lo cierran) y a página completa en el teléfono; dejar de seguir el issue desde la fila (ícono o menú "…") o desde el issue abierto, sincronizados. Falta: los avisos de projects e iniciativas abren su página, no el panel.
 
 > **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 

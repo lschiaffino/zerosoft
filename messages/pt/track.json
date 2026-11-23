@@ -422,7 +422,10 @@
     "panel": {
       "close": "Fechar",
       "empty": "Escolha um aviso para ver aqui",
-      "label": "Aviso aberto"
+      "label": "Aviso aberto",
+      "missing": "Este issue não pode ser aberto aqui. Pode ter sido excluído ou ser de outro workspace.",
+      "retry": "Tentar de novo",
+      "openPage": "Abrir a página do issue"
     }
   },
   "notifications": {
