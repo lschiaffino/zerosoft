@@ -68,7 +68,9 @@ async function tapTargets(page: Page) {
   expect(small).toEqual([]);
 }
 
-async function demo(): Promise<string> {
+/** El id de la persona de prueba. Primero un pedido: si este spec corre primero, así ya existe (y la base, migrada). */
+async function demo(request: APIRequestContext): Promise<string> {
+  expect((await request.get(`/api/groups/brief?day=${new Date().toISOString().slice(0, 10)}`)).ok()).toBe(true);
   const [u] = await sql("SELECT id FROM users WHERE email = 'demo@zerosoft.ai'");
   return String(u.id);
 }
@@ -93,7 +95,7 @@ for (const width of [1280, 390]) {
   test(`Lines: el resumen del día arriba de la bandeja (${width})`, async ({ page, request }) => {
     test.setTimeout(300_000);
     const errors = watchErrors(page);
-    const me = await demo();
+    const me = await demo(request);
     await sql("DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = 'lines'", [me]);
     const n = await fakeLinesNumber(request);
     const tag = uid();
@@ -141,7 +143,7 @@ for (const width of [1280, 390]) {
   test(`Inbox: el resumen del día arriba de la bandeja (${width})`, async ({ page, request }) => {
     test.setTimeout(300_000);
     const errors = watchErrors(page);
-    const me = await demo();
+    const me = await demo(request);
     await sql("DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = 'inbox'", [me]);
     await request.post('/api/inbox/whatsapp', waLinkIp());
     await expect.poll(async () => ((await (await request.get('/api/inbox/whatsapp')).json()) as { state: { status: string } }).state.status, { timeout: 10_000 }).toBe('connected');
@@ -182,9 +184,9 @@ for (const width of [1280, 390]) {
   });
 }
 
-test('Ajustes › Avisos: el email del resumen del día se prende y queda', async ({ page }) => {
+test('Ajustes › Avisos: el email del resumen del día se prende y queda', async ({ page, request }) => {
   test.setTimeout(180_000);
-  const me = await demo();
+  const me = await demo(request);
   await sql('DELETE FROM daily_brief_prefs WHERE user_id = ?', [me]);
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
