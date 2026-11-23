@@ -1383,6 +1383,10 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-empty-thread,
 .gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep > span,
 .gr-inbox[data-chat-style='zerosoft'] .wa-unread-sep { background: transparent; }
+/* Agregar miembros e Invitar con link: el círculo es --wa-primary (la tinta en este estilo), así que el ícono va en el fondo; con --wa-badge-ink quedaba negro sobre negro en claro. */
+.gr-inbox[data-chat-style='zerosoft'] .wa-gm-action-icon { color: var(--bg); }
+/* La fecha que queda pegada arriba mientras se desplaza pasa por encima de los mensajes: sin fondo, su texto se encimaba con el de las burbujas. */
+.gr-inbox[data-chat-style='zerosoft'] .wa-day.is-stuck > span { background: var(--wa-system-chip); border-radius: var(--radius-1); box-shadow: 0 0 0 1px var(--line); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-quote { border-radius: var(--radius-1); border-left-width: 2px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-reactions { border-color: var(--line); border-radius: var(--radius-1); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-unread,
@@ -1888,6 +1892,8 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
   color: var(--wa-badge-ink, var(--bg)); background: var(--wa-primary, var(--ink));
 }
 .wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
+/* Acción secundaria (Actualizar en Lines): misma fila y alineación, ícono sin relleno. */
+.wa-gm-action.is-quiet .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-2)); background: none; box-shadow: inset 0 0 0 1px var(--line); }
 .wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
 .wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border: 1px solid var(--line); border-radius: var(--radius-1); }
 .wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
