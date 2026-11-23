@@ -3,7 +3,7 @@ import { createTicket, listTickets, type TicketQuery } from '@/lib/groups-ticket
 import type { PropertyFilter } from '@/lib/groups';
 import { TICKET_STATUSES, type TicketPriority } from '@/lib/groups-rules';
 import { chatGuard, groupsSession, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
-import { ticketsForViewer } from '@/lib/groups-access';
+import { maskTicket, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 
 export const runtime = 'nodejs';
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     if (res.created) {
       await recordAudit(s.ws, { chatId: res.ticket.chatId, chatName: res.ticket.chatName, actorId: s.me, action: 'ticket_created', detail: { number: res.ticket.number } });
     }
-    return NextResponse.json(res.ticket, { status: res.created ? 201 : 200 });
+    return NextResponse.json(maskTicket(guard.viewer, res.ticket), { status: res.created ? 201 : 200 });
   } catch (err) {
     return handleGroupsError(err);
   }
