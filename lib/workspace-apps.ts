@@ -9,6 +9,7 @@ import { isAdminEmail } from './feedback';
 import { isE2eTestEnv } from './e2e-env';
 import { isComingSoon, type ProductKey } from './products';
 import { cleanFeaturedApps } from './featured-apps';
+import type { TeamRole } from './teams';
 
 function parseIds(raw: unknown): string[] {
   try {
@@ -133,6 +134,22 @@ export async function blockedAppsFor(
   const needsTeams = Object.values(rules).some((r) => r?.mode === 'some') && subject.role !== 'owner' && subject.role !== 'admin';
   const teamIds = needsTeams ? await personTeamIds(subject.ownerId, subject.personId, db) : [];
   return blockedApps({ role: subject.role, personId: subject.personId, teamIds, staff: isStaff(subject.email) }, rules);
+}
+
+/**
+ * ¿La persona puede usar la app en el workspace, fuera de un pedido (avisos y
+ * emails del cron)? Las tres capas, como la sesión: sigue en el workspace,
+ * sus apps de Miembros y Apps del workspace (blockedAppsFor).
+ */
+export async function personCanUseApp(ownerId: string, personId: string, app: ProductKey, db: Db = getDb()): Promise<{ role: TeamRole } | null> {
+  const { personAppAccess } = await import('./api-auth');
+  const access = await personAppAccess(ownerId, personId).catch(() => null);
+  if (!access) return null;
+  const { canUseApp } = await import('./workspace');
+  if (!canUseApp({ role: access.role, apps: access.apps as never }, app)) return null;
+  const email = (await db.prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined;
+  const blocked = await blockedAppsFor({ ownerId, personId, role: access.role, email: email?.email ?? null }, db);
+  return blocked.includes(app) ? null : { role: access.role };
 }
 
 /** Solo plataforma (sin base): para quien no tiene workspace resuelto todavía. */

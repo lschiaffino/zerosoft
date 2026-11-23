@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 import { getDb } from './db';
 import { GroupsError, sendMessage } from './groups';
-import { canSeeChat, type GroupsViewer } from './groups-access';
+import { canSeeChat, chatAccessSql, type GroupsViewer } from './groups-access';
 import { phoneDigits } from './groups-provider';
 
 const TYPES: Record<string, 'company' | 'deal' | 'contact'> = {
@@ -108,18 +108,21 @@ export async function sendFromHubspotWorkflow(viewer: GroupsViewer, actor: strin
   const db = getDb();
   type Row = { id: string; kind: 'dm' | 'group'; number_id: string };
   let rows: Row[] = [];
+  // Solo los chats que la persona de la key ve (líneas y etiquetas): los otros ni se cuentan ni ocupan lugar.
+  const access = chatAccessSql(viewer, 'c');
+  const seen = access ? { sql: ` AND ${access.sql}`, args: access.args } : { sql: '', args: [] as string[] };
   if (input.objectId) {
     rows = (await db
       .prepare(
         `SELECT c.id, c.kind, c.number_id FROM groups_hubspot_links l JOIN groups_chats c ON c.id = l.chat_id
-         WHERE l.user_id = ? AND l.object_id = ?${input.objectType ? ' AND l.object_type = ?' : ''} ORDER BY c.last_message_at DESC LIMIT 200`,
+         WHERE l.user_id = ? AND l.object_id = ?${input.objectType ? ' AND l.object_type = ?' : ''}${seen.sql} ORDER BY c.last_message_at DESC LIMIT 200`,
       )
-      .all(ws, input.objectId, ...(input.objectType ? [input.objectType] : []))) as Row[];
+      .all(ws, input.objectId, ...(input.objectType ? [input.objectType] : []), ...seen.args)) as Row[];
   }
   if (rows.length === 0 && input.phone.length >= 8) {
     rows = (await db
-      .prepare("SELECT id, kind, number_id FROM groups_chats WHERE user_id = ? AND kind = 'dm' AND phone = ? ORDER BY last_message_at DESC LIMIT 20")
-      .all(ws, input.phone)) as Row[];
+      .prepare(`SELECT c.id, c.kind, c.number_id FROM groups_chats c WHERE c.user_id = ? AND c.kind = 'dm' AND c.phone = ?${seen.sql} ORDER BY c.last_message_at DESC LIMIT 20`)
+      .all(ws, input.phone, ...seen.args)) as Row[];
     // Un mismo teléfono en varias líneas: se le escribe una vez, por la del último mensaje (o la pedida).
     if (!input.line) rows = rows.slice(0, 1);
   }
