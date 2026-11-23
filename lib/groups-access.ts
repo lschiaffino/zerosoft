@@ -353,18 +353,57 @@ export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: s
   };
 }
 
+/** Una persona de un aviso de grupo (agregó, sacó, …) con el teléfono oculto: se muestra su nombre o el teléfono enmascarado. */
+function maskSysPerson(v: unknown): unknown {
+  const x = v as { p?: unknown; n?: unknown } | null;
+  if (!x || typeof x.p !== 'string' || !/^\d{5,20}$/.test(x.p)) return v;
+  return { p: maskField(x.p), n: typeof x.n === 'string' && x.n ? x.n : maskPhone(x.p) };
+}
+
+/**
+ * Las menciones por teléfono ("@<teléfono>": las de la lista del mensaje que
+ * no son lid, o las que la libreta resolvió a ese mismo teléfono): en el
+ * texto van con el nombre si se sabe, si no con el teléfono enmascarado, y
+ * salen de la lista. Las de un lid (no es un teléfono) quedan como están.
+ */
+function maskPhoneMentions(m: MessageDto, meta: Record<string, unknown>) {
+  const listed = Array.isArray(meta.mentions) ? (meta.mentions as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+  const names = m.mentionNames ?? {};
+  const phones = new Set<string>([...listed.filter((x) => /^\d{5,20}$/.test(x)), ...Object.entries(names).filter(([d, t]) => t.phone === d).map(([d]) => d)]);
+  const body = phones.size ? m.body.replace(/(^|[^\w@])@(\d{5,20})(?!\d)/g, (all, pre: string, d: string) => (phones.has(d) ? `${pre}@${names[d]?.name || maskPhone(d)}` : all)) : m.body;
+  const mentionNames = Object.fromEntries(
+    Object.entries(names)
+      .filter(([d]) => !phones.has(d))
+      .map(([d, t]) => [d, { ...t, phone: t.phone ? maskField(t.phone) : '' }]),
+  );
+  return { body, mentionNames, mentions: listed.filter((x) => !phones.has(x)) };
+}
+
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
   if (!viewer?.mask) return m;
+  const meta = (m.meta ?? {}) as Record<string, unknown>;
+  const sys = meta.sys as { by?: unknown; who?: unknown } | undefined;
+  const mention = maskPhoneMentions(m, meta);
+  const { mentions: _mentions, ...restMeta } = meta;
   return {
     ...m,
     senderPhone: m.senderPhone ? maskField(m.senderPhone) : '',
     reactions: m.reactions.map((r) => ({ ...r, by: /^\d{6,}$/.test(r.by) ? maskPhone(r.by) : r.by })),
     // Tarjetas de contacto: los teléfonos también van ocultos ("Mensaje" usa el mensaje y la tarjeta, no el número).
     ...(m.contacts ? { contacts: m.contacts.map((c) => ({ ...c, phones: c.phones.map(maskField) })) } : {}),
-    // El teléfono de una persona mencionada también va oculto (la mención se muestra con el nombre o con el teléfono enmascarado).
-    ...(m.mentionNames
-      ? { mentionNames: Object.fromEntries(Object.entries(m.mentionNames).map(([d, t]) => [d, { ...t, phone: t.phone ? maskField(t.phone) : '' }])) }
-      : {}),
+    // Menciones: sin el teléfono en el texto ni en la lista; la persona mencionada por lid, con su teléfono enmascarado.
+    body: mention.body,
+    ...(m.mentionNames ? { mentionNames: mention.mentionNames } : {}),
+    // Avisos del grupo (agregó, sacó, …) sin teléfonos.
+    meta: {
+      ...restMeta,
+      ...(mention.mentions.length ? { mentions: mention.mentions } : {}),
+      ...(sys && typeof sys === 'object'
+        ? { sys: { ...sys, ...(sys.by ? { by: maskSysPerson(sys.by) } : {}), ...(Array.isArray(sys.who) ? { who: sys.who.map(maskSysPerson) } : {}) } }
+        : {}),
+    },
+    // La respuesta que cita un mensaje de otro chat: el teléfono de quien lo mandó, oculto.
+    ...(m.replyQuote ? { replyQuote: { ...m.replyQuote, senderPhone: m.replyQuote.senderPhone ? maskField(m.replyQuote.senderPhone) : '' } } : {}),
   };
 }
 
