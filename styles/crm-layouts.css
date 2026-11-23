@@ -91,3 +91,8 @@
 @media (max-width: 520px) {
   .layout-row .create-form-tools { grid-column: auto; justify-content: flex-end; }
 }
+
+/* Cola de trabajo: el nombre y el email del contacto, uno debajo del otro, con área táctil de 40px en el teléfono. */
+@media (max-width: 640px) {
+  .wq-record dd > a { display: inline-flex; align-items: center; min-height: 40px; }
+}
