@@ -20,6 +20,8 @@ export interface SheetSharedItem {
   fromMe: boolean;
   senderName: string;
   urls?: string[];
+  /** Qué es (para nombrar un destacado sin texto). */
+  kind?: 'image' | 'video' | 'audio' | 'document' | 'sticker';
 }
 
 type View = 'main' | 'shared' | 'starred';

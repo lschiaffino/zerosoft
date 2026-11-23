@@ -1899,7 +1899,7 @@ button.wa-rx-row:disabled { cursor: progress; opacity: 0.6; }
 }
 .wa-gm-action:disabled .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-3)); background: var(--wa-row-hover, var(--bg-soft)); }
 /* Acción secundaria (Actualizar en Lines): misma fila y alineación, ícono sin relleno. */
-.wa-gm-action.is-quiet .wa-gm-action-icon { color: var(--wa-text-2, var(--ink-2)); background: none; box-shadow: inset 0 0 0 1px var(--line); }
+/* Actualizar (.is-quiet) lleva el mismo círculo lleno que Agregar miembros e Invitar con link: una sola columna de acciones. */
 .wa-gm-note { margin: 0; font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.4; color: var(--wa-text-2, var(--ink-2)); }
 .wa-gm-note.is-warn { padding: 8px 10px; color: var(--wa-text, var(--ink)); background: var(--wa-row-hover, var(--bg-soft)); border: 1px solid var(--line); border-radius: var(--radius-1); }
 .wa-gm-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
@@ -1992,3 +1992,48 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 /* Reportar un mensaje (Lines e Inbox): el texto y la casilla de bloquear o salir, con aire entre los dos. */
 .wa-report-body { display: grid; gap: 12px; }
 .wa-report-body p { margin: 0; }
+
+/* ---------- Panel del chat con pestañas (components/groups/wa/DetailsTabs.tsx, Lines e Inbox) ---------- */
+/* Una fila de pestañas con ícono y nombre, pegada arriba mientras se desplaza el panel (como Periskope). */
+.wa-dtabs-wrap { display: flex; flex-direction: column; min-width: 0; }
+.wa-dtabs {
+  position: sticky; top: 0; z-index: 4; display: flex; min-width: 0;
+  background: var(--wa-panel); border-bottom: 1px solid var(--wa-border);
+}
+.wa-dtab {
+  position: relative; display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 0; min-height: 52px; padding: 6px 2px 5px; color: var(--wa-text-2); background: none; border: 0;
+  border-bottom: 2px solid transparent; font: inherit; font-size: 0.6875rem; line-height: 1.2; cursor: pointer;
+}
+.wa-dtab:hover { color: var(--wa-text); background: var(--wa-row-hover); }
+.wa-dtab.is-on { color: var(--wa-text); border-bottom-color: var(--wa-primary); font-weight: 500; }
+.wa-dtab:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: -2px; }
+.wa-dtab-icon { display: inline-flex; color: inherit; }
+.wa-dtab.is-on .wa-dtab-icon { color: var(--wa-primary); }
+.wa-dtab-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wa-dtab-count {
+  position: absolute; top: 4px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px;
+  font-size: 0.625rem; font-weight: 500; line-height: 16px; text-align: center; color: var(--wa-text-2);
+  background: var(--wa-chip-bg); border-radius: var(--radius-1);
+}
+.wa-dtab-panel[hidden] { display: none !important; }
+.gr-details .wa-dtab-panel { display: flex; flex-direction: column; }
+/* Inbox: las tarjetas del panel con su separación de siempre. */
+.ib-wa-details-body .wa-dtab-panel { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.ib-wa-details-body .wa-dtabs-wrap { flex: 1 0 auto; }
+.ib-wa-details-body .wa-shared .gr-detail-section { padding: 12px 20px 14px; background: var(--wa-panel); }
+.ib-wa-details-body .wa-shared { display: flex; flex-direction: column; gap: 10px; }
+/* Lo compartido dentro de una pestaña: las sub-pestañas no se pegan arriba (ya están las del panel) y las filas
+   van al ras de la sección. */
+.wa-shared .wa-sheet-tabs { position: static; margin: 0 0 4px; }
+.wa-shared .wa-sheet-grid { padding: 4px 0; background: transparent; }
+.wa-shared .wa-sheet-row { padding-inline: 0; }
+.wa-shared .wa-sheet-empty { margin: 8px 0; }
+.gr-deal-list li { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.gr-deal-list li[data-state='lost'] a { color: var(--wa-text-2); }
+.ib-wa-notes .textarea { width: 100%; min-height: 120px; }
+/* Teléfono: el panel de Lines ocupa la pantalla entera (Inbox ya lo hace), con las pestañas al alcance. */
+@media (max-width: 640px) {
+  .gr-inbox .gr-details.is-open { left: 0; width: 100vw; border-left: 0; box-shadow: none; }
+  .wa-dtab { min-height: 56px; font-size: 0.75rem; }
+}
