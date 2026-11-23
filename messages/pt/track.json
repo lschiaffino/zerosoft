@@ -1834,7 +1834,20 @@
         "week": "Última semana",
         "none": "Nenhum"
       },
-      "showEmptyGroups": "Mostrar grupos vazios"
+      "showEmptyGroups": "Mostrar grupos vazios",
+      "groupReorder": "Reordenar {name}",
+      "groupReorderHint": "Arraste para reordenar, ou use as setas",
+      "groupMenu": "Opções de {name}",
+      "groupMoveUp": "Mover para cima",
+      "groupMoveDown": "Mover para baixo",
+      "groupMoveLeft": "Mover para a esquerda",
+      "groupMoveRight": "Mover para a direita",
+      "groupMoveTop": "Mover para o início",
+      "groupMoveBottom": "Mover para o fim",
+      "groupMoveStart": "Mover para a primeira",
+      "groupMoveEnd": "Mover para a última",
+      "groupOrderReset": "Restaurar ordem",
+      "groupsReordered": "Grupos reordenados"
     },
     "team": {
       "all": "Todos os issues",

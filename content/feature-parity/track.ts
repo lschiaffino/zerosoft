@@ -609,7 +609,8 @@ const parity: ProductParity = {
       id: 'reorder-groups-drag',
       area: 'views',
       label: { en: 'Reorder groups and board columns by dragging', es: 'Reordenar grupos y columnas arrastrando', pt: 'Reordenar grupos e colunas arrastando' },
-      status: 'missing',
+      detail: { en: 'Drag a group header or board column by its handle (mouse or touch), arrow keys on the handle, or Move up, down, to top, to bottom and Reset order in the group menu; remembered per view, saved and shared with saved views, ⌘Z undoes it. Sub-groups keep their natural order', es: 'Arrastrar el encabezado de un grupo o una columna desde su asa (mouse o dedo), flechas con el asa enfocada, o Mover arriba, abajo, al principio, al final y Restablecer orden en el menú del grupo; recordado por vista, guardado y compartido con las vistas guardadas, ⌘Z lo deshace. Los sub-grupos mantienen su orden natural', pt: 'Arrastar o cabeçalho de um grupo ou uma coluna pela alça (mouse ou toque), setas com a alça em foco, ou Mover para cima, para baixo, para o início, para o fim e Restaurar ordem no menu do grupo; lembrado por visualização, salvo e compartilhado com as visualizações salvas, ⌘Z desfaz. Os subgrupos mantêm a ordem natural' },
+      status: 'have',
       competitorHas: true,
     },
     {
