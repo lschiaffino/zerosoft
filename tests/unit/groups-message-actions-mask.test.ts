@@ -118,6 +118,16 @@ describe('Lines: acciones sobre un mensaje con la máscara de quien pide', () =>
     const log = (await getDb().prepare("SELECT detail FROM groups_audit WHERE chat_id = ? AND action = 'ticket_updated'").all(s.dm.id)) as Array<{ detail: string }>;
     expect(log.length).toBeGreaterThan(0);
     for (const l of log) expect(l.detail).not.toContain('title');
+    // El registro del chat, leído por quien no ve teléfonos: sin el teléfono (ni en el detalle de un renombre).
+    await getDb()
+      .prepare("INSERT INTO groups_audit (id, user_id, chat_id, chat_name, actor_id, actor_kind, action, detail, created_at) VALUES (?, ?, ?, ?, ?, 'user', 'renamed', ?, ?)")
+      .run(crypto.randomUUID(), s.ws, s.dm.id, `+${SENDER}`, s.ws, JSON.stringify({ from: `+${SENDER}`, to: 'Client' }), new Date().toISOString());
+    const auditRoute = await import('@/app/api/groups/audit/route');
+    const audit = await auditRoute.GET(new Request(`http://localhost/api/groups/audit?chat=${s.dm.id}`));
+    expect(audit.status).toBe(200);
+    const auditText = await audit.text();
+    expect(auditText).toContain('renamed');
+    bodies.push(auditText);
     for (const text of bodies) expect(text).not.toContain(SENDER);
     expect(bodies[0]).toContain('"senderPhone"');
   });
