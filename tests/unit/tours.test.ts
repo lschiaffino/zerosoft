@@ -186,6 +186,22 @@ describe('tours: registro y rutas', () => {
     expect(ids(stepsFor(TOURS.pulse, { audience: null, admin: true, touch: true }))).toEqual(steps);
   });
 
+  it('el tour de Agents arranca en la lista y sigue en el editor del agente que se abre; es igual para todos', () => {
+    expect(tourForPath('/app/agents')?.key).toBe('agents');
+    expect(tourForPath('/es/app/agents/agt_abc123')?.key).toBe('agents');
+    expect(tourForPath('/app/agents/settings')?.key).toBe('agents');
+    expect(tourForPath('/app/agentsx')).toBeNull();
+    expect(atTourStart(TOURS.agents, '/pt/app/agents')).toBe(true);
+    expect(atTourStart(TOURS.agents, '/app/agents/agt_abc123')).toBe(false);
+    expect(atTourStart(TOURS.agents, '/app/agents/settings')).toBe(false);
+    // Lista primero; abrir un agente (un clic en una fila) va antes del editor.
+    const steps = ids([...TOURS.agents.steps]);
+    expect(steps).toEqual(['intro', 'newAgent', 'templates', 'openAgent', 'configure', 'playground', 'conversations', 'done']);
+    expect(TOURS.agents.steps.find((s) => s.id === 'openAgent')).toMatchObject({ advanceOn: 'click' });
+    expect(ids(stepsFor(TOURS.agents, { audience: 'team', admin: false }))).toEqual(steps);
+    expect(ids(stepsFor(TOURS.agents, { audience: null, admin: true, touch: true }))).toEqual(steps);
+  });
+
   it('el tour de Talk arranca en /app/talk o en el canal al que pasa solo, no en ajustes ni analíticas', () => {
     expect(tourForPath('/app/talk')?.key).toBe('talk');
     expect(tourForPath('/es/app/talk/abc123')?.key).toBe('talk');

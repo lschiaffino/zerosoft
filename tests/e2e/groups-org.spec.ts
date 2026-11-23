@@ -401,7 +401,8 @@ test('tareas: desde un mensaje, en el chat y en Tareas, con aviso a su hora', as
   await msg.getByRole('button', { name: 'More actions' }).click();
   await page.getByRole('menuitem', { name: 'Task', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Task from message' });
-  await expect(dialog.getByLabel('Task')).toHaveValue(body);
+  // Exacto: el selector de a quién se le asigna lista a las personas del workspace, y alguna puede llamarse "…task…".
+  await expect(dialog.getByRole('textbox', { name: 'Task', exact: true })).toHaveValue(body);
   await dialog.getByRole('button', { name: 'In 1 hour' }).click();
   await dialog.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText('Task created')).toBeVisible();

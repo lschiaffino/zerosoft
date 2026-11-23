@@ -37,18 +37,57 @@ function post(body: Record<string, unknown>) {
 
 /** A la vista: pintado, con tamaño y dentro del ancho de la ventana (un drawer cerrado no cuenta). */
 function onScreen(el: HTMLElement): boolean {
+  if (!painted(el)) return false;
+  const r = el.getBoundingClientRect();
+  return r.right > 0 && r.left < window.innerWidth;
+}
+
+/** Pintado y con tamaño, esté o no dentro del ancho de la ventana. */
+function painted(el: HTMLElement): boolean {
   if (el.closest('[inert]')) return false;
   const check = (el as HTMLElement & { checkVisibility?: (o?: Record<string, boolean>) => boolean }).checkVisibility;
   if (typeof check === 'function' && !check.call(el, { checkOpacity: true, checkVisibilityCSS: true })) return false;
   const r = el.getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return false;
-  return r.right > 0 && r.left < window.innerWidth;
+  return r.width >= 2 && r.height >= 2;
 }
 
-function findTarget(step: TourStep | undefined): HTMLElement | null {
+/** La fila que se desplaza de costado (pestañas en el teléfono) donde está el elemento, si hay. */
+function sideScroller(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (p.scrollWidth <= p.clientWidth) continue;
+    const ox = getComputedStyle(p).overflowX;
+    if (ox === 'auto' || ox === 'scroll') return p;
+  }
+  return null;
+}
+
+/** Desplaza esa fila hasta que el elemento se vea entero (estaba cortado o afuera). */
+function revealInRow(el: HTMLElement): void {
+  const p = sideScroller(el);
+  if (!p) return;
+  const pr = p.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const delta = r.left < pr.left ? r.left - pr.left - 8 : r.right > pr.right ? r.right - pr.right + 8 : 0;
+  if (delta) p.scrollTo({ left: p.scrollLeft + delta, behavior: 'instant' });
+}
+
+/**
+ * El elemento del paso. `reveal`: es el paso que se muestra, y uno cortado o
+ * afuera en una fila desplazable se trae a la vista. Sin `reveal` (contar los
+ * pasos que faltan) no mueve nada: uno así cuenta porque se va a poder traer.
+ */
+function findTarget(step: TourStep | undefined, reveal = false): HTMLElement | null {
   for (const name of step?.targets ?? []) {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${name}"]`))) {
-      if (onScreen(el)) return el;
+      if (onScreen(el)) {
+        if (reveal) revealInRow(el);
+        return el;
+      }
+      if (painted(el) && sideScroller(el)) {
+        if (!reveal) return el;
+        revealInRow(el);
+        if (onScreen(el)) return el;
+      }
     }
   }
   return null;
@@ -218,7 +257,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
     let alive = true;
     const tick = () => {
       if (!alive) return;
-      const el = findTarget(s);
+      const el = findTarget(s, true);
       if (el) {
         const r = el.getBoundingClientRect();
         if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
