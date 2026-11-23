@@ -71,6 +71,19 @@ export function isOwnUploadUrl(url: string): boolean {
   }
 }
 
+/**
+ * Un archivo de /api/files que se registra (o se borra) como documento o
+ * video del CRM tiene que ser de este workspace y de la carpeta del CRM: uno
+ * de otra app o de otro workspace no se acepta ni se borra desde acá. Las
+ * URLs de antes, como siempre.
+ */
+async function isCrmMediaFile(workspaceId: string, url: string): Promise<boolean> {
+  if (!isFileUrlPath(url)) return true;
+  const { ownedFileRow } = await import('./files/store');
+  const row = await ownedFileRow(url, { workspaceId });
+  return !!row && row.workspace_id === workspaceId && row.folder === 'crm';
+}
+
 // ============================================================
 // Documentos
 // ============================================================
@@ -113,7 +126,7 @@ export async function createDocument(
   userId: string,
   input: { name: string; filename: string; url: string; size: number; createdBy: string },
 ): Promise<DocumentRow> {
-  if (!isOwnUploadUrl(input.url)) throw new MediaError('invalid_file');
+  if (!isOwnUploadUrl(input.url) || !(await isCrmMediaFile(userId, input.url))) throw new MediaError('invalid_file');
   const id = crypto.randomUUID();
   const name = (input.name.trim() || input.filename.replace(/\.pdf$/i, '') || 'Document').slice(0, 200);
   await getDb()
@@ -135,7 +148,7 @@ export async function deleteDocument(userId: string, id: string): Promise<boolea
   const doc = await getDocument(userId, id);
   if (!doc) return false;
   await getDb().prepare('DELETE FROM crm_documents WHERE id = ? AND user_id = ?').run(id, userId);
-  await deleteUploads([doc.url]);
+  if (await isCrmMediaFile(userId, doc.url)) await deleteUploads([doc.url]);
   return true;
 }
 
@@ -407,7 +420,7 @@ export async function createVideo(
   userId: string,
   input: { title: string; url: string; contentType: string; size: number; durationSec?: number; contactId?: string | null; message?: string; createdBy: string },
 ): Promise<VideoListItem> {
-  if (!isOwnUploadUrl(input.url)) throw new MediaError('invalid_file');
+  if (!isOwnUploadUrl(input.url) || !(await isCrmMediaFile(userId, input.url))) throw new MediaError('invalid_file');
   const contactId = await assertContact(userId, input.contactId);
   const id = crypto.randomUUID();
   await getDb()
@@ -465,7 +478,7 @@ export async function deleteVideo(userId: string, id: string): Promise<boolean> 
   const v = await getVideo(userId, id);
   if (!v) return false;
   await getDb().prepare('DELETE FROM crm_videos WHERE id = ? AND user_id = ?').run(id, userId);
-  await deleteUploads([v.url]);
+  if (await isCrmMediaFile(userId, v.url)) await deleteUploads([v.url]);
   return true;
 }
 

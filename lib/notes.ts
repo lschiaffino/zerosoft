@@ -784,11 +784,24 @@ async function trashedAttachmentUrls(owner: NoteOwner, id: string | null): Promi
   return [...urls];
 }
 
-/** Saca los adjuntos que otra nota del workspace sigue usando (por ejemplo una copia de la nota). */
+/**
+ * Saca los adjuntos que otra nota o una página de Docs del workspace siguen
+ * usando (por ejemplo una copia de la nota) y los archivos que no subió esta
+ * persona en este workspace para Notes (una URL pegada de otra app, de otra
+ * persona o de otro workspace no se borra al vaciar la papelera).
+ */
 async function unreferencedUrls(owner: NoteOwner, urls: string[]): Promise<string[]> {
   const db = getDb();
   const out: string[] = [];
+  const { ownedFileRow } = await import('./files/store');
+  const { isFileUrlPath } = await import('./files/url');
   for (const url of urls) {
+    if (isFileUrlPath(url)) {
+      const row = await ownedFileRow(url, { userId: owner.personId });
+      if (!row || row.workspace_id !== owner.workspaceId || row.folder !== 'docs' || row.app === 'docs') continue;
+    }
+    const inDocs = await db.prepare('SELECT 1 AS x FROM docs_pages WHERE user_id = ? AND instr(content, ?) > 0 LIMIT 1').get(owner.workspaceId, url);
+    if (inDocs) continue;
     const hit = await db
       .prepare('SELECT 1 AS x FROM notes WHERE workspace_id = ? AND instr(content, ?) > 0 LIMIT 1')
       .get(owner.workspaceId, url);
