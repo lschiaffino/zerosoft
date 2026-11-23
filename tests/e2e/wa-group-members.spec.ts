@@ -174,6 +174,11 @@ for (const width of [1280, 390]) {
       return { color: cs.color, background: cs.backgroundColor };
     });
     expect(icon.color, JSON.stringify(icon)).not.toBe(icon.background);
+    // Actualizar lleva el mismo círculo lleno que Agregar miembros (antes era un aro gris).
+    const circles = await page.evaluate(() =>
+      ['group-add-members', 'group-sync-members'].map((id) => getComputedStyle(document.querySelector<HTMLElement>(`aside.gr-details [data-testid="${id}"] .wa-gm-action-icon`)!).backgroundColor),
+    );
+    expect(circles[1]).toBe(circles[0]);
 
     // Un grupo donde la línea entró con un link: no es admin.
     const join = await request.post('/api/groups/join', { data: { numberId: line.id, invite: `https://chat.whatsapp.com/E2eNoAdmin${uid()}` } });
