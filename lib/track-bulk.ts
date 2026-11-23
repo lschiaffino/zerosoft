@@ -14,7 +14,6 @@ import { getDb } from './db';
 import type { TrackProjectRow } from './db';
 import {
   canAccessTrackProject,
-  createIssueRelation,
   deleteIssueTree,
   getIssue,
   getProject,
@@ -25,6 +24,7 @@ import {
 } from './track-data';
 import { labelsByIds, parseIssueLabels, projectWorkspaceId } from './track-labels';
 import { currentTrackViewer, projectVisibleTo } from './track-access';
+import { markIssueDuplicate } from './track-duplicates';
 import type { BulkIssuesPayload, IssueUpdatePayload, TriageActionPayload } from './track-schema';
 
 export interface BulkResult {
@@ -297,9 +297,6 @@ export async function resolveTriage(
     return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };
   }
 
-  const cancelled = await firstStatusOf(issue.project_id, 'cancelled');
-  if (!cancelled) return { ok: false, reason: 'no_cancelled_status' };
-
   if (action.action === 'duplicate') {
     const original = action.duplicateOfId
       ? await getIssue(action.duplicateOfId)
@@ -319,12 +316,16 @@ export async function resolveTriage(
       const viewer = await currentTrackViewer();
       if (viewer && !(await projectVisibleTo(b.id, viewer))) return { ok: false, reason: 'invalid_duplicate' };
     }
-    if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
-    await createIssueRelation(issue.id, actorId, original.id, 'duplicates').catch(() => undefined);
-    await updateIssue(issue.id, { statusId: cancelled }, actorId);
-    return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };
+    // Como Linear: el estado Duplicate del team, la relación, suscriptos y pedidos al original (lib/track-duplicates).
+    const fresh = await getIssue(issue.id);
+    if (!fresh?.triage) return { ok: false, reason: 'not_in_triage' };
+    const marked = await markIssueDuplicate(issue.id, original.id, actorId);
+    if (!marked.ok) return { ok: false, reason: 'invalid_duplicate' };
+    return { ok: true, issue: marked.issue };
   }
 
+  const cancelled = await firstStatusOf(issue.project_id, 'cancelled');
+  if (!cancelled) return { ok: false, reason: 'no_cancelled_status' };
   if (!(await claimTriage(issue.id))) return { ok: false, reason: 'not_in_triage' };
   await updateIssue(issue.id, { statusId: cancelled }, actorId);
   return { ok: true, issue: (await getIssue(issue.id)) as TrackIssueWithStatus };

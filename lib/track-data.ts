@@ -2050,6 +2050,12 @@ export async function deleteIssueTree(id: string): Promise<string[]> {
     .all(id)) as Array<{ url: string }>;
   // Un solo DELETE: atómico, y las filas hijas de otras tablas se borran por FK.
   await db.prepare(`DELETE FROM track_issues WHERE id IN (${ISSUE_TREE_CTE} SELECT id FROM tree)`).run(id);
+  // Marcas de duplicado (lib/track-duplicates) de o hacia los borrados: no quedan colgando.
+  const marks = ids.map(() => '?').join(', ');
+  await db
+    .prepare(`DELETE FROM track_issue_duplicates WHERE issue_id IN (${marks}) OR original_id IN (${marks})`)
+    .run(...ids, ...ids)
+    .catch(() => undefined);
   await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (snapshot) notifyTrackEvent({ type: 'issue.deleted', issue: snapshot, count: ids.length });
   return ids;
@@ -2584,6 +2590,8 @@ export async function deleteIssueRelation(id: string, issueId: string, userId: s
     .prepare('DELETE FROM track_issue_relations WHERE id = ? AND (issue_id = ? OR related_issue_id = ?)')
     .run(id, issueId, issueId);
   if (res.changes === 0) return false;
+  // Sin la relación, la marca de duplicado (lib/track-duplicates) deja de existir; el estado queda.
+  await db.prepare('DELETE FROM track_issue_duplicates WHERE relation_id = ?').run(id).catch(() => undefined);
   const actorIssueId = row.issue_id === issueId ? issueId : row.issue_id;
   await createIssueActivity(actorIssueId, userId, 'relation_removed', {
     relatedIssueId: otherIssueId,

@@ -410,7 +410,7 @@ export async function decideSuggestion(
   const s = suggestions.find((x) => x.id === suggestionId);
   if (!s || s.status !== 'pending') return suggestions;
   if (decision === 'accept') {
-    const { getIssue, updateIssue, createIssueRelation } = await import('./track-data');
+    const { getIssue, updateIssue } = await import('./track-data');
     const issue = await getIssue(issueId);
     if (!issue) return suggestions;
     const via = { source: 'triage' as const, author: 'Triage AI' };
@@ -420,12 +420,13 @@ export async function decideSuggestion(
       const current = parseIssueLabels(issue.labels).map((l) => ({ id: l.id }));
       if (!current.some((l) => l.id === s.value)) await updateIssue(issueId, { labels: [...current, { id: s.value }].slice(0, 10) }, actorId, { via });
     } else if (s.kind === 'duplicate') {
+      // Como Linear: aceptar la sugerencia lo marca como duplicado (estado Duplicate, suscriptos y pedidos al original).
       if (issue.triage === 1) {
         const { resolveTriage } = await import('./track-bulk');
-        const res = await resolveTriage(issue, { action: 'duplicate', duplicateOfId: s.value }, actorId);
-        if (res.ok) await (await import('./track-customers')).moveRequests(issueId, s.value);
+        await resolveTriage(issue, { action: 'duplicate', duplicateOfId: s.value }, actorId);
       } else {
-        await createIssueRelation(issueId, actorId, s.value, 'duplicates').catch(() => undefined);
+        const { markIssueDuplicate } = await import('./track-duplicates');
+        await markIssueDuplicate(issueId, s.value, actorId, { via });
       }
     }
   }

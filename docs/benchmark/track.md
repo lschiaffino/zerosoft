@@ -106,7 +106,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents. (T3) Atajos 1/2/3/H como Linear, snooze y comentario al resolver |
 | Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
-| Estado Duplicado que pasa el contexto al original | falta | (2026-11-23) Marcar duplicado suma la relación y cancela; comentarios, adjuntos y suscriptos quedan en el duplicado |
+| Estado Duplicado que pasa el contexto al original | tiene | (T4, 2026-11-23) Desde ⌘K, el menú del issue, M M o triage: estado Duplicate del team (tipo cancelado, se crea la primera vez), relación, suscriptos que ven el original y pedidos de clientes pasan a él, y el original recibe un resumen (título, extracto, comentarios y archivos). Aviso en el duplicado con link y Quitar; ⌘Z deshace todo. Comentarios y adjuntos quedan en el duplicado; el texto de un team privado (o que un invitado no ve) no se copia. M B, M X y M R suman relaciones |
 | Formularios de pedidos a triage | falta | (2026-11-23) |
 | Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
 
