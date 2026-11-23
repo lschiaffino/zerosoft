@@ -263,10 +263,11 @@ export async function deleteUploads(urls: string[]): Promise<void> {
 /**
  * deleteUploads para URLs que llegaron del cliente (o se guardaron desde él):
  * un archivo de /api/files se borra solo si es de `owner` (ownedFileRow) y,
- * con `folder`, si está en esa carpeta (lo de una app no se borra desde
- * otra); uno ajeno queda como está. Las URLs de antes (Blob, /uploads) siguen igual.
+ * con `folder` o `app`, si es de esa carpeta o app (lo de una app no se
+ * borra desde otra); uno ajeno queda como está. Las URLs de antes (Blob,
+ * /uploads) siguen igual.
  */
-export async function deleteOwnedUploads(owner: FileOwner, urls: string[], opts: { folder?: string } = {}): Promise<void> {
+export async function deleteOwnedUploads(owner: FileOwner, urls: string[], opts: { folder?: string; app?: string } = {}): Promise<void> {
   const { ownedFileRow } = await import('./files/store');
   const keep: string[] = [];
   for (const url of urls) {
@@ -276,7 +277,7 @@ export async function deleteOwnedUploads(owner: FileOwner, urls: string[], opts:
       continue;
     }
     const row = await ownedFileRow(url, owner);
-    if (row && (!opts.folder || row.folder === opts.folder)) keep.push(url);
+    if (row && (!opts.folder || row.folder === opts.folder) && (!opts.app || row.app === opts.app)) keep.push(url);
   }
   if (keep.length) await deleteUploads(keep);
 }

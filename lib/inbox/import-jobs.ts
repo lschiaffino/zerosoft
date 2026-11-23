@@ -288,7 +288,7 @@ export async function setImportState(owner: string, id: string, action: 'pause' 
       .run(nowS, id);
   else {
     const r = await db.prepare(`UPDATE inbox_imports SET status = 'cancelled', finished_at = ?, updated_at = ? WHERE id = ? AND status IN ${ACTIVE.replace(')', ",'failed')")}`).run(nowS, nowS, id);
-    if (r.changes && job.kind === 'file' && job.source_url) await deleteOwnedUploads({ userId: owner }, [job.source_url], { folder: 'inbox' });
+    if (r.changes && job.kind === 'file' && job.source_url) await deleteOwnedUploads({ userId: owner }, [job.source_url], { app: 'inbox' });
   }
   return dto(await getJob(owner, id));
 }
@@ -556,7 +556,7 @@ async function stepFile(job: JobRow, deadline: number, now: Date): Promise<void>
   const done = cursor.offset >= size;
   progress.failures = 0;
   await save(job, { status: done ? 'done' : 'running', cursor, progress }, now);
-  if (done) await deleteOwnedUploads({ userId: job.owner_id }, [job.source_url], { folder: 'inbox' });
+  if (done) await deleteOwnedUploads({ userId: job.owner_id }, [job.source_url], { app: 'inbox' });
 }
 
 /** Un paso de una importación (si nadie la tiene tomada). Devuelve cómo quedó. */
