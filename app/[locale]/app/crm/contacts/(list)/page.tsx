@@ -1,5 +1,5 @@
 import { listSequences } from '@/lib/crm-sequences';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, redactRow, scoreSqlRules, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
@@ -188,6 +188,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     filters: advancedCount ? filterModel : undefined,
     filterEnv: { viewerId: realUserId(user), timeZone, strictCustom: true },
     customTypes,
+    // Con campos ocultos: orden y filtros por el score que la persona ve.
+    scoreRules: scoreSqlRules(fieldAccess.hidden),
     sort: sort as ContactFilter['sort'],
     page,
     pageSize,
@@ -210,7 +212,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     .filter((cf) => cf.options.length > 0);
 
   const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
-  const tableRows: ContactRow[] = rows.map((c) => ({
+  // El score de cada fila sin los puntos de reglas sobre campos que la persona tiene ocultos (como la ficha).
+  const tableRows: ContactRow[] = rows.map((r) => redactRow(r, fieldAccess.hidden)).map((c) => ({
     id: c.id,
     name: `${c.first_name} ${c.last_name}`.trim() || c.email || '—',
     email: c.email,

@@ -275,7 +275,10 @@ export default async function ContactDetailPage(props: {
   const nextTask = nextTaskRaw && (!scope || (await canSeeActivity(user.id, nextTaskRaw.id, scope))) ? nextTaskRaw : null;
   const aiSummary = scope && aiSummaryRaw?.stale ? null : aiSummaryRaw;
   const primaryScore = scores.find((x) => x.isPrimary);
-  const primaryTier = primaryScore ? scoreTier(contact.score ?? 0, primaryScore.thresholds) : null;
+  // El total y el tramo que ve la persona: sin los puntos de reglas sobre sus campos ocultos (contactScores).
+  const primaryView = scoreViews.find((x) => x.isPrimary);
+  const primaryValue = primaryView?.score ?? contact.score ?? 0;
+  const primaryTier = primaryScore ? scoreTier(primaryValue, primaryScore.thresholds) : null;
   const timelineItems = timelinePage.items;
   const recordFiles = recordFilesRaw.map(toView);
   const companies = companiesPage.rows;
@@ -442,7 +445,7 @@ export default async function ContactDetailPage(props: {
           <div>
             <dt>{primaryScore?.name ?? t('scoring.column')}</dt>
             <dd className="num">
-              {contact.score ?? 0}
+              {primaryValue}
               {primaryTier && <span className="score-tier">{primaryTier}</span>}
             </dd>
           </div>
