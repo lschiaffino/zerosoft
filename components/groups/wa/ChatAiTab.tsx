@@ -111,7 +111,7 @@ export default function ChatAiTab({
     { key: '7', label: t('week') },
     { key: '30', label: t('month') },
   ];
-  const rangeName = (key: RangeKey) => (key === 'unread' ? t('unread') : ranges.find((r) => r.key === key)?.label ?? '');
+  const rangeName = (key: RangeKey) => t(`rangeNames.${key === 'unread' ? 'unread' : key === '1' ? 'day' : key === '7' ? 'week' : 'month'}`);
   const insights = result?.insights ?? null;
   const off = ai === 'off' || ai === 'not_configured';
 
@@ -210,7 +210,7 @@ export default function ChatAiTab({
               <ul className="wa-ai-list">
                 {insights.commitments.map((c, i) => (
                   <li key={i} dir="auto">
-                    <span className="wa-ai-who">{c.who === 'us' ? t('us') : t('them')}</span> {c.text}
+                    <span className="wa-ai-who">{c.who === 'us' ? t('us') : t('them')}:</span> {c.text}
                   </li>
                 ))}
               </ul>
