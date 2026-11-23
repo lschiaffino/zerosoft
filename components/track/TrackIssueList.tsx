@@ -438,7 +438,11 @@ export default function TrackIssueList({
     () => (scope.projectId ? allReleases.filter((r) => r.project_id === scope.projectId) : allReleases),
     [allReleases, scope.projectId],
   );
-  const filterReleases = useMemo(() => releases.map((r) => ({ id: r.id, name: releaseLabel(r) })), [releases]);
+  // Con varios teams, el team al lado (dos teams pueden tener un "2.0").
+  const filterReleases = useMemo(
+    () => releases.map((r) => ({ id: r.id, name: scope.projectId ? releaseLabel(r) : `${releaseLabel(r)} · ${r.team_name}` })),
+    [releases, scope.projectId],
+  );
 
   // Totales del server con las claves de los grupos (status de varios teams: por nombre).
   const byName = !singleTeam;

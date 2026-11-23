@@ -10,6 +10,7 @@ export interface ReleaseOption {
   version: string;
   status: 'planned' | 'in_progress' | 'released';
   project_id: string;
+  team_name: string;
 }
 
 // Una sola carga por página para todos los que la piden (sidebar del issue, ⌘K, filtros).
@@ -17,9 +18,9 @@ let cache: Promise<ReleaseOption[]> | null = null;
 
 function load(): Promise<ReleaseOption[]> {
   if (!cache) {
-    cache = fetch('/api/track/releases')
+    cache = fetch('/api/track/releases?options=1')
       .then((r) => (r.ok ? (r.json() as Promise<{ rows: ReleaseOption[] }>) : { rows: [] }))
-      .then((d) => d.rows.map(({ id, name, version, status, project_id }) => ({ id, name, version, status, project_id })))
+      .then((d) => d.rows)
       .catch(() => {
         cache = null;
         return [];
@@ -47,10 +48,18 @@ export function useReleases(enabled = true): ReleaseOption[] {
     let alive = true;
     const run = () => void load().then((r) => alive && setRows(r));
     run();
+    // Releases de otros (un compañero creó uno): se vuelven a pedir al volver a la pestaña.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      cache = null;
+      run();
+    };
     window.addEventListener(TRACK_RELEASES_CHANGED, run);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       alive = false;
       window.removeEventListener(TRACK_RELEASES_CHANGED, run);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [enabled]);
   return rows;

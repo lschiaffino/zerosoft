@@ -99,6 +99,7 @@ test('lista y release: crear, sumar issues, avance, notas, renombrar y borrar', 
   await page.getByTestId('track-release-issue').filter({ hasText: s.b.identifier }).hover();
   await page.getByTestId('track-release-issue').filter({ hasText: s.b.identifier }).getByTestId('track-release-issue-remove').click();
   await expect(page.getByTestId('track-release-issue')).toHaveCount(1);
+  await expect.poll(async () => (await issueOf(request, s.b.id)).release_id ?? null).toBeNull();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.getByTestId('track-release-issue')).toHaveCount(2);
@@ -117,7 +118,7 @@ test('lista y release: crear, sumar issues, avance, notas, renombrar y borrar', 
   const renamed = page.getByTestId('track-release-row').filter({ hasText: `Mobile app ${s.tag}` });
   await renamed.locator('.track-release-row-more').click();
   await page.getByTestId('track-release-delete').click();
-  await page.getByRole('button', { name: 'Delete release' }).last().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete release' }).click();
   await expect(page.getByTestId('track-release-row').filter({ hasText: `Mobile app ${s.tag}` })).toHaveCount(0);
   expect((await issueOf(request, s.a.id)).release_id ?? null).toBeNull();
 });

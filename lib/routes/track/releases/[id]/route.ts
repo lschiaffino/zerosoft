@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
 import { deleteRelease, getAccessibleRelease, listReleaseIssues, updateRelease } from '@/lib/track-releases';
 import { releaseUpdateSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,12 +29,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   return NextResponse.json(again?.release ?? null);
 }
 
-/** Borra el release; sus issues quedan sin release. */
+/** Borra el release; sus issues quedan sin release. Como cycles y milestones, solo admins. */
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const found = await getAccessibleRelease((await props.params).id, user.team?.id ?? null, user.id);
   if (!found) return notFound();
+  if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
   await deleteRelease(found.release.id);
   return NextResponse.json({ ok: true });
 }

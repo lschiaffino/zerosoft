@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
@@ -47,6 +48,7 @@ export default function ReleasesPage({
   openNew,
   defaultTeam,
   title,
+  canDelete = false,
 }: {
   locale: string;
   initialReleases: TrackReleaseWithProgress[];
@@ -54,6 +56,8 @@ export default function ReleasesPage({
   openNew: boolean;
   defaultTeam?: string;
   title: string;
+  /** Borrar es de admins, como cycles y milestones. */
+  canDelete?: boolean;
 }) {
   const t = useTranslations('track.releases');
   const router = useRouter();
@@ -81,13 +85,15 @@ export default function ReleasesPage({
     return () => window.removeEventListener(TRACK_RELEASES_CHANGED, on);
   }, [reload]);
 
-  // ?new=1 se consume una vez (recargar no vuelve a abrir el alta).
+  // ?new=1 (⌘K › New release) abre el alta, también estando ya en esta página, y se consume:
+  // recargar no la vuelve a abrir.
+  const searchParams = useSearchParams();
+  const wantsNew = searchParams.get('new') === '1';
   useEffect(() => {
-    if (!openNew) return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete('new');
-    window.history.replaceState(window.history.state, '', url.pathname + url.search);
-  }, [openNew]);
+    if (!wantsNew) return;
+    if (teams.length > 0) setCreating(true);
+    router.replace('/app/track/releases', { scroll: false });
+  }, [wantsNew, teams.length, router]);
 
   const rename = async (r: TrackReleaseWithProgress, name: string) => {
     setRenaming(null);
@@ -195,7 +201,7 @@ export default function ReleasesPage({
                         <span className="data">{pct}%</span>
                       </span>
                       <span className="track-release-row-count data">{t('issueCount', { count: Number(r.total) })}</span>
-                      <Popover ariaLabel={t('more')} className="btn btn-ghost btn-icon track-release-row-more" trigger={<TrackIcon name="more" size={14} />}>
+                      <Popover ariaLabel={t('moreOf', { name: releaseLabel(r) })} className="btn btn-ghost btn-icon track-release-row-more" trigger={<TrackIcon name="more" size={14} />}>
                         {(close) => (
                           <>
                             <button
@@ -211,18 +217,20 @@ export default function ReleasesPage({
                             >
                               <span className="track-menu-label">{t('rename')}</span>
                             </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="track-menu-item is-danger"
-                              data-testid="track-release-delete"
-                              onClick={() => {
-                                close();
-                                setDeleting(r);
-                              }}
-                            >
-                              <span className="track-menu-label">{t('delete')}</span>
-                            </button>
+                            {canDelete && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="track-menu-item is-danger"
+                                data-testid="track-release-delete"
+                                onClick={() => {
+                                  close();
+                                  setDeleting(r);
+                                }}
+                              >
+                                <span className="track-menu-label">{t('delete')}</span>
+                              </button>
+                            )}
                           </>
                         )}
                       </Popover>

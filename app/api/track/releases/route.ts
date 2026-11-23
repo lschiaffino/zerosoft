@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { canAccessTrackProject, getProject } from '@/lib/track-data';
-import { createRelease, listReleases, RELEASE_STATUSES, type ReleaseStatus } from '@/lib/track-releases';
+import { createRelease, listReleaseOptions, listReleases, RELEASE_STATUSES, type ReleaseStatus } from '@/lib/track-releases';
 import { releaseCreateSchema } from '@/lib/track-schema';
 import { invalidBody, trackError, unauthorized } from '@/lib/track-http';
 
@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const sp = req.nextUrl.searchParams;
+  // ?options=1: lo justo para los selectores (sin conteos).
+  if (sp.get('options') === '1') return NextResponse.json({ rows: await listReleaseOptions(user.team?.id ?? null, user.id) });
   const status = sp.get('status');
   const rows = await listReleases(user.team?.id ?? null, user.id, {
     projectId: sp.get('projectId') ?? undefined,

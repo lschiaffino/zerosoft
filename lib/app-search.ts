@@ -157,15 +157,15 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   // Track como Linear: también vistas guardadas, cycles, milestones (del team y del project) y labels.
   const ws = teamId ?? user.id;
   const planWhere = teamId ? 'pl.team_id = ?' : '(pl.team_id IS NULL AND pl.owner_id = ?)';
-  // Releases (lib/track-releases): de los teams que la persona ve, por nombre o versión.
-  const releases = await all(
-    `SELECT r.id, TRIM(r.name || ' ' || r.version) AS label, '' AS meta FROM track_releases r JOIN track_projects p ON p.id = r.project_id
-     WHERE ${projectWhere} AND (r.name LIKE ? ESCAPE '\\' OR r.version LIKE ? ESCAPE '\\') ORDER BY r.created_at DESC LIMIT ?`,
-    ...projectArgs,
-    like,
-    like,
-  );
-  const [views, cycles, milestones, planMilestones, labels] = await Promise.all([
+  const [releases, views, cycles, milestones, planMilestones, labels] = await Promise.all([
+    // Releases (lib/track-releases): de los teams que la persona ve, por nombre o versión.
+    all(
+      `SELECT r.id, TRIM(r.name || ' ' || r.version) AS label, '' AS meta FROM track_releases r JOIN track_projects p ON p.id = r.project_id
+       WHERE ${projectWhere} AND (r.name LIKE ? ESCAPE '\\' OR r.version LIKE ? ESCAPE '\\') ORDER BY r.created_at DESC LIMIT ?`,
+      ...projectArgs,
+      like,
+      like,
+    ),
     all(
       `SELECT v.id, v.name AS label, v.project_id AS meta FROM track_issue_views v JOIN track_projects p ON p.id = v.project_id
        WHERE ${projectWhere} AND (v.user_id = ? OR v.shared = 1) AND v.name LIKE ? ESCAPE '\\' ORDER BY v.name LIMIT ?`,

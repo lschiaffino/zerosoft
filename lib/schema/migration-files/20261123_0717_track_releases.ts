@@ -23,7 +23,7 @@ export default {
   up: async (c) => {
     await c.execute(`CREATE TABLE IF NOT EXISTS track_releases (
       id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
+      project_id TEXT NOT NULL REFERENCES track_projects(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       version TEXT NOT NULL DEFAULT '',
       target_date TEXT,
@@ -36,7 +36,7 @@ export default {
       updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )`);
     await c.execute('CREATE INDEX IF NOT EXISTS idx_track_releases_project ON track_releases(project_id, status)');
-    await addColumn(c, 'ALTER TABLE track_issues ADD COLUMN release_id TEXT');
+    await addColumn(c, 'ALTER TABLE track_issues ADD COLUMN release_id TEXT REFERENCES track_releases(id) ON DELETE SET NULL');
     await c.execute('CREATE INDEX IF NOT EXISTS idx_track_issues_release ON track_issues(release_id)');
   },
 } satisfies Migration;

@@ -2028,6 +2028,7 @@
     "back": "Releases",
     "teamFilter": "Todos os teams",
     "loading": "Carregando releases…",
-    "property": "Release"
+    "property": "Release",
+    "moreOf": "Opções de {name}"
   }
 }

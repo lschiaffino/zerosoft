@@ -451,6 +451,11 @@ export function revertPatchFields(
     r.plan_name = prev.plan_name;
   }
   if (patch.labels !== undefined) r.labels = prev.labels;
+  if (patch.releaseId !== undefined) {
+    r.release_id = prev.release_id;
+    r.release_name = prev.release_name;
+    r.release_version = prev.release_version;
+  }
   if (patch.cycleId !== undefined) {
     r.cycle_id = prev.cycle_id;
     r.cycle_name = prev.cycle_name;

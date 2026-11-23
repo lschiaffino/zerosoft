@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -34,10 +34,13 @@ export default function ReleasePage({
   locale,
   initialRelease,
   initialIssues,
+  canDelete = false,
 }: {
   locale: string;
   initialRelease: TrackReleaseWithProgress;
   initialIssues: TrackIssueWithStatus[];
+  /** Borrar es de admins, como cycles y milestones. */
+  canDelete?: boolean;
 }) {
   const t = useTranslations('track.releases');
   const router = useRouter();
@@ -50,6 +53,14 @@ export default function ReleasePage({
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [adding, setAdding] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
+  // Al sacar un issue, el foco no se pierde: va a la fila siguiente (o al botón de sumar).
+  const focusAfterRemove = () => {
+    const active = document.activeElement as HTMLElement | null;
+    const row = active?.closest('[data-testid="track-release-issue"]');
+    const next = (row?.nextElementSibling ?? row?.previousElementSibling) as HTMLElement | null;
+    window.requestAnimationFrame(() => (next?.querySelector<HTMLElement>('a') ?? addRef.current)?.focus());
+  };
 
   const reload = useCallback(async () => {
     const res = await fetch(`/api/track/releases/${initialRelease.id}`).catch(() => null);
@@ -100,6 +111,9 @@ export default function ReleasePage({
 
   const removeIssue = async (issue: TrackIssueWithStatus, opts: { undo?: boolean } = {}) => {
     setIssues((list) => list.filter((i) => i.id !== issue.id));
+    // ⌘Z se registra en el momento (no al volver la respuesta), como el resto de Track.
+    if (opts.undo !== false) pushUndo(t('removed', { id: issue.identifier }), () => void addIssues([issue.id], { undo: false }));
+    focusAfterRemove();
     const res = await fetch(`/api/track/releases/${release.id}/issues`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,7 +125,6 @@ export default function ReleasePage({
       return;
     }
     void reload();
-    if (opts.undo !== false) pushUndo(t('removed', { id: issue.identifier }), () => void addIssues([issue.id], { undo: false }));
   };
 
   const addIssues = async (ids: string[], opts: { undo?: boolean } = {}) => {
@@ -209,19 +222,23 @@ export default function ReleasePage({
                 <span className="track-menu-label">{t('autoGithub')}</span>
                 {Boolean(release.auto_github) && <TrackIcon name="check" size={14} />}
               </button>
-              <div className="track-menu-sep" role="separator" />
-              <button
-                type="button"
-                role="menuitem"
-                className="track-menu-item is-danger"
-                data-testid="track-release-delete"
-                onClick={() => {
-                  close();
-                  setDeleting(true);
-                }}
-              >
-                <span className="track-menu-label">{t('delete')}</span>
-              </button>
+              {canDelete && (
+                <>
+                  <div className="track-menu-sep" role="separator" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="track-menu-item is-danger"
+                    data-testid="track-release-delete"
+                    onClick={() => {
+                      close();
+                      setDeleting(true);
+                    }}
+                  >
+                    <span className="track-menu-label">{t('delete')}</span>
+                  </button>
+                </>
+              )}
             </>
           )}
         </Popover>
@@ -282,14 +299,7 @@ export default function ReleasePage({
             <label htmlFor="track-release-date">{t('targetDate')}</label>
           </dt>
           <dd>
-            <input
-              id="track-release-date"
-              type="date"
-              className="input track-release-date"
-              value={release.target_date ?? ''}
-              data-testid="track-release-date-input"
-              onChange={(e) => void patch({ targetDate: e.target.value || null }, { target_date: e.target.value || null })}
-            />
+            <DateField value={release.target_date ?? ''} onSave={(v) => void patch({ targetDate: v || null }, { target_date: v || null })} />
           </dd>
         </div>
         <div className="track-release-prop">
@@ -327,7 +337,14 @@ export default function ReleasePage({
             <h2 id="track-release-issues-title">
               {t('issues')} <span className="track-mytasks-count">{issues.length}</span>
             </h2>
-            <button type="button" className="btn btn-sm" onClick={() => setAdding((v) => !v)} aria-expanded={adding} data-testid="track-release-add">
+            <button
+              type="button"
+              ref={addRef}
+              className="btn btn-sm"
+              onClick={() => setAdding((v) => !v)}
+              aria-expanded={adding}
+              data-testid="track-release-add"
+            >
               <TrackIcon name="plus" size={13} />
               {t('addIssues')}
             </button>
@@ -338,7 +355,11 @@ export default function ReleasePage({
               exclude={new Set(issues.map((i) => i.id))}
               hint={t('addIssuesHint', { team: release.team_name })}
               onPick={(id) => void addIssues([id])}
-              onClose={() => setAdding(false)}
+              toggle={addRef}
+              onClose={() => {
+                setAdding(false);
+                addRef.current?.focus();
+              }}
             />
           )}
           {issues.length === 0 ? (
@@ -387,7 +408,9 @@ export default function ReleasePage({
               onSubmit={(e) => {
                 e.preventDefault();
                 setEditingNotes(false);
-                void patch({ notes: notesDraft }, { notes: notesDraft });
+                // Sin cambios, siguen siendo las generadas (se actualizan con los issues).
+                const next = notesDraft.trim() === generated.trim() ? null : notesDraft;
+                if (next !== release.notes) void patch({ notes: next }, { notes: next });
               }}
             >
               <textarea
@@ -481,6 +504,35 @@ export default function ReleasePage({
   );
 }
 
+/** Fecha que guarda al salir o con Enter (no en cada tecla: tipear el año manda fechas a medias). */
+function DateField({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    if (draft !== value && (draft === '' || /^\d{4}-\d{2}-\d{2}$/.test(draft))) onSave(draft);
+  };
+  return (
+    <input
+      id="track-release-date"
+      type="date"
+      className="input track-release-date"
+      value={draft}
+      data-testid="track-release-date-input"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setDraft(value);
+        }
+      }}
+    />
+  );
+}
+
 /** Campo que guarda al salir o con Enter (Esc deshace lo tipeado). */
 function InlineField({ id, value, placeholder, maxLength, onSave }: { id: string; value: string; placeholder: string; maxLength: number; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(value);
@@ -517,15 +569,20 @@ function IssuePicker({
   hint,
   onPick,
   onClose,
+  toggle,
 }: {
   projectId: string;
   exclude: Set<string>;
   hint: string;
   onPick: (id: string) => void;
   onClose: () => void;
+  /** El botón que abre y cierra el buscador: un clic ahí no cuenta como "afuera". */
+  toggle: RefObject<HTMLButtonElement | null>;
 }) {
   const [q, setQ] = useState('');
-  const [rows, setRows] = useState<TrackIssueWithStatus[]>([]);
+  // Las filas son de una búsqueda: Enter solo suma si ya llegaron las del texto actual.
+  const [result, setResult] = useState<{ q: string; rows: TrackIssueWithStatus[] }>({ q: '\u0000', rows: [] });
+  const rows = result.rows;
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let alive = true;
@@ -534,7 +591,7 @@ function IssuePicker({
       if (q.trim()) sp.set('q', q.trim());
       const res = await fetch(`/api/track/issues?${sp.toString()}`).catch(() => null);
       if (!alive || !res?.ok) return;
-      setRows(((await res.json()) as { rows: TrackIssueWithStatus[] }).rows);
+      setResult({ q, rows: ((await res.json()) as { rows: TrackIssueWithStatus[] }).rows });
     }, 150);
     return () => {
       alive = false;
@@ -544,11 +601,13 @@ function IssuePicker({
   // Clic afuera cierra, como los menús.
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (!boxRef.current?.contains(e.target as Node)) onClose();
+      const target = e.target as Node;
+      if (boxRef.current?.contains(target) || toggle.current?.contains(target)) return;
+      onClose();
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [onClose]);
+  }, [onClose, toggle]);
   const visible = rows.filter((r) => !exclude.has(r.id));
   return (
     <div className="track-release-picker" ref={boxRef} data-testid="track-release-picker">
@@ -565,7 +624,7 @@ function IssuePicker({
             e.preventDefault();
             e.stopPropagation();
             onClose();
-          } else if (e.key === 'Enter' && visible[0]) {
+          } else if (e.key === 'Enter' && visible[0] && result.q === q) {
             e.preventDefault();
             onPick(visible[0].id);
           }

@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { requireUser } from '@/lib/session';
+import { isWorkspaceAdmin, requireUser } from '@/lib/session';
 import { listProjects } from '@/lib/track-data';
 import { listReleases } from '@/lib/track-releases';
 import ReleasesPage from '@/components/track/ReleasesPage';
@@ -24,6 +24,7 @@ export default async function Page(props: { params: Promise<{ locale: string }>;
       openNew={sp.new === '1'}
       defaultTeam={sp.team}
       title={t('title')}
+      canDelete={isWorkspaceAdmin(user)}
     />
   );
 }

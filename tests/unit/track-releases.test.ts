@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/db';
 import { addMember, createTeam } from '@/lib/teams';
@@ -7,6 +7,7 @@ import { runAsTrackViewer, setGuest, setProjectVisibility } from '@/lib/track-ac
 import { attachMergedIssue, createRelease, generateReleaseNotes, listReleases } from '@/lib/track-releases';
 import { bulkEditIssues } from '@/lib/track-bulk';
 import { groupIssues } from '@/lib/track-views';
+import { searchApps } from '@/lib/app-search';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
@@ -56,6 +57,10 @@ async function setup() {
   };
   return { owner, member, guest, stranger, team, web, api, secret, as };
 }
+
+afterEach(() => {
+  session.user = null;
+});
 
 describe('Track: Releases', () => {
   it('crear, listar, editar, sumar issues, notas y borrar; avance como Linear', async () => {
@@ -113,6 +118,9 @@ describe('Track: Releases', () => {
     // Sacar un issue y borrar el release: los issues quedan sin release.
     expect((await issuesRoute.POST(json('POST', { issueIds: [c.id], remove: true }), params(release.id))).status).toBe(200);
     expect((await getIssue(c.id))!.release_id ?? null).toBeNull();
+    // Borrar es de admins (como cycles y milestones): el miembro recibe 403.
+    expect((await oneRoute.DELETE(json('DELETE'), params(release.id))).status).toBe(403);
+    session.user = s.as.owner;
     expect((await oneRoute.DELETE(json('DELETE'), params(release.id))).status).toBe(200);
     expect((await getIssue(a.id))!.release_id ?? null).toBeNull();
     expect((await oneRoute.GET(json('GET'), params(release.id))).status).toBe(404);
@@ -152,6 +160,23 @@ describe('Track: Releases', () => {
     expect(guestRows).toEqual([webRelease.id]);
     expect((await oneRoute.GET(json('GET'), params(apiRelease.id))).status).toBe(404);
     expect((await oneRoute.GET(json('GET'), params(webRelease.id))).status).toBe(200);
+    // En su team, el invitado edita y suma issues; uno de un team que no ve se saltea.
+    expect((await oneRoute.PATCH(json('PATCH', { version: '1.1' }), params(webRelease.id))).status).toBe(200);
+    const webIssue = await createIssue(s.web.id, s.owner.id, { title: 'Guest work' }, { source: 'app' });
+    const apiIssue = await createIssue(s.api.id, s.owner.id, { title: 'Hidden work' }, { source: 'app' });
+    const attach = (await (await issuesRoute.POST(json('POST', { issueIds: [webIssue.id, apiIssue.id] }), params(webRelease.id))).json()) as {
+      updated: string[];
+      skipped: string[];
+    };
+    expect(attach).toEqual({ updated: [webIssue.id], skipped: [apiIssue.id] });
+    expect((await oneRoute.DELETE(json('DELETE'), params(webRelease.id))).status).toBe(403);
+    // ⌘K: solo los releases de sus teams (ni el privado ni el de Api).
+    const guestFound = await searchApps({ id: s.owner.id, team: { id: s.team.id }, actingUser: { id: s.guest.id } } as never, ' 1');
+    expect(guestFound.filter((f) => f.group === 'trackReleases').map((f) => f.id)).toEqual([webRelease.id]);
+    const memberFound = await searchApps({ id: s.owner.id, team: { id: s.team.id }, actingUser: { id: s.member.id } } as never, '1');
+    const memberIds = memberFound.filter((f) => f.group === 'trackReleases').map((f) => f.id);
+    expect(memberIds).toEqual(expect.arrayContaining([webRelease.id, apiRelease.id]));
+    expect(memberIds).not.toContain(secretRelease.id);
 
     // Owner: todos, el privado incluido (es miembro), y la búsqueda del API no se sale del workspace.
     session.user = s.as.owner;
@@ -217,6 +242,12 @@ describe('Track: Releases', () => {
     await getDb().prepare('UPDATE track_releases SET auto_github = 0 WHERE id = ?').run(planned.id);
     const third = await createIssue(s.web.id, s.owner.id, { title: 'Third' }, { source: 'app' });
     expect(await attachMergedIssue(third.id, s.owner.id)).toBeNull();
+    // El release en curso sin la opción no deriva el issue a uno futuro.
+    const future = await createRelease(s.web.id, s.owner.id, { name: 'Future', targetDate: '2028-01-01' });
+    await getDb().prepare("UPDATE track_releases SET status = 'in_progress' WHERE id = ?").run(planned.id);
+    expect(await attachMergedIssue(third.id, s.owner.id)).toBeNull();
+    expect((await getIssue(third.id))!.release_id ?? null).toBeNull();
+    void future;
     // Un team sin releases: nada.
     const apiIssue = await createIssue(s.api.id, s.owner.id, { title: 'Api' }, { source: 'app' });
     expect(await attachMergedIssue(apiIssue.id, s.owner.id)).toBeNull();

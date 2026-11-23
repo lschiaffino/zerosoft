@@ -192,8 +192,10 @@ export async function updateRelease(id: string, input: ReleaseInput): Promise<Tr
 /** Borra el release; sus issues quedan sin release. */
 export async function deleteRelease(id: string): Promise<boolean> {
   const db = getDb();
-  await db.prepare("UPDATE track_issues SET release_id = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE release_id = ?").run(id);
+  // Primero el release (la FK deja release_id en NULL) y después la limpieza: un issue que entró
+  // en el medio (un merge de GitHub) no queda apuntando a un release que ya no existe.
   const res = await db.prepare('DELETE FROM track_releases WHERE id = ?').run(id);
+  await db.prepare("UPDATE track_issues SET release_id = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE release_id = ?").run(id);
   return res.changes > 0;
 }
 
@@ -239,15 +241,17 @@ export async function setReleaseIssues(
 export async function attachMergedIssue(issueId: string, actorId: string): Promise<string | null> {
   const issue = await getIssue(issueId);
   if (!issue || issue.release_id) return null;
+  // El release en curso del team (el primero "in progress"; si no hay, el planeado más cercano).
+  // Si ese no acepta los de GitHub, no entra a ninguno (no salta a uno futuro).
   const target = (await getDb()
     .prepare(
-      `SELECT id FROM track_releases
-       WHERE project_id = ? AND auto_github = 1 AND status IN ('in_progress', 'planned')
+      `SELECT id, auto_github FROM track_releases
+       WHERE project_id = ? AND status IN ('in_progress', 'planned')
        ORDER BY CASE status WHEN 'in_progress' THEN 0 ELSE 1 END, target_date IS NULL, target_date ASC, created_at ASC
        LIMIT 1`,
     )
-    .get(issue.project_id)) as { id: string } | undefined;
-  if (!target) return null;
+    .get(issue.project_id)) as { id: string; auto_github: number } | undefined;
+  if (!target || !Number(target.auto_github)) return null;
   // Compare-and-set: dos entregas del mismo merge no lo suman dos veces.
   const res = await getDb()
     .prepare("UPDATE track_issues SET release_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND release_id IS NULL")
@@ -264,12 +268,25 @@ export async function attachMergedIssue(issueId: string, actorId: string): Promi
   return target.id;
 }
 
-/** Releases de un team para los selectores (el issue, la paleta, filtros), los abiertos primero. */
-export async function listTeamReleaseOptions(projectId: string): Promise<Array<{ id: string; name: string; version: string; status: ReleaseStatus; project_id: string }>> {
+export interface ReleaseOptionRow {
+  id: string;
+  name: string;
+  version: string;
+  status: ReleaseStatus;
+  project_id: string;
+  team_name: string;
+}
+
+/** Releases para los selectores (el issue, la paleta, filtros), sin conteos: los abiertos primero. */
+export async function listReleaseOptions(teamId: string | null, ownerId: string): Promise<ReleaseOptionRow[]> {
+  const scope = await projectScope(teamId, ownerId, 'p');
   return (await getDb()
     .prepare(
-      `SELECT id, name, version, status, project_id FROM track_releases WHERE project_id = ?
-       ORDER BY CASE status WHEN 'in_progress' THEN 0 WHEN 'planned' THEN 1 ELSE 2 END, target_date IS NULL, target_date ASC, created_at DESC LIMIT 200`,
+      `SELECT r.id, r.name, r.version, r.status, r.project_id, p.name AS team_name
+       FROM track_releases r JOIN track_projects p ON p.id = r.project_id
+       WHERE ${scope.where}
+       ORDER BY CASE r.status WHEN 'in_progress' THEN 0 WHEN 'planned' THEN 1 ELSE 2 END, r.target_date IS NULL, r.target_date ASC, r.created_at DESC
+       LIMIT 500`,
     )
-    .all(projectId)) as Array<{ id: string; name: string; version: string; status: ReleaseStatus; project_id: string }>;
+    .all(...scope.args)) as ReleaseOptionRow[];
 }
