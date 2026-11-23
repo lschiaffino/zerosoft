@@ -19,7 +19,14 @@ import type { NotificationRow } from './db';
 import { trackVisibleExpr } from './track-access';
 import { countUnreadNotifications, hidePathsSql, listNotifications, type NotificationListOptions } from './notifications';
 
-export type AccessRow = Pick<NotificationRow, 'id' | 'source_type' | 'source_id' | 'href'>;
+/** Lo que hace falta de un aviso para saber si se ve (source_* pueden faltar en filas viejas). */
+export interface AccessRow {
+  id: string;
+  source_type: string | null;
+  source_id: string | null;
+  href: string | null;
+}
+type Source = Omit<AccessRow, 'id'>;
 
 /** El issue que nombra el aviso, tal como está hoy (título y status actuales). */
 export interface VisibleIssue {
@@ -34,21 +41,21 @@ export interface VisibleIssue {
 /** Id del issue de Track al que apunta un aviso (por su origen o por el link). */
 const ISSUE_SOURCES = new Set(['track_issue', 'track_triage', 'track_sla', 'track_agent']);
 
-export function issueIdOf(n: Pick<NotificationRow, 'source_type' | 'source_id' | 'href'>): string | null {
+export function issueIdOf(n: Source): string | null {
   if (n.source_type && ISSUE_SOURCES.has(n.source_type) && n.source_id) return n.source_id;
   const m = /\/app\/track\/issues\/([A-Za-z0-9_-]+)/.exec(n.href ?? '');
   return m ? m[1] : null;
 }
 
 /** Id del project (track_plans) que nombra el aviso, si no es de un issue. */
-export function planIdOf(n: Pick<NotificationRow, 'source_type' | 'source_id' | 'href'>): string | null {
+export function planIdOf(n: Source): string | null {
   if (n.source_type === 'track_plan' && n.source_id) return n.source_id;
   const m = /\/app\/track\/projects\/([A-Za-z0-9_-]+)/.exec(n.href ?? '');
   return m ? m[1] : null;
 }
 
 /** Id de la iniciativa que nombra el aviso. */
-export function initiativeIdOf(n: Pick<NotificationRow, 'source_type' | 'source_id' | 'href'>): string | null {
+export function initiativeIdOf(n: Source): string | null {
   if (n.source_type === 'track_initiative' && n.source_id) return n.source_id;
   const m = /\/app\/track\/initiatives\/([A-Za-z0-9_-]+)/.exec(n.href ?? '');
   return m ? m[1] : null;
