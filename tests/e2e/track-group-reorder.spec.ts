@@ -159,11 +159,21 @@ test('390 con el dedo: arrastrar el asa, menú con objetivos de 40px, sin scroll
   const menuBox = (await group(page, 'low').locator('.track-group-menu').boundingBox())!;
   expect(menuBox.height).toBeGreaterThanOrEqual(40);
 
-  // Un dedo de verdad (eventos táctiles de Chromium): arrastrar Low arriba de Urgent.
+  // El menú con el dedo: Low al principio.
+  await group(page, 'low').locator('.track-group-menu').tap();
+  await expect(page.locator('.track-menu[role="menu"]')).toBeVisible();
+  await page.getByTestId('track-group-move-first').tap();
+  await expect.poll(() => order(page)).toEqual(['low', 'urgent', 'high']);
+  await expect(page.locator('.track-menu[role="menu"]')).toHaveCount(0);
+
+  // Un dedo de verdad (eventos táctiles de Chromium): arrastrar High arriba de Urgent.
+  const highGrip = group(page, 'high').getByTestId('track-group-grip');
+  await highGrip.scrollIntoViewIfNeeded();
+  const hb = (await highGrip.boundingBox())!;
   const target = (await group(page, 'urgent').boundingBox())!;
   const cdp = await ctx.newCDPSession(page);
-  const x = box.x + box.width / 2;
-  const y0 = box.y + box.height / 2;
+  const x = hb.x + hb.width / 2;
+  const y0 = hb.y + hb.height / 2;
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] });
   const steps = 10;
   for (let i = 1; i <= steps; i++) {
@@ -171,12 +181,6 @@ test('390 con el dedo: arrastrar el asa, menú con objetivos de 40px, sin scroll
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect.poll(() => order(page)).toEqual(['low', 'urgent', 'high']);
-
-  // El menú también se usa con el dedo.
-  await group(page, 'high').locator('.track-group-menu').tap();
-  await expect(page.locator('.track-menu[role="menu"]')).toBeVisible();
-  await page.getByTestId('track-group-move-back').tap();
   await expect.poll(() => order(page)).toEqual(['low', 'high', 'urgent']);
 
   for (const scheme of ['light', 'dark'] as const) {
