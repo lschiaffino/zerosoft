@@ -130,7 +130,8 @@ for (const [name, viewport] of [
 }
 
 test.describe('expandable rows: errors', () => {
-  test.use({ viewport: { width: 1280, height: 860 } });
+  // Con el service worker de la app (build de producción) los pedidos no pasan por page.route.
+  test.use({ viewport: { width: 1280, height: 860 }, serviceWorkers: 'block' });
 
   test('a failed load shows an error with retry', async ({ page, request }) => {
     const tag = uid();
