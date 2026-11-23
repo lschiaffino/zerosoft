@@ -652,6 +652,9 @@ test('buscar: el chat que coincide por nombre va primero, aunque sea más viejo 
   for (let i = 0; i < 3; i++) await inbound(request, acc, { phone: phone(), name: `Contacto ${i} ${uid()}`, body: `vimos el ${word} ayer` });
 
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
+  // Las pestañas de filtro se escriben como en WhatsApp, sin las mayúsculas de los títulos de la búsqueda.
+  const textTransform = (el: Element) => getComputedStyle(el).textTransform;
+  expect(await page.locator('.ib-tabs > *').first().evaluate(textTransform)).toBe('none');
   await page.getByLabel('Search chats and messages').first().fill(word);
   const rows = page.getByTestId('inbox-row');
   await expect(rows).toHaveCount(4);
@@ -660,10 +663,8 @@ test('buscar: el chat que coincide por nombre va primero, aunque sea más viejo 
   const kinds = () => page.locator('[data-chat-list] > li').evaluateAll((els) => els.slice(0, 3).map((el) => el.getAttribute('data-testid')));
   await expect.poll(kinds).toEqual(['inbox-search-chats', 'inbox-row', 'inbox-search-in-messages']);
   // Solo esos títulos van en mayúsculas: la cabecera de la lista (título y pestañas, como WhatsApp) no las hereda.
-  const textTransform = (el: Element) => getComputedStyle(el).textTransform;
   expect(await page.getByTestId('inbox-search-chats').evaluate(textTransform)).toBe('uppercase');
   expect(await page.locator('.ib-list-pane .ib-h1').evaluate(textTransform)).toBe('none');
-  expect(await page.locator('.ib-tabs > *').first().evaluate(textTransform)).toBe('none');
 
   // A 390 px los títulos no agregan scroll de costado.
   await page.setViewportSize({ width: 390, height: 800 });
