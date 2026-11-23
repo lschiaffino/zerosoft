@@ -2122,7 +2122,7 @@
         "unread": "Since last read",
         "unreadCount": "Since last read ({n})",
         "unreadNone": "Nothing was unread when you opened this chat, so pick a period.",
-        "day": "Today",
+        "day": "24 hours",
         "week": "7 days",
         "month": "30 days",
         "run": "Summarize these messages",
@@ -2147,7 +2147,9 @@
           "mixed": "Mixed"
         },
         "none": "None found.",
-        "noMessages": "There are no messages in this period. Pick a longer one."
+        "noMessages": "There are no messages in this period. Pick a longer one.",
+        "basedOnRange": "Based on {n, plural, one {# message} other {# messages}} ({range}).",
+        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again."
       }
     },
     "contactSheet": {

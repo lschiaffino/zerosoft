@@ -85,6 +85,7 @@ export default function ChatDetails({
   starredKey = '',
   notesKey = '',
   aiUnread = 0,
+  aiUnreadFrom,
   onJumpToMessage,
 }: {
   chat: ChatDto;
@@ -108,6 +109,8 @@ export default function ChatDetails({
   notesKey?: string;
   /** Mensajes sin leer al abrir el chat: la pestaña AI ofrece resumir desde la última lectura. */
   aiUnread?: number;
+  /** El primer mensaje sin leer al abrir el chat. */
+  aiUnreadFrom?: string;
   /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
   onJumpToMessage?: (id: string) => void;
 }) {
@@ -676,9 +679,10 @@ export default function ChatDetails({
                 <ChatAiTab
                   key={chat.id}
                   chatKey={chat.id}
-                  stateUrl={`/api/groups/chats/${chat.id}/summary`}
+                  stateUrl={`/api/groups/chats/${chat.id}?part=ai`}
                   run={runInsights}
                   unread={aiUnread}
+                  unreadFrom={aiUnreadFrom}
                   sectionClass="gr-detail-section"
                   titleClass="gr-detail-title"
                 />

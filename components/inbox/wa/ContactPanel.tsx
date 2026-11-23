@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
@@ -68,11 +68,14 @@ export default function ContactPanel({
   starredKey = '',
   me = '',
   aiUnread = 0,
+  aiUnreadFrom,
 }: {
   /** La persona (la pestaña elegida queda guardada por persona). */
   me?: string;
   /** Mensajes sin leer al abrir el chat: la pestaña AI ofrece resumir desde la última lectura. */
   aiUnread?: number;
+  /** El primer mensaje sin leer al abrir (si se sabe). */
+  aiUnreadFrom?: string;
   /** Un destacado lleva a su mensaje en la conversación. */
   onJumpToMessage?: (id: string) => void;
   /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
@@ -136,16 +139,26 @@ export default function ContactPanel({
     [thread.id, locale],
   );
 
+  // El chat a la vista: una respuesta que llega tarde de otro chat no se muestra en este.
+  const shownThread = useRef(thread.id);
+  shownThread.current = thread.id;
   useEffect(() => {
+    let live = true;
     setSummary(null);
+    setSummaryBusy(false);
     setConfirmBlock(false);
     setConfirmExit(false);
-    void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => r.ok && setSummary(r.data.summary));
+    void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => live && r.ok && setSummary(r.data.summary));
+    return () => {
+      live = false;
+    };
   }, [thread.id]);
 
   const summarize = async () => {
+    const asked = thread.id;
     setSummaryBusy(true);
-    const r = await api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'summary' } });
+    const r = await api<{ summary: Summary }>(`/api/inbox/threads/${asked}/wa`, { method: 'POST', json: { action: 'summary' } });
+    if (shownThread.current !== asked) return;
     setSummaryBusy(false);
     if (!r.ok) onError(r.data.error ?? 'ai_failed');
     else setSummary(r.data.summary);
@@ -467,6 +480,7 @@ export default function ContactPanel({
                   stateUrl={`/api/inbox/threads/${thread.id}/wa?part=ai`}
                   run={runInsights}
                   unread={aiUnread}
+                  unreadFrom={aiUnreadFrom || undefined}
                   sectionClass="ib-wa-card"
                   titleClass="ib-wa-card-title"
                   before={summaryCard}

@@ -116,10 +116,10 @@ for (const app of ['lines', 'inbox'] as const) {
       const id = app === 'lines' ? await linesChat(request, tag) : await inboxChat(request, tag);
       const tab = await openAiTab(page, app, id);
       // Rango: al abrir había mensajes sin leer, así que arranca "desde la última lectura".
-      const range = tab.getByRole('group', { name: 'Messages to read' });
+      const range = tab.getByTestId('details-ai-range');
       await expect(range.locator('[data-range="unread"]')).toHaveAttribute('aria-pressed', 'true');
       await expect(range.locator('[data-range="unread"]')).toContainText('3');
-      // Teclado: Tab llega a los rangos y Enter elige uno.
+      // Teclado: con el foco en un rango, Enter lo elige.
       await range.locator('[data-range="7"]').focus();
       await page.keyboard.press('Enter');
       await expect(range.locator('[data-range="7"]')).toHaveAttribute('aria-pressed', 'true');
@@ -129,7 +129,8 @@ for (const app of ['lines', 'inbox'] as const) {
       await expect(tab.getByTestId('details-ai-summary')).toContainText('3 messages');
       await expect(tab.getByTestId('details-ai-questions')).toContainText('precio del plan anual');
       await expect(tab.getByTestId('details-ai-commitments')).toContainText('Mañana les confirmo');
-      await expect(tab.getByTestId('details-ai-mood')).toContainText('Neutral');
+      await expect(tab.getByTestId('details-ai-mood').locator('[data-mood]')).toHaveAttribute('data-mood', 'neutral');
+      await expect(tab.getByTestId('details-ai-results')).toHaveAttribute('data-range', '7');
       expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
       if (width === 390) {
         for (const b of [...(await range.getByRole('button').all()), ...(await tab.getByTestId('details-ai-insert').all()), tab.getByTestId('details-ai-run')]) {
@@ -148,6 +149,16 @@ for (const app of ['lines', 'inbox'] as const) {
       if (process.env.L2_SHOTS) await page.screenshot({ path: `${process.env.L2_SHOTS}/${app}-ai-inserted-${width}.png` });
       await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click();
       await expect(field).toHaveValue('');
+      // Lines, con una nota interna a medio escribir: no se pisa ni pasa al campo de WhatsApp; el panel avisa.
+      if (app === 'lines' && width === 1280) {
+        await page.locator('.wa-mode-note').click();
+        await field.fill(`Nota a medio escribir ${tag}`);
+        await tab.getByTestId('details-ai-insert').first().click();
+        await expect(tab.getByTestId('details-ai-insert-failed')).toBeVisible();
+        await expect(field).toHaveValue(`Nota a medio escribir ${tag}`);
+        await expect(page.locator('.wa-mode-note')).toHaveAttribute('aria-selected', 'true');
+        await field.fill('');
+      }
       // Nada salió a WhatsApp: el chat no tiene mensajes propios.
       if (app === 'lines') {
         const r = (await (await request.get(`/api/groups/chats/${id}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
@@ -165,7 +176,7 @@ for (const app of ['lines', 'inbox'] as const) {
     const id = app === 'lines' ? await linesChat(request, uid()) : await inboxChat(request, uid());
     await context.addCookies([{ name: apps[app].cookie, value: 'off', domain: 'localhost', path: '/' }]);
     const tab = await openAiTab(page, app, id);
-    await expect(tab.getByTestId('details-ai-off')).toContainText('AI is off');
+    await expect(tab.getByTestId('details-ai-off')).toBeVisible();
     await expect(tab.getByTestId('details-ai-run')).toHaveCount(0);
     // Y la ruta tampoco llama a nada.
     const res = await page.request.post(app === 'lines' ? `/api/groups/chats/${id}/summary` : `/api/inbox/threads/${id}/wa`, {

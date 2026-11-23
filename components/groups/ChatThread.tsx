@@ -824,13 +824,17 @@ export default function ChatThread(props: ThreadProps) {
   });
   const aiAllowed = mode === 'reply' && !editing && !leaving;
   // La respuesta sugerida de la pestaña AI del panel: va al campo (modo WhatsApp) con Deshacer; nunca se manda sola.
-  // En el teléfono el panel tapa el chat: se cierra para ver el campo.
+  // Editando un mensaje o con una nota interna a medio escribir no se pisa nada (el panel avisa): una nota nunca pasa
+  // al campo de WhatsApp. Desde la solapa de nota vacía, Deshacer vuelve a ella. En el teléfono el panel tapa el
+  // chat: se cierra para ver el campo.
   useComposeInsert(chat.id, (draft) => {
-    if (leaving) return;
-    if (editing) setEditing(null);
+    if (leaving || editing) return false;
+    const wasNote = mode === 'note';
+    if (wasNote && text.trim()) return false;
     setMode('reply');
-    ai.insertText(draft);
+    ai.insertText(draft, wasNote ? () => setMode('note') : undefined);
     if (!side.wide) setDetailsOpen(false);
+    return true;
   });
 
   // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
@@ -3088,6 +3092,7 @@ export default function ChatThread(props: ThreadProps) {
           starredKey={starredKey}
           notesKey={notesKey}
           aiUnread={unreadMark?.n ?? 0}
+          aiUnreadFrom={unreadMark?.id}
           onJumpToMessage={(id) => {
             const m = messages.find((x) => x.id === id);
             if (!m) {
