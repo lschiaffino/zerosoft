@@ -800,7 +800,16 @@
     "openInbox": "Open the inbox",
     "manage": "Change how Track emails you",
     "whyDigest": "Once a day, with what is still unread in your Track inbox.",
-    "whyImmediate": "You get this because something in your Track inbox stayed unread for a minute."
+    "whyImmediate": "You get this because something in your Track inbox stayed unread for a minute.",
+    "planUpdate": "{actor} posted an update on {name}",
+    "planUpdateHealth": "{actor} posted an update on {name}: {health}",
+    "planComment": "{actor} commented on an update of {name}",
+    "planReminder": "Time to post an update on {name}",
+    "health": {
+      "on_track": "on track",
+      "at_risk": "at risk",
+      "off_track": "off track"
+    }
   },
   "notifySettings": {
     "title": "Email notifications",
