@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import type { TemplateDto, TemplateRole } from '@/lib/sign/templates';
+import { parseCsv } from '@/lib/csv-parse';
+import { bulkColumns, bulkHeaderFor, csvLine } from '@/lib/sign/bulk-csv';
 import FieldPlacer, { newKey, type PlacedField } from './FieldPlacer';
 import { api, SignDialog, useErrorText, useToast } from './ui';
 
@@ -39,6 +41,9 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
 
   const parties = useMemo(() => tp.roles.filter((r) => r.role !== 'cc').map((r) => ({ id: r.key, name: r.name })), [tp.roles]);
   const bulkTarget = tp.roles.find((r) => r.role === 'signer');
+  // Qué roles llegan del CSV (por su encabezado); los otros se completan abajo, iguales para todos.
+  const csvRows = useMemo(() => parseCsv(csv.replace(/^\uFEFF/, '')).filter((r) => r.some((c) => c.trim())), [csv]);
+  const csvCols = useMemo(() => bulkColumns(tp.roles, csvRows[0] ?? []), [tp.roles, csvRows]);
 
   const patch = async (body: Record<string, unknown>): Promise<boolean> => {
     setError('');
@@ -92,10 +97,12 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
     setBusy(true);
     setError('');
     setBulkResult(null);
-    const fixed = Object.fromEntries(Object.entries(people).filter(([k]) => k !== bulkTarget?.key));
+    const fixed = Object.fromEntries(Object.entries(people).filter(([k]) => !csvCols.roles[k]));
     // En tandas de 25 filas con el mismo bulkId: cada fila tiene su clave, un reintento no duplica sobres.
-    const lines = csv.replace(/\r/g, '').split('\n').filter((l) => l.trim());
-    const [header, ...rows] = lines;
+    // Las filas se vuelven a armar como CSV: una celda con saltos de línea (un mensaje) no se corta.
+    const [headerCells, ...rowCells] = csvRows;
+    const header = headerCells ? csvLine(headerCells) : '';
+    const rows = rowCells.map(csvLine);
     if (!header || !rows.length) {
       setBusy(false);
       return setError(errorText('csv_empty'));
@@ -304,9 +311,11 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
         (tp.hasDocument && bulkTarget ? (
           <div className="ui-fields sg-form">
             <p className="ui-help">{t('templates.bulkHelp', { role: bulkTarget.name, max: 1000 })}</p>
+            <p className="ui-help">{t('templates.bulkColumnsHelp')}</p>
             <label className="ui-field">
               <span className="label">{t('templates.csv')}</span>
               <textarea
+                data-testid="sign-bulk-csv"
                 className="textarea sg-mono"
                 rows={8}
                 value={csv}
@@ -316,13 +325,41 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
                 }}
               />
             </label>
+            <div className="sg-row">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline"
+                data-testid="sign-bulk-all-roles"
+                onClick={() => {
+                  bulkIdRef.current = null;
+                  setCsv(`${bulkHeaderFor(tp.roles)},title\n`);
+                }}
+              >
+                {t('templates.bulkAllRoles')}
+              </button>
+            </div>
+            {Object.keys(csvCols.roles).length > 0 && (
+              <p className="ui-help" data-testid="sign-bulk-from-csv">
+                {t('templates.bulkFromCsv', { roles: tp.roles.filter((r) => csvCols.roles[r.key]).map((r) => r.name).join(', ') })}
+              </p>
+            )}
+            {csvCols.incomplete.length > 0 && (
+              <p className="ui-error" role="alert">
+                {t('templates.bulkRoleIncomplete', { role: csvCols.incomplete[0] })}
+              </p>
+            )}
             <label className="ui-field">
               <span className="label">{t('templates.csvFile')}</span>
-              <input className="input" type="file" accept=".csv,text/csv" onChange={async (e) => setCsv((await e.target.files?.[0]?.text()) ?? csv)} />
+              <input className="input" type="file" accept=".csv,text/csv" onChange={async (e) => {
+                  const text = await e.target.files?.[0]?.text();
+                  if (text === undefined) return;
+                  bulkIdRef.current = null;
+                  setCsv(text);
+                }} />
             </label>
-            {tp.roles.filter((r) => r.key !== bulkTarget.key).map(personFields)}
+            {tp.roles.filter((r) => !csvCols.roles[r.key]).map(personFields)}
             {bulkResult && (
-              <div role="status" className="sg-summary">
+              <div role="status" className="sg-summary" data-testid="sign-bulk-result">
                 <p>{t('templates.bulkSent', { n: bulkResult.sent })}</p>
                 {bulkResult.errors.length > 0 && (
                   <ul className="sg-plain-list">
@@ -334,7 +371,7 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
               </div>
             )}
             <div className="sg-row">
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void bulk()}>
+              <button type="button" className="btn btn-primary" data-testid="sign-bulk-send" disabled={busy} onClick={() => void bulk()}>
                 {busy ? t('common.working') : t('templates.bulkSend')}
               </button>
             </div>
