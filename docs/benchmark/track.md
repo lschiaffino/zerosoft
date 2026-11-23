@@ -12,6 +12,8 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
 - Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
 
+Paridad calculada con la tanda T3 completa (Inbox, comentarios en línea e hilos en projects e iniciativas): **87 %**, con 75 filas contadas.
+
 ### Hilos en projects e iniciativas (tanda T3, 2026-11-23)
 
 - **Hilos de comentarios en projects e iniciativas pasa a tiene:** sección Comentarios en el resumen del project y de la iniciativa, con el mismo componente que los issues (@menciones solo a quien puede verlo, respuestas, resolver, reacciones, editar y borrar lo propio). Avisa a lead, miembros y seguidores del project o al lead de la iniciativa. Los invitados de Track no lo ven.
