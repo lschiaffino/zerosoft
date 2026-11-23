@@ -136,7 +136,7 @@ for (const [name, viewport] of [
       const composer = panel(page).getByTestId('timeline-composer');
       await expect(composer).toHaveAttribute('data-kind', 'note');
       const fresh = `Fresh note ${s.tag}`;
-      await composer.locator('textarea').fill(fresh);
+      await composer.getByTestId('timeline-note-editor').fill(fresh);
       await composer.getByRole('button', { name: 'Save note' }).click();
       await expect(items(page).filter({ hasText: fresh })).toBeVisible();
       await expect(composer).toHaveCount(0);

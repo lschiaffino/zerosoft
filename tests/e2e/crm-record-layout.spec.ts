@@ -354,9 +354,9 @@ test.describe('ficha en tres columnas a 1280', () => {
     // Con el timeline ya en pantalla, otra acción cambia el tipo.
     await quick(page, 'note').click();
     await expect(composer(page)).toHaveAttribute('data-kind', 'note');
-    await expect(composer(page).locator('input, textarea').first()).toBeFocused();
+    await expect(composer(page).getByTestId('timeline-note-editor')).toBeFocused();
     const subject = `Columns note ${s.tag}`;
-    await composer(page).locator('textarea').fill(subject);
+    await composer(page).getByTestId('timeline-note-editor').fill(subject);
     await composer(page).locator('button[type="submit"]').click();
     const items = page.getByTestId('record-panel-activity').locator('.timeline .tl-item');
     await expect(items.filter({ hasText: subject })).toBeVisible();

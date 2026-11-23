@@ -1524,7 +1524,8 @@
       "menu": {
         "slash": "Inserir",
         "mention": "Pessoas e issues",
-        "issue": "Issues"
+        "issue": "Issues",
+        "people": "Pessoas"
       },
       "toolbar": "Formatação",
       "bold": "Negrito",
@@ -1532,7 +1533,8 @@
       "code": "Código",
       "link": "Link",
       "linkPlaceholder": "Cole ou digite um link e aperte Enter",
-      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo."
+      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo.",
+      "mention": "Mencionar alguém da equipe"
     },
     "thread": {
       "postError": "Não foi possível publicar o comentário. Tente de novo.",
