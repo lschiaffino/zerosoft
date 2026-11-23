@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const scope = await sessionScope(user);
   const hidden = await guardRecord(user.id, parsed.data.recordType, parsed.data.recordId, scope);
   if (hidden) return hidden;
-  const reply = parsed.data.threadId ? await threadReplyInfo(user.id, parsed.data.threadId, scope ?? undefined) : null;
+  const reply = parsed.data.threadId ? await threadReplyInfo(user.id, parsed.data.threadId, scope ?? undefined, realUserId(user)) : null;
   if (parsed.data.threadId && !reply) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   const result = await sendCrmEmailAndSave(user.id, {
