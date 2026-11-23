@@ -12,6 +12,10 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
 - Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
 
+### Comentarios en línea (tanda T3, 2026-11-23)
+
+- **Comentarios sobre el texto de la descripción pasa a tiene:** elegir texto y "Comentar" en la barra de la selección abre un composer con la cita; el texto queda resaltado (API de resaltados de CSS, sin tocar el Markdown) hasta resolver el hilo, y un clic en el resaltado lleva al hilo. Si el texto citado se borra, el hilo queda con la cita y sin resaltado (Linear hace lo mismo).
+
 > **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 
 Cómo se hizo:
