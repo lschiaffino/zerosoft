@@ -1207,6 +1207,10 @@ dialog.ui-drawer.track-drawer {
     background: var(--ui-selected);
   }
 
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
+    pointer-events: none;
+  }
+
   .track-inbox-split .track-inbox-item:not(.is-snoozed) {
     grid-template-columns: 28px minmax(0, 1fr) auto;
   }
