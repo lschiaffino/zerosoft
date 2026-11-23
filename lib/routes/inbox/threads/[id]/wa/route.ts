@@ -17,13 +17,20 @@ const KINDS: SharedKind[] = ['media', 'docs', 'links', 'starred'];
  * (lo compartido en el chat), ?part=summary (el resumen guardado) o
  * ?part=person&phone=<dígitos> (la ficha de una persona del grupo) o
  * ?part=reactions&messages=<id>,<id> (quién reaccionó a esos mensajes) o
- * ?part=info&message=<id> (la Info de un mensaje propio: quién lo recibió y lo leyó).
+ * ?part=info&message=<id> (la Info de un mensaje propio: quién lo recibió y lo leyó) o
+ * ?part=ai (si hay IA para la pestaña AI del panel; no llama a ningún modelo).
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   return withOwner(async (owner) => {
     const sp = new URL(req.url).searchParams;
     if (sp.get('part') === 'summary') return iJson({ summary: await readSummary(owner, id) });
+    // La pestaña AI: si hay IA (el chat tiene que ser de la persona igual).
+    if (sp.get('part') === 'ai') {
+      const [{ getThreadRow }, { inboxAiTabState }] = await Promise.all([import('@/lib/inbox/core'), import('@/lib/inbox/insights')]);
+      await getThreadRow(owner, id);
+      return iJson({ ai: await inboxAiTabState() });
+    }
     // La ficha de una persona del grupo (foto o nombre de quien escribió).
     if (sp.get('part') === 'person') return iJson({ person: await personCard(owner, id, (sp.get('phone') ?? '').slice(0, 30)) });
     // Quién reaccionó a esos mensajes del chat (el cuadro de reacciones).
@@ -43,7 +50,8 @@ export async function GET(req: Request, ctx: Ctx) {
 }
 
 /**
- * { action: 'summary' } pide un resumen nuevo a la IA; { action: 'block' |
+ * { action: 'summary' } pide un resumen nuevo a la IA; { action: 'insights', range, locale } arma la pestaña AI
+ * (sin guardar nada); { action: 'block' |
  * 'unblock' } bloquea en WhatsApp; { action: 'presence', state } manda
  * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused");
  * { action: 'fetchMissing' } "Traer mensajes que faltan" ({ action: 'fetchMissingStatus' } dice cómo va);
@@ -130,6 +138,16 @@ export async function POST(req: Request, ctx: Ctx) {
   if (limited) return limited;
   return withOwner(async (owner) => {
     if (b?.action === 'summary') return iJson({ summary: await makeSummary(owner, id) });
+    // La pestaña AI (lib/inbox/insights.ts): resumen, preguntas, compromisos, respuestas sugeridas y ánimo. No guarda nada.
+    if (b?.action === 'insights') {
+      const body = b as { range?: unknown; locale?: unknown };
+      const { parseInsightRange } = await import('@/lib/wa-insights');
+      const range = parseInsightRange(body.range);
+      if (!range) throw new InboxError('invalid_input', 400);
+      const locale = body.locale === 'es' || body.locale === 'pt' ? body.locale : 'en';
+      const { inboxChatInsights } = await import('@/lib/inbox/insights');
+      return iJson({ insights: await inboxChatInsights(owner, id, range, locale) });
+    }
     if (b?.action === 'block' || b?.action === 'unblock') {
       await setBlocked(owner, id, b.action === 'block');
       return iJson({ ok: true });

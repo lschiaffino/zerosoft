@@ -52,6 +52,8 @@ export interface AiCompose {
   cancel: () => void;
   /** Pone el borrador en el composer (nunca manda) y guarda lo que había para deshacer. */
   insert: () => void;
+  /** Pone un texto que llega de afuera (la respuesta sugerida de la pestaña AI) en el composer, con Deshacer. Nunca manda. */
+  insertText: (text: string) => void;
   undoInsert: () => void;
   /** Lo llama el composer al mandar: ya no hay nada que deshacer. */
   clearUndo: () => void;
@@ -197,6 +199,17 @@ export function useAiCompose(opts: {
     requestAnimationFrame(() => live.current.focusComposer());
   }, []);
 
+  const insertText = useCallback(
+    (text: string) => {
+      const before = live.current.text;
+      live.current.setText(text);
+      setUndo(before);
+      if (open) setOpen(false);
+      requestAnimationFrame(() => live.current.focusComposer());
+    },
+    [open],
+  );
+
   const undoInsert = useCallback(() => {
     if (undo === null) return;
     live.current.setText(undo);
@@ -226,6 +239,7 @@ export function useAiCompose(opts: {
     discard,
     cancel,
     insert,
+    insertText,
     undoInsert,
     clearUndo,
   };

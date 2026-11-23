@@ -20,6 +20,7 @@ import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
 import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useComposeInsert } from '@/components/ai/compose-insert';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -123,6 +124,12 @@ const WaComposer = forwardRef<
     [thread.id, tc],
   );
   const ai = useAiCompose({ adapter: aiAdapter, text, setText, focusComposer: () => area.current?.focus(), resetKey: thread.id });
+  // La respuesta sugerida de la pestaña AI del panel: al campo, con Deshacer (nunca se manda sola). Editando un
+  // mensaje no se pisa lo que se está editando.
+  useComposeInsert(thread.id, (draft) => {
+    if (editing || paused) return;
+    ai.insertText(draft);
+  });
 
   // Editar: el texto del mensaje en el campo; al salir, vuelve lo que había.
   useEffect(() => {

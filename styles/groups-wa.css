@@ -2023,6 +2023,37 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .gr-deal-list li { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .gr-deal-list li[data-state='lost'] a { color: var(--wa-text-2); }
 .ib-wa-notes .textarea { width: 100%; min-height: 120px; }
+/* Pestaña AI (components/groups/wa/ChatAiTab.tsx, Lines e Inbox): rango, resumir, y lo que vuelve en secciones. */
+.wa-ai { display: flex; flex-direction: column; min-width: 0; }
+.ib-wa-details-body .wa-ai { gap: 10px; }
+.wa-ai-title { display: flex; align-items: center; gap: 6px; }
+.wa-ai-range { display: flex; flex-wrap: wrap; gap: 4px; }
+.wa-ai-range-btn {
+  min-height: 32px; padding: 0 10px; font: inherit; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text);
+  background: var(--wa-panel); border: 1px solid var(--wa-border); border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-ai-range-btn:hover:not(:disabled) { background: var(--wa-row-hover); }
+.wa-ai-range-btn[aria-pressed='true'] { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); border-color: var(--wa-primary); font-weight: 500; }
+.wa-ai-range-btn:disabled { color: var(--wa-text-2); cursor: default; opacity: 0.7; }
+.wa-ai-range-btn:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-ai-run { display: flex; }
+.wa-ai .ui-help { margin: 0; }
+.wa-ai-text { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-ai-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-ai-who { font-weight: 500; color: var(--wa-text-2); }
+.wa-ai-replies { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wa-ai-reply { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: var(--wa-chip-bg); border-radius: var(--radius-1); }
+.wa-ai-reply p { flex: 1; min-width: 0; margin: 0; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-ai-reply .btn { flex: none; }
+.wa-ai-mood { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.wa-ai-mood::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--wa-text-2); }
+.wa-ai-mood[data-mood='positive']::before { background: var(--wa-primary); }
+.wa-ai-mood[data-mood='negative']::before { background: var(--wa-danger); }
+.wa-ai-mood[data-mood='mixed']::before { background: var(--wa-note-line); }
+@media (max-width: 640px) {
+  .wa-ai-range-btn { min-height: 40px; padding: 0 12px; }
+  .wa-ai :is(.btn) { min-height: 40px; }
+}
 /* Teléfono: el panel de Lines ocupa la pantalla entera (Inbox ya lo hace), con las pestañas al alcance. */
 @media (max-width: 640px) {
   .gr-inbox .gr-details.is-open { left: 0; width: 100vw; border-left: 0; box-shadow: none; }

@@ -2094,7 +2094,8 @@
         "media": "Files",
         "notes": "Notes",
         "tasks": "Tasks",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "AI"
       },
       "empty": {
         "media": "No photos or videos in this chat yet",
@@ -2114,7 +2115,40 @@
       "untitledDeal": "Untitled deal",
       "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it.",
       "sharedLabel": "Shared in this chat",
-      "noteAttachment": "Note with an attachment"
+      "noteAttachment": "Note with an attachment",
+      "ai": {
+        "title": "Catch up",
+        "rangeLabel": "Messages to read",
+        "unread": "Since last read",
+        "unreadCount": "Since last read ({n})",
+        "unreadNone": "Nothing was unread when you opened this chat, so pick a period.",
+        "day": "Today",
+        "week": "7 days",
+        "month": "30 days",
+        "run": "Summarize these messages",
+        "again": "Summarize again",
+        "working": "Reading the chat…",
+        "privacy": "Uses only the messages you can see in this chat. Nothing is saved or shared.",
+        "summary": "Summary",
+        "basedOn": "Based on {n, plural, one {# message} other {# messages}}.",
+        "questions": "Open questions",
+        "commitments": "Pending commitments",
+        "us": "We",
+        "them": "Contact",
+        "replies": "Suggested replies",
+        "insert": "Insert",
+        "insertedShort": "Inserted",
+        "insertHint": "Insert puts the reply in the message field so you can review it. Nothing is sent.",
+        "mood": "Mood",
+        "moods": {
+          "positive": "Positive",
+          "neutral": "Neutral",
+          "negative": "Negative",
+          "mixed": "Mixed"
+        },
+        "none": "None found.",
+        "noMessages": "There are no messages in this period. Pick a longer one."
+      }
     },
     "contactSheet": {
       "title": "Contact info",

@@ -1,7 +1,9 @@
 'use client';
 
 import GroupMembers from './wa/GroupMembers';
-import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry } from './wa/icons';
+import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry, Sparkle } from './wa/icons';
+import ChatAiTab from './wa/ChatAiTab';
+import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
 import DetailsTabs from './wa/DetailsTabs';
 import SharedMedia from './wa/SharedMedia';
 import { ChatNotes, CrmDeals } from './ChatDetailsParts';
@@ -82,6 +84,7 @@ export default function ChatDetails({
   compact = false,
   starredKey = '',
   notesKey = '',
+  aiUnread = 0,
   onJumpToMessage,
 }: {
   chat: ChatDto;
@@ -103,6 +106,8 @@ export default function ChatDetails({
   starredKey?: string;
   /** Cambia cuando se escribe o se borra una nota interna en la conversación: la pestaña Notas se vuelve a leer. */
   notesKey?: string;
+  /** Mensajes sin leer al abrir el chat: la pestaña AI ofrece resumir desde la última lectura. */
+  aiUnread?: number;
   /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
   onJumpToMessage?: (id: string) => void;
 }) {
@@ -150,6 +155,15 @@ export default function ChatDetails({
       }));
     },
     [chat.id],
+  );
+
+  // La pestaña AI: las ideas del rango, solo con lo que quien mira ve (app/api/groups/chats/[id]/summary).
+  const runInsights = useCallback(
+    async (range: InsightRange): Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }> => {
+      const r = await api<{ insights: ChatInsights }>(`/api/groups/chats/${chat.id}/summary`, { body: { kind: 'insights', range, locale } });
+      return r.data ? { ok: true, insights: r.data.insights } : { ok: false, code: r.error ?? 'failed' };
+    },
+    [chat.id, locale],
   );
 
   // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
@@ -654,6 +668,22 @@ export default function ChatDetails({
             { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ChatNotes chatId={chat.id} people={people} me={me} version={notesKey} onJumpToMessage={onJumpToMessage} /> },
             { id: 'tasks', label: tdet('tabs.tasks'), icon: <CheckCircle size={18} />, content: tasksSection },
             { id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: crmSection },
+            {
+              id: 'ai',
+              label: tdet('tabs.ai'),
+              icon: <Sparkle size={18} />,
+              content: (
+                <ChatAiTab
+                  key={chat.id}
+                  chatKey={chat.id}
+                  stateUrl={`/api/groups/chats/${chat.id}/summary`}
+                  run={runInsights}
+                  unread={aiUnread}
+                  sectionClass="gr-detail-section"
+                  titleClass="gr-detail-title"
+                />
+              ),
+            },
           ]}
         />
       ) : (

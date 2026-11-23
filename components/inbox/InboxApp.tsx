@@ -468,6 +468,8 @@ export default function InboxApp(props: {
   // Chats ya abiertos: al volver a uno se ve al instante con lo último que se tenía, y se pone al día.
   const detailCache = useRef(new ListCache<Detail>(20)).current;
   const detailEtag = useRef({ id: '', etag: '' });
+  // Cuántos mensajes había sin leer al abrir el chat abierto (la pestaña AI: "desde la última lectura").
+  const [unreadAtOpen, setUnreadAtOpen] = useState<{ id: string; n: number } | null>(null);
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
     const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
@@ -646,6 +648,8 @@ export default function InboxApp(props: {
     url.searchParams.set('t', openId);
     window.history.replaceState(window.history.state, '', url.toString());
     const th = threads.find((x) => x.id === openId);
+    // Lo que estaba sin leer al abrir (antes de marcarlo leído): la pestaña AI resume desde ahí.
+    setUnreadAtOpen({ id: openId, n: th?.unread ?? 0 });
     if (th && (th.unread > 0 || th.woke)) {
       void api(`/api/inbox/threads/${openId}`, { method: 'PATCH', json: { action: 'seen' } }).then(() => {
         setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '', wokeAt: null } : x)));
@@ -1756,6 +1760,7 @@ export default function InboxApp(props: {
           onToast={(text) => toast(text)}
           onChanged={() => void loadDetail(detail.thread.id, true)}
           me={props.me ?? ''}
+          aiUnread={unreadAtOpen?.id === detail.thread.id ? unreadAtOpen.n : 0}
           starredKey={detail.messages.filter((m) => m.starred).map((m) => m.id).join(',')}
           onJumpToMessage={(id) => {
             // Un destacado: la conversación se abre alrededor de ese mensaje y lo marca. En el teléfono la info tapa el chat.
