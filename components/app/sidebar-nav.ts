@@ -140,6 +140,8 @@ export interface SidebarLabels {
     planning?: string;
     plans?: string;
     initiatives?: string;
+    /** Updates de projects e initiatives en un feed (Pulse de Linear). */
+    updates?: string;
     roadmap?: string;
     analytics?: string;
     insights?: string;
@@ -731,6 +733,7 @@ export function buildNav(
               ? [
                   { href: '/app/track/projects', label: labels.track.plans, active: pathname === '/app/track/projects' || at('/app/track/projects/'), icon: 'plans' as const },
                   { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
+                  ...(labels.track.updates ? [{ href: '/app/track/updates', label: labels.track.updates, active: at('/app/track/updates'), icon: 'live' as const }] : []),
                 ]
               : []),
             // Todos los issues del workspace: no se marca dentro de un issue (ahí se marca su team).

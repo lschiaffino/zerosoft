@@ -636,7 +636,12 @@ const parity: ProductParity = {
       id: 'pulse',
       area: 'collaboration',
       label: { en: 'Pulse: feed and daily digest of updates', es: 'Pulse: feed y resumen diario de updates', pt: 'Pulse: feed e resumo diário de atualizações' },
-      status: 'missing',
+      detail: {
+        en: 'Track › Updates: project and initiative updates in one feed, For me (projects you lead, are a member of or follow, initiatives you lead) or All. Updates also reach followers in the Inbox; no daily or weekly summary email and no audio digest yet',
+        es: 'Track › Updates: los updates de proyectos e iniciativas en un feed, Para mí (proyectos que liderás, de los que sos miembro o que seguís, iniciativas que liderás) o Todos. Los updates también llegan a los seguidores en el Inbox; todavía sin email de resumen diario o semanal ni versión en audio',
+        pt: 'Track › Updates: os updates de projetos e iniciativas em um feed, Para mim (projetos que você lidera, dos quais é membro ou que segue, iniciativas que lidera) ou Todos. Os updates também chegam aos seguidores na Inbox; ainda sem e-mail de resumo diário ou semanal nem versão em áudio',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {

@@ -98,7 +98,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
 | Comentarios sobre el texto de la descripción | falta | (2026-11-23) |
 | Hilos de comentarios en projects e iniciativas | falta | (2026-11-23) Solo en sus updates |
-| Pulse (feed y resumen diario de updates) | falta | (2026-11-23) |
+| Pulse (feed y resumen diario de updates) | parcial | (2026-11-23) Track › Updates: feed de updates de proyectos e iniciativas, Para mí (lead, miembro o seguidor; iniciativas que lidera o con sus proyectos) y Todos, paginado. Los updates avisan a seguidores en el Inbox, pero el resumen diario por email solo lleva avisos de issues (source_type track_issue): falta el email de resumen de updates y el audio |
 
 ### Planificación
 
