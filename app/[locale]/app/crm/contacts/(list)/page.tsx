@@ -107,6 +107,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
   const createdTo = state.createdTo ?? '';
   const activityFrom = state.activityFrom ?? '';
   const activityTo = state.activityTo ?? '';
+  const noActivity = state.noActivity === '1';
+  const qf = state.qf ?? '';
   const tag = state.tag ?? '';
   const custom = customFromState(state);
   const rawFilters = state.filters ?? '';
@@ -171,6 +173,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     createdTo: createdTo || undefined,
     activityFrom: activityFrom || undefined,
     activityTo: activityTo || undefined,
+    activityNone: noActivity || undefined,
     tag: tag || undefined,
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
@@ -261,6 +264,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (createdTo) query.createdTo = createdTo;
   if (activityFrom) query.activityFrom = activityFrom;
   if (activityTo) query.activityTo = activityTo;
+  if (noActivity) query.noActivity = '1';
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
@@ -268,6 +272,10 @@ export default async function ContactsPage(props: ContactsPageProps) {
   if (sort !== 'newest') query.sort = sort;
   // Estado de la vista (para guardarla) y params que conservan los links del listado.
   const viewState = { ...query };
+  if (qf) {
+    viewState.qf = qf;
+    query.qf = qf;
+  }
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
   Object.assign(query, views.keep);
@@ -286,6 +294,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
     !!createdTo ||
     !!activityFrom ||
     !!activityTo ||
+    noActivity ||
     Object.keys(custom).length > 0;
   const admin = isWorkspaceAdmin(user);
 
@@ -327,6 +336,9 @@ export default async function ContactsPage(props: ContactsPageProps) {
         createdTo={createdTo}
         activityFrom={activityFrom}
         activityTo={activityTo}
+        noActivity={noActivity}
+        qf={qf}
+        canExport={admin}
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
@@ -388,6 +400,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
             lists={(await listsP).filter((l) => l.kind === 'static').map((l) => ({ id: l.id, name: l.name }))}
             canDelete={admin}
             canExport={admin}
+            total={total}
           />
           <div className="hs-pager-row">
             <CrmPager pathname="/app/crm/contacts" query={query} page={page} pages={pages} total={total} locale={locale} />

@@ -637,9 +637,11 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         id="deal.contacts"
         label={t('deals.detail.contacts')}
         count={contacts.length}
-        addLabel={contactRows.some((c) => !associatedContactIds.has(c.id)) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="contact"
           records={contacts.map((c) => ({
             id: c.id,
             name: contactName(c),
@@ -663,9 +665,11 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         id="deal.companies"
         label={t('deals.detail.companies')}
         count={dealCompanies.length}
-        addLabel={allCompanies.some((c) => !dealCompanies.some((dc) => dc.id === c.id)) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="company"
           records={dealCompanies.map((c) => ({
             id: c.id,
             name: c.name,
@@ -727,7 +731,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
                   ≈ {formatMoney(baseAmount, currencyCtx.base, locale)}
                 </span>
               )}
-              <span className={`badge prio-${deal.priority}`}>{priorityLabel}</span>
+              <span className={`dot-label prio-${deal.priority}`}>{priorityLabel}</span>
               {pipeline && <span>{pipeline.name}</span>}
               {company && (
                 <Link href={`/app/crm/companies/${company.id}`} className="record-meta-link">

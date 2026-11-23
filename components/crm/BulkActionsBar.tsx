@@ -8,8 +8,10 @@ import BulkEditControls, { type BulkEditField } from './BulkEditControls';
 import TagBulkControls from './TagBulkControls';
 import { OWNER_UNASSIGNED } from '@/lib/crm-filter-model';
 
-type Entity = 'contact' | 'company';
-type Panel = 'assign' | 'edit' | 'list' | 'tags' | 'sequence' | 'delete';
+type Entity = 'contact' | 'company' | 'deal';
+type Panel = 'assign' | 'edit' | 'list' | 'tags' | 'sequence' | 'tasks' | 'delete';
+
+const PLURAL = { contact: 'contacts', company: 'companies', deal: 'deals' } as const;
 
 interface Option {
   value: string;
@@ -17,11 +19,13 @@ interface Option {
 }
 
 /**
- * Barra de acciones masivas de contactos y empresas, con las de HubSpot a la
- * vista: Asignar, Editar, Agregar a lista (contactos), Tags, Inscribir en
- * secuencia (contactos), Exportar y Eliminar. Cada una abre su panel encima de
- * la barra (cierra con Esc o un clic afuera). El server vuelve a chequear todo:
- * solo los registros que la persona ve, permisos por campo y borrar solo admins.
+ * Barra de acciones masivas de contactos, empresas y deals, con las de HubSpot
+ * a la vista: Asignar, Editar, Agregar a lista (contactos), Tags, Inscribir en
+ * secuencia (contactos), Crear tareas, Exportar y Eliminar. Cada una abre su
+ * panel encima de la barra (cierra con Esc o un clic afuera). Con `matching`
+ * actúa sobre todos los que coinciden con el listado: manda la query, no ids.
+ * El server vuelve a chequear todo: solo los registros que la persona ve,
+ * permisos por campo y borrar solo admins.
  */
 export default function BulkActionsBar({
   entity,
@@ -35,9 +39,12 @@ export default function BulkActionsBar({
   canExport,
   onClear,
   onNotice,
+  matching,
 }: {
   entity: Entity;
   ids: string[];
+  /** "Todos los que coinciden": la query del listado y cuántos son (contados por el server, con tope). */
+  matching?: { query: string; count: number };
   owners: Option[];
   bulkFields: BulkEditField[];
   allTags: Array<{ id: string; name: string }>;
@@ -57,6 +64,9 @@ export default function BulkActionsBar({
   const [error, setError] = useState<string | null>(null);
   const [listId, setListId] = useState('');
   const [sequenceId, setSequenceId] = useState('');
+  const [taskSubject, setTaskSubject] = useState('');
+  const [taskDue, setTaskDue] = useState('');
+  const [taskAssign, setTaskAssign] = useState<'me' | 'owner'>('owner');
   const bar = useRef<HTMLDivElement>(null);
   useDismiss(panel !== null, (reason) => {
     const open = panel;
@@ -70,8 +80,11 @@ export default function BulkActionsBar({
     bar.current?.querySelector<HTMLElement>('.bk-pop button:not([disabled]), .bk-pop select, .bk-pop input')?.focus();
   }, [panel]);
 
-  const plural = entity === 'contact' ? 'contacts' : 'companies';
+  const plural = PLURAL[entity];
   const endpoint = `/api/crm/${plural}/bulk`;
+  // A quién apunta: los elegidos, o todos los que coinciden (el server vuelve a evaluar la query).
+  const target = matching ? { matching: { query: matching.query } } : { ids };
+  const count = matching ? matching.count : ids.length;
   const canEditOwner = bulkFields.some((f) => f.key === 'ownerId');
 
   function toggle(p: Panel) {
@@ -103,7 +116,7 @@ export default function BulkActionsBar({
   }
 
   async function assign(owner: string) {
-    const data = await post(endpoint, { action: 'set_property', ids, field: 'ownerId', value: owner === OWNER_UNASSIGNED ? null : owner });
+    const data = await post(endpoint, { action: 'set_property', ...target, field: 'ownerId', value: owner === OWNER_UNASSIGNED ? null : owner });
     if (data) finish(t('bulkEdit.done', { count: Number(data.count ?? 0) }));
   }
 
@@ -123,11 +136,27 @@ export default function BulkActionsBar({
   }
 
   async function remove() {
-    const data = await post(endpoint, { action: 'delete', ids });
-    if (data) finish(t('bulkBar.deleted', { count: Number(data.count ?? 0) }));
+    const data = await post(endpoint, { action: 'delete', ...target });
+    if (data) finish(entity === 'deal' ? t('trash.movedNotice') : t('bulkBar.deleted', { count: Number(data.count ?? 0) }));
   }
 
-  const exportHref = `/api/crm/export?${new URLSearchParams({ entity: plural, format: 'csv', ids: ids.join(',') }).toString()}`;
+  async function createTasks() {
+    if (!taskSubject.trim()) return;
+    const data = await post(endpoint, {
+      action: 'create_tasks',
+      ...target,
+      task: { subject: taskSubject.trim(), dueDate: taskDue, assignTo: taskAssign },
+    });
+    if (!data) return;
+    setTaskSubject('');
+    setTaskDue('');
+    const failed = Number(data.failed ?? 0);
+    finish(`${t('bulkBar.tasksCreated', { count: Number(data.count ?? 0) })}${failed ? ` ${t('bulkBar.tasksFailed', { count: failed })}` : ''}`);
+  }
+
+  const exportHref = `/api/crm/export?${new URLSearchParams(
+    matching ? { entity: plural, format: 'csv', list: matching.query } : { entity: plural, format: 'csv', ids: ids.join(',') },
+  ).toString()}`;
 
   function action(p: Panel, label: string, content: ReactNode, opts: { danger?: boolean; testId: string }) {
     return (
@@ -160,7 +189,7 @@ export default function BulkActionsBar({
 
   return (
     <div className="bulk-bar hs-bulk" role="toolbar" aria-label={t('bulkBar.label')} ref={bar} data-testid="crm-bulk-bar">
-      <span className="bulk-count">{t('contacts.bulk.selected', { count: ids.length })}</span>
+      <span className="bulk-count" data-testid="bulk-count">{t('contacts.bulk.selected', { count })}</span>
       {canEditOwner &&
         action(
           'assign',
@@ -179,11 +208,12 @@ export default function BulkActionsBar({
           'edit',
           t('bulkBar.edit'),
           <div className="bk-form">
-            <BulkEditControls endpoint={endpoint} ids={ids} fields={bulkFields} disabled={busy} onDone={(notice) => finish(notice)} />
+            <BulkEditControls endpoint={endpoint} ids={ids} matching={matching?.query} fields={bulkFields} disabled={busy} onDone={(notice) => finish(notice)} />
           </div>,
           { testId: 'bulk-edit' },
         )}
       {entity === 'contact' &&
+        !matching &&
         lists.length > 0 &&
         action(
           'list',
@@ -211,6 +241,7 @@ export default function BulkActionsBar({
             <TagBulkControls
               entity={entity}
               ids={ids}
+              matching={matching?.query}
               tags={allTags}
               disabled={busy}
               onDone={() => {
@@ -222,6 +253,7 @@ export default function BulkActionsBar({
           { testId: 'bulk-tags' },
         )}
       {entity === 'contact' &&
+        !matching &&
         sequences.length > 0 &&
         action(
           'sequence',
@@ -241,9 +273,48 @@ export default function BulkActionsBar({
           </div>,
           { testId: 'bulk-sequence' },
         )}
+      {action(
+        'tasks',
+        t('bulkBar.createTasks'),
+        <form
+          className="bk-form bk-tasks"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void createTasks();
+          }}
+        >
+          <label className="bk-field">
+            <span>{t('bulkBar.taskTitle')}</span>
+            <input
+              className="input"
+              value={taskSubject}
+              onChange={(e) => setTaskSubject(e.target.value)}
+              maxLength={200}
+              required
+              disabled={busy}
+              data-testid="bulk-task-subject"
+            />
+          </label>
+          <label className="bk-field">
+            <span>{t('bulkBar.taskDue')}</span>
+            <input className="input" type="date" value={taskDue} onChange={(e) => setTaskDue(e.target.value)} disabled={busy} data-testid="bulk-task-due" />
+          </label>
+          <label className="bk-field">
+            <span>{t('bulkBar.taskAssign')}</span>
+            <select className="filter-select" value={taskAssign} onChange={(e) => setTaskAssign(e.target.value === 'me' ? 'me' : 'owner')} disabled={busy}>
+              <option value="owner">{t('bulkBar.taskAssignOwner')}</option>
+              <option value="me">{t('bulkBar.taskAssignMe')}</option>
+            </select>
+          </label>
+          <button type="submit" className="bulk-btn" disabled={busy || !taskSubject.trim()} data-testid="bulk-task-create">
+            {t('bulkBar.createTasksCta', { count })}
+          </button>
+        </form>,
+        { testId: 'bulk-tasks' },
+      )}
       {canExport && (
         <a className="bulk-btn" href={exportHref} download data-testid="bulk-export">
-          {t('listBar.export')}
+          {t('listBar.export', { count })}
         </a>
       )}
       {canDelete &&
@@ -251,7 +322,7 @@ export default function BulkActionsBar({
           'delete',
           t('contacts.bulk.delete'),
           <div className="bk-form bk-confirm">
-            <span>{t(entity === 'contact' ? 'contacts.bulk.confirmDelete' : 'companies.bulk.confirmDelete', { count: ids.length })}</span>
+            <span>{t(entity === 'contact' ? 'contacts.bulk.confirmDelete' : entity === 'company' ? 'companies.bulk.confirmDelete' : 'deals.bulkConfirmDelete', { count })}</span>
             <button type="button" className="bulk-btn danger" disabled={busy} onClick={remove} data-testid="bulk-delete-confirm">
               {t('contacts.bulk.delete')}
             </button>

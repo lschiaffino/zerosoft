@@ -29,6 +29,7 @@ const PATHS = {
   filter: 'M4 5h16l-6 8v6l-4-2v-4z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   plus: 'M12 5v14M5 12h14',
+  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   chevronRight: 'M9 6l6 6-6 6',
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
   keypad: 'M6 4h2M11 4h2M16 4h2M6 9h2M11 9h2M16 9h2M6 14h2M11 14h2M16 14h2M11 19h2',

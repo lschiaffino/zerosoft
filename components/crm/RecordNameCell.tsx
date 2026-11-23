@@ -22,7 +22,7 @@ export default function RecordNameCell({
 }: {
   href: string;
   name: string;
-  /** Por defecto, las iniciales del nombre. */
+  /** Por defecto, las iniciales del nombre; `null` = sin avatar (deals, como en HubSpot). */
   avatar?: ReactNode;
   onPreview: () => void;
 }) {
@@ -38,12 +38,14 @@ export default function RecordNameCell({
   return (
     <td data-card="main" className="cell-record">
       <span className="hs-name">
-        {avatar ?? (
+        {avatar !== undefined ? (
+          avatar
+        ) : (
           <span className="hs-avatar" aria-hidden="true">
             {recordInitials(name)}
           </span>
         )}
-        <Link href={href} className="cell-name" onClick={onClick} aria-haspopup="dialog" data-testid="record-name">
+        <Link href={href} className="cell-name" onClick={onClick} aria-haspopup="dialog" data-testid="record-name" title={name}>
           {name}
         </Link>
         <Link href={href} className="hs-open" title={t('listBar.openRecord')} aria-label={t('listBar.openRecord')} data-testid="record-open">

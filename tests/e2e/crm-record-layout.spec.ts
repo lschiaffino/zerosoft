@@ -244,9 +244,9 @@ test.describe('ficha en tres columnas a 1280', () => {
     const deals = card(page, 'contact.deals');
     await expect(toggle(deals)).toHaveAttribute('aria-expanded', 'true');
     await expect(deals.getByRole('link', { name: s.names.deal })).toBeVisible();
-    // Abierta, el selector ya está a la vista: no hay un "Agregar" de más.
-    await expect(deals.locator('.assoc-add-row')).toBeVisible();
-    await expect(deals.getByTestId('record-card-add')).toHaveCount(0);
+    // Como en HubSpot: "+ Agregar" en el encabezado, abierta o plegada (abre el selector con búsqueda).
+    await expect(deals.getByTestId('record-card-add')).toBeVisible();
+    await expect(deals.getByTestId('assoc-add')).toBeHidden();
 
     // El control está quieto bajo el mouse: pasar por encima no lo mueve ni lo esconde.
     const before = await box(toggle(deals));
@@ -274,12 +274,14 @@ test.describe('ficha en tres columnas a 1280', () => {
     await page.goto(`/en/app/crm/contacts/${other.id}`, { waitUntil: 'networkidle' });
     await expect(toggle(card(page, 'contact.deals'))).toHaveAttribute('aria-expanded', 'false');
 
-    // Plegada, "Agregar" la abre y deja el foco en el selector de asociar.
+    // Plegada, "Agregar" la abre y abre el selector con el foco en la búsqueda; Esc lo cierra.
     await page.goto(s.paths.contact, { waitUntil: 'networkidle' });
     await card(page, 'contact.deals').getByTestId('record-card-add').click();
     await expect(toggle(card(page, 'contact.deals'))).toHaveAttribute('aria-expanded', 'true');
     await expect(card(page, 'contact.deals').getByRole('link', { name: s.names.deal })).toBeVisible();
-    await expect(card(page, 'contact.deals').locator('.assoc-add-row').locator('select, button, a').first()).toBeFocused();
+    await expect(card(page, 'contact.deals').getByTestId('assoc-picker-search')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(card(page, 'contact.deals').getByTestId('assoc-picker')).toHaveCount(0);
 
     // Las tarjetas de propiedades se pliegan igual.
     const lifecycle = card(page, 'contact.lifecycle');

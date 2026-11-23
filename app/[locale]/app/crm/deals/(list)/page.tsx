@@ -218,6 +218,8 @@ export default async function DealsPage(props: DealsPageProps) {
   const closeTo = dayParam(state.closeTo);
   const activityFrom = dayParam(state.activityFrom);
   const activityTo = dayParam(state.activityTo);
+  const noActivity = state.noActivity === '1';
+  const qf = state.qf ?? '';
   const custom = customFromState(state);
   const tag = state.tag ?? '';
   const stalled = state.stalled === '1';
@@ -243,6 +245,7 @@ export default async function DealsPage(props: DealsPageProps) {
     closeTo: closeTo || undefined,
     activityFrom: activityFrom || undefined,
     activityTo: activityTo || undefined,
+    activityNone: noActivity || undefined,
     tag: tag || undefined,
     stalled: stalled || undefined,
     custom: Object.keys(custom).length
@@ -269,15 +272,17 @@ export default async function DealsPage(props: DealsPageProps) {
   if (closeTo) viewState.closeTo = closeTo;
   if (activityFrom) viewState.activityFrom = activityFrom;
   if (activityTo) viewState.activityTo = activityTo;
+  if (noActivity) viewState.noActivity = '1';
   Object.entries(custom).forEach(([k, v]) => {
     if (v) viewState[`custom_${k}`] = v;
   });
   if (filtersParam) viewState.filters = filtersParam;
   if (sort !== 'newest') viewState.sort = sort;
+  if (qf) viewState.qf = qf;
   Object.assign(query, viewState, views.keep);
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
-  const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze');
+  const hasViewFilters = Object.keys(viewState).some((k) => k !== 'sort' && k !== 'cols' && k !== 'freeze' && k !== 'qf');
 
   // Pasar de board a tabla, o de pipeline, mantiene la vista activa.
   const activeViewQ: Record<string, string> = views.keep.sv ? { sv: views.keep.sv } : {};
@@ -354,6 +359,9 @@ export default async function DealsPage(props: DealsPageProps) {
         closeTo={closeTo}
         activityFrom={activityFrom}
         activityTo={activityTo}
+        noActivity={noActivity}
+        qf={qf}
+        canExport={isWorkspaceAdmin(user)}
         locale={locale}
         trailing={trailing}
         custom={custom}
@@ -523,6 +531,9 @@ export default async function DealsPage(props: DealsPageProps) {
               allTags={tagOptions}
               bulkFields={bulkFields}
               owners={owners}
+              canDelete={isWorkspaceAdmin(user)}
+              canExport={isWorkspaceAdmin(user)}
+              total={total}
             />
             <CrmPager pathname="/app/crm/deals" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
           </>

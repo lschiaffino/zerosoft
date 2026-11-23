@@ -535,9 +535,11 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         id="company.contacts"
         label={t('companies.detail.contacts')}
         count={contacts.length}
-        addLabel={allContacts.some((c) => !contacts.some((cc) => cc.id === c.id)) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="contact"
           records={contacts.map((c) => ({
             id: c.id,
             name: [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email,
@@ -563,9 +565,11 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         id="company.deals"
         label={t('companies.detail.deals')}
         count={deals.length}
-        addLabel={allDeals.some((d) => !deals.some((dd) => dd.id === d.id)) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="deal"
           records={deals.map((d) => ({
             id: d.id,
             name: d.name,
@@ -599,9 +603,12 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         id="company.children"
         label={t('companies.detail.children')}
         count={children.length}
-        addLabel={allCompanies.some((c) => c.id !== parent?.id && !children.some((ch) => ch.id === c.id)) ? t('record.cards.add') : undefined}
+        addLabel={t('record.cards.add')}
+        addAlways
       >
         <AssociationPanel
+          searchType="company"
+          exclude={[company.id, ...(parent ? [parent.id] : [])]}
           records={children.map((c) => ({
             id: c.id,
             name: c.name,
@@ -660,7 +667,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
           quick={COMPOSE_TYPES}
           keyLine={
             <>
-              <span className={`badge stage-${company.lifecycle_stage}`}>{lifecycleLabel(company.lifecycle_stage)}</span>
+              <span className={`dot-label stage-${company.lifecycle_stage}`}>{lifecycleLabel(company.lifecycle_stage)}</span>
               {company.domain && (
                 <a
                   className="record-meta-link data"

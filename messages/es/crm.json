@@ -95,7 +95,14 @@
     "makePrimary": "Hacer principal",
     "label": "Etiqueta",
     "noLabel": "Sin etiqueta",
-    "typeToSearch": "Escribí para buscar"
+    "typeToSearch": "Escribí para buscar",
+    "noMatches": "No hay coincidencias.",
+    "searching": "Buscando…",
+    "search": {
+      "contact": "Buscá contactos",
+      "company": "Buscá empresas",
+      "deal": "Buscá deals"
+    }
   },
   "enums": {
     "lifecycle": {
@@ -1510,7 +1517,8 @@
     "duplicate_label": "Ya hay un label con ese nombre.",
     "too_many_labels": "Llegaste al límite de labels para esta asociación.",
     "invalid_queue": "Esa cola no existe o no la podés ver.",
-    "too_many": "Este workspace llegó al límite."
+    "too_many": "Este workspace llegó al límite.",
+    "too_many_tasks": "Se pueden crear tareas para hasta 200 registros a la vez. Achicá la vista y probá de nuevo."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -5009,7 +5017,9 @@
     "openRecord": "Abrir registro",
     "noMoreFilters": "Todavía no hay más filtros para empresas. Usá los filtros avanzados.",
     "perPage": "{count} por página",
-    "perPageLabel": "Filas por página"
+    "perPageLabel": "Filas por página",
+    "exportView": "Exportar vista",
+    "exportViewHint": "Bajá en CSV todos los registros de esta vista, no solo esta página"
   },
   "bulkBar": {
     "label": "Acciones en masa",
@@ -5021,7 +5031,16 @@
     "add": "Agregar",
     "clear": "Quitar selección",
     "addedToList": "{count, plural, one {# contacto agregado a la lista.} other {# contactos agregados a la lista.}}",
-    "deleted": "{count, plural, one {# registro movido a la papelera.} other {# registros movidos a la papelera.}}"
+    "deleted": "{count, plural, one {# registro movido a la papelera.} other {# registros movidos a la papelera.}}",
+    "createTasks": "Crear tareas",
+    "taskTitle": "Título de la tarea",
+    "taskDue": "Vence",
+    "taskAssign": "Asignar a",
+    "taskAssignOwner": "Owner del registro",
+    "taskAssignMe": "Yo",
+    "createTasksCta": "{count, plural, one {Crear # tarea} other {Crear # tareas}}",
+    "tasksCreated": "{count, plural, one {Se creó # tarea.} other {Se crearon # tareas.}}",
+    "tasksFailed": "{count, plural, one {Se salteó # registro.} other {Se saltearon # registros.}}"
   },
   "propSearch": {
     "placeholder": "Buscar propiedades",
@@ -5059,7 +5078,8 @@
       "nextMonth": "Mes que viene",
       "thisQuarter": "Este trimestre",
       "next30": "Próximos 30 días",
-      "overdue": "Antes de hoy"
+      "overdue": "Antes de hoy",
+      "none": "Sin actividad"
     }
   },
   "dash": {
@@ -5428,5 +5448,38 @@
     "addCompany": "Agregar empresa",
     "addDeal": "Agregar deal",
     "addContact": "Agregar contacto"
+  },
+  "columnMenu": {
+    "label": "Opciones de la columna: {name}",
+    "sortAsc": "Ordenar ascendente",
+    "sortDesc": "Ordenar descendente",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "remove": "Quitar columna"
+  },
+  "quickFilterPicker": {
+    "button": "Editar filtros rápidos",
+    "title": "Filtros rápidos de esta vista",
+    "reset": "Volver a los de siempre"
+  },
+  "selectAll": {
+    "page": "{count, plural, one {Está elegido el registro de esta página.} other {Están elegidos los # registros de esta página.}}",
+    "select": {
+      "contacts": "Elegir los {count} contactos de esta vista",
+      "companies": "Elegir las {count} empresas de esta vista",
+      "deals": "Elegir los {count} deals de esta vista"
+    },
+    "all": {
+      "contacts": "Están elegidos los {count} contactos de esta vista.",
+      "companies": "Están elegidas las {count} empresas de esta vista.",
+      "deals": "Están elegidos los {count} deals de esta vista."
+    },
+    "capped": {
+      "contacts": "Están elegidos los primeros {count} de {total} contactos de esta vista (el tope de una acción masiva).",
+      "companies": "Están elegidas las primeras {count} de {total} empresas de esta vista (el tope de una acción masiva).",
+      "deals": "Están elegidos los primeros {count} de {total} deals de esta vista (el tope de una acción masiva)."
+    },
+    "clear": "Quitar la selección",
+    "error": "No se pudieron elegir. Probá de nuevo."
   }
 }

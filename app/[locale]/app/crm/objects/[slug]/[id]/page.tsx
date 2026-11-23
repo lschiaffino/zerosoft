@@ -215,6 +215,7 @@ export default async function ObjectRecordPage(props: {
         <div className="record-related">
           <section className="record-block">
             <AssociationPanel
+              searchType="contact"
               title={t('objects.assocContacts')}
               count={links.contacts.length}
               records={links.contacts.map((c) => ({ id: c.id, name: contactName(c), href: `/app/crm/contacts/${c.id}`, meta: c.email || undefined }))}
@@ -227,6 +228,7 @@ export default async function ObjectRecordPage(props: {
           </section>
           <section className="record-block">
             <AssociationPanel
+              searchType="company"
               title={t('objects.assocCompanies')}
               count={links.companies.length}
               records={links.companies.map((c) => ({ id: c.id, name: c.name, href: `/app/crm/companies/${c.id}`, meta: c.domain || undefined }))}
@@ -239,6 +241,7 @@ export default async function ObjectRecordPage(props: {
           </section>
           <section className="record-block">
             <AssociationPanel
+              searchType="deal"
               title={t('objects.assocDeals')}
               count={links.deals.length}
               records={links.deals.map((d) => ({ id: d.id, name: d.name, href: `/app/crm/deals/${d.id}` }))}

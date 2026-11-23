@@ -87,6 +87,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const createdTo = state.createdTo ?? '';
   const activityFrom = state.activityFrom ?? '';
   const activityTo = state.activityTo ?? '';
+  const noActivity = state.noActivity === '1';
+  const qf = state.qf ?? '';
   const tag = state.tag ?? '';
   const custom = customFromState(state);
   const page = Number(one(searchParams.page) ?? '1') || 1;
@@ -138,6 +140,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     createdTo: createdTo || undefined,
     activityFrom: activityFrom || undefined,
     activityTo: activityTo || undefined,
+    activityNone: noActivity || undefined,
     tag: tag || undefined,
     custom: Object.keys(custom).length
       ? Object.fromEntries(Object.entries(custom).filter(([k]) => customFieldDefs.some((d) => d.name === k)))
@@ -241,6 +244,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   if (createdTo) query.createdTo = createdTo;
   if (activityFrom) query.activityFrom = activityFrom;
   if (activityTo) query.activityTo = activityTo;
+  if (noActivity) query.noActivity = '1';
   Object.entries(custom).forEach(([k, v]) => {
     if (v) query[`custom_${k}`] = v;
   });
@@ -248,6 +252,10 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   if (sort !== 'newest') query.sort = sort;
   // Estado de la vista (para guardarla) y params que conservan los links del listado.
   const viewState = { ...query };
+  if (qf) {
+    viewState.qf = qf;
+    query.qf = qf;
+  }
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
   Object.assign(query, views.keep);
@@ -265,6 +273,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     !!createdTo ||
     !!activityFrom ||
     !!activityTo ||
+    noActivity ||
     Object.keys(custom).length > 0;
   const admin = isWorkspaceAdmin(user);
 
@@ -306,6 +315,9 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         createdTo={createdTo}
         activityFrom={activityFrom}
         activityTo={activityTo}
+        noActivity={noActivity}
+        qf={qf}
+        canExport={admin}
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
@@ -360,6 +372,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             owners={owners}
             canDelete={admin}
             canExport={admin}
+            total={total}
           />
           <div className="hs-pager-row">
             <CrmPager pathname="/app/crm/companies" query={query} page={currentPage} pages={pages} total={total} locale={locale} />
