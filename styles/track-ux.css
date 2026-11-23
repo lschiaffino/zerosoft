@@ -862,6 +862,21 @@ a.track-issue-link .track-status-glyph {
   cursor: pointer;
 }
 
+/* Con el dedo, la cruz del chip es un objetivo de 40px (el chip crece a esa altura), y la celda de
+   "Seleccionar todo" de la cabecera también (como la de cada fila). */
+@media (pointer: coarse) {
+  .track-table th.track-col-select {
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .track-filter-chip-remove {
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
 .track-filter-match {
   font-family: var(--font-data);
   font-size: 0.75rem;

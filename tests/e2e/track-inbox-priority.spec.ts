@@ -165,13 +165,16 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await expect(row(page, s.status)).toHaveClass(/is-kb-active/);
   await page.keyboard.press('Enter');
   // Con next dev la página del issue se compila la primera vez: más margen.
-  await expect(page).toHaveURL(new RegExp(`/app/track/issues/${s.issue.id}`), { timeout: 120_000 });
+  // La URL del issue pasa a la canónica (/issue/<ID>/<slug>).
+  await expect(page).toHaveURL(new RegExp(`/app/track/(issues/${s.issue.id}|issue/${s.issue.identifier}/)`), { timeout: 120_000 });
   await expect(page.getByTestId('track-side-status')).toBeVisible({ timeout: 120_000 });
 });
 
-test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afuera; cinco aspectos, claro y oscuro', async ({ page, request }) => {
+test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afuera; cinco aspectos, claro y oscuro', async ({ browser, request, baseURL }) => {
   const s = await seed(request);
-  await page.setViewportSize(PHONE);
+  // Un teléfono de verdad (puntero táctil): así se auditan los objetivos de 40px.
+  const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
   await open(page, s);
   await expect.poll(() => ids(page)).toEqual([s.assigned, s.status]);
   const more = row(page, s.assigned).locator('.track-inbox-more button');
@@ -203,7 +206,8 @@ test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afu
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
   // Sin scroll lateral ni nada fuera de pantalla (los 40px del "…" se miden arriba).
-  await check(page, 'track inbox 390');
+  await check(page, 'track inbox 390', { tap: true });
+  await ctx.close();
 });
 
 test('1280: cinco aspectos, claro y oscuro', async ({ page, request }) => {

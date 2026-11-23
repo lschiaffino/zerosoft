@@ -244,7 +244,14 @@ export default function IssuesTable({
           <thead>
             <tr>
               {selection && (
-                <th className="track-col-select">
+                // Con el dedo la celda entera marca todas (como la casilla de cada fila).
+                <th
+                  className="track-col-select tap-wrap"
+                  onClick={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    selection.toggleAll();
+                  }}
+                >
                   <input
                     type="checkbox"
                     className="track-select-box"

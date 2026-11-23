@@ -147,9 +147,11 @@ test('issue: tiempo en el status actual y total por status; Esc cierra', async (
   await expect(btn).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', async ({ page, request }) => {
+test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', async ({ browser, request, baseURL }) => {
   const s = await seed(request);
-  await page.setViewportSize(PHONE);
+  // Un teléfono de verdad (puntero táctil): así se auditan los objetivos de 40px.
+  const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
   await page.goto(`/en/app/track/team/${s.team}`, { waitUntil: 'networkidle' });
   await expect(rows(page)).toHaveCount(2);
   await showProps(page);
@@ -165,7 +167,7 @@ test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', a
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  await check(page, 'track list status time 390');
+  await check(page, 'track list status time 390', { tap: true });
 
   await page.goto(`/en/app/track/issues/${s.old.id}`, { waitUntil: 'networkidle' });
   const btn = page.getByTestId('track-issue-status-time');
@@ -174,6 +176,7 @@ test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', a
   await expect(page.getByTestId('track-issue-status-time-row')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'track-status-time-issue-390');
+  await ctx.close();
 });
 
 test('1280: cinco aspectos, claro y oscuro (capturas)', async ({ page, request }) => {
