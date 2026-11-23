@@ -52,6 +52,8 @@ test.describe('CRM en vivo', () => {
     await page.goto(`/en/app/crm/contacts?q=${tok}`);
     const names = page.getByTestId('record-name');
     await expect(names).toHaveCount(1);
+    // La tabla ya está hidratada (guarda su vista en la pestaña al montarse).
+    await page.waitForFunction(() => sessionStorage.getItem('zs-crm-view:contacts') !== null);
 
     const other = await teammate(browser, baseURL!);
     try {
@@ -143,6 +145,8 @@ test.describe('anterior / siguiente en la ficha', () => {
     // Orden por nombre: A, B, C.
     await page.goto(`/en/app/crm/contacts?q=${tok}&sort=name`);
     await expect(page.getByTestId('record-name')).toHaveCount(3);
+    // La tabla ya guardó su vista en la pestaña (lo hace al hidratar).
+    await page.waitForFunction(() => sessionStorage.getItem('zs-crm-view:contacts') !== null);
     await page.locator(`a[data-testid="record-open"][href$="/app/crm/contacts/${ids[1]}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/app/crm/contacts/${ids[1]}`), { timeout: 60_000 });
 
