@@ -8,9 +8,8 @@
  * recordatorio mientras tanto, el claim viejo no lo pisa. Las notas en la
  * papelera no avisan.
  */
-import { personAppAccess } from './api-auth';
+import { personCanUseApp } from './workspace-apps';
 import { getDb } from './db';
-import { canUseApp } from './workspace';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
@@ -174,8 +173,8 @@ export async function fireNoteReminders(opts: { limit?: number; now?: Date } = {
     if (!claimed.changes) continue;
     // El texto de la nota solo le llega a quien hoy es su dueño y sigue en el workspace.
     if (r.person_id !== r.note_owner) continue;
-    const access = await personAppAccess(r.workspace_id, r.person_id).catch(() => null);
-    if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'notes')) continue;
+    // Notes abierta para la persona (Miembros y Apps del workspace).
+    if (!(await personCanUseApp(r.workspace_id, r.person_id, 'notes'))) continue;
     fired++;
     const s = STRINGS[reminderLocale(r.locale)];
     const title = r.title.trim() || s.untitled;

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { apiError, requireApiUser, type ApiKeyAuth } from '@/lib/api-auth';
 import { getTicket, updateTicket, type TicketPatch } from '@/lib/groups-tickets';
 import type { TicketPriority, TicketStatus } from '@/lib/groups-rules';
-import { canSeeChat, ticketsForViewer } from '@/lib/groups-access';
+import { canSeeChat, maskTicket, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { ticketLinks } from '@/lib/groups-integrations';
 import { v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
@@ -33,7 +33,9 @@ export async function GET(req: Request, ctx: Ctx) {
 export async function PATCH(req: Request, ctx: Ctx) {
   const auth = await requireApiUser(req, 'groups:write');
   if ('res' in auth) return auth.res;
-  const before = await visibleTicket(auth, (await ctx.params).id);
+  const shown = await visibleTicket(auth, (await ctx.params).id);
+  // El registro de cambios, con el ticket guardado (sin máscara); la máscara es solo para la respuesta.
+  const before = shown ? await getTicket(auth.user.id, shown.id) : null;
   if (!before) return apiError(404, 'not_found', 'Ticket not found.');
   const b = await v1Json(req);
   const patch: TicketPatch = {};
@@ -44,7 +46,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   try {
     const after = await updateTicket(auth.user.id, before.id, patch);
     await recordAudit(auth.user.id, { chatId: after.chatId, chatName: before.chatName, actorId: auth.personId, actorKind: 'api', action: 'ticket_updated', detail: { number: after.number, status: after.status } });
-    return NextResponse.json({ data: after });
+    return NextResponse.json({ data: maskTicket(await v1Viewer(auth), after) });
   } catch (err) {
     return v1Error(err);
   }

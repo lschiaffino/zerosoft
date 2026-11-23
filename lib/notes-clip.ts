@@ -226,7 +226,7 @@ export async function resolveClipImages(blocks: ClipBlock[]): Promise<DocsBlock[
         const buf = res.ok && mime.startsWith('image/') ? await readBytesCapped(res, MAX_IMAGE_BYTES) : null;
         if (buf && buf.length > 0) {
           const name = decodeURIComponent(new URL(clipImage).pathname.split('/').pop() || 'image').slice(0, 120) || 'image';
-          const url = await saveUpload('docs', name, mime, buf);
+          const url = await saveUpload('docs', name, mime, buf, { app: 'notes' });
           saved = { ...block, url, name, size: buf.length, mime };
           copied++;
         }

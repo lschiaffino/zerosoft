@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
 import { createTicket, listTickets, type TicketQuery } from '@/lib/groups-tickets';
 import { TICKET_STATUSES, type TicketPriority } from '@/lib/groups-rules';
-import { ticketsForViewer } from '@/lib/groups-access';
+import { maskTicket, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { v1Chat, v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
 
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (res.created) {
       await recordAudit(auth.user.id, { chatId: b.chatId, chatName: res.ticket.chatName, actorId: auth.personId, actorKind: 'api', action: 'ticket_created', detail: { number: res.ticket.number } });
     }
-    return NextResponse.json({ data: res.ticket }, { status: res.created ? 201 : 200 });
+    return NextResponse.json({ data: maskTicket(await v1Viewer(auth), res.ticket) }, { status: res.created ? 201 : 200 });
   } catch (err) {
     return v1Error(err);
   }

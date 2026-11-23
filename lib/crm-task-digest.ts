@@ -9,9 +9,8 @@
  * visibilidad del workspace) y las de un chat de Lines que no ve van con el
  * marcador. Si ya no está en el workspace o no usa el CRM, no sale nada.
  */
+import { personCanUseApp } from './workspace-apps';
 import { getDb, type Db } from './db';
-import { personAppAccess } from './api-auth';
-import { canUseApp } from './workspace';
 import { ownerScopeFor } from './crm-visibility';
 import { taskFilterWhere } from './crm-tasks-index';
 import { dayRangeUtc, isValidTimeZone, tzOffsetMinutes } from './user-tz';
@@ -96,8 +95,9 @@ interface DigestTask {
 
 /** Las tareas del email de una persona: abiertas, suyas, vencidas o de hoy, que hoy ve. */
 export async function digestTasksFor(workspaceId: string, personId: string, tz: string, at: Date, locale: string | null): Promise<DigestTask[] | null> {
-  const access = await personAppAccess(workspaceId, personId).catch(() => null);
-  if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'crm')) return null;
+  // El CRM tiene que seguir abierto para la persona (Miembros y Apps del workspace), como en la sesión.
+  const access = await personCanUseApp(workspaceId, personId, 'crm');
+  if (!access) return null;
   const ownerScope = await ownerScopeFor({ workspaceId, personId, role: access.role });
   const { personChatReader, noChatReader, redactChatTasks } = await import('./crm-chat-privacy');
   const chatReader = await personChatReader(workspaceId, personId, locale).catch(() => noChatReader(workspaceId, locale));

@@ -1584,6 +1584,7 @@
       "link": "Link",
       "linkPlaceholder": "Paste or type a link and press Enter",
       "tooLong": "Too long: the limit is 200,000 characters. The rest will not be saved.",
+      "comment": "Comment on selection",
       "mention": "Mention a teammate"
     },
     "thread": {
@@ -1917,6 +1918,12 @@
       "remove": "Remove from favorites",
       "added": "Added to favorites",
       "removed": "Removed from favorites"
+    },
+    "inline": {
+      "title": "Comment on this text",
+      "placeholder": "Leave a comment…",
+      "submit": "Comment",
+      "cancel": "Cancel"
     },
     "dup": {
       "of": "Duplicate of",

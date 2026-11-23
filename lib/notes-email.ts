@@ -108,7 +108,7 @@ async function attachmentBlocks(files: InboundAttachment[]): Promise<{ blocks: D
       continue;
     }
     try {
-      const url = await saveUpload('docs', f.filename, f.contentType, f.data);
+      const url = await saveUpload('docs', f.filename, f.contentType, f.data, { app: 'notes' });
       const type = f.contentType.startsWith('image/') ? 'image' : f.contentType === 'application/pdf' ? 'pdf' : 'file';
       blocks.push({ id: crypto.randomUUID(), type, content: '', url, name: f.filename, size: f.data.length, mime: f.contentType });
     } catch (err) {

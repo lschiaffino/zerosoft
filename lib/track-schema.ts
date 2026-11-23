@@ -223,6 +223,8 @@ export const commentCreateSchema = z.object({
   body: longText.min(1),
   /** Respuesta en hilo: comentario raíz (o una respuesta, que se sube a su raíz). */
   parentId: id.optional(),
+  /** Comentario en línea: el texto elegido de la descripción (se ignora en una respuesta). */
+  anchor: z.string().trim().min(1).max(1000).optional(),
 });
 
 export const commentUpdateSchema = z.object({
