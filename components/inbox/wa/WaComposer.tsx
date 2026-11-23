@@ -508,6 +508,8 @@ const WaComposer = forwardRef<
       )}
       {!editing && <AiComposeBar ai={ai} floating />}
       {emojiSuggest.strip}
+      {/* "Pulir" o "Insertado · Deshacer": una fila arriba del campo que aparece solo con el chip (nunca tapa la conversación). */}
+      {!editing && <AiComposeChip ai={ai} />}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
           <button type="button" className="wa-icon-btn" data-emoji-toggle aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
@@ -535,7 +537,6 @@ const WaComposer = forwardRef<
           ref={area}
           highlights={mentionHits}
           readOnly={paused}
-          adornment={editing ? null : <AiComposeChip ai={ai} />}
           aria-busy={paused || undefined}
           className="wa-input"
           data-testid="composer-input"

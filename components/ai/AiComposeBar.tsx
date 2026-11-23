@@ -75,8 +75,10 @@ function Act({ off, onAct, className, children, title, testid }: { off?: boolean
  */
 /**
  * Con la barra cerrada, en un chat: "Pulir" (un mensaje largo escrito a mano) o "Insertado · Deshacer", como un
- * chip que flota sobre el borde de arriba del campo, sin ocupar lugar (no empuja la conversación). Va adentro de la
- * caja del campo (MentionTextarea `adornment`); AiComposeBar con `floating` no lo repite.
+ * chip chico arriba del campo, a la derecha. Ocupa su lugar en el composer (nunca flota sobre la conversación, así
+ * no tapa el último mensaje): en Lines va en la fila de las solapas WhatsApp | Nota interna, que ya está ahí y no
+ * cambia de alto; en Inbox, en una fila propia arriba del campo que aparece solo con el chip (la conversación sigue
+ * abajo de todo, components/ui/useScrollAnchor.ts). AiComposeBar con `floating` no lo repite.
  */
 export function AiComposeChip({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'chat' | 'app' }) {
   if (ai.open) return null;
@@ -85,7 +87,7 @@ export function AiComposeChip({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'ch
 
 function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'chat' | 'app'; floating?: boolean }) {
   const t = useTranslations('common.aiCompose');
-  const float = floating ? ' aic-float' : '';
+  const float = floating ? ' aic-inrow' : '';
   // Un mensaje largo escrito a mano: se ofrece pulirlo (abre la barra con el resultado para revisar; nunca manda).
   if (ai.undo === null && worthPolishing(ai.composerText)) {
     return (
@@ -109,7 +111,9 @@ function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'cha
   if (ai.undo === null) return null;
   return (
     <p className={`aic-undo aic-${tone}${float}`} role="status" data-testid="ai-compose-undo">
-      <span>{t('inserted')}</span>
+      <span className="aic-undo-text" title={t('inserted')}>
+        {t('inserted')}
+      </span>
       <button type="button" className="aic-link" onMouseDown={floating ? (e) => e.preventDefault() : undefined} onClick={ai.undoInsert}>
         {t('undo')}
       </button>

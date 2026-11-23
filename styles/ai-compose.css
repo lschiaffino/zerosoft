@@ -104,22 +104,21 @@
 .aic-polish .aic-link { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; text-decoration: none; color: var(--aic-ink-2); }
 .aic-polish .aic-link:hover { color: var(--aic-ink); }
 
-/* En un chat, "Pulir" e "Insertado · Deshacer" flotan: un chip chico sobre el borde de arriba del campo, sin ocupar
-   lugar, así la conversación no salta cuando aparece. Va a la derecha del campo (el micrófono de dictado va dentro
-   del campo, styles/voice-host.css .vc-bar.is-inset); a la izquierda pisaría las solapas WhatsApp | Nota interna.
-   La caja del campo (.wa-input-box) es position: relative. */
-.aic-undo.aic-float {
-  position: absolute; z-index: 6; right: 0; bottom: calc(100% + 8px); flex-wrap: nowrap; gap: 6px;
-  height: 24px; margin: 0; padding: 0 8px; white-space: nowrap; font-size: 0.75rem;
-  color: var(--ink-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1);
+/* En un chat, "Pulir" e "Insertado · Deshacer" van en un chip chico arriba del campo, a la derecha, que ocupa su
+   lugar en el composer: nunca flota sobre la conversación (tapaba el último mensaje). En Lines va en la fila de las
+   solapas WhatsApp | Nota interna (.wa-mode, que ya mide lo suyo: el chip no cambia su alto); en Inbox, en una fila
+   propia arriba del campo que aparece solo con el chip. Si no entra, el texto se corta con "…" y Deshacer queda. */
+.aic-undo.aic-inrow {
+  flex-wrap: nowrap; gap: 6px; width: fit-content; max-width: 100%; min-width: 0; height: 24px; margin: 0 0 6px auto; padding: 0 8px;
+  white-space: nowrap; font-size: 0.75rem; color: var(--ink-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1);
 }
-.wa-composer .aic-undo.aic-float { padding-top: 0; }
-.aic-float .aic-link { color: var(--ink-2); }
-.aic-float.aic-polish .aic-link { height: 22px; color: var(--ink-3); }
-.aic-float.aic-polish .aic-link:hover, .aic-float .aic-link:hover { color: var(--ink); }
-.aic-float .aic-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-/* Teléfono: no hay micrófono de dictado; el chip se corre sobre la columna de Enviar para separarse de las solapas. */
-@media (max-width: 1023px) { .aic-undo.aic-float { right: calc(-4px - var(--wa-bar-btn, 40px)); } }
+.wa-composer .aic-undo.aic-inrow { padding-top: 0; }
+.wa-mode > .aic-undo.aic-inrow { flex: 0 1 auto; align-self: center; margin: 0 0 0 auto; }
+.aic-inrow .aic-undo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.aic-inrow .aic-link { flex: none; color: var(--ink-2); }
+.aic-inrow.aic-polish .aic-link { height: 22px; color: var(--ink-3); }
+.aic-inrow.aic-polish .aic-link:hover, .aic-inrow .aic-link:hover { color: var(--ink); }
+.aic-inrow .aic-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
 /* El botón que abre la barra, con texto (composer de correo, mensaje nuevo). */
 .aic-open-label { gap: 6px; }
@@ -134,7 +133,7 @@
   .aic-link { min-height: 40px; padding: 0 6px; }
   .aic-actions .btn { --btn-h: 40px; min-height: 40px; }
   .aic-undo { gap: 4px; }
-  /* El chip flotante crece con el dedo: lo que se toca mide 40px. */
-  .aic-undo.aic-float { height: auto; padding: 0 4px; }
-  .aic-float .aic-link, .aic-float.aic-polish .aic-link { min-height: 40px; height: auto; }
+  /* El chip crece con el dedo: lo que se toca mide 40px. */
+  .aic-undo.aic-inrow { height: auto; padding: 0 4px; }
+  .aic-inrow .aic-link, .aic-inrow.aic-polish .aic-link { min-height: 40px; height: auto; }
 }

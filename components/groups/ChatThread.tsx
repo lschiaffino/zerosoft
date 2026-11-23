@@ -2726,8 +2726,11 @@ export default function ChatThread(props: ThreadProps) {
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
               las flechas (y Inicio/Fin) pasan de una a otra, como en cualquier lista de pestañas. */}
           {!editing && (
+            // La fila de las solapas; a la derecha, el chip de la AI ("Pulir", "Insertado · Deshacer"), que así nunca
+            // tapa la conversación ni cambia el alto del composer.
+            <div className="wa-mode">
             <div
-              className="wa-mode"
+              className="wa-mode-tabs"
               role="tablist"
               aria-label={t('thread.modeLabel')}
               data-tour="lines-note"
@@ -2757,6 +2760,8 @@ export default function ChatThread(props: ThreadProps) {
                   {m === 'note' ? t('thread.modeNote') : t('thread.modeReply')}
                 </button>
               ))}
+            </div>
+            {aiAllowed && <AiComposeChip ai={ai} />}
             </div>
           )}
           {mode === 'reply' && !editing && (chat.lines?.length ?? 0) > 1 && (
@@ -2941,7 +2946,6 @@ export default function ChatThread(props: ThreadProps) {
                 ref={inputRef}
                 className="textarea gr-input wa-input"
                 data-testid="composer-input"
-                adornment={aiAllowed ? <AiComposeChip ai={ai} /> : null}
                 rows={1}
                 highlights={editing ? [] : mentionHits}
                 value={editing ? editing.text : text}
