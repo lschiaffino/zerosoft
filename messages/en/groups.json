@@ -213,6 +213,8 @@
     "showOriginal": "See original",
     "showTranslation": "See translation",
     "mentionPeople": "Mention someone",
+    "mentionAll": "Everyone (@{word})",
+    "mentionAllHint": "{count, plural, =0 {Notifies everyone in the group} one {Notifies the only member} other {Notifies all # members}}",
     "toCustomerLang": "Customer's language ({lang})",
     "noteHint": "Type @ to mention someone. They get a notification.",
     "task": "Task",

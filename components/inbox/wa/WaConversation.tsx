@@ -69,6 +69,7 @@ import { GroupEventLine, NewGroupCard } from '@/components/groups/wa/GroupEvent'
 import { parseEvent } from '@/lib/wa-group-events';
 import { forwardedMany } from '@/lib/wa-forward';
 import type { WaMentionPick } from '@/lib/wa-compose-mentions';
+import { mentionAllWord } from '@/lib/wa-mention-all';
 import { useChatCommands } from '@/components/ui/useChatCommands';
 
 export interface WaThreadDetail {
@@ -346,6 +347,11 @@ const WaConversation = forwardRef<
   const groupMentionables = useMemo(
     () => (group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined),
     [group, wa],
+  );
+  // "@all" (o "@todos"): todo el grupo. El WhatsApp de Inbox va por Evolution, que lo manda (lib/wa-mention-all.ts).
+  const mentionAllOpt = useMemo(
+    () => (group && groupMentionables?.length ? { word: mentionAllWord(locale), count: groupMentionables.length, name: thread.title, picture: thread.avatar || undefined, seed: thread.id } : null),
+    [group, groupMentionables, locale, thread.title, thread.avatar, thread.id],
   );
 
   // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
@@ -1469,6 +1475,7 @@ const WaConversation = forwardRef<
           onMic={connected && typeof MediaRecorder !== 'undefined' ? () => setRecording(true) : undefined}
           onPasteFiles={connected ? tray.add : undefined}
           mentionables={groupMentionables}
+          mentionAll={mentionAllOpt}
           onTyping={() => presence('composing')}
           commands={slashCommands}
           onCancelBanner={() => {
@@ -1499,6 +1506,7 @@ const WaConversation = forwardRef<
           stickerApi="/api/inbox/stickers"
           stickerLine={stickerLine}
           mentionables={groupMentionables}
+          mentionAll={mentionAllOpt}
           onLater={
             editing
               ? undefined

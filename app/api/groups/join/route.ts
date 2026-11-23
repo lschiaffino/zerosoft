@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { joinGroup } from '@/lib/groups-org';
-import { groupsError, groupsSession, lineGuard, handleGroupsError, readJson, str } from '@/lib/groups-http';
+import { groupsError, groupsSession, lineGuard, handleGroupsError, readJson, sessionViewer, str } from '@/lib/groups-http';
+import { maskChat, scopeChatCrmRef } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,10 @@ export async function POST(req: Request) {
   const line = await lineGuard(s, numberId);
   if (line instanceof NextResponse) return line;
   try {
-    return NextResponse.json(await joinGroup(s.ws, numberId, str(b.invite, 300) ?? ''), { status: 201 });
+    const chat = await joinGroup(s.ws, numberId, str(b.invite, 300) ?? '');
+    // Un grupo que la línea había dejado vuelve con sus datos: con la máscara y la visibilidad del CRM de quien pide.
+    const viewer = await sessionViewer(s);
+    return NextResponse.json(await scopeChatCrmRef(viewer, maskChat(viewer, chat)), { status: 201 });
   } catch (err) {
     return handleGroupsError(err);
   }

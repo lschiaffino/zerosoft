@@ -31,7 +31,7 @@ import { OPEN_FILTERS_EVENT, describeRule, filterHref, type FilterT } from './ad
  * modal: el foco queda adentro y vuelve al botón al cerrar.
  */
 
-interface DraftRule {
+export interface DraftRule {
   id: number;
   /** '' = todavía eligiendo la propiedad. */
   f: string;
@@ -71,14 +71,14 @@ function toDraft(model: FilterModel): DraftGroup[] {
   return groups.length ? groups : [{ id: nextId(), rules: [emptyRule()] }];
 }
 
-function opsOf(field: AdvFilterField, current?: string): readonly string[] {
+export function opsOf(field: AdvFilterField, current?: string): readonly string[] {
   const ops = field.ops ?? FILTER_OPS[field.type];
   // Un link viejo puede traer un operador que el panel ya no ofrece (sí/no como "is" con 1 o 0): se conserva.
   return current && !ops.includes(current) ? [...ops, current] : ops;
 }
 
 /** La regla del borrador tal como va al modelo. */
-function toCond(rule: DraftRule, field: AdvFilterField): FilterCond {
+export function toCond(rule: DraftRule, field: AdvFilterField): FilterCond {
   const arity = opArity(field.type, rule.o);
   if (arity === 'none') return { f: rule.f, o: rule.o };
   if (arity === 'two') return { f: rule.f, o: rule.o, v: (rule.values[0] ?? '').trim(), v2: rule.v2.trim() };
@@ -542,7 +542,7 @@ function PropertyPicker({
 }
 
 /** El editor del valor según el tipo de la propiedad y lo que pide el operador. */
-function ValueEditor({
+export function ValueEditor({
   t,
   field,
   rule,
@@ -643,7 +643,7 @@ function OptionList({ t, field, values, onChange }: { t: FilterT; field: AdvFilt
         {shown.length === 0 && <p className="crm-af-empty">{t('filters.noOptions')}</p>}
         {shown.map((o) => (
           <label key={o.value} className="ui-check crm-af-option">
-            <input type="checkbox" checked={values.includes(o.value)} onChange={() => toggle(o.value)} />
+            <input type="checkbox" value={o.value} checked={values.includes(o.value)} onChange={() => toggle(o.value)} />
             <span>{o.label}</span>
           </label>
         ))}
