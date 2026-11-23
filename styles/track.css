@@ -3393,6 +3393,17 @@ a.track-board-card-title:hover {
 .track-list-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .track-list-tools { flex: 1 1 320px; min-width: 0; }
 .track-list-tools .track-filters { padding: 4px 0; border-top: 0; border-bottom: 0; }
+/* Con chips de filtro, los chips se acomodan en su lugar (varias líneas si hace falta) y la
+   búsqueda, guardar vista y Display quedan en la primera línea, como Linear. En el teléfono
+   y en ventanas angostas la búsqueda baja a su propia línea, como antes. */
+@media (min-width: 1100px) {
+  .track-list-tools .track-filters { flex-wrap: nowrap; align-items: flex-start; }
+  .track-list-tools .track-filter-group { flex: 1 1 auto; }
+  .track-list-tools .track-filter-search { flex: none; }
+  /* Si no entra la barra entera al lado de las pestañas, baja completa a la línea de abajo. */
+  .track-list-head .track-list-tools,
+  .track-list-head.is-team .track-list-tools { flex-basis: 620px; }
+}
 .track-list-loading { display: flex; flex-direction: column; gap: 2px; }
 .track-list-more { margin: 4px 0 0; }
 .track-list-title { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 32px; white-space: nowrap; }
