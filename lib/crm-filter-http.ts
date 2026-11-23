@@ -6,7 +6,8 @@
 import { CRM_FILTER_FIELDS } from './crm';
 import { filterTypeFor } from './crm-custom-fields';
 import { fieldAccessFor, type FieldViewer } from './crm-field-perms';
-import { FilterError, parseStrictFilter, type FilterEnv, type FilterFieldType, type FilterModel } from './crm-filters';
+import { compileRule, FilterError, parseStrictFilter, type FilterEnv, type FilterFieldType, type FilterModel } from './crm-filters';
+import { MAX_FILTER_GROUPS, MAX_GROUP_RULES, parseFilterModel, sanitizeFilterModel, type FilterFieldShape } from './crm-filter-model';
 import { isValidTimeZone } from './user-tz';
 
 export type FilterEntity = keyof typeof CRM_FILTER_FIELDS;
@@ -46,4 +47,33 @@ export async function requestFilter(
     if (err instanceof FilterError) return { error: true };
     throw err;
   }
+}
+
+/**
+ * El filtro avanzado de un listado (el de la URL o el de la vista guardada),
+ * leído igual por la página y por "Seleccionar todos los que coinciden" y
+ * "Exportar la vista" (lib/crm-list-matching.ts), así los tres aplican las
+ * mismas reglas. A diferencia de `requestFilter` (la API, que responde 400),
+ * acá una regla que no se puede aplicar (una propiedad borrada, un campo que
+ * quien mira tiene oculto, un valor incompleto) se descarta en silencio, como
+ * siempre hizo la página: un link viejo sigue abriendo.
+ *
+ * `shapes`: las propiedades que ofrece el panel de filtros de la página (los
+ * chips muestran solo lo que se aplica). Sin `shapes`, cuenta lo que el
+ * server sabe compilar para quien mira.
+ */
+export function listFilterModel(
+  raw: string | null | undefined,
+  entity: FilterEntity,
+  opts: { customTypes: Record<string, FilterFieldType>; env: FilterEnv & { strictCustom?: boolean }; shapes?: Record<string, FilterFieldShape> },
+): FilterModel {
+  const parsed = parseFilterModel(raw);
+  const model = opts.shapes ? sanitizeFilterModel(parsed, opts.shapes) : parsed;
+  const { alias, fields } = CRM_FILTER_FIELDS[entity];
+  const ctx = { alias, fields, customTypes: opts.customTypes, ...opts.env };
+  const groups = model.groups
+    .slice(0, MAX_FILTER_GROUPS)
+    .map((g) => ({ rules: g.rules.slice(0, MAX_GROUP_RULES).filter((rule) => compileRule(ctx, rule) !== null) }))
+    .filter((g) => g.rules.length > 0);
+  return { v: 1, groups };
 }

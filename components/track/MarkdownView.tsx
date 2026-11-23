@@ -30,12 +30,17 @@ export function MarkdownView({
   className = '',
   onToggleTask,
   members,
+  resolveIssues = true,
+  testId,
 }: {
   source: string;
   className?: string;
   onToggleTask?: (index: number) => void;
   /** Personas del workspace: las @menciones por email se muestran con su nombre. */
   members?: ReadonlyArray<{ email: string; name: string | null }>;
+  /** false fuera de Track (notas y comentarios del CRM): las referencias a issues quedan como texto, sin consultar Track. */
+  resolveIssues?: boolean;
+  testId?: string;
 }) {
   const interactive = Boolean(onToggleTask);
   const html = useMemo(() => renderTrackMarkdown(source, { interactive }), [source, interactive]);
@@ -88,7 +93,7 @@ export function MarkdownView({
 
   useEffect(() => {
     const root = ref.current;
-    if (!root) return;
+    if (!root || !resolveIssues) return;
     const refs = Array.from(
       new Set(Array.from(root.querySelectorAll<HTMLElement>('[data-issue-ref]')).map((n) => n.dataset.issueRef!).filter(Boolean)),
     );
@@ -103,12 +108,13 @@ export function MarkdownView({
     return () => {
       alive = false;
     };
-  }, [html, upgrade]);
+  }, [html, upgrade, resolveIssues]);
 
   return (
     <div
       ref={ref}
       className={`track-markdown ${className}`.trim()}
+      data-testid={testId}
       onClick={(e) => {
         const el = e.target as HTMLElement;
         const box = el.closest('input.track-task') as HTMLInputElement | null;

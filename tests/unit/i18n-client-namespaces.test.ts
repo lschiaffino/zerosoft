@@ -52,7 +52,7 @@ describe('mensajes i18n por ruta', () => {
   it('encuentra las rutas y los layouts que proveen mensajes', () => {
     expect(routes.length).toBeGreaterThan(100);
     expect(fileInfo(path.join(ROOT, 'app/[locale]/layout.tsx')).provides).toContain('common');
-    expect(fileInfo(path.join(ROOT, 'app/[locale]/app/crm/layout.tsx')).provides).toEqual(['crm', 'trackTriage.customers']);
+    expect(fileInfo(path.join(ROOT, 'app/[locale]/app/crm/layout.tsx')).provides).toEqual(['crm', 'trackTriage.customers', 'track.ux.editor']);
   });
 
   it('cada componente cliente lee solo namespaces que su ruta le manda', () => {
