@@ -9,7 +9,7 @@ const CSS = '';
 const LOOKS = (process.env.LOOKS ?? 'current').split(',');
 const CONFIGS = (process.env.CONFIGS ?? 'dark-1280,light-390').split(',');
 const STYLES = (process.env.STYLES ?? 'whatsapp,zerosoft').split(',');
-const APPS = (process.env.APPS ?? 'lines').split(',');
+const APPS = (process.env.APPS ?? 'lines,inbox').split(',');
 const STATES = process.env.STATES ? process.env.STATES.split(',') : ['chat'];
 const RT = process.env.RT === '1';
 
@@ -118,6 +118,19 @@ async function run(page: Page, context: import('@playwright/test').BrowserContex
     if (has('chat')) await tryStep(`${p}-chat`, async () => {
       await openChat('Asado');
       await shot(page, `${p}-02-chat`);
+      if (!mobile) {
+        const probe = await page.evaluate(() => {
+          const out: string[] = [];
+          for (const x of [690, 1127]) {
+            const chain: string[] = [];
+            let el = document.elementFromPoint(x, 733) as HTMLElement | null;
+            for (let i = 0; el && i < 6; i++, el = el.parentElement) chain.push(`${el.tagName.toLowerCase()}.${String(el.className).replace(/\s+/g, '.')}[${el.getAttribute('data-testid') ?? ''}|${el.getAttribute('aria-label') ?? ''}]`);
+            out.push(`${x}: ${chain.join(' < ')}`);
+          }
+          return out.join('\n');
+        });
+        console.log(`[probe] ${p}\n${probe}`);
+      }
       const msg = page.locator('.gr-msg-in').filter({ hasText: 'Les paso' }).first();
       if (!mobile) {
         await msg.hover();
