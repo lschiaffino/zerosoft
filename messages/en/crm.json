@@ -5465,7 +5465,15 @@
     "remove": "Remove column",
     "resize": "Resize column: {name}",
     "resizeHint": "Drag to resize. Double-click to fit the content. With the keyboard: arrows, and Enter to fit.",
-    "widthValue": "{px} px"
+    "widthValue": "{px} px",
+    "filter": "Filter by this column",
+    "editFilter": "Edit column filter",
+    "filterTitle": "Filter: {name}",
+    "applyFilter": "Apply",
+    "clearFilter": "Remove filter",
+    "filtered": "Filtered",
+    "editInPanel": "Edit in Advanced filters",
+    "groupFull": "A filter group already has 20 rules. Remove one in Advanced filters first."
   },
   "quickFilterPicker": {
     "button": "Edit quick filters",

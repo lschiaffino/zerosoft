@@ -493,6 +493,32 @@ function scopedCompanyNameFields(fields: Record<string, AdvancedFieldDef>, scope
   return out;
 }
 
+/**
+ * Recuentos de asociados del filtro avanzado (contactos de una empresa, deals
+ * de un contacto, tiene un deal abierto) con el alcance de quien mira, como
+ * la columna Contactos de empresas: cuentan los registros que la persona ve.
+ */
+function scopedAssocCountFields(fields: Record<string, AdvancedFieldDef>, scope: OwnerScope | undefined): Record<string, AdvancedFieldDef> {
+  if (!scope || !(fields.contactCount || fields.dealCount || fields.hasOpenDeal)) return fields;
+  const ids = scope.filter((id) => SAFE_ID.test(id));
+  const inScope = (a: string) => (ids.length ? `COALESCE(${a}.owner_id, ${a}.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0');
+  const out = { ...fields };
+  if (out.contactCount) {
+    out.contactCount = {
+      ...out.contactCount,
+      expr: `(SELECT COUNT(*) FROM crm_contact_companies xct JOIN crm_contacts xcc ON xcc.id = xct.contact_id WHERE xct.company_id = co.id AND ${inScope('xcc')})`,
+    };
+  }
+  if (out.dealCount) {
+    out.dealCount = {
+      ...out.dealCount,
+      expr: `(SELECT COUNT(*) FROM crm_deal_contacts xdc JOIN crm_deals xdd ON xdd.id = xdc.deal_id WHERE xdc.contact_id = c.id AND ${inScope('xdd')})`,
+    };
+  }
+  if (out.hasOpenDeal) out.hasOpenDeal = { ...out.hasOpenDeal, expr: out.hasOpenDeal.expr.replace(/\)\s*$/, ` AND ${inScope('xd')})`) };
+  return out;
+}
+
 const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: "trim(c.first_name || ' ' || c.last_name)", type: 'text' },
   firstName: { expr: 'c.first_name', type: 'text' },
@@ -582,7 +608,7 @@ function buildContactWhere(
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, {
+  appendAdvancedFilters(where, args, 'c', scopedAssocCountFields(scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.ownerScope), f.filters, f.customTypes, f.filtersMatch, {
     ...f.filterEnv,
     scoreRules: f.scoreRules,
   });
@@ -1224,7 +1250,7 @@ function buildCompanyWhere(userId: string, f: CompanyFilter): { where: string; a
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'co', COMPANY_ADV_FIELDS, f.filters, f.customTypes, 'all', f.filterEnv);
+  appendAdvancedFilters(where, args, 'co', scopedAssocCountFields(COMPANY_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'co', f.ownerScope);
   return { where: where.join(' AND '), args };
 }

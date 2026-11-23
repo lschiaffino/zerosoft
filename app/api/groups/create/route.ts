@@ -43,6 +43,14 @@ export async function POST(req: Request) {
   if (!numberId) return groupsError(400, 'invalid_number');
   const line = await lineGuard(s, numberId);
   if (line instanceof NextResponse) return line;
+  // La empresa del CRM a vincular, solo una que quien crea ve (una que no ve se ignora, como una que no existe; un invitado, ninguna).
+  if (rows.some((r) => r.crmCompanyId)) {
+    const { canSeeRecord, sessionScope } = await import('@/lib/crm-visibility');
+    const scope = await sessionScope(s.user);
+    for (const r of rows) {
+      if (r.crmCompanyId && (s.user.role === 'guest' || !(await canSeeRecord(s.ws, 'crm_companies', r.crmCompanyId, scope)))) r.crmCompanyId = null;
+    }
+  }
   try {
     const results = await createGroups(s.ws, numberId, rows);
     return NextResponse.json({ results, errors }, { status: 201 });

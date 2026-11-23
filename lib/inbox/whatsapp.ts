@@ -18,6 +18,7 @@ import { eagerWorthy } from '../wa-media-jobs';
 import { openWire, sealWire } from '../wa-media-wire-seal';
 import type { ForwardFlag } from '../wa-forward';
 import { storeLinkHq } from '../wa-link-thumb';
+import { mentionSendOpts } from '../wa-mention-all';
 import {
   addMessage,
   addMessageToChat,
@@ -648,14 +649,16 @@ export async function sendWhatsappText(
   if (thread.kind === 'group' && thread.left_at) throw new InboxError('group_left', 409);
   let id: string;
   try {
+    const provider = waProviderFor(account);
     const o = {
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
-      ...(opts.mentions?.length ? { mentions: opts.mentions } : {}),
+      // "@all" va como marca aparte (lib/wa-mention-all.ts), solo en grupos y si el proveedor la manda.
+      ...(thread.kind === 'group' ? mentionSendOpts(opts.mentions, provider.caps) : {}),
       ...(opts.linkPreview === false ? { linkPreview: false } : {}),
       // Reenvío: la marca "Reenviado" de WhatsApp (lib/wa-forward.ts). Un envío normal no la lleva.
       ...(opts.forwarded && opts.forward ? { forward: opts.forward } : {}),
     };
-    id = (await waProviderFor(account).sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
+    id = (await provider.sendText(thread.external_id, text, Object.keys(o).length ? o : undefined)).id;
   } catch (err) {
     if (err instanceof InboxError) throw err;
     throw new InboxError(err instanceof ProviderError && err.code === 'not_connected' ? 'not_connected' : 'send_failed', 502);
