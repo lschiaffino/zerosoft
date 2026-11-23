@@ -5186,7 +5186,12 @@
       "formerMember": "Former member",
       "seeAll": "See all",
       "drillHint": "Select a bar or value to see its records",
-      "perDayUnit": "/ day"
+      "perDayUnit": "/ day",
+      "vsPrevValue": "vs {value} previous period",
+      "pts": "{value, plural, one {# pt} other {# pts}}",
+      "velocityDetail": "{count, plural, one {# open deal} other {# open deals}} · {cycle}-day cycle",
+      "velocityFormula": "{open} open deals × {rate}% win rate × {avg} average deal ÷ {cycle}-day sales cycle",
+      "conversionShort": "{value}% moved on"
     },
     "edit": {
       "title": "Edit report",
@@ -5332,7 +5337,8 @@
         "status": "Status",
         "type": "Type",
         "owner": "Owner",
-        "date": "Date"
+        "date": "Date",
+        "lifecycle": "Lifecycle stage"
       }
     },
     "empty": {

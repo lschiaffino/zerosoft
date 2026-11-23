@@ -193,9 +193,11 @@ test('reordenar tiles arrastrando y con el teclado; el orden queda guardado', as
 
   // Teclado: flecha a la izquierda sobre el asa mueve uno antes.
   await tiles.nth(2).getByTestId('cdb-grip').focus();
+  // La espera del guardado se arma antes de la tecla: si no, la respuesta puede llegar antes y la espera se queda colgada.
+  const keySaved = page.waitForResponse((r) => r.url().includes(`/api/crm/dashboards/${d.id}`) && r.request().method() === 'PATCH');
   await page.keyboard.press('ArrowLeft');
   await expect(titles).toHaveText(['Win rate', 'Deals created', 'New contacts']);
-  await page.waitForResponse((r) => r.url().includes(`/api/crm/dashboards/${d.id}`) && r.request().method() === 'PATCH').catch(() => null);
+  await keySaved;
   await page.reload({ waitUntil: 'networkidle' });
   await expect(titles).toHaveText(['Win rate', 'Deals created', 'New contacts']);
 
@@ -220,12 +222,20 @@ test('390px: una columna, sin scroll lateral y con objetivos de 40px', async ({ 
   const tiles = page.getByTestId('cdb-tile');
   await expect(tiles).toHaveCount(12);
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  const boxes = await tiles.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON() as DOMRect));
-  const left = boxes[0].left;
-  for (const b of boxes) {
-    expect(Math.abs(b.left - left)).toBeLessThan(2);
-    expect(Math.abs(b.width - boxes[0].width)).toBeLessThan(2);
+  // Los KPI chicos van de a dos; el resto, a lo ancho y alineados.
+  const boxes = await tiles.evaluateAll((els) =>
+    els.map((el) => ({ ...(el.getBoundingClientRect().toJSON() as DOMRect), kpi: el.classList.contains('cdb-tile-kpi') })),
+  );
+  const full = boxes.filter((b) => !b.kpi);
+  const kpis = boxes.filter((b) => b.kpi);
+  expect(kpis).toHaveLength(4);
+  for (const b of full) {
+    expect(Math.abs(b.left - full[0].left)).toBeLessThan(2);
+    expect(Math.abs(b.width - full[0].width)).toBeLessThan(2);
   }
+  expect(Math.abs(kpis[0].top - kpis[1].top)).toBeLessThan(2);
+  expect(kpis[0].width).toBeLessThan(full[0].width / 2 + 2);
+  for (const b of boxes) expect(b.right).toBeLessThanOrEqual(390);
   const menuBtn = tiles.first().getByTestId('cdb-tile-menu');
   const mb = (await menuBtn.boundingBox())!;
   expect(mb.width).toBeGreaterThanOrEqual(40);
@@ -236,5 +246,69 @@ test('390px: una columna, sin scroll lateral y con objetivos de 40px', async ({ 
   await page.getByTestId('cdb-add-report').click();
   await expect(page.getByTestId('cdb-library')).toBeVisible();
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('encabezado en una fila, filtros de owner y equipo visibles, KPI con la comparación y embudo con conversión', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const d = await dashboard(request, { template: 'blank' });
+  await addTile(request, d.id, 'revenue_won_kpi', 'small');
+  await addTile(request, d.id, 'conversion_funnel');
+  await addTile(request, d.id, 'deals_won_lost_by_owner');
+  await open(page, d.id);
+
+  // Nombre del dashboard, visibilidad y acciones en la misma fila.
+  const sw = (await page.getByTestId('cdb-switcher').boundingBox())!;
+  const meta = (await page.getByTestId('cdb-meta').boundingBox())!;
+  const add = (await page.getByTestId('cdb-add-report').boundingBox())!;
+  expect(Math.abs(sw.y + sw.height / 2 - (meta.y + meta.height / 2))).toBeLessThan(6);
+  expect(Math.abs(sw.y + sw.height / 2 - (add.y + add.height / 2))).toBeLessThan(6);
+  await expect(page.getByTestId('cdb-filter-owner')).toBeVisible();
+  await expect(page.getByTestId('cdb-filter-team')).toBeVisible();
+
+  // La visibilidad abre el diálogo de compartir; Esc lo cierra.
+  await page.getByTestId('cdb-visibility').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+
+  // KPI: la línea de comparación siempre está (cambio o "sin datos antes").
+  const kpi = page.getByTestId('cdb-tile').filter({ hasText: 'Revenue won' });
+  await expect(kpi.getByTestId('cdb-delta')).toBeVisible();
+
+  // Embudo: alineado a la izquierda (todas las barras arrancan en el mismo x).
+  const funnel = page.getByTestId('cdb-tile').filter({ hasText: 'Deal conversion funnel' });
+  const tracks = await funnel.locator('.cdb-funnel-track').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)));
+  expect(new Set(tracks).size).toBe(1);
+
+  // Tiles de una misma fila con el mismo alto.
+  const heights = await page.getByTestId('cdb-tile').filter({ hasNot: page.locator('.cdb-kpi') }).evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+  expect(new Set(heights).size).toBe(1);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('drill-down de un reporte propio desde su tile', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const dealName = `Custom drill ${uid()}`;
+  const p = await pipelineWithDeal(request, dealName);
+  const rep = await request.post('/api/crm/custom-reports', {
+    data: { name: `By stage ${uid()}`, config: { source: 'deals', dimensions: [{ field: 'deal.stage' }], metric: { agg: 'count' }, viz: 'bar', filters: [{ f: 'deal.pipeline', o: 'is', v: p.pipelineId }] } },
+  });
+  expect(rep.ok(), await rep.text()).toBe(true);
+  const report = (await rep.json()) as { id: string };
+  const d = await dashboard(request, { template: 'blank' });
+  const w = await request.post(`/api/crm/dashboards/${d.id}/widgets`, { data: { type: 'custom_report', config: { reportId: report.id } } });
+  expect(w.ok(), await w.text()).toBe(true);
+  await open(page, d.id);
+  const tile = page.getByTestId('cdb-tile').first();
+  // El reporte agrupa por etapa (sin fecha): "Todas las fechas".
+  await expect(tile.locator('.cdb-tile-sub')).toHaveText('All dates');
+  await tile.getByTestId('cdb-mark').first().click();
+  const drill = page.getByTestId('cdb-drill');
+  await expect(drill).toBeVisible();
+  await expect(drill.getByTestId('cdb-drill-count')).toContainText('1 record');
+  await expect(drill.getByRole('button', { name: dealName })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(drill).toBeHidden();
   expect(errors, errors.join('\n')).toEqual([]);
 });

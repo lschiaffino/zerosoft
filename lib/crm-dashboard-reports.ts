@@ -200,6 +200,22 @@ async function countActivities(db: Db, ctx: ReportContext, from: string, to: str
   return num((await one<{ c: number }>(db, `SELECT COUNT(*) AS c FROM crm_activities a WHERE ${w.sql}`, w.args)).c);
 }
 
+/**
+ * Deals abiertos en una fecha (null = hoy): creados hasta ese día y sin cerrar
+ * todavía en ese momento. Hoy se mira la etapa actual (abierta).
+ */
+function openAtCond(at: string | null): Cond {
+  if (!at) return { sql: ' AND d.closed_at IS NULL AND s.is_won = 0 AND s.is_lost = 0', args: [] };
+  const end = nextDay(at);
+  return { sql: ' AND d.created_at < ? AND ((d.closed_at IS NULL AND s.is_won = 0 AND s.is_lost = 0) OR d.closed_at >= ?)', args: [end, end] };
+}
+
+async function openDealsAt(db: Db, ctx: ReportContext, at: string | null): Promise<number> {
+  const w = join(dealBase(ctx, true), openAtCond(at));
+  const r = await one<{ c: number }>(db, `SELECT COUNT(*) AS c FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id WHERE ${w.sql}`, w.args);
+  return num(r.c);
+}
+
 function timeChart(
   keys: string[],
   rows: Array<{ b: string; v: number; k?: string }>,
@@ -293,27 +309,29 @@ export async function computeLibraryReport(key: string, ctx: ReportContext): Pro
       };
     }
     case 'sales_velocity': {
-      // (deals abiertos × tasa de cierre × ticket promedio) / ciclo promedio en días.
+      // Fórmula estándar: (deals abiertos × tasa de cierre × ticket promedio) ÷ ciclo promedio en días.
+      // Tasa, ticket y ciclo salen de los deals cerrados en el período; los abiertos se cuentan
+      // al cierre del período (o hoy si el período sigue en curso), así el anterior no usa los de hoy.
+      const today = (ctx.now ?? new Date()).toISOString().slice(0, 10);
       const velocity = async (f: string, t: string) => {
         const wl = await wonLost(db, ctx, f, t);
-        const base = dealBase(ctx, true);
-        const open = num(
-          (
-            await one<{ c: number }>(
-              db,
-              `SELECT COUNT(*) AS c FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id
-               WHERE ${base.sql} AND d.closed_at IS NULL AND s.is_won = 0 AND s.is_lost = 0`,
-              base.args,
-            )
-          ).c,
-        );
-        if (!wl.won || !wl.cycle) return { v: 0, ok: wl.won + wl.lost > 0, open };
+        const open = await openDealsAt(db, ctx, t < today ? t : null);
+        if (!wl.won || !wl.cycle) return { v: 0, ok: wl.won + wl.lost > 0, open, cycle: wl.cycle, rate: 0, avg: 0 };
         const winRate = wl.won / (wl.won + wl.lost);
-        return { v: round2((open * winRate * (wl.wonAmt / wl.won)) / wl.cycle), ok: true, open };
+        const avg = wl.wonAmt / wl.won;
+        const cycle = wl.cycle; // ya viene con un mínimo de 1 día por deal (wonLost)
+        return { v: round2((open * winRate * avg) / cycle), ok: true, open, cycle: round2(cycle), rate: round2(winRate * 100), avg: round2(avg) };
       };
       const now = await velocity(from, to);
       const prev = await velocity(prevFrom, prevTo);
-      return { kind: 'kpi', value: now.v, prev: prev.ok ? prev.v : null, format: 'moneyPerDay', detail: { count: now.open }, drill: true };
+      return {
+        kind: 'kpi',
+        value: now.v,
+        prev: prev.ok ? prev.v : null,
+        format: 'moneyPerDay',
+        detail: { count: now.open, cycle: now.cycle ?? undefined, rate: now.rate, avg: now.avg },
+        drill: true,
+      };
     }
     case 'deals_created': {
       const w = join(dealBase(ctx, true), between('d.created_at', from, to));
@@ -694,13 +712,11 @@ export async function drillLibraryReport(key: string, ctx: ReportContext, segmen
         join(dealBase(ctx, true), between('d.closed_at', from, to), { sql: ' AND (s.is_won = 1 OR s.is_lost = 1)', args: [] }),
         'd.closed_at',
       );
-    case 'sales_velocity':
-      return dealRows(
-        db,
-        ctx,
-        join(dealBase(ctx, true), { sql: ' AND d.closed_at IS NULL AND s.is_won = 0 AND s.is_lost = 0', args: [] }),
-        'd.close_date',
-      );
+    case 'sales_velocity': {
+      // Los mismos abiertos que cuenta el KPI: al cierre del período (o hoy si sigue en curso).
+      const today = (ctx.now ?? new Date()).toISOString().slice(0, 10);
+      return dealRows(db, ctx, join(dealBase(ctx, true), openAtCond(to < today ? to : null)), 'd.close_date');
+    }
     case 'deals_created_kpi':
     case 'deals_created': {
       const b = bucketRange(segment, range);
