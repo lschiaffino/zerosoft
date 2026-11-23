@@ -197,3 +197,27 @@ test('Forms: el popup del embed abre, atrapa el foco y Esc lo cierra desde dentr
   await expect(host.getByRole('button', { name: 'Give feedback' })).toBeFocused();
   await host.close();
 });
+
+test('Forms: la redirección del final lleva las respuestas en la URL, codificadas, sin cambiar el dominio', async ({ page, request }) => {
+  const { form } = (await (await request.post('/api/forms', { data: { name: `Redirect ${uid()}`, template: 'contact' } })).json()) as {
+    form: { id: string; slug: string; definition: { endings: Array<Record<string, unknown>> } };
+  };
+  const definition = { ...form.definition, endings: [{ ...form.definition.endings[0], redirectUrl: 'https://book.example.com/demo?name={{name}}&email={{email}}&src={{nope}}' }] };
+  expect((await request.patch(`/api/forms/${form.id}`, { data: { status: 'published', definition, settings: { mode: 'classic' } } })).ok()).toBe(true);
+  // El destino externo no existe en CI: se atiende acá.
+  await page.route('https://book.example.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>booked</p>' }));
+
+  await page.goto(`/en/f/${form.slug}`, { waitUntil: 'networkidle' });
+  const boxes = page.locator('main').getByRole('textbox');
+  await boxes.nth(0).fill('Ana María');
+  await boxes.nth(1).fill('ana+demo@example.com');
+  await boxes.nth(2).fill('Hello');
+  await page.locator('main button[type=submit]').click();
+
+  const expected = 'https://book.example.com/demo?name=Ana%20Mar%C3%ADa&email=ana%2Bdemo%40example.com&src=';
+  await expect(page.getByTestId('form-ending-redirect')).toHaveAttribute('href', expected);
+  await page.waitForURL(expected);
+  const url = new URL(page.url());
+  expect(url.searchParams.get('name')).toBe('Ana María');
+  expect(url.searchParams.get('email')).toBe('ana+demo@example.com');
+});

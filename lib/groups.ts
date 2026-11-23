@@ -45,6 +45,7 @@ import {
   type ProviderConfig,
   type ProviderKind,
 } from './groups-provider';
+import { MENTION_ALL, keepMentionAll, mentionSendOpts } from './wa-mention-all';
 import { cloudProvider } from './groups-provider-cloud';
 import { privateQuoteAllowed } from './wa-person';
 import { bridgeProvider, MAX_INBOUND_MEDIA } from './groups-provider-bridge';
@@ -68,7 +69,7 @@ import { resolveLidChats } from './wa-contacts';
 import type { MentionMap } from './wa-mentions';
 import { headerWebhookTarget, type WebhookTarget } from './wa-webhook-secret';
 import { storedForwardScore, type ForwardFlag } from './wa-forward';
-import { chatAccessSql, maskChat, numberAccessSql, type GroupsViewer } from './groups-access';
+import { chatAccessSql, maskChat, numberAccessSql, scopeChatCrmRefs, type GroupsViewer } from './groups-access';
 import { parsePoll, pollPreview, tallyPoll, voteOptions, type PollDto, type PollInput } from './groups-polls';
 import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyText, reactionCreatesTicket, type GroupsSettings } from './groups-rules';
 import { lineColor, type LineColor } from './line-colors';
@@ -1277,8 +1278,9 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     ? await Promise.all([chatFoldersFor(ws, me, rows.map((r) => r.id)), teamFoldersFor(ws, rows.map((r) => r.id))])
     : [new Map<string, string>(), new Map<string, string>()];
   const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
+  // Los vínculos al CRM, solo los que quien mira ve en el CRM (lib/groups-access.ts scopeChatCrmRefs).
   return {
-    rows: rows.map((r, i) => {
+    rows: await scopeChatCrmRefs(query.viewer, rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
       const [dir, st, dur, lastKind, ...rest] = (r.last_info ?? '').split('|');
       const sender = rest.join('|');
@@ -1298,7 +1300,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
         ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
       });
-    }),
+    })),
     total: Number(total.c),
     ...(keyset ? { next, pinned: pinnedCount } : {}),
   };
@@ -2254,6 +2256,8 @@ export interface SendInput {
 export function cleanMentions(raw: unknown, body: string, kind: 'dm' | 'group' | string): string[] {
   if (kind !== 'group' || !Array.isArray(raw) || !body.includes('@')) return [];
   const out: string[] = [];
+  // "@all" (o "@todos") en el texto: menciona a todo el grupo (lib/wa-mention-all.ts). Va primero.
+  if (keepMentionAll(raw, body, true)) out.push(MENTION_ALL);
   for (const m of raw) {
     if (typeof m !== 'string' || !/^\d{6,16}$/.test(m) || out.includes(m)) continue;
     if (!new RegExp(`(^|[^\\w@])@${m}(?!\\d)`).test(body)) continue;
@@ -2363,7 +2367,7 @@ export async function sendMessage(
         : await provider.sendText(chat.provider_chat_id, body, {
             replyTo: replyProviderId,
             ...(input.linkPreview === false ? { linkPreview: false } : {}),
-            ...(mentions.length ? { mentions } : {}),
+            ...mentionSendOpts(mentions, provider.caps),
             ...(forward ? { forward } : {}),
           });
     providerId = res.id || null;
@@ -2606,7 +2610,7 @@ async function sendMediaMessage(
       ...(replyProviderId ? { replyTo: replyProviderId } : {}),
       ...(info.animated && kind === 'video' ? { gifPlayback: true } : {}),
       ...(forward ? { forward } : {}),
-      ...(mentions.length ? { mentions } : {}),
+      ...mentionSendOpts(mentions, provider.caps),
     });
     providerId = res.id || null;
   } catch (err) {
@@ -2695,7 +2699,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
             ...(replyProviderId ? { replyTo: replyProviderId } : {}),
             ...(stored?.animated && kind === 'video' ? { gifPlayback: true } : {}),
             ...(forward ? { forward } : {}),
-            ...(mentions.length ? { mentions } : {}),
+            ...mentionSendOpts(mentions, provider.caps),
           })
         ).id || null;
     } else {
@@ -2706,7 +2710,7 @@ export async function retryMessage(ws: string, actor: string | null, messageId: 
         await provider.sendText(chat.provider_chat_id, row.body, {
           replyTo: replyProviderId,
           ...(noPreview ? { linkPreview: false } : {}),
-          ...(mentions.length ? { mentions } : {}),
+          ...mentionSendOpts(mentions, provider.caps),
           ...(forward ? { forward } : {}),
         })
       ).id || null;
@@ -4316,6 +4320,11 @@ export async function chatsForCrmRecord(
     // "@<dígitos>" → "@Nombre", como en la conversación.
     await withLinesMentions(r.number_id, messages, r.id).catch(() => null);
     out.push({ chat: toChatDto(r, labels.get(r.id) ?? []), messages, openTickets: Number(open.c) });
+  }
+  // El chat puede estar vinculado además a una empresa (o un contacto) que quien mira no ve.
+  if (viewer) {
+    const chats = await scopeChatCrmRefs(viewer, out.map((o) => o.chat));
+    return out.map((o, i) => ({ ...o, chat: chats[i] }));
   }
   return out;
 }
