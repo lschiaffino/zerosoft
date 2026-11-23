@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
 import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { PRODUCT_CONFIG, type ProductKey } from '@/lib/products';
-import {
-  countUnreadNotifications,
-  listNotifications,
-  markAllNotificationsRead,
-  type NotificationType,
-} from '@/lib/notifications';
+import { markAllNotificationsRead, type NotificationType } from '@/lib/notifications';
+import { countVisibleUnread, listVisibleNotifications } from '@/lib/notification-access';
 import { unauthorized } from '@/lib/track-http';
 import { noStore } from '@/lib/no-store';
 import { nextSnoozeWake, notificationKey, notificationRev, notificationTag, notificationTagFresh } from '@/lib/notification-rev';
@@ -40,24 +36,24 @@ async function getPrivate(req: NextRequest) {
   const sent = req.headers.get('if-none-match');
   if (notificationTagFresh(sent, rev, key)) return new NextResponse(null, { status: 304, headers: { etag: sent! } });
 
+  // Acceso por app: en un workspace ajeno no se muestran avisos de apps que la persona no tiene.
+  const keep = user.actingUser
+    ? (n: { href: string | null }) => {
+        const app = appFromPath(n.href);
+        return !app || userCanUseApp(user, app);
+      }
+    : undefined;
+  // Y nunca avisos de algo que hoy no puede ver (lib/notification-access).
   const [rows, unreadCount, wakeAt] = await Promise.all([
-    listNotifications(uid, {
-      unreadOnly,
-      limit,
-      page,
-      type: types.length ? (types as NotificationType[]) : undefined,
-      snoozed,
-    }),
-    countUnreadNotifications(uid, { hidePaths: hide }),
+    listVisibleNotifications(
+      uid,
+      { unreadOnly, limit, page, type: types.length ? (types as NotificationType[]) : undefined, snoozed },
+      keep,
+    ),
+    countVisibleUnread(uid, { hidePaths: hide }),
     nextSnoozeWake(uid),
   ]);
-
-  // Acceso por app: en un workspace ajeno no se muestran avisos de apps que la persona no tiene.
-  const visible = user.actingUser ? rows.filter((n) => {
-    const app = appFromPath(n.href);
-    return !app || userCanUseApp(user, app);
-  }) : rows;
-  return NextResponse.json({ rows: visible, unreadCount }, { headers: { etag: notificationTag(rev, wakeAt, key) } });
+  return NextResponse.json({ rows, unreadCount }, { headers: { etag: notificationTag(rev, wakeAt, key) } });
 }
 
 async function patchPrivate(req: NextRequest) {
@@ -69,7 +65,7 @@ async function patchPrivate(req: NextRequest) {
     await markAllNotificationsRead(realUserId(user));
   }
 
-  const unreadCount = await countUnreadNotifications(realUserId(user), { hidePaths: hiddenAppPaths(user) });
+  const unreadCount = await countVisibleUnread(realUserId(user), { hidePaths: hiddenAppPaths(user) });
   return NextResponse.json({ ok: true, unreadCount });
 }
 
