@@ -10,8 +10,9 @@ import ReportDialog from './wa/ReportDialog';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
-import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, waMentionSuggestions, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { MENTION_ALL, mentionAllWord } from '@/lib/wa-mention-all';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -147,6 +148,7 @@ import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
 import { forwardedMany } from '@/lib/wa-forward';
 import HubspotDock from './HubspotDock';
+import { showDetailsTab } from './wa/DetailsTabs';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -310,6 +312,8 @@ export default function ChatThread(props: ThreadProps) {
   /** Abre el panel del chat y lleva el foco al campo (agregar miembros, descripción). */
   function openDetailsAt(target: string) {
     if (!detailsShown) toggleDetails();
+    // El campo vive en una pestaña del panel: primero esa pestaña.
+    showDetailsTab(target === 'add-members' ? 'members' : 'info');
     let tries = 0;
     const focus = () => {
       const el = document.querySelector<HTMLElement>(`[data-focus-target="${target}"]`);
@@ -371,6 +375,7 @@ export default function ChatThread(props: ThreadProps) {
   const [mentionIndex, setMentionIndex] = useState(0);
   // Esc cierra la lista de "@" para esa mención (dónde empieza); se vuelve a abrir con otro "@".
   const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
   // Menciones de WhatsApp elegidas de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
   const pickedWa = useRef(new Map<string, string>());
   const [pickedVersion, setPickedVersion] = useState(0);
@@ -381,6 +386,8 @@ export default function ChatThread(props: ThreadProps) {
   const [bottomAt, setBottomAt] = useState(props.messages[props.messages.length - 1]?.createdAt ?? '');
   const [recording, setRecording] = useState<{ startedAt: number; elapsed: number; paused: boolean; carried: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // El campo pudo recibir el foco antes de que React lo viera (un clic antes de hidratar): se lee al montar.
+  useLayoutEffect(() => setComposerFocused(typeof document !== 'undefined' && document.activeElement === inputRef.current), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Abrir el chat con un clic deja el cursor en el campo, como WhatsApp (no con j/k ni en el teléfono).
   useFocusOnOpen(inputRef, props.chat.id);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -771,12 +778,17 @@ export default function ChatThread(props: ThreadProps) {
   // "@" en una nota abre las personas del equipo; en un grupo de WhatsApp, los participantes (como WhatsApp). La
   // mención sale como mención de verdad (avisa a la persona). "/" abre los comandos y las respuestas rápidas, más abajo.
   const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
-  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current), [props.members, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "@all" (o "@todos"): todo el grupo, solo si la línea lo puede mandar (lib/wa-mention-all.ts). Las notas internas no.
+  const allWord = chat.kind === 'group' && props.caps.mentionAll && !props.sample ? mentionAllWord(locale) : null;
+  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
   const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
   const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
   const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
-  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
-  const mentionMatches = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6) : [];
+  // La lista del "@" se ve solo con el campo en foco: tocar afuera la cierra y volver al campo la vuelve a abrir.
+  const mentionOpen = !!mentionQuery && composerFocused && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const mentionList = (q: string, pool: Mentionable[]) => (waMentions ? waMentionSuggestions(q, pool, 50) : mentionSuggestions(q, pool, 6));
+  const mentionMatches = mentionOpen && mentionPool ? mentionList(mentionQuery.query, mentionPool) : [];
+  const memberCount = props.members.filter((m) => !m.me).length;
 
   // Idioma del cliente: el detectado en su último mensaje traducido.
   const customerLang = useMemo(() => {
@@ -1340,6 +1352,11 @@ export default function ChatThread(props: ThreadProps) {
   const starredKey = messages
     .filter((m) => (m.meta as Record<string, unknown>).starred === true)
     .map((m) => m.id)
+    .join(',');
+  // Las notas internas de la pantalla (y si se borró alguna): la pestaña Notas vuelve a leer su lista.
+  const notesKey = messages
+    .filter((m) => m.direction === 'note')
+    .map((m) => `${m.id}${m.deletedAt ? '-' : ''}`)
     .join(',');
 
   function jumpTo(m: MessageDto) {
@@ -2789,22 +2806,38 @@ export default function ChatThread(props: ThreadProps) {
           {slash.menu}
           {emojiSuggest.strip}
           {mentionMatches.length > 0 && !slash.open && (
-            <ul className="wa-mention-pop" role="listbox" aria-label={t('thread.mentionPeople')}>
+            <ul className="wa-mention-pop" role="listbox" aria-label={t('thread.mentionPeople')} onMouseDown={(e) => e.preventDefault()}>
               {mentionMatches.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
-                  <button
-                    type="button"
-                    title={waMentions ? `+${p.id}` : p.email}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
-                    onClick={() => pickMention(i)}
-                  >
-                    <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
-                    <span className="wa-mention-who">
-                      <span className="wa-mention-name">{p.name || p.email}</span>
-                      {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
-                    </span>
-                  </button>
+                  {waMentions && p.id === MENTION_ALL ? (
+                    <button
+                      type="button"
+                      data-testid="mention-all"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                      onClick={() => pickMention(i)}
+                    >
+                      <Avatar name={chat.name} kind="group" size={32} src={chat.pictureUrl || undefined} seed={chat.id} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{t('thread.mentionAll', { word: p.name ?? MENTION_ALL })}</span>
+                        <span className="wa-mention-phone">{t('thread.mentionAllHint', { count: memberCount })}</span>
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      title={waMentions ? `+${p.id}` : p.email}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                      onClick={() => pickMention(i)}
+                    >
+                      <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{p.name || p.email}</span>
+                        {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -2924,6 +2957,9 @@ export default function ChatThread(props: ThreadProps) {
                   if (mentionClosedAt !== null && !e.target.value.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+                // Tocar afuera cierra la lista del "@" (elegir una opción no saca el foco: onMouseDown la frena).
+                onFocus={() => setComposerFocused(true)}
+                onBlur={() => setComposerFocused(false)}
                 onKeyDown={onComposerKey}
                 placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : slash.placeholder(t('wa.typeMessage'))}
                 {...slash.inputProps}
@@ -3004,6 +3040,7 @@ export default function ChatThread(props: ThreadProps) {
             stickerLine={stickerLine}
             sending={sending}
             mentionables={captionMentionables}
+            mentionAll={allWord ? { word: allWord, count: memberCount, name: chat.name, picture: chat.pictureUrl || undefined, seed: chat.id } : null}
             onLater={!editing ? () => openLater(true) : undefined}
           />
         )}
@@ -3039,6 +3076,7 @@ export default function ChatThread(props: ThreadProps) {
           isAdmin={props.isAdmin}
           compact
           starredKey={starredKey}
+          notesKey={notesKey}
           onJumpToMessage={(id) => {
             const m = messages.find((x) => x.id === id);
             if (!m) {

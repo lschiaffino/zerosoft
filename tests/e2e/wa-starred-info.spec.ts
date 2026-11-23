@@ -1,5 +1,6 @@
 import { e2eDb } from './helpers/db';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { detailsTab } from './helpers/details-tab';
 import { waLinkIp } from './helpers/wa-link';
 
 /**
@@ -78,6 +79,8 @@ test('Lines: destacados en la info del chat; Destacar en la selección alterna',
   // La info del chat (la foto del encabezado) lista el destacado; tocarlo lleva al mensaje.
   const head = page.locator('.wa-head-avatar');
   if ((await head.getAttribute('aria-expanded')) !== 'true') await head.click();
+  // Los destacados van en la pestaña Archivos del panel.
+  await detailsTab(page, 'media');
   const list = page.locator('.gr-details').getByTestId('chat-starred');
   await expect(list.getByTestId('chat-starred-item')).toHaveCount(1, { timeout: 15_000 });
   await page.locator('.gr-msg', { hasText: `relleno 29 ${tag}` }).scrollIntoViewIfNeeded();
@@ -129,6 +132,7 @@ test('Inbox: un destacado de la info del chat lleva al mensaje', async ({ page, 
 
   const who2 = thread.locator('.wa-head-who');
   if ((await who2.getAttribute('aria-expanded')) !== 'true') await who2.click();
+  await detailsTab(page, 'media');
   const item = page.getByTestId('chat-starred-item');
   await expect(item).toHaveCount(1, { timeout: 15_000 });
   await thread.locator('.gr-msg', { hasText: `relleno 29 ${tag}` }).scrollIntoViewIfNeeded();

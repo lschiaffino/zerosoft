@@ -1,12 +1,16 @@
 'use client';
 
 import GroupMembers from './wa/GroupMembers';
-import { Retry } from './wa/icons';
+import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry } from './wa/icons';
+import DetailsTabs from './wa/DetailsTabs';
+import SharedMedia from './wa/SharedMedia';
+import { ChatNotes, CrmDeals } from './ChatDetailsParts';
+import type { SheetSharedItem } from './wa/ContactSheet';
 import type { MemberTargetResult } from '@/lib/wa-group-members';
 import type { NewChatEntry } from '@/lib/wa-new-chat';
 import { useLinesPersonSheet } from './person-sheet';
 import LocalText from '@/components/ui/LocalText';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -37,14 +41,17 @@ interface TicketLite {
   breached: boolean;
 }
 
-interface StarredLite {
+interface SharedRow {
   id: string;
-  body: string;
-  name: string;
+  url: string;
   mime: string;
+  name: string;
+  body: string;
   sentAt: string;
   fromMe: boolean;
   senderName: string;
+  urls?: string[];
+  authorId?: string | null;
 }
 
 interface ScheduledLite {
@@ -74,6 +81,7 @@ export default function ChatDetails({
   isAdmin = false,
   compact = false,
   starredKey = '',
+  notesKey = '',
   onJumpToMessage,
 }: {
   chat: ChatDto;
@@ -93,6 +101,8 @@ export default function ChatDetails({
   compact?: boolean;
   /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
   starredKey?: string;
+  /** Cambia cuando se escribe o se borra una nota interna en la conversación: la pestaña Notas se vuelve a leer. */
+  notesKey?: string;
   /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
   onJumpToMessage?: (id: string) => void;
 }) {
@@ -120,18 +130,27 @@ export default function ChatDetails({
   const [name, setName] = useState(chat.name);
   const [description, setDescription] = useState(chat.description);
   const isGroup = chat.kind === 'group';
-  // Mensajes destacados del chat, como en la info de WhatsApp (un toque lleva al mensaje).
-  const tstar = useTranslations('groups.wa.contactSheet');
-  const [starred, setStarred] = useState<StarredLite[] | null>(null);
-  useEffect(() => {
-    if (!onJumpToMessage) return;
-    let live = true;
-    void api<{ items: StarredLite[] }>(`/api/groups/chats/${chat.id}?shared=starred`).then((r) => live && setStarred(r.data?.items ?? []));
-    return () => {
-      live = false;
-    };
-    // La función cambia en cada dibujo de la conversación: cuenta solo si está o no.
-  }, [chat.id, starredKey, !!onJumpToMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tdet = useTranslations('groups.wa.details');
+  // Lo compartido, los destacados y las notas del chat, para sus pestañas (Archivos, Notas).
+  const loadShared = useCallback(
+    async (kind: 'media' | 'docs' | 'links' | 'starred'): Promise<SheetSharedItem[] | null> => {
+      const r = await api<{ items: SharedRow[] }>(`/api/groups/chats/${chat.id}?shared=${kind}`);
+      if (!r.data) return null;
+      return r.data.items.map((m) => ({
+        id: m.id,
+        url: m.url,
+        video: m.mime.startsWith('video/'),
+        kind: m.mime.startsWith('image/') ? 'image' : m.mime.startsWith('video/') ? 'video' : m.mime.startsWith('audio/') ? 'audio' : m.mime ? 'document' : undefined,
+        name: m.name,
+        body: m.body,
+        sentAt: m.sentAt,
+        fromMe: m.fromMe,
+        senderName: m.senderName,
+        ...(m.urls ? { urls: m.urls } : {}),
+      }));
+    },
+    [chat.id],
+  );
 
   // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
   // (una etiqueta, "mantener archivado") trae un chat nuevo con `properties` en otro objeto: depender del objeto
@@ -234,8 +253,10 @@ export default function ChatDetails({
     void patch({ labelIds: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id] });
   };
 
-  return (
-    <div className={`gr-detail-body${compact ? ' is-compact' : ''}`}>
+  // Las secciones, una vez: el panel del chat (compact) las reparte en pestañas; la página del grupo las muestra
+  // todas, una debajo de otra, como antes.
+  const infoSection = (
+    <>
       {!compact && (
         <section className="gr-detail-section">
           <h3 className="gr-detail-title">{t('details.name')}</h3>
@@ -303,6 +324,84 @@ export default function ChatDetails({
         </p>
       )}
 
+      <section className="gr-detail-section">
+        <h3 className="gr-detail-title">{t('details.labels')}</h3>
+        {labels.length === 0 ? (
+          <p className="ui-help">
+            {t('details.noLabels')} <Link href="/app/lines/settings?tab=labels">{t('details.manageLabels')}</Link>
+          </p>
+        ) : (
+          <div className="gr-label-picker">
+            {labels.map((l) => {
+              const on = chat.labels.some((x) => x.id === l.id);
+              return (
+                <button key={l.id} type="button" className={`gr-label-toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggleLabel(l.id)}>
+                  <LabelTag name={l.name} color={l.color} />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {properties.length > 0 && (
+        <section className="gr-detail-section">
+          <h3 className="gr-detail-title">{t('details.properties')}</h3>
+          <form
+            className="ui-fields"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void patch({ properties: props }).then((r) => r && showToast(t('common.saved')));
+            }}
+          >
+            {properties.map((p) => (
+              <PropertyInput key={p.id} def={p} value={props[p.key]} onChange={(v) => setProps({ ...props, [p.key]: v })} />
+            ))}
+            <div>
+              <button type="submit" className="btn btn-secondary btn-sm">
+                {t('common.save')}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="gr-detail-section">
+        <label className="ui-switch">
+          <input
+            type="checkbox"
+            role="switch"
+            data-testid="keep-archived"
+            checked={chat.keepArchived}
+            onChange={(e) => {
+              const on = e.target.checked;
+              void patch({ keepArchived: on }).then((r) => r && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
+            }}
+          />
+          {t('wa.keepArchived')}
+        </label>
+        <p className="ui-help">{t('wa.keepArchivedHint')}</p>
+      </section>
+
+      <section className="gr-detail-section">
+        <h3 className="gr-detail-title">{t('details.agent')}</h3>
+        <select className="select" value={chat.agentId ?? ''} onChange={(e) => void patch({ agentId: e.target.value || null })} aria-label={t('details.agent')}>
+          <option value="">{t('details.noAgent')}</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <p className="ui-help">{agents.length === 0 ? t('details.agentNone') : t('details.agentHelp')}</p>
+      </section>
+
+      {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
+
+    </>
+  );
+  const membersSection = isGroup ? (
+    <>
       {isGroup && (
         <section className="gr-detail-section" data-testid="lines-members-section">
           <GroupMembers
@@ -384,26 +483,10 @@ export default function ChatDetails({
         </section>
       )}
 
-      <section className="gr-detail-section">
-        <h3 className="gr-detail-title">{t('details.labels')}</h3>
-        {labels.length === 0 ? (
-          <p className="ui-help">
-            {t('details.noLabels')} <Link href="/app/lines/settings?tab=labels">{t('details.manageLabels')}</Link>
-          </p>
-        ) : (
-          <div className="gr-label-picker">
-            {labels.map((l) => {
-              const on = chat.labels.some((x) => x.id === l.id);
-              return (
-                <button key={l.id} type="button" className={`gr-label-toggle${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggleLabel(l.id)}>
-                  <LabelTag name={l.name} color={l.color} />
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
+    </>
+  ) : null;
+  const crmSection = (
+    <>
       {crmOn && (
         <section className="gr-detail-section" data-testid="chat-crm">
           <h3 className="gr-detail-title">{t('details.crm')}</h3>
@@ -454,89 +537,20 @@ export default function ChatDetails({
           <p className="ui-help">{t('details.crmHelp')}</p>
         </section>
       )}
+      {crmOn && compact && (crmState.contact || crmState.company) && (
+        <CrmDeals chatId={chat.id} version={`${crmState.contact?.id ?? ''}:${crmState.company?.id ?? ''}`} />
+      )}
 
       <HubspotSection chatId={chat.id} isAdmin={isAdmin} showToast={showToast} />
-
-      {properties.length > 0 && (
+      {!crmOn && compact && (
         <section className="gr-detail-section">
-          <h3 className="gr-detail-title">{t('details.properties')}</h3>
-          <form
-            className="ui-fields"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void patch({ properties: props }).then((r) => r && showToast(t('common.saved')));
-            }}
-          >
-            {properties.map((p) => (
-              <PropertyInput key={p.id} def={p} value={props[p.key]} onChange={(v) => setProps({ ...props, [p.key]: v })} />
-            ))}
-            <div>
-              <button type="submit" className="btn btn-secondary btn-sm">
-                {t('common.save')}
-              </button>
-            </div>
-          </form>
+          <p className="ui-help">{tdet('crmOff')}</p>
         </section>
       )}
-
-      <section className="gr-detail-section">
-        <label className="ui-switch">
-          <input
-            type="checkbox"
-            role="switch"
-            data-testid="keep-archived"
-            checked={chat.keepArchived}
-            onChange={(e) => {
-              const on = e.target.checked;
-              void patch({ keepArchived: on }).then((r) => r && showToast(on ? t('wa.keepArchivedOn') : t('wa.keepArchivedOffToast')));
-            }}
-          />
-          {t('wa.keepArchived')}
-        </label>
-        <p className="ui-help">{t('wa.keepArchivedHint')}</p>
-      </section>
-
-      <section className="gr-detail-section">
-        <h3 className="gr-detail-title">{t('details.agent')}</h3>
-        <select className="select" value={chat.agentId ?? ''} onChange={(e) => void patch({ agentId: e.target.value || null })} aria-label={t('details.agent')}>
-          <option value="">{t('details.noAgent')}</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <p className="ui-help">{agents.length === 0 ? t('details.agentNone') : t('details.agentHelp')}</p>
-      </section>
-
-      {isGroup && caps.groups && <GroupSettingsSection chat={chat} caps={caps} onChange={onChange} showToast={showToast} />}
-
-      {onJumpToMessage && (
-        <section className="gr-detail-section" data-testid="chat-starred">
-          <h3 className="gr-detail-title">{tstar('starred')}</h3>
-          {starred === null ? (
-            <p className="ui-help">{t('common.loading')}</p>
-          ) : starred.length === 0 ? (
-            <p className="ui-help">{tstar('empty.starred')}</p>
-          ) : (
-            <ul className="gr-mini-list gr-starred-list">
-              {starred.slice(0, 20).map((m) => (
-                <li key={m.id}>
-                  <button type="button" className="gr-starred-item" data-testid="chat-starred-item" onClick={() => onJumpToMessage(m.id)}>
-                    <span className="ui-help">
-                      {m.fromMe ? tstar('you') : m.senderName || chat.name} · <LocalText>{parseDbUtc(m.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
-                    </span>
-                    <span className="gr-starred-text" dir="auto">
-                      {m.body || m.name || (m.mime.startsWith('image/') ? tstar('photo') : m.mime.startsWith('video/') ? tstar('video') : tstar('document'))}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
+    </>
+  );
+  const tasksSection = (
+    <>
       <ChatTasksSection chatId={chat.id} people={people} me={me} />
 
       <section className="gr-detail-section">
@@ -577,6 +591,10 @@ export default function ChatDetails({
         </section>
       )}
 
+    </>
+  );
+  const historySection = (
+    <>
       <AssignmentHistory chatId={chat.id} people={people} version={chat.assignedTo ?? ''} />
 
       <section className="gr-detail-section" aria-labelledby={`gr-activity-${chat.id}`}>
@@ -615,6 +633,38 @@ export default function ChatDetails({
           </button>
         )}
       </section>
+    </>
+  );
+
+  return (
+    <div className={`gr-detail-body${compact ? ' is-compact' : ''}`}>
+      {compact ? (
+        <DetailsTabs
+          storageKey={`zs-lines-details-tab:${me}`}
+          label={tdet('tabsLabel')}
+          tabs={[
+            { id: 'info', label: tdet('tabs.info'), icon: <InfoIcon size={18} />, content: <>{infoSection}{historySection}</> },
+            ...(membersSection ? [{ id: 'members', label: tdet('tabs.members'), icon: <GroupIcon size={18} />, count: chat.memberCount || members.length, content: membersSection }] : []),
+            {
+              id: 'media',
+              label: tdet('tabs.media'),
+              icon: <PhotoIcon size={18} />,
+              content: <SharedMedia key={chat.id} load={loadShared} chatName={chat.name} starredKey={starredKey} onJumpToMessage={onJumpToMessage} />,
+            },
+            { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ChatNotes chatId={chat.id} people={people} me={me} version={notesKey} onJumpToMessage={onJumpToMessage} /> },
+            { id: 'tasks', label: tdet('tabs.tasks'), icon: <CheckCircle size={18} />, content: tasksSection },
+            { id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: crmSection },
+          ]}
+        />
+      ) : (
+        <>
+          {infoSection}
+          {membersSection}
+          {crmSection}
+          {tasksSection}
+          {historySection}
+        </>
+      )}
       <ConfirmDialog
         open={confirmDelete}
         title={t('details.removeTitle')}

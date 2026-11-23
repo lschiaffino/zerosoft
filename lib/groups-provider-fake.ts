@@ -103,6 +103,8 @@ export interface FakeSent {
    */
   mentioned?: string[];
   mentionText?: string;
+  /** "@all": la marca que pidió la app; `mentioned` trae entonces a cada participante del grupo, como Evolution (mentionsEveryOne). */
+  mentionAll?: boolean;
   /** Marcar leído: el recibo que manda WhatsApp ('read-self' con las confirmaciones apagadas: el otro no lo ve). */
   receipt?: 'read' | 'read-self';
 }
@@ -548,6 +550,24 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
       : [];
     return waMentionPayload(text, mentions, g ? { addressing: g.addressing ?? 'pn', members } : null);
   };
+  /**
+   * "@all" como Evolution (mentionsEveryOne): menciona el id de cada participante del grupo (por lid en un grupo por
+   * lid). El texto queda como se escribió, salvo los "@<teléfono>" sueltos, que se direccionan igual que siempre.
+   */
+  const fakeMentionAll = (chatId: string, text: string, mentions: string[]) => {
+    const g = chatId.endsWith('@g.us') ? s.groups.get(chatId) : undefined;
+    const wire = mentions.length ? fakeMentionWire(chatId, text, mentions) : { text, mentioned: [] as string[] };
+    if (!g) return wire;
+    const lidGroup = g.addressing === 'lid';
+    const everyone = [
+      ...g.participants.map((p) => {
+        const lid = findContact(s, { phone: p.phone })?.lid;
+        return lidGroup && lid ? `${lid}@lid` : `${p.phone}@s.whatsapp.net`;
+      }),
+      ...(g.lids ?? []).map((lid) => `${lid}@lid`),
+    ];
+    return { text: wire.text, mentioned: [...new Set(everyone)] };
+  };
 
   async function state(): Promise<ConnectState> {
     if (s.connectedAt === null) return { status: 'disconnected' };
@@ -608,6 +628,12 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendText: async (chatId, text, o) => {
       const r = send(chatId, text, 'text');
       if (o?.forward) s.sent[s.sent.length - 1].forward = evolutionForward(o.forward).forward;
+      if (o?.mentionAll && chatId.endsWith('@g.us')) {
+        const wire = fakeMentionAll(chatId, text, o.mentions ?? []);
+        Object.assign(s.sent[s.sent.length - 1], { mentions: [...(o.mentions ?? [])], mentionAll: true, mentioned: wire.mentioned, mentionText: wire.text });
+        // El id lleva los JIDs y la marca "~all" (los e2e la leen en provider_message_id).
+        return { id: `${r.id}~${wire.mentioned.join(',')}~all` };
+      }
       if (o?.mentions?.length) {
         const wire = fakeMentionWire(chatId, text, o.mentions);
         Object.assign(s.sent[s.sent.length - 1], { mentions: [...o.mentions], mentioned: wire.mentioned, mentionText: wire.text });
@@ -619,6 +645,13 @@ export function fakeProvider(numberId: string, opts: { instantConnect?: boolean 
     sendMedia: async (chatId, media) => {
       const r = send(chatId, media.caption ?? media.filename, 'media', { kind: media.kind ?? '', mimetype: media.mimetype, base64: Boolean(media.base64), ...(media.gifPlayback ? { gifPlayback: true } : {}) });
       if (media.forward) s.sent[s.sent.length - 1].forward = evolutionForward(media.forward).forward;
+      if (media.caption && media.mentionAll && chatId.endsWith('@g.us') && media.kind !== 'sticker' && media.kind !== 'voice' && media.kind !== 'audio') {
+        const wire = fakeMentionAll(chatId, media.caption, media.mentions ?? []);
+        Object.assign(s.sent[s.sent.length - 1], { mentions: [...(media.mentions ?? [])], mentionAll: true, mentioned: wire.mentioned, mentionText: wire.text });
+        const id = `${r.id}~${wire.mentioned.join(',')}~all`;
+        keepSentMedia(id, media);
+        return { id };
+      }
       if (media.caption && media.mentions?.length && media.kind !== 'sticker' && media.kind !== 'voice' && media.kind !== 'audio') {
         // Menciones en el pie, como Evolution (sendMedia con `mentioned`): el id lleva los JIDs, igual que en sendText.
         const wire = fakeMentionWire(chatId, media.caption, media.mentions);

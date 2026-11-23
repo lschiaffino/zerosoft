@@ -172,6 +172,8 @@
   "unpin": "Unpin",
   "pinnedHereOnly": "Pinned here. WhatsApp on the phone does not show it.",
   "mention": "Mention someone",
+  "mentionAll": "Everyone (@{word})",
+  "mentionAllHint": "{count, plural, =0 {Notifies everyone in the group} one {Notifies the only member} other {Notifies all # members}}",
   "mentionSomeone": "someone",
   "styleUseZerosoft": "Chat style: zerosoft",
   "styleUseWhatsapp": "Chat style: WhatsApp",
