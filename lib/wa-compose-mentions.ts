@@ -8,7 +8,7 @@
  * mismas reglas que las notas (lib/crm-mentions.ts): "@" + el nombre o el
  * teléfono de un participante, sin importar mayúsculas, el más largo primero.
  */
-import { findMentionHits, type MentionHit, type Mentionable } from './crm-mentions';
+import { findMentionHits, mentionSuggestions, type MentionHit, type Mentionable } from './crm-mentions';
 import { MENTION_ALL } from './wa-mention-all';
 
 /** Un participante del grupo que se puede mencionar. */
@@ -33,9 +33,6 @@ export function waMentionLabel(p: WaParticipant): string {
 export function waMentionables(participants: ReadonlyArray<WaParticipant>, picked?: ReadonlyMap<string, string>, all?: string | null): Mentionable[] {
   const out: Mentionable[] = [];
   const seen = new Set<string>();
-  // "@all" (y la palabra del idioma, "@todos"): menciona a todo el grupo. Solo donde el proveedor lo manda
-  // (quien llama pasa la palabra; sin ella no se ofrece). Va primero en la lista.
-  if (all) out.push({ id: MENTION_ALL, name: all, email: MENTION_ALL });
   const add = (phone: string, label: string) => {
     if (!PHONE.test(phone)) return;
     const key = `${phone}\n${label.toLowerCase()}`;
@@ -45,13 +42,39 @@ export function waMentionables(participants: ReadonlyArray<WaParticipant>, picke
   };
   for (const [label, phone] of picked ?? []) add(phone, label);
   for (const p of participants) add(p.phone, waMentionLabel(p));
+  // "@all" (y la palabra del idioma, "@todos"): menciona a todo el grupo. Solo donde el proveedor lo manda
+  // (quien llama pasa la palabra; sin ella no se ofrece). Va al final: con alguien que se llama igual ("Todos"),
+  // gana esa persona (findMentionHits desempata por orden) y "todos" pasa a escribirse "@all".
+  if (all) {
+    const taken = out.some((p) => (p.name ?? '').toLowerCase() === all.toLowerCase());
+    out.push({ id: MENTION_ALL, name: taken ? MENTION_ALL : all, email: MENTION_ALL });
+  }
   return out;
 }
 
-/** La lista del "@" con "todos" primero (si está), como WhatsApp. */
-export function allFirst<T extends { id: string }>(list: T[]): T[] {
-  const i = list.findIndex((p) => p.id === MENTION_ALL);
-  return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)];
+/**
+ * La lista del "@". Con el campo recién abierto ("@"), Todos primero, como WhatsApp. Escribiendo, Todos aparece
+ * solo si su palabra empieza así ("@to", "@al") y después de las personas cuyo nombre también empieza así: una
+ * letra suelta nunca deja a todo el grupo elegido por defecto. Todos no ocupa lugar del tope: en un grupo grande
+ * sigue estando.
+ */
+export function waMentionSuggestions(query: string, pool: Mentionable[], limit = 50): Mentionable[] {
+  const all = pool.find((p) => p.id === MENTION_ALL);
+  if (!all) return mentionSuggestions(query, pool, limit);
+  const people = mentionSuggestions(
+    query,
+    pool.filter((p) => p !== all),
+    Math.max(1, limit - 1),
+  );
+  const q = query.trim().toLowerCase();
+  if (!q) return [all, ...people];
+  if (![all.name ?? '', all.email].some((w) => w.toLowerCase().startsWith(q))) return people;
+  // mentionSuggestions ordena por puntaje: primero los que empiezan así (nombre, una palabra del nombre o teléfono).
+  const strong = people.filter((p) => {
+    const name = (p.name ?? '').toLowerCase();
+    return name.startsWith(q) || p.email.toLowerCase().startsWith(q) || name.split(/\s+/).some((w) => w.startsWith(q));
+  }).length;
+  return [...people.slice(0, strong), all, ...people.slice(strong)];
 }
 
 /** Tramos de las menciones del texto (para pintarlas en el campo). */

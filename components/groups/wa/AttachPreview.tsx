@@ -9,8 +9,8 @@ import ImageEditor from './ImageEditor';
 import EmojiPicker from './EmojiPicker';
 import MentionTextarea from './MentionTextarea';
 import Avatar from './Avatar';
-import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
-import { allFirst, deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
+import { findMentionHits, mentionQueryAt, mentionText, type Mentionable } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, waMentionSuggestions } from '@/lib/wa-compose-mentions';
 import { MENTION_ALL } from '@/lib/wa-mention-all';
 import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasBlur, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
 import { blurredPhoto, filteredPhoto } from './photo-sources';
@@ -181,7 +181,7 @@ export default function AttachPreview({
   const hits = useMemo(() => (pool ? findMentionHits(caption, pool) : []), [caption, pool]);
   const query = pool && captionFocus ? mentionQueryAt(caption, caret) : null;
   const mentionOpen = !!query && closedAt !== query.start && !mentionAlreadyDone(query.start, caret, hits);
-  const people = mentionOpen && pool ? allFirst(mentionSuggestions(query.query, pool, 50)) : [];
+  const people = mentionOpen && pool ? waMentionSuggestions(query.query, pool, 50) : [];
 
   /** El pie de un archivo y, en un grupo con menciones, cómo sale a WhatsApp. */
   const setCaptionOf = (key: string, text: string, list: Mentionable[] | null = pool) => {

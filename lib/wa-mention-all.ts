@@ -18,7 +18,9 @@ export const MENTION_ALL_WORDS = ['all', 'todos'] as const;
 
 /** La palabra que escribe el campo al elegir "todos" en la lista. */
 export function mentionAllWord(locale: string | null | undefined): string {
-  const l = String(locale ?? '').slice(0, 2).toLowerCase();
+  const l = String(locale ?? '')
+    .slice(0, 2)
+    .toLowerCase();
   return l === 'es' || l === 'pt' ? 'todos' : 'all';
 }
 

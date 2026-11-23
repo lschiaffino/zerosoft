@@ -12,8 +12,8 @@ import EmojiPicker from '@/components/groups/wa/EmojiPicker';
 import type { GifItem } from '@/components/groups/wa/GifPanel';
 import Avatar from '@/components/groups/wa/Avatar';
 import MentionTextarea from '@/components/groups/wa/MentionTextarea';
-import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { allFirst, deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { findMentionHits, mentionQueryAt, mentionText } from '@/lib/crm-mentions';
+import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, waMentionSuggestions, type WaMentionPick } from '@/lib/wa-compose-mentions';
 import { MENTION_ALL } from '@/lib/wa-mention-all';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
@@ -102,6 +102,7 @@ const WaComposer = forwardRef<
   const [mentionIdx, setMentionIdx] = useState(0);
   // Esc cierra la lista de "@" para esa mención (dónde empieza).
   const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
+  const [focused, setFocused] = useState(false);
   // Lo elegido de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
   const picked = useRef(new Map<string, string>());
   const [pickedVersion, setPickedVersion] = useState(0);
@@ -180,8 +181,9 @@ const WaComposer = forwardRef<
   };
   const mentionHits = useMemo(() => (mentionPool && !editing ? findMentionHits(text, mentionPool) : []), [text, mentionPool, editing]);
   const mentionQuery = mentionPool && !editing ? mentionQueryAt(text, caret) : null;
-  const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
-  const people = mentionOpen && mentionPool ? allFirst(mentionSuggestions(mentionQuery.query, mentionPool, 50)) : [];
+  // La lista del "@" se ve solo con el campo en foco: tocar afuera la cierra y volver al campo la vuelve a abrir.
+  const mentionOpen = !!mentionQuery && focused && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
+  const people = mentionOpen && mentionPool ? waMentionSuggestions(mentionQuery.query, mentionPool, 50) : [];
 
   /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
   const insertMention = (p: (typeof people)[number]) => {
@@ -453,7 +455,7 @@ const WaComposer = forwardRef<
       {linkPv.card}
       {slash.menu}
       {!slash.open && people.length > 0 && (
-        <ul className="wa-mention-pop ib-wa-mentions" role="listbox" aria-label={w('mention')}>
+        <ul className="wa-mention-pop ib-wa-mentions" role="listbox" aria-label={w('mention')} onMouseDown={(e) => e.preventDefault()}>
           {people.map((p, i) => (
             <li key={`${p.id}:${p.name}`} role="option" aria-selected={i === mentionIdx}>
               {p.id === MENTION_ALL && mentionAll ? (
@@ -549,7 +551,8 @@ const WaComposer = forwardRef<
           }}
           onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
           // Tocar afuera cierra la lista del "@" (elegir una opción no saca el foco: onMouseDown la frena).
-          onBlur={() => mentionQuery && setMentionClosedAt(mentionQuery.start)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onChange={(e) => {
             const v = e.target.value;
             setText(v);

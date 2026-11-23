@@ -5,9 +5,9 @@
  * grupos: ahí no se ofrece ni se manda. Números y nombres inventados.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyWaMentionPicks, allFirst, cleanWaMentionPicks, serializeWaMentions, waMentionables, waMentionHits, waMentionPicks } from '@/lib/wa-compose-mentions';
+import { applyWaMentionPicks, cleanWaMentionPicks, serializeWaMentions, waMentionables, waMentionHits, waMentionPicks, waMentionSuggestions } from '@/lib/wa-compose-mentions';
 import { MENTION_ALL, hasMentionAllToken, keepMentionAll, mentionAllWord, mentionSendOpts, splitMentionAll } from '@/lib/wa-mention-all';
-import { mentionSuggestions } from '@/lib/crm-mentions';
+import { captionMentions } from '@/lib/inbox/wa-media';
 import { PROVIDER_CAPS, type FetchLike } from '@/lib/groups-provider';
 import { evolutionProvider, wahaProvider } from '@/lib/groups-provider-bridge';
 import { fakeProvider, fakeSent, resetFakeProvider } from '@/lib/groups-provider-fake';
@@ -30,15 +30,36 @@ describe('@all: el campo', () => {
     expect(mentionAllWord(null)).toBe('all');
   });
 
-  it('"todos" va primero en la lista y solo si se ofrece', () => {
+  it('con "@" solo, Todos va primero; escribiendo, solo si su palabra empieza así y después de quien empieza igual', () => {
     const without = waMentionables(members);
     expect(without.some((p) => p.id === MENTION_ALL)).toBe(false);
     const people = waMentionables(members, undefined, 'todos');
-    expect(allFirst(mentionSuggestions('', people, 50)).map((p) => p.id)).toEqual([MENTION_ALL, B, A]);
-    // Filtra por las dos palabras.
-    expect(mentionSuggestions('to', people, 50).map((p) => p.id)).toContain(MENTION_ALL);
-    expect(mentionSuggestions('al', people, 50).map((p) => p.id)).toContain(MENTION_ALL);
-    expect(mentionSuggestions('uno', people, 50).map((p) => p.id)).toEqual([A]);
+    expect(waMentionSuggestions('', people, 50).map((p) => p.id)).toEqual([MENTION_ALL, B, A]);
+    expect(waMentionSuggestions('to', people, 50).map((p) => p.id)).toEqual([MENTION_ALL]);
+    expect(waMentionSuggestions('al', people, 50).map((p) => p.id)).toEqual([MENTION_ALL]);
+    expect(waMentionSuggestions('uno', people, 50).map((p) => p.id)).toEqual([A]);
+    // Una letra que aparece en el medio de "todos" o "all" no lo trae (ni lo deja elegido para Enter).
+    const named = waMentionables([...members, { phone: '5490000000104', name: 'Diego Sosa' }, { phone: '5490000000105', name: 'Tomás' }], undefined, 'todos');
+    expect(waMentionSuggestions('d', named, 50).map((p) => p.id)).not.toContain(MENTION_ALL);
+    expect(waMentionSuggestions('s', named, 50)[0].id).not.toBe(MENTION_ALL);
+    expect(waMentionSuggestions('to', named, 50).map((p) => p.id)).toEqual(['5490000000105', MENTION_ALL]);
+    const en = waMentionables([{ phone: '5490000000106', name: 'Ana' }], undefined, 'all');
+    expect(waMentionSuggestions('a', en, 50).map((p) => p.id)).toEqual(['5490000000106', MENTION_ALL]);
+  });
+
+  it('en un grupo grande Todos sigue en la lista', () => {
+    const many = Array.from({ length: 80 }, (_, i) => ({ phone: `54900000${String(1000 + i)}`, name: i % 2 ? '' : `Persona ${i}` }));
+    const list = waMentionSuggestions('', waMentionables(many, undefined, 'todos'), 50);
+    expect(list).toHaveLength(50);
+    expect(list[0].id).toBe(MENTION_ALL);
+  });
+
+  it('alguien que se llama "Todos" se menciona a sí mismo; Todos pasa a escribirse "@all"', () => {
+    const clash = [{ phone: '5490000000107', name: 'Todos' }, ...members];
+    const people = waMentionables(clash, new Map([['Todos', '5490000000107']]), 'todos');
+    expect(people.find((p) => p.id === MENTION_ALL)?.name).toBe('all');
+    expect(serializeWaMentions('@Todos hola', people)).toEqual({ body: '@5490000000107 hola', mentions: ['5490000000107'] });
+    expect(serializeWaMentions('@all hola', people)).toEqual({ body: '@all hola', mentions: [MENTION_ALL] });
   });
 
   it('"@all" y "@todos" quedan como se escribieron, con "all" primero en la lista', () => {
@@ -62,7 +83,12 @@ describe('@all: el campo', () => {
     ]);
     expect(cleanWaMentionPicks(JSON.stringify(picks))).toEqual(picks);
     // "all" sin etiqueta o cualquier otro texto no pasa.
-    expect(cleanWaMentionPicks([{ phone: 'all', label: '' }, { phone: 'todos', label: 'x' }])).toEqual([]);
+    expect(
+      cleanWaMentionPicks([
+        { phone: 'all', label: '' },
+        { phone: 'todos', label: 'x' },
+      ]),
+    ).toEqual([]);
     expect(applyWaMentionPicks('@todos y @Persona Dos', picks)).toEqual({ body: `@todos y @${B}`, mentions: [MENTION_ALL, B] });
     expect(applyWaMentionPicks('@all mañana', [{ phone: MENTION_ALL, label: 'all' }])).toEqual({ body: '@all mañana', mentions: [MENTION_ALL] });
     // Si el texto ya no dice "@all", no menciona a todos.
@@ -82,8 +108,14 @@ describe('@all: el servidor', () => {
     expect(keepMentionAll('all', 'hola @all', true)).toBe(false);
     expect(cleanMentions(['all', A], `@all y @${A}`, 'group')).toEqual([MENTION_ALL, A]);
     expect(cleanMentions([A, 'all'], `@${A} y @todos`, 'group')).toEqual([MENTION_ALL, A]);
-    expect(cleanMentions(['all'], 'sin la palabra', 'group')).toEqual([]);
+    expect(cleanMentions(['all'], 'escribí a info@all.com', 'group')).toEqual([]);
+    expect(cleanMentions(['all'], 'hola @allá y @allison', 'group')).toEqual([]);
     expect(cleanMentions(['all'], '@all', 'dm')).toEqual([]);
+    // Inbox: el pie de una foto, igual.
+    expect(captionMentions(['all'], '@todos miren', true, 'image')).toEqual([MENTION_ALL]);
+    expect(captionMentions(['all'], 'miren @todosmal', true, 'image')).toEqual([]);
+    expect(captionMentions(['all'], '@todos miren', false, 'image')).toEqual([]);
+    expect(captionMentions(['all'], '@todos', true, 'audio')).toEqual([]);
   });
 
   it('la marca va solo si el proveedor la manda (la Cloud API no)', () => {
@@ -144,7 +176,9 @@ describe('@all: lo que sale a WhatsApp', () => {
 
     const sent = await sendMessage(user.id, user.id, chat.id, { body: 'Mañana a las 9 @todos', mentions: ['all'] });
     expect(sent.status).toBe('sent');
-    const out = fakeSent(n.id).filter((s) => s.kind === 'text').at(-1)!;
+    const out = fakeSent(n.id)
+      .filter((s) => s.kind === 'text')
+      .at(-1)!;
     expect(out).toMatchObject({ text: 'Mañana a las 9 @todos', mentionAll: true });
     expect(out.mentioned).toEqual(expect.arrayContaining([`${A}@s.whatsapp.net`, `${B}@s.whatsapp.net`]));
     const saved = (await listMessages(user.id, chat.id)).find((m) => m.id === sent.id)!;
@@ -153,10 +187,18 @@ describe('@all: lo que sale a WhatsApp', () => {
 
     await getDb().prepare("UPDATE groups_messages SET status = 'failed' WHERE id = ?").run(sent.id);
     await retryMessage(user.id, user.id, sent.id);
-    expect(fakeSent(n.id).filter((s) => s.kind === 'text').at(-1)).toMatchObject({ mentionAll: true });
+    expect(
+      fakeSent(n.id)
+        .filter((s) => s.kind === 'text')
+        .at(-1),
+    ).toMatchObject({ mentionAll: true });
 
     // Sin la palabra en el texto, "all" no pasa: nadie recibe la marca.
-    await sendMessage(user.id, user.id, chat.id, { body: 'sin marca', mentions: ['all'] });
-    expect(fakeSent(n.id).filter((s) => s.kind === 'text').at(-1)).not.toHaveProperty('mentionAll');
+    await sendMessage(user.id, user.id, chat.id, { body: '@allison sin marca', mentions: ['all'] });
+    expect(
+      fakeSent(n.id)
+        .filter((s) => s.kind === 'text')
+        .at(-1),
+    ).not.toHaveProperty('mentionAll');
   });
 });
