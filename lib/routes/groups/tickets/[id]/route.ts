@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { deleteTicket, getTicket, updateTicket, type TicketPatch } from '@/lib/groups-tickets';
 import type { TicketPriority, TicketStatus } from '@/lib/groups-rules';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, type GroupsSession } from '@/lib/groups-http';
-import { canSeeChat, ticketsForViewer } from '@/lib/groups-access';
+import { canSeeChat, maskTicket, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { ticketLinks } from '@/lib/groups-integrations';
 
@@ -53,7 +53,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         detail: { number: after.number, ...Object.fromEntries(changed.map((k) => [k, after[k]])) },
       });
     }
-    return NextResponse.json(after);
+    return NextResponse.json(maskTicket(await sessionViewer(s), after));
   } catch (err) {
     return handleGroupsError(err);
   }

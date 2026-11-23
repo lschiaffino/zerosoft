@@ -339,7 +339,9 @@ export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
 /** Para los campos `phone` de los DTO: la interfaz les antepone "+", así que van sin él. */
 const maskField = (phone: string) => maskPhone(phone).replace(/^\+/, '');
 
-export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string; presence?: { name: string } | null }>(
+export function maskChat<
+  T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string; lastSender?: string | null; presence?: { name: string } | null },
+>(
   viewer: GroupsViewer | null | undefined,
   chat: T,
 ): T {
@@ -352,6 +354,8 @@ export function maskChat<T extends Pick<ChatDto, 'phone' | 'name'> & { match?: s
     name,
     ...(chat.match ? { match: maskPhoneText(chat.match) } : {}),
     // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
+    // Quien mandó el último mensaje de un grupo, si solo se sabe su teléfono ("+<teléfono>").
+    ...(chat.lastSender ? { lastSender: maskPhoneText(chat.lastSender) } : {}),
     ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
     // Quien escribe en un grupo, si solo se sabe su teléfono ("+<teléfono>").
     ...(chat.presence?.name ? { presence: { ...chat.presence, name: maskPhoneText(chat.presence.name) } } : {}),
@@ -396,9 +400,25 @@ export function maskedChatName(viewer: GroupsViewer | null | undefined, row: Pic
 }
 
 /** Tickets que la persona puede ver (chats visibles) con el nombre del chat enmascarado si hace falta. */
-export async function ticketsForViewer<T extends { chatId: string | null; chatName: string }>(viewer: GroupsViewer | null | undefined, tickets: T[]): Promise<T[]> {
+export async function ticketsForViewer<T extends { chatId: string | null; chatName: string; title?: string }>(viewer: GroupsViewer | null | undefined, tickets: T[]): Promise<T[]> {
   const visible = await visibleChatIds(viewer);
-  return tickets
-    .filter((t) => !visible || (t.chatId !== null && visible.has(t.chatId)))
-    .map((t) => (viewer?.mask ? { ...t, chatName: maskPhoneText(t.chatName) } : t));
+  return tickets.filter((t) => !visible || (t.chatId !== null && visible.has(t.chatId))).map((t) => maskTicket(viewer, t));
+}
+
+/** Un nombre que es solo un teléfono ("+<dígitos>", el de un chat 1:1 sin nombre): enmascarado. */
+const maskPhoneName = (name: string) => (/^\+\d{6,}$/.test(name) ? maskPhone(name) : name);
+
+/**
+ * Un ticket con la máscara de teléfonos de quien mira: el nombre del chat y
+ * un título que es solo el teléfono (un ticket de un mensaje sin texto en un
+ * 1:1 sin nombre). Para lo que ya se sabe que ve (el chat pasó el guard).
+ */
+export function maskTicket<T extends { chatName: string; title?: string }>(viewer: GroupsViewer | null | undefined, t: T): T {
+  if (!viewer?.mask) return t;
+  return { ...t, chatName: maskPhoneText(t.chatName), ...(typeof t.title === 'string' ? { title: maskPhoneName(t.title) } : {}) };
+}
+
+/** El nombre de un chat (reenviar, avisos) con la máscara de quien mira, como maskChat. */
+export function maskChatName(viewer: GroupsViewer | null | undefined, name: string): string {
+  return viewer?.mask ? maskPhoneName(name) : name;
 }

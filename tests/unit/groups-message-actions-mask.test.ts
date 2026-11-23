@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectNumber, createNumber, getNumberRowById, ingestEvents, listChats, listMessages } from '@/lib/groups';
-import { updatePlatformSettings } from '@/lib/groups-access';
+import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { getDb } from '@/lib/db';
 import type { SessionUser } from '@/lib/session';
@@ -69,10 +69,14 @@ async function setup(label: string) {
     }) as InboundEvent;
   const row = (await getNumberRowById(n.id))!;
   await ingestEvents(row, [ev({}), ev({ body: 'second' }), ev({ body: 'third' })]);
-  const chat = (await listChats(ws, ws, { kind: 'group' })).rows.find((c) => c.name === `Suppliers ${label}`)!;
+  // Un 1:1 sin nombre (su nombre es el teléfono) para reenviarle.
+  await ingestEvents(row, [ev({ chatId: `${SENDER}@s.whatsapp.net`, isGroup: false, chatName: '', body: 'dm' })]);
+  const chats = (await listChats(ws, ws, {})).rows;
+  const chat = chats.find((c) => c.name === `Suppliers ${label}`)!;
+  const dm = chats.find((c) => c.kind === 'dm' && c.phone === SENDER)!;
   const msgs = await listMessages(ws, chat.id);
   const byBody = (b: string) => msgs.find((m) => m.body === b)!;
-  return { w, ws, chat, first: byBody('prices'), second: byBody('second'), third: byBody('third') };
+  return { w, ws, chat, dm, first: byBody('prices'), second: byBody('second'), third: byBody('third') };
 }
 
 describe('Lines: acciones sobre un mensaje con la máscara de quien pide', () => {
@@ -92,10 +96,35 @@ describe('Lines: acciones sobre un mensaje con la máscara de quien pide', () =>
       expect(res.status).toBeLessThan(300);
       bodies.push(await res.text());
     }
-    const forwarded = await call('POST', s.second.id, { action: 'forward', chatIds: [s.chat.id] });
+    const forwarded = await call('POST', s.second.id, { action: 'forward', chatIds: [s.dm.id] });
+    expect(forwarded.status).toBe(200);
+    const fwd = (await forwarded.clone().json()) as { results: Array<{ chatId: string; name: string }> };
+    expect(fwd.results.map((r) => r.chatId)).toEqual([s.dm.id]);
     bodies.push(await forwarded.text());
+    // Los tickets por su propia ruta: alta y cambio.
+    const ticketsRoute = await import('@/app/api/groups/tickets/route');
+    const ticketRoute = await import('@/lib/routes/groups/tickets/[id]/route');
+    const created = await ticketsRoute.POST(new Request('http://localhost/api/groups/tickets', { method: 'POST', body: JSON.stringify({ chatId: s.dm.id }), headers: { 'content-type': 'application/json' } }));
+    expect(created.status).toBeLessThan(300);
+    const ticket = (await created.clone().json()) as { id: string };
+    bodies.push(await created.text());
+    const patched = await ticketRoute.PATCH(
+      new Request(`http://localhost/api/groups/tickets/${ticket.id}`, { method: 'PATCH', body: JSON.stringify({ priority: 'high' }), headers: { 'content-type': 'application/json' } }),
+      ctx(ticket.id),
+    );
+    expect(patched.status).toBe(200);
+    bodies.push(await patched.text());
     for (const text of bodies) expect(text).not.toContain(SENDER);
     expect(bodies[0]).toContain('"senderPhone"');
+  });
+
+  it('la lista: quien mandó el último mensaje de un grupo sale enmascarado', async () => {
+    const s = await setup('lmask-list');
+    const viewer = await groupsViewer(s.ws, s.w.member.id, 'member');
+    const rows = (await listChats(s.ws, s.w.member.id, { viewer })).rows;
+    const group = rows.find((r) => r.id === s.chat.id) as { lastSender?: string | null } | undefined;
+    expect(group?.lastSender ?? '').not.toContain(SENDER);
+    expect(JSON.stringify(rows)).not.toContain(SENDER);
   });
 
   it('el owner (sin máscara) recibe el teléfono como siempre', async () => {

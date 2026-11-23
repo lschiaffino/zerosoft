@@ -4,8 +4,7 @@ import { deleteMessage, editMessage, forwardMessage, pinMessage, reportMessage }
 import { createTicket } from '@/lib/groups-tickets';
 import type { TicketPriority } from '@/lib/groups-rules';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
-import { canSeeChat, maskMessage, ticketsForViewer } from '@/lib/groups-access';
-import { maskPhoneText } from '@/lib/groups-mask';
+import { canSeeChat, maskChatName, maskMessage, maskTicket } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,8 +39,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         assigneeId: str(b.assigneeId, 100) || null,
         source: 'manual',
       });
-      const [ticket] = await ticketsForViewer(guard.viewer, [res.ticket]);
-      return NextResponse.json({ ...res, ticket: ticket ?? res.ticket }, { status: res.created ? 201 : 200 });
+      return NextResponse.json({ ...res, ticket: maskTicket(guard.viewer, res.ticket) }, { status: res.created ? 201 : 200 });
     }
     if (b.action === 'retry') {
       const { retryMessage } = await import('@/lib/groups');
@@ -59,7 +57,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const targets: string[] = [];
       for (const c of strArr(b.chatIds, 20)) if (await canSeeChat(guard.viewer, c)) targets.push(c);
       const results = await forwardMessage(s.ws, s.me, id, targets);
-      return NextResponse.json({ results: guard.viewer.mask ? results.map((r) => ({ ...r, name: maskPhoneText(r.name) })) : results });
+      return NextResponse.json({ results: results.map((r) => ({ ...r, name: maskChatName(guard.viewer, r.name) })) });
     }
     return groupsError(400, 'invalid_action');
   } catch (err) {
