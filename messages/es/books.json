@@ -574,7 +574,11 @@
       "title": "Estado de resultados",
       "desc": "Ingresos, costos y gastos de un período."
     },
-    "balance": "Saldo",
+    "balance": {
+      "title": "Balance",
+      "desc": "Activo, pasivo y patrimonio a una fecha."
+    },
+    "runningBalance": "Saldo",
     "cashflow": {
       "title": "Flujo de caja",
       "desc": "Lo que entra y sale de tus cuentas de banco y caja."
