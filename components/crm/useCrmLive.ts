@@ -31,7 +31,8 @@ export function useCrmLive(target: CrmLiveTarget | null, onChange?: () => void, 
     let alive = true;
     let busy = false;
     const tick = async () => {
-      if (!alive || busy || document.visibilityState !== 'visible') return;
+      // Sin red no se sondea (y el modo offline nunca lo encola: lib/offline-queue.ts NEVER_QUEUE).
+      if (!alive || busy || document.visibilityState !== 'visible' || !navigator.onLine) return;
       busy = true;
       try {
         const res = await fetch('/api/crm/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: key });

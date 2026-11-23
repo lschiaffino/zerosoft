@@ -12,6 +12,7 @@ import { createActivity, createCompany, createContact, createCustomField, update
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { navKey, neighbors, parseListNav } from '@/components/crm/recordNavModel';
+import { NEVER_QUEUE } from '@/lib/offline-queue';
 import type { SessionUser } from '@/lib/session';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 
@@ -76,6 +77,10 @@ describe('navegación: lógica pura', () => {
 });
 
 describe('en vivo: acceso a /api/crm/live', () => {
+  it('el sondeo nunca entra a la cola sin conexión', () => {
+    expect(NEVER_QUEUE).toContain('/api/crm/live');
+  });
+
   it('anónimo: 401; cuerpo inválido: 400', async () => {
     expect((await post({ list: 'contacts' })).status).toBe(401);
     session.user = asOwner((await workspaceWithMember('c3-anon')).owner);
