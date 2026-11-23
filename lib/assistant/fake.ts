@@ -324,7 +324,7 @@ const FIND_CHAT = /^find (lines|inbox) chats? (.+)$/i;
 
 function chatActionsFlow(asked: string, done: FakeCallInfo['toolResults'][number] | undefined): FakeStep | null {
   if (done?.tool === 'lines_find_chats' || done?.tool === 'inbox_find_chats') {
-    const rows = ((done.output as { chats?: Array<{ name: string }> } | null)?.chats ?? []).map((c) => c.name);
+    const rows = ((unwrap((done.output as { chats?: unknown } | null)?.chats) as Array<{ name: string }> | null) ?? []).map((c) => c.name);
     return { text: rows.length ? `Found: ${rows.join(', ')}.` : 'No chat matches.' };
   }
   if (done) return null;

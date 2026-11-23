@@ -55,7 +55,8 @@
     "failed": "No funcionó: {error}",
     "open": "Abrir",
     "showAll": "los {count} caracteres",
-    "partial": "Hecho en parte"
+    "partial": "Hecho en parte",
+    "putDraft": "Poner el borrador en el chat"
   },
   "actionErrors": {
     "forbidden": "Ya no tenés acceso para hacer esto.",
@@ -457,7 +458,13 @@
       "sendsWarning": "Los mensajes programados se mandan por WhatsApp a su hora sin volver a preguntar. Hasta entonces los podés cancelar en la pestaña Tareas del chat.",
       "result": "Listo: {done} de {total}.",
       "resultFailed": "No se pudo: {list}.",
-      "draftsReady": "{count, plural, one {Abrí el chat para revisar el borrador en el campo del mensaje. No se mandó nada.} other {Abrí cada chat para revisar su borrador en el campo del mensaje. No se mandó nada.}}"
+      "draftsReady": "{count, plural, one {Abrí el chat para revisar el borrador en el campo del mensaje. No se mandó nada.} other {Abrí cada chat para revisar su borrador en el campo del mensaje. No se mandó nada.}}",
+      "group": "grupo"
+    },
+    "one": {
+      "draft": "Borrador de respuesta para {chat}, queda en el chat y no se manda",
+      "note": "Nota en {chat}, solo la ves vos",
+      "schedule": "Mensaje a {chat} el {when}"
     }
   },
   "consentCard": {

@@ -55,7 +55,8 @@
     "failed": "It did not work: {error}",
     "open": "Open",
     "showAll": "all {count} characters",
-    "partial": "Partly done"
+    "partial": "Partly done",
+    "putDraft": "Put the draft in the chat"
   },
   "actionErrors": {
     "forbidden": "You no longer have access to do this.",
@@ -457,7 +458,13 @@
       "sendsWarning": "Scheduled messages are sent on WhatsApp at their time without asking again. Until then you can cancel them in the Tasks tab of the chat.",
       "result": "Done: {done} of {total}.",
       "resultFailed": "Could not: {list}.",
-      "draftsReady": "{count, plural, one {Open the chat to review the draft in the message field. Nothing was sent.} other {Open each chat to review its draft in the message field. Nothing was sent.}}"
+      "draftsReady": "{count, plural, one {Open the chat to review the draft in the message field. Nothing was sent.} other {Open each chat to review its draft in the message field. Nothing was sent.}}",
+      "group": "group"
+    },
+    "one": {
+      "draft": "Reply draft for {chat}, left in the chat and not sent",
+      "note": "Note on {chat}, only you see it",
+      "schedule": "Message to {chat} at {when}"
     }
   },
   "consentCard": {

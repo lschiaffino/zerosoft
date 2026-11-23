@@ -18,12 +18,13 @@ import { z } from 'zod';
 import { createTranslator } from 'next-intl';
 import { getDb } from '../db';
 import { delegatedIdentity } from '../mcp/identity';
-import { chatDisplayName, getChatRow, getNumberRow, listChats, listPeople, sendMessage, type ChatRow } from '../groups';
-import { canSeeChat, groupsViewer, maskChat, maskPhone, type GroupsViewer } from '../groups-access';
+import { GroupsError, getChatRow, getNumberRow, listPeople, sendMessage, type ChatRow } from '../groups';
+import { canSeeChat, chatAccessSql, groupsViewer, maskPhone, maskedChatName, type GroupsViewer } from '../groups-access';
+import { wrapUntrusted } from '../mcp/untrusted';
 import enMessages from '../../messages/en/assistant.json';
 import esMessages from '../../messages/es/assistant.json';
 import ptMessages from '../../messages/pt/assistant.json';
-import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
+import { cardTime, readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 
 const MESSAGES = { en: enMessages, es: esMessages, pt: ptMessages } as const;
 
@@ -42,7 +43,6 @@ function hoursSince(iso: string | null | undefined, now: number): number | null 
   return Number.isFinite(t) ? Math.max(0, Math.round((now - t) / 3_600_000)) : null;
 }
 
-const fmtUtc = (iso: string) => `${iso.slice(0, 16).replace('T', ' ')} UTC`;
 
 // ---------------------------------------------------------------------------
 // Buscar chats
@@ -53,23 +53,69 @@ const findInput = z.object({
   limit: z.number().int().min(1).max(20).optional(),
 });
 
+/** Un chat de Lines como lo ve quien pide (nombre con los teléfonos ocultos si no los ve), con su línea. */
+interface FoundChat {
+  id: string;
+  key: string;
+  name: string;
+  line: string;
+  group: boolean;
+  phone: string;
+  unread: number;
+  lastMessageAt: string | null;
+  assignedTo: string | null;
+}
+
+/**
+ * Chats de Lines que quien pide ve, por nombre o (si ve los teléfonos) por teléfono. Nunca por el texto de los
+ * mensajes: buscar no lee mensajes. `exact`: el nombre entero (sin distinguir mayúsculas).
+ */
+async function searchLinesChats(ctx: ToolCtx, viewer: GroupsViewer, query: string, opts: { exact?: boolean; limit: number }): Promise<FoundChat[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const access = chatAccessSql(viewer, 'c');
+  const like = `%${q.replace(/[%_\\]/g, (ch) => `\\${ch}`)}%`;
+  const digits = q.replace(/\D/g, '');
+  const byName = opts.exact ? 'c.name = ? COLLATE NOCASE' : "c.name LIKE ? ESCAPE '\\'";
+  // Por teléfono solo si quien pide los ve (si no, buscar por número diría de quién es).
+  const byPhone = !opts.exact && !viewer.mask && digits.length >= 4 ? " OR c.phone LIKE ? ESCAPE '\\'" : '';
+  const args: Array<string | number> = [ctx.workspaceId, opts.exact ? q : like, ...(byPhone ? [`%${digits}%`] : []), ...(access?.args ?? []), opts.limit];
+  const rows = (await getDb()
+    .prepare(
+      `SELECT c.id, c.kind, c.name, c.phone, c.provider_chat_id, c.unread_count, c.last_message_at, c.assigned_to, n.name AS line_name, n.phone AS line_phone
+       FROM groups_chats c JOIN groups_numbers n ON n.id = c.number_id AND n.user_id = c.user_id
+       WHERE c.user_id = ? AND c.hidden_at IS NULL AND (${byName}${byPhone})${access ? ` AND ${access.sql}` : ''}
+       ORDER BY COALESCE(c.last_message_at, c.created_at) DESC LIMIT ?`,
+    )
+    .all(...args)) as Array<{ id: string; kind: string; name: string; phone: string; provider_chat_id: string; unread_count: number; last_message_at: string | null; assigned_to: string | null; line_name: string; line_phone: string }>;
+  const { chatKey } = await import('../groups-same-chat');
+  return rows.map((r) => ({
+    id: r.id,
+    key: chatKey(r) || r.id,
+    name: maskedChatName(viewer, r),
+    line: r.line_name || (r.line_phone ? (viewer.mask ? maskPhone(r.line_phone) : `+${r.line_phone}`) : ''),
+    group: r.kind === 'group',
+    phone: r.kind === 'group' || !r.phone ? '' : viewer.mask ? maskPhone(r.phone) : `+${r.phone}`,
+    unread: Number(r.unread_count) || 0,
+    lastMessageAt: r.last_message_at,
+    assignedTo: r.assigned_to,
+  }));
+}
+
 async function linesFind(ctx: ToolCtx, query: string, limit: number) {
   const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
-  const now = Date.now();
-  const { rows } = await listChats(ctx.workspaceId, ctx.personId, { q: query, limit, viewer, count: false } as Parameters<typeof listChats>[2]);
-  return rows.map((c) => {
-    const m = maskChat(viewer, c);
-    return {
-      id: m.id,
-      name: m.name,
-      group: m.kind === 'group',
-      unread: m.unread,
-      lastMessageAt: m.lastMessageAt,
-      ...(m.awaitingSince ? { waitingHours: hoursSince(m.awaitingSince, now) } : {}),
-      assigned: m.assignedTo ? (m.assignedTo === ctx.personId ? 'me' : 'someone else') : 'nobody',
-      href: `/app/lines/inbox/${m.id}`,
-    };
-  });
+  const rows = await searchLinesChats(ctx, viewer, query, { limit });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    line: c.line,
+    group: c.group,
+    ...(c.phone ? { phone: c.phone } : {}),
+    unread: c.unread,
+    lastMessageAt: c.lastMessageAt,
+    assigned: c.assignedTo ? (c.assignedTo === ctx.personId ? 'me' : 'someone else') : 'nobody',
+    href: `/app/lines/inbox/${c.id}`,
+  }));
 }
 
 async function inboxFind(owner: string, query: string, limit: number) {
@@ -102,7 +148,7 @@ const linesInput = z.object({
             'draft: put a reply in the message field of the chat for the person to review (nothing is sent). assign: assign the chat to a person or team. note: internal note only the team sees. task: a task linked to the chat. schedule: a WhatsApp message sent at a future time.',
           ),
         text: z.string().max(4000).optional().describe('draft / note / schedule: the text, in the language of the chat. task: the task title.'),
-        to: z.string().max(200).optional().describe('assign: "me", a teammate name or email, or a team name. task: who owns the task (default: me).'),
+        to: z.string().trim().min(1).max(200).optional().describe('assign: "me", a teammate name or email, or a team name. task: who owns the task (default: me).'),
         at: z.string().max(40).optional().describe('schedule: ISO date-time in the future when the message goes out. task: due date (optional).'),
       }),
     )
@@ -113,6 +159,8 @@ const linesInput = z.object({
 export interface LinesPlanned {
   chatId: string;
   name: string;
+  /** Dónde está el chat (línea, teléfono oculto si hace falta, o "grupo"), para la tarjeta. */
+  where?: string;
   do: LinesDo;
   text?: string;
   /** assign: persona o equipo. task: dueña. */
@@ -123,16 +171,40 @@ export interface LinesPlanned {
   line?: string;
 }
 
-/** Un chat por id o por nombre, solo entre los que quien pide ve. */
-async function resolveLinesChat(ctx: ToolCtx, viewer: GroupsViewer, ref: string): Promise<ChatRow | null> {
-  if (await canSeeChat(viewer, ref)) return getChatRow(ctx.workspaceId, ref);
-  const found = await listChats(ctx.workspaceId, ctx.personId, { q: ref, limit: 1, viewer, count: false } as Parameters<typeof listChats>[2]);
-  return found.rows[0] ? getChatRow(ctx.workspaceId, found.rows[0].id) : null;
+/**
+ * Un chat por id o por su nombre entero, solo entre los que quien pide ve. Si el nombre es de varios chats distintos
+ * no elige: vuelve con los candidatos (id, nombre y línea) para que el modelo pregunte o use el id. El mismo chat en
+ * varias líneas cuenta como uno (el de actividad más reciente).
+ */
+async function resolveLinesChat(ctx: ToolCtx, viewer: GroupsViewer, ref: string): Promise<{ chat: ChatRow } | { problem: string }> {
+  if (await canSeeChat(viewer, ref)) {
+    const chat = await getChatRow(ctx.workspaceId, ref);
+    if (chat) return { chat };
+  }
+  const exact = await searchLinesChats(ctx, viewer, ref, { exact: true, limit: 20 });
+  const keys = new Set(exact.map((c) => c.key));
+  if (keys.size === 1) {
+    const chat = await getChatRow(ctx.workspaceId, exact[0].id);
+    if (chat) return { chat };
+  }
+  if (keys.size > 1) {
+    const list = exact.slice(0, 6).map((c) => `${c.id} (${[c.name, c.line, c.group ? 'group' : c.phone].filter(Boolean).join(' · ')})`);
+    return { problem: `${ref}: ambiguous, several chats have that name. Use one of these ids or ask the person: ${list.join('; ')}` };
+  }
+  const near = await searchLinesChats(ctx, viewer, ref, { limit: 5 });
+  return { problem: `${ref}: chat_not_found${near.length ? `. Similar names: ${near.map((c) => `${c.id} (${c.name} · ${c.line})`).join('; ')}` : ''}` };
+}
+
+/** Dónde está el chat, para la tarjeta: la línea y el teléfono (oculto si quien pide no los ve) o "grupo". */
+function chatWhere(viewer: GroupsViewer, chat: ChatRow, lineName: string, t: (k: string) => string): string {
+  const who = chat.kind === 'group' ? t('group') : chat.phone ? (viewer.mask ? maskPhone(chat.phone) : `+${chat.phone}`) : '';
+  return [lineName, who].filter(Boolean).join(' · ');
 }
 
 /** "me", un nombre o un email del workspace (uno solo), o el nombre de un equipo de Lines. */
 async function resolveAssignee(ctx: ToolCtx, ref: string): Promise<{ personId?: string; teamId?: string; who: string } | null> {
   const r = ref.trim().toLowerCase();
+  if (!r) return null;
   const people = await listPeople(ctx.workspaceId);
   if (r === 'me' || r === 'yo' || r === 'eu' || r === 'mí' || r === 'mi') {
     const me = people.find((p) => p.id === ctx.personId);
@@ -161,14 +233,19 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
   const planned: LinesPlanned[] = [];
   const problems: string[] = [];
   const before = new Map<string, string>();
+  const people = await listPeople(ctx.workspaceId);
   for (const a of input.actions) {
-    const chat = await resolveLinesChat(ctx, viewer, a.chat);
-    if (!chat) {
-      problems.push(`${a.chat}: chat_not_found`);
+    const found = await resolveLinesChat(ctx, viewer, a.chat);
+    if ('problem' in found) {
+      problems.push(found.problem);
       continue;
     }
-    const name = maskChat(viewer, { name: chatDisplayName(chat), phone: chat.phone }).name;
-    const p: LinesPlanned = { chatId: chat.id, name, do: a.do };
+    const chat = found.chat;
+    const number = await getNumberRow(ctx.workspaceId, chat.number_id);
+    const lineName = number ? number.name || (number.phone ? (viewer.mask ? maskPhone(number.phone) : `+${number.phone}`) : '') : '';
+    const name = maskedChatName(viewer, chat);
+    const where = chatWhere(viewer, chat, lineName, t);
+    const p: LinesPlanned = { chatId: chat.id, name, where, do: a.do, line: lineName };
     const text = a.text?.trim();
     if (a.do === 'draft' || a.do === 'note' || a.do === 'schedule' || a.do === 'task') {
       if (!text) {
@@ -177,16 +254,26 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
       }
       p.text = text.slice(0, a.do === 'task' ? 200 : 4000);
     }
+    // Un solo borrador por chat en una tarjeta (el campo tiene uno).
+    if (a.do === 'draft' && planned.some((x) => x.do === 'draft' && x.chatId === chat.id)) {
+      problems.push(`${name}: only one draft per chat`);
+      continue;
+    }
     if (a.do === 'assign') {
       const who = a.to ? await resolveAssignee(ctx, a.to) : null;
       if (!who) {
-        problems.push(`${name}: assign needs a teammate or team that exists (${a.to ?? ''})`);
+        problems.push(`${name}: assign needs one teammate or team that exists (${a.to ?? ''})`);
         continue;
       }
       Object.assign(p, who);
-      const cur = (await getDb().prepare('SELECT assigned_to, assigned_team_id FROM groups_chats WHERE id = ?').get(chat.id)) as { assigned_to: string | null; assigned_team_id: string | null } | undefined;
-      const people = await listPeople(ctx.workspaceId);
-      const curName = cur?.assigned_to ? (people.find((x) => x.id === cur.assigned_to)?.name ?? '') : '';
+      const cur = (await getDb().prepare('SELECT assigned_to, assigned_team_id FROM groups_chats WHERE id = ? AND user_id = ?').get(chat.id, ctx.workspaceId)) as
+        | { assigned_to: string | null; assigned_team_id: string | null }
+        | undefined;
+      let curName = cur?.assigned_to ? (people.find((x) => x.id === cur.assigned_to)?.name ?? '') : '';
+      if (!curName && cur?.assigned_team_id) {
+        const { listTeams } = await import('../groups-inbox');
+        curName = (await listTeams(ctx.workspaceId)).find((x) => x.id === cur.assigned_team_id)?.name ?? '';
+      }
       before.set(chat.id, curName || t('nobody'));
     }
     if (a.do === 'task') {
@@ -202,7 +289,7 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
       if (a.at) {
         const due = futureAt(a.at, now, 0);
         if (!due) {
-          problems.push(`${name}: task due date must be in the future`);
+          problems.push(`${name}: task due date must be a valid date in the future`);
           continue;
         }
         p.at = due;
@@ -211,32 +298,31 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
     if (a.do === 'schedule') {
       const at = futureAt(a.at, now, SCHEDULE_MIN_LEAD_MS);
       if (!at) {
-        problems.push(`${name}: schedule needs a future date-time in at (at least a minute from now)`);
+        problems.push(`${name}: schedule needs a valid date-time in at, at least a minute from now and within a year`);
         continue;
       }
-      const number = await getNumberRow(ctx.workspaceId, chat.number_id);
       if (!number || number.status !== 'connected' || chat.left_at) {
         problems.push(`${name}: the line of this chat is not connected`);
         continue;
       }
       p.at = at;
-      p.line = number.name || (number.phone ? (viewer.mask ? maskPhone(number.phone) : `+${number.phone}`) : '');
     }
     planned.push(p);
   }
   if (!planned.length) return { error: 'nothing_to_do', hint: problems };
+  const chatLabel = (p: LinesPlanned) => (p.where ? `${p.name} (${p.where})` : p.name);
   const details = planned.map((p) => {
     switch (p.do) {
       case 'draft':
-        return { label: t('do.draft', { chat: p.name }), after: p.text! };
+        return { label: t('do.draft', { chat: chatLabel(p) }), after: p.text!, full: true };
       case 'note':
-        return { label: t('do.note', { chat: p.name }), after: p.text! };
+        return { label: t('do.note', { chat: chatLabel(p) }), after: p.text!, full: true };
       case 'assign':
-        return { label: t('do.assign', { chat: p.name }), before: before.get(p.chatId) ?? null, after: p.who! };
+        return { label: t('do.assign', { chat: chatLabel(p) }), before: before.get(p.chatId) ?? null, after: p.who! };
       case 'task':
-        return { label: t('do.task', { chat: p.name }), after: [p.text!, p.at ? t('due', { when: fmtUtc(p.at) }) : '', p.who ? t('owner', { who: p.who }) : ''].filter(Boolean).join('\n') };
+        return { label: t('do.task', { chat: chatLabel(p) }), after: [p.text!, p.at ? t('due', { when: cardTime(p.at, ctx) }) : '', p.who ? t('owner', { who: p.who }) : ''].filter(Boolean).join('\n'), full: true };
       case 'schedule':
-        return { label: t('do.schedule', { chat: p.name, when: fmtUtc(p.at!), line: p.line ?? '' }), after: p.text! };
+        return { label: t('do.schedule', { chat: chatLabel(p), when: cardTime(p.at!, ctx), line: p.line ?? '' }), after: p.text!, full: true };
     }
   });
   const sends = planned.some((p) => p.do === 'schedule');
@@ -247,8 +333,15 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
     working: t('working'),
     // Un programado sale a WhatsApp: botón rojo, sin tipear nada.
     ...(sends ? { destructive: true, confirmText: null } : {}),
-    forModel: { planned: planned.map((p) => ({ chat: p.name, do: p.do, ...(p.at ? { at: p.at } : {}), ...(p.who ? { to: p.who } : {}) })), ...(problems.length ? { skipped: problems } : {}) },
+    forModel: { planned: planned.map((p) => ({ chatId: p.chatId, chat: p.name, do: p.do, ...(p.at ? { at: p.at } : {}), ...(p.who ? { to: p.who } : {}) })), ...(problems.length ? { skipped: problems } : {}) },
   };
+}
+
+/** Lo que se muestra cuando una fila falla: un código conocido, nunca el texto de un error de la base o de la red. */
+function failureCode(err: unknown): string {
+  if (err instanceof GroupsError) return err.code;
+  const msg = err instanceof Error ? err.message : '';
+  return msg === 'not_found' || msg === 'time_passed' ? msg : 'error';
 }
 
 async function executeLines(ctx: ToolCtx, raw: Record<string, unknown>) {
@@ -271,7 +364,7 @@ async function executeLines(ctx: ToolCtx, raw: Record<string, unknown>) {
         const { createGroupTask } = await import('../groups-tasks');
         await createGroupTask(ctx.workspaceId, ctx.personId, { chatId: p.chatId, title: String(p.text ?? ''), dueAt: p.at ?? null, ownerId: p.personId ?? null, locale: ctx.locale }, new Date(), viewer);
       } else if (p.do === 'schedule') {
-        // La hora se vuelve a mirar al confirmar: si ya pasó (o falta menos de un minuto) no se programa, así nunca sale en el acto.
+        // La hora se vuelve a mirar al confirmar: si ya pasó (o falta menos de medio minuto) no se programa, así nunca sale en el acto.
         if (!futureAt(p.at, Date.now(), SCHEDULE_MIN_LEAD_MS / 2)) throw new Error('time_passed');
         const chat = await getChatRow(ctx.workspaceId, p.chatId);
         if (!chat) throw new Error('not_found');
@@ -280,7 +373,7 @@ async function executeLines(ctx: ToolCtx, raw: Record<string, unknown>) {
       }
       done++;
     } catch (err) {
-      failed.push(`${p.name} (${err instanceof Error ? (err as { code?: string }).code || err.message : 'error'})`);
+      failed.push(`${p.name} (${failureCode(err)})`);
     }
   }
   const one = new Set(planned.map((p) => p.chatId)).size === 1 ? planned[0]?.chatId : null;
@@ -299,9 +392,10 @@ export const chatActionTools: AssistantTool[] = [
     name: 'lines_find_chats',
     app: 'groups',
     description:
-      'Find Lines chats (the shared WhatsApp lines of the workspace) by contact or group name or phone, only among the chats this person can see. List data only (name, assignment, unread, last activity), no message text, so it needs no permission. Use it to get the chat id before reading or acting on a chat.',
+      'Find Lines chats (the shared WhatsApp lines of the workspace) by contact or group name or phone, only among the chats this person can see. It matches names (and phones, if the person sees them), never message text. List data only (name, line, assignment, unread, last activity), so it needs no permission. Use it to get the chat id before reading or acting on a chat; when several chats look alike, ask the person which one.',
     input: findInput,
-    run: async (ctx, { query, limit }: z.infer<typeof findInput>) => ({ chats: await linesFind(ctx, query, limit ?? 8) }),
+    // Los nombres los escriben otros (nombre de WhatsApp, asunto del grupo): van marcados como datos.
+    run: async (ctx, { query, limit }: z.infer<typeof findInput>) => ({ chats: wrapUntrusted('lines.find', await linesFind(ctx, query, limit ?? 8)) }),
   }),
   readTool({
     name: 'inbox_find_chats',
@@ -310,7 +404,7 @@ export const chatActionTools: AssistantTool[] = [
     input: findInput,
     run: async (ctx, { query, limit }: z.infer<typeof findInput>) => {
       if (delegatedIdentity()) return { error: 'not_available_here' };
-      return { chats: await inboxFind(ctx.personId, query, limit ?? 8) };
+      return { chats: wrapUntrusted('inbox.find', await inboxFind(ctx.personId, query, limit ?? 8)) };
     },
   }),
   writeTool({

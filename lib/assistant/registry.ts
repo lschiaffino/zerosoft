@@ -30,12 +30,37 @@ export interface ToolCtx {
   isAdmin: boolean;
   /** La charla del turno (las herramientas que leen lo que la persona pegó o adjuntó). */
   conversationId?: string;
+  /** Zona horaria del navegador de la persona (IANA), para leer y mostrar horas en las tarjetas. */
+  timeZone?: string;
+}
+
+/** Una zona horaria IANA válida, o undefined. */
+export function cleanTimeZone(tz: unknown): string | undefined {
+  if (typeof tz !== 'string' || !tz || tz.length > 64) return undefined;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return tz;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Una hora para una tarjeta: en la zona de la persona (si se sabe) y en UTC entre paréntesis. */
+export function cardTime(iso: string, ctx: Pick<ToolCtx, 'timeZone' | 'locale'>): string {
+  const utc = `${iso.slice(0, 16).replace('T', ' ')} UTC`;
+  if (!ctx.timeZone) return utc;
+  try {
+    const local = new Intl.DateTimeFormat(ctx.locale || 'en', { timeZone: ctx.timeZone, weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+    return `${local} (${utc})`;
+  } catch {
+    return utc;
+  }
 }
 
 export interface PreparedAction {
   summary: string;
   /** Lo que cambia, para la tarjeta de confirmación (antes → después). */
-  details: Array<{ label: string; before?: string | null; after: string }>;
+  details: Array<{ label: string; before?: string | null; after: string; full?: boolean }>;
   /** Acciones destructivas: lo que la persona tiene que tipear para confirmar (null: alcanza con el botón). */
   confirmText?: string | null;
   /** Input normalizado que se guarda y se ejecuta (ids resueltos, etc.). */

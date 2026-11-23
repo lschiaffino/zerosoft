@@ -55,7 +55,8 @@
     "failed": "Não funcionou: {error}",
     "open": "Abrir",
     "showAll": "todos os {count} caracteres",
-    "partial": "Feito em parte"
+    "partial": "Feito em parte",
+    "putDraft": "Colocar o rascunho na conversa"
   },
   "actionErrors": {
     "forbidden": "Você não tem mais acesso para fazer isso.",
@@ -457,7 +458,13 @@
       "sendsWarning": "As mensagens agendadas são enviadas pelo WhatsApp no horário sem perguntar de novo. Até lá você pode cancelá-las na aba Tarefas da conversa.",
       "result": "Pronto: {done} de {total}.",
       "resultFailed": "Não foi possível: {list}.",
-      "draftsReady": "{count, plural, one {Abra a conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.} other {Abra cada conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.}}"
+      "draftsReady": "{count, plural, one {Abra a conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.} other {Abra cada conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.}}",
+      "group": "grupo"
+    },
+    "one": {
+      "draft": "Rascunho de resposta para {chat}, fica na conversa e não é enviado",
+      "note": "Nota em {chat}, só você vê",
+      "schedule": "Mensagem para {chat} em {when}"
     }
   },
   "consentCard": {

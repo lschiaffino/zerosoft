@@ -494,6 +494,8 @@ a.asst-file:hover { border-color: var(--ink-2); }
 }
 .asst-home-pending > * { visibility: hidden; }
 .asst-detail-full { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* El texto de un mensaje que se va a mandar o dejar: entero y separado, para leerlo antes de confirmar. */
+.asst-detail-text { display: block; padding: 6px 8px; background: var(--bg-soft); border-radius: var(--radius-1); }
 /* Listas de la tarjeta (carpetas, chats): los primeros renglones y "Mostrar las N"; sin scroll propio. */
 .asst-detail-list { list-style: none; margin: 0; padding: 0; }
 .asst-detail-list li { padding: 1px 0; overflow-wrap: anywhere; }

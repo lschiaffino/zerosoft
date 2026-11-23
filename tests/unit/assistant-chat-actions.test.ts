@@ -19,6 +19,9 @@ import { fakeModel } from '@/lib/crm-ai-fake';
 import { decideAction } from '@/lib/assistant/actions';
 import { addMessage, createConversation } from '@/lib/assistant/store';
 import { toolsFor } from '@/lib/assistant/tools';
+import { chatActionTools } from '@/lib/assistant/tools-chat-actions';
+import { toolCtx, type WriteTool } from '@/lib/assistant/registry';
+import { updatePlatformSettings } from '@/lib/groups-access';
 import type { InboundEvent } from '@/lib/groups-provider';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 
@@ -50,6 +53,14 @@ async function turn(user: SessionUser, message: string) {
 }
 
 const decide = (user: SessionUser, id: string, decision: 'confirm' | 'cancel') => decideAction({ user, locale: 'en', id, decision });
+
+/** La lista de una búsqueda viene marcada como datos de terceros (<untrusted_data>). */
+function unwrapChats(output: unknown): Array<{ id: string; name: string; line?: string; phone?: string }> {
+  const v = (output as { chats?: unknown }).chats;
+  expect(typeof v).toBe('string');
+  const str = v as string;
+  return JSON.parse(str.slice(str.indexOf('\n') + 1, str.lastIndexOf('\n</untrusted_data')));
+}
 
 async function line(ws: string, name: string) {
   const n = await createNumber(ws, ws, { provider: 'fake', name });
@@ -187,7 +198,7 @@ describe('Lines: acciones con tarjeta', () => {
     const { w, clara, hidden } = await linesWorld('act-find');
     const member = asMember(w.owner, w.member);
     const r = await turn(member, 'find lines chat act-find');
-    const found = r.results.find((x) => x.tool === 'lines_find_chats')!.output as { chats: Array<{ id: string; name: string }> };
+    const found = { chats: unwrapChats(r.results.find((x) => x.tool === 'lines_find_chats')!.output) };
     expect(found.chats.map((c) => c.id)).toContain(clara.id);
     expect(found.chats.map((c) => c.id)).not.toContain(hidden.id);
     expect(JSON.stringify(found)).not.toContain('presupuesto');
@@ -196,6 +207,105 @@ describe('Lines: acciones con tarjeta', () => {
     expect(names({ role: 'member', apps: ['inbox'] })).toContain('inbox_find_chats');
     expect(names({ role: 'guest', apps: '*' })).toEqual([]);
     expect(names({ role: 'member', apps: '*' })).toEqual(expect.arrayContaining(['lines_find_chats', 'inbox_find_chats', 'propose_lines_actions', 'propose_inbox_actions']));
+  });
+});
+
+const linesTool = chatActionTools.find((t) => t.name === 'propose_lines_actions') as WriteTool;
+const prepare = (user: SessionUser, actions: unknown[], timeZone?: string) =>
+  linesTool.prepare({ ...toolCtx(user, 'en'), ...(timeZone ? { timeZone } : {}) }, { actions }) as Promise<Record<string, unknown>>;
+
+describe('Lines: lo que la tarjeta no deja pasar', () => {
+  it('buscar no mira el texto de los mensajes, y un nombre repetido no se adivina', async () => {
+    const { w, ws, pub, clara } = await linesWorld('act-strict');
+    const member = asMember(w.owner, w.member);
+    // "presupuesto" está solo en un mensaje: buscar no lo encuentra.
+    const r = await turn(member, 'find lines chat presupuesto');
+    expect(unwrapChats(r.results.find((x) => x.tool === 'lines_find_chats')!.output)).toEqual([]);
+    // Otro chat con el mismo nombre en la misma línea: la nota no elige uno, devuelve los candidatos.
+    await ingestEvents(pub, [ev(`${phone()}@c.us`, clara.name, 'Otro chat con el mismo nombre')]);
+    const same = await prepare(member, [{ chat: clara.name, do: 'note', text: 'hola' }]);
+    expect(same.error).toBe('nothing_to_do');
+    expect(JSON.stringify(same.hint)).toMatch(/ambiguous/);
+    // Con el id, sí.
+    expect((await prepare(member, [{ chat: clara.id, do: 'note', text: 'hola' }])).summary).toBeTruthy();
+    expect(((await getDb().prepare('SELECT COUNT(*) AS n FROM groups_chats WHERE user_id = ? AND name = ?').get(ws, clara.name)) as { n: number }).n).toBe(2);
+  });
+
+  it('con los teléfonos ocultos, ni la búsqueda ni la tarjeta los muestran, y no se busca por número', async () => {
+    const { w, ws, clara } = await linesWorld('act-mask');
+    await updatePlatformSettings(ws, { labelAccess: false, maskRoles: ['member'] });
+    const member = asMember(w.owner, w.member);
+    const phoneOf = ((await getDb().prepare('SELECT phone FROM groups_chats WHERE id = ?').get(clara.id)) as { phone: string }).phone;
+    const found = await turn(member, 'find lines chat act-mask');
+    const rows = unwrapChats(found.results.find((x) => x.tool === 'lines_find_chats')!.output);
+    expect(rows.map((x) => x.id)).toContain(clara.id);
+    expect(JSON.stringify(rows)).not.toContain(phoneOf.slice(-6));
+    const byNumber = await turn(member, `find lines chat ${phoneOf.slice(-6)}`);
+    expect(unwrapChats(byNumber.results.find((x) => x.tool === 'lines_find_chats')!.output)).toEqual([]);
+    const card = await prepare(member, [{ chat: clara.id, do: 'note', text: 'hola' }]);
+    expect(JSON.stringify(card.details)).not.toContain(phoneOf.slice(-6));
+    // El dueño ve el número en la tarjeta (dónde está el chat).
+    const ownerCard = await prepare(asOwner(w.owner), [{ chat: clara.id, do: 'note', text: 'hola' }]);
+    expect(JSON.stringify(ownerCard.details)).toContain(phoneOf.slice(-6));
+  });
+
+  it('la hora de un programado: vencida, en menos de un minuto, a más de un año o inválida no arma tarjeta; con zona horaria se muestra local', async () => {
+    const { w, clara } = await linesWorld('act-at');
+    const member = asMember(w.owner, w.member);
+    for (const at of [new Date(Date.now() - 60_000).toISOString(), new Date(Date.now() + 20_000).toISOString(), new Date(Date.now() + 400 * 86_400_000).toISOString(), 'mañana', undefined]) {
+      expect((await prepare(member, [{ chat: clara.id, do: 'schedule', text: 'hola', ...(at ? { at } : {}) }])).error).toBe('nothing_to_do');
+    }
+    const d = new Date(Date.now() + 30 * 86_400_000);
+    d.setUTCHours(12, 0, 0, 0);
+    const at = d.toISOString();
+    const card = (await prepare(member, [{ chat: clara.id, do: 'schedule', text: 'hola', at }], 'America/Argentina/Buenos_Aires')) as { details: Array<{ label: string }> };
+    expect(card.details[0].label).toContain('09:00');
+    expect(card.details[0].label).toContain(`${at.slice(0, 10)} 12:00 UTC`);
+  });
+
+  it('un programado confirmado no sale cuando corre el envío: queda para su hora', async () => {
+    const { w, ws, clara } = await linesWorld('act-process');
+    const member = asMember(w.owner, w.member);
+    const r = await turn(member, `lines schedule ${clara.name}: Para mañana`);
+    await decide(member, r.actions[0].id, 'confirm');
+    const { processBroadcasts } = await import('@/lib/groups-broadcasts');
+    await processBroadcasts({ budgetMs: 5_000 });
+    const row = (await getDb().prepare("SELECT status FROM groups_broadcasts WHERE user_id = ? AND body = 'Para mañana'").get(ws)) as { status: string };
+    expect(row.status).toBe('scheduled');
+    expect(await outgoing(clara.id)).toBe(0);
+  });
+
+  it('sin acceso al confirmar, un programado tampoco se programa', async () => {
+    const { w, ws, pub, clara } = await linesWorld('act-sched-revoked');
+    const member = asMember(w.owner, w.member);
+    const r = await turn(member, `lines schedule ${clara.name}: No tiene que salir`);
+    await setLineAccess(ws, pub.id, { visibility: 'restricted' });
+    const res = await decide(member, r.actions[0].id, 'confirm');
+    expect('action' in res && res.action.status).toBe('failed');
+    expect(await getDb().prepare("SELECT 1 FROM groups_broadcasts WHERE body = 'No tiene que salir'").get()).toBeUndefined();
+  });
+
+  it('asignar a un equipo (con el equipo de antes en la tarjeta) y una tarea con vencimiento y responsable', async () => {
+    const { w, ws, clara } = await linesWorld('act-team');
+    const { createTeam } = await import('@/lib/groups-inbox');
+    const team = await createTeam(ws, { name: 'Soporte demo', memberIds: [w.member.id] });
+    const member = asMember(w.owner, w.member);
+    const card = (await prepare(member, [{ chat: clara.id, do: 'assign', to: 'Soporte demo' }])) as { details: Array<{ before: string; after: string }>; input: Record<string, unknown> };
+    expect(card.details[0]).toMatchObject({ before: 'Nobody', after: 'Soporte demo' });
+    await linesTool.execute(toolCtx(member, 'en'), card.input);
+    expect(((await getDb().prepare('SELECT assigned_team_id FROM groups_chats WHERE id = ?').get(clara.id)) as { assigned_team_id: string }).assigned_team_id).toBe(team.id);
+    const again = (await prepare(member, [{ chat: clara.id, do: 'assign', to: 'me' }])) as { details: Array<{ before: string }> };
+    expect(again.details[0].before).toBe('Soporte demo');
+    const due = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const task = (await prepare(member, [{ chat: clara.id, do: 'task', text: 'Llamar', at: due, to: w.friend.email }])) as { input: Record<string, unknown> };
+    const res = await linesTool.execute(toolCtx(member, 'en'), task.input);
+    expect(res.ok).toBe(true);
+    const row = (await getDb().prepare('SELECT a.owner_id, a.due_at FROM groups_tasks g JOIN crm_activities a ON a.id = g.activity_id WHERE g.chat_id = ?').get(clara.id)) as { owner_id: string; due_at: string };
+    expect(row.owner_id).toBe(w.friend.id);
+    expect(row.due_at).toBeTruthy();
+    // Dos borradores para el mismo chat en una tarjeta: el segundo no entra. Un "a" vacío no elige a nadie.
+    const two = (await prepare(member, [{ chat: clara.id, do: 'draft', text: 'uno' }, { chat: clara.id, do: 'draft', text: 'dos' }])) as { details: unknown[] };
+    expect(two.details).toHaveLength(1);
   });
 });
 
@@ -232,13 +342,26 @@ describe('Inbox: nota y programado con tarjeta', () => {
     expect(Date.parse(row.send_at)).toBeGreaterThan(Date.now() + 60_000);
   });
 
+  it('un programado de Inbox con la hora vencida al confirmar no se programa', async () => {
+    const { w, t, name } = await inbox('act-inbox-late');
+    const member = asMember(w.owner, w.member);
+    const late = await turn(member, `inbox schedule ${name}: Esto no sale`);
+    const row = (await getDb().prepare('SELECT input FROM assistant_actions WHERE id = ?').get(late.actions[0].id)) as { input: string };
+    const input = JSON.parse(row.input) as { planned: Array<{ until: string }> };
+    input.planned[0].until = new Date(Date.now() - 60_000).toISOString();
+    await getDb().prepare('UPDATE assistant_actions SET input = ? WHERE id = ?').run(JSON.stringify(input), late.actions[0].id);
+    const res = await decide(member, late.actions[0].id, 'confirm');
+    expect('action' in res && res.action.status).toBe('failed');
+    expect(await getDb().prepare('SELECT 1 FROM inbox_scheduled WHERE thread_id = ?').get(t.id)).toBeUndefined();
+  });
+
   it('el chat de otra persona no existe para el asistente (ni para el dueño del workspace)', async () => {
     const { w, t, name } = await inbox('act-inbox-other');
     for (const u of [asOwner(w.owner), asMember(w.owner, w.friend, 'admin')]) {
       const r = await turn(u, `inbox note ${name}: hola`);
       expect(r.actions).toEqual([]);
       const f = await turn(u, `find inbox chat ${name}`);
-      expect((f.results.find((x) => x.tool === 'inbox_find_chats')!.output as { chats: unknown[] }).chats).toEqual([]);
+      expect(unwrapChats(f.results.find((x) => x.tool === 'inbox_find_chats')!.output)).toEqual([]);
     }
     expect((await getThreadRow(w.member.id, t.id)).notes).toBe('Nota de antes');
   });

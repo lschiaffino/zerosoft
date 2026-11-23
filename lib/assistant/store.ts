@@ -80,7 +80,7 @@ export interface ActionRow {
   tool: string;
   input: Record<string, unknown>;
   summary: string;
-  details: Array<{ label: string; before?: string | null; after: string }>;
+  details: Array<{ label: string; before?: string | null; after: string; full?: boolean }>;
   destructive: boolean;
   confirm_text: string | null;
   status: ActionStatus;

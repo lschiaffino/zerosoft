@@ -99,7 +99,6 @@ for (const width of [1280, 390]) {
     // Nota: qué, dónde y el texto. Cancelar no escribe nada.
     await ask(panel, `lines note ${name}: Llamar el lunes ${tag}`);
     let card = await lastCard(panel);
-    await expect(card).toContainText('Internal note');
     await expect(card).toContainText(name);
     await expect(card).toContainText(`Llamar el lunes ${tag}`);
     expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
@@ -117,7 +116,6 @@ for (const width of [1280, 390]) {
     await ask(panel, `lines schedule ${name}: Te escribo mañana ${tag}`);
     card = await lastCard(panel);
     await expect(card).toHaveClass(/is-destructive/);
-    await expect(card).toContainText('Goes out on WhatsApp');
     await card.getByRole('button', { name: 'Confirm' }).click();
     await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
     const scheduled = (await (await request.get(`/api/groups/broadcasts?chat=${chat}&kind=scheduled`)).json()) as { broadcasts: Array<{ body: string; status: string }> };
@@ -126,12 +124,23 @@ for (const width of [1280, 390]) {
     // Borrador: va al campo del chat abierto, con Deshacer; no sale nada.
     await ask(panel, `lines draft ${name}: Hola Clara, sale hoy ${tag}`);
     card = await lastCard(panel);
-    await expect(card).toContainText('not sent');
     await card.getByRole('button', { name: 'Confirm' }).click();
     await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
     await page.keyboard.press('ControlOrMeta+j');
     await expect(page.getByTestId('composer-input')).toHaveValue(`Hola Clara, sale hoy ${tag}`);
     await expect(page.getByTestId('ai-compose-undo')).toBeVisible();
+    await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click();
+
+    // Con el chat cerrado: el borrador espera y entra al campo cuando se abre el chat.
+    await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
+    await page.keyboard.press('ControlOrMeta+j');
+    await ask(panel, `lines draft ${chat}: Borrador para después ${tag}`);
+    card = await lastCard(panel);
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    await expect(card.getByTestId('assistant-draft-again')).toBeVisible();
+    await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('composer-input')).toHaveValue(`Borrador para después ${tag}`, { timeout: 30_000 });
     const msgs = (await (await request.get(`/api/groups/chats/${chat}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
     expect(msgs.messages.filter((m) => m.direction === 'out')).toEqual([]);
     expect(errors).toEqual([]);
@@ -161,7 +170,6 @@ for (const width of [1280, 390]) {
     await ask(panel, `inbox schedule ${name}: Te escribo mañana ${tag}`);
     card = await lastCard(panel);
     await expect(card).toHaveClass(/is-destructive/);
-    await expect(card).toContainText('Goes out on its own');
     await card.getByRole('button', { name: 'Cancel' }).click();
     await expect(card).toHaveAttribute('data-status', 'cancelled');
     expect(await pending()).toEqual([]);

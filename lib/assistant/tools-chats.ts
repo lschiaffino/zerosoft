@@ -27,13 +27,14 @@ import { delegatedIdentity } from '../mcp/identity';
 import { wrapUntrusted } from '../mcp/untrusted';
 import { applyThreadAction, createScheduled, futureIso, getThreadRow, listMessages as listInboxMessages, saveDraft, saveNotes, type ThreadAction } from '../inbox/core';
 import { canSeeChat, groupsViewer, maskChat, maskMessage } from '../groups-access';
+import { LIMITS } from '../inbox/types';
 import { getChat, listChats, listMessages as listLineMessages } from '../groups';
 import { createTranslator } from 'next-intl';
 import enMessages from '../../messages/en/assistant.json';
 import esMessages from '../../messages/es/assistant.json';
 import ptMessages from '../../messages/pt/assistant.json';
 import { CHAT_APPS, grantChatAccess, hasChatGrant, type ChatApp } from './chat-access';
-import { readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
+import { cardTime, readTool, writeTool, type AssistantTool, type ToolCtx } from './registry';
 
 const MESSAGES = { en: enMessages, es: esMessages, pt: ptMessages } as const;
 
@@ -195,6 +196,8 @@ const readInput = z.object({
 const ACTIONS = ['draft', 'snooze', 'followUp', 'archive', 'done', 'folder', 'note', 'schedule'] as const;
 /** Un programado tiene que quedar al menos este tiempo en el futuro (nunca sale en el acto). */
 const SCHEDULE_MIN_LEAD_MS = 60_000;
+/** El largo máximo de las notas de un chat de Inbox (lib/inbox/types.ts LIMITS.notes). */
+const NOTES_MAX = LIMITS.notes;
 
 const proposeInput = z.object({
   actions: z
@@ -215,7 +218,34 @@ const proposeInput = z.object({
     .max(30),
 });
 
-type Planned = { threadId: string; name: string; do: (typeof ACTIONS)[number]; until?: string; folderId?: string; folder?: string; text?: string };
+type Planned = { threadId: string; name: string; where?: string; do: (typeof ACTIONS)[number]; until?: string; folderId?: string; folder?: string; text?: string };
+
+/** Lo que lleva un texto a un chat (un borrador, una nota, un programado): el chat tiene que ser uno solo, sin adivinar. */
+const WITH_TEXT = new Set<string>(['draft', 'note', 'schedule']);
+
+/**
+ * Un chat de Inbox de la persona por id o por su nombre o número enteros (sin distinguir mayúsculas). Con varios
+ * chats que se llaman igual no elige: vuelve con los candidatos para que el modelo pregunte o use el id.
+ */
+async function resolveInboxChatStrict(owner: string, ref: string): Promise<{ id: string } | { problem: string }> {
+  const db = getDb();
+  const byId = (await db.prepare('SELECT id FROM inbox_threads WHERE owner_id = ? AND id = ? AND removed_at IS NULL').get(owner, ref)) as { id: string } | undefined;
+  if (byId) return byId;
+  const exact = (await db
+    .prepare('SELECT id, title, handle, channel FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND (title = ? COLLATE NOCASE OR handle = ? COLLATE NOCASE) ORDER BY last_message_at DESC LIMIT 10')
+    .all(owner, ref.trim(), ref.trim())) as Array<{ id: string; title: string; handle: string; channel: string }>;
+  if (exact.length === 1) return { id: exact[0].id };
+  if (exact.length > 1) return { problem: `${ref}: ambiguous, several chats match. Use one of these ids or ask the person: ${exact.slice(0, 6).map((r) => `${r.id} (${r.title || r.handle} · ${r.channel} · ${r.handle})`).join('; ')}` };
+  return { problem: `${ref}: chat_not_found` };
+}
+
+/** Lo que se muestra cuando una fila falla: un código conocido, nunca el texto de un error de la base o de la red. */
+function failureCode(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && /^[a-z_]{2,40}$/.test(code)) return code;
+  const msg = err instanceof Error ? err.message : '';
+  return ['not_found', 'time_passed', 'too_long'].includes(msg) ? msg : 'error';
+}
 
 /** La tarjeta que pide permiso para leer los chats de una app (la arma también el motor). */
 export function consentCard(ctx: Pick<ToolCtx, 'locale'>, app: ChatApp) {
@@ -364,14 +394,24 @@ export const chatTools: AssistantTool[] = [
       const planned: Planned[] = [];
       const problems: string[] = [];
       for (const a of input.actions) {
-        const { ids } = await resolveInboxChats(owner, [a.chat]);
-        const thread = ids[0] ? await getThreadRow(owner, ids[0]).catch(() => null) : null;
+        let threadId: string | null = null;
+        if (WITH_TEXT.has(a.do)) {
+          const found = await resolveInboxChatStrict(owner, a.chat);
+          if ('problem' in found) {
+            problems.push(found.problem);
+            continue;
+          }
+          threadId = found.id;
+        } else threadId = (await resolveInboxChats(owner, [a.chat])).ids[0] ?? null;
+        const thread = threadId ? await getThreadRow(owner, threadId).catch(() => null) : null;
         if (!thread) {
           problems.push(`${a.chat}: chat_not_found`);
           continue;
         }
         const name = thread.title || thread.handle;
-        const p: Planned = { threadId: thread.id, name, do: a.do };
+        // Dónde: el canal y el número o el correo, para no confundir dos chats que se llaman igual.
+        const where = [thread.channel === 'gmail' ? 'email' : thread.channel, thread.handle && thread.handle !== name ? thread.handle : ''].filter(Boolean).join(' · ');
+        const p: Planned = { threadId: thread.id, name, where, do: a.do };
         if (a.do === 'snooze' || a.do === 'followUp' || a.do === 'schedule') {
           try {
             p.until = futureIso(a.until ?? '', now);
@@ -379,8 +419,8 @@ export const chatTools: AssistantTool[] = [
             problems.push(`${name}: ${a.do} needs a future date in until`);
             continue;
           }
-          if (a.do === 'schedule' && Date.parse(p.until) < now.getTime() + SCHEDULE_MIN_LEAD_MS) {
-            problems.push(`${name}: schedule needs a time at least a minute from now`);
+          if (a.do === 'schedule' && (Date.parse(p.until) < now.getTime() + SCHEDULE_MIN_LEAD_MS || Date.parse(p.until) > now.getTime() + 366 * 86_400_000)) {
+            problems.push(`${name}: schedule needs a time at least a minute from now and within a year`);
             continue;
           }
         }
@@ -401,25 +441,30 @@ export const chatTools: AssistantTool[] = [
             continue;
           }
           p.text = a.text.trim();
+          if (a.do === 'note' && `${thread.notes ?? ''}\n\n${p.text}`.length > NOTES_MAX) {
+            problems.push(`${name}: the notes of this chat are too long to add more`);
+            continue;
+          }
         }
         planned.push(p);
       }
       if (!planned.length) return { error: 'nothing_to_do', hint: problems };
-      const fmt = (iso: string) => iso.slice(0, 16).replace('T', ' ');
+      const chatLabel = (p: Planned) => (p.where ? `${p.name} (${p.where})` : p.name);
       const line = (p: Planned) =>
-        p.do === 'draft' || p.do === 'note'
-          ? `${p.name}: ${p.text}`
-          : p.do === 'schedule'
-            ? `${p.name} → ${fmt(p.until!)} UTC: ${p.text}`
-          : p.do === 'snooze' || p.do === 'followUp'
-            ? `${p.name} → ${fmt(p.until!)} UTC`
-            : p.do === 'folder'
-              ? `${p.name} → ${p.folder}`
-              : p.name;
+        p.do === 'snooze' || p.do === 'followUp'
+          ? `${chatLabel(p)} → ${cardTime(p.until!, ctx)}`
+          : p.do === 'folder'
+            ? `${chatLabel(p)} → ${p.folder}`
+            : chatLabel(p);
       const t = translator(ctx.locale);
+      // Lo que lleva texto va de a una fila, con el texto entero; el resto, agrupado por acción.
       const details = ACTIONS.flatMap((k) => {
         const rows = planned.filter((p) => p.do === k);
-        return rows.length ? [{ label: t(`do.${k}`, { count: rows.length }), after: rows.map(line).join('\n') }] : [];
+        if (!rows.length) return [];
+        if (WITH_TEXT.has(k)) {
+          return rows.map((p) => ({ label: t(`one.${k}`, { chat: chatLabel(p), when: p.until ? cardTime(p.until, ctx) : '' }), after: p.text ?? '', full: true }));
+        }
+        return [{ label: t(`do.${k}`, { count: rows.length }), after: rows.map(line).join('\n') }];
       });
       // Un programado sale por WhatsApp o por correo a su hora: la tarjeta lo dice y se confirma con el botón rojo.
       const sends = planned.some((p) => p.do === 'schedule');
@@ -444,9 +489,11 @@ export const chatTools: AssistantTool[] = [
           await getThreadRow(owner, p.threadId);
           if (p.do === 'draft') await saveDraft(owner, p.threadId, p.text ?? '');
           else if (p.do === 'note') {
-            // Se suma a las notas que ya tenía el chat (no las pisa).
+            // Se suma a las notas que ya tenía el chat (no las pisa); si no entra entera, no se corta: falla.
             const prev = String((await getThreadRow(owner, p.threadId)).notes ?? '').trim();
-            await saveNotes(owner, p.threadId, prev ? `${prev}\n\n${p.text ?? ''}` : (p.text ?? ''));
+            const next = prev ? `${prev}\n\n${p.text ?? ''}` : (p.text ?? '');
+            if (next.length > NOTES_MAX) throw new Error('too_long');
+            await saveNotes(owner, p.threadId, next);
           } else if (p.do === 'schedule') {
             // La hora se vuelve a mirar al confirmar: si ya pasó, no se programa (nunca sale en el acto).
             if (!p.until || Date.parse(p.until) < Date.now() + SCHEDULE_MIN_LEAD_MS / 2) throw new Error('time_passed');
@@ -464,7 +511,7 @@ export const chatTools: AssistantTool[] = [
           }
           done++;
         } catch (err) {
-          failed.push(`${p.name} (${err instanceof Error ? err.message : 'error'})`);
+          failed.push(`${p.name} (${failureCode(err)})`);
         }
       }
       return {
