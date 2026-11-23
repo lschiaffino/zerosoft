@@ -444,7 +444,7 @@ export async function submissionFieldsFor<F extends Pick<FormField, 'id' | 'prop
  * editar (oculta o de solo lectura)? Un envío escribe en el contacto o la
  * empresa que coincida, la vea o no quien armó el form: ese destino lo pone
  * owner o admin. `kept`: destinos que el form ya tenía (editar el resto de un
- * form que armó un admin sigue andando).
+ * form propio que ya los tenía sigue andando).
  */
 export async function formWritesRestricted(
   viewer: FieldViewer,

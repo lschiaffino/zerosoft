@@ -2121,7 +2121,8 @@
       "invalid_sequence": "That sequence no longer exists.",
       "invalid_url": "The redirect URL must start with http:// or https://.",
       "invalid_input": "Some settings are not valid.",
-      "invalid_stage": "Pick a pipeline and a stage for the deal."
+      "invalid_stage": "Pick a pipeline and a stage for the deal.",
+      "field_readonly": "One of the fields saves to a property you can't edit."
     },
     "builder": {
       "fields": "Fields",

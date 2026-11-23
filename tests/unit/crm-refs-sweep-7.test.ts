@@ -32,6 +32,8 @@ const mergeRoute = await import('@/app/api/crm/contacts/merge/route');
 const historyRoute = await import('@/app/api/crm/history/route');
 const formsRoute = await import('@/app/api/crm/forms/route');
 const formRoute = await import('@/lib/routes/crm/forms/[id]/route');
+const enrichRoute = await import('@/app/api/crm/companies/enrich/route');
+const duplicatesRoute = await import('@/app/api/crm/companies/duplicates/route');
 
 beforeEach(() => {
   session.user = null;
@@ -90,7 +92,8 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     // Otro workspace no toca este contacto.
     session.user = asOwner(s.w.stranger);
     const other = await bulkRoute.POST(send('POST', '/api/crm/contacts/bulk', { action: 'set_property', ids: [s.mineContact.id], field: 'companyId', value: null }));
-    expect(((await other.json()) as { count?: number }).count ?? 0).toBe(0);
+    expect(other.status).toBe(200);
+    expect(((await other.json()) as { count: number }).count).toBe(0);
   });
 
   it('filtrar contactos o leads por una empresa que no ve no lista nada', async () => {
@@ -103,9 +106,21 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     expect(contacts).toMatchObject({ rows: [], total: 0 });
     const leads = (await (await leadsRoute.GET(send('GET', `/api/crm/leads?companyId=${s.hiddenCo.id}`))).json()) as { rows: unknown[]; total: number };
     expect(leads).toMatchObject({ rows: [], total: 0 });
+    // Tampoco con el filtro avanzado por empresa.
+    const adv = encodeURIComponent(JSON.stringify({ v: 1, groups: [{ rules: [{ f: 'company', o: 'is', v: s.hiddenCo.id }] }] }));
+    const byFilter = (await (await contactsRoute.GET(send('GET', `/api/crm/contacts?filters=${adv}`))).json()) as { rows: unknown[] };
+    expect(byFilter.rows).toEqual([]);
+    // Ni el chequeo de dominio ni los duplicados nombran una empresa que no ve.
+    const check = (await (await enrichRoute.GET(send('GET', `/api/crm/companies/enrich?check=1&domain=hidden-s7filter.test`))).json()) as { existing: unknown };
+    expect(check.existing).toBeNull();
+    expect(await (await duplicatesRoute.GET(send('GET', `/api/crm/companies/duplicates?companyId=${s.hiddenCo.id}`))).json()).toEqual({ groups: [] });
     session.user = owner(s);
     const own = (await (await contactsRoute.GET(send('GET', `/api/crm/contacts?companyId=${s.hiddenCo.id}`))).json()) as { total: number };
     expect(own.total).toBeGreaterThan(0);
+    const ownByFilter = (await (await contactsRoute.GET(send('GET', `/api/crm/contacts?filters=${adv}`))).json()) as { rows: unknown[] };
+    expect(ownByFilter.rows.length).toBeGreaterThan(0);
+    const ownCheck = (await (await enrichRoute.GET(send('GET', `/api/crm/companies/enrich?check=1&domain=hidden-s7filter.test`))).json()) as { existing: { id: string } | null };
+    expect(ownCheck.existing?.id).toBe(s.hiddenCo.id);
   });
 
   it('fusionar: la empresa que queda y no ve sale privada; el historial no da el id de una madre que no ve', async () => {
@@ -127,6 +142,23 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     expect(JSON.stringify(await (await historyRoute.GET(send('GET', `/api/crm/history?entity=company&entityId=${s.mineCo.id}`))).json())).toContain(s.hiddenCo.id);
   });
 
+  it('un campo de solo lectura: no se suma a un form; uno que el form ya tenía se puede dejar', async () => {
+    const s = await setup('s7formro');
+    const ro = await createCustomField(s.ws, { entity: 'contacts', name: 'tier', label: 'Tier', type: 'text' });
+    await setFieldPermissions(s.ws, ro.id, [{ subject: MEMBER_SUBJECT, access: 'read' }]);
+    const email = { id: 'email', type: 'email', label: 'Email', property: 'email', required: true };
+    const tier = { id: 'tier', type: 'text', label: 'Tier', property: 'custom.tier', required: false };
+    session.user = member(s);
+    const res = await formsRoute.POST(send('POST', '/api/crm/forms', { name: 'RO', fields: [email, tier] }));
+    expect(res.status).toBe(403);
+    // Un form propio que ya lo tenía (de antes): editar el resto sigue andando.
+    const own = await formsRoute.POST(send('POST', '/api/crm/forms', { name: 'Own', fields: [email] }));
+    const ownId = ((await own.json()) as { id: string }).id;
+    await getDb().prepare('UPDATE crm_forms SET fields = ? WHERE id = ?').run(JSON.stringify([email, tier]), ownId);
+    const kept = await formRoute.PATCH(send('PATCH', `/api/crm/forms/${ownId}`, { name: 'Own 2', fields: [email, tier] }), ctx(ownId));
+    expect(kept.status).toBe(200);
+  });
+
   it('un form no guarda en una propiedad que quien lo arma no puede editar; el admin sí', async () => {
     const s = await setup('s7form');
     const field = (property: string) => ({ id: property.replace(/\W/g, '_'), type: 'text', label: 'X', property, required: false });
@@ -136,7 +168,9 @@ describe('CRM séptima pasada: referencias a registros que no se ven', () => {
     const plain = await formsRoute.POST(send('POST', '/api/crm/forms', { name: 'Plain', fields: [fields[0]] }));
     expect(plain.status).toBe(201);
     const plainId = ((await plain.json()) as { id: string }).id;
-    expect((await formRoute.PATCH(send('PATCH', `/api/crm/forms/${plainId}`, { fields }), ctx(plainId))).status).toBe(403);
+    const added = await formRoute.PATCH(send('PATCH', `/api/crm/forms/${plainId}`, { fields }), ctx(plainId));
+    expect(added.status).toBe(403);
+    expect(await added.json()).toMatchObject({ error: 'field_readonly' });
     session.user = admin(s);
     const byAdmin = await formsRoute.POST(send('POST', '/api/crm/forms', { name: 'Admin form', fields }));
     expect(byAdmin.status).toBe(201);

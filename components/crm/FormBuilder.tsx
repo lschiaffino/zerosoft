@@ -55,6 +55,7 @@ const KNOWN_ERRORS = new Set([
   'invalid_url',
   'invalid_input',
   'invalid_stage',
+  'field_readonly',
 ]);
 
 type BuilderTab = 'fields' | 'design' | 'after' | 'crm';
