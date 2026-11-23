@@ -213,6 +213,8 @@
     "showOriginal": "Ver original",
     "showTranslation": "Ver tradução",
     "mentionPeople": "Mencionar alguém",
+    "mentionAll": "Todos (@{word})",
+    "mentionAllHint": "{count, plural, =0 {Avisa todo o grupo} one {Avisa o único membro} other {Avisa os # membros}}",
     "toCustomerLang": "Idioma do cliente ({lang})",
     "noteHint": "Digite @ para mencionar alguém. A pessoa recebe um aviso.",
     "task": "Tarefa",

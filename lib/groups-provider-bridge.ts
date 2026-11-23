@@ -490,8 +490,13 @@ export function wahaProvider(
         ...(o?.replyTo ? { reply_to: o.replyTo } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
-        // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us").
-        ...(o?.mentions?.length ? { mentions: o.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) } : {}),
+        // WAHA: los mencionados van como ids de WhatsApp ("<teléfono>@c.us"). "@all": mentions ['all'] (WAHA
+        // menciona a cada participante del grupo; lib/wa-mention-all.ts).
+        ...(o?.mentionAll && isGroupJid(chatId)
+          ? { mentions: ['all'] }
+          : o?.mentions?.length
+            ? { mentions: o.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) }
+            : {}),
       })) as Json;
       return { id: idString(r.id) || String((r.key as Json | undefined)?.id ?? '') };
     },
@@ -506,7 +511,12 @@ export function wahaProvider(
       // Menciones en el pie, como en sendText ("<teléfono>@c.us" o "<lid>@lid"). WAHA las acepta en sendImage,
       // sendVideo y sendFile desde la 2025.11; las anteriores ignoran el campo (sale el pie sin mención). Si un
       // WAHA rechaza el pedido por el campo (400 o 422: no salió nada), se vuelve a mandar sin menciones.
-      const mentions = media.caption && media.mentions?.length ? media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`)) : [];
+      const mentions =
+        media.caption && media.mentionAll && isGroupJid(chatId)
+          ? ['all']
+          : media.caption && media.mentions?.length
+            ? media.mentions.slice(0, 50).map((p) => (/@lid$/i.test(p) ? p : `${p}@c.us`))
+            : [];
       let r: Json;
       try {
         r = (await api(path, 'POST', mentions.length ? { ...body, mentions } : body)) as Json;
@@ -1722,6 +1732,8 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
         text: m ? m.text : text,
         ...(o?.replyTo ? { quoted: { key: { id: o.replyTo } } } : {}),
         ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
+        // "@all": Evolution menciona a cada participante del grupo (mentionsEveryOne; lib/wa-mention-all.ts).
+        ...(o?.mentionAll && isGroupJid(chatId) ? { mentionsEveryOne: true } : {}),
         // Con vista previa salvo que la persona la haya sacado en el composer (la arma el servidor de WhatsApp).
         linkPreview: o?.linkPreview !== false,
         // Reenvío: la marca "Reenviado" de WhatsApp (parche 0013 del gateway; sin él, el campo se ignora).
@@ -1763,6 +1775,7 @@ export function evolutionProvider(cfg: BridgeConfig, opts: { fetch?: FetchLike }
           // WhatsApp no muestra texto en un audio: lo manda aparte quien llama.
           ...(kind === 'audio' ? {} : { caption: m ? m.text : caption }),
           ...(m?.mentioned.length ? { mentioned: m.mentioned } : {}),
+          ...(kind !== 'audio' && caption && media.mentionAll && isGroupJid(chatId) ? { mentionsEveryOne: true } : {}),
           // Un GIF (lib/wa-gifs.ts). Evolution lo lee desde la rama develop (después de 2.3.7); las versiones
           // anteriores ignoran el campo y fijan gifPlayback en false, así que llega como un video común.
           ...(kind === 'video' && media.gifPlayback ? { gifPlayback: true } : {}),
