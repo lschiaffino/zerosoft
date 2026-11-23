@@ -2117,6 +2117,36 @@
         "footer": "Te llega este email porque prendiste el resumen del día. Lo cambiás en Ajustes › Avisos."
       }
     },
+    "details": {
+      "tabsLabel": "Detalles del chat",
+      "tabs": {
+        "info": "Info",
+        "members": "Miembros",
+        "media": "Archivos",
+        "notes": "Notas",
+        "tasks": "Tareas",
+        "crm": "CRM"
+      },
+      "empty": {
+        "media": "Todavía no hay fotos ni videos en este chat",
+        "docs": "Todavía no hay documentos en este chat",
+        "links": "Todavía no hay links en este chat",
+        "notes": "Todavía no hay notas internas en este chat."
+      },
+      "loadError": "No se pudo cargar.",
+      "retry": "Reintentar",
+      "saveError": "No se pudo guardar. Probá de nuevo.",
+      "you": "Vos",
+      "teammate": "Alguien del equipo",
+      "notesTitle": "Notas internas",
+      "notesHint": "Escribí una con Nota interna debajo de la conversación. Las ve tu equipo; el contacto no.",
+      "deals": "Negocios",
+      "noDeals": "No hay negocios del contacto o la empresa vinculados.",
+      "untitledDeal": "Negocio sin nombre",
+      "crmOff": "La app CRM está apagada para vos. HubSpot aparece acá cuando tu workspace lo conecta.",
+      "sharedLabel": "Compartido en este chat",
+      "noteAttachment": "Nota con un adjunto"
+    },
     "contactSheet": {
       "title": "Info. del contacto",
       "close": "Cerrar",

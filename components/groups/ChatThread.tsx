@@ -148,6 +148,7 @@ import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
 import { forwardedMany } from '@/lib/wa-forward';
 import HubspotDock from './HubspotDock';
+import { showDetailsTab } from './wa/DetailsTabs';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const TRANSLATE_STORE = 'zs-groups-translate';
@@ -311,6 +312,8 @@ export default function ChatThread(props: ThreadProps) {
   /** Abre el panel del chat y lleva el foco al campo (agregar miembros, descripción). */
   function openDetailsAt(target: string) {
     if (!detailsShown) toggleDetails();
+    // El campo vive en una pestaña del panel: primero esa pestaña.
+    showDetailsTab(target === 'add-members' ? 'members' : 'info');
     let tries = 0;
     const focus = () => {
       const el = document.querySelector<HTMLElement>(`[data-focus-target="${target}"]`);
@@ -1349,6 +1352,11 @@ export default function ChatThread(props: ThreadProps) {
   const starredKey = messages
     .filter((m) => (m.meta as Record<string, unknown>).starred === true)
     .map((m) => m.id)
+    .join(',');
+  // Las notas internas de la pantalla (y si se borró alguna): la pestaña Notas vuelve a leer su lista.
+  const notesKey = messages
+    .filter((m) => m.direction === 'note')
+    .map((m) => `${m.id}${m.deletedAt ? '-' : ''}`)
     .join(',');
 
   function jumpTo(m: MessageDto) {
@@ -3068,6 +3076,7 @@ export default function ChatThread(props: ThreadProps) {
           isAdmin={props.isAdmin}
           compact
           starredKey={starredKey}
+          notesKey={notesKey}
           onJumpToMessage={(id) => {
             const m = messages.find((x) => x.id === id);
             if (!m) {

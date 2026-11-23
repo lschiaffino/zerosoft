@@ -9,17 +9,35 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** El chat y sus miembros; ?shared=starred: los mensajes destacados del chat (la info del chat, como WhatsApp). */
+const SHARED = ['media', 'docs', 'links', 'starred', 'notes'] as const;
+
+/**
+ * El chat y sus miembros. Para el panel del chat: ?shared=media|docs|links|starred|notes (lo compartido, los
+ * destacados y las notas internas, como la info de WhatsApp) y ?part=deals (los negocios del CRM del contacto o la
+ * empresa vinculados, con la visibilidad del CRM de quien mira).
+ */
 export async function GET(req: Request, ctx: Ctx) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
   const guard = await chatGuard(s, id);
   if (guard instanceof NextResponse) return guard;
-  if (new URL(req.url).searchParams.get('shared') === 'starred') {
+  const params = new URL(req.url).searchParams;
+  const shared = params.get('shared');
+  if (shared) {
+    if (!(SHARED as readonly string[]).includes(shared)) return groupsError(400, 'invalid_kind');
     try {
       const { sharedContent } = await import('@/lib/groups-person');
-      return NextResponse.json({ items: await sharedContent(guard.viewer, id, 'starred') });
+      const items = await sharedContent(guard.viewer, id, shared as (typeof SHARED)[number]);
+      return NextResponse.json({ items });
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
+  if (params.get('part') === 'deals') {
+    try {
+      const { chatCrmDeals } = await import('@/lib/groups-crm-deals');
+      return NextResponse.json({ deals: await chatCrmDeals(s.user, s.ws, id) });
     } catch (err) {
       return handleGroupsError(err);
     }

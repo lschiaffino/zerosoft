@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { ensureDetailsTab } from './helpers/details-tab';
 import { PHONE, check, setTheme, settle } from './responsive-audit';
 
 /**
@@ -205,7 +206,7 @@ test('HubSpot: conectar, vincular un grupo y un chat, registrar, filtrar y desco
 
   // ---------- Chat 1 a 1: contacto sugerido por teléfono ----------
   await page.goto(`/en/app/lines/inbox/${dana.id}`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await ensureDetailsTab(page, 'crm', () => page.getByRole('button', { name: 'Details', exact: true }).click());
   const dm = hubspotRegion(page);
   await expect(dm.getByText('A HubSpot contact has this number')).toBeVisible();
   await expect(dm.getByText('Dana Rivers')).toBeVisible();
