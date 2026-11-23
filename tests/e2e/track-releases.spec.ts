@@ -150,7 +150,7 @@ test('issue y lista: Release en el panel, ⌘K, filtro y agrupado', async ({ pag
   // Filtro Release y agrupado por Release.
   await page.getByTestId('track-filter-add').click();
   await page.getByTestId('track-filter-field-release').click();
-  await page.getByTestId(`track-filter-value-release-${release.id}`).click();
+  await page.getByTestId(`track-filter-value-${release.id}`).click();
   await page.keyboard.press('Escape');
   await expect(page.locator('tr[data-issue-row]')).toHaveCount(2);
   await page.locator('.track-filter-chip-remove').click();

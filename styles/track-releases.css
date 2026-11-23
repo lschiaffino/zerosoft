@@ -232,6 +232,10 @@
   font-size: 0.8125rem;
 }
 
+.track-release-props .track-release-chip {
+  margin: 0;
+}
+
 .track-release-chip {
   display: inline-flex;
   gap: 6px;
@@ -253,7 +257,10 @@
 .track-release-inline,
 .track-release-date {
   width: 140px;
+  height: 32px;
   min-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .track-release-team {

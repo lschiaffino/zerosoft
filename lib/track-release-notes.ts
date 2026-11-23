@@ -41,7 +41,8 @@ export function generateReleaseNotes(
     const names = labelNames(i.labels);
     const kind = FIX_RE.test(names) ? 'fixes' : FEATURE_RE.test(names) ? 'features' : 'improvements';
     const title = i.title.replace(/\s+/g, ' ').trim();
-    buckets[kind].push(`- ${title} (${i.identifier})`);
+    // El identificador como código: las notas se leen (y se copian) con el título una sola vez.
+    buckets[kind].push(`- ${title} (\`${i.identifier}\`)`);
   }
   const head = `# ${[release.name, release.version].filter(Boolean).join(' ')}`;
   const parts = (['features', 'improvements', 'fixes'] as const)

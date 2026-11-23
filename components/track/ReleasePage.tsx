@@ -584,6 +584,12 @@ function IssuePicker({
   const [result, setResult] = useState<{ q: string; rows: TrackIssueWithStatus[] }>({ q: '\u0000', rows: [] });
   const rows = result.rows;
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Después de sumar uno, el foco vuelve a la búsqueda para seguir sumando.
+  const pick = (id: string) => {
+    onPick(id);
+    inputRef.current?.focus();
+  };
   useEffect(() => {
     let alive = true;
     const timer = window.setTimeout(async () => {
@@ -610,8 +616,20 @@ function IssuePicker({
   }, [onClose, toggle]);
   const visible = rows.filter((r) => !exclude.has(r.id));
   return (
-    <div className="track-release-picker" ref={boxRef} data-testid="track-release-picker">
+    <div
+      className="track-release-picker"
+      ref={boxRef}
+      data-testid="track-release-picker"
+      // Esc cierra desde cualquier lugar del buscador (también con el foco en un resultado).
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return;
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }}
+    >
       <input
+        ref={inputRef}
         className="input"
         value={q}
         autoFocus
@@ -626,14 +644,14 @@ function IssuePicker({
             onClose();
           } else if (e.key === 'Enter' && visible[0] && result.q === q) {
             e.preventDefault();
-            onPick(visible[0].id);
+            pick(visible[0].id);
           }
         }}
       />
       <ul className="track-release-picker-list" role="listbox" aria-label={hint}>
         {visible.map((r) => (
           <li key={r.id} role="option" aria-selected={false}>
-            <button type="button" className="track-release-picker-item" onClick={() => onPick(r.id)} data-testid="track-release-picker-item">
+            <button type="button" className="track-release-picker-item" onClick={() => pick(r.id)} data-testid="track-release-picker-item">
               <StatusDot color={r.status_color} category={r.status_category} />
               <span className="track-identifier">{r.identifier}</span>
               <span className="track-release-issue-title">{r.title}</span>

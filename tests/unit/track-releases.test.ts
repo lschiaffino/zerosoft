@@ -101,8 +101,8 @@ describe('Track: Releases', () => {
     // Notas generadas: los terminados, por tipo según el label.
     const notes = generateReleaseNotes({ name: 'Mobile', version: '2.1' }, got.issues as never, { features: 'New', improvements: 'Improvements', fixes: 'Fixes', empty: '-' });
     expect(notes).toContain('# Mobile 2.1');
-    expect(notes).toContain(`## New\n\n- Dark mode (${a.identifier})`);
-    expect(notes).toContain(`## Fixes\n\n- Crash on login (${b.identifier})`);
+    expect(notes).toContain(`## New\n\n- Dark mode (\`${a.identifier}\`)`);
+    expect(notes).toContain(`## Fixes\n\n- Crash on login (\`${b.identifier}\`)`);
     expect(notes).not.toContain('Dropped idea');
     expect(notes).not.toContain('Faster search');
 
