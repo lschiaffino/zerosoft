@@ -111,7 +111,16 @@ describe('Inbox: archivo de un programado', () => {
     const other = (await makeUser('sched-inbox-other')).id;
     const url = await saveUpload('inbox', 'ajena.png', 'image/png', PNG, { workspaceId: other, userId: other, app: 'inbox', access: 'user' });
     const now = new Date();
-    await createBatch(owner, { threadId: thread.id, sendAt: new Date(now.getTime() + 60_000).toISOString(), parts: [{ body: 'no', media: { url, name: 'ajena.png', type: 'image/png' } }], key: 'k-sched-media-2' }, now);
+    // No se puede programar con un archivo ajeno.
+    await expect(
+      createBatch(owner, { threadId: thread.id, sendAt: new Date(now.getTime() + 60_000).toISOString(), parts: [{ body: 'no', media: { url, name: 'ajena.png', type: 'image/png' } }], key: 'k-sched-media-2' }, now),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+    // Uno que ya estaba programado así (de antes) tampoco sale, y el archivo no se borra.
+    await getDb()
+      .prepare(
+        "INSERT INTO inbox_scheduled (id, owner_id, thread_id, body, send_at, status, batch_id, seq, delay_s, media_url, media_name, media_type, media_kind, created_at, updated_at) VALUES (?, ?, ?, 'no', ?, 'pending', ?, 0, 0, ?, 'ajena.png', 'image/png', 'image', ?, ?)",
+      )
+      .run(`isc_${crypto.randomUUID()}`, owner, thread.id, new Date(now.getTime() + 30_000).toISOString(), `ibb_${crypto.randomUUID()}`, url, now.toISOString(), now.toISOString());
     await sendDueScheduled(new Date(now.getTime() + 61_000));
     expect(sent().some((x) => x.text === 'no')).toBe(false);
     const row = (await getDb().prepare('SELECT status, error FROM inbox_scheduled WHERE owner_id = ? AND thread_id = ?').get(owner, thread.id)) as { status: string; error: string };

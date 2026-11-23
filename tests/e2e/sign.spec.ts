@@ -110,7 +110,7 @@ test('Sign: dos firmantes en orden, código por email, certificado y hashes', as
   // 1. Subir el PDF.
   await page.goto('/en/app/sign/new', { waitUntil: 'networkidle' });
   await page.getByLabel('Envelope title').fill(title);
-  await page.getByLabel('PDF file').setInputFiles({ name: 'agreement.pdf', mimeType: 'application/pdf', buffer: await pdf(2) });
+  await page.getByTestId('sign-new-file').setInputFiles({ name: 'agreement.pdf', mimeType: 'application/pdf', buffer: await pdf(2) });
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page).toHaveURL(/\/en\/app\/sign\/envelopes\/env_/);
   const envId = /envelopes\/(env_[\w-]+)/.exec(page.url())![1];

@@ -136,13 +136,26 @@ export async function closedItemsByEntry(): Promise<Map<string, ClosedItem[]>> {
 }
 
 /** Changelog completo (repo + base). Si la base falla, al menos el del repo. */
+const CHANGELOG_DB_TIMEOUT_MS = 8000;
+
 export async function getUnifiedChangelog(): Promise<UnifiedChangelogEntry[]> {
+  // Durante el build la base puede tardar (o colgarse) y Next corta la página a los 60 s:
+  // con un tope corto cae al changelog del repo y el ISR (revalidate) suma las entradas de la base después.
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const [rows, closed] = await Promise.all([listChangelogRows(), closedItemsByEntry()]);
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('changelog db timeout')), CHANGELOG_DB_TIMEOUT_MS);
+    });
+    const [rows, closed] = await Promise.race([
+      Promise.all([listChangelogRows(), closedItemsByEntry()]),
+      timeout,
+    ]);
     return mergeChangelog(CHANGELOG, rows, closed);
   } catch (err) {
     console.error('[changelog] db entries unavailable', err);
     return mergeChangelog(CHANGELOG, []);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

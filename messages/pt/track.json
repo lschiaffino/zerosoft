@@ -1566,7 +1566,8 @@
       "menu": {
         "slash": "Inserir",
         "mention": "Pessoas e issues",
-        "issue": "Issues"
+        "issue": "Issues",
+        "people": "Pessoas"
       },
       "toolbar": "Formatação",
       "bold": "Negrito",
@@ -1574,7 +1575,8 @@
       "code": "Código",
       "link": "Link",
       "linkPlaceholder": "Cole ou digite um link e aperte Enter",
-      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo."
+      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo.",
+      "mention": "Mencionar alguém da equipe"
     },
     "thread": {
       "postError": "Não foi possível publicar o comentário. Tente de novo.",
@@ -1617,7 +1619,14 @@
       "subissueRemoved": "{user} removeu o sub-issue",
       "autoClosedSubs": "O Track fechou este issue porque todos os sub-issues estão concluídos",
       "autoClosedParent": "O Track fechou este issue porque o pai foi fechado",
-      "savedOffline": "Salvo neste dispositivo. É publicado quando a conexão voltar."
+      "savedOffline": "Salvo neste dispositivo. É publicado quando a conexão voltar.",
+      "dupMergedBefore": "{user} marcou",
+      "dupMergedAfter": "como duplicado deste issue",
+      "dupComments": "{count, plural, one {# comentário} other {# comentários}} no duplicado",
+      "dupAttachments": "{count, plural, one {# arquivo} other {# arquivos}}",
+      "dupSubscribers": "{count, plural, one {# seguidor veio} other {# seguidores vieram}} para cá",
+      "dupRequests": "{count, plural, one {# pedido de cliente veio} other {# pedidos de clientes vieram}} para cá",
+      "dupMergedHidden": "{user} marcou um issue de outro team como duplicado deste issue"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1825,7 +1834,20 @@
         "week": "Última semana",
         "none": "Nenhum"
       },
-      "showEmptyGroups": "Mostrar grupos vazios"
+      "showEmptyGroups": "Mostrar grupos vazios",
+      "groupReorder": "Reordenar {name}",
+      "groupReorderHint": "Arraste para reordenar, ou use as setas",
+      "groupMenu": "Opções de {name}",
+      "groupMoveUp": "Mover para cima",
+      "groupMoveDown": "Mover para baixo",
+      "groupMoveLeft": "Mover para a esquerda",
+      "groupMoveRight": "Mover para a direita",
+      "groupMoveTop": "Mover para o início",
+      "groupMoveBottom": "Mover para o fim",
+      "groupMoveStart": "Mover para a primeira",
+      "groupMoveEnd": "Mover para a última",
+      "groupOrderReset": "Restaurar ordem",
+      "groupsReordered": "Grupos reordenados"
     },
     "team": {
       "all": "Todos os issues",
@@ -1880,6 +1902,13 @@
       "remove": "Remover dos favoritos",
       "added": "Adicionado aos favoritos",
       "removed": "Removido dos favoritos"
+    },
+    "dup": {
+      "of": "Duplicado de",
+      "hidden": "Duplicado de um issue que você não pode ver",
+      "unmark": "Remover duplicado",
+      "unmarked": "{id} não é mais um duplicado",
+      "error": "Não foi possível mudar o duplicado. Tente de novo."
     }
   },
   "teamSettings": {

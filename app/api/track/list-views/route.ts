@@ -19,7 +19,7 @@ const createSchema = z.object({
   key: z.string().refine(isListKey),
   name: z.string().trim().min(1).max(120),
   viewType: viewType.default('list'),
-  filters: z.record(z.unknown()).default({}),
+  filters: z.record(z.unknown()).refine((f) => JSON.stringify(f).length <= 50_000, { message: 'too_large' }).default({}),
   sort: z.enum(ISSUE_SORTS).default('manual'),
   shared: z.boolean().optional(),
 });
@@ -27,7 +27,7 @@ const updateSchema = z.object({
   id: z.string().min(1).max(64),
   name: z.string().trim().min(1).max(120).optional(),
   viewType: viewType.optional(),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.unknown()).refine((f) => JSON.stringify(f).length <= 50_000, { message: 'too_large' }).optional(),
   sort: z.enum(ISSUE_SORTS).optional(),
   shared: z.boolean().optional(),
 });
