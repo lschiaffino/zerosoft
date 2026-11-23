@@ -62,6 +62,45 @@ export async function createNotification(payload: NotificationCreatePayload): Pr
   return (await db.prepare('SELECT * FROM notifications WHERE id = ?').get(id)) as NotificationRow;
 }
 
+/**
+ * createNotification solo si quien la recibe no tiene otra sin leer del mismo
+ * tipo y origen (source_type, source_id). Es una sola sentencia (INSERT …
+ * SELECT … WHERE NOT EXISTS): SQLite la corre entera con la base tomada para
+ * escribir, así que dos corridas a la vez (dos crons, dos inscripciones) dejan
+ * un solo aviso. null si ya había uno sin leer.
+ */
+export async function createNotificationUnlessUnread(payload: NotificationCreatePayload): Promise<NotificationRow | null> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const [title, body] = await renderForRecipient(payload.userId, [payload.title, payload.body]);
+  const res = await db
+    .prepare(
+      `INSERT INTO notifications (id, user_id, type, title, body, href, read_at, source_type, source_id, meta, created_at)
+       SELECT ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM notifications WHERE user_id = ? AND type = ? AND source_type = ? AND source_id = ? AND read_at IS NULL
+       )`,
+    )
+    .run(
+      id,
+      payload.userId,
+      payload.type,
+      title ?? '',
+      body ?? null,
+      payload.href ?? null,
+      payload.sourceType,
+      payload.sourceId,
+      JSON.stringify(payload.meta ?? {}),
+      nowIso(),
+      payload.userId,
+      payload.type,
+      payload.sourceType,
+      payload.sourceId,
+    );
+  if (!res.changes) return null;
+  return (await db.prepare('SELECT * FROM notifications WHERE id = ?').get(id)) as NotificationRow;
+}
+
 export async function listNotifications(
   userId: string,
   options: NotificationListOptions = {},

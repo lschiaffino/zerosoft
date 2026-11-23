@@ -88,7 +88,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Roadmap de proyectos / initiatives | tiene | Track › Roadmap: timeline por semanas, meses o trimestres, barras arrastrables, milestones, hoy, agrupar por iniciativa (2026-10-25) |
 | Display properties (Updated, Estimate, Links, Milestone, Time in status) | tiene | (2026-11-23) Ícono y texto chico a la derecha de la fila y en la tarjeta, sin cápsulas |
 | Time in status | tiene | (2026-11-23) En el issue (actual y total por estado), propiedad, orden, filtro "más de N días" e Insights. Lo registran triggers de SQLite (app, API, MCP, bulk, importadores); los issues anteriores se reconstruyen con su actividad |
-| Reordenar grupos y columnas arrastrando | falta | (2026-11-23) |
+| Reordenar grupos y columnas arrastrando | tiene | (T4, 2026-11-23) Asa en el encabezado del grupo y de la columna (mouse o dedo, eventos de puntero), flechas con el asa enfocada, y Mover arriba/abajo/al principio/al final y Restablecer orden en el menú del grupo. Se recuerda por vista y persona, viaja con las vistas guardadas (las compartidas lo comparten) y ⌘Z lo deshace. Los sub-grupos no se reordenan |
 
 ### Colaboración y notificaciones
 
@@ -116,7 +116,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents. (T3) Atajos 1/2/3/H como Linear, snooze y comentario al resolver |
 | Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
-| Estado Duplicado que pasa el contexto al original | falta | (2026-11-23) Marcar duplicado suma la relación y cancela; comentarios, adjuntos y suscriptos quedan en el duplicado |
+| Estado Duplicado que pasa el contexto al original | tiene | (T4, 2026-11-23) Desde ⌘K, el menú del issue, M M o triage: estado Duplicate del team (tipo cancelado, se crea la primera vez), relación, suscriptos que ven el original y pedidos de clientes pasan a él, y el original recibe un resumen (título, extracto, comentarios y archivos). Aviso en el duplicado con link y Quitar; ⌘Z deshace todo. Comentarios y adjuntos quedan en el duplicado; el texto de un team privado (o que un invitado no ve) no se copia. M B, M X y M R suman relaciones |
 | Formularios de pedidos a triage | falta | (2026-11-23) |
 | Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
 

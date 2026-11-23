@@ -9,9 +9,10 @@
  */
 import { getDb } from '../db';
 import { parseCsv } from '../csv-parse';
+import { bulkColumns } from './bulk-csv';
 import { sha256Hex } from '../esign';
 import { deleteSignFiles, readSignFile, storeSignFile } from './files';
-import { sanitizePdf, type PageBox } from './pdf';
+import { sanitizePdf, signDocumentName, type PageBox } from './pdf';
 import { addEvent, cleanFieldInput, createEnvelope, newId, nowIso, parseJson, sendEnvelope, type EnvelopeRow } from './core';
 import { isEmail, RECIPIENT_ROLES, SignError, type FieldKind, type RecipientRole, type SignActor, type SigningOrder } from './types';
 
@@ -118,7 +119,7 @@ export async function setTemplateDocument(actor: SignActor, id: string, file: { 
   const fields = parseJson<TemplateField[]>(t.fields, []).filter((f) => f.page <= clean.pages.length);
   await getDb()
     .prepare('UPDATE sign_templates SET document_ref = ?, document_name = ?, document_hash = ?, pages = ?, fields = ?, updated_at = ? WHERE id = ?')
-    .run(ref, file.name.slice(0, 200), sha256Hex(clean.bytes), JSON.stringify(clean.pages), JSON.stringify(fields), nowIso(), t.id);
+    .run(ref, signDocumentName(file.name), sha256Hex(clean.bytes), JSON.stringify(clean.pages), JSON.stringify(fields), nowIso(), t.id);
   if (t.document_ref) await deleteSignFiles([t.document_ref]);
   return getTemplate(actor, id);
 }
@@ -259,10 +260,12 @@ export const BULK_DAILY_CAP = 1000;
 const BULK_ID_RE = /^blk_[A-Za-z0-9_-]{8,40}$/;
 
 /**
- * Envío masivo: un sobre por fila. El CSV trae `name` y `email` (con
- * encabezado) para el primer rol que firma; los otros roles van fijos. La UI
- * lo manda en tandas con el mismo bulkId y el offset de la primera fila: cada
- * fila tiene su clave (bulkId:fila), así un reintento no duplica sobres.
+ * Envío masivo: un sobre por fila. El CSV trae, con encabezado, `name` y
+ * `email` para el primer rol que firma y `<rol> name` / `<rol> email` para
+ * cualquier rol (bulkColumns); los roles sin columnas van fijos. `title` y
+ * `message` son opcionales por fila. La UI lo manda en tandas con el mismo
+ * bulkId y el offset de la primera fila: cada fila tiene su clave
+ * (bulkId:fila), así un reintento no duplica sobres.
  */
 export async function bulkSend(
   actor: SignActor,
@@ -271,14 +274,20 @@ export async function bulkSend(
 ): Promise<{ bulkId: string; sent: number; skipped: number; errors: Array<{ row: number; error: string }> }> {
   const t = await getTemplate(actor, id);
   const roles = parseJson<TemplateRole[]>(t.roles, []);
-  const target = roles.find((r) => r.role === 'signer');
-  if (!target) throw new SignError('no_signer_role');
+  if (!roles.some((r) => r.role === 'signer')) throw new SignError('no_signer_role');
   const rows = parseCsv(input.csv.replace(/^\uFEFF/, '')).filter((r) => r.some((c) => c.trim()));
   if (rows.length < 2) throw new SignError('csv_empty');
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  const iName = header.indexOf('name');
-  const iEmail = header.indexOf('email');
-  if (iName < 0 || iEmail < 0) throw new SignError('csv_header');
+  const cols = bulkColumns(roles, rows[0]);
+  if (cols.incomplete.length) throw new SignError('csv_role_incomplete', 400, { role: cols.incomplete[0] });
+  if (!Object.keys(cols.roles).length) throw new SignError('csv_header');
+  // Un rol sin columnas tiene que venir fijo: mejor un error ahora que uno por fila.
+  const fixed: Record<string, { name: string; email: string }> = {};
+  for (const r of roles) {
+    if (cols.roles[r.key]) continue;
+    const p = input.fixed?.[r.key];
+    if (!p || !p.name?.trim() || !isEmail((p.email ?? '').trim())) throw new SignError('role_unfilled', 400, { role: r.name });
+    fixed[r.key] = p;
+  }
   const body = rows.slice(1);
   if (body.length > BULK_MAX_ROWS) throw new SignError('csv_too_many', 400, { max: BULK_MAX_ROWS });
   const bulkId = input.bulkId && BULK_ID_RE.test(input.bulkId) ? input.bulkId : newId('blk');
@@ -287,17 +296,27 @@ export async function bulkSend(
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const today = (await db.prepare('SELECT COUNT(*) AS n FROM sign_envelopes WHERE workspace_id = ? AND bulk_id IS NOT NULL AND created_at >= ?').get(actor.ws, since)) as { n: number };
   if (Number(today.n) + body.length > BULK_DAILY_CAP) throw new SignError('bulk_daily_cap', 429, { max: BULK_DAILY_CAP });
+  // El título por defecto lleva el nombre del primer rol del CSV.
+  const titleRole = roles.find((r) => r.role === 'signer' && cols.roles[r.key]) ?? roles.find((r) => cols.roles[r.key])!;
   let sent = 0;
   let skipped = 0;
   const errors: Array<{ row: number; error: string }> = [];
   for (const [i, row] of body.entries()) {
     const rowNumber = offset + i + 2;
     const bulkKey = `${bulkId}:${offset + i}`;
-    const person = { name: (row[iName] ?? '').trim(), email: (row[iEmail] ?? '').trim() };
-    if (!person.name || !isEmail(person.email)) {
+    const fromRow: Record<string, { name: string; email: string }> = {};
+    let valid = true;
+    for (const [key, c] of Object.entries(cols.roles)) {
+      const person = { name: (row[c.name] ?? '').trim(), email: (row[c.email] ?? '').trim() };
+      if (!person.name || !isEmail(person.email)) valid = false;
+      fromRow[key] = person;
+    }
+    if (!valid) {
       errors.push({ row: rowNumber, error: 'invalid_row' });
       continue;
     }
+    const rowTitle = cols.title >= 0 ? (row[cols.title] ?? '').trim().slice(0, 200) : '';
+    const rowMessage = cols.message >= 0 ? (row[cols.message] ?? '').trim().slice(0, 4000) : '';
     const existing = (await db.prepare('SELECT id, status FROM sign_envelopes WHERE workspace_id = ? AND bulk_key = ?').get(actor.ws, bulkKey)) as { id: string; status: string } | undefined;
     try {
       if (existing) {
@@ -308,7 +327,15 @@ export async function bulkSend(
         } else skipped++;
         continue;
       }
-      await envelopeFromTemplate(actor, t.id, { recipients: { ...(input.fixed ?? {}), [target.key]: person }, title: `${t.name} · ${person.name}`, send: true, locale: input.locale, bulkId, bulkKey });
+      await envelopeFromTemplate(actor, t.id, {
+        recipients: { ...fixed, ...fromRow },
+        title: rowTitle || `${t.name} · ${fromRow[titleRole.key].name}`,
+        ...(rowMessage ? { message: rowMessage } : {}),
+        send: true,
+        locale: input.locale,
+        bulkId,
+        bulkKey,
+      });
       sent++;
     } catch (err) {
       if (err instanceof Error && /UNIQUE/i.test(err.message)) skipped++;

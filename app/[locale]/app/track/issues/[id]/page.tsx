@@ -13,6 +13,7 @@ import {
   getIssueParentChain,
 } from '@/lib/track-data';
 import { isSubscribedToIssue } from '@/lib/track-subscriptions';
+import { getDuplicateMark } from '@/lib/track-duplicates';
 import { isIssueFavorite } from '@/lib/track-issue-favorites';
 import { listMilestones } from '@/lib/track-milestones';
 import { getIssueReminder } from '@/lib/track-notify';
@@ -41,7 +42,7 @@ export default async function IssueDetailPage(
   const id = issue.id;
 
   const projectId = issue.project_id;
-  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder, reactions, favorite] = await Promise.all([
+  const [statuses, cycles, members, children, parentChain, attachments, relations, activities, subscribed, milestones, reminder, reactions, favorite, duplicateMark] = await Promise.all([
     listStatuses(projectId),
     listCycles(projectId),
     listProjectMembers(projectId, user.id),
@@ -55,6 +56,7 @@ export default async function IssueDetailPage(
     getIssueReminder(id, realUserId(user)),
     listIssueReactions(id),
     isIssueFavorite(id, realUserId(user)),
+    getDuplicateMark(id),
   ]);
 
   const t = await getTranslations({ locale, namespace: 'track' });
@@ -78,6 +80,7 @@ export default async function IssueDetailPage(
       initialReactions={reactions}
       initialSubscribed={subscribed}
       initialFavorite={favorite}
+      initialDuplicateMark={duplicateMark}
       estimateScale={project.estimate_scale ?? 'fibonacci'}
       ui={buildTrackUiLabels(t)}
       canDelete={isWorkspaceAdmin(user)}

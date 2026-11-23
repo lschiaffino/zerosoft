@@ -41,7 +41,8 @@ test('proyecto, horas, cronómetro, reporte y CSV', async ({ page }) => {
 
   // Horas a mano: 1:30.
   await page.goto('/en/app/time', { waitUntil: 'networkidle' });
-  await page.getByTestId('time-track').click();
+  // N abre la entrada nueva (atajo de la vista Día).
+  await page.keyboard.press('n');
   const ed = page.getByTestId('time-entry-dialog');
   await expect(ed).toBeVisible();
   await ed.locator('select[name=project]').selectOption({ label: name });

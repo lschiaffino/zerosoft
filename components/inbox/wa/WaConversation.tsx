@@ -620,6 +620,8 @@ const WaConversation = forwardRef<
         items.push({ key: 'messageSender', label: w('messageName', { name: who }), onSelect: () => void props.onMessagePerson?.(m.senderHandle, dmId) });
       }
     }
+    // Elegir varios desde el menú de la burbuja, como en Lines (antes solo con el toque largo del teléfono).
+    if (!m.revoked && m.mediaType !== 'system') items.push({ key: 'select', label: gw('select'), onSelect: () => setSelecting(new Set([m.id])) });
     // Reportar lo que mandó otra persona, como WhatsApp (una vez; después queda la banderita).
     if (!m.fromMe && !m.revoked && m.mediaType !== 'system' && !m.meta?.reported) items.push({ key: 'report', label: gw('report.action'), divider: true, onSelect: () => setReporting(m) });
     items.push({ key: 'hide', label: w('deleteForMe'), divider: !items.some((it) => it.key === 'report') || undefined, danger: true, onSelect: () => void act(m, { action: 'hide' }) });
