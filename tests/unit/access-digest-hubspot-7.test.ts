@@ -38,6 +38,7 @@ describe('email diario y recordatorios: con el CRM apagado para la persona, nada
     await addMember(w.team.id, adminPerson.id, 'admin');
     const due = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const task = await createActivity(ws, { type: 'task', subject: 'Call back', dueAt: due, ownerId: w.member.id });
+    const ownerTask = await createActivity(ws, { type: 'task', subject: 'Owner call', dueAt: due, ownerId: ws });
     const adminTask = await createActivity(ws, { type: 'task', subject: 'Admin call', dueAt: due, ownerId: adminPerson.id });
     const row = async (id: string) => (await getDb().prepare('SELECT * FROM crm_activities WHERE id = ?').get(id)) as CrmActivityRow;
     expect((await digestTasksFor(ws, w.member.id, 'UTC', new Date(), 'en'))?.map((t) => t.id)).toEqual([task.id]);
@@ -48,6 +49,8 @@ describe('email diario y recordatorios: con el CRM apagado para la persona, nada
     expect(await reminderRecipientSees(await row(task.id), w.member.id)).toBe(false);
     expect((await digestTasksFor(ws, adminPerson.id, 'UTC', new Date(), 'en'))?.map((t) => t.id)).toEqual([adminTask.id]);
     expect(await reminderRecipientSees(await row(adminTask.id), adminPerson.id)).toBe(true);
+    expect((await digestTasksFor(ws, ws, 'UTC', new Date(), 'en'))?.map((t) => t.id)).toEqual([ownerTask.id]);
+    expect(await reminderRecipientSees(await row(ownerTask.id), ws)).toBe(true);
     // Otro workspace: nada de este.
     expect(await reminderRecipientSees(await row(task.id), w.stranger.id)).toBe(false);
   });

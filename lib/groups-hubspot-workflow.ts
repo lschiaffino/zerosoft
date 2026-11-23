@@ -95,7 +95,7 @@ export function fillTemplate(text: string, props: Record<string, string>): strin
 
 export interface WorkflowSendResult {
   sent: Array<{ chatId: string; messageId: string; duplicate: boolean }>;
-  /** Chats que coincidieron pero la key no puede ver o no son del tipo pedido. */
+  /** Chats que coincidieron (entre los que la key ve) pero no son del tipo o la línea pedidos, o pasan el tope. */
   skipped: number;
 }
 
