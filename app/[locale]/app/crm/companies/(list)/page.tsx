@@ -312,6 +312,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
         viewCols={state.cols}
         viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
         viewWidths={state.widths}
+        filters={{ fields: filterFields, model: filterModel, baseQuery: query }}
       >
       <CompanyFilters
         keep={keep}

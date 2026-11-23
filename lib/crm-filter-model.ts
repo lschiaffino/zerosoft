@@ -261,3 +261,35 @@ function legacyOps(def: FilterFieldShape): readonly string[] {
   const ops = def.ops ?? FILTER_OPS[def.type];
   return def.type === 'boolean' ? [...ops, 'is', 'isnot'] : ops;
 }
+
+// ---------- Filtro de una columna (menú del encabezado, C4) ----------
+
+/**
+ * La regla de una propiedad que el filtro de su columna muestra: la del
+ * primer grupo que la tiene (una columna filtra una sola vez, como en HubSpot).
+ */
+export function fieldRule(model: FilterModel, field: string): FilterCond | undefined {
+  for (const g of model.groups) {
+    const rule = g.rules.find((r) => r.f === field);
+    if (rule) return rule;
+  }
+  return undefined;
+}
+
+/**
+ * El filtro con `cond` como la regla de su propiedad en cada grupo (Y con
+ * todo lo demás: (A O B) Y C = (A Y C) O (B Y C)), en lugar de las que la
+ * propiedad tenía. `null` quita la propiedad de todos los grupos. Un grupo
+ * lleno no pierde reglas: la nueva no entra ahí.
+ */
+export function setFieldRule(model: FilterModel, field: string, cond: FilterCond | null): FilterModel {
+  const base = model.groups.length ? model.groups : [{ rules: [] }];
+  const groups = base
+    .slice(0, MAX_FILTER_GROUPS)
+    .map((g) => {
+      const rest = g.rules.filter((r) => r.f !== field);
+      return { rules: cond && rest.length < MAX_GROUP_RULES ? [...rest, { ...cond, f: field }] : rest };
+    })
+    .filter((g) => g.rules.length > 0);
+  return { v: 1, groups };
+}

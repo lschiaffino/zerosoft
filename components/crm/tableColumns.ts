@@ -78,3 +78,62 @@ export const INDEX_TABLES: Record<IndexEntity, { columns: readonly ColumnSpec[];
 export const CHECK_COLUMN_WIDTH = 46;
 /** Ancho de una columna sin ancho guardado cuando la tabla ya tiene anchos (una que se agregó después). */
 export const DEFAULT_COLUMN_WIDTH = 160;
+
+/**
+ * Propiedad del filtro avanzado (advancedFilterFields.ts) que filtra cada
+ * columna desde su encabezado ("Filtrar por esta columna"). Las columnas de
+ * propiedades propias usan su id (`custom:<name>`). Sin entrada, la columna
+ * no se filtra (un recuento, la ubicación armada con ciudad y país).
+ */
+const FILTER_KEYS: Record<IndexEntity, Record<string, string>> = {
+  contacts: {
+    name: 'name',
+    email: 'email',
+    phone: 'phone',
+    company: 'companyName',
+    lifecycle: 'lifecycle',
+    leadStatus: 'leadStatus',
+    source: 'source',
+    score: 'score',
+    tags: 'tag',
+    owner: 'owner',
+    created: 'created',
+    lastActivity: 'lastActivity',
+    lastContacted: 'lastContacted',
+    nextActivity: 'nextActivity',
+  },
+  companies: {
+    name: 'name',
+    domain: 'domain',
+    industry: 'industry',
+    phone: 'phone',
+    contacts: 'contactCount',
+    lifecycle: 'lifecycle',
+    tags: 'tag',
+    owner: 'owner',
+    created: 'created',
+    lastActivity: 'lastActivity',
+    lastContacted: 'lastContacted',
+    nextActivity: 'nextActivity',
+  },
+  deals: {
+    name: 'name',
+    amount: 'amount',
+    stage: 'stage',
+    priority: 'priority',
+    source: 'source',
+    closeDate: 'closeDate',
+    company: 'companyName',
+    tags: 'tag',
+    owner: 'owner',
+    created: 'created',
+    lastActivity: 'lastActivity',
+    lastContacted: 'lastContacted',
+    nextActivity: 'nextActivity',
+  },
+};
+
+export function columnFilterKey(entity: IndexEntity, columnId: string): string | null {
+  if (columnId.startsWith('custom:')) return columnId;
+  return FILTER_KEYS[entity][columnId] ?? null;
+}

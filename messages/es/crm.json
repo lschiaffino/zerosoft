@@ -5458,7 +5458,13 @@
     "remove": "Quitar columna",
     "resize": "Cambiar el ancho de la columna: {name}",
     "resizeHint": "Arrastrá para cambiar el ancho. Doble clic para ajustarlo al contenido. Con el teclado: flechas, y Enter para ajustar.",
-    "widthValue": "{px} px"
+    "widthValue": "{px} px",
+    "filter": "Filtrar por esta columna",
+    "editFilter": "Editar el filtro de la columna",
+    "filterTitle": "Filtrar: {name}",
+    "applyFilter": "Aplicar",
+    "clearFilter": "Quitar filtro",
+    "filtered": "Filtrada"
   },
   "quickFilterPicker": {
     "button": "Editar filtros rápidos",

@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
 import type { CustomColumn } from './customFieldViews';
+import type { AdvFilterField } from './advancedFilterFields';
+import type { FilterModel } from '@/lib/crm-filter-model';
 import { CHECK_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, INDEX_TABLES, type IndexEntity } from './tableColumns';
 import {
   MODIFIED_PARAM,
@@ -198,7 +200,23 @@ export function useTableColumns(opts: {
   return { order, freeze, apply, reset, widths, setWidths, visible: new Set(order) };
 }
 
-export type TableColumnsState = ReturnType<typeof useTableColumns> & { columns: ColumnDef[]; first: string };
+/**
+ * El filtro avanzado del listado, para "Filtrar por esta columna" en el
+ * encabezado: las propiedades que la persona puede filtrar (sin las ocultas),
+ * el filtro aplicado y los params que se conservan al cambiarlo.
+ */
+export interface ColumnFilters {
+  fields: AdvFilterField[];
+  model: FilterModel;
+  baseQuery: Record<string, string>;
+}
+
+export type TableColumnsState = ReturnType<typeof useTableColumns> & {
+  columns: ColumnDef[];
+  first: string;
+  entity?: IndexEntity;
+  filters?: ColumnFilters;
+};
 
 const TableColumnsContext = createContext<TableColumnsState | null>(null);
 
@@ -221,6 +239,7 @@ export function TableColumnsProvider({
   viewCols,
   viewFreeze,
   viewWidths,
+  filters,
   children,
 }: {
   entity: IndexEntity;
@@ -229,6 +248,8 @@ export function TableColumnsProvider({
   viewCols?: string;
   viewFreeze?: boolean;
   viewWidths?: string;
+  /** Filtro avanzado del listado (los encabezados filtran con él). */
+  filters?: ColumnFilters;
   children: ReactNode;
 }) {
   const t = useTranslations('crm');
@@ -250,7 +271,7 @@ export function TableColumnsProvider({
     viewWidths,
     defaultFreeze: spec.defaultFreeze,
   });
-  return <TableColumnsContext.Provider value={{ ...state, columns, first: 'name' }}>{children}</TableColumnsContext.Provider>;
+  return <TableColumnsContext.Provider value={{ ...state, columns, first: 'name', entity, filters }}>{children}</TableColumnsContext.Provider>;
 }
 
 /**

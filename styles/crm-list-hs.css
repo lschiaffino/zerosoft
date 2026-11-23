@@ -435,3 +435,23 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 @media (pointer: coarse) and (max-width: 1023px) {
   .deals-filter-bar :is(.filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .export-view-btn, .seg-toggle-item) { font-size: 16px; }
 }
+
+/* ============================================================
+   C4: filtrar desde el encabezado de la columna (como en HubSpot).
+   ============================================================ */
+.th-filtered { display: inline-flex; align-items: center; flex: none; color: var(--ink); }
+.th-menu.th-filter { width: 300px; max-width: calc(100vw - 16px); max-height: min(480px, calc(100vh - 16px)); padding: 12px; overflow-y: auto; }
+.th-filter-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.th-filter-title { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.th-filter .select, .th-filter .input { width: 100%; }
+.th-filter .crm-af-range { display: flex; align-items: center; gap: 6px; }
+.th-filter .crm-af-range .input { flex: 1 1 0; min-width: 0; }
+.th-filter .crm-af-options-list { max-height: 220px; overflow-y: auto; }
+.th-filter-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.th-filter-clear { margin-right: auto; }
+@media (max-width: 640px) {
+  /* En el teléfono, una hoja abajo de borde a borde (el encabezado de la tarjeta queda arriba). */
+  .th-menu.th-filter { position: fixed; top: auto; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: auto; max-width: none; max-height: 70vh; box-shadow: 0 12px 40px var(--ui-shadow-strong, rgba(0, 0, 0, 0.2)); }
+  .th-filter :is(.btn, .select, .input) { min-height: 40px; }
+  .th-menu-item { min-height: 40px; }
+}
