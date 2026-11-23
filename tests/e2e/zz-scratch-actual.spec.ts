@@ -9,8 +9,8 @@ const CSS = '';
 const LOOKS = (process.env.LOOKS ?? 'current').split(',');
 const CONFIGS = (process.env.CONFIGS ?? 'dark-1280,light-390').split(',');
 const STYLES = (process.env.STYLES ?? 'whatsapp,zerosoft').split(',');
-const APPS = (process.env.APPS ?? 'lines,inbox').split(',');
-const STATES = process.env.STATES ? process.env.STATES.split(',') : null;
+const APPS = (process.env.APPS ?? 'lines').split(',');
+const STATES = process.env.STATES ? process.env.STATES.split(',') : ['chat'];
 const RT = process.env.RT === '1';
 
 const uid = () => Math.random().toString(36).slice(2, 8);
