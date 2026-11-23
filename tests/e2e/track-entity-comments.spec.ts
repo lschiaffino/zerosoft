@@ -45,6 +45,8 @@ for (const kind of ['plan', 'initiative'] as const) {
     await page.goto(kind === 'plan' ? `/en/app/track/projects/${id}` : `/en/app/track/initiatives/${id}`, { waitUntil: 'networkidle' });
     await expect(thread(page)).toBeVisible({ timeout: 120_000 });
     await thread(page).scrollIntoViewIfNeeded();
+    // El hilo carga aparte (con next dev, la primera vez compila la ruta).
+    await expect(thread(page).getByTestId('track-comment-input')).toBeVisible({ timeout: 120_000 });
     await expect(thread(page).locator('.ui-help')).toBeVisible();
 
     await comment(page, `Kickoff notes ${tag}`);
@@ -104,7 +106,7 @@ test('390: hilo de un project sin scroll lateral; cinco aspectos, claro y oscuro
   const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   await page.goto(`/en/app/track/projects/${id}`, { waitUntil: 'networkidle' });
-  await expect(thread(page)).toBeVisible({ timeout: 120_000 });
+  await expect(thread(page).getByTestId('track-comment-input')).toBeVisible({ timeout: 120_000 });
   await comment(page, `From the phone ${tag}`);
   await thread(page).scrollIntoViewIfNeeded();
   for (const scheme of ['light', 'dark'] as const) {
@@ -127,7 +129,7 @@ test('1280: hilo de un project en los cinco aspectos, claro y oscuro', async ({ 
   const tag = uid();
   const { id } = await ok<{ id: string }>(request.post('/api/track/plans', { data: { name: `Looks ${tag}` } }));
   await page.goto(`/en/app/track/projects/${id}`, { waitUntil: 'networkidle' });
-  await expect(thread(page)).toBeVisible({ timeout: 120_000 });
+  await expect(thread(page).getByTestId('track-comment-input')).toBeVisible({ timeout: 120_000 });
   await comment(page, `Looks check ${tag}`);
   await thread(page).scrollIntoViewIfNeeded();
   for (const scheme of ['light', 'dark'] as const) {
