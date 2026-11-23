@@ -150,6 +150,8 @@ export default function ViewTabs({ entity, pathname, baseQuery = {}, tabs, activ
     const out = { ...state };
     if (!out.cols && cols?.cols) out.cols = cols.cols;
     if (!out.freeze && cols?.freeze) out.freeze = '1';
+    // Los anchos de la tabla en pantalla (un cambio recién hecho todavía puede no estar en la URL).
+    if (cols?.widths) out.widths = cols.widths;
     return out;
   }
 

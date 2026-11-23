@@ -5462,7 +5462,10 @@
     "sortDesc": "Ordenar decrescente",
     "moveLeft": "Mover para a esquerda",
     "moveRight": "Mover para a direita",
-    "remove": "Remover coluna"
+    "remove": "Remover coluna",
+    "resize": "Mudar a largura da coluna: {name}",
+    "resizeHint": "Arraste para mudar a largura. Clique duas vezes para ajustar ao conteúdo. Com o teclado: setas, e Enter para ajustar.",
+    "widthValue": "{px} px"
   },
   "quickFilterPicker": {
     "button": "Editar filtros rápidos",

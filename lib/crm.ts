@@ -61,6 +61,7 @@ import { missingRequiredFields, normalizeRequiredFields, parseRequiredFields } f
 
 export { ACTIVITY_DATE_SORTS, type ActivityDateSort };
 import { activityScopeSql, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { visibleScoreSql, type VisibleScoreRules } from './crm-field-perms';
 import { maskPrivateRefs, PRIVATE_REFS, type PrivateRefFlags } from './crm-record-scope';
 import type { ChatReader } from './crm-chat-privacy';
 import {
@@ -423,6 +424,12 @@ export interface ContactFilter {
   customTypes?: Record<string, FilterFieldType>;
   /** Visibilidad por owner (lib/crm-visibility.ts). null/undefined = todo. */
   ownerScope?: OwnerScope;
+  /**
+   * Reglas de score que ve quien pide, si tiene campos ocultos
+   * (hiddenFieldsFor('contacts').scoreRules): el orden y los filtros por score
+   * usan el total que esa persona ve, no el guardado.
+   */
+  scoreRules?: VisibleScoreRules;
   sort?: 'newest' | 'oldest' | 'name' | 'name_desc' | 'email' | 'email_desc' | 'score' | 'score_asc' | ActivityDateSort | ExtraSort;
   page?: number;
   pageSize?: number;
@@ -575,7 +582,10 @@ function buildContactWhere(
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
+  appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, {
+    ...f.filterEnv,
+    scoreRules: f.scoreRules,
+  });
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
 }
@@ -592,6 +602,16 @@ const CONTACT_ORDER: Record<Exclude<NonNullable<ContactFilter['sort']>, ExtraSor
   ...activityDateOrders('c'),
 };
 
+/** ORDER BY del listado de contactos: el score, el que ve quien pide (ContactFilter.scoreRules). */
+function contactOrder(f: ContactFilter): string {
+  const custom = extraSortOrder('c', f.sort, f.customTypes);
+  if (custom) return custom;
+  if (f.scoreRules && (f.sort === 'score' || f.sort === 'score_asc')) {
+    return `${visibleScoreSql('c.score', 'c.score_breakdown', f.scoreRules)} ${f.sort === 'score' ? 'DESC' : 'ASC'}, c.created_at DESC, c.id`;
+  }
+  return CONTACT_ORDER[(f.sort ?? 'newest') as keyof typeof CONTACT_ORDER] ?? CONTACT_ORDER.newest;
+}
+
 export async function listContacts(
   userId: string,
   f: ContactFilter,
@@ -606,10 +626,7 @@ export async function listContacts(
   const pageSize = Math.min(Math.max(f.pageSize ?? 25, 1), 100);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(f.page ?? 1, 1), pages);
-  const order =
-    extraSortOrder('c', f.sort, f.customTypes) ??
-    CONTACT_ORDER[(f.sort ?? 'newest') as keyof typeof CONTACT_ORDER] ??
-    CONTACT_ORDER.newest;
+  const order = contactOrder(f);
   const rows = (await db
     .prepare(
       `SELECT c.*, co.name AS company_name
@@ -632,10 +649,7 @@ export async function listContactIds(userId: string, f: ContactFilter, cap: numb
   const db = getDb();
   const { where, args } = buildContactWhere(userId, f);
   const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`).get(...args)) as { c: number }).c;
-  const order =
-    extraSortOrder('c', f.sort, f.customTypes) ??
-    CONTACT_ORDER[(f.sort ?? 'newest') as keyof typeof CONTACT_ORDER] ??
-    CONTACT_ORDER.newest;
+  const order = contactOrder(f);
   const rows = (await db
     .prepare(`SELECT c.id FROM crm_contacts c WHERE ${where} ORDER BY ${order} LIMIT ?`)
     .all(...args, Math.max(0, Math.floor(cap)))) as Array<{ id: string }>;
@@ -3076,8 +3090,12 @@ export function parseListFilter(json: string): ListFilterJson {
   return out;
 }
 
-/** ContactFilter de una lista dinámica (con los tipos de los campos propios de contactos). */
-async function dynamicListWhere(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope) {
+/**
+ * ContactFilter de una lista dinámica (con los tipos de los campos propios de
+ * contactos). Con `scoreRules` (quien mira tiene campos ocultos), las reglas
+ * por score comparan el total que esa persona ve.
+ */
+async function dynamicListWhere(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope, scoreRules?: VisibleScoreRules) {
   const customTypes = filter.filters?.some((r) => r.f.startsWith('custom:'))
     ? Object.fromEntries(
         (await listCustomFields(userId, 'contacts')).map((d) => [d.name, filterTypeFor(d.type)]),
@@ -3092,11 +3110,12 @@ async function dynamicListWhere(userId: string, filter: ListFilterJson, ownerSco
     filtersMatch: filter.match,
     customTypes,
     ownerScope,
+    scoreRules,
   });
 }
 
-async function countDynamicList(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope): Promise<number> {
-  const { where, args } = await dynamicListWhere(userId, filter, ownerScope);
+async function countDynamicList(userId: string, filter: ListFilterJson, ownerScope?: OwnerScope, scoreRules?: VisibleScoreRules): Promise<number> {
+  const { where, args } = await dynamicListWhere(userId, filter, ownerScope, scoreRules);
   return (
     (await getDb()
       .prepare(`SELECT COUNT(*) AS c FROM crm_contacts c WHERE ${where}`)
@@ -3108,7 +3127,7 @@ export interface ListWithCount extends CrmListRow {
   memberCount: number;
 }
 
-export async function listLists(userId: string, ownerScope?: OwnerScope): Promise<ListWithCount[]> {
+export async function listLists(userId: string, ownerScope?: OwnerScope, scoreRules?: VisibleScoreRules): Promise<ListWithCount[]> {
   const db = getDb();
   const lists = (await db
     .prepare('SELECT * FROM crm_lists WHERE user_id = ? ORDER BY created_at ASC')
@@ -3124,7 +3143,7 @@ export async function listLists(userId: string, ownerScope?: OwnerScope): Promis
       ...list,
       memberCount:
         list.kind === 'dynamic'
-          ? await countDynamicList(userId, parseListFilter(list.filter), ownerScope)
+          ? await countDynamicList(userId, parseListFilter(list.filter), ownerScope, scoreRules)
           : ((await countStmt.get(list.id, userId, ...listScope.args)) as { c: number }).c,
     })),
   );
@@ -3136,7 +3155,7 @@ export interface ListDetail {
   memberCount: number;
 }
 
-export async function getList(userId: string, id: string, ownerScope?: OwnerScope): Promise<ListDetail | null> {
+export async function getList(userId: string, id: string, ownerScope?: OwnerScope, scoreRules?: VisibleScoreRules): Promise<ListDetail | null> {
   const db = getDb();
   const list = (await db
     .prepare('SELECT * FROM crm_lists WHERE id = ? AND user_id = ?')
@@ -3144,7 +3163,7 @@ export async function getList(userId: string, id: string, ownerScope?: OwnerScop
   if (!list) return null;
   if (list.kind === 'dynamic') {
     // Evalúa el filtro con el mismo WHERE builder de listContacts.
-    const { where, args } = await dynamicListWhere(userId, parseListFilter(list.filter), ownerScope);
+    const { where, args } = await dynamicListWhere(userId, parseListFilter(list.filter), ownerScope, scoreRules);
     const members = (await db
       .prepare(
         `SELECT c.*, co.name AS company_name
