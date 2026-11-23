@@ -129,6 +129,8 @@ export interface SharedItem {
   urls?: string[];
   /** Notas internas: quién de la cuenta la escribió (id de la persona; la pantalla pone el nombre). */
   authorId?: string | null;
+  /** Notas internas de un chat que está en varias líneas: el nombre de la línea donde se escribió. */
+  line?: string;
 }
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
@@ -136,15 +138,40 @@ const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 /** Lo compartido en un chat (fotos y videos, documentos, links o destacados), lo más nuevo primero. */
 export async function sharedContent(viewer: GroupsViewer, chatId: string, kind: SharedKind): Promise<SharedItem[]> {
   if (!(await canSeeChat(viewer, chatId))) throw new GroupsError('not_found', 404);
-  // Notas internas del chat (las ve quien ve el chat, como en la conversación): las últimas primero.
+  // Notas internas del chat (las ve quien ve el chat, como en la conversación): las últimas primero. Un chat que
+  // está en varias líneas junta las notas de todas las que quien mira ve (como la conversación), cada una con su línea.
   if (kind === 'notes') {
-    const notes = (await getDb()
+    const db = getDb();
+    const chat = (await db.prepare('SELECT id, kind, phone, provider_chat_id FROM groups_chats WHERE id = ? AND user_id = ?').get(chatId, viewer.ws)) as
+      | { id: string; kind: string; phone: string; provider_chat_id: string }
+      | undefined;
+    if (!chat) throw new GroupsError('not_found', 404);
+    const { sameChatIds } = await import('./groups-same-chat');
+    const ids = await sameChatIds(viewer.ws, viewer, chat);
+    const notes = (await db
       .prepare(
-        `SELECT id, body, author_id, created_at FROM groups_messages
-         WHERE chat_id = ? AND user_id = ? AND direction = 'note' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100`,
+        `SELECT m.id, m.body, m.author_id, m.created_at, n.name AS line_name, n.phone AS line_phone FROM groups_messages m
+         JOIN groups_chats c ON c.id = m.chat_id AND c.user_id = m.user_id
+         LEFT JOIN groups_numbers n ON n.id = c.number_id AND n.user_id = c.user_id
+         WHERE m.chat_id IN (${ids.map(() => '?').join(',')}) AND m.user_id = ? AND m.direction = 'note' AND m.deleted_at IS NULL
+         ORDER BY m.created_at DESC LIMIT 100`,
       )
-      .all(chatId, viewer.ws)) as Array<{ id: string; body: string; author_id: string | null; created_at: string }>;
-    return notes.map((r) => ({ id: r.id, kind, url: '', mime: '', name: '', body: r.body.slice(0, 2000), sentAt: r.created_at, fromMe: false, senderName: '', authorId: r.author_id }));
+      .all(...ids, viewer.ws)) as Array<{ id: string; body: string; author_id: string | null; created_at: string; line_name: string | null; line_phone: string | null }>;
+    const many = ids.length > 1;
+    return notes.map((r) => ({
+      id: r.id,
+      kind,
+      url: '',
+      mime: '',
+      name: '',
+      body: r.body.slice(0, 2000),
+      sentAt: r.created_at,
+      fromMe: false,
+      senderName: '',
+      authorId: r.author_id,
+      // El número de la línea se muestra como en el selector "Responder desde" (oculto para quien no ve teléfonos).
+      ...(many ? { line: r.line_name || (r.line_phone ? (viewer.mask ? maskPhone(r.line_phone) : `+${r.line_phone}`) : '') } : {}),
+    }));
   }
   const where =
     kind === 'media'
