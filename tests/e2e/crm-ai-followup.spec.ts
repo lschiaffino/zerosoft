@@ -60,10 +60,9 @@ test('sugerencias tras una llamada: nada cambia hasta aplicar; aplicar, editar, 
   await page.goto(`/en/app/crm/deals/${s.dealId}?tab=activity`, { waitUntil: 'networkidle' });
 
   const item = callItem(page, s.callId);
-  page.on('response', async (r) => {
-    if (r.url().includes('/api/crm/ai/followups')) console.log('DEBUG', r.request().method(), r.status(), (await r.text().catch(() => '')).slice(0, 300));
-  });
+  const generated = page.waitForResponse((r) => r.url().includes('/api/crm/ai/followups') && r.request().method() === 'POST', { timeout: 120_000 });
   await item.getByTestId('ai-followup-open').click();
+  expect((await generated).ok()).toBe(true);
   const block = item.getByTestId('ai-followup');
   const cards = block.getByTestId('ai-followup-card');
   await expect(cards.first()).toBeVisible();
@@ -155,7 +154,7 @@ test('member con un campo oculto: no aparece ni en la respuesta ni en las tarjet
     const page = await member.newPage();
     await page.goto(`/en/app/crm/deals/${s.dealId}?tab=activity`);
     const item = callItem(page, s.callId);
-    const generated = page.waitForResponse((r) => r.url().includes('/api/crm/ai/followups') && r.request().method() === 'POST');
+    const generated = page.waitForResponse((r) => r.url().includes('/api/crm/ai/followups') && r.request().method() === 'POST', { timeout: 120_000 });
     await item.getByTestId('ai-followup-open').click();
     const body = await (await generated).text();
     expect(body).not.toContain(hidden.name);
