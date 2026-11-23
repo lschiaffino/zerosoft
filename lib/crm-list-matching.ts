@@ -126,6 +126,8 @@ export async function resolveMatching(user: MatchingUser, entity: MatchingEntity
       leadStatus: str(state.leadStatus),
       source: str(state.source),
       sort: sortOf(CONTACT_SORTS) as ContactFilter['sort'],
+      // Orden y filtros por score con el total que la persona ve (sin reglas sobre sus campos ocultos).
+      scoreRules: adv.scoreRules,
     };
     return listContactIds(user.id, f, cap);
   }

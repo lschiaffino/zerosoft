@@ -164,6 +164,29 @@ export function hiddenBreakdownPoints(items: unknown, rules: VisibleScoreRules |
   return out;
 }
 
+/** Ids de reglas que se escriben en el SQL de visibleScoreSql (los de crypto.randomUUID). */
+const SQL_RULE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
+/**
+ * Expresión SQL del score que ve la persona: la columna del total menos los
+ * puntos del desglose (columna JSON) de las reglas que no ve, la misma cuenta
+ * que hiddenBreakdownPoints. Ordenar o filtrar por esto da lo mismo que el
+ * total que se le muestra, así el orden no dice nada de los campos ocultos.
+ * Sin `rules` (no tiene campos ocultos) es la columna tal cual. Los ids van
+ * escritos en el SQL: solo los que pasan SQL_RULE_ID (otro cuenta como regla
+ * que no ve). Puro.
+ */
+export function visibleScoreSql(scoreCol: string, breakdownCol: string, rules: VisibleScoreRules | undefined): string {
+  if (!rules) return scoreCol;
+  const ids = [...rules.keys()].filter((id) => SQL_RULE_ID.test(id)).map((id) => `'${id}'`);
+  const ruleId = "CASE WHEN json_type(j.value, '$.ruleId') = 'text' THEN json_extract(j.value, '$.ruleId') ELSE '' END";
+  const hidden = ids.length ? `${ruleId} NOT IN (${ids.join(',')})` : '1';
+  // CASE anidados: SQLite evalúa en orden, así un ítem que no es objeto no llega a json_extract.
+  const points = `CASE WHEN j.type = 'object' THEN CASE WHEN ${hidden} THEN CAST(json_extract(j.value, '$.points') AS REAL) END END`;
+  const items = `CASE WHEN json_valid(${breakdownCol}) THEN CASE WHEN json_type(${breakdownCol}) = 'array' THEN ${breakdownCol} ELSE '[]' END ELSE '[]' END`;
+  return `(${scoreCol} - COALESCE((SELECT SUM(${points}) FROM json_each(${items}) j), 0))`;
+}
+
 function parseItems(json: string): unknown {
   try {
     return JSON.parse(json || '[]');

@@ -5,7 +5,7 @@
  */
 import { CRM_FILTER_FIELDS } from './crm';
 import { filterTypeFor } from './crm-custom-fields';
-import { fieldAccessFor, type FieldViewer } from './crm-field-perms';
+import { fieldAccessFor, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
 import { FilterError, parseStrictFilter, type FilterEnv, type FilterFieldType, type FilterModel } from './crm-filters';
 import { isValidTimeZone } from './user-tz';
 
@@ -16,6 +16,12 @@ export interface RequestFilter {
   filters?: FilterModel;
   customTypes?: Record<string, FilterFieldType>;
   filterEnv?: FilterEnv & { strictCustom: true };
+  /**
+   * Contactos, para quien tiene campos ocultos: las reglas de score que ve. El
+   * orden y los filtros por score usan su total (ContactFilter.scoreRules),
+   * también sin `filters` en el pedido.
+   */
+  scoreRules?: VisibleScoreRules;
 }
 
 /** Largo máximo del JSON del filtro en la URL. */
@@ -32,16 +38,19 @@ export async function requestFilter(
   who: { viewer: FieldViewer; viewerId: string; timeZone?: string | null },
 ): Promise<RequestFilter | { error: true }> {
   const raw = sp.get('filters');
-  if (!raw) return {};
-  if (raw.length > MAX_FILTER_PARAM) return { error: true };
+  if (raw && raw.length > MAX_FILTER_PARAM) return { error: true };
+  const access = raw || entity === 'contacts' ? await fieldAccessFor(who.viewer, entity) : null;
+  const scoreRules = entity === 'contacts' ? access?.hidden.scoreRules : undefined;
+  const score = scoreRules ? { scoreRules } : {};
+  if (!raw || !access) return score;
   const tz = who.timeZone && who.timeZone.length <= 64 && isValidTimeZone(who.timeZone) ? who.timeZone : 'UTC';
-  const visible = (await fieldAccessFor(who.viewer, entity)).visible;
+  const visible = access.visible;
   const customTypes: Record<string, FilterFieldType> = Object.fromEntries(visible.map((d) => [d.name, filterTypeFor(d.type)]));
   const filterEnv = { viewerId: who.viewerId, timeZone: tz, strictCustom: true as const };
   const { alias, fields } = CRM_FILTER_FIELDS[entity];
   try {
     const filters = parseStrictFilter({ alias, fields, customTypes, ...filterEnv }, raw);
-    return { filters, customTypes, filterEnv };
+    return { filters, customTypes, filterEnv, ...score };
   } catch (err) {
     if (err instanceof FilterError) return { error: true };
     throw err;
