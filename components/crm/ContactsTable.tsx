@@ -133,9 +133,9 @@ export default function ContactsTable({ viewCols, viewFreeze,
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
   // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
-  const rowIds = useMemo(() => rows.map((r) => r.id), [rows]);
-  useListNav('contacts', rowIds);
-  useCrmLive({ list: 'contacts', ids: rowIds });
+  const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  useListNav('contacts', navIds);
+  useCrmLive({ list: 'contacts', ids: navIds });
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
@@ -455,7 +455,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
           locale={locale}
           owners={owners}
           onClose={() => setPreviewId(null)}
-          nav={<PreviewNav ids={rowIds} id={previewId} onStep={setPreviewId} />}
+          nav={<PreviewNav ids={navIds} id={previewId} onStep={setPreviewId} />}
         />
       )}
     </>

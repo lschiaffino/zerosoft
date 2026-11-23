@@ -166,9 +166,9 @@ export default function DealsTable({ viewCols, viewFreeze,
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
   // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
-  const rowIds = useMemo(() => rows.map((r) => r.id), [rows]);
-  useListNav('deals', rowIds);
-  useCrmLive({ list: 'deals', ids: rowIds });
+  const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  useListNav('deals', navIds);
+  useCrmLive({ list: 'deals', ids: navIds });
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
@@ -412,7 +412,7 @@ export default function DealsTable({ viewCols, viewFreeze,
           locale={locale}
           owners={owners}
           onClose={() => setPreviewId(null)}
-          nav={<PreviewNav ids={rowIds} id={previewId} onStep={setPreviewId} />}
+          nav={<PreviewNav ids={navIds} id={previewId} onStep={setPreviewId} />}
         />
       )}
     </>
