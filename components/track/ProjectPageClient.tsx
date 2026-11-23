@@ -52,7 +52,7 @@ interface ProjectPageClientProps {
 }
 
 /** Agrupados de la lista de un team (por team no tiene sentido acá), como Linear. */
-const TEAM_GROUPS: readonly IssueGroupBy[] = ['none', 'status', 'assignee', 'priority', 'plan', 'cycle', 'label'];
+const TEAM_GROUPS: readonly IssueGroupBy[] = ['none', 'status', 'assignee', 'priority', 'plan', 'cycle', 'label', 'release'];
 const TEAM_LAYOUTS: readonly ListLayout[] = ['list', 'board', 'calendar', 'gantt'];
 // Como Linear: agrupada por estado, los más nuevos arriba.
 const TEAM_DEFAULTS = { group: 'status' as const, sort: 'newest' as const, props: ['id', 'priority', 'labels', 'cycle', 'due', 'assignee'] as Array<'id' | 'priority' | 'labels' | 'cycle' | 'due' | 'assignee'> };

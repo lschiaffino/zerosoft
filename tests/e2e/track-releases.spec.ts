@@ -118,7 +118,7 @@ test('lista y release: crear, sumar issues, avance, notas, renombrar y borrar', 
   const renamed = page.getByTestId('track-release-row').filter({ hasText: `Mobile app ${s.tag}` });
   await renamed.locator('.track-release-row-more').click();
   await page.getByTestId('track-release-delete').click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete release' }).click();
+  await page.getByTestId('confirm-dialog-confirm').click();
   await expect(page.getByTestId('track-release-row').filter({ hasText: `Mobile app ${s.tag}` })).toHaveCount(0);
   expect((await issueOf(request, s.a.id)).release_id ?? null).toBeNull();
 });
