@@ -152,4 +152,32 @@ describe('Priority inbox: privacidad y pestañas', () => {
     const page = await listInboxNotifications(w.member.id, { filter: EMPTY_INBOX_FILTER, tab: 'priority' });
     expect(page.rows.map((r) => r.issue?.id)).toContain(secretIssue.id);
   });
+
+  it('invitado: no ve avisos de projects ni el nombre del project en los de issues', async () => {
+    const { w, openIssue } = await setup();
+    const { setGuest } = await import('@/lib/track-access');
+    const { createPlan } = await import('@/lib/track-plans');
+    const { planCreateSchema } = await import('@/lib/track-planning-schema');
+    const created = await createPlan({ teamId: w.team.id, ownerId: w.owner.id }, w.owner.id, planCreateSchema.parse({ name: 'Plan de lanzamiento' }));
+    if (!created.ok) throw new Error(created.error);
+    const plan = created.plan;
+    await createNotification({
+      userId: w.member.id,
+      type: 'project_update',
+      title: 'Update on Plan de lanzamiento',
+      body: 'secreto',
+      href: `/app/track/projects/${plan.id}`,
+      sourceType: 'track_plan',
+      sourceId: plan.id,
+      meta: { planName: 'Plan de lanzamiento', actorName: 'Ana' },
+    });
+    const before = await listInboxNotifications(w.member.id, { filter: EMPTY_INBOX_FILTER, tab: 'other' });
+    expect(before.rows.some((r) => r.source_id === plan.id)).toBe(true);
+    await setGuest(w.team.id, w.member.email, [openIssue.project_id], w.owner.id);
+    const after = await listInboxNotifications(w.member.id, { filter: EMPTY_INBOX_FILTER });
+    expect(after.rows.some((r) => r.source_id === plan.id)).toBe(false);
+    expect(JSON.stringify(after)).not.toContain('Plan de lanzamiento');
+    // El aviso del issue de su team sigue.
+    expect(after.rows.some((r) => r.issue?.id === openIssue.id)).toBe(true);
+  });
 });

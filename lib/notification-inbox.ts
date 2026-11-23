@@ -98,6 +98,36 @@ function chunks<T>(items: T[], size: number): T[][] {
 }
 
 /**
+ * Condición "la persona es del workspace de `alias`" (project o iniciativa):
+ * dueña o miembro del team, o dueña si es personal, y no invitada (los
+ * invitados de Track no ven projects ni iniciativas, lib/track-plans).
+ * Usa los 4 argumentos de memberArgs.
+ */
+function memberSql(alias: string): string {
+  return `((${alias}.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+      OR ${alias}.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
+      OR (${alias}.team_id IS NULL AND ${alias}.owner_id = ?))
+    AND NOT EXISTS (SELECT 1 FROM track_guests g WHERE g.workspace_id = COALESCE(${alias}.team_id, ${alias}.owner_id)
+      AND g.email = (SELECT lower(u0.email) FROM users u0 WHERE u0.id = ?)))`;
+}
+
+function memberArgs(userId: string): string[] {
+  return [userId, userId, userId, userId];
+}
+
+/** Ids de `table` (track_plans o track_initiatives) que existen y la persona hoy no ve. */
+async function hiddenEntities(userId: string, table: 'track_plans' | 'track_initiatives', ids: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const part of chunks([...new Set(ids)], 400)) {
+    const rows = (await getDb()
+      .prepare(`SELECT e.id FROM ${table} e WHERE e.id IN (${part.map(() => '?').join(', ')}) AND NOT ${memberSql('e')}`)
+      .all(...part, ...memberArgs(userId))) as Array<{ id: string }>;
+    for (const r of rows) out.add(r.id);
+  }
+  return out;
+}
+
+/**
  * Project de cada issue, solo de los projects que la persona puede ver (de un
  * workspace del que es dueña o miembro, o propios).
  */
@@ -111,9 +141,9 @@ async function plansForIssues(userId: string, issueIds: string[]): Promise<Map<s
         `SELECT i.id AS issue_id, p.id AS plan_id, p.name AS plan_name
            FROM track_issues i JOIN track_plans p ON p.id = i.plan_id
           WHERE i.id IN (${part.map(() => '?').join(', ')})
-            AND (p.owner_id = ? OR p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?) OR p.team_id IN (SELECT id FROM teams WHERE owner_id = ?))`,
+            AND ${memberSql('p')}`,
       )
-      .all(...part, userId, userId, userId)) as Array<{ issue_id: string; plan_id: string; plan_name: string }>;
+      .all(...part, ...memberArgs(userId))) as Array<{ issue_id: string; plan_id: string; plan_name: string }>;
     for (const r of rows) out.set(r.issue_id, { id: r.plan_id, name: r.plan_name });
   }
   return out;
@@ -171,18 +201,6 @@ async function issuesFor(userId: string, issueIds: string[]): Promise<{ visible:
   return { visible, hidden };
 }
 
-/** Projects (track_plans) que existen entre `ids`: los que no están en el mapa visible son ajenos. */
-async function existingPlans(ids: string[]): Promise<Set<string>> {
-  const out = new Set<string>();
-  for (const part of chunks([...new Set(ids)], 400)) {
-    const rows = (await getDb()
-      .prepare(`SELECT id FROM track_plans WHERE id IN (${part.map(() => '?').join(', ')})`)
-      .all(...part)) as Array<{ id: string }>;
-    for (const r of rows) out.add(r.id);
-  }
-  return out;
-}
-
 async function plansById(userId: string, ids: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (!ids.length) return out;
@@ -192,9 +210,9 @@ async function plansById(userId: string, ids: string[]): Promise<Map<string, str
       .prepare(
         `SELECT p.id, p.name FROM track_plans p
           WHERE p.id IN (${part.map(() => '?').join(', ')})
-            AND (p.owner_id = ? OR p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?) OR p.team_id IN (SELECT id FROM teams WHERE owner_id = ?))`,
+            AND ${memberSql('p')}`,
       )
-      .all(...part, userId, userId, userId)) as Array<{ id: string; name: string }>;
+      .all(...part, ...memberArgs(userId))) as Array<{ id: string; name: string }>;
     for (const r of rows) out.set(r.id, r.name);
   }
   return out;
@@ -271,11 +289,13 @@ export async function listInboxNotifications(
   const planIds = raw.map((n, i) => (n.source_type === 'track_plan' && n.source_id ? n.source_id : str(metas[i].planId)));
   const presentIssues = issueIds.filter((v): v is string => Boolean(v));
   const presentPlans = planIds.filter((v): v is string => Boolean(v));
-  const [issuePlans, directPlans, issues, plansThatExist] = await Promise.all([
+  const initiativeIds = raw.map((n) => (n.source_type === 'track_initiative' && n.source_id ? n.source_id : null));
+  const [issuePlans, directPlans, issues, hiddenPlans, hiddenInitiatives] = await Promise.all([
     plansForIssues(userId, presentIssues),
     plansById(userId, presentPlans),
     issuesFor(userId, presentIssues),
-    existingPlans(presentPlans),
+    hiddenEntities(userId, 'track_plans', presentPlans),
+    hiddenEntities(userId, 'track_initiatives', initiativeIds.filter((v): v is string => Boolean(v))),
   ]);
 
   const all: InboxItem[] = [];
@@ -287,8 +307,9 @@ export async function listInboxNotifications(
     const meta = metas[i];
     const viaIssue = issueId ? issuePlans.get(issueId) : undefined;
     const planId = planIds[i];
-    // Lo mismo con un aviso de un project (update, comentario) que existe y no ve.
-    if (!issueId && n.source_type === 'track_plan' && planId && plansThatExist.has(planId) && !directPlans.has(planId)) return;
+    // Lo mismo con un aviso de un project o una iniciativa (update, comentario) que existe y no ve.
+    if (!issueId && n.source_type === 'track_plan' && planId && hiddenPlans.has(planId)) return;
+    if (initiativeIds[i] && hiddenInitiatives.has(initiativeIds[i]!)) return;
     const direct = planId && directPlans.has(planId) ? { id: planId, name: directPlans.get(planId)! } : undefined;
     const plan = viaIssue ?? direct ?? null;
     const facts = { type: n.type, source_type: n.source_type, meta };

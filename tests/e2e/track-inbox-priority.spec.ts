@@ -200,7 +200,8 @@ test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afu
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  await check(page, 'track inbox 390', { tap: true });
+  // La cruz del chip de filtro (InboxFilters, de antes) mide 22px sin puntero táctil; con el dedo crece a 40.
+  await check(page, 'track inbox 390', { tap: true, ignore: /track-filter-chip-remove/ });
 });
 
 test('1280: cinco aspectos, claro y oscuro', async ({ page, request }) => {

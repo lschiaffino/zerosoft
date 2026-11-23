@@ -269,13 +269,19 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     setCounts((c) => (c ? { ...c, [key]: Math.max(0, c[key] + delta) } : c));
   };
 
+  // Un aviso con una acción en curso no recibe otra (U o Backspace dos veces seguidas).
+  const busy = useRef(new Set<string>());
+
   async function setRead(n: Notification, read: boolean) {
+    if (busy.current.has(n.id)) return;
+    busy.current.add(n.id);
     setActionError(null);
     const res = await fetch(`/api/notifications/${n.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ read }),
     }).catch(() => null);
+    busy.current.delete(n.id);
     if (!res?.ok) {
       setActionError(ti('actionError'));
       return;
@@ -289,45 +295,63 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     notifyChanged();
   }
 
-  /** Sale de la lista (pospuesto o borrado): la fila activa pasa a la siguiente, como Linear. */
-  const dropRow = (id: string) => {
-    const i = rows.findIndex((x) => x.id === id);
-    const next = rows.filter((x) => x.id !== id);
-    setRows((prev) => prev.filter((x) => x.id !== id));
-    if (active === id) {
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
+  /**
+   * Sale de la lista ya (pospuesto o borrado), antes de que responda el
+   * servidor; si falla, vuelve a su lugar. La fila activa pasa a la siguiente,
+   * como Linear.
+   */
+  const dropRow = (n: Notification): (() => void) => {
+    const i = rows.findIndex((x) => x.id === n.id);
+    const next = rows.filter((x) => x.id !== n.id);
+    setRows((prev) => prev.filter((x) => x.id !== n.id));
+    if (activeRef.current === n.id) {
       const nextId = next[Math.min(i, next.length - 1)]?.id ?? null;
       setActive(nextId);
       // El foco sigue en la lista (si no, cae al body y J/K empiezan de cero).
       if (nextId) requestAnimationFrame(() => rowEl(nextId)?.querySelector<HTMLElement>('.track-inbox-link')?.focus({ preventScroll: true }));
     }
+    return () => setRows((prev) => (prev.some((x) => x.id === n.id) ? prev : [...prev.slice(0, Math.max(0, i)), n, ...prev.slice(Math.max(0, i))]));
   };
 
   // Posponer (o traer de vuelta con null): sale de la lista actual.
   async function snooze(n: Notification, until: Date | null) {
+    if (busy.current.has(n.id)) return;
+    busy.current.add(n.id);
     setActionError(null);
+    const undo = dropRow(n);
     const res = await fetch(`/api/notifications/${n.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ snoozeUntil: until ? until.toISOString() : null }),
     }).catch(() => null);
+    busy.current.delete(n.id);
     if (!res?.ok) {
+      undo();
       setActionError(tr('inboxSnooze.error'));
       return;
     }
-    if (tab !== 'snoozed' && !n.read_at) bump(n, -1);
-    dropRow(n.id);
+    // Posponer lo saca de la cuenta; traerlo de vuelta lo suma (vuelve como sin leer).
+    if (until && tab !== 'snoozed' && !n.read_at) bump(n, -1);
+    if (!until) bump(n, 1);
     notifyChanged();
   }
 
   async function remove(n: Notification) {
+    if (busy.current.has(n.id)) return;
+    busy.current.add(n.id);
     setActionError(null);
+    const undo = dropRow(n);
     const res = await fetch(`/api/notifications/${n.id}`, { method: 'DELETE' }).catch(() => null);
+    busy.current.delete(n.id);
     if (!res?.ok) {
+      undo();
       setActionError(ti('actionError'));
       return;
     }
     if (tab !== 'snoozed' && !n.read_at) bump(n, -1);
-    dropRow(n.id);
     notifyChanged();
   }
 
@@ -439,8 +463,13 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     if (e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
     if (document.querySelector(OPEN_MENU)) return;
     const target = e.target as HTMLElement | null;
-    // En las pestañas, las flechas de costado son de las pestañas.
-    if (target?.getAttribute?.('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+    // Solo desde la lista (el link de una fila) o sin foco: los botones, pestañas y filtros conservan sus teclas.
+    const onLink = Boolean(target?.classList?.contains('track-inbox-link'));
+    const inRow = Boolean(target?.closest?.('[data-testid="track-inbox-item"]'));
+    const free = !target || target === document.body || target === document.documentElement;
+    if (!onLink && !inRow && !free) return;
+    // Un botón de la fila (Posponer, leída, borrar) conserva Enter, espacio y flechas.
+    if (inRow && !onLink && (e.key === 'Enter' || e.key === ' ' || e.key.startsWith('Arrow'))) return;
     if (ordered.length === 0) return;
     const i = active ? ordered.findIndex((x) => x.id === active) : -1;
     const cur = i >= 0 ? ordered[i] : null;
@@ -454,8 +483,6 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     } else if (!cur) {
       return;
     } else if (k === 'Enter' || k === 'o') {
-      // Enter sobre el link lo abre el navegador.
-      if (k === 'Enter' && target?.classList?.contains('track-inbox-link')) return;
       e.preventDefault();
       if (!cur.read_at) void setRead(cur, true);
       router.push(cur.href ?? '/app/track');
@@ -474,6 +501,13 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       setActive(null);
       (document.activeElement as HTMLElement | null)?.blur();
     }
+  };
+  // Sale el foco de la lista: no queda una fila activa que reciba las teclas.
+  const onListBlur = (e: React.FocusEvent) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && listRef.current?.contains(next)) return;
+    if (next && (next as HTMLElement).closest?.('.track-menu')) return;
+    setActive(null);
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => keys.current(e);
@@ -704,7 +738,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
 
       <InboxFilters filter={filter} onChange={changeFilter} facets={facets} showDisplay={tab !== 'snoozed'} />
 
-      <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel" ref={listRef}>
+      <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel" ref={listRef} onBlur={onListBlur}>
         {firstLoad ? (
           <div className="ui-loading-stack">
             <span className="sr-only" role="status">

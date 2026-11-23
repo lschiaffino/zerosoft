@@ -89,17 +89,17 @@ test('fila: propiedades compactas, orden por time in status y filtro "más de N 
   // Los que llevan más tiempo en su status primero.
   await expect.poll(() => order(page)).toEqual([s.old.id, s.fresh.id]);
   const oldRow = rows(page).filter({ hasText: s.old.identifier });
-  await expect(oldRow.getByTestId('track-row-prop-status_time')).toHaveText(/^\s*10d\s*$/);
+  await expect(oldRow.getByTestId('track-row-prop-status_time').locator('.track-row-prop-text')).toHaveText('10d');
   await expect(oldRow.getByTestId('track-row-prop-status_time')).toHaveAttribute('title', `In ${s.todo.name} for 10d`);
-  await expect(oldRow.getByTestId('track-row-prop-estimate')).toHaveText(/3/);
-  await expect(oldRow.getByTestId('track-row-prop-links')).toHaveText(/1/);
+  await expect(oldRow.getByTestId('track-row-prop-estimate').locator('.track-row-prop-text')).toHaveText('3');
+  await expect(oldRow.getByTestId('track-row-prop-links').locator('.track-row-prop-text')).toHaveText('1');
   await expect(oldRow.getByTestId('track-row-prop-milestone')).toContainText('Beta');
   await expect(oldRow.getByTestId('track-row-prop-updated')).toBeVisible();
   // Sin estimación, milestone ni links: no ocupan lugar.
   const freshRow = rows(page).filter({ hasText: s.fresh.identifier });
   await expect(freshRow.getByTestId('track-row-prop-estimate')).toHaveCount(0);
   await expect(freshRow.getByTestId('track-row-prop-links')).toHaveCount(0);
-  await expect(freshRow.getByTestId('track-row-prop-status_time')).toHaveText(/^\s*\d+m\s*$/);
+  await expect(freshRow.getByTestId('track-row-prop-status_time').locator('.track-row-prop-text')).toHaveText(/^\d+m$/);
   await shot(page, 'track-status-time-list-1280');
 
   // Filter › Time in status › More than 7 days.
@@ -163,7 +163,7 @@ test('390 y los cinco aspectos: sin scroll lateral en la lista y en el issue', a
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  await check(page, 'track list status time 390', { tap: true });
+  await check(page, 'track list status time 390', { tap: true, ignore: /track-filter-chip-remove/ });
 
   await page.goto(`/en/app/track/issues/${s.old.id}`, { waitUntil: 'networkidle' });
   const btn = page.getByTestId('track-issue-status-time');

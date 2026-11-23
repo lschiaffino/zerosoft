@@ -17,7 +17,8 @@ type Period = { statusId: string | null; name: string | null; category: string |
 /** Fecha guardada (con o sin T/Z) a ISO UTC. */
 function iso(v: string): string {
   if (!v) return new Date().toISOString();
-  const s = v.includes('T') ? v : `${v.replace(' ', 'T')}Z`;
+  // Sin zona es UTC (así guarda SQLite): nunca la hora local de quien corre la migración.
+  const s = v.includes('T') ? (/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${v}Z`) : `${v.replace(' ', 'T')}Z`;
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
