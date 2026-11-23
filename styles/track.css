@@ -1207,10 +1207,19 @@ dialog.ui-drawer.track-drawer {
     background: var(--ui-selected);
   }
 
-  /* Sin pasar ni foco no se ven (tampoco "Traer de vuelta" en Pospuestos, que taparía la hora). */
   .track-inbox-split .track-inbox-item:not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
-    visibility: hidden;
     pointer-events: none;
+  }
+
+  /* Pospuestos: "Traer de vuelta" siempre a la vista, en su columna (no tapa la hora). */
+  .track-inbox-split .track-inbox-item:has(.track-inbox-unsnooze) {
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  }
+
+  .track-inbox-split .track-inbox-item:has(.track-inbox-unsnooze) .track-inbox-actions {
+    position: static;
+    pointer-events: auto;
+    background: none;
   }
 
   .track-inbox-split .track-inbox-item {
