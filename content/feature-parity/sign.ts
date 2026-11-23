@@ -33,7 +33,7 @@ function row(
  */
 const parity: ProductParity = {
   competitor: 'DocuSign',
-  lastReviewed: '2026-10-30',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'envelopes', label: loc(['Envelopes and documents', 'Sobres y documentos', 'Envelopes e documentos']) },
     { id: 'recipients', label: loc(['Recipients and routing', 'Destinatarios y orden', 'Destinatários e ordem']) },
@@ -50,8 +50,12 @@ const parity: ProductParity = {
     row('upload-pdf', 'envelopes', ['Upload a PDF', 'Subir un PDF', 'Enviar um PDF'], 'have', {
       detail: ['Checked by its bytes, up to 4 MB and 100 pages; scripts, actions, forms and attachments are removed', 'Validado por sus bytes, hasta 4 MB y 100 páginas; se sacan scripts, acciones, formularios y adjuntos', 'Validado pelos bytes, até 4 MB e 100 páginas; scripts, ações, formulários e anexos são removidos'],
     }),
-    row('other-formats', 'envelopes', ['Word, Excel and image files', 'Archivos de Word, Excel e imágenes', 'Arquivos do Word, Excel e imagens'], 'missing', {
-      detail: ['Only PDF; DocuSign converts many formats', 'Solo PDF; DocuSign convierte muchos formatos', 'Só PDF; o DocuSign converte muitos formatos'],
+    row('other-formats', 'envelopes', ['Word, Excel and image files', 'Archivos de Word, Excel e imágenes', 'Arquivos do Word, Excel e imagens'], 'partial', {
+      detail: [
+        'PDF, and JPEG or PNG photos and scans as a one-page PDF turned upright; Word and Excel are not converted, DocuSign converts many formats',
+        'PDF, y fotos o escaneos JPEG o PNG como un PDF de una página, derechos; Word y Excel no se convierten, DocuSign convierte muchos formatos',
+        'PDF, e fotos ou digitalizações JPEG ou PNG como um PDF de uma página, na posição certa; Word e Excel não são convertidos, o DocuSign converte muitos formatos',
+      ],
     }),
     row('cloud-import', 'envelopes', ['Documents from other sources', 'Documentos desde otras fuentes', 'Documentos de outras fontes'], 'partial', {
       detail: ['A Docs page becomes the PDF; no Google Drive, Dropbox, Box or OneDrive', 'Una página de Docs se convierte en el PDF; sin Google Drive, Dropbox, Box ni OneDrive', 'Uma página do Docs vira o PDF; sem Google Drive, Dropbox, Box ou OneDrive'],
@@ -119,7 +123,11 @@ const parity: ProductParity = {
     // Plantillas
     row('templates', 'templates', ['Templates with roles and fields', 'Plantillas con roles y campos', 'Modelos com papéis e campos'], 'have', { weight: 2 }),
     row('bulk-send', 'templates', ['Bulk send from a CSV', 'Envío masivo desde un CSV', 'Envio em massa por CSV'], 'partial', {
-      detail: ['Up to 200 rows; the CSV fills the first signer role and the other roles are fixed', 'Hasta 200 filas; el CSV completa el primer rol que firma y los otros roles van fijos', 'Até 200 linhas; o CSV preenche o primeiro papel que assina e os outros papéis ficam fixos'],
+      detail: [
+        'Up to 1,000 envelopes a day; the CSV can fill every role, the title and the message of each envelope, and roles without columns are the same for all. It cannot prefill field values',
+        'Hasta 1.000 sobres por día; el CSV puede completar todos los roles, el título y el mensaje de cada sobre, y los roles sin columnas van iguales para todos. No precompleta valores de campos',
+        'Até 1.000 envelopes por dia; o CSV pode preencher todos os papéis, o título e a mensagem de cada envelope, e os papéis sem colunas ficam iguais para todos. Não preenche valores de campos',
+      ],
     }),
     row('powerforms', 'templates', ['Self-service signing links (PowerForms)', 'Links de firma de autoservicio (PowerForms)', 'Links de assinatura de autoatendimento (PowerForms)'], 'missing'),
     row('branding', 'templates', ['Custom branding', 'Marca propia', 'Marca própria'], 'missing'),

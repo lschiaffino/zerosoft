@@ -35,7 +35,7 @@ import {
   type ReportResult,
 } from './crm-report-builder';
 import { FORECAST_DEFAULTS } from './crm-forecast';
-import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { hiddenFieldSets, hiddenFieldsFor, isUnrestricted, scoreSqlRules, visibleScoreSql, type FieldViewer, type VisibleScoreRules } from './crm-field-perms';
 
 export interface CustomReportRow {
   id: string;
@@ -287,7 +287,10 @@ interface ResolvedField extends ReportColumn {
 
 const CUSTOM_NAME = /^[A-Za-z0-9_\-]{1,100}$/;
 
-type CustomDefs = Partial<Record<ReportObject, Map<string, { label: string; type: string }>>>;
+type CustomDefs = Partial<Record<ReportObject, Map<string, { label: string; type: string }>>> & {
+  /** Reglas de score que ve quien corre el reporte, si tiene campos de contactos ocultos. */
+  scoreRules?: VisibleScoreRules;
+};
 
 /**
  * Campos propios que el reporte puede usar: los de la persona que lo corre.
@@ -304,6 +307,8 @@ async function loadCustomDefs(workspaceId: string, objects: ReportObject[], view
       .all(workspaceId, entity)) as Array<{ name: string; label: string; type: string }>;
     const hidden = await hiddenFieldsFor(viewer, entity, db);
     out[o] = new Map(rows.filter((r) => !hidden.has(r.name)).map((r) => [r.name, { label: r.label, type: r.type }]));
+    // El score como lo ve (sin los puntos de reglas sobre sus campos ocultos): columna, agrupación, métrica y filtro.
+    if (o === 'contact') out.scoreRules = scoreSqlRules(hidden);
   }
   return out;
 }
@@ -331,7 +336,10 @@ function resolveField(key: string, config: ReportConfig, defs: CustomDefs): Reso
     return { key, obj, expr: t.type === 'number' ? `CAST(${base} AS REAL)` : base, label: def.label, ...t };
   }
   const builtin = BUILTIN_FIELDS[obj].find((f) => f.name === name && (!f.only || f.only.includes(config.source)));
-  const expr = BUILTIN_EXPR[obj][name];
+  const expr =
+    obj === 'contact' && name === 'score' && defs.scoreRules
+      ? visibleScoreSql('c.score', 'c.score_breakdown', defs.scoreRules)
+      : BUILTIN_EXPR[obj][name];
   if (!builtin || !expr) throw new ReportError('invalid_field');
   return { key, obj, expr, type: builtin.type, enum: builtin.enum, money: builtin.money };
 }

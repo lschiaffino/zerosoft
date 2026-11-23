@@ -33,6 +33,7 @@
     "start": "Iniciar",
     "stop": "Parar",
     "running": "Rodando",
+    "trackShortcut": "Registrar horas (N)",
     "startTimer": "Iniciar cronômetro",
     "saveEntry": "Salvar registro",
     "newTitle": "Novo registro de horas",

@@ -1628,6 +1628,13 @@
       "autoClosedSubs": "Track closed this issue because all its sub-issues are done",
       "autoClosedParent": "Track closed this issue because its parent was closed",
       "savedOffline": "Saved on this device. It is posted when the connection is back.",
+      "dupMergedBefore": "{user} marked",
+      "dupMergedAfter": "as a duplicate of this issue",
+      "dupComments": "{count, plural, one {# comment} other {# comments}} on the duplicate",
+      "dupAttachments": "{count, plural, one {# file} other {# files}}",
+      "dupSubscribers": "{count, plural, one {# subscriber} other {# subscribers}} moved here",
+      "dupRequests": "{count, plural, one {# customer request} other {# customer requests}} moved here",
+      "dupMergedHidden": "{user} marked an issue from another team as a duplicate of this issue",
       "releaseAdded": "{user} added this issue to release {to}",
       "releaseRemoved": "{user} removed this issue from release {from}",
       "releaseChange": "{user} moved this issue from release {from} to {to}"
@@ -1841,7 +1848,20 @@
         "week": "Past week",
         "none": "None"
       },
-      "showEmptyGroups": "Show empty groups"
+      "showEmptyGroups": "Show empty groups",
+      "groupReorder": "Reorder {name}",
+      "groupReorderHint": "Drag to reorder, or use the arrow keys",
+      "groupMenu": "{name} options",
+      "groupMoveUp": "Move up",
+      "groupMoveDown": "Move down",
+      "groupMoveLeft": "Move left",
+      "groupMoveRight": "Move right",
+      "groupMoveTop": "Move to top",
+      "groupMoveBottom": "Move to bottom",
+      "groupMoveStart": "Move to first",
+      "groupMoveEnd": "Move to last",
+      "groupOrderReset": "Reset order",
+      "groupsReordered": "Groups reordered"
     },
     "team": {
       "all": "All issues",
@@ -1897,6 +1917,13 @@
       "remove": "Remove from favorites",
       "added": "Added to favorites",
       "removed": "Removed from favorites"
+    },
+    "dup": {
+      "of": "Duplicate of",
+      "hidden": "Duplicate of an issue you can't see",
+      "unmark": "Unmark duplicate",
+      "unmarked": "{id} is no longer a duplicate",
+      "error": "Couldn't change the duplicate. Try again."
     }
   },
   "teamSettings": {

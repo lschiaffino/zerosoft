@@ -38,65 +38,66 @@ import * as r35 from "@/lib/routes/track/issues/[id]/comments/[commentId]/route"
 import * as r36 from "@/lib/routes/track/issues/[id]/comments/[commentId]/reactions/route";
 import * as r37 from "@/lib/routes/track/issues/[id]/comments/[commentId]/resolve/route";
 import * as r38 from "@/lib/routes/track/issues/[id]/customer-requests/route";
-import * as r39 from "@/lib/routes/track/issues/[id]/duplicates/route";
-import * as r40 from "@/lib/routes/track/issues/[id]/favorite/route";
-import * as r41 from "@/lib/routes/track/issues/[id]/github/route";
-import * as r42 from "@/lib/routes/track/issues/[id]/insights/route";
-import * as r43 from "@/lib/routes/track/issues/[id]/links/route";
-import * as r44 from "@/lib/routes/track/issues/[id]/move/route";
-import * as r45 from "@/lib/routes/track/issues/[id]/relations/route";
-import * as r46 from "@/lib/routes/track/issues/[id]/reminder/route";
-import * as r47 from "@/lib/routes/track/issues/[id]/snooze/route";
-import * as r48 from "@/lib/routes/track/issues/[id]/subscription/route";
-import * as r49 from "@/lib/routes/track/issues/[id]/triage/route";
-import * as r50 from "@/app/api/track/issues/bulk/route";
-import * as r51 from "@/app/api/track/issues/favorites/route";
-import * as r52 from "@/app/api/track/labels/route";
-import * as r53 from "@/lib/routes/track/labels/[id]/route";
-import * as r54 from "@/app/api/track/list-views/route";
-import * as r55 from "@/app/api/track/live/route";
-import * as r56 from "@/lib/routes/track/milestones/[id]/route";
-import * as r57 from "@/app/api/track/notify-prefs/route";
-import * as r58 from "@/lib/routes/track/plan-milestones/[id]/route";
-import * as r59 from "@/app/api/track/plan-templates/route";
-import * as r60 from "@/lib/routes/track/plan-templates/[id]/route";
-import * as r61 from "@/lib/routes/track/plan-updates/[id]/route";
-import * as r62 from "@/lib/routes/track/plan-updates/[id]/comments/route";
-import * as r63 from "@/app/api/track/plans/route";
-import * as r64 from "@/lib/routes/track/plans/[id]/route";
-import * as r65 from "@/lib/routes/track/plans/[id]/follow/route";
-import * as r66 from "@/lib/routes/track/plans/[id]/issues/route";
-import * as r67 from "@/lib/routes/track/plans/[id]/milestones/route";
-import * as r68 from "@/lib/routes/track/plans/[id]/updates/route";
-import * as r69 from "@/app/api/track/projects/route";
-import * as r70 from "@/lib/routes/track/projects/[id]/route";
-import * as r71 from "@/lib/routes/track/projects/[id]/ai/issue-from-text/route";
-import * as r72 from "@/lib/routes/track/projects/[id]/ai/summary/route";
-import * as r73 from "@/lib/routes/track/projects/[id]/automation/route";
-import * as r74 from "@/lib/routes/track/projects/[id]/cycles/route";
-import * as r75 from "@/lib/routes/track/projects/[id]/issues/route";
-import * as r76 from "@/lib/routes/track/projects/[id]/members/route";
-import * as r77 from "@/lib/routes/track/projects/[id]/milestones/route";
-import * as r78 from "@/lib/routes/track/projects/[id]/recurring/route";
-import * as r79 from "@/lib/routes/track/projects/[id]/statuses/route";
-import * as r80 from "@/lib/routes/track/projects/[id]/statuses/reorder/route";
-import * as r81 from "@/lib/routes/track/projects/[id]/templates/route";
-import * as r82 from "@/lib/routes/track/projects/[id]/triage/route";
-import * as r83 from "@/lib/routes/track/projects/[id]/triage-rules/route";
-import * as r84 from "@/lib/routes/track/projects/[id]/triage-settings/route";
-import * as r85 from "@/lib/routes/track/projects/[id]/views/route";
-import * as r86 from "@/lib/routes/track/recurring/[id]/route";
-import * as r87 from "@/app/api/track/refs/route";
-import * as r88 from "@/app/api/track/releases/route";
-import * as r89 from "@/lib/routes/track/releases/[id]/route";
-import * as r90 from "@/lib/routes/track/releases/[id]/issues/route";
-import * as r91 from "@/lib/routes/track/statuses/[id]/route";
-import * as r92 from "@/lib/routes/track/templates/[id]/route";
-import * as r93 from "@/lib/routes/track/triage-rules/[id]/route";
-import * as r94 from "@/lib/routes/track/views/[id]/route";
-import * as r95 from "@/lib/routes/track/views/[id]/default/route";
-import * as r96 from "@/lib/routes/track/views/[id]/favorite/route";
-import * as r97 from "@/app/api/track/views/favorites/route";
+import * as r39 from "@/lib/routes/track/issues/[id]/duplicate-of/route";
+import * as r40 from "@/lib/routes/track/issues/[id]/duplicates/route";
+import * as r41 from "@/lib/routes/track/issues/[id]/favorite/route";
+import * as r42 from "@/lib/routes/track/issues/[id]/github/route";
+import * as r43 from "@/lib/routes/track/issues/[id]/insights/route";
+import * as r44 from "@/lib/routes/track/issues/[id]/links/route";
+import * as r45 from "@/lib/routes/track/issues/[id]/move/route";
+import * as r46 from "@/lib/routes/track/issues/[id]/relations/route";
+import * as r47 from "@/lib/routes/track/issues/[id]/reminder/route";
+import * as r48 from "@/lib/routes/track/issues/[id]/snooze/route";
+import * as r49 from "@/lib/routes/track/issues/[id]/subscription/route";
+import * as r50 from "@/lib/routes/track/issues/[id]/triage/route";
+import * as r51 from "@/app/api/track/issues/bulk/route";
+import * as r52 from "@/app/api/track/issues/favorites/route";
+import * as r53 from "@/app/api/track/labels/route";
+import * as r54 from "@/lib/routes/track/labels/[id]/route";
+import * as r55 from "@/app/api/track/list-views/route";
+import * as r56 from "@/app/api/track/live/route";
+import * as r57 from "@/lib/routes/track/milestones/[id]/route";
+import * as r58 from "@/app/api/track/notify-prefs/route";
+import * as r59 from "@/lib/routes/track/plan-milestones/[id]/route";
+import * as r60 from "@/app/api/track/plan-templates/route";
+import * as r61 from "@/lib/routes/track/plan-templates/[id]/route";
+import * as r62 from "@/lib/routes/track/plan-updates/[id]/route";
+import * as r63 from "@/lib/routes/track/plan-updates/[id]/comments/route";
+import * as r64 from "@/app/api/track/plans/route";
+import * as r65 from "@/lib/routes/track/plans/[id]/route";
+import * as r66 from "@/lib/routes/track/plans/[id]/follow/route";
+import * as r67 from "@/lib/routes/track/plans/[id]/issues/route";
+import * as r68 from "@/lib/routes/track/plans/[id]/milestones/route";
+import * as r69 from "@/lib/routes/track/plans/[id]/updates/route";
+import * as r70 from "@/app/api/track/projects/route";
+import * as r71 from "@/lib/routes/track/projects/[id]/route";
+import * as r72 from "@/lib/routes/track/projects/[id]/ai/issue-from-text/route";
+import * as r73 from "@/lib/routes/track/projects/[id]/ai/summary/route";
+import * as r74 from "@/lib/routes/track/projects/[id]/automation/route";
+import * as r75 from "@/lib/routes/track/projects/[id]/cycles/route";
+import * as r76 from "@/lib/routes/track/projects/[id]/issues/route";
+import * as r77 from "@/lib/routes/track/projects/[id]/members/route";
+import * as r78 from "@/lib/routes/track/projects/[id]/milestones/route";
+import * as r79 from "@/lib/routes/track/projects/[id]/recurring/route";
+import * as r80 from "@/lib/routes/track/projects/[id]/statuses/route";
+import * as r81 from "@/lib/routes/track/projects/[id]/statuses/reorder/route";
+import * as r82 from "@/lib/routes/track/projects/[id]/templates/route";
+import * as r83 from "@/lib/routes/track/projects/[id]/triage/route";
+import * as r84 from "@/lib/routes/track/projects/[id]/triage-rules/route";
+import * as r85 from "@/lib/routes/track/projects/[id]/triage-settings/route";
+import * as r86 from "@/lib/routes/track/projects/[id]/views/route";
+import * as r87 from "@/lib/routes/track/recurring/[id]/route";
+import * as r88 from "@/app/api/track/refs/route";
+import * as r89 from "@/app/api/track/releases/route";
+import * as r90 from "@/lib/routes/track/releases/[id]/route";
+import * as r91 from "@/lib/routes/track/releases/[id]/issues/route";
+import * as r92 from "@/lib/routes/track/statuses/[id]/route";
+import * as r93 from "@/lib/routes/track/templates/[id]/route";
+import * as r94 from "@/lib/routes/track/triage-rules/[id]/route";
+import * as r95 from "@/lib/routes/track/views/[id]/route";
+import * as r96 from "@/lib/routes/track/views/[id]/default/route";
+import * as r97 from "@/lib/routes/track/views/[id]/favorite/route";
+import * as r98 from "@/app/api/track/views/favorites/route";
 
 export const routes: Record<string, unknown> = {
   "/api/track/access": r0,
@@ -138,63 +139,64 @@ export const routes: Record<string, unknown> = {
   "/api/track/issues/[id]/comments/[commentId]/reactions": r36,
   "/api/track/issues/[id]/comments/[commentId]/resolve": r37,
   "/api/track/issues/[id]/customer-requests": r38,
-  "/api/track/issues/[id]/duplicates": r39,
-  "/api/track/issues/[id]/favorite": r40,
-  "/api/track/issues/[id]/github": r41,
-  "/api/track/issues/[id]/insights": r42,
-  "/api/track/issues/[id]/links": r43,
-  "/api/track/issues/[id]/move": r44,
-  "/api/track/issues/[id]/relations": r45,
-  "/api/track/issues/[id]/reminder": r46,
-  "/api/track/issues/[id]/snooze": r47,
-  "/api/track/issues/[id]/subscription": r48,
-  "/api/track/issues/[id]/triage": r49,
-  "/api/track/issues/bulk": r50,
-  "/api/track/issues/favorites": r51,
-  "/api/track/labels": r52,
-  "/api/track/labels/[id]": r53,
-  "/api/track/list-views": r54,
-  "/api/track/live": r55,
-  "/api/track/milestones/[id]": r56,
-  "/api/track/notify-prefs": r57,
-  "/api/track/plan-milestones/[id]": r58,
-  "/api/track/plan-templates": r59,
-  "/api/track/plan-templates/[id]": r60,
-  "/api/track/plan-updates/[id]": r61,
-  "/api/track/plan-updates/[id]/comments": r62,
-  "/api/track/plans": r63,
-  "/api/track/plans/[id]": r64,
-  "/api/track/plans/[id]/follow": r65,
-  "/api/track/plans/[id]/issues": r66,
-  "/api/track/plans/[id]/milestones": r67,
-  "/api/track/plans/[id]/updates": r68,
-  "/api/track/projects": r69,
-  "/api/track/projects/[id]": r70,
-  "/api/track/projects/[id]/ai/issue-from-text": r71,
-  "/api/track/projects/[id]/ai/summary": r72,
-  "/api/track/projects/[id]/automation": r73,
-  "/api/track/projects/[id]/cycles": r74,
-  "/api/track/projects/[id]/issues": r75,
-  "/api/track/projects/[id]/members": r76,
-  "/api/track/projects/[id]/milestones": r77,
-  "/api/track/projects/[id]/recurring": r78,
-  "/api/track/projects/[id]/statuses": r79,
-  "/api/track/projects/[id]/statuses/reorder": r80,
-  "/api/track/projects/[id]/templates": r81,
-  "/api/track/projects/[id]/triage": r82,
-  "/api/track/projects/[id]/triage-rules": r83,
-  "/api/track/projects/[id]/triage-settings": r84,
-  "/api/track/projects/[id]/views": r85,
-  "/api/track/recurring/[id]": r86,
-  "/api/track/refs": r87,
-  "/api/track/releases": r88,
-  "/api/track/releases/[id]": r89,
-  "/api/track/releases/[id]/issues": r90,
-  "/api/track/statuses/[id]": r91,
-  "/api/track/templates/[id]": r92,
-  "/api/track/triage-rules/[id]": r93,
-  "/api/track/views/[id]": r94,
-  "/api/track/views/[id]/default": r95,
-  "/api/track/views/[id]/favorite": r96,
-  "/api/track/views/favorites": r97,
+  "/api/track/issues/[id]/duplicate-of": r39,
+  "/api/track/issues/[id]/duplicates": r40,
+  "/api/track/issues/[id]/favorite": r41,
+  "/api/track/issues/[id]/github": r42,
+  "/api/track/issues/[id]/insights": r43,
+  "/api/track/issues/[id]/links": r44,
+  "/api/track/issues/[id]/move": r45,
+  "/api/track/issues/[id]/relations": r46,
+  "/api/track/issues/[id]/reminder": r47,
+  "/api/track/issues/[id]/snooze": r48,
+  "/api/track/issues/[id]/subscription": r49,
+  "/api/track/issues/[id]/triage": r50,
+  "/api/track/issues/bulk": r51,
+  "/api/track/issues/favorites": r52,
+  "/api/track/labels": r53,
+  "/api/track/labels/[id]": r54,
+  "/api/track/list-views": r55,
+  "/api/track/live": r56,
+  "/api/track/milestones/[id]": r57,
+  "/api/track/notify-prefs": r58,
+  "/api/track/plan-milestones/[id]": r59,
+  "/api/track/plan-templates": r60,
+  "/api/track/plan-templates/[id]": r61,
+  "/api/track/plan-updates/[id]": r62,
+  "/api/track/plan-updates/[id]/comments": r63,
+  "/api/track/plans": r64,
+  "/api/track/plans/[id]": r65,
+  "/api/track/plans/[id]/follow": r66,
+  "/api/track/plans/[id]/issues": r67,
+  "/api/track/plans/[id]/milestones": r68,
+  "/api/track/plans/[id]/updates": r69,
+  "/api/track/projects": r70,
+  "/api/track/projects/[id]": r71,
+  "/api/track/projects/[id]/ai/issue-from-text": r72,
+  "/api/track/projects/[id]/ai/summary": r73,
+  "/api/track/projects/[id]/automation": r74,
+  "/api/track/projects/[id]/cycles": r75,
+  "/api/track/projects/[id]/issues": r76,
+  "/api/track/projects/[id]/members": r77,
+  "/api/track/projects/[id]/milestones": r78,
+  "/api/track/projects/[id]/recurring": r79,
+  "/api/track/projects/[id]/statuses": r80,
+  "/api/track/projects/[id]/statuses/reorder": r81,
+  "/api/track/projects/[id]/templates": r82,
+  "/api/track/projects/[id]/triage": r83,
+  "/api/track/projects/[id]/triage-rules": r84,
+  "/api/track/projects/[id]/triage-settings": r85,
+  "/api/track/projects/[id]/views": r86,
+  "/api/track/recurring/[id]": r87,
+  "/api/track/refs": r88,
+  "/api/track/releases": r89,
+  "/api/track/releases/[id]": r90,
+  "/api/track/releases/[id]/issues": r91,
+  "/api/track/statuses/[id]": r92,
+  "/api/track/templates/[id]": r93,
+  "/api/track/triage-rules/[id]": r94,
+  "/api/track/views/[id]": r95,
+  "/api/track/views/[id]/default": r96,
+  "/api/track/views/[id]/favorite": r97,
+  "/api/track/views/favorites": r98,
 };

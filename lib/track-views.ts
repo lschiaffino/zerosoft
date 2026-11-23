@@ -390,6 +390,58 @@ export function groupIssues<T extends GroupableIssue>(
   return out;
 }
 
+// ---------- Orden propio de los grupos (arrastrar encabezados y columnas, como Linear) ----------
+
+/** Orden guardado por campo de agrupado: claves de grupo en el orden elegido. */
+export type GroupOrder = Partial<Record<IssueGroupBy, string[]>>;
+
+/** Tope de claves guardadas por campo (una vista con cientos de labels no crece sin fin). */
+export const GROUP_ORDER_MAX = 200;
+
+/**
+ * Aplica el orden guardado: los grupos que están en `order` ocupan los mismos
+ * lugares que antes pero en ese orden; los que no están (un status nuevo, un
+ * label que apareció) quedan donde los pone el orden natural.
+ */
+export function orderGroups<G extends { key: string }>(groups: G[], order: readonly string[] | undefined): G[] {
+  if (!order?.length || groups.length < 2) return groups;
+  const rank = new Map(order.map((k, i) => [k, i]));
+  const known = groups.filter((g) => rank.has(g.key)).sort((a, b) => (rank.get(a.key) ?? 0) - (rank.get(b.key) ?? 0));
+  let next = 0;
+  return groups.map((g) => (rank.has(g.key) ? known[next++] : g));
+}
+
+/** Mueve `key` a la posición `to` de la lista visible (fuera de rango se acota). */
+export function moveGroupKey(keys: readonly string[], key: string, to: number): string[] {
+  const from = keys.indexOf(key);
+  if (from < 0) return [...keys];
+  const out = keys.filter((k) => k !== key);
+  out.splice(Math.max(0, Math.min(to, out.length)), 0, key);
+  return out;
+}
+
+/**
+ * Orden a guardar después de mover: el visible nuevo y, detrás, lo que se
+ * había guardado de grupos que hoy no se ven (así no pierden su lugar).
+ */
+export function mergeGroupOrder(visible: readonly string[], saved: readonly string[] | undefined): string[] {
+  const seen = new Set(visible);
+  return [...visible, ...(saved ?? []).filter((k) => !seen.has(k))].slice(0, GROUP_ORDER_MAX);
+}
+
+/** Orden guardado validado (de localStorage o de una vista guardada). */
+export function parseGroupOrder(raw: unknown): GroupOrder {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: GroupOrder = {};
+  const fields = new Set<string>([...ISSUE_GROUPS, ...PLAN_ISSUE_GROUPS, ...WORKSPACE_ISSUE_GROUPS]);
+  for (const [field, list] of Object.entries(raw as Record<string, unknown>)) {
+    if (!fields.has(field) || field === 'none' || !Array.isArray(list)) continue;
+    const keys = [...new Set(list.filter((k): k is string => typeof k === 'string' && k.length <= 200))].slice(0, GROUP_ORDER_MAX);
+    if (keys.length) out[field as IssueGroupBy] = keys;
+  }
+  return out;
+}
+
 export interface GroupPreset {
   statusId?: string;
   priority?: TrackIssueWithStatus['priority'];
