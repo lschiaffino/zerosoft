@@ -219,6 +219,7 @@ export function describeActivity(
           n('subscribers') ? tt('dupSubscribers', { count: n('subscribers') }) : '',
           n('requests') ? tt('dupRequests', { count: n('requests') }) : '',
         ].filter(Boolean);
+        if (!relatedIssueId) return tt('dupMergedHidden', { user: name });
         return (
           <>
             {tt('dupMergedBefore', { user: name })}{' '}

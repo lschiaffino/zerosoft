@@ -320,7 +320,7 @@ export async function resolveTriage(
     const fresh = await getIssue(issue.id);
     if (!fresh?.triage) return { ok: false, reason: 'not_in_triage' };
     const marked = await markIssueDuplicate(issue.id, original.id, actorId);
-    if (!marked.ok) return { ok: false, reason: 'invalid_duplicate' };
+    if (!marked.ok) return { ok: false, reason: marked.reason === 'not_in_triage' || marked.reason === 'busy' ? 'not_in_triage' : 'invalid_duplicate' };
     return { ok: true, issue: marked.issue };
   }
 

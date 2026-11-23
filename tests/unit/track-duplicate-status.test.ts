@@ -6,6 +6,7 @@ import {
   createIssue,
   createProject,
   deleteIssueRelation,
+  deleteProject,
   getIssue,
   listIssueActivities,
   listStatuses,
@@ -14,7 +15,7 @@ import {
 import { addProjectAccess, runAsTrackViewer, setGuest, setProjectVisibility } from '@/lib/track-access';
 import { setIssueSubscription, listIssueSubscriberIds } from '@/lib/track-subscriptions';
 import { ensureDuplicateStatus, getDuplicateMark, markIssueDuplicate, unmarkIssueDuplicate } from '@/lib/track-duplicates';
-import { resolveTriage } from '@/lib/track-bulk';
+import { claimTriage, resolveTriage } from '@/lib/track-bulk';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
@@ -184,8 +185,13 @@ describe('Track: estado Duplicado', () => {
     expect(res.ok).toBe(true);
     const summary = (await listIssueActivities(s.original.id)).find((a) => JSON.parse(a.meta).merged);
     const meta = JSON.parse(summary!.meta) as Record<string, unknown>;
+    // Ni título, ni extracto, ni identificador o id del issue privado en el original abierto.
     expect(meta.title).toBe('');
     expect(meta.excerpt).toBe('');
+    expect(meta.identifier).toBe('');
+    expect(meta.relatedIssueId).toBe('');
+    expect(meta.subscribers).toBe(0);
+    expect(JSON.stringify(meta)).not.toContain(s.secretIssue.identifier);
     expect(meta.requests).toBe(0);
     expect(((await getDb().prepare('SELECT issue_id FROM track_customer_requests WHERE workspace_id = ?').get(s.team.id)) as { issue_id: string }).issue_id).toBe(
       s.secretIssue.id,
@@ -206,7 +212,68 @@ describe('Track: estado Duplicado', () => {
     const dup3 = await createIssue(s.other.id, s.owner.id, { title: 'Other dup text' }, { source: 'app' });
     expect((await runAsTrackViewer(s.owner.id, () => markIssueDuplicate(dup3.id, s.original.id, s.owner.id), 'app')).ok).toBe(true);
     const metas = (await listIssueActivities(s.original.id)).map((a) => JSON.parse(a.meta) as Record<string, unknown>);
-    expect(metas.find((m) => m.identifier === dup3.identifier)?.title).toBe('');
+    expect(metas.some((m) => m.identifier === dup3.identifier)).toBe(false);
+
+    // Un invitado suscripto a un duplicado de Open no pasa a un original de Other (no lo ve).
+    const dup4 = await createIssue(s.open.id, s.owner.id, { title: 'Guest watched' }, { source: 'app' });
+    await setIssueSubscription(dup4.id, s.guest.id, true);
+    expect((await runAsTrackViewer(s.owner.id, () => markIssueDuplicate(dup4.id, s.otherIssue.id, s.owner.id), 'app')).ok).toBe(true);
+    expect(await listIssueSubscriberIds(s.otherIssue.id)).not.toContain(s.guest.id);
+  });
+
+  it('cambiar de original devuelve el anterior (⌘Z vuelve a él), una marca en curso no se deshace, y borrar el team limpia', async () => {
+    const s = await setup();
+    const asOwner = <T,>(fn: () => Promise<T>) => runAsTrackViewer(s.owner.id, fn, 'app');
+    const a = await createIssue(s.open.id, s.owner.id, { title: 'A' }, { source: 'app' });
+    const b = await createIssue(s.open.id, s.owner.id, { title: 'B' }, { source: 'app' });
+    const first = await asOwner(() => markIssueDuplicate(a.id, b.id, s.owner.id));
+    expect(first.ok && first.previousOriginalId).toBeNull();
+    const second = await asOwner(() => markIssueDuplicate(a.id, s.original.id, s.owner.id));
+    expect(second.ok && second.previousOriginalId).toBe(b.id);
+    // Volver a marcar con el anterior (lo que hace ⌘Z) deja la marca como antes.
+    expect((await asOwner(() => markIssueDuplicate(a.id, b.id, s.owner.id))).ok).toBe(true);
+    expect((await getDuplicateMark(a.id))?.original?.id).toBe(b.id);
+    // Reabierto a mano y marcado con el mismo original: vuelve al estado Duplicate.
+    const open = (await listStatuses(s.open.id)).find((x) => x.category === 'todo')!;
+    await getDb().prepare('UPDATE track_issues SET status_id = ? WHERE id = ?').run(open.id, a.id);
+    expect((await asOwner(() => markIssueDuplicate(a.id, b.id, s.owner.id))).ok).toBe(true);
+    expect((await getIssue(a.id))!.status_name).toBe('Duplicate');
+
+    // Una marca que otro request está haciendo (sin resumen todavía) no se deshace: 409 busy.
+    const c = await createIssue(s.open.id, s.owner.id, { title: 'C' }, { source: 'app' });
+    await getDb().prepare('INSERT INTO track_issue_duplicates (issue_id, original_id, created_by) VALUES (?, ?, ?)').run(c.id, b.id, s.owner.id);
+    session.user = s.as.owner;
+    const busy = await route.DELETE(del(), params(c.id));
+    expect(busy.status).toBe(409);
+    expect(((await busy.json()) as { error: string }).error).toBe('busy');
+    // Pasado el minuto, se puede deshacer (una marca que se cortó).
+    await getDb().prepare("UPDATE track_issue_duplicates SET created_at = '2020-01-01T00:00:00.000Z' WHERE issue_id = ?").run(c.id);
+    expect((await route.DELETE(del(), params(c.id))).status).toBe(200);
+    session.user = null;
+
+    // Borrar el team del original: la marca del duplicado se va (sin banner colgado).
+    const other = await createProject(s.owner.id, s.team.id, { name: 'Gone', slug: `go-${uid()}` });
+    const target = await createIssue(other.id, s.owner.id, { title: 'Target' }, { source: 'app' });
+    const d = await createIssue(s.open.id, s.owner.id, { title: 'D' }, { source: 'app' });
+    expect((await asOwner(() => markIssueDuplicate(d.id, target.id, s.owner.id))).ok).toBe(true);
+    await deleteProject(other.id);
+    expect(await getDuplicateMark(d.id)).toBeNull();
+    expect(await getDb().prepare('SELECT 1 FROM track_issue_duplicates WHERE issue_id = ?').get(d.id)).toBeUndefined();
+  });
+
+  it('triage: si otro lo aceptó recién, el duplicado responde not_in_triage y no deja marca', async () => {
+    const s = await setup();
+    await updateProject(s.other.id, { triageEnabled: true });
+    const incoming = await createIssue(s.other.id, s.owner.id, { title: 'Race' }, { source: 'api' });
+    expect(incoming.triage).toBe(1);
+    // Alguien lo aceptó entre que se leyó y se marcó.
+    expect(await claimTriage(incoming.id)).toBe(true);
+    const res = await runAsTrackViewer(s.owner.id, () => resolveTriage(incoming, { action: 'duplicate', duplicateOfId: s.otherIssue.id }, s.owner.id), 'app');
+    expect(res).toEqual({ ok: false, reason: 'not_in_triage' });
+    expect(await getDuplicateMark(incoming.id)).toBeNull();
+    const direct = await runAsTrackViewer(s.owner.id, () => markIssueDuplicate(incoming.id, s.otherIssue.id, s.owner.id), 'app');
+    // Fuera de triage, marcarlo es una marca común.
+    expect(direct.ok).toBe(true);
   });
 
   it('ciclos, cambio de original, relación borrada a mano y triage', async () => {

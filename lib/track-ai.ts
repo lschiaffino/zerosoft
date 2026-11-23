@@ -409,6 +409,7 @@ export async function decideSuggestion(
   const { suggestions } = await getTriageSuggestions(issueId);
   const s = suggestions.find((x) => x.id === suggestionId);
   if (!s || s.status !== 'pending') return suggestions;
+  let applied = true;
   if (decision === 'accept') {
     const { getIssue, updateIssue } = await import('./track-data');
     const issue = await getIssue(issueId);
@@ -423,11 +424,13 @@ export async function decideSuggestion(
       // Como Linear: aceptar la sugerencia lo marca como duplicado (estado Duplicate, suscriptos y pedidos al original).
       if (issue.triage === 1) {
         const { resolveTriage } = await import('./track-bulk');
-        await resolveTriage(issue, { action: 'duplicate', duplicateOfId: s.value }, actorId);
+        applied = (await resolveTriage(issue, { action: 'duplicate', duplicateOfId: s.value }, actorId)).ok;
       } else {
         const { markIssueDuplicate } = await import('./track-duplicates');
-        await markIssueDuplicate(issueId, s.value, actorId, { via });
+        applied = (await markIssueDuplicate(issueId, s.value, actorId, { via })).ok;
       }
+      // No se pudo marcar (el original ya no se ve o se borró): la sugerencia queda pendiente.
+      if (!applied) return suggestions;
     }
   }
   const next = suggestions.map((x) => (x.id === suggestionId ? { ...x, status: decision === 'accept' ? ('accepted' as const) : ('dismissed' as const) } : x));

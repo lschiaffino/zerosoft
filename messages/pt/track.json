@@ -1623,7 +1623,8 @@
       "dupComments": "{count, plural, one {# comentário} other {# comentários}} no duplicado",
       "dupAttachments": "{count, plural, one {# arquivo} other {# arquivos}}",
       "dupSubscribers": "{count, plural, one {# seguidor veio} other {# seguidores vieram}} para cá",
-      "dupRequests": "{count, plural, one {# pedido de cliente veio} other {# pedidos de clientes vieram}} para cá"
+      "dupRequests": "{count, plural, one {# pedido de cliente veio} other {# pedidos de clientes vieram}} para cá",
+      "dupMergedHidden": "{user} marcou um issue de outro team como duplicado deste issue"
     },
     "sub": {
       "title": "Sub-issues",

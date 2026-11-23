@@ -1019,11 +1019,12 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
       if (e.repeat || e.defaultPrevented || isTypingTarget(e.target) || overlayOpen()) return;
       if (!(e.metaKey || e.ctrlKey) && inGoSequence()) return;
       const plain = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
-      if (plain && markAt && Date.now() - markAt < 1200) {
-        markAt = 0;
-        const page = MARK_CHORDS[e.key.toLowerCase()];
+      const chord = plain && markAt && Date.now() - markAt < 1200 ? MARK_CHORDS[e.key.toLowerCase()] : undefined;
+      markAt = 0;
+      if (chord) {
+        const page = chord;
         const targets = targetsNow();
-        if (!page || targets.length === 0) return;
+        if (targets.length === 0) return;
         const o = ref.current;
         const all = [...buildIssueActions(targets, o.data, o.handlers, o.t, o.formatDay), ...(o.extra?.(targets) ?? [])];
         if (!all.some((a) => a.id === page)) return;
@@ -1032,7 +1033,7 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
         openCommandMenu(page);
         return;
       }
-      markAt = 0;
+      // M y otra tecla que no es de relación: esa tecla hace lo suyo (S, P, A…).
       if (plain && e.key.toLowerCase() === 'm' && targetsNow().length > 0) {
         markAt = Date.now();
         e.preventDefault();

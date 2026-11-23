@@ -1623,7 +1623,8 @@
       "dupComments": "{count, plural, one {# comment} other {# comments}} on the duplicate",
       "dupAttachments": "{count, plural, one {# file} other {# files}}",
       "dupSubscribers": "{count, plural, one {# subscriber} other {# subscribers}} moved here",
-      "dupRequests": "{count, plural, one {# customer request} other {# customer requests}} moved here"
+      "dupRequests": "{count, plural, one {# customer request} other {# customer requests}} moved here",
+      "dupMergedHidden": "{user} marked an issue from another team as a duplicate of this issue"
     },
     "sub": {
       "title": "Sub-issues",

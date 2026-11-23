@@ -32,7 +32,7 @@ import { readListNav } from './trackNav';
 import { restoreCursorOnReturn } from './kbCursor';
 import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { dropUndo, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
-import { requestMarkDuplicate, requestUnmarkDuplicate } from './duplicateApi';
+import { fetchDuplicateMark, requestMarkDuplicate, requestUnmarkDuplicate, undoMarkDuplicate } from './duplicateApi';
 import type { DuplicateMarkView } from '@/lib/track-duplicates';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
@@ -398,8 +398,10 @@ export default function IssueDetailClient({
   }, [issue.id]);
 
   const refreshRelations = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/relations`).catch(() => null);
+    // La marca de duplicado va con las relaciones: borrar la relación o un cambio de otro la saca.
+    const [res, mark] = await Promise.all([fetch(`/api/track/issues/${issue.id}/relations`).catch(() => null), fetchDuplicateMark(issue.id)]);
     if (res?.ok) setRelations(((await res.json()) as { rows: TrackIssueRelationWithTarget[] }).rows);
+    if (mark !== undefined) setDupMark(mark);
   }, [issue.id]);
 
   const handleIssueChange = useCallback(async () => {
@@ -912,10 +914,13 @@ export default function IssueDetailClient({
         return;
       }
       await afterDuplicateChange(target.id, res.mark);
+      const previous = res.previousOriginalId;
       pushUndo(
         tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }),
         async () => {
-          await unmarkDuplicateRef.current(target);
+          const back = await undoMarkDuplicate(target.id, previous);
+          if (back.ok) await afterDuplicateChange(target.id, back.mark);
+          else setSaveError(tx('dup.error'));
         },
         async () => {
           const again = await requestMarkDuplicate(target.id, canonical.id);
@@ -925,8 +930,6 @@ export default function IssueDetailClient({
     },
     [afterDuplicateChange, tc, tx],
   );
-  const unmarkDuplicateRef = useRef(unmarkDuplicate);
-  unmarkDuplicateRef.current = unmarkDuplicate;
 
   const relationActions = useCallback((): CommandAction[] => {
     const search = async (q: string) => {

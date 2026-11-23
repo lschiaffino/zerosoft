@@ -642,6 +642,14 @@ export async function deleteProject(id: string): Promise<boolean> {
       'SELECT a.url FROM track_issue_attachments a JOIN track_issues i ON i.id = a.issue_id WHERE i.project_id = ?',
     )
     .all(id)) as Array<{ url: string }>;
+  // Marcas de duplicado (lib/track-duplicates) de o hacia issues del team: se van antes que los issues.
+  await db
+    .prepare(
+      `DELETE FROM track_issue_duplicates
+       WHERE issue_id IN (SELECT id FROM track_issues WHERE project_id = ?) OR original_id IN (SELECT id FROM track_issues WHERE project_id = ?)`,
+    )
+    .run(id, id)
+    .catch(() => undefined);
   const res = await db.prepare('DELETE FROM track_projects WHERE id = ?').run(id);
   if (res.changes > 0) await deleteStoredFiles(trackFiles, files.map((f) => f.url));
   if (res.changes > 0 && snapshot) notifyTrackEvent({ type: 'project.deleted', project: snapshot });

@@ -39,10 +39,16 @@ import { STATUS_CATEGORY_COLORS } from './track-color';
 
 export const DUPLICATE_STATUS_NAMES: Record<'en' | 'es' | 'pt', string> = { en: 'Duplicate', es: 'Duplicado', pt: 'Duplicado' };
 
-export type DuplicateError = 'invalid_duplicate' | 'not_found';
+export type DuplicateError = 'invalid_duplicate' | 'not_found' | 'not_in_triage' | 'busy';
 
 export type DuplicateResult =
-  | { ok: true; issue: TrackIssueWithStatus; original: TrackIssueWithStatus; moved: { subscribers: number; requests: number } }
+  | {
+      ok: true;
+      issue: TrackIssueWithStatus;
+      original: TrackIssueWithStatus;
+      previousOriginalId: string | null;
+      moved: { subscribers: number; requests: number };
+    }
   | { ok: false; reason: DuplicateError };
 
 interface MarkRow {
@@ -159,6 +165,11 @@ async function leadsBackTo(originalId: string, issueId: string): Promise<boolean
  * persona ve `issueId`; acá se valida el original: mismo workspace, visible
  * para quien mira (privados e invitados), distinto, fuera de triage y sin
  * cerrar un ciclo de duplicados.
+ *
+ * Cada paso queda anotado en la fila de la marca antes de hacerse, así una
+ * marca que se corta a mitad de camino se puede deshacer con lo que llegó a
+ * mover. `previousOriginalId`: el original de antes, si la marca cambió de
+ * original (⌘Z vuelve a ese y no a "sin marca").
  */
 export async function markIssueDuplicate(
   issueId: string,
@@ -176,15 +187,24 @@ export async function markIssueDuplicate(
   if (viewer && !(await projectVisibleTo(b.id, viewer))) return { ok: false, reason: 'invalid_duplicate' };
   if (await leadsBackTo(original.id, issue.id)) return { ok: false, reason: 'invalid_duplicate' };
 
-  const current = await getMark(issue.id);
-  if (current?.original_id === original.id) {
-    return { ok: true, issue, original, moved: { subscribers: ids(current.moved_subscribers).length, requests: ids(current.moved_requests).length } };
-  }
-  // Ya era duplicado de otro: como Linear, la marca pasa al nuevo original.
-  if (current) await unmarkIssueDuplicate(issue.id, actorId);
-
   const statusId = await ensureDuplicateStatus(issue.project_id);
   if (!statusId) return { ok: false, reason: 'invalid_duplicate' };
+
+  const current = await getMark(issue.id);
+  if (current?.original_id === original.id) {
+    // Mismo original: si se reabrió a mano, vuelve al estado Duplicate.
+    if (issue.status_id !== statusId) await updateIssue(issue.id, { statusId }, actorId, opts.via ? { via: opts.via } : {});
+    return {
+      ok: true,
+      issue: (await getIssue(issue.id)) as TrackIssueWithStatus,
+      original,
+      previousOriginalId: null,
+      moved: { subscribers: ids(current.moved_subscribers).length, requests: ids(current.moved_requests).length },
+    };
+  }
+  // Ya era duplicado de otro: como Linear, la marca pasa al nuevo original.
+  const previousOriginalId = current?.original_id ?? null;
+  if (current && !(await unmarkIssueDuplicate(issue.id, actorId))) return { ok: false, reason: 'busy' };
 
   // La fila se toma primero (PRIMARY KEY): dos marcas a la vez no mueven dos veces.
   const fresh = (await getIssue(issue.id)) as TrackIssueWithStatus;
@@ -193,32 +213,37 @@ export async function markIssueDuplicate(
       'INSERT OR IGNORE INTO track_issue_duplicates (issue_id, original_id, prev_status_id, prev_triage, created_by) VALUES (?, ?, ?, ?, ?)',
     )
     .run(issue.id, original.id, fresh.status_id, fresh.triage === 1 ? 1 : 0, actorId);
-  if (claim.changes === 0) {
-    const other = await getMark(issue.id);
-    if (other?.original_id === original.id) return { ok: true, issue: fresh, original, moved: { subscribers: 0, requests: 0 } };
-    return { ok: false, reason: 'invalid_duplicate' };
+  if (claim.changes === 0) return { ok: false, reason: 'busy' };
+  const record = (sql: string, ...args: Array<string | null>) =>
+    db.prepare(`UPDATE track_issue_duplicates SET ${sql} WHERE issue_id = ?`).run(...args, issue.id);
+
+  // Triage: se saca de la cola solo si sigue ahí (otro pudo aceptarlo recién).
+  if (fresh.triage === 1) {
+    const out = await db
+      .prepare("UPDATE track_issues SET triage = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1")
+      .run(issue.id);
+    if (out.changes === 0) {
+      await db.prepare('DELETE FROM track_issue_duplicates WHERE issue_id = ? AND summary_activity_id IS NULL').run(issue.id);
+      return { ok: false, reason: 'not_in_triage' };
+    }
   }
 
   // Relación: se reusa la que hubiera (y se recuerda su tipo) o se crea.
   const rel = (await db
     .prepare('SELECT id, type FROM track_issue_relations WHERE issue_id = ? AND related_issue_id = ?')
     .get(issue.id, original.id)) as { id: string; type: string } | undefined;
-  let relationId: string | null = rel?.id ?? null;
-  const relationPrevType = rel?.type ?? null;
-  if (rel && rel.type !== 'duplicates') {
-    await db.prepare("UPDATE track_issue_relations SET type = 'duplicates' WHERE id = ?").run(rel.id);
-  } else if (!rel) {
+  if (rel) {
+    await record('relation_id = ?, relation_prev_type = ?', rel.id, rel.type);
+    if (rel.type !== 'duplicates') await db.prepare("UPDATE track_issue_relations SET type = 'duplicates' WHERE id = ?").run(rel.id);
+  } else {
     await createIssueRelation(issue.id, actorId, original.id, 'duplicates').catch(() => undefined);
     const row = (await db
       .prepare('SELECT id FROM track_issue_relations WHERE issue_id = ? AND related_issue_id = ?')
       .get(issue.id, original.id)) as { id: string } | undefined;
-    relationId = row?.id ?? null;
+    await record('relation_id = ?, relation_prev_type = NULL', row?.id ?? null);
   }
 
-  // Estado Duplicado (sale de triage). updateIssue deja la actividad y los avisos de siempre.
-  if (fresh.triage === 1) {
-    await db.prepare("UPDATE track_issues SET triage = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(issue.id);
-  }
+  // Estado Duplicado. updateIssue deja la actividad y los avisos de siempre.
   if (fresh.status_id !== statusId) await updateIssue(issue.id, { statusId }, actorId, opts.via ? { via: opts.via } : {});
 
   // Suscriptos: los del duplicado que ven el original y no estaban (ni se dieron de baja ahí).
@@ -229,14 +254,18 @@ export async function markIssueDuplicate(
     ),
   );
   const movedSubscribers: string[] = [];
-  const now = new Date().toISOString();
   for (const uid of dupSubs) {
     if (origSubs.includes(uid) || explicit.has(uid)) continue;
-    if (!(await projectVisibleTo(original.project_id, uid))) continue;
-    const res = await db
-      .prepare('INSERT OR IGNORE INTO track_issue_subscriptions (issue_id, user_id, subscribed, created_at, updated_at) VALUES (?, ?, 1, ?, ?)')
-      .run(original.id, uid, now, now);
-    if (res.changes > 0) movedSubscribers.push(uid);
+    if (await projectVisibleTo(original.project_id, uid)) movedSubscribers.push(uid);
+  }
+  const now = new Date().toISOString();
+  if (movedSubscribers.length) {
+    await record('moved_subscribers = ?', JSON.stringify(movedSubscribers));
+    for (const uid of movedSubscribers) {
+      await db
+        .prepare('INSERT OR IGNORE INTO track_issue_subscriptions (issue_id, user_id, subscribed, created_at, updated_at) VALUES (?, ?, 1, ?, ?)')
+        .run(original.id, uid, now, now);
+    }
   }
 
   // Pedidos de clientes y resumen: solo si quien ve el original ve también el duplicado.
@@ -247,6 +276,7 @@ export async function markIssueDuplicate(
       (r) => r.id,
     );
     if (movedRequests.length) {
+      await record('moved_requests = ?', JSON.stringify(movedRequests));
       await db
         .prepare(`UPDATE track_customer_requests SET issue_id = ?, updated_at = ? WHERE issue_id = ? AND id IN (${movedRequests.map(() => '?').join(', ')})`)
         .run(original.id, now, issue.id, ...movedRequests);
@@ -258,44 +288,48 @@ export async function markIssueDuplicate(
               (SELECT COUNT(*) FROM track_issue_attachments WHERE issue_id = ?) AS attachments`,
     )
     .get(issue.id, issue.id)) as { comments: number; attachments: number };
+  // Sin permiso para copiar, el resumen no dice cuál es (ni su identificador): quien ve el original
+  // puede no ver el team del duplicado.
   const summary = await createIssueActivity(original.id, actorId, 'relation_added', {
-    relatedIssueId: issue.id,
+    relatedIssueId: canCopy ? issue.id : '',
     type: 'duplicates',
     direction: 'incoming',
     merged: true,
-    identifier: issue.identifier,
+    identifier: canCopy ? issue.identifier : '',
     title: canCopy ? issue.title : '',
     excerpt: canCopy ? duplicateExcerpt(issue.description) : '',
     comments: canCopy ? Number(counts.comments) : 0,
     attachments: canCopy ? Number(counts.attachments) : 0,
-    subscribers: movedSubscribers.length,
+    subscribers: canCopy ? movedSubscribers.length : 0,
     requests: movedRequests.length,
     ...(opts.via ? { via: opts.via.source, viaAuthor: opts.via.author ?? null } : {}),
   });
-
-  await db
-    .prepare(
-      `UPDATE track_issue_duplicates SET relation_id = ?, relation_prev_type = ?, moved_subscribers = ?, moved_requests = ?, summary_activity_id = ?
-       WHERE issue_id = ?`,
-    )
-    .run(relationId, relationPrevType, JSON.stringify(movedSubscribers), JSON.stringify(movedRequests), summary.id, issue.id);
+  await record('summary_activity_id = ?', summary.id);
 
   return {
     ok: true,
     issue: (await getIssue(issue.id)) as TrackIssueWithStatus,
     original,
+    previousOriginalId,
     moved: { subscribers: movedSubscribers.length, requests: movedRequests.length },
   };
 }
 
+/** Una marca sin terminar (summary_activity_id vacío) es de otro request en curso; pasado este tiempo, se cortó. */
+const MARK_STALE_MS = 60_000;
+
 /**
  * Deshace la marca: relación, estado (si nadie lo cambió después), triage,
  * suscriptos y pedidos movidos, y la entrada del resumen en el original.
- * Devuelve false si el issue no estaba marcado (otro ya lo deshizo).
+ * Devuelve false si el issue no estaba marcado (otro ya lo deshizo) o si la
+ * marca todavía se está haciendo en otro request.
  */
 export async function unmarkIssueDuplicate(issueId: string, actorId: string): Promise<boolean> {
   const db = getDb();
-  const mark = (await db.prepare('DELETE FROM track_issue_duplicates WHERE issue_id = ? RETURNING *').get(issueId)) as MarkRow | undefined;
+  const staleBefore = new Date(Date.now() - MARK_STALE_MS).toISOString();
+  const mark = (await db
+    .prepare('DELETE FROM track_issue_duplicates WHERE issue_id = ? AND (summary_activity_id IS NOT NULL OR created_at < ?) RETURNING *')
+    .get(issueId, staleBefore)) as MarkRow | undefined;
   if (!mark) return false;
   const issue = await getIssue(issueId);
   if (!issue) return true;
@@ -340,6 +374,11 @@ export async function unmarkIssueDuplicate(issueId: string, actorId: string): Pr
   return true;
 }
 
+/** ¿Hay una marca (terminada o en curso) para el issue? Distingue "ya no estaba" de "ocupado". */
+export async function hasDuplicateMark(issueId: string): Promise<boolean> {
+  return Boolean(await getMark(issueId));
+}
+
 export interface DuplicateMarkView {
   /** null si quien mira no ve el original (team privado o invitado). */
   original: { id: string; identifier: string; title: string; status_category: string | null; status_color: string | null } | null;
@@ -351,6 +390,8 @@ export async function getDuplicateMark(issueId: string): Promise<DuplicateMarkVi
   const mark = await getMark(issueId);
   if (!mark) return null;
   const original = await getIssue(mark.original_id);
+  // El original ya no existe (se borró su team): no hay marca que mostrar.
+  if (!original) return null;
   const viewer = await currentTrackViewer();
   const visible = original && (!viewer || (await projectVisibleTo(original.project_id, viewer)));
   return {

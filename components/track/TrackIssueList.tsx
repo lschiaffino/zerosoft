@@ -55,7 +55,7 @@ import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } fr
 import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
-import { requestMarkDuplicate, requestUnmarkDuplicate } from './duplicateApi';
+import { requestMarkDuplicate, undoMarkDuplicate } from './duplicateApi';
 import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import { useTrackLive } from './useTrackLive';
 import { useIssuePages } from './useIssuePages';
@@ -628,10 +628,11 @@ export default function TrackIssueList({
             return;
           }
           await reload();
+          const previous = res.previousOriginalId;
           pushUndo(
             tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }),
             async () => {
-              await requestUnmarkDuplicate(target.id);
+              if (!(await undoMarkDuplicate(target.id, previous)).ok) setNotice(tx('dup.error'));
               await reload();
             },
             async () => {
