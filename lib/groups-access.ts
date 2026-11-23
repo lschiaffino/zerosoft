@@ -353,9 +353,9 @@ export function maskChat<
     phone: phone ? maskField(phone) : '',
     name,
     ...(chat.match ? { match: maskPhoneText(chat.match) } : {}),
-    // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
     // Quien mandó el último mensaje de un grupo, si solo se sabe su teléfono ("+<teléfono>").
     ...(chat.lastSender ? { lastSender: maskPhoneText(chat.lastSender) } : {}),
+    // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
     ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
     // Quien escribe en un grupo, si solo se sabe su teléfono ("+<teléfono>").
     ...(chat.presence?.name ? { presence: { ...chat.presence, name: maskPhoneText(chat.presence.name) } } : {}),
