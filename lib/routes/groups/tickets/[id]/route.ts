@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { deleteTicket, getTicket, updateTicket, type TicketPatch } from '@/lib/groups-tickets';
 import type { TicketPriority, TicketStatus } from '@/lib/groups-rules';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, type GroupsSession } from '@/lib/groups-http';
-import { canSeeChat, ticketsForViewer } from '@/lib/groups-access';
+import { canSeeChat, maskTicket, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { ticketLinks } from '@/lib/groups-integrations';
 
@@ -32,7 +32,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
-  const before = await visibleTicket(s, id);
+  // Se compara y se registra contra el ticket guardado (sin máscara); la máscara es solo para la respuesta.
+  const before = (await visibleTicket(s, id)) ? await getTicket(s.ws, id) : null;
   if (!before) return groupsError(404, 'not_found');
   const b = await readJson(req);
   const patch: TicketPatch = {};
@@ -53,7 +54,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         detail: { number: after.number, ...Object.fromEntries(changed.map((k) => [k, after[k]])) },
       });
     }
-    return NextResponse.json(after);
+    return NextResponse.json(maskTicket(await sessionViewer(s), after));
   } catch (err) {
     return handleGroupsError(err);
   }
@@ -63,7 +64,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   const s = await groupsSession({ write: true });
   if (s instanceof NextResponse) return s;
   const id = (await ctx.params).id;
-  const t = await visibleTicket(s, id);
+  const t = (await visibleTicket(s, id)) ? await getTicket(s.ws, id) : null;
   if (!t || !(await deleteTicket(s.ws, id))) return groupsError(404, 'not_found');
   await recordAudit(s.ws, { chatId: t.chatId, chatName: t.chatName, actorId: s.me, action: 'ticket_deleted', detail: { number: t.number } });
   return NextResponse.json({ ok: true });
