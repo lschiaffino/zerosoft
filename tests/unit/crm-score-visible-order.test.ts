@@ -211,11 +211,21 @@ describe('score visible: otros scores, Analytics, eventos y agentes', () => {
     expect(run).toBeTruthy();
   });
 
-  it('sin reglas de score sobre campos ocultos, el orden y los filtros usan la columna guardada', async () => {
+  it('sin campos ocultos, el orden y los filtros usan la columna guardada', async () => {
     const s = await setup('vscore-norules');
     const none = await makeUser('vscore-norules-x');
     expect(scoreSqlRules(await hiddenFieldsFor({ workspaceId: none.id, personId: none.id, role: 'owner' }, 'contacts'))).toBeUndefined();
+    expect(scoreSqlRules(await hiddenFieldsFor({ workspaceId: s.ws, personId: s.ws, role: 'owner' }, 'contacts'))).toBeUndefined();
     expect(scoreSqlRules(await hiddenFieldsFor({ workspaceId: s.ws, personId: s.w.member.id, role: 'member' }, 'contacts'))).toBeDefined();
+  });
+
+  it('una regla borrada sobre un campo oculto que sigue en el desglose no ordena (hasta que se recalcula)', async () => {
+    const s = await setup('vscore-stale');
+    // Se borra la regla oculta sin recalcular (como pasa más allá del tope de recálculo): el total guardado la sigue sumando.
+    await getDb().prepare("DELETE FROM crm_score_rules WHERE user_id = ? AND name = 'Hidden flag'").run(s.ws);
+    const sorted = await listIds(member(s), 'sort=score');
+    expect(sorted.ids.indexOf(s.warm.id)).toBeLessThan(sorted.ids.indexOf(s.hot.id));
+    expect((await listIds(member(s), `filters=${filterParam('score', '20')}`)).ids).toEqual([]);
   });
 });
 

@@ -189,12 +189,13 @@ export function visibleScoreSql(scoreCol: string, breakdownCol: string, rules: V
 
 /**
  * Reglas para ordenar, filtrar, contar o reportar por score con
- * visibleScoreSql: solo si alguna regla de score es sobre un campo que la
- * persona tiene oculto (si no, la columna guardada dice lo mismo y usa su
- * índice; borrar una regla recalcula los scores). Puro.
+ * visibleScoreSql: las de quien tiene campos de contactos ocultos, las mismas
+ * con las que redactRow le muestra el total (también resta lo de reglas ya
+ * borradas que siguen en el desglose hasta que se recalcula). Sin campos
+ * ocultos, undefined: la columna guardada y su índice. Puro.
  */
 export function scoreSqlRules(hidden: HiddenFieldSet): VisibleScoreRules | undefined {
-  return hidden.hidesScoreRules ? hidden.scoreRules : undefined;
+  return hidden.size ? hidden.scoreRules : undefined;
 }
 
 function parseItems(json: string): unknown {
