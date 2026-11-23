@@ -1825,7 +1825,20 @@
         "week": "Past week",
         "none": "None"
       },
-      "showEmptyGroups": "Show empty groups"
+      "showEmptyGroups": "Show empty groups",
+      "groupReorder": "Reorder {name}",
+      "groupReorderHint": "Drag to reorder, or use the arrow keys",
+      "groupMenu": "{name} options",
+      "groupMoveUp": "Move up",
+      "groupMoveDown": "Move down",
+      "groupMoveLeft": "Move left",
+      "groupMoveRight": "Move right",
+      "groupMoveTop": "Move to top",
+      "groupMoveBottom": "Move to bottom",
+      "groupMoveStart": "Move to first",
+      "groupMoveEnd": "Move to last",
+      "groupOrderReset": "Reset order",
+      "groupsReordered": "Groups reordered"
     },
     "team": {
       "all": "All issues",

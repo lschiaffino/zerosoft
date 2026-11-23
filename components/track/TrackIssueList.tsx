@@ -15,6 +15,7 @@ import {
   ISSUE_SORTS,
   STATUS_NAME_KEY,
   TEAM_SCOPES,
+  mergeGroupOrder,
   scopeStatusIds,
   type BoardGroupBy,
   type GroupPreset,
@@ -228,6 +229,7 @@ export default function TrackIssueList({
     sort: p.sort,
     showSub: p.showSub,
     completed: p.completed,
+    groupOrder: p.groupOrder ?? {},
   });
   const applyView = useCallback(
     (base: ListPrefs, view: TrackSavedView): ListPrefs => {
@@ -340,6 +342,22 @@ export default function TrackIssueList({
   const subGroup: IssueGroupBy =
     prefs.layout === 'list' && listGroup !== 'none' && prefs.subGroup && prefs.subGroup !== listGroup && groups.includes(prefs.subGroup) ? prefs.subGroup : 'none';
   const countGroup: IssueGroupBy = prefs.layout === 'list' ? listGroup : prefs.layout === 'board' ? boardGroup : 'none';
+
+  // Orden propio de grupos y columnas (arrastrar el asa o el menú del encabezado), recordado por
+  // vista y persona y guardado con la vista; ⌘Z lo vuelve atrás.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  const setGroupOrder = useCallback(
+    (field: IssueGroupBy, keys: string[] | null) => {
+      const before = prefsRef.current.groupOrder ?? {};
+      const next = { ...before };
+      if (keys) next[field] = mergeGroupOrder(keys, before[field]);
+      else delete next[field];
+      setPrefs({ groupOrder: next });
+      pushUndo(tx('display.groupsReordered'), () => setPrefs({ groupOrder: before }), () => setPrefs({ groupOrder: next }));
+    },
+    [setPrefs, tx],
+  );
 
   const teamStatuses = team ? (projectMap[team.projectId]?.statuses ?? []) : [];
   const scopeIds = team ? scopeStatusIds(teamStatuses, teamScope, true) : null;
@@ -920,6 +938,9 @@ export default function TrackIssueList({
           editing={{ ...editing, members }}
           onQuickCreate={(title, preset) => quickCreate(title, preset as GroupPreset, defaultTeam)}
           show={prefs.props}
+          groupOrder={prefs.groupOrder?.[boardGroup]}
+          onReorderGroups={(keys) => setGroupOrder(boardGroup, keys)}
+          onResetGroupOrder={() => setGroupOrder(boardGroup, null)}
         />
       );
     }
@@ -963,6 +984,9 @@ export default function TrackIssueList({
         counts={groupCounts}
         subCounts={subCounts}
         loadMore={loadMore}
+        groupOrder={prefs.groupOrder?.[listGroup]}
+        onReorderGroups={(keys) => setGroupOrder(listGroup, keys)}
+        onResetGroupOrder={() => setGroupOrder(listGroup, null)}
       />
     );
   };

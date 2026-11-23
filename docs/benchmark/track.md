@@ -78,7 +78,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Roadmap de proyectos / initiatives | tiene | Track › Roadmap: timeline por semanas, meses o trimestres, barras arrastrables, milestones, hoy, agrupar por iniciativa (2026-10-25) |
 | Display properties (Updated, Estimate, Links, Milestone, Time in status) | tiene | (2026-11-23) Ícono y texto chico a la derecha de la fila y en la tarjeta, sin cápsulas |
 | Time in status | tiene | (2026-11-23) En el issue (actual y total por estado), propiedad, orden, filtro "más de N días" e Insights. Lo registran triggers de SQLite (app, API, MCP, bulk, importadores); los issues anteriores se reconstruyen con su actividad |
-| Reordenar grupos y columnas arrastrando | falta | (2026-11-23) |
+| Reordenar grupos y columnas arrastrando | tiene | (T4, 2026-11-23) Asa en el encabezado del grupo y de la columna (mouse o dedo, eventos de puntero), flechas con el asa enfocada, y Mover arriba/abajo/al principio/al final y Restablecer orden en el menú del grupo. Se recuerda por vista y persona, viaja con las vistas guardadas (las compartidas lo comparten) y ⌘Z lo deshace. Los sub-grupos no se reordenan |
 
 ### Colaboración y notificaciones
 

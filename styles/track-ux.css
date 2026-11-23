@@ -2410,3 +2410,119 @@ tr.is-drop-after {
 .track-activity-queued li { padding: 8px 10px; border: 1px dashed var(--line); border-radius: var(--radius-1); }
 .track-activity-queued-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .track-activity-queued-note { margin: 4px 0 0; font-size: 0.75rem; color: var(--brand-gray-2); }
+
+/* ---------- Reordenar grupos y columnas (components/track/GroupReorder) ---------- */
+
+/* Asa: visible al pasar por el encabezado o con foco; siempre con el dedo (no hay hover). */
+.track-group-grip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-height: 28px;
+  padding: 0;
+  color: var(--brand-gray-2);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-0);
+  cursor: grab;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 120ms ease;
+}
+
+.track-group-title:hover .track-group-grip,
+.track-board-header:hover .track-group-grip,
+.track-group-grip:focus-visible,
+.is-group-dragging .track-group-grip {
+  opacity: 1;
+}
+
+.track-group-grip:hover {
+  color: var(--ink);
+  background: var(--ui-hover);
+}
+
+.track-group-grip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.track-group-grip:active,
+.is-reordering,
+.is-reordering * {
+  cursor: grabbing;
+}
+
+/* El menú "…" del encabezado sigue el mismo criterio que el asa. */
+.track-group-menu {
+  flex: none;
+  color: var(--brand-gray-2);
+  opacity: 0;
+}
+
+.track-group-title:hover .track-group-menu,
+.track-board-header:hover .track-group-menu,
+.track-group-menu:focus-visible,
+.track-group-menu[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.track-groups .track-group-title {
+  padding-left: 0;
+}
+
+.track-board-header {
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.track-board-header .track-board-count {
+  margin-left: auto;
+}
+
+/* Arrastrando: el grupo que se mueve queda tenue y una línea marca dónde cae. */
+.track-mytasks-group.is-group-dragging,
+.track-board-column.is-group-dragging {
+  opacity: 0.45;
+}
+
+.track-mytasks-group.is-group-drop-before {
+  box-shadow: inset 0 2px 0 var(--ink);
+}
+
+.track-mytasks-group.is-group-drop-after {
+  box-shadow: inset 0 -2px 0 var(--ink);
+}
+
+.track-board-column.is-group-drop-before {
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.track-board-column.is-group-drop-after {
+  box-shadow: inset -2px 0 0 var(--ink);
+}
+
+.is-reordering {
+  user-select: none;
+}
+
+@media (pointer: coarse) {
+  .track-group-grip,
+  .track-group-menu {
+    opacity: 1;
+  }
+
+  button.track-group-grip {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-group-grip {
+    transition: none;
+  }
+}
