@@ -133,6 +133,19 @@
 .tl-item.atl-card:last-child { padding-bottom: 10px; }
 .tl-item.atl-card.tl-pinned { background: var(--bg-soft); }
 .atl-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+/* Cambio del sistema (lifecycle automático): una línea sin borde, más baja que una actividad. */
+.tl-item.atl-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 0;
+  padding: 4px 12px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--dim);
+}
+.atl-change .atl-icon { width: 20px; height: 20px; border-style: dashed; color: var(--dim); }
+.atl-change-text { flex: 1 1 auto; min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--ink); }
 .atl-icon {
   flex: none;
   display: inline-flex;

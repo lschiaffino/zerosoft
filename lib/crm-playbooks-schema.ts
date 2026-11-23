@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES } from './crm-constants';
+import { optionPropertyOf } from './crm-property-options-shared';
 
 export const PLAYBOOK_ENTITIES = ['contact', 'company', 'deal'] as const;
 export type PlaybookEntity = (typeof PLAYBOOK_ENTITIES)[number];
@@ -190,7 +191,8 @@ export function propertyPatch(
       continue;
     }
     const allowed = ENUM_PROPERTIES[q.property];
-    if (allowed && !allowed.includes(value)) continue;
+    // Lifecycle y lead status tienen las opciones del workspace: las chequea el guardado (lib/crm-property-options.ts).
+    if (allowed && !optionPropertyOf(key) && !allowed.includes(value)) continue;
     if (PROPERTY_TYPES[q.property] === 'number') {
       const n = Number(value);
       if (!Number.isFinite(n) || n < 0) continue;

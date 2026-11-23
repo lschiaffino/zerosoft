@@ -102,6 +102,13 @@ export interface OutboundCtx {
   fields: PlanField[];
   /** Definición de las propiedades de HubSpot de este objeto. */
   defs: PropDefs;
+  /**
+   * Nombre de las opciones propias del workspace (C2), por propiedad: una
+   * opción que no es de fábrica sale con su nombre, y HubSpot la acepta si
+   * tiene una con ese nombre (fitProperty compara por nombre); si no, ese campo
+   * no se manda (value_not_accepted) y el resto del registro sí.
+   */
+  optionLabels?: { lifecycle?: Record<string, string>; leadStatus?: Record<string, string> };
 }
 
 /** Personas → dueños de HubSpot, invirtiendo el plan de la entrada (el primer dueño de cada persona: los activos van primero). */
@@ -208,8 +215,8 @@ export function toHubspot(object: SyncObject, field: string, value: string, ctx:
     if (def.readOnly) return { ok: false, code: 'read_only' };
     return { ok: true, props: { [prop]: raw } };
   }
-  if (field === 'lifecycle_stage') raw = value ? (LIFECYCLE_OUT[value] ?? value) : '';
-  else if (field === 'lead_status') raw = value.toUpperCase();
+  if (field === 'lifecycle_stage') raw = value ? (LIFECYCLE_OUT[value] ?? ctx.optionLabels?.lifecycle?.[value] ?? value) : '';
+  else if (field === 'lead_status') raw = ctx.optionLabels?.leadStatus?.[value] ?? value.toUpperCase();
   const fit = fitProperty(ctx.defs[prop], raw);
   return fit.ok ? { ok: true, props: { [prop]: fit.value } } : fit;
 }

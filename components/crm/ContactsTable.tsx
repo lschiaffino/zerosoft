@@ -19,6 +19,7 @@ import BulkActionsBar from './BulkActionsBar';
 import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { OwnerCell } from './TableExtraColumns';
+import { useCrmOptions } from './CrmViewer';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export interface ContactRow {
@@ -61,8 +62,6 @@ interface ContactsTableProps {
   rows: ContactRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
-  lifecycles: string[];
-  leadStatuses: string[];
   sources: string[];
   sort: string;
   companies?: Option[];
@@ -104,8 +103,6 @@ const COLS = [
 /** Tabla de contactos con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
 export default function ContactsTable({ viewCols, viewFreeze,
   rows,
-  lifecycles,
-  leadStatuses,
   sources,
   sort,
   companies = [],
@@ -121,6 +118,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
   total = 0,
 }: ContactsTableProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const columnDefs = [
     ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
@@ -166,8 +164,6 @@ export default function ContactsTable({ viewCols, viewFreeze,
     setBulkNotice(null);
   }
 
-  const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
-  const leadStatusOpts = leadStatuses.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) }));
   const sourceOpts = sources.map((v) => ({ value: v, label: t(`enums.source.${v}`) }));
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
@@ -268,7 +264,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
               field="lifecycleStage"
               value={row.lifecycle}
               type="select"
-              options={lifecycleOpts}
+              options={crmOpts.choices('lifecycle', row.lifecycle)}
               className={`dot-label stage-${row.lifecycle}`}
             />
           </td>
@@ -281,7 +277,7 @@ export default function ContactsTable({ viewCols, viewFreeze,
               field="leadStatus"
               value={row.leadStatus}
               type="select"
-              options={leadStatusOpts}
+              options={crmOpts.choices('leadStatus', row.leadStatus)}
               className="dot-label"
             />
           </td>

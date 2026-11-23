@@ -11,6 +11,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import type { EmailThreadView } from '@/lib/crm-email';
 import EmailThread from './EmailThread';
 import CrmIcon, { type CrmIconName } from './CrmIcon';
+import { useCrmOptions } from './CrmViewer';
 import FilesPanel, { type FileItem } from './FilesPanel';
 import CallDetails from './CallDetails';
 import type { CallView } from '@/lib/crm-voice';
@@ -41,7 +42,7 @@ export type TimelineRecordType = 'contact' | 'company' | 'deal' | 'lead' | 'obje
 
 export interface TimelineItem {
   id: string;
-  type: 'note' | 'task' | 'call' | 'meeting' | 'email' | 'whatsapp';
+  type: 'note' | 'task' | 'call' | 'meeting' | 'email' | 'whatsapp' | 'change';
   /** Tarea de llamada o email (077). */
   task_kind?: '' | 'call' | 'email';
   subject: string;
@@ -83,6 +84,8 @@ export interface TimelineItem {
   author_name?: string | null;
   /** Chat de Lines vinculado (lib/crm-timeline.ts listRecordChats). */
   wa?: { chatId: string; group: boolean; messages: Array<{ id: string; at: string; out: boolean; who: string; text: string }> };
+  /** Cambio automático de lifecycle (lib/crm-timeline.ts listSystemChanges): una línea, sin acciones. */
+  change?: { field: 'lifecycle_stage'; from: string; to: string; reason: string };
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -223,6 +226,7 @@ export default function Timeline({
 }: TimelineProps) {
   const t = useTranslations('crm');
   const tl = useTranslations('crm.timeline');
+  const crmOpts = useCrmOptions();
   const router = useRouter();
   const mounted = useMounted();
   const canEmail = recordType !== 'lead' && recordType !== 'objectRecord';
@@ -1120,7 +1124,31 @@ export default function Timeline({
     );
   }
 
+  /** Cambio del sistema: una línea ("Lifecycle stage pasó a Opportunity automáticamente · deal creado"). */
+  function renderChange(item: TimelineItem & { change: NonNullable<TimelineItem['change']> }) {
+    const c = item.change;
+    const reason = t.has(`propertyOptions.reasons.${c.reason}`) ? t(`propertyOptions.reasons.${c.reason}`) : '';
+    return (
+      <article key={item.id} className="tl-item atl-change" data-testid="crm-timeline-change" data-type="change">
+        <span className="atl-icon" data-type="change" aria-hidden>
+          <CrmIcon name="chevronRight" />
+        </span>
+        <p className="atl-change-text">
+          {t('propertyOptions.changedTo', {
+            from: crmOpts.label('lifecycle', c.from) || '—',
+            to: crmOpts.label('lifecycle', c.to) || '—',
+          })}
+          {reason ? <span className="muted"> · {reason}</span> : null}
+        </p>
+        <time className="tl-date atl-when" dateTime={item.created_at} title={mounted ? formatWhen(item.created_at, locale) : undefined}>
+          <LocalText>{mounted ? relativeTime(parseDbUtc(item.created_at), now, locale) : formatWhen(item.created_at, locale)}</LocalText>
+        </time>
+      </article>
+    );
+  }
+
   function renderItem(item: TimelineItem) {
+    if (item.type === 'change' && item.change) return renderChange(item as TimelineItem & { change: NonNullable<TimelineItem['change']> });
     const open = isOpen(item.id);
     const date = item.due_at ?? item.created_at;
     const preview = item.chat_private ? item.subject : item.subject || item.body.split('\n')[0] || item.wa?.messages[item.wa.messages.length - 1]?.text || '';

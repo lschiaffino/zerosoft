@@ -10,8 +10,6 @@ import { workspaceTeamId } from '@/lib/workspace';
 import { sessionScope } from '@/lib/crm-visibility';
 import {
   ACTIVITY_DATE_SORTS,
-  LEAD_STATUSES,
-  LIFECYCLE_STAGES,
   SOURCES,
   listCompanies,
   listContacts,
@@ -19,6 +17,7 @@ import {
   type ContactFilter,
 } from '@/lib/crm';
 import { listMembers } from '@/lib/teams';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import { formatDate } from '@/lib/utils';
 import ContactsFilters, { type ContactSort } from '@/components/crm/ContactsFilters';
 import ContactsTable, { type ContactRow } from '@/components/crm/ContactsTable';
@@ -89,6 +88,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   for (const p of [scopeP, fieldAccessP, tagsP, scoresP, companiesP, membersP, sequencesP, listsP]) p?.catch(() => {});
   const scope = await scopeP;
   const t = await getTranslations({ locale, namespace: 'crm' });
+  const crmOpts = await optionHelpersFor(user.id, t);
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
   const fieldAccess = await fieldAccessP;
@@ -141,8 +141,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     tags: allTags.map((x) => ({ value: x.id, label: x.name })),
     customDefs: customFieldDefs,
     companies,
-    lifecycles: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
-    leadStatuses: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+    lifecycles: crmOpts.all('lifecycle'),
+    leadStatuses: crmOpts.all('leadStatus'),
     sources: SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) })),
     scores: [
       { key: 'score', label: primaryScore?.name ?? t('scoring.column') },
@@ -232,13 +232,13 @@ export default async function ContactsPage(props: ContactsPageProps) {
       key: 'lifecycleStage',
       label: t('contacts.form.lifecycle'),
       type: 'select',
-      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+      options: crmOpts.choices('lifecycle'),
     },
     {
       key: 'leadStatus',
       label: t('contacts.form.leadStatus'),
       type: 'select',
-      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+      options: crmOpts.choices('leadStatus'),
     },
     {
       key: 'source',
@@ -342,8 +342,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
         custom={custom}
         advanced={filtersParam || undefined}
         sort={sort}
-        lifecycles={[...LIFECYCLE_STAGES]}
-        leadStatuses={[...LEAD_STATUSES]}
         sources={[...SOURCES]}
         owners={owners}
         customFields={customFields}
@@ -387,8 +385,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
             viewCols={state.cols}
             viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
-            lifecycles={[...LIFECYCLE_STAGES]}
-            leadStatuses={[...LEAD_STATUSES]}
             sources={[...SOURCES]}
             sort={sort}
             companies={companies}

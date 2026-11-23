@@ -3128,7 +3128,9 @@
     "description": "HubSpot: Eight default lifecycle stages (Subscriber, Lead, Marketing qualified lead, Sales qualified lead, Opportunity, Customer, Evangelist, Other); admins can add and edit stages (https://knowledge.hubspot.com/records/use-lifecycle-stages). Today: lib/crm-constants.ts:5-13 LIFECYCLE_STAGES is a const list. HubSpot moves the contact and company to Opportunity and Customer automatically; without it lifecycle reports go stale after the migration. First scope: add the Other stage, let admins add and rename stages, and a setting (on by default) that sets Opportunity on deal create and Customer on deal won, never moving a record backwards. Also covers the parity rows lifecycle-auto-sync.",
     "product": "crm",
     "kind": "idea",
-    "parity": "lifecycle-stages-editable"
+    "parity": "lifecycle-stages-editable",
+    "status": "done",
+    "changelog": "2026-11-23-0600-crm-lifecycle-options"
   },
   {
     "title": "CRM: Let admins edit the options of lead status, source, priority, industry and deal type",

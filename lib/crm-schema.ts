@@ -10,8 +10,6 @@ import { CALL_CHANNELS, MAX_CALL_OUTCOMES } from './crm-calls';
 import {
   ACTIVITY_TYPES,
   DEAL_TYPES,
-  LIFECYCLE_STAGES,
-  LEAD_STATUSES,
   PRIORITIES,
   RECURRING_INTERVALS,
   SOURCES,
@@ -20,6 +18,7 @@ import {
   TASK_KINDS,
 } from './crm-constants';
 import { TASK_REPEATS } from './crm-task-repeat';
+import { MAX_OPTION_LABEL, OPTION_PROPERTIES, OPTION_VALUE_RE } from './crm-property-options-shared';
 import { TASK_PRIORITIES } from './tasks-shared';
 
 // ---------- Primitivas compartidas ----------
@@ -68,8 +67,13 @@ const isoDate = z
     return d.toISOString().slice(0, 19).replace('T', ' ');
   });
 
-const lifecycleStage = z.enum(LIFECYCLE_STAGES);
-const leadStatus = z.enum(LEAD_STATUSES);
+/**
+ * Lifecycle y lead status: claves de opción (las de fábrica, LIFECYCLE_STAGES
+ * y LEAD_STATUSES, o las propias del workspace). Que sea una opción activa del
+ * workspace lo chequea lib/crm-property-options.ts al guardar.
+ */
+const lifecycleStage = z.string().trim().toLowerCase().regex(OPTION_VALUE_RE);
+const leadStatus = z.string().trim().toLowerCase().regex(OPTION_VALUE_RE);
 const source = z.enum(SOURCES);
 const priority = z.enum(PRIORITIES);
 /** Tipo de deal: '' lo deja sin elegir. */
@@ -424,6 +428,8 @@ export const crmSettingsSchema = z.object({
   callOutcomes: z.array(z.string().max(200)).max(MAX_CALL_OUTCOMES).nullable().optional(),
   /** Resultados de WhatsApp, con las mismas reglas. */
   whatsappOutcomes: z.array(z.string().max(200)).max(MAX_CALL_OUTCOMES).nullable().optional(),
+  /** Lifecycle automático con los deals (Opportunity al crear, Customer al ganar). */
+  lifecycleAuto: z.boolean().optional(),
 });
 
 export const exchangeRateSchema = z.object({
@@ -515,8 +521,9 @@ export const importContactRowSchema = z.object({
   website: shortText.optional(),
   city: shortText.optional(),
   country: shortText.optional(),
-  lifecycleStage: lifecycleStage.optional(),
-  leadStatus: leadStatus.optional(),
+  /** Clave o nombre de una opción del workspace (lib/crm-import.ts la resuelve; una desconocida se ignora). */
+  lifecycleStage: z.string().trim().max(80).optional(),
+  leadStatus: z.string().trim().max(80).optional(),
   source: source.optional(),
   /** Email (o nombre) de una persona del workspace. */
   ownerEmail: shortText.optional(),
@@ -534,7 +541,7 @@ export const importCompanyRowSchema = z.object({
   website: shortText.optional(),
   city: shortText.optional(),
   country: shortText.optional(),
-  lifecycleStage: lifecycleStage.optional(),
+  lifecycleStage: z.string().trim().max(80).optional(),
   ownerEmail: shortText.optional(),
   /** Empresa madre (solo si ya existe). */
   parentCompanyName: shortText.optional(),
@@ -700,3 +707,21 @@ export const fieldPermissionsSchema = z.object({
     )
     .max(50),
 });
+
+// ---------- Opciones de Lifecycle y Lead status (C2) ----------
+
+const optionProperty = z.enum(OPTION_PROPERTIES);
+const optionValue = z.string().regex(OPTION_VALUE_RE);
+
+/** Ajustes › Datos › Opciones: agregar, renombrar, archivar o restaurar y ordenar. */
+export const propertyOptionsSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('add'), property: optionProperty, label: z.string().trim().min(1).max(MAX_OPTION_LABEL) }),
+  z.object({
+    action: z.literal('update'),
+    property: optionProperty,
+    value: optionValue,
+    label: z.string().trim().max(MAX_OPTION_LABEL).optional(),
+    archived: z.boolean().optional(),
+  }),
+  z.object({ action: z.literal('reorder'), property: optionProperty, values: z.array(optionValue).min(1).max(100) }),
+]);

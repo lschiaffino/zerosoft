@@ -15,6 +15,7 @@
  */
 import { coerceCustomFieldValue } from './crm-custom-fields';
 import { CrmRefError } from './crm-refs';
+import { isAllowedOption, listOptionSets, matchOption, type OptionProperty, type OptionSets } from './crm-property-options';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 import { assertUniqueCustom, CrmUniqueValueError } from './crm-unique';
 import { setParentCompany } from './crm-assoc';
@@ -68,6 +69,21 @@ async function catchUnique<T>(p: Promise<T>): Promise<T | CrmUniqueValueError> {
     if (e instanceof CrmUniqueValueError) return e;
     throw e;
   }
+}
+
+/**
+ * Lifecycle o lead status de una fila → una opción activa del workspace (por
+ * clave, por el mapeo de HubSpot o por nombre). Una desconocida o archivada se
+ * deja afuera con un aviso: la fila se importa igual.
+ */
+function rowOption(sets: OptionSets, prop: OptionProperty, raw: string | undefined, rowNo: number, errors: string[]): string | undefined {
+  const v = (raw ?? '').trim();
+  if (!v) return undefined;
+  const field = prop === 'lifecycle' ? 'lifecycleStage' : 'leadStatus';
+  const hit = matchOption(sets[prop], normalizeImportValue(field, v)) ?? matchOption(sets[prop], v);
+  if (hit && isAllowedOption(sets[prop], hit)) return hit;
+  errors.push(`Row ${rowNo}: ${prop === 'lifecycle' ? 'lifecycle stage' : 'lead status'} "${v.slice(0, 60)}" is not an active option, left out`);
+  return undefined;
 }
 
 /** Sin el valor ni el registro que lo tiene: solo el campo (puede ser de alguien que no ve). */
@@ -508,6 +524,7 @@ export async function importContacts(
   const result = emptyResult(rows.length);
   const people = await workspacePeople(userId, getDb());
   const defs = await listCustomFields(userId, 'contacts');
+  const optionSets = await listOptionSets(userId);
   const unowned: string[] = [];
   await ensureMigrated();
   const tx = await getClient().transaction();
@@ -535,6 +552,8 @@ export async function importContacts(
       }
       const ownerId = resolveOwner(people, ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, rawCustom, rowNo, result.errors);
+      row.lifecycleStage = rowOption(optionSets, 'lifecycle', row.lifecycleStage, rowNo, result.errors);
+      row.leadStatus = rowOption(optionSets, 'leadStatus', row.leadStatus, rowNo, result.errors);
       // Valor único repetido: la fila se saltea antes de crear su empresa.
       const taken = await catchUnique(assertUniqueCustom(userId, 'contacts', existing?.id ?? null, customVals, {}, tdb));
       if (taken instanceof CrmUniqueValueError) {
@@ -600,6 +619,7 @@ export async function importCompanies(
   const result = emptyResult(rows.length);
   const people = await workspacePeople(userId, getDb());
   const defs = await listCustomFields(userId, 'companies');
+  const optionSets = await listOptionSets(userId);
   const parents: Array<{ id: string; rowNo: number; name?: string; domain?: string }> = [];
   await ensureMigrated();
   const tx = await getClient().transaction();
@@ -627,6 +647,7 @@ export async function importCompanies(
       }
       const ownerId = resolveOwner(people, ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, rawCustom, rowNo, result.errors);
+      row.lifecycleStage = rowOption(optionSets, 'lifecycle', row.lifecycleStage, rowNo, result.errors);
       const data = { ...row, domain, ...(ownerId ? { ownerId } : {}) };
       let id: string;
       if (existing) {
