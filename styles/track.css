@@ -1191,7 +1191,7 @@ dialog.ui-drawer.track-drawer {
 
   /* Lista angosta: las acciones de la fila se superponen a la hora al pasar, sin robar ancho. */
   /* Sin transform: un transform haría de los menús fijos (Posponer) hijos de la fila y se correrían. */
-  .track-inbox-split .track-inbox-actions {
+  .track-inbox-split .track-inbox-item:not(.is-snoozed) .track-inbox-actions {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -1201,30 +1201,21 @@ dialog.ui-drawer.track-drawer {
     background: inherit;
   }
 
-  .track-inbox-split .track-inbox-item:hover .track-inbox-actions,
-  .track-inbox-split .track-inbox-item.is-kb-active .track-inbox-actions,
-  .track-inbox-split .track-inbox-item:focus-within .track-inbox-actions {
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):hover .track-inbox-actions,
+  .track-inbox-split .track-inbox-item.is-kb-active:not(.is-snoozed) .track-inbox-actions,
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):focus-within .track-inbox-actions {
     background: var(--ui-selected);
   }
 
-  .track-inbox-split .track-inbox-item:not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
     pointer-events: none;
   }
 
-  /* Pospuestos: "Traer de vuelta" siempre a la vista, en su columna (no tapa la hora). */
-  .track-inbox-split .track-inbox-item:has(.track-inbox-unsnooze) {
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
-  }
-
-  .track-inbox-split .track-inbox-item:has(.track-inbox-unsnooze) .track-inbox-actions {
-    position: static;
-    pointer-events: auto;
-    background: none;
-  }
-
-  .track-inbox-split .track-inbox-item {
+  .track-inbox-split .track-inbox-item:not(.is-snoozed) {
     grid-template-columns: 28px minmax(0, 1fr) auto;
   }
+
+  /* Pospuestos: "Traer de vuelta" siempre a la vista, en su propia columna (no tapa la hora). */
 
   /* El issue en el panel: la sticky de la columna de propiedades no aplica dentro del scroll. */
   .track-inbox-pane .track-issue-page .track-detail-side {

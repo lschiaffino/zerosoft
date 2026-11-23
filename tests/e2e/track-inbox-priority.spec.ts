@@ -154,16 +154,17 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
     if (route.request().method() === 'PATCH') await new Promise((r) => setTimeout(r, 400));
     await route.continue();
   });
-  let saved = 0;
-  page.on('response', (r) => {
-    if (r.request().method() === 'PATCH' && r.url().includes(`/api/notifications/${s.assigned}`)) saved += 1;
-  });
+  const patched = (r: { request(): { method(): string }; url(): string }) =>
+    r.request().method() === 'PATCH' && r.url().includes(`/api/notifications/${s.assigned}`);
   await row(page, s.assigned).locator('.track-inbox-link').focus();
+  const first = page.waitForResponse(patched);
   await page.keyboard.press('u');
   await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'true');
   await page.keyboard.press('u');
   await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
-  await expect.poll(() => saved).toBe(2);
+  await first;
+  // El segundo pedido sale cuando termina el primero (en fila).
+  await page.waitForResponse(patched);
   await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
   await page.unroute('**/api/notifications/*');
 

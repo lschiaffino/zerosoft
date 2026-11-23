@@ -728,7 +728,7 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     return (
       <li
         key={n.id}
-        className={`track-inbox-item${unread ? ' is-unread' : ''}${isActive ? ' is-kb-active' : ''}${openNote === n.id ? ' is-open' : ''}`}
+        className={`track-inbox-item${unread ? ' is-unread' : ''}${isActive ? ' is-kb-active' : ''}${openNote === n.id ? ' is-open' : ''}${tab === 'snoozed' ? ' is-snoozed' : ''}`}
         aria-current={openNote === n.id ? 'true' : undefined}
         data-testid="track-inbox-item"
         data-id={n.id}
