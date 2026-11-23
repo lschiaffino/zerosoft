@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
+import HeaderCell from './ColumnHeader';
 import TableScroll from './TableScroll';
 import SelectAllMatching, { useListQuery, type MatchingSelection } from './SelectAllMatching';
 import RecordNameCell from './RecordNameCell';
@@ -11,7 +11,7 @@ import { customSortValue } from '@/lib/crm-list-sort';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
-import { EditColumnsInBar, useTableColumns } from './EditColumns';
+import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import { PreviewNav, useListNav } from './RecordNav';
 import { useCrmLive } from './useCrmLive';
@@ -66,9 +66,6 @@ interface Option {
 }
 
 interface DealsTableProps {
-  /** Columnas en orden (`cols` de la URL o de la vista activa) y si la primera queda fija. */
-  viewCols?: string;
-  viewFreeze?: boolean;
   rows: DealRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
@@ -89,25 +86,8 @@ interface DealsTableProps {
   total?: number;
 }
 
-const COLS = [
-  { id: 'name', labelKey: 'deals.table.name', defaultVisible: true },
-  { id: 'amount', labelKey: 'deals.table.amount', defaultVisible: true },
-  { id: 'stage', labelKey: 'deals.table.stage', defaultVisible: true },
-  { id: 'priority', labelKey: 'deals.table.priority', defaultVisible: true },
-  { id: 'source', labelKey: 'deals.table.source', defaultVisible: false },
-  { id: 'closeDate', labelKey: 'deals.table.closeDate', defaultVisible: true },
-  { id: 'age', labelKey: 'deals.table.age', defaultVisible: false },
-  { id: 'contacts', labelKey: 'deals.table.contacts', defaultVisible: false },
-  { id: 'company', labelKey: 'deals.detail.company', defaultVisible: true },
-  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
-  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
-  { id: 'created', labelKey: 'deals.table.created', defaultVisible: true },
-  { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
-  { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
-  { id: 'nextActivity', labelKey: 'activityDates.nextActivity', defaultVisible: false },
-];
 
-export default function DealsTable({ viewCols, viewFreeze,
+export default function DealsTable({
   rows,
   sort,
   stages,
@@ -157,12 +137,10 @@ export default function DealsTable({ viewCols, viewFreeze,
     });
     setBulkNotice(null);
   }
-  const columnDefs = [
-    ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
-    ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
-  ];
-  const cols = useTableColumns({ entity: 'deals', columns: columnDefs, storageKey: 'zs-deals-columns', first: 'name', viewCols, viewFreeze });
+  // Orden, columna fija y anchos: los de la página (TableColumnsProvider), los mismos que "Editar columnas".
+  const cols = useIndexColumns()!;
   const order = cols.order;
+  const sized = sizedTable(cols);
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
   // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
@@ -313,15 +291,6 @@ export default function DealsTable({ viewCols, viewFreeze,
 
   return (
     <>
-      <EditColumnsInBar
-        columns={columnDefs}
-        first="name"
-        order={cols.order}
-        freeze={cols.freeze}
-        onApply={cols.apply}
-        onReset={cols.reset}
-      />
-
       {allSelected && (
         <SelectAllMatching
           entity="deals"
@@ -336,9 +305,9 @@ export default function DealsTable({ viewCols, viewFreeze,
         />
       )}
 
-      <ColumnMenuContext.Provider value={{ order: cols.order, first: 'name', freeze: cols.freeze, apply: cols.apply }}>
       <TableScroll>
-        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
+        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}${sized.className}`} style={sized.style}>
+          <IndexColGroup cols={cols} />
           <thead>
             <tr>
               <th className="cell-check" data-card="check">
@@ -375,7 +344,6 @@ export default function DealsTable({ viewCols, viewFreeze,
           </tbody>
         </table>
       </TableScroll>
-      </ColumnMenuContext.Provider>
 
       {selected.size > 0 && (
         <BulkActionsBar

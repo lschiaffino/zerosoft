@@ -1619,7 +1619,14 @@
       "subissueRemoved": "{user} sacó el sub-issue",
       "autoClosedSubs": "Track cerró este issue porque todos sus sub-issues están terminados",
       "autoClosedParent": "Track cerró este issue porque se cerró su padre",
-      "savedOffline": "Guardado en este dispositivo. Se publica al volver la conexión."
+      "savedOffline": "Guardado en este dispositivo. Se publica al volver la conexión.",
+      "dupMergedBefore": "{user} marcó",
+      "dupMergedAfter": "como duplicado de este issue",
+      "dupComments": "{count, plural, one {# comentario} other {# comentarios}} en el duplicado",
+      "dupAttachments": "{count, plural, one {# archivo} other {# archivos}}",
+      "dupSubscribers": "{count, plural, one {# suscripto pasó} other {# suscriptos pasaron}} acá",
+      "dupRequests": "{count, plural, one {# pedido de cliente pasó} other {# pedidos de clientes pasaron}} acá",
+      "dupMergedHidden": "{user} marcó un issue de otro team como duplicado de este issue"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1827,7 +1834,20 @@
         "week": "Última semana",
         "none": "Ninguno"
       },
-      "showEmptyGroups": "Mostrar grupos vacíos"
+      "showEmptyGroups": "Mostrar grupos vacíos",
+      "groupReorder": "Reordenar {name}",
+      "groupReorderHint": "Arrastrá para reordenar, o usá las flechas",
+      "groupMenu": "Opciones de {name}",
+      "groupMoveUp": "Mover arriba",
+      "groupMoveDown": "Mover abajo",
+      "groupMoveLeft": "Mover a la izquierda",
+      "groupMoveRight": "Mover a la derecha",
+      "groupMoveTop": "Mover al principio",
+      "groupMoveBottom": "Mover al final",
+      "groupMoveStart": "Mover a la primera",
+      "groupMoveEnd": "Mover a la última",
+      "groupOrderReset": "Restablecer orden",
+      "groupsReordered": "Grupos reordenados"
     },
     "team": {
       "all": "Todos los issues",
@@ -1882,6 +1902,13 @@
       "remove": "Sacar de favoritos",
       "added": "Agregado a favoritos",
       "removed": "Sacado de favoritos"
+    },
+    "dup": {
+      "of": "Duplicado de",
+      "hidden": "Duplicado de un issue que no podés ver",
+      "unmark": "Quitar duplicado",
+      "unmarked": "{id} ya no es un duplicado",
+      "error": "No se pudo cambiar el duplicado. Probá de nuevo."
     }
   },
   "teamSettings": {
