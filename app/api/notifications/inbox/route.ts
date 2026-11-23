@@ -4,7 +4,7 @@ import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { unauthorized } from '@/lib/track-http';
 import { noStore } from '@/lib/no-store';
 import { listInboxNotifications } from '@/lib/notification-inbox';
-import { parseInboxFilter } from '@/lib/notification-inbox-filter';
+import { INBOX_TABS, parseInboxFilter, type InboxTab } from '@/lib/notification-inbox-filter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 /**
  * Bandeja de Track con filtros: ?read=unread|read, kind, project, team, from
  * (varios), order=newest|oldest, group=none|kind|project|team, la pestaña
- * (type varios, snoozed=1) y la página. Devuelve las filas, si hay más y las
+ * (tab=priority|other, snoozed=1; type varios para filtrar por tipo) y la
+ * página. Devuelve también los sin leer de cada pestaña (counts). Devuelve las filas, si hay más y las
  * opciones de cada filtro con su cantidad.
  */
 async function getPrivate(req: NextRequest) {
@@ -22,6 +23,7 @@ async function getPrivate(req: NextRequest) {
   const result = await listInboxNotifications(realUserId(user), {
     filter: parseInboxFilter(sp),
     types: sp.getAll('type').filter(Boolean).slice(0, 20),
+    tab: (INBOX_TABS as readonly string[]).includes(sp.get('tab') ?? '') ? (sp.get('tab') as InboxTab) : undefined,
     snoozed: sp.get('snoozed') === '1',
     page: Number(sp.get('page') ?? '1') || 1,
     limit: Number(sp.get('limit') ?? '25') || 25,

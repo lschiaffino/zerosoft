@@ -15,15 +15,10 @@ export default async function TrackInboxPage(props: { params: Promise<{ locale: 
         locale={locale}
         labels={{
           title: t('inbox.title'),
-          all: t('inbox.all'),
-          mentions: t('inbox.mentions'),
-          assigned: t('inbox.assigned'),
-          updates: t('inbox.updates'),
           empty: t('inbox.empty'),
           emptyBody: t('inbox.emptyBody'),
           markAllRead: t('inbox.markAllRead'),
           loadMore: t('inbox.loadMore'),
-          markRead: t('notifications.markRead'),
           unread: t('inbox.unread'),
           loading: t('common.loading'),
           loadError: t('inbox.loadError'),

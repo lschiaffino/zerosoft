@@ -845,44 +845,112 @@ dialog.ui-drawer.track-drawer {
   padding: 0;
 }
 
+/* Fila como la Priority inbox de Linear: avatar con el ícono de la acción, título y una línea
+   gris que dice por qué llegó; status y hora a la derecha; acciones al pasar o con el foco. */
 .track-inbox-item {
+  position: relative;
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto auto minmax(110px, auto);
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 4px 0;
+  column-gap: 12px;
+  min-height: 56px;
+  padding: 6px 8px;
+  margin-inline: -8px;
   border-bottom: 1px solid var(--line);
 }
 
+.track-inbox-item:hover,
+.track-inbox-item.is-kb-active {
+  background: var(--ui-hover);
+}
+
+.track-inbox-item.is-kb-active {
+  background: var(--ui-selected);
+}
+
+.track-inbox-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: var(--ui-hover);
+  border-radius: var(--radius-1);
+}
+
+/* Las iniciales arriba a la izquierda: el ícono de la acción ocupa la esquina de abajo. */
+.track-inbox-avatar:not(.is-system) {
+  box-sizing: border-box;
+  padding: 0 4px 5px 0;
+}
+
+.track-inbox-avatar.is-system {
+  color: var(--brand-gray-1);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* El ícono de la acción, abajo a la derecha del avatar (asignó, mencionó, comentó…). */
+.track-inbox-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  color: var(--ink);
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-inbox-item:hover .track-inbox-badge,
+.track-inbox-item.is-kb-active .track-inbox-badge {
+  background: var(--bg);
+}
+
 .track-inbox-mark {
-  width: 8px;
-  height: 8px;
+  flex: none;
+  width: 6px;
+  height: 6px;
   background: var(--accent);
   border-radius: 0;
 }
 
-.track-inbox-mark.is-read {
-  background: transparent;
-}
-
 .track-inbox-link {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
   min-width: 0;
+  min-height: 44px;
   color: var(--brand-gray-1);
   text-decoration: none;
 }
 
-.track-inbox-item.is-unread .track-inbox-link {
-  color: var(--ink);
-  font-weight: 600;
+.track-inbox-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
-.track-inbox-link:hover .track-inbox-text {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.track-inbox-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-inbox-id {
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
 }
 
 .track-inbox-text {
@@ -892,40 +960,103 @@ dialog.ui-drawer.track-drawer {
   white-space: nowrap;
 }
 
-.track-inbox-link:has(.track-inbox-body) {
-  flex-wrap: wrap;
-  row-gap: 2px;
+.track-inbox-item.is-unread .track-inbox-text {
+  color: var(--ink);
+  font-weight: 600;
 }
 
-.track-inbox-link:has(.track-inbox-body) .track-inbox-text {
-  max-width: 100%;
+.track-inbox-link:hover .track-inbox-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.track-inbox-body {
-  flex-basis: 100%;
-  min-width: 0;
+/* Por qué llegó: gris, una línea. */
+.track-inbox-reason {
+  overflow: hidden;
   font-size: 0.8125rem;
-  font-weight: 400;
-  line-height: 1.45;
-  color: var(--muted);
-  white-space: normal;
+  line-height: 1.35;
+  color: var(--brand-gray-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.track-inbox-project {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--brand-gray-2);
+.track-inbox-side {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  min-width: 40px;
+}
+
+.track-inbox-status {
+  display: inline-flex;
 }
 
 .track-inbox-time {
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   color: var(--brand-gray-2);
   white-space: nowrap;
 }
 
-.track-inbox-item > .btn {
-  justify-self: end;
+.track-inbox-actions {
+  display: inline-flex;
+  align-items: center;
+}
+
+.track-inbox-quick {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Las acciones aparecen al pasar, con el foco o con la fila activa (J/K); si no, no ocupan la vista. */
+.track-inbox-item:not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-quick {
+  opacity: 0;
+}
+
+.track-inbox-icon.track-inline-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  color: var(--brand-gray-1);
+}
+
+.track-inbox-icon.track-inline-trigger:hover {
+  color: var(--ink);
+  background: var(--ui-press);
+}
+
+.track-inbox-more {
+  display: none;
+}
+
+.track-inbox-tab-count {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+.ui-tab[aria-selected='true'] .track-inbox-tab-count {
+  color: var(--ink);
+}
+
+.track-inbox-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 16px 0 0;
+  font-size: 0.75rem;
+  color: var(--brand-gray-2);
+}
+
+.track-inbox-keys .kbd {
+  margin-right: 2px;
 }
 
 /* Filtros y Display de la bandeja (components/track/InboxFilters.tsx): la barra de la lista de issues,
@@ -2652,19 +2783,6 @@ a.track-board-card-title:hover {
     display: none;
   }
 
-  .track-inbox-item {
-    grid-template-columns: 8px minmax(0, 1fr) auto auto;
-  }
-
-  .track-inbox-item > .btn:not(.track-inbox-snooze),
-  .track-inbox-spacer {
-    display: none;
-  }
-
-  .track-inbox-project {
-    display: none;
-  }
-
   .track-gantt-side {
     flex-basis: 170px;
   }
@@ -3245,29 +3363,27 @@ a.track-board-card-title:hover {
   }
 }
 
-/* Teléfono: el título y el aviso a todo el ancho; la hora y Posponer abajo, sin cortarse. */
+/* Teléfono: sin hover, las acciones van en un menú "…" de 40px (Posponer, leída, borrar);
+   el atajo de teclado no se muestra. */
 @media (max-width: 599px) {
   .track-inbox-item {
-    grid-template-columns: 8px minmax(0, 1fr) auto;
-    row-gap: 2px;
-    align-items: start;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    column-gap: 10px;
+    padding-right: 0;
   }
 
-  .track-inbox-mark {
-    margin-top: 6px;
+  .track-inbox-quick,
+  .track-inbox-keys {
+    display: none;
   }
 
-  .track-inbox-link {
-    grid-column: 2 / -1;
+  .track-inbox-more {
+    display: inline-flex;
   }
 
-  .track-inbox-time {
-    grid-column: 2;
-    align-self: center;
-  }
-
-  .track-inbox-snooze.track-inline-trigger {
-    margin-inline: 0;
+  .track-inbox-icon.track-inline-trigger {
+    width: 40px;
+    height: 40px;
   }
 }
 

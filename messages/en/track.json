@@ -372,6 +372,47 @@
       "kind": "Type",
       "project": "Project",
       "team": "Team"
+    },
+    "tabs": {
+      "priority": "Priority",
+      "other": "Other"
+    },
+    "rule": {
+      "priority": "What's assigned to you, mentions, triage and SLAs waiting on you, reminders, and status or priority changes on issues you're subscribed to.",
+      "other": "Everything else: comments, other edits, sub-issues, relations, project updates and other apps."
+    },
+    "emptyPriority": "Nothing needs you right now",
+    "markRead": "Mark as read",
+    "markUnread": "Mark as unread",
+    "delete": "Delete notification",
+    "more": "More actions",
+    "actionError": "Couldn't update the notification. Try again.",
+    "why": {
+      "subscribed": "you're subscribed"
+    },
+    "keys": {
+      "move": "move",
+      "read": "read or unread",
+      "snooze": "snooze",
+      "delete": "delete"
+    },
+    "reason": {
+      "assigned": "{actor} assigned this to you",
+      "mentioned": "{actor} mentioned you",
+      "commented": "{actor} commented",
+      "status": "{actor} changed the status",
+      "statusTo": "{actor} changed the status to {status}",
+      "priority": "{actor} changed the priority",
+      "updated": "{actor} updated the issue",
+      "subissue": "{actor} added a sub-issue",
+      "relation": "{actor} added a relation",
+      "reminder": "Reminder you set",
+      "triage": "Waiting for your triage",
+      "sla_risk": "SLA at risk",
+      "sla_breach": "SLA breached",
+      "agent": "{agent} posted an update",
+      "project": "{actor} posted a project update",
+      "approval": "Waiting for your approval"
     }
   },
   "notifications": {
@@ -737,7 +778,8 @@
       "identifier": "Identifier",
       "customers": "Customer count",
       "revenue": "Customer revenue",
-      "estimate": "Estimate"
+      "estimate": "Estimate",
+      "status_time": "Time in status"
     }
   },
   "subscription": {
@@ -1661,7 +1703,8 @@
         "relation": "Relations",
         "hierarchy": "Sub-issues",
         "team": "Team",
-        "project": "Project"
+        "project": "Project",
+        "status_age": "Time in status"
       },
       "noAssignee": "No assignee",
       "noCycle": "No cycle",
@@ -1714,7 +1757,9 @@
         "date_empty": "is empty",
         "date_not_empty": "is set",
         "is_any": "is any of",
-        "is_none": "is none of"
+        "is_none": "is none of",
+        "age_gte": "more than",
+        "age_lte": "less than"
       },
       "pickDate": "Pick a date",
       "remove": "Remove filter {field}",
@@ -1726,7 +1771,9 @@
       "and": "and",
       "or": "or",
       "matchToggle": "Switch to {next}",
-      "noProject": "No project"
+      "noProject": "No project",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "moreThan": "More than {value}"
     },
     "peek": {
       "title": "Issue preview",
@@ -1761,7 +1808,12 @@
         "cycle": "Cycle",
         "due": "Due date",
         "project": "Team",
-        "created": "Created"
+        "created": "Created",
+        "milestone": "Milestone",
+        "estimate": "Estimate",
+        "links": "Links",
+        "status_time": "Time in status",
+        "updated": "Updated"
       },
       "reset": "Reset to default",
       "collapse": "Collapse {name}",
@@ -1888,5 +1940,21 @@
     "noMilestone": "No milestone",
     "noProject": "No project",
     "showingFirst": "Showing the first {shown} of {total}. Add a filter to narrow it down."
+  },
+  "statusTime": {
+    "label": "Time in status",
+    "inStatusFor": "In {status} for {time}",
+    "breakdown": "Time in each status",
+    "deleted": "Deleted status",
+    "estimate": "Estimate: {count}",
+    "links": "{count, plural, one {# link} other {# links}}",
+    "updatedOn": "Updated {date}",
+    "short": {
+      "m": "{n}m",
+      "h": "{n}h",
+      "d": "{n}d",
+      "w": "{n}w",
+      "mo": "{n}mo"
+    }
   }
 }

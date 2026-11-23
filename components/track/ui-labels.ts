@@ -148,6 +148,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         newest: t('display.sorts.newest'),
         oldest: t('display.sorts.oldest'),
         updated: t('display.sorts.updated'),
+        status_time: t('display.sorts.status_time'),
         priority: t('display.sorts.priority'),
         due: t('display.sorts.due'),
         estimate: t('display.sorts.estimate'),

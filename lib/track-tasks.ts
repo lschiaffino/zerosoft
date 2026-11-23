@@ -144,6 +144,8 @@ export function applyIssuePatch(
     next.status_name = status?.name ?? null;
     next.status_color = status?.color ?? null;
     next.status_category = status?.category ?? null;
+    // Time in status: el trigger lo pone en el servidor; acá, para que la fila no muestre el tiempo viejo.
+    if ((patch.statusId ?? null) !== issue.status_id) next.status_changed_at = new Date().toISOString();
   }
   if (patch.assigneeId !== undefined) {
     const member = patch.assigneeId ? members.find((m) => m.id === patch.assigneeId) : undefined;
@@ -452,6 +454,7 @@ export function revertPatchFields(
     r.status_name = prev.status_name;
     r.status_color = prev.status_color;
     r.status_category = prev.status_category;
+    r.status_changed_at = prev.status_changed_at;
   }
   if (patch.assigneeId !== undefined) {
     r.assignee_id = prev.assignee_id;

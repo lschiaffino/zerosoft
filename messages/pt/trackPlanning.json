@@ -377,7 +377,8 @@
       "effort": "Esforço (estimativa)",
       "cycle_time": "Cycle time",
       "lead_time": "Lead time",
-      "issue_age": "Idade"
+      "issue_age": "Idade",
+      "time_in_status": "Tempo no status"
     },
     "slices": {
       "status": "Status",
