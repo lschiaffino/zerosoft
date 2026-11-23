@@ -25,7 +25,8 @@ import DealsFilters from '@/components/crm/DealsFilters';
 import DealsTable, { type DealRow } from '@/components/crm/DealsTable';
 import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
 import { dealFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
-import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { countFilterRules, serializeFilterModel } from '@/lib/crm-filter-model';
+import { listFilterModel } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import PipelineMenu from '@/components/crm/PipelineMenu';
 
@@ -225,7 +226,12 @@ export default async function DealsPage(props: DealsPageProps) {
   const stalled = state.stalled === '1';
   const rawFilters = state.filters ?? '';
   // El filtro de la URL se valida contra lo que el panel ofrece: lo demás ni se aplica ni aparece como chip.
-  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  // El mismo filtro que aplican "Seleccionar todos" y "Exportar la vista" (lib/crm-filter-http.ts).
+  const filterModel = listFilterModel(rawFilters, 'deals', {
+    customTypes,
+    env: { viewerId: realUserId(user), timeZone: await getUserTimeZone(), strictCustom: true },
+    shapes: filterFieldShapes(filterFields),
+  });
   const advancedCount = countFilterRules(filterModel);
   const filtersParam = serializeFilterModel(filterModel);
   const sortParam = state.sort;

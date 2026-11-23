@@ -531,3 +531,32 @@
   height: 14px;
   font-size: 0.5rem;
 }
+
+/* Barra de formato fija (notas y comentarios del CRM): arriba del texto, con el borde del editor compacto. */
+.track-rte-fixedbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--radius-1) var(--radius-1) 0 0;
+  background: var(--bg-soft);
+}
+
+.track-rte-fixedbar .btn-icon {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.track-rte-fixedbar .track-rte-link {
+  flex: 1 1 180px;
+  min-width: 0;
+  height: 32px;
+}
+
+.track-rte.is-compact .track-rte-fixedbar + .track-rte-content {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}

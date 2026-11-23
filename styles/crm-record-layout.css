@@ -237,7 +237,7 @@
 
 /* ---------- Medio ---------- */
 
-/* Las cuatro pestañas entran a 390px: sin la sombra de scroll de .ui-tabs, que en el aspecto Líquido se ve como un parche. */
+/* Las cuatro pestañas entran a 390px: sin la sombra de scroll de .ui-tabs. */
 .rec3 .rec3-tabs { flex: none; background: none; }
 .rec3-lead { min-width: 0; }
 .rec3-lead .record-stage { padding: 0; }
