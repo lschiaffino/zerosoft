@@ -730,6 +730,104 @@
   color: var(--brand-gray-2);
 }
 
+/* ---------- Duplicado (lib/track-duplicates): banner en el duplicado y resumen en el original ---------- */
+
+.track-duplicate-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding: 8px 8px 8px 12px;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+}
+
+.track-duplicate-banner-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.track-duplicate-banner-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-duplicate-banner-link {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.track-duplicate-banner-link:hover .track-duplicate-banner-title,
+.track-duplicate-banner-link:focus-visible .track-duplicate-banner-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.track-duplicate-banner-link .track-identifier {
+  color: var(--ink-3);
+}
+
+.track-duplicate-banner-title {
+  font-weight: 500;
+}
+
+.track-duplicate-banner-action {
+  flex: none;
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .track-duplicate-banner-action {
+    min-height: 40px;
+  }
+}
+
+.track-dup-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 6px 0 6px 10px;
+  border-left: 2px solid var(--line);
+}
+
+.track-dup-summary-title {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.track-dup-summary-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink-2);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+.track-dup-summary-counts {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+/* La entrada con resumen ocupa varias líneas: el ícono y la hora van con la primera, no al medio. */
+.track-activity-event:has(.track-dup-summary) .track-event-icon {
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.track-activity-event:has(.track-dup-summary) .track-activity-time {
+  align-self: flex-start;
+}
+
 /* ---------- Comentarios en línea sobre la descripción (como Linear) ----------
    El texto comentado se resalta con la API de resaltados de CSS
    (components/track/inlineComments.ts): no toca el Markdown ni el editor. */

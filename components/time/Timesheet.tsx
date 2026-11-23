@@ -7,7 +7,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { EntryDto, ProjectDto, TaskDto } from '@/lib/time/core';
 import type { SheetInfo } from '@/lib/time/approvals';
-import { addDays, canTrackOn, formatMinutes, isIsoDate, liveMinutes, parseDuration, sheetLocked, tasksForProject, weekDays } from '@/lib/time/types';
+import { addDays, canTrackOn, formatMinutes, isIsoDate, liveMinutes, parseDuration, sheetLocked, sheetShortcut, tasksForProject, weekDays } from '@/lib/time/types';
 import { api, groupByClient, localToday, TimeDialog, useDayFormat, useErrorText, useToast } from './ui';
 import WeekGrid from './WeekGrid';
 import SheetStatus from './SheetStatus';
@@ -151,6 +151,28 @@ export default function Timesheet({
     }
   }, [openNew, date, entries, sheet, activeProjects.length, openNewDraft]);
 
+  // Atajos del teclado en la vista Día: N entrada nueva, flechas cambian de día, T hoy.
+  useEffect(() => {
+    if (view !== 'day') return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing = Boolean(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.closest('[role="dialog"]')));
+      const action = sheetShortcut(e, typing || draft !== null || confirmDelete !== null);
+      if (!action || !date) return;
+      if (action === 'new') {
+        if (activeProjects.length === 0 || sheetLocked(sheet?.status)) return;
+        e.preventDefault();
+        openNewDraft();
+      } else if (action === 'today') {
+        if (today) setDate(today);
+      } else {
+        setDate(addDays(date, action === 'prevDay' ? -1 : 1));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, date, today, draft, confirmDelete, activeProjects.length, sheet, openNewDraft]);
+
   const openEdit = (e: EntryDto) => {
     const d = formatMinutes(minutesOf(e));
     setFormError('');
@@ -248,7 +270,7 @@ export default function Timesheet({
   // Hay proyectos activos pero ninguno con la persona en el equipo.
   const adminNotAssigned = admin && noProjects && projects.some((p) => !p.archived);
   const trackButton = (
-    <button type="button" className="btn btn-primary" onClick={openNewDraft} disabled={!date || noProjects || locked} data-testid="time-track">
+    <button type="button" className="btn btn-primary" onClick={openNewDraft} disabled={!date || noProjects || locked} aria-keyshortcuts="N" title={t('sheet.trackShortcut')} data-testid="time-track">
       {t('nav.track')}
     </button>
   );

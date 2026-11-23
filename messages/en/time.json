@@ -33,6 +33,7 @@
     "start": "Start",
     "stop": "Stop",
     "running": "Running",
+    "trackShortcut": "Track time (N)",
     "startTimer": "Start timer",
     "saveEntry": "Save entry",
     "newTitle": "New time entry",

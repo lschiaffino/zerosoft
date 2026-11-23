@@ -20,7 +20,7 @@ import { personChatReader, redactChatTasks } from './crm-chat-privacy';
 import { getDb, type CrmActivityRow, type CrmCompanyRow, type CrmContactRow } from './db';
 import { createActivity, createContact } from './crm';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
-import { BODY_TEXT_MAX, dbNow, newTrackingToken, pixelUrl } from './crm-email';
+import { BODY_TEXT_MAX, dbNow, emailVisibleSql, newTrackingToken, pixelUrl, threadHasHiddenEmail } from './crm-email';
 import { parseAddressList } from './gmail';
 import { activityScopeSql, canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
 import { emitEvent } from './events';
@@ -167,6 +167,26 @@ export async function extensionSidebar(actor: ExtensionActor, email: string): Pr
   };
 }
 
+/** ¿Quien registra ve este email del workspace? (lib/crm-email.ts emailVisibleSql) */
+async function canSeeEmail(actor: ExtensionActor, emailId: string): Promise<boolean> {
+  const vis = emailVisibleSql(actor.scope, actor.personId);
+  const row = await getDb()
+    .prepare(`SELECT 1 AS x FROM crm_emails e WHERE e.id = ? AND e.user_id = ? AND ${vis.sql}`)
+    .get(emailId, actor.workspaceId, ...vis.args);
+  return !!row;
+}
+
+/**
+ * El thread de Gmail que manda la extensión, si se puede usar: uno nuevo, o
+ * uno sin emails que quien registra no ve (threadHasHiddenEmail, la misma
+ * regla que responder en un thread). Si no, el email va a un thread propio.
+ */
+async function usableThreadId(actor: ExtensionActor, raw: string | undefined): Promise<string | null> {
+  const threadId = (raw ?? '').trim().slice(0, 200);
+  if (!threadId) return null;
+  return (await threadHasHiddenEmail(actor.workspaceId, threadId, actor.scope, actor.personId)) ? null : threadId;
+}
+
 async function personEmail(personId: string): Promise<string> {
   const row = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string } | undefined;
   return row?.email ?? '';
@@ -215,7 +235,9 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
   const existing = (await db
     .prepare('SELECT id FROM crm_emails WHERE user_id = ? AND gmail_id IN (?, ?)')
     .get(actor.workspaceId, gmailId, `ext:${input.messageId.trim().slice(0, 200)}`)) as { id: string } | undefined;
-  if (existing) return { ok: true, emailId: existing.id, contactIds, duplicate: true };
+  // Ya registrado: solo se dice (y se da su id) si quien registra ve ese email; si no, como sin contacto.
+  if (existing) return (await canSeeEmail(actor, existing.id)) ? { ok: true, emailId: existing.id, contactIds, duplicate: true } : { ok: false, error: 'no_contact' };
+  const threadId = await usableThreadId(actor, input.threadId);
 
   const ordered = outbound ? [...to, ...cc] : [...from, ...to, ...cc];
   const primary = ordered.map((e) => contacts.get(e)?.id).find(Boolean) ?? contactIds[0];
@@ -235,7 +257,7 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
       actor.workspaceId,
       primary,
       gmailId,
-      (input.threadId ?? '').slice(0, 200) || `zs-ext-${emailId}`,
+      threadId || `zs-ext-${emailId}`,
       outbound ? 'out' : 'in',
       input.from.slice(0, 500),
       (input.to ?? '').slice(0, 2000),
@@ -247,10 +269,12 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
       actor.personId,
     );
   if (!res.changes) {
+    // Otro pedido lo guardó primero (mismo gmail_id): igual que arriba.
     const again = (await db
       .prepare('SELECT id FROM crm_emails WHERE user_id = ? AND gmail_id = ?')
       .get(actor.workspaceId, gmailId)) as { id: string } | undefined;
-    return { ok: true, emailId: again?.id ?? emailId, contactIds, duplicate: true };
+    if (!again || !(await canSeeEmail(actor, again.id))) return { ok: false, error: 'no_contact' };
+    return { ok: true, emailId: again.id, contactIds, duplicate: true };
   }
   for (const contactId of contactIds) {
     await db
@@ -265,7 +289,7 @@ export async function logExtensionEmail(actor: ExtensionActor, input: LogEmailIn
   });
   const event = outbound ? 'email.sent' : 'email.received';
   const logged = {
-    email: { id: emailId, subject, from: input.from, to: input.to ?? '', threadId: input.threadId ?? '', via: 'extension' },
+    email: { id: emailId, subject, from: input.from, to: input.to ?? '', threadId: threadId ?? '', via: 'extension' },
     contactIds,
   };
   const { crmEventOptions } = await import('./crm-event-privacy');
@@ -331,6 +355,7 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
   }
   const contactIds = [...new Set([...contacts.values()].map((c) => c.id))];
   const primary = [...to, ...cc].map((e) => contacts.get(e)?.id).find(Boolean) ?? contactIds[0];
+  const threadId = await usableThreadId(actor, input.threadId);
   const token = newTrackingToken();
   const emailId = crypto.randomUUID();
   const body = (input.body ?? '').slice(0, BODY_TEXT_MAX);
@@ -348,7 +373,7 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
       actor.workspaceId,
       primary,
       `ext:${emailId}`,
-      (input.threadId ?? '').slice(0, 200) || `zs-ext-${emailId}`,
+      threadId || `zs-ext-${emailId}`,
       mine,
       input.to.slice(0, 2000),
       (input.cc ?? '').slice(0, 2000),
@@ -367,7 +392,7 @@ export async function trackExtensionEmail(actor: ExtensionActor, input: TrackEma
   }
   await linkActivity(actor, emailId, { subject, body, outbound: true, contactId: primary });
   const sent = {
-    email: { id: emailId, subject, to: input.to, threadId: input.threadId ?? '', via: 'extension' },
+    email: { id: emailId, subject, to: input.to, threadId: threadId ?? '', via: 'extension' },
     contactId: primary,
     sequence: null,
   };

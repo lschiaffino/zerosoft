@@ -104,6 +104,8 @@ const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function MentionT
         ref={area}
         value={value}
         className={className}
+        // El botón de dictar va dentro del campo, no sobre la conversación (components/voice/DictationHost.tsx).
+        data-vc-inset=""
         onScroll={(e) => {
           if (on) sync();
           onScroll?.(e);
