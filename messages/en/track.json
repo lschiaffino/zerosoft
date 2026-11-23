@@ -1619,7 +1619,14 @@
       "subissueRemoved": "{user} removed the sub-issue",
       "autoClosedSubs": "Track closed this issue because all its sub-issues are done",
       "autoClosedParent": "Track closed this issue because its parent was closed",
-      "savedOffline": "Saved on this device. It is posted when the connection is back."
+      "savedOffline": "Saved on this device. It is posted when the connection is back.",
+      "dupMergedBefore": "{user} marked",
+      "dupMergedAfter": "as a duplicate of this issue",
+      "dupComments": "{count, plural, one {# comment} other {# comments}} on the duplicate",
+      "dupAttachments": "{count, plural, one {# file} other {# files}}",
+      "dupSubscribers": "{count, plural, one {# subscriber} other {# subscribers}} moved here",
+      "dupRequests": "{count, plural, one {# customer request} other {# customer requests}} moved here",
+      "dupMergedHidden": "{user} marked an issue from another team as a duplicate of this issue"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1882,6 +1889,13 @@
       "remove": "Remove from favorites",
       "added": "Added to favorites",
       "removed": "Removed from favorites"
+    },
+    "dup": {
+      "of": "Duplicate of",
+      "hidden": "Duplicate of an issue you can't see",
+      "unmark": "Unmark duplicate",
+      "unmarked": "{id} is no longer a duplicate",
+      "error": "Couldn't change the duplicate. Try again."
     }
   },
   "teamSettings": {

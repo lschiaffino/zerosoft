@@ -55,6 +55,7 @@ import { useCreateShortcut, useIssueStore, type IssueDraft, type ProjectMap } fr
 import { labelsForTeam, useWorkspaceLabels } from './LabelPicker';
 import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { requestMarkDuplicate, undoMarkDuplicate } from './duplicateApi';
 import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import { useTrackLive } from './useTrackLive';
 import { useIssuePages } from './useIssuePages';
@@ -617,6 +618,28 @@ export default function TrackIssueList({
             }).catch(() => null);
             await reload();
           });
+        })(),
+      // Como Linear: estado Duplicate, relación y suscriptos al original; ⌘Z lo deshace.
+      markDuplicate: (target, canonical) =>
+        void (async () => {
+          const res = await requestMarkDuplicate(target.id, canonical.id);
+          if (!res.ok) {
+            setNotice(tx('dup.error'));
+            return;
+          }
+          await reload();
+          const previous = res.previousOriginalId;
+          pushUndo(
+            tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }),
+            async () => {
+              if (!(await undoMarkDuplicate(target.id, previous)).ok) setNotice(tx('dup.error'));
+              await reload();
+            },
+            async () => {
+              await requestMarkDuplicate(target.id, canonical.id);
+              await reload();
+            },
+          );
         })(),
     },
     t: (k, v) => tc(k, v),
