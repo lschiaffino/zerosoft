@@ -477,7 +477,7 @@ function scopedCompanyNameFields(fields: Record<string, AdvancedFieldDef>, scope
   const ids = scope.filter((id) => SAFE_ID.test(id));
   const inScope = (alias: string) => (ids.length ? `COALESCE(${alias}.owner_id, ${alias}.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0');
   const expr = fields.companyName.expr.replace(/\)\s*$/, ` AND ${inScope('xco')})`);
-  const out = { ...fields, companyName: { ...fields.companyName, expr } };
+  const out: Record<string, AdvancedFieldDef> = { ...fields, companyName: { ...fields.companyName, expr } };
   // Por id de empresa, igual: una que no ve cuenta como sin empresa (filtrar por su id no dice quién está ahí).
   const company = fields.company;
   if (company && /^[a-z]+\.company_id$/.test(company.expr)) {
