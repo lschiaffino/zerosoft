@@ -347,3 +347,28 @@ export function nextSheetStatus(action: SheetAction, current: SheetStatus, opts:
   if (!rule.from.includes(current)) return 'bad_state';
   return rule.to;
 }
+
+export type SheetShortcut = 'new' | 'prevDay' | 'nextDay' | 'today';
+
+/**
+ * Atajos de la hoja de horas, como la vista Día de Harvest (N abre una entrada
+ * nueva). Se ignoran con un modificador apretado y cuando el foco está en un
+ * campo editable, para no robarle teclas a quien escribe.
+ */
+export function sheetShortcut(e: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; shiftKey?: boolean }, typing: boolean): SheetShortcut | null {
+  if (typing || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return null;
+  switch (e.key) {
+    case 'n':
+    case 'N':
+      return 'new';
+    case 'ArrowLeft':
+      return 'prevDay';
+    case 'ArrowRight':
+      return 'nextDay';
+    case 't':
+    case 'T':
+      return 'today';
+    default:
+      return null;
+  }
+}

@@ -13,6 +13,7 @@
  *   workspace y a la visibilidad del que mira. Un grupo O nunca ensancha lo
  *   que esa persona puede ver.
  */
+import { visibleScoreSql, type VisibleScoreRules } from './crm-field-perms';
 import { tagCondition, type TagEntity } from './crm-tags';
 import { tzOffsetMinutes } from './user-tz';
 import {
@@ -54,6 +55,12 @@ export interface FilterEnv {
   viewerId?: string;
   timeZone?: string;
   now?: Date;
+  /**
+   * Reglas de score que ve quien filtra (hiddenFieldsFor('contacts').scoreRules):
+   * con ellas los filtros por score comparan el total que esa persona ve, sin
+   * los puntos de reglas sobre sus campos ocultos.
+   */
+  scoreRules?: VisibleScoreRules;
 }
 
 export interface FilterContext extends FilterEnv {
@@ -253,13 +260,13 @@ function customExpr(alias: string, name: string, type: FilterFieldType): string 
   return type === 'number' ? `CAST(${base} AS REAL)` : base;
 }
 
-function scoreCondition(rule: FilterCond, values: string[]): SqlCondition | null {
+function scoreCondition(rule: FilterCond, values: string[], rules: VisibleScoreRules | undefined): SqlCondition | null {
   const tier = rule.f.startsWith('scoreTier:');
   const scoreId = rule.f.slice(tier ? 10 : 6);
   if (!/^[A-Za-z0-9-]{1,64}$/.test(scoreId)) return null;
-  // El score principal vive en c.score; los demás en crm_contact_scores.
-  const expr = `COALESCE((SELECT xs.score FROM crm_contact_scores xs WHERE xs.contact_id = c.id AND xs.score_id = ?),
-      CASE WHEN EXISTS (SELECT 1 FROM crm_scores ps WHERE ps.id = ? AND ps.is_primary = 1) THEN c.score ELSE 0 END)`;
+  // El score principal vive en c.score; los demás en crm_contact_scores. Con `rules`, el total que ve quien filtra.
+  const expr = `COALESCE((SELECT ${visibleScoreSql('xs.score', 'xs.breakdown', rules)} FROM crm_contact_scores xs WHERE xs.contact_id = c.id AND xs.score_id = ?),
+      CASE WHEN EXISTS (SELECT 1 FROM crm_scores ps WHERE ps.id = ? AND ps.is_primary = 1) THEN ${visibleScoreSql('c.score', 'c.score_breakdown', rules)} ELSE 0 END)`;
   if (tier) {
     if (rule.o !== 'is' && rule.o !== 'isnot') return null;
     const parts: string[] = [];
@@ -324,10 +331,12 @@ export function compileRule(ctx: FilterContext, rule: FilterCond): SqlCondition 
   }
   // Lead scores (lib/crm-scoring.ts): `score:<id>` por puntos y `scoreTier:<id>` por tramo ("min|max").
   if (alias === 'c' && (rule.f.startsWith('score:') || rule.f.startsWith('scoreTier:'))) {
-    return scoreCondition(rule, values);
+    return scoreCondition(rule, values, ctx.scoreRules);
   }
 
   let def: AdvancedFieldDef | undefined = Object.prototype.hasOwnProperty.call(ctx.fields, rule.f) ? ctx.fields[rule.f] : undefined;
+  // El score principal de un contacto, con lo que ve quien filtra.
+  if (def && alias === 'c' && rule.f === 'score' && ctx.scoreRules) def = { ...def, expr: visibleScoreSql('c.score', 'c.score_breakdown', ctx.scoreRules) };
   let customName = '';
   if (!def && rule.f.startsWith('custom:')) {
     customName = rule.f.slice(7);

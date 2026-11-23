@@ -200,6 +200,25 @@ function hashOf(lines: string[]): string {
 }
 
 /**
+ * Score del contacto para algo que lee cualquiera que lo ve (contexto de la
+ * IA, resumen guardado): sin los puntos de las reglas de score sobre campos
+ * que algún rol o equipo tiene ocultos.
+ */
+async function sharedContactScore(workspaceId: string, c: { score: number | null; score_breakdown: string }): Promise<number> {
+  const { fieldsHiddenForAnyone, hiddenBreakdownPoints, visibleScoreRules } = await import('./crm-field-perms');
+  const total = Number(c.score ?? 0);
+  const hidden = await fieldsHiddenForAnyone(workspaceId, 'contacts');
+  if (!hidden.size) return total;
+  let items: unknown = [];
+  try {
+    items = JSON.parse(c.score_breakdown || '[]');
+  } catch {
+    items = [];
+  }
+  return total - hiddenBreakdownPoints(items, await visibleScoreRules(workspaceId, hidden));
+}
+
+/**
  * Lo que la IA sabe del registro: propiedades, asociaciones, timeline (notas,
  * tareas, llamadas, reuniones) y emails, filtrado por lo que el viewer puede
  * ver (scope). null si no existe o no se ve.
@@ -226,6 +245,8 @@ export async function buildRecordContext(
     contactIds = [c.id];
     filter.contactId = id;
     lines.push(`Contact: ${title}`);
+    // Lo lee cualquiera que ve el registro: el score sin los puntos de reglas sobre campos que alguien tiene ocultos.
+    const score = await sharedContactScore(workspaceId, c);
     const facts = [
       c.email && `email ${c.email}`,
       c.job_title && `job title ${c.job_title}`,
@@ -234,7 +255,7 @@ export async function buildRecordContext(
       c.lifecycle_stage && `lifecycle ${c.lifecycle_stage}`,
       c.lead_status && `lead status ${c.lead_status}`,
       c.source && `source ${c.source}`,
-      c.score ? `lead score ${c.score}` : '',
+      score ? `lead score ${score}` : '',
       `created ${day(c.created_at)}`,
     ].filter(Boolean);
     lines.push(`Properties: ${facts.join('; ')}`);
