@@ -9,7 +9,10 @@ import { REQUEST_SOURCES, sessionIsOpen, type RequestSource } from '@/lib/track-
 import type { CustomerRequestDto, CustomerOption } from '@/lib/track-customers';
 import { CustomerPicker, RequestRow } from './RequestRow';
 import type { AgentSessionDto } from '@/lib/track-agents';
-import { OptionList, Popover } from '../InlineEditors';
+import { OptionList, Popover, StatusDot } from '../InlineEditors';
+import { useShortDuration } from '../IssueRowProps';
+import TrackIcon from '../TrackIcon';
+import type { StatusTime } from '@/lib/track-status-time';
 import { MarkdownView } from '../MarkdownView';
 import SlaChip from './SlaChip';
 import { aiErrorKey, call, useIssueInsights } from './api';
@@ -423,6 +426,52 @@ export function IssueMainExtras({
 }
 
 /** Propiedades del panel lateral: SLA y agente (delegate). */
+/**
+ * Time in status (como Linear): el status actual y desde hace cuánto; al
+ * abrirlo, el total de tiempo en cada status por el que pasó el issue.
+ */
+function StatusTimeProp({ data }: { data: StatusTime }) {
+  const t = useTranslations('track.statusTime');
+  const short = useShortDuration();
+  const [open, setOpen] = useState(false);
+  const now = data.totals.find((x) => x.key === data.currentKey) ?? null;
+  return (
+    <div className="track-x-prop track-status-time">
+      <dt>{t('label')}</dt>
+      <dd>
+        <button
+          type="button"
+          className="track-status-time-btn"
+          aria-expanded={open}
+          aria-controls="track-status-time-list"
+          onClick={() => setOpen((o) => !o)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && open) {
+              e.stopPropagation();
+              setOpen(false);
+            }
+          }}
+          data-testid="track-issue-status-time"
+        >
+          <LocalText className="track-status-time-now">{t('inStatusFor', { status: now?.name ?? t('deleted'), time: short(data.currentMs) })}</LocalText>
+          <TrackIcon name="chevronDown" size={10} />
+        </button>
+        {open && (
+          <ul className="track-status-time-list" id="track-status-time-list" aria-label={t('breakdown')} data-testid="track-issue-status-time-list">
+            {data.totals.map((x) => (
+              <li key={x.key} className={x.key === data.currentKey ? 'is-current' : undefined} data-testid="track-issue-status-time-row">
+                <StatusDot color={x.color} category={(x.category as Parameters<typeof StatusDot>[0]['category']) ?? null} />
+                <span className="track-status-time-name">{x.name ?? t('deleted')}</span>
+                <LocalText className="track-status-time-ms">{short(x.ms)}</LocalText>
+              </li>
+            ))}
+          </ul>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 export function IssueSideExtras({ issueId, watch }: { issueId: string; watch?: string }) {
   const t = useTranslations('trackTriage');
   const { data, reload } = useIssueInsights(issueId);
@@ -451,6 +500,7 @@ export function IssueSideExtras({ issueId, watch }: { issueId: string; watch?: s
 
   return (
     <dl className="track-x-props" data-testid="track-side-extras">
+      {data.statusTime && data.statusTime.totals.length > 0 && <StatusTimeProp data={data.statusTime} />}
       {(data.slaEnabled || data.sla) && (
         <div className="track-x-prop">
           <dt>{t('sla.label')}</dt>

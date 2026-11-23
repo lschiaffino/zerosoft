@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ISSUE_SORTS, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
+import { DISPLAY_PROPS, ISSUE_SORTS, type DisplayProp, type IssueGroupBy, type IssueSort } from '@/lib/track-views';
 import type { ViewType } from './ViewSwitcher';
 import TrackIcon from './TrackIcon';
 import { KeyMenu } from './IssueFilters';
@@ -15,8 +15,8 @@ export interface DisplayLabels {
 }
 
 /** Propiedades que se muestran en cada fila (Display properties de Linear). */
-export const DISPLAY_PROPS = ['id', 'priority', 'status', 'labels', 'cycle', 'due', 'assignee', 'project', 'created'] as const;
-export type DisplayProp = (typeof DISPLAY_PROPS)[number];
+export { DISPLAY_PROPS };
+export type { DisplayProp };
 export const DEFAULT_DISPLAY_PROPS: DisplayProp[] = ['id', 'priority', 'status', 'labels', 'cycle', 'due', 'assignee', 'project'];
 
 /** Propiedades visibles guardadas por persona (localStorage, con fallback). */

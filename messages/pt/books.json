@@ -574,7 +574,11 @@
       "title": "Demonstração de resultado",
       "desc": "Receitas, custos e despesas de um período."
     },
-    "balance": "Saldo",
+    "balance": {
+      "title": "Balanço patrimonial",
+      "desc": "Ativo, passivo e patrimônio em uma data."
+    },
+    "runningBalance": "Saldo",
     "cashflow": {
       "title": "Fluxo de caixa",
       "desc": "O que entra e sai das suas contas de banco e caixa."

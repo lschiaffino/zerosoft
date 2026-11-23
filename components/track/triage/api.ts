@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import type { StatusTime } from '@/lib/track-status-time';
 import type { IssueSlaDto } from '@/lib/track-sla';
 import type { CustomerRequestDto } from '@/lib/track-customers';
 import type { AgentOption, AgentSessionDto } from '@/lib/track-agents';
@@ -37,6 +38,8 @@ export interface IssueInsights {
   summary: { summary: string; generatedAt: string | null };
   suggestions: TriageSuggestion[];
   aiAvailable: boolean;
+  /** Time in status: el actual y el total por status (lib/track-status-time). */
+  statusTime?: StatusTime;
 }
 
 // Una sola carga por issue para los bloques del detalle (columna y panel lateral).

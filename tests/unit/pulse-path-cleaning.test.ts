@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { nanoid } from 'nanoid';
 import { getDb, upsertUser } from '@/lib/db';
 import { parseIngestBody } from '@/lib/analytics/ingest-core';
@@ -49,8 +49,20 @@ afterAll(async () => {
   }
 });
 
+/**
+ * La hora se fija: '-1d' son los días enteros del proyecto (desde la medianoche
+ * de hoy), así que visitas de hace una hora quedaban afuera entre las 00:00 y
+ * las 01:00. Se consulta con '-24h' y se prueba justo en los cortes del día.
+ */
+const AT = ['23:59:30', '00:00:30', '00:59:00'];
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('Pulse: caminos con exclusiones y grupos', () => {
-  it('el camino sigue sin el paso excluido y junta las páginas del grupo', async () => {
+  it.each(AT)('el camino sigue sin el paso excluido y junta las páginas del grupo (%s UTC)', async (hhmmss) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(`2026-03-10T${hhmmss}Z`));
     const user = await upsertUser({ email: `pulse-paths-${nanoid(8)}@test.dev` });
     const project = await createProject(user.id, user.id, 'P');
     created.push(project.id);
@@ -72,16 +84,16 @@ describe('Pulse: caminos con exclusiones y grupos', () => {
     if (!parsed.ok) throw new Error(parsed.error);
     await storeEvents(fresh, parsed.events, null);
 
-    const plain = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-1d' } }), now);
+    const plain = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-24h' } }), now);
     expect(plain.topPaths.map((p) => p.path.join(' '))).toContain('/ /admin/x /blog/a /pricing');
 
-    const cleaned = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-1d' }, exclude: ['/admin/*'], groups: ['/blog/*'] }), now);
+    const cleaned = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-24h' }, exclude: ['/admin/*'], groups: ['/blog/*'] }), now);
     expect(cleaned.sessions).toBe(2);
     expect(cleaned.topPaths).toEqual([{ path: ['/', '/blog/*', '/pricing'], count: 2 }]);
     expect(cleaned.links.every((l) => !l.from.startsWith('/admin') && !l.to.startsWith('/admin'))).toBe(true);
 
     // El inicio se escribe como el grupo.
-    const fromBlog = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-1d' }, groups: ['/blog/*'], exclude: ['/admin/*'], startPath: '/blog/*' }), now);
+    const fromBlog = await runPaths(fresh, pathsQuerySchema.parse({ kind: 'paths', dateRange: { from: '-24h' }, groups: ['/blog/*'], exclude: ['/admin/*'], startPath: '/blog/*' }), now);
     expect(fromBlog.topPaths).toEqual([{ path: ['/blog/*', '/pricing'], count: 2 }]);
   });
 });

@@ -1,6 +1,16 @@
 # Benchmark: Track vs Linear (y Jira / GitHub Projects)
 
-Fecha: 2026-10-22. Revisado el 2026-10-25 (tanda de pulido).
+Fecha: 2026-10-22. Revisado el 2026-10-25 (tanda de pulido) y el 2026-11-23 (paridad contra Linear de fines de 2026, ver abajo).
+
+## Revisión 2026-11-23
+
+Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `main`. La tabla de paridad (`content/feature-parity/track.ts`) estaba generosa y le faltaban funciones nuevas de Linear. Cambios:
+
+- **Hecho en esta tanda:** Priority inbox (pestañas Priority y Other con sin leer, avatar con la acción, línea gris con el por qué, J/K, U, H, Backspace y Enter), time in status (registro de cada cambio de estado, en el issue con el total por estado, como propiedad, orden, filtro "más de N días" y medida de Insights) y las propiedades de Display que faltaban (Updated, Estimate, Links, Milestone).
+- **Bajaron a parcial:** Inbox (sin vista previa al costado ni desuscribirse desde la fila), Slack (sin DMs personales ni Asks) e Insights (tiempos en barras de mediana, sin scatter ni triage time).
+- **Filas nuevas que faltan:** comentarios sobre el texto de la descripción, hilos de comentarios en projects e iniciativas, estado Duplicado que pasa el contexto al original, reordenar grupos arrastrando, Releases, formularios de pedidos a triage, Pulse, y revisión de código (Diffs, fuera de alcance). Mermaid y callouts queda parcial: hay callouts, no Mermaid.
+- **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
+- Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
 
 > **Vocabulario (2026-10-25):** Track usa los nombres de Linear. Lo que las filas viejas de este documento llaman *proyecto* (clave como WEB, estados, cycles) ahora es un **team** (`/app/track/team/WEB`, lista en `/app/track/teams`), y los *planes* son **projects** (`/app/track/projects`). Las rutas viejas redirigen y la API v1 acepta `teamId` y `/api/v1/track/teams` sin dejar de responder a `projectId` y `/projects`.
 
@@ -66,6 +76,9 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Vista de issues de todos los proyectos | tiene | Track › Issues y My tasks |
 | Cmd+K encuentra issues | tiene | Busca por título e identificador (`TRACKBENCH-3`) desde cualquier app |
 | Roadmap de proyectos / initiatives | tiene | Track › Roadmap: timeline por semanas, meses o trimestres, barras arrastrables, milestones, hoy, agrupar por iniciativa (2026-10-25) |
+| Display properties (Updated, Estimate, Links, Milestone, Time in status) | tiene | (2026-11-23) Ícono y texto chico a la derecha de la fila y en la tarjeta, sin cápsulas |
+| Time in status | tiene | (2026-11-23) En el issue (actual y total por estado), propiedad, orden, filtro "más de N días" e Insights. Lo registran triggers de SQLite (app, API, MCP, bulk, importadores); los issues anteriores se reconstruyen con su actividad |
+| Reordenar grupos y columnas arrastrando | falta | (2026-11-23) |
 
 ### Colaboración y notificaciones
 
@@ -73,12 +86,15 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Comentarios con @menciones, editar y borrar | tiene | |
 | Suscribirse a un issue | tiene | |
-| Inbox con filtros, snooze y recordatorios | tiene | Linear agregó una pestaña Priority en septiembre 2026 |
+| Inbox con Priority, filtros, snooze y recordatorios | parcial | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, U, H, Backspace). Abrir un aviso va a la página del issue: Linear lo muestra al costado y deja desuscribirse desde la fila |
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |
 | Project updates con health y recordatorios | tiene | Salud, texto, comentarios, historial, recordatorio al lead por cron y aviso a seguidores en el Inbox. Sin Slack (2026-10-25) |
 | Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
+| Comentarios sobre el texto de la descripción | falta | (2026-11-23) |
+| Hilos de comentarios en projects e iniciativas | falta | (2026-11-23) Solo en sus updates |
+| Pulse (feed y resumen diario de updates) | falta | (2026-11-23) |
 
 ### Planificación
 
@@ -90,6 +106,9 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Triage (aceptar, rechazar, duplicado) | tiene | Entra lo creado por API, Chat, Flow, GitHub y Agents. (T3) Atajos 1/2/3/H como Linear, snooze y comentario al resolver |
 | Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
+| Estado Duplicado que pasa el contexto al original | falta | (2026-11-23) Marcar duplicado suma la relación y cancela; comentarios, adjuntos y suscriptos quedan en el duplicado |
+| Formularios de pedidos a triage | falta | (2026-11-23) |
+| Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
 
 ### Automatización
 
@@ -106,7 +125,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | API pública y webhooks de issues | tiene | REST `/api/v1/track` (issues, comentarios, proyectos, cycles, status, labels, personas) con scopes `track:read`/`track:write`; webhooks `issue.*`, `comment.created`, `project.*` firmados, con reintentos (claim en el cron de cada minuto) y log de entregas. Linear usa GraphQL |
 | GitHub | tiene | GitHub App (o webhook manual), palabras clave que cierran, que solo vinculan (ref, part of) y skip, checks y reviews en el issue, sync de GitHub Issues de GitHub a Track. Sin GitLab ni sync de Track a GitHub |
-| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | tiene | OAuth, `/track`, atajo de mensaje con modal, hilo sincronizado en los dos sentidos, avisos por canal, unfurl (nunca de privados). Sin DMs personales ni Asks |
+| Slack (crear issue desde un mensaje, hilos sincronizados, notificaciones por canal) | parcial | OAuth, `/track`, atajo de mensaje con modal, hilo sincronizado en los dos sentidos, avisos por canal, unfurl (nunca de privados). Sin DMs personales ni Asks |
 | Intercom, Zendesk, Sentry, Figma, MCP | parcial | Sentry (issue desde el webhook y se resuelve al completar), Figma (vista previa embebida), Zendesk e Intercom (vínculo, nota interna al cerrar, alta por API), MCP. Sin app dentro del sidebar de Zendesk o Intercom |
 
 ### Admin y permisos
@@ -122,7 +141,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Capacidad | Track | Nota |
 |---|---|---|
 | Overview por proyecto | tiene | Cycle actual, vencidos, triage, abiertos |
-| Insights (cycle time, lead time, burn-up, cortes y segmentos, CSV) | tiene | Track › Insights. Tiempos como barras de mediana (sin scatter) y sin triage time (2026-10-25) |
+| Insights (cycle time, lead time, time in status, burn-up, cortes y segmentos, CSV) | parcial | Track › Insights. Tiempos como barras de mediana (sin scatter) y sin triage time (2026-10-25). Time in status desde 2026-11-23 |
 | Dashboards | tiene | Widgets de insights (gráfico, tabla, número), filtros del dashboard, personal o del workspace (2026-10-25) |
 
 ### Mobile y offline
@@ -211,6 +230,10 @@ Otros gaps nuevos con menos impacto (también en `research/benchmark-ideas-track
 - Linear, importadores: https://linear.app/docs/import-issues
 - Linear, Insights: https://linear.app/docs/insights
 - Linear, Slack: https://linear.app/docs/slack
+- Linear, Inbox (Priority y Other): https://linear.app/docs/inbox
+- Linear, Display options: https://linear.app/docs/display-options
+- Linear, Releases: https://linear.app/docs/releases
+- Linear, Pulse: https://linear.app/docs/pulse
 - Linear, customer requests: https://linear.app/docs/customer-requests
 - GitHub Projects: https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects
 - Jira Automation, triggers: https://support.atlassian.com/cloud-automation/docs/jira-automation-triggers/

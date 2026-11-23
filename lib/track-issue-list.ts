@@ -5,7 +5,7 @@
  * completados. Sin React, para testear.
  */
 import { encodeFilter, normalizeFilter, type FilterRule, type FilterState } from './track-filter';
-import { ISSUE_SORTS, TEAM_SCOPES, type IssueGroupBy, type IssueSort, type TeamScope } from './track-views';
+import { DISPLAY_PROPS, ISSUE_SORTS, TEAM_SCOPES, type DisplayProp, type IssueGroupBy, type IssueSort, type TeamScope } from './track-views';
 
 export type MyIssuesTabKey = 'assigned' | 'created' | 'subscribed' | 'activity';
 
@@ -33,10 +33,10 @@ export interface ListPrefs {
   showSub: boolean;
   completed: CompletedWindowValue;
   emptyGroups: boolean;
-  props: Array<'id' | 'priority' | 'status' | 'labels' | 'cycle' | 'due' | 'assignee' | 'project' | 'created'>;
+  props: DisplayProp[];
 }
 
-const PROP_KEYS = ['id', 'priority', 'status', 'labels', 'cycle', 'due', 'assignee', 'project', 'created'] as const;
+const PROP_KEYS = DISPLAY_PROPS;
 
 export interface ListQueryExtra {
   /** Status permitidos (pestañas Active / Backlog de un team). */

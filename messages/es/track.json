@@ -372,6 +372,47 @@
       "kind": "Tipo",
       "project": "Project",
       "team": "Team"
+    },
+    "tabs": {
+      "priority": "Prioridad",
+      "other": "Otras"
+    },
+    "rule": {
+      "priority": "Lo que te asignaron, menciones, triage y SLAs que esperan tu acción, recordatorios y cambios de estado o prioridad en issues que seguís.",
+      "other": "Todo lo demás: comentarios, otras ediciones, sub-issues, relaciones, updates de projects y otras apps."
+    },
+    "emptyPriority": "Nada te espera ahora",
+    "markRead": "Marcar como leída",
+    "markUnread": "Marcar como no leída",
+    "delete": "Borrar aviso",
+    "more": "Más acciones",
+    "actionError": "No se pudo actualizar el aviso. Probá de nuevo.",
+    "why": {
+      "subscribed": "estás suscripto"
+    },
+    "keys": {
+      "move": "moverse",
+      "read": "leída o no leída",
+      "snooze": "posponer",
+      "delete": "borrar"
+    },
+    "reason": {
+      "assigned": "{actor} te lo asignó",
+      "mentioned": "{actor} te mencionó",
+      "commented": "{actor} comentó",
+      "status": "{actor} cambió el estado",
+      "statusTo": "{actor} cambió el estado a {status}",
+      "priority": "{actor} cambió la prioridad",
+      "updated": "{actor} editó el issue",
+      "subissue": "{actor} agregó un sub-issue",
+      "relation": "{actor} agregó una relación",
+      "reminder": "Recordatorio que pusiste",
+      "triage": "Espera tu triage",
+      "sla_risk": "SLA en riesgo",
+      "sla_breach": "SLA vencido",
+      "agent": "{agent} publicó un update",
+      "project": "{actor} publicó un update del project",
+      "approval": "Espera tu aprobación"
     }
   },
   "notifications": {
@@ -737,7 +778,8 @@
       "identifier": "Identificador",
       "customers": "Cantidad de clientes",
       "revenue": "Ingresos de clientes",
-      "estimate": "Estimación"
+      "estimate": "Estimación",
+      "status_time": "Tiempo en el estado"
     }
   },
   "subscription": {
@@ -1663,7 +1705,8 @@
         "relation": "Relaciones",
         "hierarchy": "Sub-issues",
         "team": "Team",
-        "project": "Project"
+        "project": "Project",
+        "status_age": "Tiempo en el estado"
       },
       "noAssignee": "Sin asignar",
       "noCycle": "Sin cycle",
@@ -1716,7 +1759,9 @@
         "date_empty": "está vacío",
         "date_not_empty": "tiene valor",
         "is_any": "es alguno de",
-        "is_none": "no es ninguno de"
+        "is_none": "no es ninguno de",
+        "age_gte": "más de",
+        "age_lte": "menos de"
       },
       "pickDate": "Elegir fecha",
       "remove": "Quitar filtro {field}",
@@ -1728,7 +1773,9 @@
       "and": "y",
       "or": "o",
       "matchToggle": "Cambiar a {next}",
-      "noProject": "Sin project"
+      "noProject": "Sin project",
+      "days": "{count, plural, one {# día} other {# días}}",
+      "moreThan": "Más de {value}"
     },
     "peek": {
       "title": "Vista rápida del issue",
@@ -1763,7 +1810,12 @@
         "cycle": "Cycle",
         "due": "Vencimiento",
         "project": "Equipo",
-        "created": "Creado"
+        "created": "Creado",
+        "milestone": "Milestone",
+        "estimate": "Estimación",
+        "links": "Links",
+        "status_time": "Tiempo en el estado",
+        "updated": "Editado"
       },
       "reset": "Volver a lo predeterminado",
       "collapse": "Contraer {name}",
@@ -1890,5 +1942,21 @@
     "noMilestone": "Sin milestone",
     "noProject": "Sin project",
     "showingFirst": "Se ven los primeros {shown} de {total}. Sumá un filtro para acotar."
+  },
+  "statusTime": {
+    "label": "Tiempo en el estado",
+    "inStatusFor": "En {status} desde hace {time}",
+    "breakdown": "Tiempo en cada estado",
+    "deleted": "Estado borrado",
+    "estimate": "Estimación: {count}",
+    "links": "{count, plural, one {# link} other {# links}}",
+    "updatedOn": "Editado el {date}",
+    "short": {
+      "m": "{n} min",
+      "h": "{n} h",
+      "d": "{n} d",
+      "w": "{n} sem",
+      "mo": "{n} mes"
+    }
   }
 }

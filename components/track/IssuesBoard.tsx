@@ -19,6 +19,7 @@ import { AssigneeMenu, DueDateMenu, PriorityIcon, PriorityMenu, QuickAdd, Status
 import { isPendingIssue } from './useIssueStore';
 import { safeHexColor } from '@/lib/track-color';
 import { DEFAULT_DISPLAY_PROPS, type DisplayProp } from './IssueDisplayOptions';
+import IssueRowProps from './IssueRowProps';
 import type { TrackUiLabels } from './ui-labels';
 
 interface IssuesBoardProps {
@@ -379,6 +380,7 @@ export default function IssuesBoard({
                               <TrackIcon name="plans" size={11} /> {issue.plan_name}
                             </span>
                           )}
+                          <IssueRowProps issue={issue} show={(p) => show.has(p)} locale={locale} className="track-row-props is-card" />
                         </div>
                       </>
                     ) : (

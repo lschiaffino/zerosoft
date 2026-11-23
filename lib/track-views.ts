@@ -8,9 +8,30 @@
  */
 import type { TrackIssueWithStatus } from './track-data';
 
+// ---------- Display properties ----------
+
+/** Propiedades que se muestran en cada fila o tarjeta (Display properties de Linear). */
+export const DISPLAY_PROPS = [
+  'id',
+  'priority',
+  'status',
+  'labels',
+  'cycle',
+  'milestone',
+  'due',
+  'assignee',
+  'project',
+  'estimate',
+  'links',
+  'status_time',
+  'created',
+  'updated',
+] as const;
+export type DisplayProp = (typeof DISPLAY_PROPS)[number];
+
 // ---------- Orden ----------
 
-export const ISSUE_SORTS = ['manual', 'newest', 'oldest', 'updated', 'priority', 'due', 'estimate', 'identifier', 'customers', 'revenue'] as const;
+export const ISSUE_SORTS = ['manual', 'newest', 'oldest', 'updated', 'status_time', 'priority', 'due', 'estimate', 'identifier', 'customers', 'revenue'] as const;
 export type IssueSort = (typeof ISSUE_SORTS)[number];
 
 export function parseIssueSort(value: unknown): IssueSort {
@@ -38,6 +59,9 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
       return 'i.created_at ASC, i.id ASC';
     case 'updated':
       return 'i.updated_at DESC, i.created_at DESC, i.id DESC';
+    // Time in status: los que llevan más tiempo en su status primero (sin dato, al final).
+    case 'status_time':
+      return 'i.status_changed_at IS NULL, i.status_changed_at ASC, i.created_at DESC, i.id DESC';
     case 'priority':
       return `${PRIORITY_ORDER}, i.created_at DESC, i.id DESC`;
     case 'due':
@@ -63,7 +87,7 @@ export function issueOrderBy(sort: IssueSort | undefined): string {
 const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 type SortableIssue = Pick<TrackIssueWithStatus, 'id' | 'created_at' | 'updated_at' | 'priority' | 'due_date' | 'identifier'> &
-  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue' | 'sub_order' | 'estimate'>>;
+  Partial<Pick<TrackIssueWithStatus, 'customer_count' | 'customer_revenue' | 'sub_order' | 'estimate' | 'status_changed_at'>>;
 
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -81,6 +105,12 @@ export function compareIssues(sort: IssueSort | undefined, a: SortableIssue, b: 
       return cmp(a.created_at, b.created_at) || cmp(a.id, b.id);
     case 'updated':
       return cmp(b.updated_at, a.updated_at) || newest();
+    case 'status_time': {
+      const x = a.status_changed_at ?? null;
+      const y = b.status_changed_at ?? null;
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      return cmp(x ?? '', y ?? '') || newest();
+    }
     case 'priority':
       return prio() || newest();
     case 'due': {
