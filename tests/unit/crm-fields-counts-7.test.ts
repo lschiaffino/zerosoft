@@ -85,6 +85,12 @@ describe('CRM: campos con el mismo nombre y conteos de asociados', () => {
     session.user = member(s);
     const defs = (await (await fieldsRoute.GET(send('GET', '/api/crm/custom-fields'))).json()) as { rows: Array<{ name: string }> };
     expect(defs.rows.some((d) => d.name === 'secret')).toBe(false);
+    // Borrar la definición original deja las reglas en la copia: el campo sigue oculto.
+    const copyId = ((await created.clone().json()) as { id: string }).id;
+    const original = (await getDb().prepare("SELECT id FROM crm_custom_fields WHERE user_id = ? AND entity = 'contacts' AND name = 'secret' AND id != ?").get(s.ws, copyId)) as { id: string };
+    const { deleteCustomField } = await import('@/lib/crm');
+    expect(await deleteCustomField(s.ws, original.id)).toBe(true);
+    expect((await fieldAccessFor({ workspaceId: s.ws, personId: s.w.member.id, role: 'member' }, 'contacts')).hidden.has('secret')).toBe(true);
     // Owner y admin filtran como siempre.
     for (const u of [owner(s), admin(s)]) {
       expect((await get(contactsRoute, u, `/api/crm/contacts?filters=${filters('custom:secret', 'equals', 'yes')}`)).ids).toEqual([s.contact.id]);
@@ -103,9 +109,19 @@ describe('CRM: campos con el mismo nombre y conteos de asociados', () => {
     const dealCount = `/api/crm/contacts?filters=${filters('dealCount', 'gt', '0')}`;
     const openDeal = `/api/crm/contacts?filters=${filters('hasOpenDeal', 'is', 'true')}`;
     const contactCount = `/api/crm/companies?filters=${filters('contactCount', 'gt', '0')}`;
-    expect((await get(contactsRoute, member(s), dealCount)).ids).toEqual([]);
-    expect((await get(contactsRoute, member(s), openDeal)).ids).toEqual([]);
-    expect((await get(companiesRoute as unknown as typeof contactsRoute, member(s), contactCount)).ids).toEqual([]);
+    expect(await get(contactsRoute, member(s), dealCount)).toEqual({ status: 200, ids: [] });
+    expect(await get(contactsRoute, member(s), openDeal)).toEqual({ status: 200, ids: [] });
+    expect(await get(companiesRoute as unknown as typeof contactsRoute, member(s), contactCount)).toEqual({ status: 200, ids: [] });
+    // Con asociados que sí ve, cuentan: un deal suyo en su contacto y un contacto suyo en su empresa.
+    const own = await createDeal(s.ws, { name: 'Own deal', pipelineId: p.id, stageId: stage!.id, ownerId: s.w.member.id, contactIds: [s.contact.id] });
+    expect(own.ok).toBe(true);
+    const mate = await createContact(s.ws, { firstName: 'Own', email: 'own-fc7count@client.test', ownerId: s.w.member.id });
+    await getDb().prepare('INSERT OR IGNORE INTO crm_contact_companies (contact_id, company_id, user_id) VALUES (?, ?, ?)').run(mate.id, company.id, s.ws);
+    expect((await get(contactsRoute, member(s), dealCount)).ids).toEqual([s.contact.id]);
+    expect((await get(contactsRoute, member(s), openDeal)).ids).toEqual([s.contact.id]);
+    expect((await get(companiesRoute as unknown as typeof contactsRoute, member(s), contactCount)).ids).toEqual([company.id]);
+    // "Más de 1" sigue sin contar los que no ve.
+    expect((await get(contactsRoute, member(s), `/api/crm/contacts?filters=${filters('dealCount', 'gt', '1')}`)).ids).toEqual([]);
     expect((await get(contactsRoute, owner(s), dealCount)).ids).toContain(s.contact.id);
     expect((await get(contactsRoute, admin(s), openDeal)).ids).toContain(s.contact.id);
     expect((await get(companiesRoute as unknown as typeof contactsRoute, owner(s), contactCount)).ids).toContain(company.id);
