@@ -12,6 +12,7 @@ import {
   SAVED_VIEW_PARAM,
   orderedColumns,
   parseColumns,
+  AUTO_WIDTHS,
   parseWidths,
   serializeColumns,
   serializeWidths,
@@ -106,11 +107,18 @@ export function useTableColumns(opts: {
   const savedWidths = viewWidths ?? stored.widths ?? '';
   const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Los anchos que van a subir cuando venza el temporizador (el último cambio manda). */
+  const pending = useRef<Record<string, number> | null>(null);
   // Llegaron los de la URL: mandan ellos, salvo que haya un cambio más nuevo esperando para subir.
   useEffect(() => {
     if (!commitTimer.current) setLiveWidths(null);
   }, [savedWidths]);
-  const widths = useMemo(() => liveWidths ?? parseWidths(savedWidths), [liveWidths, savedWidths]);
+  // Solo columnas que existen para quien mira: un ancho guardado en este navegador desde otro
+  // workspace (con sus propiedades propias) no se muestra ni viaja a una vista de este.
+  const widths = useMemo(() => {
+    const all = liveWidths ?? parseWidths(savedWidths);
+    return Object.fromEntries(Object.entries(all).filter(([id]) => ids.includes(id)));
+  }, [liveWidths, savedWidths, ids]);
   const widthsText = serializeWidths(widths);
 
   useEffect(() => {
@@ -119,25 +127,33 @@ export function useTableColumns(opts: {
 
   useEffect(() => () => {
     if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = null;
   }, []);
+
+  const noSavedView = () => !new URLSearchParams(window.location.search).get(SAVED_VIEW_PARAM);
 
   /**
    * Anchos nuevos. `commit`: pasan a la URL (la vista queda modificada y "Guardar" los guarda) un
-   * momento después del último cambio, sin volver arriba de la página.
+   * momento después del último cambio, sin volver arriba de la página; sin vista guardada, también
+   * quedan en este navegador en el acto. Un cambio sin `commit` (empezar a arrastrar) no cancela uno
+   * que está por subir: lo reemplaza.
    */
   const setWidths = useCallback(
     (next: Record<string, number>, commit: boolean) => {
       setLiveWidths(next);
+      if (!commit && !commitTimer.current) return;
+      pending.current = next;
+      if (commit && noSavedView()) writeStorage(`${storageKey}:widths`, [serializeWidths(next)]);
       if (commitTimer.current) clearTimeout(commitTimer.current);
-      if (!commit) return;
       commitTimer.current = setTimeout(() => {
         commitTimer.current = null;
+        const latest = pending.current ?? next;
+        pending.current = null;
         const q = new URLSearchParams(window.location.search);
-        const text = serializeWidths(next);
+        const text = serializeWidths(latest);
         if (text) q.set('widths', text);
         else q.delete('widths');
         if (q.get(MODIFIED_PARAM) !== '1') q.delete(MODIFIED_PARAM);
-        // Sin vista guardada activa, también queda como la elección de este navegador.
         if (!q.get(SAVED_VIEW_PARAM)) {
           writeStorage(`${storageKey}:widths`, [text]);
           setStored((prev) => ({ ...prev, widths: text }));
@@ -149,24 +165,34 @@ export function useTableColumns(opts: {
     [pathname, router, storageKey],
   );
 
-  function apply(next: string[], nextFreeze: boolean) {
+  function apply(next: string[], nextFreeze: boolean, opts: { autoWidths?: boolean } = {}) {
     const clean = orderedColumns(next, ids, first);
     const q = new URLSearchParams(params.toString());
     q.set('cols', serializeColumns(clean));
     q.set('freeze', nextFreeze ? '1' : '0');
     q.delete('page');
+    // `widths=auto`: la tabla vuelve a acomodarse sola (también sobre los anchos de una vista guardada).
+    if (opts.autoWidths) {
+      if (commitTimer.current) clearTimeout(commitTimer.current);
+      commitTimer.current = null;
+      pending.current = null;
+      setLiveWidths(null);
+      q.set('widths', AUTO_WIDTHS);
+    }
     // Sin vista guardada activa, también queda como la elección de este navegador.
     if (!q.get(SAVED_VIEW_PARAM)) {
       writeStorage(storageKey, clean);
       writeStorage(`${storageKey}:freeze`, [nextFreeze ? '1' : '0']);
-      setStored((prev) => ({ ...prev, order: clean, freeze: nextFreeze }));
+      if (opts.autoWidths) writeStorage(`${storageKey}:widths`, ['']);
+      setStored((prev) => ({ ...prev, order: clean, freeze: nextFreeze, ...(opts.autoWidths ? { widths: '' } : {}) }));
     }
     if (q.get(MODIFIED_PARAM) !== '1') q.delete(MODIFIED_PARAM);
     router.push(`${pathname}?${q.toString()}`);
   }
 
+  /** "Restablecer": las columnas de siempre y los anchos automáticos. */
   function reset() {
-    apply(defaults, defaultFreeze);
+    apply(defaults, defaultFreeze, { autoWidths: true });
   }
 
   return { order, freeze, apply, reset, widths, setWidths, visible: new Set(order) };
@@ -466,6 +492,7 @@ export default function EditColumns({ columns, first, order, freeze, onApply, on
               <button
                 type="button"
                 className="btn btn-sm btn-ghost edit-columns-reset"
+                data-testid="edit-columns-reset"
                 onClick={() => {
                   onReset();
                   setOpen(false);

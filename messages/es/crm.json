@@ -5457,7 +5457,8 @@
     "moveRight": "Mover a la derecha",
     "remove": "Quitar columna",
     "resize": "Cambiar el ancho de la columna: {name}",
-    "resizeHint": "Arrastrá para cambiar el ancho. Doble clic para ajustarlo al contenido. Con el teclado: flechas, y Enter para ajustar."
+    "resizeHint": "Arrastrá para cambiar el ancho. Doble clic para ajustarlo al contenido. Con el teclado: flechas, y Enter para ajustar.",
+    "widthValue": "{px} px"
   },
   "quickFilterPicker": {
     "button": "Editar filtros rápidos",

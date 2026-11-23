@@ -91,6 +91,14 @@ describe('anchos: lectura y escritura', () => {
     });
   });
 
+  it('widths=auto en la URL apaga los anchos de la vista; guardado no queda', () => {
+    expect(pickViewState('contacts', { widths: 'auto' }, { explicit: true })).toEqual({ widths: 'auto' });
+    expect(pickViewState('contacts', { widths: 'auto' })).toEqual({});
+    expect(resolveViewState('contacts', { sv: 'v1', widths: 'auto' }, { widths: 'email:240' })).toEqual({ state: { widths: 'auto' }, modified: true });
+    expect(parseWidths('auto')).toEqual({});
+    expect(redactViewQuery({ widths: 'auto' }, new Set(['x']))).toEqual({});
+  });
+
   it('redactViewQuery quita el ancho de una columna oculta (ni su nombre queda)', () => {
     const out = redactViewQuery({ widths: 'name:260,custom:salary:200,custom:plan:120' }, new Set(['salary']));
     expect(out).toEqual({ widths: 'name:260,custom:plan:120' });

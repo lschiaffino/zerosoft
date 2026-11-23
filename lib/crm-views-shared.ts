@@ -132,6 +132,11 @@ export function pickViewState(entity: ViewEntity, params: Record<string, unknown
       continue;
     }
     if (key === 'widths') {
+      // `auto` en la URL: anchos automáticos aunque la vista tenga los suyos (como freeze=0).
+      if (value === AUTO_WIDTHS) {
+        if (opts.explicit) out.widths = AUTO_WIDTHS;
+        continue;
+      }
       const widths = serializeWidths(parseWidths(value));
       if (widths) out.widths = widths;
       continue;
@@ -190,6 +195,9 @@ export function serializeColumns(ids: readonly string[]): string {
 /** Ancho mínimo y máximo de una columna (px), como el arrastre de HubSpot. */
 export const MIN_COLUMN_WIDTH = 64;
 export const MAX_COLUMN_WIDTH = 800;
+
+/** `widths=auto` en la URL: la tabla vuelve a acomodarse sola ("Restablecer" de Editar columnas). */
+export const AUTO_WIDTHS = 'auto';
 
 export function clampColumnWidth(px: number): number {
   return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, Math.round(px)));

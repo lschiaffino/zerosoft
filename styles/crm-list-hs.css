@@ -429,8 +429,9 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   .crm-cards > colgroup,
   .crm-cards .th-resize { display: none; }
 }
-/* Puntero táctil: los <select> de la barra van a 16 px (si no iOS hace zoom al tocarlos, ui.css);
-   los botones de la misma barra (fechas, más filtros, columnas) también, así la fila se lee pareja. */
-@media (pointer: coarse) {
+/* Teléfono y tablet en vertical (puntero táctil): los <select> de la barra van a 16 px (si no iOS hace
+   zoom al tocarlos, ui.css); los botones de la misma barra (fechas, más filtros, columnas) también, así
+   la fila se lee pareja. Desde 1024 px la barra va en una sola línea y queda como está. */
+@media (pointer: coarse) and (max-width: 1023px) {
   .deals-filter-bar :is(.filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .export-view-btn, .seg-toggle-item) { font-size: 16px; }
 }

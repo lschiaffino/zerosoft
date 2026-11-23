@@ -5457,7 +5457,8 @@
     "moveRight": "Move right",
     "remove": "Remove column",
     "resize": "Resize column: {name}",
-    "resizeHint": "Drag to resize. Double-click to fit the content. With the keyboard: arrows, and Enter to fit."
+    "resizeHint": "Drag to resize. Double-click to fit the content. With the keyboard: arrows, and Enter to fit.",
+    "widthValue": "{px} px"
   },
   "quickFilterPicker": {
     "button": "Edit quick filters",

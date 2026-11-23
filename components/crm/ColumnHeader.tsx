@@ -112,7 +112,10 @@ function ResizeHandle({ api, id, label }: { api: TableColumnsState; id: string; 
   const ref = useRef<HTMLSpanElement>(null);
   const drag = useRef<{ x: number; start: number; base: Record<string, number>; prev: Record<string, number>; last: number } | null>(null);
   const th = () => (ref.current?.parentElement ?? null) as HTMLTableCellElement | null;
+  // Sin ancho guardado, el que se ve (se mide al tomar el foco: un separador con foco dice su valor).
+  const [seen, setSeen] = useState(0);
   const current = api.widths[id] ?? 0;
+  const shown = current || seen;
 
   /** Mientras se arrastra cambia solo la columna en pantalla (sin volver a dibujar la tabla en cada paso). */
   function paint(w: number): boolean {
@@ -144,6 +147,11 @@ function ResizeHandle({ api, id, label }: { api: TableColumnsState; id: string; 
   function onPointerMove(e: ReactPointerEvent<HTMLSpanElement>) {
     const d = drag.current;
     if (!d) return;
+    // Se soltó el botón sin que llegara el pointerup (otra ventana, un diálogo): termina el arrastre.
+    if (e.pointerType === 'mouse' && !(e.buttons & 1)) {
+      onPointerUp(e);
+      return;
+    }
     const w = clampColumnWidth(d.start + e.clientX - d.x);
     if (w === d.last) return;
     d.last = w;
@@ -193,7 +201,8 @@ function ResizeHandle({ api, id, label }: { api: TableColumnsState; id: string; 
       aria-label={t('resize', { name: label })}
       aria-valuemin={MIN_COLUMN_WIDTH}
       aria-valuemax={MAX_COLUMN_WIDTH}
-      aria-valuenow={current || undefined}
+      aria-valuenow={shown || undefined}
+      aria-valuetext={shown ? t('widthValue', { px: shown }) : undefined}
       title={t('resizeHint')}
       tabIndex={0}
       data-testid={`col-resize-${id}`}
@@ -201,6 +210,8 @@ function ResizeHandle({ api, id, label }: { api: TableColumnsState; id: string; 
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
+      onFocus={() => setSeen(measured(th()))}
       onDoubleClick={(e) => {
         e.preventDefault();
         fit();

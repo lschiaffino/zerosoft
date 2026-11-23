@@ -51,6 +51,8 @@ test.describe('resizable columns at 1280', () => {
 
     // Arrastrar el borde del email 80 px a la derecha.
     const before = await widthOf(page, 'email');
+    const nameBefore = await widthOf(page, 'name');
+    const phoneBefore = await widthOf(page, 'phone');
     const handle = page.getByTestId('col-resize-email');
     await head(page, 'email').hover();
     const box = (await handle.boundingBox())!;
@@ -65,8 +67,9 @@ test.describe('resizable columns at 1280', () => {
     const saved = Number(/(?:^|,)email:(\d+)/.exec(widthsParam(page))?.[1]);
     expect(Math.abs(saved - (before + 80))).toBeLessThanOrEqual(3);
     // Las otras columnas quedaron como se veían (nada saltó).
-    expect(widthsParam(page)).toMatch(/(^|,)name:\d+/);
-    expect(widthsParam(page)).toMatch(/(^|,)phone:\d+/);
+    expect(Math.abs(Number(/(?:^|,)name:(\d+)/.exec(widthsParam(page))?.[1]) - nameBefore)).toBeLessThanOrEqual(2);
+    expect(Math.abs(Number(/(?:^|,)phone:(\d+)/.exec(widthsParam(page))?.[1]) - phoneBefore)).toBeLessThanOrEqual(2);
+    expect(Math.abs((await widthOf(page, 'phone')) - phoneBefore)).toBeLessThanOrEqual(2);
 
     // Recargar: el ancho sigue.
     await page.reload({ waitUntil: 'networkidle' });
@@ -100,6 +103,12 @@ test.describe('resizable columns at 1280', () => {
     const stored = await json<{ query: Record<string, string> }>(request.get(`/api/crm/views/${view.id}`));
     expect(stored.query.widths).toContain('phone:170');
     await page.screenshot({ path: 'test-results/crm-c4-resize-1280.png' });
+
+    // Restablecer (Editar columnas) vuelve a los anchos automáticos, también sobre los de la vista.
+    await page.getByTestId('edit-columns-btn').click();
+    await page.getByTestId('edit-columns-reset').click();
+    await expect(page).toHaveURL(/widths=auto/);
+    await expect(page.locator('table.crm-table.is-sized')).toHaveCount(0);
   });
 
   test('keyboard: arrows, shift+arrows, Enter fits; the name column stays frozen', async ({ page, request }) => {
@@ -158,7 +167,10 @@ test.describe('columns at 390 (touch)', () => {
     await seedContacts(request, tag, 2);
     await page.goto(`/en/app/crm/contacts?q=${tag}&widths=name:300,email:500,phone:400`, { waitUntil: 'networkidle' });
     await expect(page.locator('.crm-table tbody tr')).toHaveCount(2);
-    await expect(page.getByTestId('col-resize-email')).toBeHidden();
+    // El encabezado del nombre sigue a la vista en las tarjetas, sin borde para arrastrar.
+    await expect(page.locator('.crm-table thead th[data-col="name"]')).toBeVisible();
+    await expect(page.getByTestId('col-resize-name')).toBeHidden();
+    await expect(page.locator('table.crm-table')).toHaveClass(/is-sized/);
     await expect(page.getByTestId('edit-columns-btn')).toBeVisible();
     await noSideScroll(page);
 
