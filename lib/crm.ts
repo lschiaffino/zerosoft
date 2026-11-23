@@ -480,6 +480,38 @@ function scopedCompanyNameFields(fields: Record<string, AdvancedFieldDef>, scope
   return { ...fields, companyName: { ...fields.companyName, expr } };
 }
 
+/**
+ * Los filtros que cuentan registros asociados (deals de un contacto, deal
+ * abierto, contactos de una empresa) con el alcance de la persona: solo
+ * cuentan los que ve (si no, "más de N" diría cuántos tiene que no ve).
+ */
+function scopedCountFields(fields: Record<string, AdvancedFieldDef>, scope: OwnerScope | undefined): Record<string, AdvancedFieldDef> {
+  if (!scope) return fields;
+  const ids = scope.filter((id) => SAFE_ID.test(id));
+  const inScope = (alias: string) => (ids.length ? `COALESCE(${alias}.owner_id, ${alias}.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0');
+  const out = { ...fields };
+  if (fields.hasOpenDeal) {
+    out.hasOpenDeal = {
+      ...fields.hasOpenDeal,
+      expr: `EXISTS (SELECT 1 FROM crm_deal_contacts xdc JOIN crm_deals xd ON xd.id = xdc.deal_id
+      JOIN crm_stages xs ON xs.id = xd.stage_id WHERE xdc.contact_id = c.id AND xs.is_won = 0 AND xs.is_lost = 0 AND ${inScope('xd')})`,
+    };
+  }
+  if (fields.dealCount) {
+    out.dealCount = {
+      ...fields.dealCount,
+      expr: `(SELECT COUNT(*) FROM crm_deal_contacts xdc JOIN crm_deals xdv ON xdv.id = xdc.deal_id WHERE xdc.contact_id = c.id AND ${inScope('xdv')})`,
+    };
+  }
+  if (fields.contactCount) {
+    out.contactCount = {
+      ...fields.contactCount,
+      expr: `(SELECT COUNT(*) FROM crm_contact_companies xct JOIN crm_contacts xcv ON xcv.id = xct.contact_id WHERE xct.company_id = co.id AND ${inScope('xcv')})`,
+    };
+  }
+  return out;
+}
+
 const CONTACT_ADV_FIELDS: Record<string, AdvancedFieldDef> = {
   name: { expr: "trim(c.first_name || ' ' || c.last_name)", type: 'text' },
   firstName: { expr: 'c.first_name', type: 'text' },
@@ -569,7 +601,7 @@ function buildContactWhere(
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'c', scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
+  appendAdvancedFilters(where, args, 'c', scopedCountFields(scopedCompanyNameFields(CONTACT_ADV_FIELDS, f.ownerScope), f.ownerScope), f.filters, f.customTypes, f.filtersMatch, f.filterEnv);
   appendOwnerScope(where, args, 'c', f.ownerScope);
   return { where: where.join(' AND '), args };
 }
@@ -1204,7 +1236,7 @@ function buildCompanyWhere(userId: string, f: CompanyFilter): { where: string; a
       args.push(value);
     }
   }
-  appendAdvancedFilters(where, args, 'co', COMPANY_ADV_FIELDS, f.filters, f.customTypes, 'all', f.filterEnv);
+  appendAdvancedFilters(where, args, 'co', scopedCountFields(COMPANY_ADV_FIELDS, f.ownerScope), f.filters, f.customTypes, 'all', f.filterEnv);
   appendOwnerScope(where, args, 'co', f.ownerScope);
   return { where: where.join(' AND '), args };
 }

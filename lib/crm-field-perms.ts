@@ -360,6 +360,24 @@ export async function deleteFieldPermissions(workspaceId: string, fieldIds: stri
 export type FieldWithAccess = CrmCustomFieldRow & { access: FieldAccess };
 
 /**
+ * Dos definiciones con el mismo nombre en la misma entidad leen el mismo
+ * valor (custom.<name>): cada una queda con el acceso más estricto de las
+ * del nombre, así una copia sin reglas no abre un campo oculto o de solo
+ * lectura (en filtros, orden, columnas o escrituras). Puro.
+ */
+export function byNameStrictest<T extends { entity: string; name: string; access: FieldAccess }>(defs: T[]): T[] {
+  const strict = new Map<string, FieldAccess>();
+  for (const d of defs) {
+    const key = `${d.entity}\u0000${d.name}`;
+    strict.set(key, strictest(strict.get(key) ?? 'edit', d.access));
+  }
+  return defs.map((d) => {
+    const access = strict.get(`${d.entity}\u0000${d.name}`) ?? d.access;
+    return access === d.access ? d : { ...d, access };
+  });
+}
+
+/**
  * Campos propios de la entidad con el acceso de la persona. `all` incluye los
  * ocultos (para mezclar escrituras); `visible` los que se muestran.
  */
@@ -385,7 +403,7 @@ export async function fieldAccessFor(
         .all(viewer.workspaceId, entity) as Promise<Array<Pick<CrmFieldPermissionRow, 'field_id' | 'subject' | 'access'>>>,
       viewerSubjects(viewer, db),
     ]);
-    all = defs.map((d) => ({ ...d, access: accessFor(rules.filter((r) => r.field_id === d.id), subjects) }));
+    all = byNameStrictest(defs.map((d) => ({ ...d, access: accessFor(rules.filter((r) => r.field_id === d.id), subjects) })));
   }
   const restricted = new Map<string, FieldRestriction>();
   for (const f of all) if (f.access !== 'edit') restricted.set(f.name, f.access);
@@ -423,7 +441,9 @@ export async function visibleFieldDefinitions(viewer: FieldViewer, db: Db = getD
   ]);
   const byField = new Map<string, Array<Pick<CrmFieldPermissionRow, 'subject' | 'access'>>>();
   for (const r of rules) byField.set(r.field_id, [...(byField.get(r.field_id) ?? []), r]);
-  return defs.filter((d) => accessFor(byField.get(d.id) ?? [], subjects) !== 'hidden');
+  return byNameStrictest(defs.map((d) => ({ ...d, access: accessFor(byField.get(d.id) ?? [], subjects) })))
+    .filter((d) => d.access !== 'hidden')
+    .map(({ access: _a, ...d }) => d as CrmCustomFieldRow);
 }
 
 /** Acceso de la persona a un campo propio. null si el campo no es del workspace. */
