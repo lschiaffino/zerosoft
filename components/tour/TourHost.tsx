@@ -51,35 +51,43 @@ function painted(el: HTMLElement): boolean {
   return r.width >= 2 && r.height >= 2;
 }
 
-/**
- * Un elemento dentro de una fila que se desplaza de costado (pestañas en el
- * teléfono) puede quedar cortado o afuera: se desplaza esa fila hasta que se
- * vea entero. Devuelve si hubo que moverla.
- */
-function revealInRow(el: HTMLElement): boolean {
+/** La fila que se desplaza de costado (pestañas en el teléfono) donde está el elemento, si hay. */
+function sideScroller(el: HTMLElement): HTMLElement | null {
   for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
     if (p.scrollWidth <= p.clientWidth) continue;
     const ox = getComputedStyle(p).overflowX;
-    if (ox !== 'auto' && ox !== 'scroll') continue;
-    const pr = p.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    const delta = r.left < pr.left ? r.left - pr.left - 8 : r.right > pr.right ? r.right - pr.right + 8 : 0;
-    if (!delta) return false;
-    p.scrollTo({ left: p.scrollLeft + delta, behavior: 'instant' });
-    return true;
+    if (ox === 'auto' || ox === 'scroll') return p;
   }
-  return false;
+  return null;
 }
 
-function findTarget(step: TourStep | undefined): HTMLElement | null {
+/** Desplaza esa fila hasta que el elemento se vea entero (estaba cortado o afuera). */
+function revealInRow(el: HTMLElement): void {
+  const p = sideScroller(el);
+  if (!p) return;
+  const pr = p.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const delta = r.left < pr.left ? r.left - pr.left - 8 : r.right > pr.right ? r.right - pr.right + 8 : 0;
+  if (delta) p.scrollTo({ left: p.scrollLeft + delta, behavior: 'instant' });
+}
+
+/**
+ * El elemento del paso. `reveal`: es el paso que se muestra, y uno cortado o
+ * afuera en una fila desplazable se trae a la vista. Sin `reveal` (contar los
+ * pasos que faltan) no mueve nada: uno así cuenta porque se va a poder traer.
+ */
+function findTarget(step: TourStep | undefined, reveal = false): HTMLElement | null {
   for (const name of step?.targets ?? []) {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${name}"]`))) {
       if (onScreen(el)) {
-        revealInRow(el);
+        if (reveal) revealInRow(el);
         return el;
       }
-      // Afuera de la pantalla solo porque la fila está desplazada: se trae a la vista.
-      if (painted(el) && revealInRow(el) && onScreen(el)) return el;
+      if (painted(el) && sideScroller(el)) {
+        if (!reveal) return el;
+        revealInRow(el);
+        if (onScreen(el)) return el;
+      }
     }
   }
   return null;
@@ -249,7 +257,7 @@ export default function TourHost({ boot }: { boot: TourBoot }) {
     let alive = true;
     const tick = () => {
       if (!alive) return;
-      const el = findTarget(s);
+      const el = findTarget(s, true);
       if (el) {
         const r = el.getBoundingClientRect();
         if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
