@@ -75,19 +75,24 @@ function Act({ off, onAct, className, children, title, testid }: { off?: boolean
  */
 /**
  * Con la barra cerrada, en un chat: "Pulir" (un mensaje largo escrito a mano) o "Insertado · Deshacer", como un
- * chip chico arriba del campo, a la derecha. Ocupa su lugar en el composer (nunca flota sobre la conversación, así
- * no tapa el último mensaje): en Lines va en la fila de las solapas WhatsApp | Nota interna, que ya está ahí y no
- * cambia de alto; en Inbox, en una fila propia arriba del campo que aparece solo con el chip (la conversación sigue
- * abajo de todo, components/ui/useScrollAnchor.ts). AiComposeBar con `floating` no lo repite.
+ * chip sobre el borde de arriba del campo. Va adentro de la caja del campo (MentionTextarea `adornment`: con el
+ * teclado se llega desde el campo con Tab); AiComposeBar con `floating` no lo repite. Nunca tapa la conversación: en
+ * Lines queda en la fila de las solapas WhatsApp | Nota interna; sin esa fila (Inbox), el composer se hace lugar
+ * arriba mientras se ve (`has-aic-chip`, ver aiChipShown).
  */
 export function AiComposeChip({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'chat' | 'app' }) {
   if (ai.open) return null;
   return <ClosedOffer ai={ai} tone={tone} floating />;
 }
 
+/** ¿Se ve el chip ("Pulir" o "Insertado · Deshacer")? El composer sin fila de solapas se hace lugar para él. */
+export function aiChipShown(ai: AiCompose): boolean {
+  return !ai.open && (ai.undo !== null || worthPolishing(ai.composerText));
+}
+
 function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'chat' | 'app'; floating?: boolean }) {
   const t = useTranslations('common.aiCompose');
-  const float = floating ? ' aic-inrow' : '';
+  const float = floating ? ' aic-float' : '';
   // Un mensaje largo escrito a mano: se ofrece pulirlo (abre la barra con el resultado para revisar; nunca manda).
   if (ai.undo === null && worthPolishing(ai.composerText)) {
     return (

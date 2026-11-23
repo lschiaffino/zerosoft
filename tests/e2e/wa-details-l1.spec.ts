@@ -153,10 +153,17 @@ for (const width of [1280, 390]) {
     const contact = await request.post('/api/crm/contacts', { data: { firstName: 'Paula', lastName: `Demo ${tag}`, phone: `+${chat.from}` } });
     expect(contact.ok(), await contact.text()).toBe(true);
     const contactId = ((await contact.json()) as { id: string }).id;
-    const pipelines = (await (await request.get('/api/crm/pipelines')).json()) as { rows: Array<{ id: string; stages: Array<{ id: string; is_won: number; is_lost: number }> }> };
-    const p = pipelines.rows[0];
-    const stage = p.stages.find((s) => !s.is_won && !s.is_lost)!;
-    const deal = await request.post('/api/crm/deals', { data: { name: `Renovación ${tag}`, pipelineId: p.id, stageId: stage.id, amount: 1200, contactIds: [contactId] } });
+    // Un embudo con una etapa abierta (una cuenta nueva no tiene ninguno).
+    const db = e2eDb();
+    const [pipelineId, stageId] = [`pl_${tag}`, `st_${tag}`];
+    try {
+      const ws = String((await db.execute({ sql: 'SELECT id FROM users WHERE email = ?', args: [email] })).rows[0].id);
+      await db.execute({ sql: "INSERT INTO crm_pipelines (id, user_id, name, position) VALUES (?, ?, 'Ventas', 0)", args: [pipelineId, ws] });
+      await db.execute({ sql: "INSERT INTO crm_stages (id, pipeline_id, name, position) VALUES (?, ?, 'Propuesta', 0)", args: [stageId, pipelineId] });
+    } finally {
+      db.close();
+    }
+    const deal = await request.post('/api/crm/deals', { data: { name: `Renovación ${tag}`, pipelineId, stageId, amount: 1200, contactIds: [contactId] } });
     expect(deal.ok(), await deal.text()).toBe(true);
     const company = await request.post('/api/crm/companies', { data: { name: `Acme ${tag}` } });
     expect(company.ok(), await company.text()).toBe(true);

@@ -19,7 +19,7 @@ import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
-import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle, aiChipShown } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -451,7 +451,8 @@ const WaComposer = forwardRef<
 
   const hasText = !!text.trim();
   return (
-    <div className="wa-composer ib-wa-composer" data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
+    // Con el chip de la AI ("Pulir", "Insertado · Deshacer") el composer se hace lugar arriba: nunca tapa la conversación.
+    <div className={`wa-composer ib-wa-composer${!editing && aiChipShown(ai) ? ' has-aic-chip' : ''}`} data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       {above}
       {banner}
       {linkPv.card}
@@ -508,8 +509,6 @@ const WaComposer = forwardRef<
       )}
       {!editing && <AiComposeBar ai={ai} floating />}
       {emojiSuggest.strip}
-      {/* "Pulir" o "Insertado · Deshacer": una fila arriba del campo que aparece solo con el chip (nunca tapa la conversación). */}
-      {!editing && <AiComposeChip ai={ai} />}
       <div className="wa-bar">
         <span className="wa-emoji-wrap">
           <button type="button" className="wa-icon-btn" data-emoji-toggle aria-label={w('emoji')} title={w('emoji')} aria-expanded={emoji} onClick={() => setEmoji((v) => !v)} disabled={disabled}>
@@ -537,6 +536,7 @@ const WaComposer = forwardRef<
           ref={area}
           highlights={mentionHits}
           readOnly={paused}
+          adornment={editing ? null : <AiComposeChip ai={ai} />}
           aria-busy={paused || undefined}
           className="wa-input"
           data-testid="composer-input"

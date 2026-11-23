@@ -156,7 +156,7 @@ for (const width of [1280, 390]) {
 }
 
 for (const width of [1280, 390]) {
-  test(`Lines: "Polish" va en la fila de las solapas y no mueve la conversación (${width})`, async ({ page, request }) => {
+  test(`Lines: "Polish" flota sobre el campo y no mueve la conversación (${width})`, async ({ page, request }) => {
     test.setTimeout(240_000);
     const errors = watchErrors(page);
     await openChat(page, request, width);
@@ -177,8 +177,8 @@ for (const width of [1280, 390]) {
     expect(after.field).toBe(before.field);
     expect(after.pane).toBe(before.pane);
     expect(after.top).toBe(before.top);
-    // El chip va en la fila de las solapas (arriba del campo), dentro de la pantalla, sin tapar el renglón del texto
-    // ni la conversación.
+    // El chip flota sobre el borde de arriba del campo, en la fila de las solapas: dentro de la pantalla, sin tapar el
+    // renglón del texto ni la conversación.
     const chip = (await polish.boundingBox())!;
     const field = (await input.boundingBox())!;
     expect(chip.x).toBeGreaterThanOrEqual(0);
