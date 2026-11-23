@@ -2554,6 +2554,16 @@
     },
     "sendForSignature": "Enviar a firmar"
   },
+  "live": {
+    "gone": "Alguien borró este registro.",
+    "backTo": "Volver a {list}"
+  },
+  "recordNav": {
+    "label": "Registros de esta vista",
+    "prev": "Registro anterior",
+    "next": "Registro siguiente",
+    "position": "{index} de {total}"
+  },
   "rowTools": {
     "up": "Subir",
     "down": "Bajar",

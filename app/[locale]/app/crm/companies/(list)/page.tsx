@@ -25,6 +25,7 @@ import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import CrmLiveMount, { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
 import { companyFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
 import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
@@ -67,6 +68,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
 
@@ -279,6 +282,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
 
   return (
     <div className="ui-page crm-list-page">
+      <CrmLiveMount rev={liveRev} entities={['company']} />
       <PageHeader
         title={t('companies.title')}
         actions={

@@ -2554,6 +2554,16 @@
     },
     "sendForSignature": "Send for signature"
   },
+  "live": {
+    "gone": "Someone deleted this record.",
+    "backTo": "Back to {list}"
+  },
+  "recordNav": {
+    "label": "Records in this view",
+    "prev": "Previous record",
+    "next": "Next record",
+    "position": "{index} of {total}"
+  },
   "rowTools": {
     "up": "Move up",
     "down": "Move down",

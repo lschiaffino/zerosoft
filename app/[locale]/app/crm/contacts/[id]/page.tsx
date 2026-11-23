@@ -69,6 +69,7 @@ import { listRecordEnrollments } from '@/lib/crm-workflows';
 import { COMPOSE_TYPES, layoutTabHref, parseCompose, parseLayoutTab, recentCommunications } from '@/components/crm/recordLayout';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 import { maskDetailRefs } from '@/lib/crm-record-scope';
+import { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,8 @@ export default async function ContactDetailPage(props: {
   const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const rawDetail = await getContact(user.id, id);
@@ -657,6 +660,7 @@ export default async function ContactDetailPage(props: {
 
   return (
     <RecordColumns
+      liveRev={liveRev}
       tab={tab}
       base={base}
       back={{ href: '/app/crm/contacts', label: t('record.back.contacts') }}

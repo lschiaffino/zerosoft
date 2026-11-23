@@ -36,6 +36,7 @@ import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { listTags, tagsForRecords } from '@/lib/crm-tags';
+import CrmLiveMount, { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
@@ -121,6 +122,8 @@ export default async function DealsPage(props: DealsPageProps) {
   } = params;
 
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   // Lecturas independientes, juntas (en Turso cada query es una ida y vuelta); se esperan donde se usan.
   const membersP = workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : null;
   const fieldAccessP = fieldAccessFor(sessionFieldViewer(user), 'deals');
@@ -572,6 +575,7 @@ export default async function DealsPage(props: DealsPageProps) {
 
   return (
     <div className="ui-page crm-list-page">
+      <CrmLiveMount rev={liveRev} entities={['deal']} />
       <PageHeader
         title={t('deals.title')}
         actions={

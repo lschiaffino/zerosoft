@@ -9,7 +9,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-11-22',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'objects', label: { en: 'Objects and records', es: 'Objetos y registros', pt: 'Objetos e registros' } },
     { id: 'properties', label: { en: 'Properties', es: 'Propiedades', pt: 'Propriedades' } },
@@ -377,6 +377,22 @@ const parity: ProductParity = {
       status: 'have',
       competitorHas: true,
       weight: 2,
+    },
+    {
+      id: 'record-prev-next',
+      area: 'record',
+      label: { en: 'Previous and next record of the view from the record page', es: 'Registro anterior y siguiente de la vista desde la ficha', pt: 'Registro anterior e próximo da visualização a partir da página do registro' },
+      detail: { en: 'A contact, company or deal opened from its table shows previous and next buttons and its position ("3 of 120") in the header, following the saved view, filters and sort of that table (up to 2000 records). K and J move too. Opened from the deal board, a search or a link, the buttons do not show. Leads do not have them yet', es: 'Un contacto, empresa o deal abierto desde su tabla muestra botones de anterior y siguiente y su posición ("3 de 120") en la cabecera, con la vista guardada, los filtros y el orden de esa tabla (hasta 2000 registros). K y J también recorren. Abierto desde el tablero de deals, una búsqueda o un link, los botones no aparecen. Los leads todavía no los tienen', pt: 'Um contato, empresa ou negócio aberto a partir da sua tabela mostra botões de anterior e próximo e a sua posição ("3 de 120") no cabeçalho, com a visualização salva, os filtros e a ordem dessa tabela (até 2000 registros). K e J também percorrem. Aberto do quadro de negócios, de uma busca ou de um link, os botões não aparecem. Os leads ainda não têm' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
+      id: 'record-live-updates',
+      area: 'record',
+      label: { en: 'Changes by teammates show up without reloading', es: 'Los cambios de otras personas aparecen sin recargar', pt: 'As mudanças de outras pessoas aparecem sem recarregar' },
+      detail: { en: 'Contact, company, deal and lead tables, the deal and lead boards and the record pages check every few seconds while the tab is visible: a record someone else creates, edits, moves to another stage or deletes appears without reloading. A field or cell being edited, a menu, a dialog or a card being dragged is never replaced; the refresh waits until it is done, and the selection and scroll stay. A record page that someone else deleted says so and offers the way back. Changes arrive within a few seconds, not at once, and custom object pages, lists and tasks do not update yet', es: 'Las tablas de contactos, empresas, deals y leads, los tableros de deals y leads y las fichas se revisan cada pocos segundos con la pestaña a la vista: un registro que otra persona crea, edita, cambia de etapa o borra aparece sin recargar. Un campo o celda en edición, un menú, un diálogo o una card arrastrándose nunca se reemplaza; la actualización espera a que termine, y la selección y el scroll se mantienen. Una ficha que otra persona borró lo avisa y ofrece volver. Los cambios llegan en unos segundos, no al instante, y las páginas de objetos propios, listas y tareas todavía no se actualizan solas', pt: 'As tabelas de contatos, empresas, negócios e leads, os quadros de negócios e leads e as páginas de registro verificam a cada poucos segundos com a aba visível: um registro que outra pessoa cria, edita, muda de etapa ou exclui aparece sem recarregar. Um campo ou célula em edição, um menu, um diálogo ou um cartão sendo arrastado nunca é substituído; a atualização espera terminar, e a seleção e a rolagem se mantêm. Uma página de registro que outra pessoa excluiu avisa e oferece voltar. As mudanças chegam em alguns segundos, não na hora, e as páginas de objetos próprios, listas e tarefas ainda não se atualizam sozinhas' },
+      status: 'partial',
+      competitorHas: true,
     },
     {
       id: 'record-sidebar-inline-edit',

@@ -9,6 +9,7 @@ import { isDealRotting } from '@/lib/crm-rotting';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
+import { forgetCrmView } from './recordNavContext';
 import { scoreBand } from './DealInsightCard';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
@@ -244,10 +245,13 @@ export default function DealsBoard({
     }
   }
 
-  // Sync tras router.refresh() (el board se remonta al cambiar de pipeline vía key).
+  // Sync tras router.refresh() (el board se remonta al cambiar de pipeline vía key). También lo
+  // que cambió otra persona (CRM en vivo): el refresh espera a que no haya una card en el aire.
   useEffect(() => {
     setCols(stages);
   }, [stages]);
+  // Lo que se abre desde el tablero no recorre la última tabla de negocios con anterior/siguiente.
+  useEffect(() => forgetCrmView('deals'), []);
 
   // El foco sigue a la card que se movió con el teclado.
   useEffect(() => {

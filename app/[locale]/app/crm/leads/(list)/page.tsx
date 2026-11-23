@@ -14,6 +14,7 @@ import CrmPager from '@/components/crm/CrmPager';
 import ListToolbar from '@/components/crm/ListToolbar';
 import LeadCreate from '@/components/crm/LeadCreate';
 import LeadsBoard, { type BoardColumn } from '@/components/crm/LeadsBoard';
+import CrmLiveMount, { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,8 @@ export default async function LeadsPage(props: {
 }) {
   const [{ locale }, sp] = await Promise.all([props.params, props.searchParams]);
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const scope = await sessionScope(user);
   // La primera vez se siembran las etapas de HubSpot en el idioma de quien entra.
@@ -214,6 +217,7 @@ export default async function LeadsPage(props: {
 
   return (
     <div className="app-page ui-page crm-leads-page">
+      <CrmLiveMount rev={liveRev} entities={['lead']} />
       <PageHeader title={t('leads.title')} description={t('leads.subtitle')} actions={create('primary')} />
       <div className="leads-bar">
         <nav className="btn-group" aria-label={t('leads.viewLabel')}>

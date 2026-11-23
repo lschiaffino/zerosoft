@@ -28,6 +28,7 @@ import { customPropFields } from '@/components/crm/customPropFields';
 import { parseRecordTab, recordTabHref } from '@/components/crm/recordTab';
 import { clearLeadCompany, clearLeadContact, setLeadCompany, setLeadContact } from '@/components/crm/leadServerActions';
 import PrivateRecord from '@/components/crm/PrivateRecord';
+import CrmLiveMount, { startCrmLiveRev } from '@/components/crm/CrmLiveMount';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,8 @@ export default async function LeadPage(props: {
   const [{ locale, id }, sp] = await Promise.all([props.params, props.searchParams]);
   const tab = parseRecordTab(sp.tab);
   const user = await requireUser(locale);
+  // CRM en vivo: el contador antes que los datos (components/crm/CrmLiveMount.tsx).
+  const liveRev = startCrmLiveRev(user.id);
   const t = await getTranslations({ locale, namespace: 'crm' });
   const scope = await sessionScope(user);
   const lead = await getLead(user.id, id, scope);
@@ -119,6 +122,7 @@ export default async function LeadPage(props: {
         actions={actions}
       />
       <LeadStagePath leadId={lead.id} stages={stages.map((s) => ({ id: s.id, name: s.name, kind: s.kind }))} current={lead.stage_id} />
+      <CrmLiveMount rev={liveRev} record={{ entity: 'lead', id: lead.id }} back={{ href: '/app/crm/leads', label: t('leads.back') }} />
     </>
   );
 
