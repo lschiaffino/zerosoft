@@ -86,7 +86,6 @@ export default function CallFollowupBlock({ activityId, locale }: { activityId: 
         <button type="button" className="ai-call-toggle" aria-expanded="true" onClick={() => setOpen(false)} id={headingId}>
           {t('followup.title')}
         </button>
-        {items && items.length > 0 && <span className="ai-sentiment">{t('followup.pending', { count: pending })}</span>}
         <button type="button" className="btn btn-ghost btn-sm ai-fu-regen" onClick={generate} disabled={busy}>
           {busy ? t('working') : t('followup.regenerate')}
         </button>
@@ -95,7 +94,9 @@ export default function CallFollowupBlock({ activityId, locale }: { activityId: 
       {items && items.length === 0 && !busy && <p className="muted ai-empty">{t('followup.empty')}</p>}
       {items && items.length > 0 && (
         <>
-          <p className="muted ai-fu-hint">{t('followup.hint')}</p>
+          <p className="muted ai-fu-hint" aria-live="polite">
+            {t('followup.pending', { count: pending })} · {t('followup.hint')}
+          </p>
           <ul className="ai-fu-list">
             {items.map((item) => (
               <FollowupCard

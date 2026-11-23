@@ -80,6 +80,7 @@ section.ai-card { padding-top: 0; padding-bottom: 0; }
 
 /* Cambios sugeridos tras una llamada (C5): tarjetas que se aplican de a una. */
 .ai-fu-hint { margin: 0; font-size: 0.75rem; }
+.ai-fu .ai-call-head { justify-content: space-between; }
 .ai-fu-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .ai-fu-card {
   display: flex;

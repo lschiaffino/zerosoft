@@ -226,8 +226,11 @@ export async function fieldCatalog(
     }
     if (!access.has(rec.entity)) access.set(rec.entity, await fieldAccessFor(viewer, FIELD_ENTITY[rec.entity]));
     const custom = parseCustom(rec.row.custom);
+    const names = new Set<string>();
     for (const def of access.get(rec.entity)!.all) {
-      if (def.access !== 'edit' || !CUSTOM_TYPES.has(def.type) || def.is_unique) continue;
+      // Dos definiciones con el mismo nombre leen el mismo valor: una sola propuesta posible.
+      if (def.access !== 'edit' || !CUSTOM_TYPES.has(def.type) || def.is_unique || names.has(def.name)) continue;
+      names.add(def.name);
       out.push({
         entity: rec.entity,
         recordId: rec.id,
