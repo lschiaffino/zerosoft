@@ -46,6 +46,7 @@ import IssueFilters from './IssueFilters';
 import IssueDisplayOptions, { type CompletedWindow, type DisplayProp } from './IssueDisplayOptions';
 import IssuesTable, { type OptionalColumn } from './IssuesTable';
 import GroupedIssuesTable from './GroupedIssuesTable';
+import { ROW_PROPS } from './IssueRowProps';
 import SavedViewsMenu from './SavedViewsMenu';
 import TrackIcon from './TrackIcon';
 import { BulkBar, useIssueSelection } from './BulkEdit';
@@ -67,7 +68,7 @@ const IssuesGantt = dynamic(() => import('./IssuesGantt'));
 const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
 const SaveViewDialog = dynamic(() => import('./SaveViewDialog'));
 
-const ALL_PROPS: DisplayProp[] = ['id', 'priority', 'status', 'labels', 'cycle', 'due', 'assignee', 'project', 'created'];
+const ALL_PROPS: DisplayProp[] = ['id', 'priority', 'status', 'labels', 'cycle', 'milestone', 'due', 'assignee', 'project', 'estimate', 'links', 'status_time', 'created', 'updated'];
 const SUBGROUP_SEP = '\u0001';
 const DEFAULT_LAYOUTS: readonly ListLayout[] = ['list', 'board'];
 
@@ -726,9 +727,12 @@ export default function TrackIssueList({
     empty: prefs.filters.rules.length || prefs.filters.q ? t('project.noMatches') : empty.title,
     hasSubtasks: t('subtasks.hasSubtasks'),
     project: t('quick.project'),
+    properties: tx('display.properties'),
   };
+  // Las que arrancan ocultas (created y las compactas) se muestran solo si están en Display.
+  const shown = prefs.props.filter((p): p is OptionalColumn => p !== 'status');
   const availableProps = team ? ALL_PROPS.filter((p) => p !== 'project' && p !== 'status') : ALL_PROPS;
-  const hidden: OptionalColumn[] = (['id', 'priority', 'labels', 'cycle', 'due', 'assignee', 'project', 'created'] as const).filter(
+  const hidden: OptionalColumn[] = (['id', 'priority', 'labels', 'cycle', 'due', 'assignee', 'project', 'created', ...ROW_PROPS] as const).filter(
     (p) => !prefs.props.includes(p),
   );
   if (singleTeam && !hidden.includes('project')) hidden.push('project');
@@ -927,6 +931,7 @@ export default function TrackIssueList({
           labels={tableLabels}
           editing={editing}
           hideColumns={hidden}
+          showColumns={shown}
           nested={prefs.showSub}
           selection={{ ...selection, label: t('bulk.select'), allLabel: t('bulk.selectAll') }}
           quickAdd={quickTeams.length ? { onCreate: (text, pid) => quickCreate(text, {}, pid), projects: quickTeams.length > 1 ? quickTeams : undefined, defaultProjectId: defaultTeam } : undefined}
@@ -947,6 +952,7 @@ export default function TrackIssueList({
         priorities={ui.priorities}
         editing={editing}
         hideColumns={hidden}
+        showColumns={shown}
         nested={prefs.showSub}
         milestones={milestones}
         showEmpty={prefs.emptyGroups}

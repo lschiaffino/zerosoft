@@ -2,7 +2,8 @@
  * Track — Insights (como Linear): lee los issues del workspace con los
  * filtros pedidos y los agrega con lib/track-planning-core (aggregateInsight).
  * Inicio y fin salen de la actividad: el primer paso a un status "in
- * progress" y el último cierre como done.
+ * progress" y el último cierre como done. Time in status sale de
+ * track_issues.status_changed_at (lib/track-status-time.ts).
  */
 import { currentVisibleSql } from './track-access';
 import { getDb } from './db';
@@ -71,7 +72,7 @@ export async function loadInsightIssues(scope: WorkspaceScope, filters: InsightF
     .prepare(
       `SELECT i.id, i.identifier, i.title, i.project_id, p.name AS project_name, s.name AS status_name, s.category,
          i.priority, i.assignee_id, u.name AS assignee_name, u.email AS assignee_email, i.labels, i.plan_id, pl.name AS plan_name,
-         i.cycle_id, c.name AS cycle_name, i.estimate, i.created_at, i.updated_at,
+         i.cycle_id, c.name AS cycle_name, i.estimate, i.created_at, i.updated_at, i.status_changed_at,
          (SELECT MIN(a.created_at) FROM track_issue_activities a WHERE a.issue_id = i.id AND a.type = 'status_change'
             AND json_extract(a.meta, '$.toCategory') = 'in_progress') AS started_at,
          (SELECT MAX(a.created_at) FROM track_issue_activities a WHERE a.issue_id = i.id AND a.type = 'closed'
@@ -105,6 +106,7 @@ export async function loadInsightIssues(scope: WorkspaceScope, filters: InsightF
     estimate: number | null;
     created_at: string;
     updated_at: string;
+    status_changed_at: string | null;
     started_at: string | null;
     completed_at: string | null;
   }>;
@@ -139,6 +141,7 @@ export async function loadInsightIssues(scope: WorkspaceScope, filters: InsightF
       createdAt: iso(r.created_at),
       startedAt: r.started_at ? iso(r.started_at) : null,
       completedAt: completedAt ? iso(completedAt) : null,
+      statusChangedAt: r.status_changed_at ? iso(r.status_changed_at) : null,
     };
   });
 }

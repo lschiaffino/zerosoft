@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { deleteNotification, markNotificationRead, snoozeNotification } from '@/lib/notifications';
+import { deleteNotification, markNotificationRead, markNotificationUnread, snoozeNotification } from '@/lib/notifications';
 import { trackError, unauthorized } from '@/lib/track-http';
 
 export const runtime = 'nodejs';
@@ -14,6 +14,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const body: unknown = await req.json().catch(() => null);
   if (body && typeof body === 'object' && 'read' in body && body.read === true) {
     await markNotificationRead(params.id, realUserId(user));
+  }
+  if (body && typeof body === 'object' && 'read' in body && body.read === false) {
+    await markNotificationUnread(params.id, realUserId(user));
   }
   // Posponer: { snoozeUntil: ISO } lo esconde hasta esa fecha; null lo trae de vuelta.
   if (body && typeof body === 'object' && 'snoozeUntil' in body) {

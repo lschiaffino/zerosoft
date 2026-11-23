@@ -24,6 +24,7 @@ import { nestIssues } from "@/lib/track-views";
 import { ProgressRing } from "./ProgressRing";
 import type { TrackUiLabels } from "./ui-labels";
 import type { IssueSelection } from "./BulkEdit";
+import IssueRowProps, { ROW_PROPS, type RowProp } from "./IssueRowProps";
 
 export type SortField = "identifier" | "title" | "priority" | "created" | null;
 
@@ -39,7 +40,8 @@ export type OptionalColumn =
   | "id"
   | "priority"
   | "labels"
-  | "due";
+  | "due"
+  | RowProp;
 
 export interface IssuesTableEditing {
   projects: ProjectMap;
@@ -72,6 +74,8 @@ interface IssuesTableProps {
     empty: string;
     hasSubtasks: string;
     project?: string;
+    /** Cabecera de la celda de propiedades compactas (milestone, estimación, links…). */
+    properties?: string;
   };
   sort?: SortField;
   sortDir?: "asc" | "desc";
@@ -81,7 +85,7 @@ interface IssuesTableProps {
   /** Fila "+ New task" al final de la lista. */
   quickAdd?: IssuesTableQuickAdd;
   hideColumns?: OptionalColumn[];
-  /** Columnas opcionales que arrancan ocultas (hoy, `created`). */
+  /** Columnas opcionales que arrancan ocultas (`created` y las propiedades compactas). */
   showColumns?: OptionalColumn[];
   /** Ancho fijo por columna, para que varias tablas seguidas alineen (Mis tareas). */
   fixedLayout?: boolean;
@@ -181,7 +185,9 @@ export default function IssuesTable({
   const show = (c: OptionalColumn) =>
     !hideColumns.includes(c) &&
     (c !== "project" || Boolean(labels.project)) &&
-    (c !== "created" || showColumns.includes("created"));
+    (c !== "created" || showColumns.includes("created")) &&
+    (!(ROW_PROPS as readonly string[]).includes(c) || showColumns.includes(c));
+  const showMeta = ROW_PROPS.some((p) => show(p));
   const columnCount =
     (selection ? 1 : 0) +
     2 +
@@ -195,7 +201,8 @@ export default function IssuesTable({
         "created",
         "project",
       ] as OptionalColumn[]
-    ).filter(show).length;
+    ).filter(show).length +
+    (showMeta ? 1 : 0);
   const idChars = idWidth ?? identifierWidth(sorted);
   // Con el mouse se suelta el foco de la casilla: X, J/K y S siguen andando.
   const releaseFocus = (e: React.MouseEvent<HTMLInputElement>) => {
@@ -278,6 +285,11 @@ export default function IssuesTable({
               )}
               {show("cycle") && (
                 <th className="hide-sm track-col-cycle">{labels.cycle}</th>
+              )}
+              {showMeta && (
+                <th className="hide-sm track-col-meta">
+                  <span className="sr-only">{labels.properties ?? labels.title}</span>
+                </th>
               )}
               {show("due") && (
                 <th className="hide-sm track-col-due">{labels.dueDate}</th>
@@ -531,6 +543,11 @@ export default function IssuesTable({
                         {issue.cycle_name}
                       </span>
                     ) : null}
+                  </td>
+                )}
+                {showMeta && (
+                  <td className="hide-sm track-col-meta">
+                    <IssueRowProps issue={issue} show={show} locale={locale} />
                   </td>
                 )}
                 {show("due") && (

@@ -10,6 +10,7 @@ import {
   HIERARCHY_VALUES,
   NONE_VALUE,
   RELATION_VALUES,
+  STATUS_AGE_DAYS,
   fieldKind,
   needsValues,
   operatorsFor,
@@ -341,6 +342,7 @@ const FIELD_ICONS: Partial<Record<FilterField, TrackIconName>> = {
   updated: 'clock',
   relation: 'link',
   hierarchy: 'subtasks',
+  status_age: 'clock',
 };
 
 function fieldIcon(f: FilterField): ReactNode {
@@ -418,7 +420,7 @@ export default function IssueFilters({
     const list: FilterField[] = ['status', 'priority', 'assignee', 'creator', 'label', 'cycle', 'milestone'];
     if (teams.length > 1) list.push('team');
     if (plans.length) list.push('project');
-    list.push('estimate', 'due', 'start', 'created', 'updated', 'relation', 'hierarchy');
+    list.push('estimate', 'due', 'start', 'created', 'updated', 'status_age', 'relation', 'hierarchy');
     return list;
   }, [teams.length, plans.length]);
 
@@ -464,6 +466,8 @@ export default function IssueFilters({
         return RELATION_VALUES.map((v) => ({ value: v, label: tf(`relation.${v}`), icon: <TrackIcon name="link" size={13} /> }));
       case 'hierarchy':
         return HIERARCHY_VALUES.map((v) => ({ value: v, label: tf(`hierarchy.${v}`), icon: <TrackIcon name="subtasks" size={13} /> }));
+      case 'status_age':
+        return STATUS_AGE_DAYS.map((n) => ({ value: String(n), label: tf('days', { count: n }), icon: <TrackIcon name="clock" size={13} /> }));
       default:
         return [];
     }
@@ -476,6 +480,7 @@ export default function IssueFilters({
       if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
       return tf(`rel.${v}`);
     }
+    if (fieldKind(rule.field) === 'age') return tf('days', { count: Number(rule.values[0]) || 0 });
     const opts = optionsFor(rule.field);
     const names = rule.values.map((v) => opts.find((o) => o.value === v)?.label ?? v);
     return names.length > 2 ? tf('nValues', { first: names[0], count: names.length - 1 }) : names.join(', ');
@@ -489,6 +494,7 @@ export default function IssueFilters({
   const opLabel = (rule: FilterRule, op: FilterOperator = rule.op): string => {
     const kind = fieldKind(rule.field);
     if (kind === 'date') return tf(`op.date_${op}`);
+    if (kind === 'age') return tf(`op.age_${op}`);
     if (op === 'is' && rule.values.length > 1) return tf('op.is_any');
     if (op === 'is_not' && rule.values.length > 1) return tf('op.is_none');
     return tf(`op.${op}`);
@@ -504,7 +510,8 @@ export default function IssueFilters({
   const addRule = (rule: FilterRule) => {
     // Misma propiedad y operador "es": se suman los valores (Linear hace lo mismo).
     const cur = latest.current.rules;
-    const i = cur.findIndex((r) => r.field === rule.field && r.op === rule.op && fieldKind(r.field) !== 'date');
+    const single = fieldKind(rule.field) === 'date' || fieldKind(rule.field) === 'age';
+    const i = cur.findIndex((r) => r.field === rule.field && r.op === rule.op && !single);
     if (i >= 0) {
       const merged = Array.from(new Set([...cur[i].values, ...rule.values]));
       setRule(i, { ...cur[i], values: merged });
@@ -578,7 +585,7 @@ export default function IssueFilters({
     if (q) {
       const hits: KeyMenuItem[] = [];
       for (const f of fields) {
-        if (fieldKind(f) === 'date') continue;
+        if (fieldKind(f) === 'date' || fieldKind(f) === 'age') continue;
         for (const o of optionsFor(f)) {
           if (!matches(o.label, q)) continue;
           hits.push({
@@ -621,6 +628,21 @@ export default function IssueFilters({
           },
         },
       ].filter((i) => !q.trim() || matches(i.label, q));
+    }
+    if (fieldKind(field) === 'age') {
+      // "Más de N días" en el status actual; el chip cambia a "menos de".
+      return optionsFor(field)
+        .filter((o) => !q.trim() || matches(o.label, q))
+        .map((o) => ({
+          key: o.value,
+          label: tf('moreThan', { value: o.label }),
+          icon: o.icon,
+          testId: `track-filter-value-${field}-${o.value}`,
+          onPick: () => {
+            addRule({ field, op: 'gte', values: [o.value] });
+            closeAdd(false);
+          },
+        }));
     }
     const rule = filters.rules.find((r) => r.field === field && r.op === 'is');
     return optionsFor(field)
@@ -799,7 +821,7 @@ export default function IssueFilters({
                   items={optionsFor(rule.field)
                     .filter((o) => !chipQuery.trim() || matches(o.label, chipQuery))
                     .map((o) => {
-                      const single = kind === 'number' && (rule.op === 'gte' || rule.op === 'lte');
+                      const single = kind === 'age' || (kind === 'number' && (rule.op === 'gte' || rule.op === 'lte'));
                       return {
                         key: o.value,
                         label: o.label,

@@ -1362,6 +1362,130 @@ a.track-issue-link .track-status-glyph {
   color: var(--brand-gray-2);
 }
 
+/* Propiedades compactas (milestone, estimación, links, time in status, editado): ícono y texto
+   chico a la derecha, sin cápsulas, como las Display properties de Linear. */
+.track-table-wrap.is-linear .track-col-meta {
+  order: 6;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.track-row-props {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+  white-space: nowrap;
+}
+
+.track-row-prop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.track-row-prop.is-milestone {
+  flex: 0 1 auto;
+  max-width: 140px;
+}
+
+.track-row-prop.is-milestone .track-row-prop-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-row-prop > svg {
+  flex: none;
+  color: var(--brand-gray-3);
+}
+
+/* En la tarjeta del tablero van al final de la línea de abajo, sin empujar a las demás. */
+.track-row-props.is-card {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 4px 10px;
+  margin-left: auto;
+}
+
+.track-table.is-fixed .track-col-meta {
+  width: auto;
+  text-align: right;
+}
+
+/* ---------- Time in status en el panel del issue ---------- */
+.track-status-time-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 0 6px;
+  margin-left: -6px;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.track-status-time-btn:hover {
+  background: var(--ui-hover);
+}
+
+.track-status-time-btn[aria-expanded='true'] > svg {
+  transform: rotate(180deg);
+}
+
+.track-status-time-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-status-time-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--brand-gray-1);
+}
+
+.track-status-time-list li.is-current {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.track-status-time-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-status-time-ms {
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-gray-2);
+}
+
+@media (pointer: coarse) {
+  .track-status-time-btn {
+    min-height: 40px;
+  }
+}
+
 /* Sin vencimiento no se muestra nada (aparece al pasar por la fila). */
 .track-table-wrap.is-linear tr:not(:hover):not(.is-kb-active) .track-col-due:has(.track-inline-text.is-dim) > * {
   opacity: 0;

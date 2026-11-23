@@ -377,7 +377,8 @@
       "effort": "Esfuerzo (estimación)",
       "cycle_time": "Cycle time",
       "lead_time": "Lead time",
-      "issue_age": "Antigüedad"
+      "issue_age": "Antigüedad",
+      "time_in_status": "Tiempo en el estado"
     },
     "slices": {
       "status": "Estado",

@@ -80,6 +80,8 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   /** SLA abierto (track_issue_slas): vencimiento y desde cuándo está en riesgo. */
   sla_due_at?: string | null;
   sla_risk_at?: string | null;
+  /** Links del issue (PRs y commits de GitHub, y vínculos externos): la propiedad "Links" de las listas. */
+  link_count?: number;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -983,7 +985,9 @@ export function issueSelect(extraWhere = ''): string {
       ${ISSUE_CUSTOMERS_SQL} AS customer_count,
       ${ISSUE_REVENUE_SQL} AS customer_revenue,
       (SELECT sla.due_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_due_at,
-      (SELECT sla.risk_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_risk_at
+      (SELECT sla.risk_at FROM track_issue_slas sla WHERE sla.issue_id = i.id AND sla.completed_at IS NULL) AS sla_risk_at,
+      ((SELECT COUNT(*) FROM track_issue_links gl WHERE gl.issue_id = i.id)
+        + (SELECT COUNT(*) FROM track_external_refs xr WHERE xr.issue_id = i.id)) AS link_count
     FROM track_issues i
     LEFT JOIN track_statuses s ON s.id = i.status_id
     LEFT JOIN users u ON u.id = i.assignee_id

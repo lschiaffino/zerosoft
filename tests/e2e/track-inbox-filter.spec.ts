@@ -3,9 +3,10 @@ import { e2eDb } from './helpers/db';
 
 /**
  * Bandeja de Track como la Inbox de Linear: filtrar por quién, estado
- * (leídas / sin leer), tipo y project; ordenar (más viejas primero) y agrupar
- * por tipo; el filtro queda en la URL y se recuerda al volver sin ella; Esc y
- * el clic afuera cierran los menús; a 390 px sin scroll lateral.
+ * (leídas / sin leer), tipo y project dentro de Priority y Other; ordenar (más
+ * viejas primero) y agrupar por tipo; el filtro queda en la URL y se recuerda
+ * al volver sin ella; Esc y el clic afuera cierran los menús; a 390 px sin
+ * scroll lateral.
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -78,21 +79,30 @@ test('filtrar por quién, estado, tipo y project; ordenar y agrupar; se recuerda
   await page.evaluate(() => window.localStorage.removeItem('zs:track-inbox-view'));
   await page.reload({ waitUntil: 'networkidle' });
 
-  // Quién: solo los tres avisos de esta persona, el más nuevo primero.
+  // Quién: los avisos de esta persona. Priority (asignación y mención) y Other (el comentario).
   await addFilter(page, 'from', s.actor);
-  await expect.poll(() => ids(page)).toEqual([s.assigned, s.comment, s.mention]);
+  await expect.poll(() => ids(page)).toEqual([s.assigned, s.mention]);
   await expect(page).toHaveURL(new RegExp(`from=${s.actor}`));
+  await expect(page.getByTestId('track-inbox-count-priority')).toHaveText('2');
+  await expect(page.getByTestId('track-inbox-count-other')).toHaveCount(0);
+  await page.getByTestId('track-inbox-tab-other').click();
+  await expect.poll(() => ids(page)).toEqual([s.comment]);
+  await page.getByTestId('track-inbox-tab-priority').click();
+  await expect.poll(() => ids(page)).toEqual([s.assigned, s.mention]);
 
-  // Estado: sin leer.
+  // Estado: sin leer (en Other el comentario leído sale).
   await addFilter(page, 'read', 'unread');
   await expect.poll(() => ids(page)).toEqual([s.assigned, s.mention]);
+  await page.getByTestId('track-inbox-tab-other').click();
+  await expect(items(page)).toHaveCount(0);
+  await page.getByTestId('track-inbox-tab-priority').click();
   await expect(page.getByTestId('track-inbox-filter-chip')).toHaveCount(2);
   await page.getByTestId('track-inbox-chip-remove-read').click();
-  await expect.poll(() => ids(page)).toEqual([s.assigned, s.comment, s.mention]);
+  await expect.poll(() => ids(page)).toEqual([s.assigned, s.mention]);
 
-  // Tipo: comentarios; se cambia desde el chip a menciones.
+  // Tipo: comentarios (en Priority no hay); se cambia desde el chip a menciones.
   await addFilter(page, 'kind', 'comment');
-  await expect.poll(() => ids(page)).toEqual([s.comment]);
+  await expect(items(page)).toHaveCount(0);
   await page.getByTestId('track-inbox-chip-values-kind').click();
   await page.getByTestId('track-inbox-filter-value-kind-mention').click();
   await page.getByTestId('track-inbox-filter-value-kind-comment').click();
@@ -103,14 +113,16 @@ test('filtrar por quién, estado, tipo y project; ordenar y agrupar; se recuerda
 
   // Project (el del issue que nombra el aviso).
   await addFilter(page, 'project', s.planId);
-  await expect.poll(() => ids(page)).toEqual([s.comment, s.mention]);
+  await expect.poll(() => ids(page)).toEqual([s.mention]);
   await shot(page, 'track-inbox-filter-1280');
+  await page.getByTestId('track-inbox-chip-remove-project').click();
+  await expect.poll(() => ids(page)).toEqual([s.assigned, s.mention]);
 
   // Display: más viejas primero y agrupado por tipo.
   await page.getByTestId('track-inbox-display').click();
   await page.getByTestId('track-inbox-ordering').click();
   await page.getByTestId('track-inbox-ordering-oldest').click();
-  await expect.poll(() => ids(page)).toEqual([s.mention, s.comment]);
+  await expect.poll(() => ids(page)).toEqual([s.mention, s.assigned]);
   await page.getByTestId('track-inbox-grouping').click();
   await page.getByTestId('track-inbox-grouping-kind').click();
   await page.keyboard.press('Escape');
@@ -119,18 +131,18 @@ test('filtrar por quién, estado, tipo y project; ordenar y agrupar; se recuerda
   const groups = page.getByTestId('track-inbox-panel').getByTestId('track-inbox-group');
   await expect(groups).toHaveCount(2);
   await expect(groups.nth(0)).toHaveAttribute('data-group', 'mention');
-  await expect(groups.nth(1)).toHaveAttribute('data-group', 'comment');
+  await expect(groups.nth(1)).toHaveAttribute('data-group', 'assigned');
   await shot(page, 'track-inbox-grouped-1280');
 
   // Recargar: la URL lo trae.
   await page.reload({ waitUntil: 'networkidle' });
   await expect(groups).toHaveCount(2);
-  await expect.poll(() => ids(page)).toEqual([s.mention, s.comment]);
+  await expect.poll(() => ids(page)).toEqual([s.mention, s.assigned]);
 
   // Volver sin parámetros: se recuerda (y la URL lo vuelve a mostrar).
   await page.goto('/en/app/track/inbox', { waitUntil: 'networkidle' });
   await expect(page).toHaveURL(/group=kind/);
-  await expect.poll(() => ids(page)).toEqual([s.mention, s.comment]);
+  await expect.poll(() => ids(page)).toEqual([s.mention, s.assigned]);
 
   // El clic afuera cierra Display.
   await page.getByTestId('track-inbox-display').click();

@@ -136,6 +136,14 @@ export async function markNotificationRead(id: string, userId: string): Promise<
   return res.changes > 0;
 }
 
+/** Vuelve a dejarlo sin leer (U en la bandeja, como Linear). */
+export async function markNotificationUnread(id: string, userId: string): Promise<boolean> {
+  const res = await getDb()
+    .prepare('UPDATE notifications SET read_at = NULL WHERE id = ? AND user_id = ? AND read_at IS NOT NULL')
+    .run(id, userId);
+  return res.changes > 0;
+}
+
 export async function markAllNotificationsRead(userId: string): Promise<void> {
   const db = getDb();
   await db

@@ -138,7 +138,7 @@ export const initiativeUpdateSchema = initiativeCreateSchema.partial();
 
 // ---------- Insights ----------
 
-export const INSIGHT_MEASURES = ['count', 'effort', 'cycle_time', 'lead_time', 'issue_age'] as const;
+export const INSIGHT_MEASURES = ['count', 'effort', 'cycle_time', 'lead_time', 'issue_age', 'time_in_status'] as const;
 export type InsightMeasure = (typeof INSIGHT_MEASURES)[number];
 export const INSIGHT_DIMENSIONS = [
   'status',

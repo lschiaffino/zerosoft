@@ -1,7 +1,7 @@
 'use client';
 
 import LocalText from '@/components/ui/LocalText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -12,32 +12,26 @@ import {
   parseInboxFilter,
   type InboxFilter,
   type InboxKind,
+  type InboxReason,
+  type InboxTab,
 } from '@/lib/notification-inbox-filter';
-import type { InboxFacets } from '@/lib/notification-inbox';
+import type { InboxCounts, InboxFacets, InboxIssue } from '@/lib/notification-inbox';
 import InboxFilters from './InboxFilters';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { formatWhenShort, SNOOZE_PRESETS, snoozeAt, type SnoozePreset } from '@/lib/track-snooze';
-import { Popover } from './InlineEditors';
-import { relDate } from '@/lib/utils';
+import { Popover, StatusDot } from './InlineEditors';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { notificationTitle, type NotificationTextLabels } from '@/lib/notification-text';
 import { NOTIFICATIONS_CHANGED_EVENT } from '@/components/app/NotificationBell';
-
-type NotificationType =
-  | 'mention'
-  | 'assigned'
-  | 'status_change'
-  | 'issue_update'
-  | 'comment'
-  | 'subtask'
-  | 'relation'
-  | 'track_reminder'
-  | 'project_update';
+import { parseStoredDate } from '@/lib/track-status-time';
+import TrackIcon, { type TrackIconName } from './TrackIcon';
+import { useShortDuration } from './IssueRowProps';
+import { isTextEntry } from './IssueFilters';
 
 interface Notification {
   id: string;
-  type: NotificationType;
+  type: string;
   title: string;
   body: string | null;
   href: string | null;
@@ -46,11 +40,15 @@ interface Notification {
   meta: string;
   source_type?: string | null;
   snoozed_until?: string | null;
-  /** Lo que agrega /api/notifications/inbox para agrupar. */
+  /** Lo que agrega /api/notifications/inbox para agrupar y explicar. */
   kind?: InboxKind;
   projectId?: string | null;
   projectName?: string | null;
   team?: string | null;
+  actorName?: string | null;
+  tab?: InboxTab;
+  reason?: InboxReason;
+  issue?: InboxIssue | null;
 }
 
 /** Filtro, orden y agrupado guardados por persona en este navegador (la URL manda si trae alguno). */
@@ -76,10 +74,15 @@ function saveFilter(f: InboxFilter) {
   }
 }
 
-/** La URL refleja el filtro (se puede compartir y sobrevive a recargar) sin navegar. */
-function writeUrl(f: InboxFilter) {
+/** Priority y Other (como la Priority inbox de Linear) y los pospuestos. */
+const TABS = ['priority', 'other', 'snoozed'] as const;
+type TabKey = (typeof TABS)[number];
+
+/** La URL refleja la pestaña y el filtro (se puede compartir y sobrevive a recargar) sin navegar. */
+function writeUrl(f: InboxFilter, tab: TabKey) {
   const url = new URL(window.location.href);
-  FILTER_PARAMS.forEach((k) => url.searchParams.delete(k));
+  [...FILTER_PARAMS, 'tab'].forEach((k) => url.searchParams.delete(k));
+  if (tab !== 'priority') url.searchParams.set('tab', tab);
   inboxFilterParams(f).forEach((v, k) => url.searchParams.append(k, v));
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
@@ -88,15 +91,10 @@ interface InboxClientProps {
   locale: string;
   labels: {
     title: string;
-    all: string;
-    mentions: string;
-    assigned: string;
-    updates: string;
     empty: string;
     emptyBody: string;
     markAllRead: string;
     loadMore: string;
-    markRead: string;
     unread: string;
     loading: string;
     loadError: string;
@@ -112,25 +110,37 @@ interface InboxClientProps {
 
 const PAGE = 25;
 
-const TABS = [
-  { key: 'all', types: undefined as NotificationType[] | undefined },
-  { key: 'mentions', types: ['mention'] as NotificationType[] },
-  { key: 'assigned', types: ['assigned'] as NotificationType[] },
-  {
-    key: 'updates',
-    types: ['status_change', 'issue_update', 'comment', 'subtask', 'relation', 'track_reminder', 'project_update'] as NotificationType[],
-  },
-  // Pospuestos: vuelven a la bandeja como no leídos al vencer el plazo.
-  { key: 'snoozed', types: undefined as NotificationType[] | undefined },
-] as const;
-
 const SNOOZE_LABEL: Record<SnoozePreset, 'inboxSnooze.hour' | 'inboxSnooze.tomorrow' | 'inboxSnooze.nextWeek'> = {
   hour: 'inboxSnooze.hour',
   tomorrow: 'inboxSnooze.tomorrow',
   nextWeek: 'inboxSnooze.nextWeek',
 };
 
-type TabKey = (typeof TABS)[number]['key'];
+/** Ícono chico sobre el avatar: qué pasó. */
+const REASON_ICON: Record<InboxReason, TrackIconName> = {
+  assigned: 'assign',
+  mentioned: 'at',
+  commented: 'reply',
+  status: 'check',
+  priority: 'flag',
+  updated: 'pencil',
+  subissue: 'subtasks',
+  relation: 'link',
+  reminder: 'clock',
+  triage: 'inbox',
+  sla_risk: 'clock',
+  sla_breach: 'clock',
+  agent: 'refresh',
+  project: 'plans',
+  approval: 'check',
+  other: 'bell',
+};
+
+/** Avisos que llegan por estar suscripto al issue: la línea gris lo dice. */
+const VIA_SUBSCRIPTION = new Set<InboxReason>(['commented', 'status', 'priority', 'updated', 'subissue', 'relation']);
+
+/** Menús abiertos en la página: mientras haya uno, las teclas son de él. */
+const OPEN_MENU = '.track-menu, .cmdk, [role="menu"], [role="listbox"], [role="dialog"], dialog[open]';
 
 function parseMeta(meta: string): Record<string, string> {
   try {
@@ -141,26 +151,48 @@ function parseMeta(meta: string): Record<string, string> {
   }
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : '')).toUpperCase() || '?';
+}
+
 /** La campana del sidebar recarga su conteo (pospuestos y leídos dejan de contar). */
 function notifyChanged() {
   window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
 }
 
-/** Bandeja de Track: menciones, asignaciones y cambios, con filtro por tipo. */
+function parseTab(v: string | null | undefined): TabKey {
+  return (TABS as readonly string[]).includes(v ?? '') ? (v as TabKey) : 'priority';
+}
+
+/**
+ * Bandeja de Track como la Priority inbox de Linear: Priority (te asignaron,
+ * te mencionaron, algo espera tu acción, cambió el status o la prioridad de
+ * algo que seguís; la regla está en lib/notification-inbox-filter.ts) y
+ * Other (el resto), con avatar e ícono de la acción, una línea gris que dice
+ * por qué llegó, y todo desde el teclado: J/K o flechas para moverse, Enter
+ * abre, U marca leído o sin leer, H pospone, Backspace borra.
+ */
 export default function InboxClient({ locale, labels }: InboxClientProps) {
   const tr = useTranslations('track');
   const tp = useTranslations('trackPlanning');
   const tTriage = useTranslations('trackTriage');
-  const [tab, setTab] = useState<TabKey>('all');
-  const [snoozeError, setSnoozeError] = useState(false);
+  const ti = useTranslations('track.inbox');
+  const short = useShortDuration();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<TabKey>(() => parseTab(searchParams?.get('tab')));
+  const [actionError, setActionError] = useState<string | null>(null);
   const [rows, setRows] = useState<Notification[]>([]);
+  const [counts, setCounts] = useState<InboxCounts | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [active, setActive] = useState<string | null>(null);
   const request = useRef(0);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const searchParams = useSearchParams();
+  const listRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<InboxFilter>(() => parseInboxFilter(new URLSearchParams(searchParams?.toString() ?? '')));
   const [facets, setFacets] = useState<InboxFacets | null>(null);
   // Hasta mirar lo guardado no se pide nada (si no, la primera lista sería la sin filtro).
@@ -173,7 +205,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       const saved = readSavedFilter();
       if (saved && inboxFilterParams(saved).toString()) {
         setFilter(saved);
-        writeUrl(saved);
+        writeUrl(saved, tab);
       }
     } else {
       saveFilter(filter);
@@ -185,7 +217,13 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
   const changeFilter = (next: InboxFilter) => {
     setFilter(next);
     saveFilter(next);
-    writeUrl(next);
+    writeUrl(next, tab);
+  };
+
+  const changeTab = (next: TabKey) => {
+    setTab(next);
+    setActive(null);
+    writeUrl(filter, next);
   };
 
   const load = useCallback(
@@ -193,21 +231,21 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       const seq = ++request.current;
       setLoading(true);
       setError(false);
-      const active = TABS.find((t) => t.key === tab)!;
       const nextPage = reset ? 1 : page;
       const params = inboxFilterParams(filter);
       params.set('limit', String(PAGE));
       params.set('page', String(nextPage));
-      active.types?.forEach((type) => params.append('type', type));
-      if (active.key === 'snoozed') params.set('snoozed', '1');
+      if (tab === 'snoozed') params.set('snoozed', '1');
+      else params.set('tab', tab);
       const res = await fetch(`/api/notifications/inbox?${params.toString()}`).catch(() => null);
       if (seq !== request.current) return;
       if (res?.ok) {
-        const data = (await res.json()) as { rows: Notification[]; hasMore: boolean; facets: InboxFacets };
+        const data = (await res.json()) as { rows: Notification[]; hasMore: boolean; facets: InboxFacets; counts?: InboxCounts };
         const newRows = data.rows ?? [];
         setRows((prev) => (reset ? newRows : [...prev, ...newRows]));
         setHasMore(Boolean(data.hasMore));
         setFacets(data.facets ?? null);
+        setCounts(data.counts ?? null);
         setPage(nextPage + 1);
       } else {
         setError(true);
@@ -224,31 +262,72 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, filterKey, ready]);
 
-  async function markRead(id: string) {
-    const res = await fetch(`/api/notifications/${id}`, {
+  /** Ajusta el contador de la pestaña del aviso (sin volver a pedir la lista). */
+  const bump = (n: Notification, delta: number) => {
+    const key = n.tab;
+    if (!key) return;
+    setCounts((c) => (c ? { ...c, [key]: Math.max(0, c[key] + delta) } : c));
+  };
+
+  async function setRead(n: Notification, read: boolean) {
+    setActionError(null);
+    const res = await fetch(`/api/notifications/${n.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ read: true }),
+      body: JSON.stringify({ read }),
     }).catch(() => null);
-    if (res?.ok) {
-      setRows((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n)));
-      notifyChanged();
+    if (!res?.ok) {
+      setActionError(ti('actionError'));
+      return;
     }
+    const wasUnread = !n.read_at;
+    setRows((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: read ? (x.read_at ?? new Date().toISOString()) : null } : x)));
+    if (tab !== 'snoozed') {
+      if (read && wasUnread) bump(n, -1);
+      if (!read && !wasUnread) bump(n, 1);
+    }
+    notifyChanged();
   }
 
+  /** Sale de la lista (pospuesto o borrado): la fila activa pasa a la siguiente, como Linear. */
+  const dropRow = (id: string) => {
+    const i = rows.findIndex((x) => x.id === id);
+    const next = rows.filter((x) => x.id !== id);
+    setRows((prev) => prev.filter((x) => x.id !== id));
+    if (active === id) {
+      const nextId = next[Math.min(i, next.length - 1)]?.id ?? null;
+      setActive(nextId);
+      // El foco sigue en la lista (si no, cae al body y J/K empiezan de cero).
+      if (nextId) requestAnimationFrame(() => rowEl(nextId)?.querySelector<HTMLElement>('.track-inbox-link')?.focus({ preventScroll: true }));
+    }
+  };
+
   // Posponer (o traer de vuelta con null): sale de la lista actual.
-  async function snooze(id: string, until: Date | null) {
-    setSnoozeError(false);
-    const res = await fetch(`/api/notifications/${id}`, {
+  async function snooze(n: Notification, until: Date | null) {
+    setActionError(null);
+    const res = await fetch(`/api/notifications/${n.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ snoozeUntil: until ? until.toISOString() : null }),
     }).catch(() => null);
     if (!res?.ok) {
-      setSnoozeError(true);
+      setActionError(tr('inboxSnooze.error'));
       return;
     }
-    setRows((prev) => prev.filter((n) => n.id !== id));
+    if (tab !== 'snoozed' && !n.read_at) bump(n, -1);
+    dropRow(n.id);
+    notifyChanged();
+  }
+
+  async function remove(n: Notification) {
+    setActionError(null);
+    const res = await fetch(`/api/notifications/${n.id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      setActionError(ti('actionError'));
+      return;
+    }
+    if (tab !== 'snoozed' && !n.read_at) bump(n, -1);
+    dropRow(n.id);
     notifyChanged();
   }
 
@@ -261,6 +340,7 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     if (res?.ok) {
       const now = new Date().toISOString();
       setRows((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? now })));
+      setCounts((c) => (c ? { priority: 0, other: 0 } : c));
       notifyChanged();
     }
   }
@@ -300,6 +380,18 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
     chatMessage: tr.raw('notifications.chatMessage') as string,
   };
 
+  /** La línea gris: qué hizo quién y, si llegó por seguir el issue, que estás suscripto. */
+  const reasonLine = (n: Notification, meta: Record<string, string>): string => {
+    const reason = n.reason ?? 'other';
+    const actor = n.actorName || meta.actorName || labels.someone;
+    let text: string;
+    if (reason === 'other') text = n.body && n.source_type !== 'robot' ? n.body : notificationTitle(n, textLabels);
+    else if (reason === 'status' && meta.newStatus) text = ti('reason.statusTo', { actor, status: meta.newStatus });
+    else text = ti(`reason.${reason}`, { actor, agent: meta.agentName || labels.someone });
+    const aboutIssue = Boolean(n.issue || meta.issueIdentifier);
+    return VIA_SUBSCRIPTION.has(reason) && aboutIssue ? `${text} · ${ti('why.subscribed')}` : text;
+  };
+
   const firstLoad = loading && rows.length === 0;
   const filtered = inboxFilterCount(filter) > 0;
   // Agrupado (Display): las filas ya llegan ordenadas por grupo; acá se cortan en secciones.
@@ -318,80 +410,250 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
       else groups.push({ key, label: groupLabel(n), rows: [n] });
     }
   }
+  // Orden visual (agrupado o no) para moverse con el teclado.
+  const ordered = grouped ? groups.flatMap((g) => g.rows) : rows;
 
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
     const delta = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (!delta) return;
     e.preventDefault();
-    const next = TABS[(index + delta + TABS.length) % TABS.length].key;
-    setTab(next);
+    const next = TABS[(index + delta + TABS.length) % TABS.length];
+    changeTab(next);
     tabRefs.current[next]?.focus();
   };
+
+  function rowEl(id: string): HTMLElement | null {
+    return listRef.current?.querySelector<HTMLElement>(`[data-testid="track-inbox-item"][data-id="${CSS.escape(id)}"]`) ?? null;
+  }
+
+  const focusRow = (id: string) => {
+    setActive(id);
+    const el = rowEl(id);
+    el?.querySelector<HTMLElement>('.track-inbox-link')?.focus({ preventScroll: true });
+    el?.scrollIntoView({ block: 'nearest' });
+  };
+
+  // Teclado como la Inbox de Linear (fuera de campos de texto y con los menús cerrados).
+  const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
+  keys.current = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
+    if (document.querySelector(OPEN_MENU)) return;
+    const target = e.target as HTMLElement | null;
+    // En las pestañas, las flechas de costado son de las pestañas.
+    if (target?.getAttribute?.('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+    if (ordered.length === 0) return;
+    const i = active ? ordered.findIndex((x) => x.id === active) : -1;
+    const cur = i >= 0 ? ordered[i] : null;
+    const k = e.key;
+    if (k === 'j' || k === 'ArrowDown') {
+      e.preventDefault();
+      focusRow(ordered[Math.min(ordered.length - 1, i + 1)].id);
+    } else if (k === 'k' || k === 'ArrowUp') {
+      e.preventDefault();
+      focusRow(ordered[Math.max(0, i - 1)].id);
+    } else if (!cur) {
+      return;
+    } else if (k === 'Enter' || k === 'o') {
+      // Enter sobre el link lo abre el navegador.
+      if (k === 'Enter' && target?.classList?.contains('track-inbox-link')) return;
+      e.preventDefault();
+      if (!cur.read_at) void setRead(cur, true);
+      router.push(cur.href ?? '/app/track');
+    } else if (k === 'u' || k === 'U') {
+      e.preventDefault();
+      void setRead(cur, !cur.read_at);
+    } else if ((k === 'h' || k === 'H') && tab !== 'snoozed') {
+      e.preventDefault();
+      // El ícono (escritorio) o el menú "…" (teléfono): el que se ve.
+      const triggers = Array.from(rowEl(cur.id)?.querySelectorAll<HTMLButtonElement>('.track-inbox-snooze') ?? []);
+      (triggers.find((b) => b.offsetParent !== null) ?? triggers[0])?.click();
+    } else if (k === 'Backspace' || k === 'Delete') {
+      e.preventDefault();
+      void remove(cur);
+    } else if (k === 'Escape') {
+      setActive(null);
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keys.current(e);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const snoozeMenu = (n: Notification, extra?: (close: () => void) => ReactNode) => (
+    <Popover
+      ariaLabel={extra ? ti('more') : tr('inboxSnooze.snooze')}
+      className={`track-inbox-icon track-inbox-snooze${extra ? ' is-more' : ''}`}
+      width={248}
+      trigger={<TrackIcon name={extra ? 'more' : 'clock'} size={14} />}
+    >
+      {(close) => (
+        <>
+          {SNOOZE_PRESETS.map((p, i) => (
+            <button
+              key={p}
+              type="button"
+              role="menuitem"
+              className="track-menu-item"
+              data-autofocus={i === 0 ? '' : undefined}
+              onClick={() => {
+                close();
+                void snooze(n, snoozeAt(p, new Date()));
+              }}
+            >
+              <span className="track-menu-label">
+                {extra ? `${tr('inboxSnooze.snooze')}: ` : ''}
+                {tr(SNOOZE_LABEL[p])}
+              </span>
+              <span className="track-menu-meta">
+                <LocalText>{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</LocalText>
+              </span>
+            </button>
+          ))}
+          {extra?.(close)}
+        </>
+      )}
+    </Popover>
+  );
 
   const renderRow = (n: Notification) => {
     const meta = parseMeta(n.meta);
     const unread = !n.read_at;
+    const reason = n.reason ?? 'other';
+    const actor = n.actorName || meta.actorName || '';
+    const issue = n.issue ?? null;
+    const at = n.snoozed_until ?? n.created_at;
+    const isActive = active === n.id;
+    const titleText = issue ? issue.title || tr('notifications.untitled') : notificationTitle(n, textLabels);
+    const readToggle = unread ? ti('markRead') : ti('markUnread');
     return (
-      <li key={n.id} className={`track-inbox-item${unread ? ' is-unread' : ''}`} data-testid="track-inbox-item" data-id={n.id} data-kind={n.kind} data-read={unread ? 'false' : 'true'}>
-        {unread ? (
-          <span className="track-inbox-mark" title={labels.unread}>
-            <span className="sr-only">{labels.unread}</span>
+      <li
+        key={n.id}
+        className={`track-inbox-item${unread ? ' is-unread' : ''}${isActive ? ' is-kb-active' : ''}`}
+        data-testid="track-inbox-item"
+        data-id={n.id}
+        data-kind={n.kind}
+        data-tab={n.tab}
+        data-reason={reason}
+        data-read={unread ? 'false' : 'true'}
+        onMouseDown={() => setActive(n.id)}
+      >
+        <span className={`track-inbox-avatar${actor ? '' : ' is-system'}`} aria-hidden>
+          {actor ? initials(actor) : <TrackIcon name={REASON_ICON[reason]} size={14} />}
+          {actor && (
+            <span className={`track-inbox-badge is-${reason}`} data-testid="track-inbox-badge">
+              <TrackIcon name={REASON_ICON[reason]} size={9} />
+            </span>
+          )}
+        </span>
+        <Link
+          href={n.href ?? '/app/track'}
+          className="track-inbox-link"
+          onFocus={() => setActive(n.id)}
+          onClick={() => {
+            if (unread) void setRead(n, true);
+          }}
+        >
+          <span className="track-inbox-line">
+            {unread && (
+              <span className="track-inbox-mark" title={labels.unread}>
+                <span className="sr-only">{labels.unread}</span>
+              </span>
+            )}
+            {issue && <span className="track-identifier track-inbox-id">{issue.identifier}</span>}
+            <span className="track-inbox-text">{titleText}</span>
           </span>
-        ) : (
-          <span className="track-inbox-mark is-read" aria-hidden />
-        )}
-        <Link href={n.href ?? '/app/track'} className="track-inbox-link">
-          <span className="track-inbox-text">{notificationTitle(n, textLabels)}</span>
-          {n.source_type === 'robot' && n.body && <span className="track-inbox-body">{n.body}</span>}
-          {meta.projectName && <span className="track-inbox-project">{meta.projectName}</span>}
+          <span className="track-inbox-reason" data-testid="track-inbox-reason">
+            {reasonLine(n, meta)}
+          </span>
         </Link>
-        {tab === 'snoozed' && n.snoozed_until ? (
-          <time className="track-inbox-time" dateTime={n.snoozed_until}>
-            <LocalText>{tr('inboxSnooze.until', { when: formatWhenShort(n.snoozed_until, locale) })}</LocalText>
-          </time>
-        ) : (
-          <time className="track-inbox-time" dateTime={n.created_at}>
-            <LocalText>{relDate(n.snoozed_until ?? n.created_at, locale)}</LocalText>
-          </time>
-        )}
-        {tab === 'snoozed' ? (
-          <button type="button" className="btn btn-ghost btn-sm track-inbox-snooze" onClick={() => void snooze(n.id, null)}>
-            {tr('inboxSnooze.unsnooze')}
-          </button>
-        ) : (
-          <Popover ariaLabel={tr('inboxSnooze.snooze')} className="btn btn-ghost btn-sm track-inbox-snooze" width={240} trigger={tr('inboxSnooze.snooze')}>
-            {(close) =>
-              SNOOZE_PRESETS.map((p) => (
+        <span className="track-inbox-side">
+          {issue && issue.statusCategory && (
+            <span className="track-inbox-status" title={issue.statusName ?? undefined}>
+              <StatusDot color={issue.statusColor} category={issue.statusCategory as Parameters<typeof StatusDot>[0]['category']} />
+              <span className="sr-only">{issue.statusName}</span>
+            </span>
+          )}
+          {tab === 'snoozed' && n.snoozed_until ? (
+            <time className="track-inbox-time" dateTime={n.snoozed_until}>
+              <LocalText>{tr('inboxSnooze.until', { when: formatWhenShort(n.snoozed_until, locale) })}</LocalText>
+            </time>
+          ) : (
+            <time className="track-inbox-time" dateTime={at}>
+              <LocalText>{short(Date.now() - parseStoredDate(at))}</LocalText>
+            </time>
+          )}
+        </span>
+        <span className="track-inbox-actions">
+          {tab === 'snoozed' ? (
+            <button type="button" className="btn btn-ghost btn-sm track-inbox-unsnooze" onClick={() => void snooze(n, null)}>
+              {tr('inboxSnooze.unsnooze')}
+            </button>
+          ) : (
+            <>
+              <span className="track-inbox-quick">
+                {snoozeMenu(n)}
                 <button
-                  key={p}
                   type="button"
-                  role="menuitem"
-                  className="track-menu-item"
-                  onClick={() => {
-                    close();
-                    void snooze(n.id, snoozeAt(p, new Date()));
-                  }}
+                  className="track-inline-trigger track-inbox-icon"
+                  aria-label={readToggle}
+                  title={`${readToggle} · U`}
+                  onClick={() => void setRead(n, unread)}
+                  data-testid="track-inbox-toggle-read"
                 >
-                  <span className="track-menu-label">{tr(SNOOZE_LABEL[p])}</span>
-                  <span className="track-menu-meta"><LocalText>{formatWhenShort(snoozeAt(p, new Date()).toISOString(), locale)}</LocalText></span>
+                  <TrackIcon name={unread ? 'check' : 'eye'} size={14} />
                 </button>
-              ))
-            }
-          </Popover>
-        )}
-        {unread && tab !== 'snoozed' ? (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void markRead(n.id)}>
-            {labels.markRead}
-          </button>
-        ) : (
-          <span className="track-inbox-spacer" aria-hidden />
-        )}
+                <button
+                  type="button"
+                  className="track-inline-trigger track-inbox-icon"
+                  aria-label={ti('delete')}
+                  title={`${ti('delete')} · ⌫`}
+                  onClick={() => void remove(n)}
+                  data-testid="track-inbox-delete"
+                >
+                  <TrackIcon name="close" size={14} />
+                </button>
+              </span>
+              <span className="track-inbox-more">
+                {snoozeMenu(n, (close) => (
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="track-menu-item"
+                      onClick={() => {
+                        close();
+                        void setRead(n, unread);
+                      }}
+                    >
+                      <span className="track-menu-label">{readToggle}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="track-menu-item"
+                      onClick={() => {
+                        close();
+                        void remove(n);
+                      }}
+                    >
+                      <span className="track-menu-label">{ti('delete')}</span>
+                    </button>
+                  </>
+                ))}
+              </span>
+            </>
+          )}
+        </span>
       </li>
     );
   };
 
+  const tabLabel = (t: TabKey) => (t === 'snoozed' ? tr('inboxSnooze.tab') : ti(`tabs.${t}`));
+
   return (
-    <div className="ui-page">
+    <div className="ui-page track-inbox-page">
       <PageHeader
         title={labels.title}
         actions={
@@ -403,29 +665,46 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
         }
       />
 
-      <div className="ui-tabs" role="tablist" aria-label={labels.title}>
-        {TABS.map((t, i) => (
-          <button
-            key={t.key}
-            ref={(el) => {
-              tabRefs.current[t.key] = el;
-            }}
-            type="button"
-            role="tab"
-            className="ui-tab"
-            aria-selected={tab === t.key}
-            tabIndex={tab === t.key ? 0 : -1}
-            onClick={() => setTab(t.key)}
-            onKeyDown={(e) => onTabKey(e, i)}
-          >
-            {t.key === 'snoozed' ? tr('inboxSnooze.tab') : labels[t.key]}
-          </button>
-        ))}
+      <div className="ui-tabs track-inbox-tabs" role="tablist" aria-label={labels.title}>
+        {TABS.map((t, i) => {
+          const count = t === 'snoozed' ? null : (counts?.[t] ?? null);
+          return (
+            <button
+              key={t}
+              ref={(el) => {
+                tabRefs.current[t] = el;
+              }}
+              type="button"
+              role="tab"
+              className="ui-tab"
+              aria-selected={tab === t}
+              aria-describedby={t === 'snoozed' ? undefined : `track-inbox-rule-${t}`}
+              title={t === 'snoozed' ? undefined : ti(`rule.${t}`)}
+              tabIndex={tab === t ? 0 : -1}
+              onClick={() => changeTab(t)}
+              onKeyDown={(e) => onTabKey(e, i)}
+              data-testid={`track-inbox-tab-${t}`}
+            >
+              {tabLabel(t)}
+              {count !== null && count > 0 && (
+                <span className="track-inbox-tab-count" data-testid={`track-inbox-count-${t}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        <span className="sr-only" id="track-inbox-rule-priority">
+          {ti('rule.priority')}
+        </span>
+        <span className="sr-only" id="track-inbox-rule-other">
+          {ti('rule.other')}
+        </span>
       </div>
 
       <InboxFilters filter={filter} onChange={changeFilter} facets={facets} showDisplay={tab !== 'snoozed'} />
 
-      <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel">
+      <div role="tabpanel" aria-busy={loading || undefined} data-testid="track-inbox-panel" ref={listRef}>
         {firstLoad ? (
           <div className="ui-loading-stack">
             <span className="sr-only" role="status">
@@ -459,6 +738,8 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
             />
           ) : tab === 'snoozed' ? (
             <EmptyState quiet title={tr('inboxSnooze.empty')} body={tr('inboxSnooze.emptyBody')} />
+          ) : tab === 'priority' ? (
+            <EmptyState quiet title={ti('emptyPriority')} body={ti('rule.priority')} />
           ) : (
             <EmptyState quiet title={labels.empty} body={labels.emptyBody} />
           )
@@ -475,9 +756,9 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
         ) : (
           <ul className="track-inbox-list">{rows.map(renderRow)}</ul>
         )}
-        {snoozeError && (
+        {actionError && (
           <p className="ui-error" role="alert">
-            {tr('inboxSnooze.error')}
+            {actionError}
           </p>
         )}
         {error && rows.length > 0 && (
@@ -491,6 +772,22 @@ export default function InboxClient({ locale, labels }: InboxClientProps) {
               {labels.loadMore}
             </button>
           </div>
+        )}
+        {rows.length > 0 && (
+          <p className="track-inbox-keys" aria-hidden>
+            <span>
+              <kbd className="kbd">J</kbd> <kbd className="kbd">K</kbd> {ti('keys.move')}
+            </span>
+            <span>
+              <kbd className="kbd">U</kbd> {ti('keys.read')}
+            </span>
+            <span>
+              <kbd className="kbd">H</kbd> {ti('keys.snooze')}
+            </span>
+            <span>
+              <kbd className="kbd">⌫</kbd> {ti('keys.delete')}
+            </span>
+          </p>
         )}
       </div>
     </div>
