@@ -198,6 +198,13 @@ async function fireEvent(
   if (event.entity === 'deal' && (event.type === 'deal_created' || event.type === 'deal_won')) {
     const { advanceLifecycleForDeal } = await import('./crm-lifecycle-auto');
     await advanceLifecycleForDeal(userId, event.entityId, event.type);
+    // Un deal que se crea ya ganado también lleva a Customer.
+    if (event.type === 'deal_created') {
+      const won = await getDb()
+        .prepare('SELECT 1 FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id WHERE d.id = ? AND d.user_id = ? AND s.is_won = 1')
+        .get(event.entityId, userId);
+      if (won) await advanceLifecycleForDeal(userId, event.entityId, 'deal_won');
+    }
   }
   try {
     const mod = await import('./crm-workflows');
