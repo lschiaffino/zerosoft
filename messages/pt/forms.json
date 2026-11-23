@@ -186,7 +186,7 @@
     "noQuestionsHelp": "Este formulário ainda não tem perguntas. Escolha um tipo à esquerda e adicione uma.",
     "pipingHelp": "Insira uma resposta anterior com a variável dela, como '{{name}}', ou a pontuação com '{{score}}'.",
     "redirectUrl": "Redirecionar para",
-    "redirectHelp": "Opcional. Depois deste final, as pessoas são levadas a este endereço https.",
+    "redirectHelp": "Opcional. Depois deste final, as pessoas são levadas a este endereço https. Adicione respostas com '{{ref}}', por exemplo ?email='{{email}}', para preencher a próxima página.",
     "removeEnding": "Remover final",
     "default": {
       "option": "Opção",
