@@ -50,8 +50,12 @@ const parity: ProductParity = {
     row('upload-pdf', 'envelopes', ['Upload a PDF', 'Subir un PDF', 'Enviar um PDF'], 'have', {
       detail: ['Checked by its bytes, up to 4 MB and 100 pages; scripts, actions, forms and attachments are removed', 'Validado por sus bytes, hasta 4 MB y 100 páginas; se sacan scripts, acciones, formularios y adjuntos', 'Validado pelos bytes, até 4 MB e 100 páginas; scripts, ações, formulários e anexos são removidos'],
     }),
-    row('other-formats', 'envelopes', ['Word, Excel and image files', 'Archivos de Word, Excel e imágenes', 'Arquivos do Word, Excel e imagens'], 'missing', {
-      detail: ['Only PDF; DocuSign converts many formats', 'Solo PDF; DocuSign convierte muchos formatos', 'Só PDF; o DocuSign converte muitos formatos'],
+    row('other-formats', 'envelopes', ['Word, Excel and image files', 'Archivos de Word, Excel e imágenes', 'Arquivos do Word, Excel e imagens'], 'partial', {
+      detail: [
+        'PDF, and JPEG or PNG photos and scans as a one-page PDF turned upright; Word and Excel are not converted, DocuSign converts many formats',
+        'PDF, y fotos o escaneos JPEG o PNG como un PDF de una página, derechos; Word y Excel no se convierten, DocuSign convierte muchos formatos',
+        'PDF, e fotos ou digitalizações JPEG ou PNG como um PDF de uma página, na posição certa; Word e Excel não são convertidos, o DocuSign converte muitos formatos',
+      ],
     }),
     row('cloud-import', 'envelopes', ['Documents from other sources', 'Documentos desde otras fuentes', 'Documentos de outras fontes'], 'partial', {
       detail: ['A Docs page becomes the PDF; no Google Drive, Dropbox, Box or OneDrive', 'Una página de Docs se convierte en el PDF; sin Google Drive, Dropbox, Box ni OneDrive', 'Uma página do Docs vira o PDF; sem Google Drive, Dropbox, Box ou OneDrive'],

@@ -193,7 +193,7 @@ export default function TemplateEditor({ initial, startTab, maxMb }: { initial: 
             <span className="sg-rowmeta num">{tp.pages.length ? t('editor.pages', { n: tp.pages.length }) : ''}</span>
             <label className="btn btn-sm btn-outline sg-file-btn">
               {tp.hasDocument ? t('editor.replace') : t('editor.upload')}
-              <input type="file" accept="application/pdf,.pdf" className="sr-only" disabled={busy} onChange={(e) => void upload(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" disabled={busy} onChange={(e) => void upload(e.target.files?.[0] ?? null)} />
             </label>
           </section>
           <fieldset className="sg-fieldset">
