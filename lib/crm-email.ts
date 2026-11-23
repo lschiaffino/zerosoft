@@ -777,30 +777,58 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
   return { ok: true, email, via };
 }
 
-/** Datos para responder en un thread del workspace (Message-ID del último mensaje). */
+/**
+ * Condición SQL: la persona ve el email `e` (alias de crm_emails): es suyo
+ * (person_id: su buzón o lo que mandó ella) o tiene un contacto que ve, el
+ * principal o uno asociado. Sin alcance, todos ('1').
+ */
+export function emailVisibleSql(scope: OwnerScope | undefined, personId: string | null | undefined): { sql: string; args: string[] } {
+  const c = scopeAnd('vc', scope);
+  if (!c.sql) return { sql: '1', args: [] };
+  return {
+    sql: `(COALESCE(e.person_id, '') = ? OR EXISTS (SELECT 1 FROM crm_contacts vc WHERE vc.user_id = e.user_id
+            AND (vc.id = e.contact_id OR vc.id IN (SELECT vec.contact_id FROM crm_email_contacts vec WHERE vec.email_id = e.id))${c.sql}))`,
+    args: [personId ?? '', ...c.args],
+  };
+}
+
+/**
+ * ¿El thread tiene algún email del workspace que la persona no ve? Un thread
+ * así no se usa para responder ni para registrar en él (no entra un email
+ * en una conversación que la persona no ve, ni se toma su Message-ID).
+ */
+export async function threadHasHiddenEmail(
+  userId: string,
+  threadId: string,
+  scope: OwnerScope | undefined,
+  personId: string | null | undefined,
+): Promise<boolean> {
+  const vis = emailVisibleSql(scope, personId);
+  if (vis.sql === '1') return false;
+  const row = await getDb()
+    .prepare(`SELECT 1 AS x FROM crm_emails e WHERE e.user_id = ? AND e.thread_id = ? AND NOT ${vis.sql} LIMIT 1`)
+    .get(userId, threadId, ...vis.args);
+  return !!row;
+}
+
+/**
+ * Datos para responder en un thread del workspace (Message-ID del último
+ * mensaje). Con alcance, solo un thread cuyos emails ve todos quien responde
+ * (`personId`: los suyos cuentan como vistos); si no, null, como uno que no existe.
+ */
 export async function threadReplyInfo(
   userId: string,
   threadId: string,
   scope?: OwnerScope,
+  personId?: string | null,
 ): Promise<{ threadId: string; inReplyTo: string; subject: string } | null> {
-  // Con alcance: solo un thread con algún email de un contacto que la persona ve (como el timeline).
-  const vis = scope
-    ? (() => {
-        const c = scopeAnd('vc', scope);
-        return {
-          sql: ` AND EXISTS (SELECT 1 FROM crm_emails te JOIN crm_email_contacts tec ON tec.email_id = te.id
-                 JOIN crm_contacts vc ON vc.id = tec.contact_id AND vc.user_id = te.user_id
-                 WHERE te.user_id = crm_emails.user_id AND te.thread_id = crm_emails.thread_id${c.sql})`,
-          args: c.args,
-        };
-      })()
-    : { sql: '', args: [] as string[] };
+  if (scope && (await threadHasHiddenEmail(userId, threadId, scope, personId))) return null;
   const last = (await getDb()
     .prepare(
-      `SELECT thread_id, message_id, subject FROM crm_emails WHERE user_id = ? AND thread_id = ?${vis.sql}
+      `SELECT thread_id, message_id, subject FROM crm_emails WHERE user_id = ? AND thread_id = ?
        ORDER BY sent_at DESC LIMIT 1`,
     )
-    .get(userId, threadId, ...vis.args)) as { thread_id: string; message_id: string; subject: string } | undefined;
+    .get(userId, threadId)) as { thread_id: string; message_id: string; subject: string } | undefined;
   if (!last) return null;
   return { threadId: last.thread_id, inReplyTo: last.message_id, subject: last.subject };
 }

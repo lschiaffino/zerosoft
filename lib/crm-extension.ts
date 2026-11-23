@@ -20,7 +20,7 @@ import { personChatReader, redactChatTasks } from './crm-chat-privacy';
 import { getDb, type CrmActivityRow, type CrmCompanyRow, type CrmContactRow } from './db';
 import { createActivity, createContact } from './crm';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
-import { BODY_TEXT_MAX, dbNow, newTrackingToken, pixelUrl } from './crm-email';
+import { BODY_TEXT_MAX, dbNow, emailVisibleSql, newTrackingToken, pixelUrl, threadHasHiddenEmail } from './crm-email';
 import { parseAddressList } from './gmail';
 import { activityScopeSql, canSeeOwner, scopeAnd, type OwnerScope } from './crm-visibility';
 import { emitEvent } from './events';
@@ -167,24 +167,9 @@ export async function extensionSidebar(actor: ExtensionActor, email: string): Pr
   };
 }
 
-/**
- * Condición SQL: quien registra ve el email `e` (crm_emails): es suyo
- * (person_id) o tiene un contacto que ve (el principal o uno asociado), la
- * misma regla que el timeline. Sin alcance, todos.
- */
-function emailVisibleSql(actor: ExtensionActor): { sql: string; args: string[] } {
-  const scope = scopeAnd('vc', actor.scope);
-  if (!scope.sql) return { sql: '1', args: [] };
-  return {
-    sql: `(COALESCE(e.person_id, '') = ? OR EXISTS (SELECT 1 FROM crm_contacts vc WHERE vc.user_id = e.user_id
-            AND (vc.id = e.contact_id OR vc.id IN (SELECT vec.contact_id FROM crm_email_contacts vec WHERE vec.email_id = e.id))${scope.sql}))`,
-    args: [actor.personId, ...scope.args],
-  };
-}
-
-/** ¿Quien registra ve este email del workspace? */
+/** ¿Quien registra ve este email del workspace? (lib/crm-email.ts emailVisibleSql) */
 async function canSeeEmail(actor: ExtensionActor, emailId: string): Promise<boolean> {
-  const vis = emailVisibleSql(actor);
+  const vis = emailVisibleSql(actor.scope, actor.personId);
   const row = await getDb()
     .prepare(`SELECT 1 AS x FROM crm_emails e WHERE e.id = ? AND e.user_id = ? AND ${vis.sql}`)
     .get(emailId, actor.workspaceId, ...vis.args);
@@ -193,19 +178,13 @@ async function canSeeEmail(actor: ExtensionActor, emailId: string): Promise<bool
 
 /**
  * El thread de Gmail que manda la extensión, si se puede usar: uno nuevo, o
- * uno cuyos emails ya guardados ve todos quien registra. Si no (un id de
- * thread ajeno), el email va a un thread propio: no entra en una conversación
- * que la persona no ve ni hace que después se responda en ella.
+ * uno sin emails que quien registra no ve (threadHasHiddenEmail, la misma
+ * regla que responder en un thread). Si no, el email va a un thread propio.
  */
 async function usableThreadId(actor: ExtensionActor, raw: string | undefined): Promise<string | null> {
   const threadId = (raw ?? '').trim().slice(0, 200);
   if (!threadId) return null;
-  const vis = emailVisibleSql(actor);
-  if (vis.sql === '1') return threadId;
-  const hidden = await getDb()
-    .prepare(`SELECT 1 AS x FROM crm_emails e WHERE e.user_id = ? AND e.thread_id = ? AND NOT ${vis.sql} LIMIT 1`)
-    .get(actor.workspaceId, threadId, ...vis.args);
-  return hidden ? null : threadId;
+  return (await threadHasHiddenEmail(actor.workspaceId, threadId, actor.scope, actor.personId)) ? null : threadId;
 }
 
 async function personEmail(personId: string): Promise<string> {

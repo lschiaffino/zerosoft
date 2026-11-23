@@ -12,6 +12,7 @@ import { createContact } from '@/lib/crm';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { logExtensionEmail, trackExtensionEmail, type ExtensionActor } from '@/lib/crm-extension';
 import { createApiKey } from '@/lib/api-auth';
+import { threadReplyInfo } from '@/lib/crm-email';
 import { addMember } from '@/lib/teams';
 import { getDb } from '@/lib/db';
 import { workspaceWithMember } from './access-helpers';
@@ -104,6 +105,33 @@ describe('extensión: threads y emails que la persona no ve', () => {
     expect(await logExtensionEmail(memberActor(s), { messageId: id, from: `mine-ext-dup@client.test` })).toMatchObject({ ok: true, emailId: first.emailId, duplicate: true });
   });
 
+  it('un thread con un email propio (de su buzón) cuenta como visible aunque el contacto no lo vea', async () => {
+    const s = await setup('ext-own');
+    const ownThread = 'thr-own-ext';
+    const id = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO crm_emails (id, user_id, contact_id, gmail_id, thread_id, direction, subject, sent_at, person_id) VALUES (?, ?, ?, ?, ?, 'in', 'Mine', datetime('now'), ?)")
+      .run(id, s.ws, s.hidden.id, `own-${id}`, ownThread, s.w.member.id);
+    const res = await logExtensionEmail(memberActor(s), { messageId: msgId(), threadId: ownThread, from: `mine-ext-own@client.test` });
+    if (!res.ok) throw new Error('log');
+    expect(await threadOf(res.emailId)).toBe(ownThread);
+  });
+
+  it('responder desde el CRM: un thread con un email que no ve no se usa (ni su Message-ID); el owner sí', async () => {
+    const s = await setup('ext-reply');
+    // El miembro registra un email suyo en un thread nuevo, y después entra uno ajeno en el mismo thread.
+    const mixed = 'thr-mixed-ext';
+    const mine = await logExtensionEmail(memberActor(s), { messageId: msgId(), threadId: mixed, from: `mine-ext-reply@client.test` });
+    if (!mine.ok) throw new Error('log');
+    expect(await threadReplyInfo(s.ws, mixed, [s.w.member.id], s.w.member.id)).toMatchObject({ threadId: mixed });
+    const other = crypto.randomUUID();
+    await getDb()
+      .prepare("INSERT INTO crm_emails (id, user_id, contact_id, gmail_id, thread_id, message_id, direction, subject, sent_at, person_id) VALUES (?, ?, ?, ?, ?, ?, 'in', 'Private', datetime('now', '+1 minute'), ?)")
+      .run(other, s.ws, s.hidden.id, `oth-${other}`, mixed, `<hidden-${other}@mail.test>`, s.ws);
+    expect(await threadReplyInfo(s.ws, mixed, [s.w.member.id], s.w.member.id)).toBeNull();
+    expect(await threadReplyInfo(s.ws, mixed, undefined, s.ws)).toMatchObject({ threadId: mixed, inReplyTo: `<hidden-${other}@mail.test>` });
+  });
+
   it('rutas: sin key 401; la key de otro workspace no registra en este; la del miembro no confirma el ajeno', async () => {
     const s = await setup('ext-route');
     const post = (route: typeof logRoute, url: string, body: unknown, key?: string) =>
@@ -125,5 +153,10 @@ describe('extensión: threads y emails que la persona no ve', () => {
     const mem = await post(logRoute, '/api/v1/crm/extension/log-email', body, memberKey.key);
     expect(mem.status).toBe(404);
     expect(await mem.text()).not.toContain(s.hiddenEmailId);
+    // La key de un admin ve todo: el email ya registrado sale como duplicado, con su id.
+    const adminKey = await createApiKey(s.ws, 'k', s.adminPerson.id, ['crm:read', 'crm:write']);
+    const adm = await post(logRoute, '/api/v1/crm/extension/log-email', body, adminKey.key);
+    expect(adm.status).toBe(200);
+    expect(await adm.json()).toMatchObject({ emailId: s.hiddenEmailId, duplicate: true });
   });
 });
