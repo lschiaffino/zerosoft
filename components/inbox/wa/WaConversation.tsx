@@ -341,13 +341,15 @@ const WaConversation = forwardRef<
   // Fotos de perfil de los participantes (remitentes del grupo, visor, notas de voz).
   const avatars = useMemo(() => new Map((wa?.participants ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar])), [wa]);
   // "@" en un grupo (el campo del chat y el pie de los archivos): los participantes, sin la cuenta misma.
+  // Participantes internos (del equipo o de la empresa; lib/internal-contacts.ts): "Interno" al lado de su nombre.
+  const internalPhones = useMemo(() => new Set((wa?.participants ?? []).filter((p) => p.internal).map((p) => p.phone)), [wa]);
   const groupMentionables = useMemo(
     () => (group ? (wa?.participants ?? []).filter((p) => !p.me).map((p) => ({ phone: p.phone, name: p.name, avatar: p.avatar })) : undefined),
     [group, wa],
   );
 
   // "Info del contacto" de alguien del grupo (su foto o su nombre): la ficha de WhatsApp.
-  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast });
+  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread: props.onOpenThread, onStartChat: props.onStartChat, onError, onToast: props.onToast, onChanged: props.onScheduledChange });
   const openPerson = personSheet.open;
   // Una mención ("@Nombre") en un grupo también abre la ficha de esa persona, como en WhatsApp.
   const openMention = (e: ReactMouseEvent, m: MessageDto) => {
@@ -948,6 +950,11 @@ const WaConversation = forwardRef<
               <button type="button" className="wa-person wa-author-name" onClick={() => openPerson(m.senderHandle, author, avatars.get(m.senderHandle))} data-testid="wa-sender-name">
                 {author}
               </button>
+              {internalPhones.has(m.senderHandle) && (
+                <span className="wa-internal-tag" data-testid="wa-internal-tag">
+                  {gw('internal.tag')}
+                </span>
+              )}
               {m.senderHandle && author !== formatPhone(m.senderHandle) && <span className="wa-phone">{formatPhone(m.senderHandle)}</span>}
             </p>
           )}

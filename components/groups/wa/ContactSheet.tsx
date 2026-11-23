@@ -6,7 +6,7 @@ import type { WaPersonCard } from '@/lib/wa-person';
 import { sharedTotal } from '@/lib/wa-person';
 import Avatar from './Avatar';
 import MediaViewer, { type ViewerItem } from './MediaViewer';
-import { ArrowLeft, Ban, ChatIcon, ChevronRight, Close, DocIcon, MuteIcon, PhotoIcon, StarIcon } from './icons';
+import { ArrowLeft, Ban, ChatIcon, ChevronRight, Close, DocIcon, GroupIcon, MuteIcon, PhotoIcon, StarIcon } from './icons';
 import { formatWaPhone, posterFrame } from './format';
 
 /** Un mensaje compartido en el chat 1:1 (foto, video, documento, link o destacado), igual en las dos apps. */
@@ -51,6 +51,7 @@ export default function ContactSheet({
   onOpenGroup,
   onMute,
   onBlock,
+  onInternal,
   loadShared,
 }: {
   /** null mientras carga. */
@@ -67,9 +68,12 @@ export default function ContactSheet({
   onOpenGroup: (id: string) => void;
   onMute?: (on: boolean) => void;
   onBlock?: (on: boolean) => void;
+  /** Marcarla como interna o no (lib/internal-contacts.ts): solo si `card.canMarkInternal`. */
+  onInternal?: (on: boolean) => void;
   loadShared: (kind: SharedTab | 'starred') => Promise<SheetSharedItem[] | null>;
 }) {
   const t = useTranslations('groups.wa.contactSheet');
+  const ti = useTranslations('groups.wa.internal');
   const locale = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -191,6 +195,31 @@ export default function ContactSheet({
                     <p className="wa-sheet-about" dir="auto">
                       {card.about}
                     </p>
+                  </section>
+                )}
+
+                {!card.me && (card.internal || (card.canMarkInternal && onInternal)) && (
+                  <section className="wa-sheet-card wa-sheet-rows" data-testid="wa-sheet-internal-card">
+                    {card.canMarkInternal && onInternal ? (
+                      <label className="wa-sheet-row">
+                        <GroupIcon size={20} />
+                        <span className="wa-sheet-row-main">
+                          {ti('sheetRow')}
+                          <span className="wa-sheet-row-sub">{ti('sheetHelp')}</span>
+                        </span>
+                        <span className="ui-switch">
+                          <input type="checkbox" role="switch" checked={!!card.internal} onChange={(e) => onInternal(e.target.checked)} data-testid="wa-sheet-internal" />
+                        </span>
+                      </label>
+                    ) : (
+                      <p className="wa-sheet-row" data-testid="wa-sheet-internal-note">
+                        <GroupIcon size={20} />
+                        <span className="wa-sheet-row-main">
+                          {ti('sheetRow')}
+                          <span className="wa-sheet-row-sub">{ti('sheetHelp')}</span>
+                        </span>
+                      </p>
+                    )}
                   </section>
                 )}
 

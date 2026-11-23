@@ -3,6 +3,7 @@
 import SettingsSearch from '@/components/app/SettingsSearch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import InternalContactsPanel from '@/components/groups/InternalContacts';
 import { Link, useRouter } from '@/i18n/navigation';
 import { SHORTCUTS, type FolderDto, type InboxAccountDto, type SnippetDto } from '@/lib/inbox/types';
 import { api, longWhen, notifyInboxChanged } from './api';
@@ -552,8 +553,9 @@ function FoldersSection({ folders, onChange }: { folders: FolderDto[]; onChange:
 }
 
 /** Ajustes de Inbox: cuentas, carpetas, snippets, importar y atajos. */
-export default function InboxSettings({ initial, gmailResult }: { initial: InboxStateDto; gmailResult: string | null }) {
+export default function InboxSettings({ initial, gmailResult, canManageInternal = false }: { initial: InboxStateDto; gmailResult: string | null; canManageInternal?: boolean }) {
   const t = useTranslations('inbox.settings');
+  const ti = useTranslations('groups.wa.internal');
   const th = useTranslations('inbox.help');
   const router = useRouter();
   const [state, setState] = useState(initial);
@@ -604,6 +606,19 @@ export default function InboxSettings({ initial, gmailResult }: { initial: Inbox
         gmailConnected={state.accounts.some((a) => a.kind === 'gmail' && a.status === 'connected')}
         onDone={reloadQuiet}
       />
+      {/* Contactos internos del workspace (lib/internal-contacts.ts): los mismos que en Lines; los cambian los admins. */}
+      <section className="ib-section" id="internal" aria-label={ti('title')}>
+        {canManageInternal ? (
+          <InternalContactsPanel apiBase="/api/inbox/internal" />
+        ) : (
+          <>
+            <h2 className="ib-h2">{ti('title')}</h2>
+            <p className="ib-help" data-testid="internal-admins-only">
+              {ti('adminsOnly')}
+            </p>
+          </>
+        )}
+      </section>
       <section className="ib-section" id="shortcuts" aria-labelledby="ib-keys-h" data-setting="inbox-shortcuts">
         <h2 className="ib-h2" id="ib-keys-h">
           {th('title')}

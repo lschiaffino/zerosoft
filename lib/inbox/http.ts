@@ -9,9 +9,11 @@
 import { NextResponse } from 'next/server';
 import { ZodError, type z } from 'zod';
 import { getCurrentUser, realUserId } from '../session';
+import { roleAtLeast } from '../teams';
 import { delegatedIdentity } from '../mcp/identity';
 import { conditionalJson } from '../etag';
 import { InboxError } from './types';
+import { EMPTY_INTERNAL_SET, loadInternalSet, type InternalSet } from '../internal-contacts';
 
 const NO_STORE = { 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer' };
 
@@ -36,6 +38,16 @@ export async function inboxOwner(): Promise<{ owner: string } | { res: NextRespo
   const user = await getCurrentUser();
   if (!user) return { res: iJson({ error: 'unauthorized' }, 401) };
   return { owner: realUserId(user) };
+}
+
+/**
+ * Lo interno del workspace activo de quien pide (lib/internal-contacts.ts): el Inbox es personal, pero quién es del
+ * equipo lo marca el workspace. Sin sesión, nadie es interno.
+ */
+export async function inboxInternal(): Promise<{ ws: string | null; set: InternalSet; admin: boolean }> {
+  const user = await getCurrentUser();
+  if (!user || delegatedIdentity()) return { ws: null, set: EMPTY_INTERNAL_SET, admin: false };
+  return { ws: user.id, set: await loadInternalSet(user.id), admin: roleAtLeast(user.role, 'admin') };
 }
 
 export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S): Promise<z.infer<S>> {

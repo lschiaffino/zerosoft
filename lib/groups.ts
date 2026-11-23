@@ -74,6 +74,7 @@ import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyT
 import { lineColor, type LineColor } from './line-colors';
 import type { NumberStats } from './groups-number-stats';
 import { routeSelfChat } from './wa-self-chat';
+import { EMPTY_INTERNAL_SET, internalPhonesJson, isInternalHandle, loadInternalSet, type InternalSet } from './internal-contacts';
 
 export { mediaKind, propertyText };
 
@@ -636,6 +637,8 @@ export interface ChatDto {
   favorite?: boolean;
   /** La persona del chat 1:1 es VIP del equipo (lib/groups-vip.ts). Solo si lo es. */
   vip?: boolean;
+  /** La persona del chat 1:1 es interna: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  internal?: boolean;
   properties: Record<string, unknown>;
   crmContactId: string | null;
   crmCompanyId: string | null;
@@ -841,6 +844,7 @@ export async function getChat(ws: string, id: string, locale?: string): Promise<
     if (await isVipPhone(ws, row.phone)) row.vip_hit = 1;
   }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? [], unnamedGroup(row) ? locale || (await viewerLocale(ws)) : undefined);
+  if (row.kind === 'dm' && row.phone && isInternalHandle(await loadInternalSet(ws), row.phone)) dto.internal = true;
   // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
   if (row.kind === 'dm' && !dto.phone && isLidJid(row.provider_chat_id)) {
     const { phoneForLid } = await import('./wa-contacts');
@@ -1028,7 +1032,9 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   if (query.filters) {
     // Estado, tipo, líneas, asignación, etiquetas, sí o no, fechas y propiedades. El acceso de quien mira va aparte, más abajo.
     const { linesFiltersSql } = await import('./groups-filters');
-    const fx = linesFiltersSql(filter === 'closed' ? { ...query.filters, status: ['closed'] } : query.filters, { me, tzOffsetMin: query.tzOffsetMin });
+    // Filtro "interno": los teléfonos internos del workspace (lib/internal-contacts.ts), solo si se pidió.
+    const internalPhones = query.filters.internal ? internalPhonesJson(await loadInternalSet(ws)) : undefined;
+    const fx = linesFiltersSql(filter === 'closed' ? { ...query.filters, status: ['closed'] } : query.filters, { me, tzOffsetMin: query.tzOffsetMin, internalPhones });
     where.push(...fx.where);
     args.push(...fx.args);
   } else if (filter === 'closed') where.push("c.status = 'closed'");
@@ -1277,6 +1283,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     ? await Promise.all([chatFoldersFor(ws, me, rows.map((r) => r.id)), teamFoldersFor(ws, rows.map((r) => r.id))])
     : [new Map<string, string>(), new Map<string, string>()];
   const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
+  // Chats 1:1 con alguien interno (lib/internal-contacts.ts): una lectura para la página.
+  const internal = rows.some((r) => r.kind === 'dm' && r.phone) ? await loadInternalSet(ws) : EMPTY_INTERNAL_SET;
   return {
     rows: rows.map((r, i) => {
       r.last_message_preview = named[i * 2];
@@ -1296,6 +1304,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
+        ...(r.kind === 'dm' && r.phone && isInternalHandle(internal, r.phone) ? { internal: true } : {}),
         ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
       });
     }),
@@ -1741,6 +1750,8 @@ export interface MessageDto {
   direction: MessageRow['direction'];
   senderPhone: string;
   senderName: string;
+  /** Quien lo mandó es interno: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  senderInternal?: boolean;
   authorId: string | null;
   authorKind: string;
   body: string;
@@ -1924,6 +1935,11 @@ export async function listMessages(
         )
       : rows;
   const out = kept.map(toMessageDto);
+  // Quién escribió es interno (lib/internal-contacts.ts): "Interno" al lado de su nombre.
+  if (out.some((m) => m.direction === 'in' && m.senderPhone)) {
+    const internal = await loadInternalSet(ws);
+    for (const m of out) if (m.direction === 'in' && m.senderPhone && isInternalHandle(internal, m.senderPhone)) m.senderInternal = true;
+  }
   // "@<dígitos>" → "@Nombre" con la libreta de cada número (los mensajes de un chat son de un solo número).
   for (const cid of ids) {
     const own = kept.filter((r) => r.chat_id === cid);
@@ -3040,6 +3056,9 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   // Los ajustes del workspace llegan con el primer mensaje de la tanda (en la misma ida a la base).
   let settings: GroupsSettings | null = null;
   const batchSettings = async () => (settings ??= await getSettings(ws));
+  // Quién es interno en el workspace (lib/internal-contacts.ts): se lee una vez por tanda, con el primer mensaje que llega.
+  let internalSet: InternalSet | null = null;
+  const batchInternal = async () => (internalSet ??= await loadInternalSet(ws));
   // Lo que llega con el id de la línea y no es del chat con uno mismo (Meta AI, un lid con el teléfono propio) va a su chat.
   const slice = routeSelfChat(events.slice(0, 200), number.phone);
   // La libreta del número (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero:
@@ -3132,18 +3151,24 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           });
         }
         // Lo de antes de responder. Si algo de esto falla, el mensaje ya está guardado: se loguea y se sigue.
+        let internal = false;
         await (async () => {
           if (!ev.fromMe) {
             const st = await batchSettings();
+            // Alguien interno (del equipo o de la empresa; lib/internal-contacts.ts) escribe como el equipo: su mensaje
+            // cuenta como respuesta (el chat deja de esperar y los tickets abiertos toman su primera respuesta), y no
+            // abre tickets ni pasa por el modo "preguntas".
+            internal = isInternalHandle(await batchInternal(), ev.senderPhone || chatInput.phone);
+            if (internal) await markAnswered(chat.id, at);
             // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
-            if (st.flagMode === 'questions') {
+            else if (st.flagMode === 'questions') {
               await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
             }
             // Archivado: vuelve a la lista con un mensaje nuevo, salvo que el workspace pida mantenerlos archivados (o el
             // chat tenga "Mantener archivado": el trigger de la base lo deja como estaba).
             if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
             // Ticket por palabra clave: antes de responder.
-            if (matchKeyword(st.ticketKeywords, row.body)) {
+            if (!internal && matchKeyword(st.ticketKeywords, row.body)) {
               const { createTicket } = await import('./groups-tickets');
               await createTicket(ws, null, { chatId: chat.id, messageId: row.id, source: 'keyword' });
             }
@@ -3179,7 +3204,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
             });
             return;
           }
-          await afterInbound(ws, chat, row, await batchSettings(), true);
+          await afterInbound(ws, chat, row, await batchSettings(), true, internal);
         });
       } else if (ev.type === 'reaction') {
         const msg = (await getDb()
@@ -3403,10 +3428,11 @@ async function findPhoneChat(number: Pick<NumberRow, 'id'>, chatId: string): Pro
 }
 
 /** Mensaje de cliente nuevo: ticket por palabra clave, eventos (Flow/webhooks) y agente. */
-async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>, ticketDone = false): Promise<void> {
+/** `internal`: lo mandó alguien interno (lib/internal-contacts.ts): sin ticket por palabra clave, modo "preguntas" ni agente por defecto. */
+async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known?: Awaited<ReturnType<typeof getSettings>>, ticketDone = false, internal = false): Promise<void> {
   let chat = chatRow;
   const settings = known ?? (await getSettings(ws));
-  const keyword = !ticketDone && matchKeyword(settings.ticketKeywords, msg.body);
+  const keyword = !ticketDone && !internal && matchKeyword(settings.ticketKeywords, msg.body);
   if (keyword) {
     const { createTicket } = await import('./groups-tickets');
     await createTicket(ws, null, { chatId: chat.id, messageId: msg.id, source: 'keyword' }).catch(() => null);
@@ -3439,7 +3465,7 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known
     message: { id: msg.id, body: msg.body, senderPhone: msg.sender_phone, senderName: msg.sender_name, createdAt: msg.created_at },
     chat: { id: chat.id, kind: chat.kind, name: chatDisplayName(chat), crmCompanyId: chat.crm_company_id, crmContactId: chat.crm_contact_id },
   });
-  if (settings.flagMode === 'questions') {
+  if (settings.flagMode === 'questions' && !internal) {
     const flag = async () => {
       const { flagInbound } = await import('./groups-flag');
       await flagInbound(ws, chat.id, msg).catch(() => null);
@@ -3452,7 +3478,7 @@ async function afterInbound(ws: string, chatRow: ChatRow, msg: MessageRow, known
     }
   }
   // Agente por defecto (Agents > Canales): toma los chats 1 a 1 sin agente ni persona asignada.
-  if (!chat.agent_id && !chat.assigned_to && chat.kind !== 'group' && settings.defaultAgentId) {
+  if (!internal && !chat.agent_id && !chat.assigned_to && chat.kind !== 'group' && settings.defaultAgentId) {
     const agent = (await getDb().prepare('SELECT id FROM agents WHERE id = ? AND user_id = ? AND enabled = 1').get(settings.defaultAgentId, ws)) as { id: string } | undefined;
     if (agent) {
       await getDb().prepare('UPDATE groups_chats SET agent_id = ?, agent_conversation_id = NULL WHERE id = ? AND agent_id IS NULL').run(agent.id, chat.id);
@@ -3486,6 +3512,8 @@ export interface MemberDto {
   picture?: string;
   /** Es el número de la línea (la cuenta conectada): "Vos" en la lista, y su rol dice si puede administrar el grupo. */
   me?: boolean;
+  /** Es interno: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  internal?: boolean;
 }
 
 export async function listMembers(ws: string, chatId: string): Promise<MemberDto[]> {
@@ -3501,7 +3529,9 @@ export async function listMembers(ws: string, chatId: string): Promise<MemberDto
        WHERE m.chat_id = ? AND c.user_id = ? ORDER BY me DESC, CASE m.role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.phone`,
     )
     .all(chatId, ws)) as Array<MemberDto & { me: number | boolean }>;
-  return rows.map(({ me, ...m }) => (me ? { ...m, me: true } : m));
+  // Quién es interno (lib/internal-contacts.ts): "Interno" en la lista. La línea misma no (es "Vos").
+  const internal = rows.length ? await loadInternalSet(ws) : EMPTY_INTERNAL_SET;
+  return rows.map(({ me, ...m }) => (me ? { ...m, me: true } : isInternalHandle(internal, m.phone) ? { ...m, internal: true } : m));
 }
 
 /**

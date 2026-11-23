@@ -16,6 +16,7 @@ import { reArchiveKept, sendUnarchiveMark, snoozeWakeMark } from '../wa-archive-
 import { readHiddenInWhatsapp } from '../wa-privacy';
 import { publicLink } from '../wa-link-thumb';
 import { cleanWaMentionPicks } from '../wa-compose-mentions';
+import { EMPTY_INTERNAL_SET, internalHandleSql, isInternalHandle, type InternalSet } from '../internal-contacts';
 import { canMoveFolder, depthOf, descendantIds, MAX_FOLDER_DEPTH, rollupUnread, siblingOrder } from './folder-tree';
 import {
   InboxError,
@@ -580,6 +581,11 @@ export interface ListOptions {
   now?: Date;
   /** Cursor de la página anterior (`next`): trae los chats que siguen. */
   cursor?: string | null;
+  /**
+   * Lo interno del workspace de quien mira (lib/internal-contacts.ts): los chats con alguien interno no entran en
+   * "Por responder" ni en "Esperando", tienen su vista y la marca `internal`. Sin esto, nadie es interno.
+   */
+  internal?: InternalSet;
 }
 
 /** Columnas que usa una fila de la lista (sin info del contacto, notas ni resumen: no viajan en cada consulta). */
@@ -692,6 +698,13 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
       args.push(nowS);
     }
   } else if (!q) {
+    // "Por responder" y "Esperando" son de clientes: lo interno no espera respuesta (lib/internal-contacts.ts).
+    const notInternal = () => {
+      if (!opts.internal?.handles.size && !opts.internal?.domains.length) return;
+      const sql = internalThreadSql(opts.internal);
+      where.push(`NOT ${sql.sql}`);
+      args.push(...sql.args);
+    };
     switch (view) {
       case 'inbox':
         where.push(active);
@@ -704,11 +717,20 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
       case 'reply':
         where.push(active, 't.last_from_me = 0', "t.kind <> 'group'", 't.last_message_at IS NOT NULL');
         args.push(nowS);
+        notInternal();
         break;
       case 'waiting':
         where.push(active, 't.last_from_me = 1', 't.last_outbound_at < ?');
         args.push(nowS, new Date(now.getTime() - WAITING_AFTER_MS).toISOString());
+        notInternal();
         break;
+      // Los chats 1:1 y correos con alguien interno (del equipo o de la empresa).
+      case 'internal': {
+        const sql = internalThreadSql(opts.internal ?? EMPTY_INTERNAL_SET);
+        where.push(active, sql.sql);
+        args.push(nowS, ...sql.args);
+        break;
+      }
       case 'whatsapp':
         where.push(active, "t.channel = 'whatsapp'");
         args.push(nowS);
@@ -817,7 +839,12 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   let shown = [...pinned, ...page];
   const sameChat = await inboxSiblingsByKey(owner, shown, rank ? SORT_KEY : mode.key, rank);
   // Con búsqueda cada fila dice si coincide por nombre, para que la lista separe "Chats" de "Mensajes".
-  const dtoOf = (r: Row): ThreadDto => (rank ? { ...threadDto(r, now), nameHit: isNameHit(r.sort_key) } : threadDto(r, now));
+  const internal = opts.internal;
+  const dtoOf = (r: Row): ThreadDto => {
+    const dto = rank ? { ...threadDto(r, now), nameHit: isNameHit(r.sort_key) } : threadDto(r, now);
+    if (internal && r.kind !== 'group' && isInternalHandle(internal, r.handle)) dto.internal = true;
+    return dto;
+  };
   const multi = [...sameChat.values()].filter((list) => list.length > 1);
   if (multi.length) {
     const ids = multi.flat().map((x) => x.id);
@@ -867,6 +894,21 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
     next: more && last && last.sort_key != null ? encodeListCursor({ k: String(last.sort_key), id: last.id }) : null,
     pinned: pinned.length,
   };
+}
+
+/**
+ * Condición SQL (alias t): el chat 1:1 o el correo es con alguien interno. El handle de WhatsApp son los dígitos
+ * del teléfono y el de un correo la dirección: se compara en minúsculas.
+ */
+export function internalThreadSql(set: InternalSet): { sql: string; args: string[] } {
+  const h = internalHandleSql(set, 'lower(t.handle)');
+  return { sql: `(t.kind <> 'group' AND t.handle <> '' AND ${h.sql})`, args: h.args };
+}
+
+/** La marca `internal` de un chat 1:1 o correo con alguien interno (lib/internal-contacts.ts). */
+export function markInternalThread(dto: ThreadDto, set: InternalSet): ThreadDto {
+  if (dto.kind !== 'group' && dto.handle && isInternalHandle(set, dto.handle)) dto.internal = true;
+  return dto;
 }
 
 /** Chat 1:1 de WhatsApp guardado por lid (sin teléfono a la vista). */
@@ -1485,21 +1527,23 @@ export async function renameThread(owner: string, threadId: string, title: strin
  * Contadores de la barra: no leídos de la bandeja, por responder, pospuestos, archivados y programados.
  * Cada uno sale de su índice (idx_inbox_threads_unread, _reply, _snoozed, _archived): no recorre los chats de la persona.
  */
-export async function inboxCounts(owner: string, now = new Date()): Promise<Record<string, number>> {
+export async function inboxCounts(owner: string, now = new Date(), internal?: InternalSet): Promise<Record<string, number>> {
   const nowS = now.toISOString();
+  // "Por responder" sin lo interno (lib/internal-contacts.ts), como la vista.
+  const notInternal = internal && (internal.handles.size || internal.domains.length) ? internalThreadSql(internal) : null;
   const r = (await getDb()
     .prepare(
       `SELECT
          (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_unread WHERE owner_id = ? AND removed_at IS NULL AND unread > 0 AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS inbox,
-         (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
-            AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS reply,
+         (SELECT COUNT(*) FROM inbox_threads t INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL
+            AND (snoozed_until IS NULL OR snoozed_until <= ?)${notInternal ? ` AND NOT ${notInternal.sql}` : ''}) AS reply,
          (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ? AND removed_at IS NULL) AS snoozed,
          (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND (archived_at IS NOT NULL OR done_at IS NOT NULL) AND removed_at IS NULL) AS archived,
          (SELECT COUNT(*) FROM inbox_scheduled s WHERE s.owner_id = ? AND s.status IN ('pending','failed','missed')
             AND NOT EXISTS (SELECT 1 FROM inbox_threads t WHERE t.id = s.thread_id AND t.removed_at IS NOT NULL)) AS scheduled,
          (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NOT NULL) AS removed`
     )
-    .get(owner, nowS, owner, nowS, owner, nowS, owner, owner, owner)) as
+    .get(owner, nowS, owner, nowS, ...(notInternal?.args ?? []), owner, nowS, owner, owner, owner)) as
     | { inbox: number | null; reply: number | null; snoozed: number | null; archived: number | null; scheduled: number | null; removed: number | null }
     | undefined;
   return {

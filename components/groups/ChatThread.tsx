@@ -450,6 +450,8 @@ export default function ChatThread(props: ThreadProps) {
   const personSheet = useLinesPersonSheet(props.chat.id, (code) => showToast(errText(code), true), (text) => showToast(text));
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
+  // Miembros internos (del equipo o de la empresa; lib/internal-contacts.ts): "Interno" al lado de su nombre.
+  const internalPhones = useMemo(() => new Set(props.members.filter((m) => m.internal).map((m) => m.phone)), [props.members]);
   // "@" en el pie de un archivo (vista previa de adjuntos): los participantes del grupo, con su foto.
   const captionMentionables = useMemo(
     () => (props.chat.kind === 'group' ? props.members.filter((m) => !m.me).map((m) => ({ phone: m.phone, name: m.name, avatar: m.picture || undefined })) : undefined),
@@ -2098,6 +2100,11 @@ export default function ChatThread(props: ThreadProps) {
                     </button>
                   ) : (
                     <span className="wa-author-name">{author}</span>
+                  )}
+                  {m.direction === 'in' && chat.kind === 'group' && (m.senderInternal || internalPhones.has(m.senderPhone)) && (
+                    <span className="wa-internal-tag" data-testid="wa-internal-tag">
+                      {t('wa.internal.tag')}
+                    </span>
                   )}
                   {m.direction === 'in' && chat.kind === 'group' && m.senderName && m.senderPhone && <span className="wa-phone">{phoneLabel(m.senderPhone)}</span>}
                 </>

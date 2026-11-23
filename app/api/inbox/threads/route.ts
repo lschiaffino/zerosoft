@@ -2,7 +2,8 @@ import { after } from 'next/server';
 import { listThreadsPage } from '@/lib/inbox/core';
 import { refreshVisible } from '@/lib/inbox/wa-meta';
 import { bulkActionSchema, removedActionSchema } from '@/lib/inbox/schemas';
-import { iJson, withOwner } from '@/lib/inbox/http';
+import { iJson, inboxInternal, withOwner } from '@/lib/inbox/http';
+import { internalVersion, type InternalSet } from '@/lib/internal-contacts';
 import { threadAction } from '@/lib/inbox/send';
 import { isInboxView } from '@/lib/inbox/types';
 import { ownerRev, versionTag, versioned } from '@/lib/inbox/revisions';
@@ -24,11 +25,14 @@ export async function GET(req: Request) {
   return withOwner(async (owner) => {
     const sp = new URL(req.url).searchParams;
     // Sin cambios de la persona desde la última vez (una fila): 304 sin armar la lista.
-    return versioned(req, versionTag('l', await ownerRev(owner), sp.toString()), () => buildList(owner, sp));
+    // Quién es interno es del workspace (lib/internal-contacts.ts): un cambio ahí también cambia la versión.
+    const internal = await inboxInternal();
+    const iv = internal.ws ? await internalVersion(internal.ws) : '';
+    return versioned(req, versionTag('l', await ownerRev(owner), `${sp.toString()}|${iv}`), () => buildList(owner, sp, internal.set));
   });
 }
 
-async function buildList(owner: string, sp: URLSearchParams) {
+async function buildList(owner: string, sp: URLSearchParams, internal: InternalSet) {
   const view = sp.get('view');
   const paged = sp.has('cursor');
   const page = await listThreadsPage(owner, {
@@ -37,6 +41,7 @@ async function buildList(owner: string, sp: URLSearchParams) {
     q: sp.get('q') ?? '',
     limit: Number(sp.get('limit') ?? (paged ? 60 : 300)) || (paged ? 60 : 300),
     cursor: sp.get('cursor') || null,
+    internal,
   });
   const threads = page.threads;
   // Los primeros chats a la vista sin nombre o foto: se piden después de responder (la próxima lista ya los trae).

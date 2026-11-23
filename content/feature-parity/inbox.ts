@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-22',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -106,6 +106,14 @@ const parity: ProductParity = {
     }),
     row('read-state', 'triage', ['Read and unread', 'Leído y no leído', 'Lido e não lido'], 'have', {
       detail: ['U. Mirrored in Gmail; on WhatsApp it stays in Inbox', 'U. Se refleja en Gmail; en WhatsApp queda en Inbox', 'U. Espelhado no Gmail; no WhatsApp fica no Inbox'],
+    }),
+    row('internal-contacts', 'triage', ['Internal contacts out of To reply', 'Contactos internos fuera de Por responder', 'Contatos internos fora de Por responder'], 'have', {
+      competitorHas: false,
+      detail: [
+        'The workspace admins mark teammates and company numbers (the same list as Lines, also from a contact info or in Inbox Settings), and email addresses at the company domains count too. Chats with them stay in the inbox but not in To reply or Waiting on others, have their own Internal view, show Internal next to their name in groups and stay out of Analytics',
+        'Los admins del workspace marcan a las personas del equipo y los números de la empresa (la misma lista que Lines, también desde la info de un contacto o en Ajustes de Inbox), y cuentan también los correos de los dominios de la empresa. Los chats con ellos siguen en la bandeja pero no en Por responder ni en Esperando, tienen su vista Internos, muestran Interno al lado del nombre en los grupos y quedan fuera de Analítica',
+        'Os admins do workspace marcam as pessoas da equipe e os números da empresa (a mesma lista do Lines, também pelos dados de um contato ou em Ajustes do Inbox), e os e-mails dos domínios da empresa também contam. As conversas com eles continuam na caixa mas não em Por responder nem em Esperando, têm sua vista Internos, mostram Interno ao lado do nome nos grupos e ficam fora da Análise',
+      ],
     }),
     row('pin-mute', 'triage', ['Pin and mute', 'Fijar y silenciar', 'Fixar e silenciar'], 'have', { competitorHas: false }),
 

@@ -16,6 +16,7 @@
 import { getDb } from './db';
 import { idxDay, num, rangeInfo } from './analytics-kit/period';
 import { listPeople } from './groups';
+import { internalPhonesJson, internalVersion, loadInternalSet } from './internal-contacts';
 import { chatAccessSql, maskedChatName, numberAccessSql, visibleNumberIds, type GroupsViewer } from './groups-access';
 import {
   analyticsRange,
@@ -68,7 +69,14 @@ interface Ctx {
   range: AnalyticsRange;
   segments: TzSegment[];
   now: Date;
+  /**
+   * Teléfonos internos (JSON; lib/internal-contacts.ts): las métricas son de clientes, así que los chats 1:1 con
+   * alguien interno y lo que escribe alguien interno en un grupo no cuentan. '[]' o sin esto: nadie es interno.
+   */
+  internalPhones?: string;
 }
+
+const hasInternal = (ctx: Ctx) => !!ctx.internalPhones && ctx.internalPhones !== '[]';
 
 /** Recibos de envíos masivos: se leen los de los últimos envíos hasta esta cantidad de destinatarios. */
 export const BROADCAST_DETAIL_BUDGET = 5000;
@@ -135,6 +143,10 @@ function chatConds(ctx: Ctx, alias: string, opts: { number: boolean; kind?: 'dm'
   if (opts.kind) {
     sql.push(`${alias}.kind = ?`);
     args.push(opts.kind);
+  }
+  if (hasInternal(ctx)) {
+    sql.push(`NOT (${alias}.kind = 'dm' AND ${alias}.phone <> '' AND ${alias}.phone IN (SELECT value FROM json_each(?)))`);
+    args.push(ctx.internalPhones as string);
   }
   return { sql, args };
 }
@@ -204,6 +216,11 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
   if (scope) {
     where.push(scope.sql);
     args.push(...scope.args);
+  }
+  // Lo que escribe alguien interno en un grupo es del equipo: no es un mensaje de cliente.
+  if (hasInternal(ctx)) {
+    where.push("NOT (m.direction = 'in' AND m.sender_phone IN (SELECT value FROM json_each(?)))");
+    args.push(ctx.internalPhones as string);
   }
   const off = tzOffsetSql(ctx.segments, 'x.ts');
   const parts = sections.map((s) =>
@@ -922,6 +939,7 @@ export async function linesAnalytics(
   opts: { now?: Date; options?: FilterOptions } = {},
 ): Promise<AnalyticsData> {
   const ctx = analyticsContext(ws, viewer, query, opts.now ?? new Date());
+  ctx.internalPhones = internalPhonesJson(await loadInternalSet(ws));
   const options = async () => opts.options ?? (await analyticsFilterOptions(ws, viewer));
   switch (tab) {
     case 'overview':
@@ -959,7 +977,9 @@ export async function cachedLinesAnalytics(ws: string, viewer: GroupsViewer, tab
   const lines = viewer.linesScoped ? [...((await visibleNumberIds(viewer)) ?? [])].sort().join(',') : '';
   const now = Date.now();
   const range = analyticsRange(query, new Date(now));
-  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, lines, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '']);
+  // Lo interno también (lib/internal-contacts.ts): marcar a alguien cambia las métricas ya.
+  const internal = await internalVersion(ws);
+  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, lines, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '', internal]);
   const hit = cache.get(key);
   if (hit && now - hit.at < CACHE_MS) return hit.data;
   if (cache.size >= CACHE_MAX) {

@@ -11,7 +11,9 @@ import {
   saveNotes,
   type ThreadAction,
 } from '@/lib/inbox/core';
-import { iJson, parseBody, withOwner } from '@/lib/inbox/http';
+import { iJson, inboxInternal, parseBody, withOwner } from '@/lib/inbox/http';
+import { internalVersion, isInternalHandle, type InternalSet } from '@/lib/internal-contacts';
+import { markInternalThread } from '@/lib/inbox/core';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
@@ -55,11 +57,14 @@ export async function GET(req: Request, ctx: Ctx) {
     // El mismo chat en otras cuentas: un mensaje en cualquiera cambia la conversación (y su versión).
     const same = await withInboxSameChatIds(owner, [id]);
     const extraRev = same.length > 1 ? await sameChatRev(owner, same.slice(1)) : '';
-    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}${extraRev}`), () => buildDetail(owner, id, around));
+    // Quién es interno es del workspace (lib/internal-contacts.ts): un cambio ahí también cambia la versión.
+    const internal = await inboxInternal();
+    const iv = internal.ws ? await internalVersion(internal.ws) : '';
+    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}${extraRev},${iv}`), () => buildDetail(owner, id, around, internal.set));
   });
 }
 
-async function buildDetail(owner: string, id: string, around: string | undefined) {
+async function buildDetail(owner: string, id: string, around: string | undefined, internal: InternalSet) {
   let row = await getThreadRow(owner, id);
   // Primera vez que se abre un chat de WhatsApp sin datos: nombre, foto e integrantes antes de mostrarlo.
   if (row.channel === 'whatsapp' && !row.info_at) {
@@ -72,11 +77,13 @@ async function buildDetail(owner: string, id: string, around: string | undefined
     row = await getThreadRow(owner, id);
   }
   const lines = await inboxChatLines(owner, id);
-  const one = await getThread(owner, id);
+  const one = markInternalThread(await getThread(owner, id), internal);
   const thread = lines.length ? { ...one, lines, unread: mergedUnread(one.kind, lines) } : one;
   const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
   const account = row.channel === 'whatsapp' ? await getAccount(owner, row.account_id) : null;
   const wa = account ? await waDetails(owner, row, account) : null;
+  // Los participantes internos (del equipo o de la empresa): "Interno" en la lista y al lado de lo que escriben.
+  if (wa) for (const p of wa.participants) if (!p.me && isInternalHandle(internal, p.phone)) p.internal = true;
   // Las confirmaciones de lectura de la cuenta: si el dato tiene más de un día, se relee después de responder.
   if (account?.status === 'connected') await refreshPrivacyIfStale('inbox', account, () => waProviderFor(account));
   // Las personas de las tarjetas de contacto (vCard) en la pantalla: sus fotos, como en WhatsApp.
@@ -137,7 +144,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         }
       }
     }
-    return iJson({ thread: await getThread(owner, id) });
+    return iJson({ thread: markInternalThread(await getThread(owner, id), (await inboxInternal()).set) });
   });
 }
 

@@ -22,6 +22,7 @@ import SettingsTabs from '@/components/ui/SettingsTabs';
 import ChatStyleSection from '@/components/chat-style/ChatStyleSection';
 import DisplaySection from '@/components/chat-style/DisplaySection';
 import NumbersSettings from '@/components/groups/NumbersSettings';
+import InternalContactsPanel from '@/components/groups/InternalContacts';
 import PeriskopeImport from '@/components/groups/PeriskopeImport';
 import { LabelsPanel, PropertiesPanel, QuickRepliesPanel, TicketRulesPanel } from '@/components/groups/SettingsPanels';
 import { AccessPanel, AppsPanel, AuditLog, IntegrationsPanel } from '@/components/groups/PlatformPanels';
@@ -44,7 +45,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/hubspot/send',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
+const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'internal', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -133,6 +134,8 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     ) : (
       <p className="ui-help">{t('access.adminsOnly')}</p>
     );
+  // Contactos internos (lib/internal-contacts.ts): los cambian los admins; el resto ve qué quiere decir.
+  else if (tab === 'internal') body = admin ? <InternalContactsPanel apiBase="/api/groups/internal" /> : <p className="ui-help">{t('wa.internal.adminsOnly')}</p>;
   else if (tab === 'audit')
     body = admin ? (
       <div className="ui-fields">
