@@ -177,16 +177,22 @@ export default function DealsBoard({
   // un arrastre o de un diálogo de movimiento (se espera a que termine).
   const busyRef = useRef(false);
   busyRef.current = !!(pendingMove || reqMove || approval || moveMenuFor);
+  const waitTimer = useRef<number | null>(null);
   const refreshWhenIdle = useCallback(() => {
+    if (waitTimer.current !== null) return; // ya hay una espera en curso
     const go = () => {
       if (dragRef.current || busyRef.current) {
-        window.setTimeout(go, 1000);
+        waitTimer.current = window.setTimeout(go, 1000);
         return;
       }
+      waitTimer.current = null;
       router.refresh();
     };
     go();
   }, [router]);
+  useEffect(() => () => {
+    if (waitTimer.current !== null) window.clearTimeout(waitTimer.current);
+  }, []);
   useCrmLive({ list: 'deals', ids: dealIds, pipelineId }, refreshWhenIdle);
 
   useEffect(() => {

@@ -22,7 +22,8 @@ export function useCrmLive(target: CrmLiveTarget | null, onChange?: () => void, 
   const enabled = opts.enabled ?? true;
   const onChangeRef = useRef<() => void>(() => router.refresh());
   onChangeRef.current = onChange ?? (() => router.refresh());
-  const key = target ? JSON.stringify(target) : '';
+  // Más de 500 filas (un board grande): se firman las primeras y el resto cuenta por cantidad (lib/crm-live.ts).
+  const key = target ? JSON.stringify('list' in target && target.ids ? { ...target, ids: target.ids.slice(0, 500) } : target) : '';
 
   useEffect(() => {
     if (!key || !enabled) return;

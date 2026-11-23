@@ -83,7 +83,7 @@ export async function listSignature(
     const found = (await db
       .prepare(`SELECT t.* FROM ${table} t WHERE ${where.join(' AND ')} AND t.id IN (${ids.map(() => '?').join(',')}) ORDER BY t.id`)
       .all(...args, ...ids)) as Array<Record<string, unknown> & { custom: string }>;
-    const hiddenCompanies = entity === 'contacts' ? await unseenCompanies(ws(viewer), scope, found, db) : new Set<string>();
+    const hiddenCompanies = entity !== 'deals' ? await unseenCompanies(ws(viewer), scope, found, db) : new Set<string>();
     rows = found.map((r) => rowPrint(maskCompany(redactRow(r, hidden), hiddenCompanies)));
   }
   return hash([Number(head.n), head.c, rows]);
@@ -121,7 +121,7 @@ export async function recordSignature(
     .prepare('SELECT COUNT(*) AS n FROM crm_record_tags WHERE user_id = ? AND entity = ? AND record_id = ?')
     .get(ws, kind, id)) as { n: number };
   const assoc = await visibleAssociations(ws, kind, id, scope, db);
-  const hiddenCompanies = kind === 'contact' ? await unseenCompanies(ws, scope, [row], db) : new Set<string>();
+  const hiddenCompanies = kind !== 'deal' ? await unseenCompanies(ws, scope, [row], db) : new Set<string>();
   return hash([rowPrint(maskCompany(redactRow(row, hidden), hiddenCompanies)), Number(acts.n), acts.u, Number(tags.n), assoc]);
 }
 
@@ -130,13 +130,13 @@ function ws(viewer: FieldViewer): string {
 }
 
 /**
- * Empresas principales (company_id de contactos) que la persona no ve: en la
+ * Empresas principales (company_id de contactos) o madres (parent_company_id) que la persona no ve: en la
  * firma valen todas lo mismo, así un cambio entre dos empresas que no ve no
  * la cambia (la ficha muestra "registro privado" en las dos).
  */
 async function unseenCompanies(workspaceId: string, scope: OwnerScope, rows: Array<Record<string, unknown>>, db: Db): Promise<Set<string>> {
   if (!scope) return new Set();
-  const ids = [...new Set(rows.map((r) => r.company_id).filter((v): v is string => typeof v === 'string' && !!v))];
+  const ids = [...new Set(rows.flatMap((r) => [r.company_id, r.parent_company_id]).filter((v): v is string => typeof v === 'string' && !!v))];
   if (!ids.length) return new Set();
   const s = ownerScopeSql('co', scope);
   const seen = (await db
@@ -147,7 +147,9 @@ async function unseenCompanies(workspaceId: string, scope: OwnerScope, rows: Arr
 }
 
 function maskCompany<T extends Record<string, unknown>>(row: T, unseen: ReadonlySet<string>): T {
-  return typeof row.company_id === 'string' && unseen.has(row.company_id) ? { ...row, company_id: 'private' } : row;
+  const out: Record<string, unknown> = { ...row };
+  for (const col of ['company_id', 'parent_company_id']) if (typeof out[col] === 'string' && unseen.has(out[col] as string)) out[col] = 'private';
+  return out as T;
 }
 
 /** Cuántos registros asociados ve la persona, por tipo (los que no ve no cuentan). */
