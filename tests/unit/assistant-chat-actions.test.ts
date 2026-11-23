@@ -108,12 +108,12 @@ describe('Lines: acciones con tarjeta', () => {
     // Antes de confirmar no hay nada.
     expect(await notes(clara.id)).toEqual([]);
     const cancelled = await decide(member, card.id, 'cancel');
-    expect('action' in cancelled && cancelled.action.status).toBe('cancelled');
+    expect(cancelled.action?.status).toBe('cancelled');
     expect(await notes(clara.id)).toEqual([]);
     // Otra tarjeta, confirmada.
     const again = await turn(member, `lines note ${clara.name}: Llamar el lunes`);
     const done = await decide(member, again.actions[0].id, 'confirm');
-    expect('action' in done && done.action.status).toBe('done');
+    expect(done.action?.status).toBe('done');
     expect(await notes(clara.id)).toEqual([{ body: 'Llamar el lunes', author_id: w.member.id }]);
     expect(await outgoing(clara.id)).toBe(0);
   });
@@ -138,7 +138,7 @@ describe('Lines: acciones con tarjeta', () => {
     const r = await turn(member, `lines note ${clara.name}: tarde`);
     await setLineAccess(ws, pub.id, { visibility: 'restricted' });
     const res = await decide(member, r.actions[0].id, 'confirm');
-    expect('action' in res && res.action.status).toBe('failed');
+    expect(res.action?.status).toBe('failed');
     expect(await notes(clara.id)).toEqual([]);
   });
 
@@ -152,7 +152,7 @@ describe('Lines: acciones con tarjeta', () => {
     expect(card.details[0].label).toMatch(/WhatsApp message to .* at .* UTC, from Ventas demo/);
     expect(card.details.at(-1)!.after).toMatch(/sent on WhatsApp at their time/);
     const done = await decide(member, card.id, 'confirm');
-    expect('action' in done && done.action.status).toBe('done');
+    expect(done.action?.status).toBe('done');
     const rows = (await getDb().prepare("SELECT kind, status, scheduled_at, body FROM groups_broadcasts WHERE user_id = ? AND body = 'Te escribo mañana'").all(ws)) as Array<{ kind: string; status: string; scheduled_at: string }>;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ kind: 'scheduled', status: 'scheduled' });
@@ -166,7 +166,7 @@ describe('Lines: acciones con tarjeta', () => {
     input.planned[0].at = new Date(Date.now() - 60_000).toISOString();
     await getDb().prepare('UPDATE assistant_actions SET input = ? WHERE id = ?').run(JSON.stringify(input), late.actions[0].id);
     const res = await decide(member, late.actions[0].id, 'confirm');
-    expect('action' in res && res.action.status).toBe('failed');
+    expect(res.action?.status).toBe('failed');
     expect(await getDb().prepare("SELECT 1 FROM groups_broadcasts WHERE body = 'Esto no sale'").get()).toBeUndefined();
   });
 
@@ -190,7 +190,7 @@ describe('Lines: acciones con tarjeta', () => {
     expect(draft.actions[0].details[0].label).toMatch(/not sent/);
     const res = await decide(member, draft.actions[0].id, 'confirm');
     // El borrador vuelve para el campo del chat; no se guarda como mensaje ni sale.
-    expect('action' in res && res.action.result?.drafts).toEqual([{ app: 'lines', chatId: clara.id, text: 'Hola Clara, sale hoy' }]);
+    expect(res.action?.result?.drafts).toEqual([{ app: 'lines', chatId: clara.id, text: 'Hola Clara, sale hoy' }]);
     expect(await outgoing(clara.id)).toBe(0);
   });
 
@@ -281,7 +281,7 @@ describe('Lines: lo que la tarjeta no deja pasar', () => {
     const r = await turn(member, `lines schedule ${clara.name}: No tiene que salir`);
     await setLineAccess(ws, pub.id, { visibility: 'restricted' });
     const res = await decide(member, r.actions[0].id, 'confirm');
-    expect('action' in res && res.action.status).toBe('failed');
+    expect(res.action?.status).toBe('failed');
     expect(await getDb().prepare("SELECT 1 FROM groups_broadcasts WHERE body = 'No tiene que salir'").get()).toBeUndefined();
   });
 
@@ -333,7 +333,7 @@ describe('Inbox: nota y programado con tarjeta', () => {
     expect(s.actions[0].destructive).toBe(true);
     expect(s.actions[0].confirmText).toBeNull();
     const cancel = await decide(member, s.actions[0].id, 'cancel');
-    expect('action' in cancel && cancel.action.status).toBe('cancelled');
+    expect(cancel.action?.status).toBe('cancelled');
     expect(await getDb().prepare('SELECT 1 FROM inbox_scheduled WHERE thread_id = ?').get(t.id)).toBeUndefined();
     const s2 = await turn(member, `inbox schedule ${name}: Te escribo mañana`);
     await decide(member, s2.actions[0].id, 'confirm');
@@ -351,7 +351,7 @@ describe('Inbox: nota y programado con tarjeta', () => {
     input.planned[0].until = new Date(Date.now() - 60_000).toISOString();
     await getDb().prepare('UPDATE assistant_actions SET input = ? WHERE id = ?').run(JSON.stringify(input), late.actions[0].id);
     const res = await decide(member, late.actions[0].id, 'confirm');
-    expect('action' in res && res.action.status).toBe('failed');
+    expect(res.action?.status).toBe('failed');
     expect(await getDb().prepare('SELECT 1 FROM inbox_scheduled WHERE thread_id = ?').get(t.id)).toBeUndefined();
   });
 
