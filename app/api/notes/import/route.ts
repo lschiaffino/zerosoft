@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         kind === 'enex'
           ? await enexToNotes(text, async (res) => {
               try {
-                const url = await saveUpload('docs', res.name, res.mime, res.data);
+                const url = await saveUpload('docs', res.name, res.mime, res.data, { app: 'notes' });
                 return { url, name: res.name, size: res.data.length, mime: res.mime };
               } catch {
                 // Tipo bloqueado (SVG, HTML…) o storage caído: el adjunto se omite.

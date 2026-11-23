@@ -34,5 +34,13 @@ export async function GET(req: Request) {
     entries.map((e) => (e.action === 'crm_link' ? { crmContactId: str(e.detail.contactId), crmCompanyId: str(e.detail.companyId) } : { crmContactId: null, crmCompanyId: null })),
   );
   const scoped = entries.map((e, i) => (e.action === 'crm_link' ? { ...e, detail: { ...e.detail, contactId: links[i].crmContactId, companyId: links[i].crmCompanyId } } : e));
-  return NextResponse.json({ entries: viewer.mask ? scoped.map((e) => ({ ...e, chatName: maskPhoneText(e.chatName) })) : scoped });
+  // Con teléfonos ocultos: también en el detalle (un nombre o un título que era el teléfono); los ids quedan.
+  const maskDetail = (d: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(d).map(([k, v]) => [
+        k,
+        /id$/i.test(k) ? v : typeof v === 'string' ? maskPhoneText(v) : Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? maskPhoneText(x) : x)) : v,
+      ]),
+    );
+  return NextResponse.json({ entries: viewer.mask ? scoped.map((e) => ({ ...e, chatName: maskPhoneText(e.chatName), detail: maskDetail(e.detail) })) : scoped });
 }

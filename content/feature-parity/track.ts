@@ -586,7 +586,12 @@ const parity: ProductParity = {
       id: 'inline-description-comments',
       area: 'collaboration',
       label: { en: 'Inline comments on description text', es: 'Comentarios sobre el texto de la descripción', pt: 'Comentários sobre o texto da descrição' },
-      status: 'missing',
+      detail: {
+        en: 'Select text in an issue description and choose Comment in the selection toolbar: the thread shows the quote, the text stays highlighted until the thread is resolved, and clicking the highlight jumps to the thread. Replies, @mentions, reactions, edit and delete as in any comment. If the quoted text is edited away, the thread keeps its quote without a highlight',
+        es: 'Elegí texto de la descripción de un issue y tocá Comentar en la barra de la selección: el hilo muestra la cita, el texto queda resaltado hasta que se resuelve el hilo y un clic en el resaltado lleva al hilo. Respuestas, @menciones, reacciones, editar y borrar como cualquier comentario. Si el texto citado se borra, el hilo conserva la cita sin resaltado',
+        pt: 'Selecione um texto da descrição de um issue e toque em Comentar na barra da seleção: a thread mostra a citação, o texto fica destacado até a thread ser resolvida e um clique no destaque leva à thread. Respostas, @menções, reações, editar e excluir como qualquer comentário. Se o texto citado for apagado, a thread mantém a citação sem destaque',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
