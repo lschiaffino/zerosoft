@@ -131,7 +131,8 @@ export default function ContactsTable({ viewCols, viewFreeze,
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
-  const expansion = useRowExpansion('contact');
+  const rowIdList = rows.map((r) => r.id);
+  const expansion = useRowExpansion('contact', rowIdList);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista

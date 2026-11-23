@@ -103,7 +103,8 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
-  const expansion = useRowExpansion('company');
+  const rowIdList = rows.map((r) => r.id);
+  const expansion = useRowExpansion('company', rowIdList);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
   // (la barra masiva nunca actúa sobre registros que ya no se ven).

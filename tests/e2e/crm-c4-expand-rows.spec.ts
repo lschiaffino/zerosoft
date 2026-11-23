@@ -76,7 +76,8 @@ for (const [name, viewport] of [
       // Solo el deal abierto.
       await expect(panel.getByTestId('row-exp-deals').getByRole('link', { name: `Open rowexp ${tag}` })).toBeVisible();
       await expect(panel.getByTestId('row-exp-deals').getByRole('link', { name: `Won rowexp ${tag}` })).toHaveCount(0);
-      await expect(panel.getByTestId('row-exp-activity')).toContainText(`Kickoff call notes ${tag}`);
+      // Hay una última actividad (cuál exactamente lo prueba el unitario: la cuenta demo es compartida).
+      await expect(panel.getByTestId('row-exp-last-activity')).toBeVisible();
       await noSideScroll(page);
       await page.screenshot({ path: `test-results/crm-c4-expand-company-${name}.png` });
 
@@ -87,12 +88,17 @@ for (const [name, viewport] of [
       await expect(toggle).toBeFocused();
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-      // Con el teclado: Enter abre (sin pedir de nuevo), Espacio cierra.
+      // Con el teclado: Enter abre, Espacio cierra; Esc sobre la flecha también.
       await page.keyboard.press('Enter');
       await expect(panel).toBeVisible();
       await expect(panel.getByTestId('row-exp-contacts').getByRole('link')).toHaveCount(2);
       await page.keyboard.press(' ');
       await expect(panel).toHaveCount(0);
+      await page.keyboard.press('Enter');
+      await expect(panel).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(panel).toHaveCount(0);
+      await expect(toggle).toBeFocused();
 
       // Un link del panel lleva a la ficha.
       await toggle.click();
@@ -116,7 +122,7 @@ for (const [name, viewport] of [
       await firstRow(page).getByTestId('row-expand').click();
       await expect(panel.getByTestId('row-exp-contacts').getByRole('link')).toHaveCount(2);
       await expect(panel.getByTestId('row-exp-companies').getByRole('link', { name: `Rowexp ${tag}` })).toBeVisible();
-      await expect(panel.getByTestId('row-exp-companies')).toContainText('Primary');
+      await expect(panel.getByTestId('row-exp-companies').getByTestId('row-exp-primary')).toHaveCount(1);
       await noSideScroll(page);
       await page.screenshot({ path: `test-results/crm-c4-expand-deal-${name}.png` });
     });

@@ -407,16 +407,14 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   white-space: normal;
   border-bottom: 1px solid var(--line);
 }
-/* El panel queda a la vista aunque la tabla esté desplazada de costado (en escritorio: en el
-   teléfono hay paneles fijos dentro de las celdas, como el registro de llamada, y el contenedor los movería). */
-@media (min-width: 641px) {
-  .table-scroll > .table-wrap { container-type: inline-size; }
-}
+/* El panel queda a la vista aunque la tabla esté desplazada de costado: pegado a la izquierda y del
+   ancho visible (TableScroll pone --table-view-w). */
 .row-exp {
   position: sticky;
   left: 0;
   box-sizing: border-box;
-  width: min(100%, 100cqw);
+  width: var(--table-view-w, 100%);
+  max-width: 100%;
   padding: 10px 12px 12px 46px;
   font-size: 0.8125rem;
 }

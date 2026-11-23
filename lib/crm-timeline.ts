@@ -82,7 +82,15 @@ function recordConditions(ws: string, rec: TimelineRecordRef): { own: string; ow
 export async function listRecordActivities(
   ws: string,
   rec: TimelineRecordRef,
-  opts: { ownerScope?: OwnerScope; chatReader?: ChatReader | null; offset?: number; limit?: number; includeAssociated?: boolean } = {},
+  opts: {
+    ownerScope?: OwnerScope;
+    chatReader?: ChatReader | null;
+    offset?: number;
+    limit?: number;
+    includeAssociated?: boolean;
+    /** 'created': la más nueva primero por fecha de creación (la última actividad de la fila desplegada). */
+    order?: 'timeline' | 'created';
+  } = {},
 ): Promise<{ rows: RecordActivityRow[]; hasMore: boolean }> {
   const limit = Math.min(Math.max(opts.limit ?? TIMELINE_PAGE, 1), 500);
   const offset = Math.max(opts.offset ?? 0, 0);
@@ -106,7 +114,7 @@ export async function listRecordActivities(
     .prepare(
       `${SELECT.replace('SELECT a.*,', `SELECT a.*, CASE WHEN ${cond.own} THEN 0 ELSE 1 END AS rollup, CASE WHEN ${cond.own} AND a.pinned = 1 THEN 1 ELSE 0 END AS pinned_here,`)}
        WHERE ${where.join(' AND ')}
-       ORDER BY pinned_here DESC, COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC, a.id DESC
+       ORDER BY ${opts.order === 'created' ? 'a.created_at DESC, a.rowid DESC' : 'pinned_here DESC, COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC, a.id DESC'}
        LIMIT ? OFFSET ?`,
     )
     .all(...args, limit + 1, offset)) as Array<RecordActivityRow & { pinned_here: number }>;

@@ -11,6 +11,7 @@ import { createActivity, createCompany, createContact, createCustomField, create
 import { getDb } from '@/lib/db';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
+import { associateDealCompany } from '@/lib/crm-assoc';
 import { activityLine, ROW_EXPAND_LIMIT, type RowExpansion } from '@/lib/crm-row-expand';
 import type { SessionUser } from '@/lib/session';
 import { asMember, asOwner, workspaceWithMember, type AccessWorkspace } from './access-helpers';
@@ -64,6 +65,8 @@ beforeAll(async () => {
   rec.d1 = await deal('Open mine', open.id, w.member.id, [rec.k1, rec.k2], rec.company);
   rec.d2 = await deal('Open friend', open.id, w.friend.id, [rec.k1], rec.company);
   rec.d3 = await deal('Won mine', won.id, w.member.id, [rec.k1], rec.company);
+  // Una segunda empresa del deal, de otra persona: el member no la ve ni la cuenta.
+  await associateDealCompany(w.owner.id, rec.d1, rec.friendCompany);
 
   // La nota sobre el contacto de otra persona es la más nueva, pero el member no la ve.
   await createActivity(w.owner.id, { type: 'note', body: 'Visible note on the company', companyId: rec.company, ownerId: w.member.id });
@@ -119,6 +122,8 @@ describe('row expansion: who sees what', () => {
     expect(ids(deal.body!.contacts!.rows)).toEqual([rec.k1]);
     expect(deal.body!.contacts!.rows[0]).toEqual({ id: rec.k1, name: 'Kim Visible', email: 'kim@rowexp.test', jobTitle: 'Buyer' });
     expect(deal.body!.companies!.rows).toEqual([{ id: rec.company, name: 'Acme Rowexp', domain: 'acme-rowexp.test', primary: true }]);
+    expect(deal.body!.companies!.total).toBe(1);
+    expect(deal.raw).not.toContain('Friend Co');
 
     // Un deal de su compañero no existe para él.
     expect((await expand(member, 'deal', rec.d2)).status).toBe(404);
@@ -134,6 +139,8 @@ describe('row expansion: who sees what', () => {
       expect(company.body!.lastActivity?.text).toBe('HIDDEN-NOTE from a teammate');
       const deal = await expand(user, 'deal', rec.d1);
       expect(ids(deal.body!.contacts!.rows)).toEqual([rec.k1, rec.k2].sort());
+      expect(deal.body!.companies!.rows.map((c) => c.id)).toEqual([rec.company, rec.friendCompany]);
+      expect(deal.body!.companies!.total).toBe(2);
       // Nunca propiedades propias, ni para quien las ve.
       expect(company.raw).not.toContain('TOPSECRET');
     }
@@ -163,6 +170,8 @@ describe('row expansion: shape', () => {
 
   it('activity text is one short line without tags', () => {
     expect(activityLine('', '<p>Hello\n\n<b>there</b></p>')).toBe('Hello there');
+    expect(activityLine('', 'Fish &amp; chips&nbsp;today')).toBe('Fish & chips today');
+    expect(activityLine('Reply to Ana <ana@x.test>', '')).toBe('Reply to Ana <ana@x.test>');
     expect(activityLine('Subject wins', 'body')).toBe('Subject wins');
     const long = activityLine('', 'x'.repeat(500));
     expect(long.length).toBe(140);

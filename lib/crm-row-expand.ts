@@ -24,8 +24,6 @@ import type { ChatReader } from './crm-chat-privacy';
 export const ROW_EXPAND_LIMIT = 5;
 /** Largo del texto de la última actividad. */
 const TEXT_MAX = 140;
-/** Actividades que se miran para encontrar la última (el timeline ordena primero lo fijado y lo que vence). */
-const ACTIVITY_SCAN = 50;
 
 export type RowExpandKind = TimelineRecordKind;
 
@@ -74,10 +72,11 @@ export interface RowExpansion {
 
 type Args = Array<string | number>;
 
-async function page<T>(db: Db, select: string, from: string, args: Args): Promise<{ rows: T[]; total: number }> {
+/** Las primeras ROW_EXPAND_LIMIT filas (en `orderBy`) y cuántas hay en total con el mismo FROM/WHERE. */
+async function page<T>(db: Db, select: string, from: string, orderBy: string, args: Args): Promise<{ rows: T[]; total: number }> {
   const [rows, count] = await Promise.all([
-    db.prepare(`${select} ${from} LIMIT ?`).all(...args, ROW_EXPAND_LIMIT) as Promise<T[]>,
-    db.prepare(`SELECT COUNT(*) AS n ${from.replace(/\sORDER BY[\s\S]*$/, '')}`).get(...args) as Promise<{ n: number }>,
+    db.prepare(`${select} ${from} ORDER BY ${orderBy} LIMIT ?`).all(...args, ROW_EXPAND_LIMIT) as Promise<T[]>,
+    db.prepare(`SELECT COUNT(*) AS n ${from}`).get(...args) as Promise<{ n: number }>,
   ]);
   return { rows, total: Number(count?.n ?? 0) };
 }
@@ -130,15 +129,14 @@ async function contactsOf(db: Db, ws: string, kind: 'company' | 'deal', id: stri
     kind === 'company'
       ? `FROM crm_contact_companies cc
          JOIN crm_contacts c ON c.id = cc.contact_id AND c.user_id = cc.user_id
-         WHERE cc.company_id = ? AND cc.user_id = ?${sc.sql}
-         ORDER BY cc.is_primary DESC, c.created_at DESC, c.id ASC`
+         WHERE cc.company_id = ? AND cc.user_id = ?${sc.sql}`
       : `FROM crm_deal_contacts dc
          JOIN crm_contacts c ON c.id = dc.contact_id AND c.user_id = ?
          JOIN crm_deals dd ON dd.id = dc.deal_id AND dd.user_id = c.user_id
-         WHERE dc.deal_id = ?${sc.sql}
-         ORDER BY dc.rowid ASC`;
+         WHERE dc.deal_id = ?${sc.sql}`;
+  const orderBy = kind === 'company' ? 'cc.is_primary DESC, c.created_at DESC, c.id ASC' : 'dc.rowid ASC';
   const args: Args = kind === 'company' ? [id, ws, ...sc.args] : [ws, id, ...sc.args];
-  const out = await page<ContactRow>(db, CONTACT_COLS, from, args);
+  const out = await page<ContactRow>(db, CONTACT_COLS, from, orderBy, args);
   return { rows: out.rows.map(toContact), total: out.total };
 }
 
@@ -150,15 +148,17 @@ async function dealsOf(db: Db, ws: string, kind: 'company' | 'contact', id: stri
       ? `FROM crm_deal_companies dco
          JOIN crm_deals d ON d.id = dco.deal_id AND d.user_id = dco.user_id
          LEFT JOIN crm_stages s ON s.id = d.stage_id
-         WHERE dco.company_id = ? AND dco.user_id = ? AND ${OPEN}${sc.sql}
-         ORDER BY d.close_date IS NULL, d.close_date ASC, d.created_at DESC, d.id ASC`
+         WHERE dco.company_id = ? AND dco.user_id = ? AND ${OPEN}${sc.sql}`
       : `FROM crm_deal_contacts dct
          JOIN crm_deals d ON d.id = dct.deal_id AND d.user_id = ?
          LEFT JOIN crm_stages s ON s.id = d.stage_id
-         WHERE dct.contact_id = ?${sc.sql}
-         ORDER BY CASE WHEN ${OPEN} THEN 0 ELSE 1 END, d.created_at DESC, d.id ASC`;
+         WHERE dct.contact_id = ?${sc.sql}`;
+  const orderBy =
+    kind === 'company'
+      ? 'd.close_date IS NULL, d.close_date ASC, d.created_at DESC, d.id ASC'
+      : `CASE WHEN ${OPEN} THEN 0 ELSE 1 END, d.created_at DESC, d.id ASC`;
   const args: Args = kind === 'company' ? [id, ws, ...sc.args] : [ws, id, ...sc.args];
-  const out = await page<DealRow>(db, DEAL_COLS, from, args);
+  const out = await page<DealRow>(db, DEAL_COLS, from, orderBy, args);
   return { rows: out.rows.map(toDeal), total: out.total };
 }
 
@@ -167,28 +167,33 @@ async function companiesOf(db: Db, ws: string, dealId: string, scope: OwnerScope
   const sc = scopeAnd('co', scope);
   const from = `FROM crm_deal_companies dco
     JOIN crm_companies co ON co.id = dco.company_id AND co.user_id = dco.user_id
-    WHERE dco.deal_id = ? AND dco.user_id = ?${sc.sql}
-    ORDER BY dco.is_primary DESC, dco.created_at ASC, dco.rowid ASC`;
+    WHERE dco.deal_id = ? AND dco.user_id = ?${sc.sql}`;
   const out = await page<{ id: string; name: string; domain: string; is_primary: number }>(
     db,
     'SELECT co.id, co.name, co.domain, dco.is_primary',
     from,
+    'dco.is_primary DESC, dco.created_at ASC, dco.rowid ASC',
     [dealId, ws, ...sc.args],
   );
   return { rows: out.rows.map((r) => ({ id: r.id, name: r.name, domain: r.domain ?? '', primary: !!r.is_primary })), total: out.total };
 }
 
-/** Texto de una actividad para una línea: sin etiquetas ni saltos, cortado. */
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", nbsp: ' ' };
+
+/** Texto de una actividad para una línea: sin etiquetas HTML (un `Nombre <mail@x.com>` queda), sin saltos, cortado. */
 export function activityLine(subject: string, body: string): string {
-  const raw = (subject || body || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const raw = (subject || body || '')
+    .replace(/<\/?[a-z][a-z0-9-]*(\s[^<>]*)?\/?>/gi, ' ')
+    .replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (_, e: string) => ENTITIES[e] ?? ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return raw.length > TEXT_MAX ? `${raw.slice(0, TEXT_MAX - 1)}…` : raw;
 }
 
 /** La última actividad del registro (por fecha de creación) entre las que su timeline le muestra a la persona. */
 async function lastActivityOf(ws: string, kind: RowExpandKind, id: string, scope: OwnerScope | undefined, chatReader: ChatReader | null) {
-  const { rows } = await listRecordActivities(ws, { kind, id }, { ownerScope: scope, chatReader, limit: ACTIVITY_SCAN });
-  let last: (typeof rows)[number] | null = null;
-  for (const r of rows) if (!last || r.created_at > last.created_at) last = r;
+  const { rows } = await listRecordActivities(ws, { kind, id }, { ownerScope: scope, chatReader, limit: 1, order: 'created' });
+  const last = rows[0];
   if (!last) return null;
   return { type: last.type, text: activityLine(last.subject, last.body), at: last.created_at, done: !!last.done };
 }

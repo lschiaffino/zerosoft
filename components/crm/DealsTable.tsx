@@ -164,7 +164,8 @@ export default function DealsTable({ viewCols, viewFreeze,
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
   // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
-  const expansion = useRowExpansion('deal');
+  const rowIdList = rows.map((r) => r.id);
+  const expansion = useRowExpansion('deal', rowIdList);
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (

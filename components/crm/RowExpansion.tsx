@@ -11,38 +11,48 @@ const KIND_PATH: Record<RowExpandKind, string> = { contact: 'contacts', company:
 const ACTIVITY_ICON: Record<string, CrmIconName> = { note: 'note', email: 'mail', call: 'phone', task: 'task', meeting: 'calendar', whatsapp: 'message' };
 
 /**
- * Filas que se despliegan en un índice: cuáles están abiertas y lo que ya se
- * trajo de cada una (se pide una vez; volver a abrirla no lo pide de nuevo).
+ * Filas que se despliegan en un índice: cuáles están abiertas y lo último que
+ * se trajo de cada una. Cada vez que se abre se vuelve a pedir (con lo que ya
+ * había a la vista mientras llega), así una nota o un deal recién agregados
+ * aparecen. Otra página, filtro u orden pliega las filas que ya no están.
  */
-export function useRowExpansion(kind: RowExpandKind) {
+export function useRowExpansion(kind: RowExpandKind, rowIds: readonly string[]) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [data, setData] = useState<Record<string, Expansion | 'error' | undefined>>({});
   const loading = useRef(new Set<string>());
+
+  const shown = rowIds.join(',');
+  useEffect(() => {
+    const visible = new Set(shown.split(','));
+    setOpen((prev) => (prev.size && [...prev].some((id) => !visible.has(id)) ? new Set([...prev].filter((id) => visible.has(id))) : prev));
+  }, [shown]);
 
   const load = useCallback(
     async (id: string) => {
       if (loading.current.has(id)) return;
       loading.current.add(id);
-      setData((prev) => ({ ...prev, [id]: undefined }));
+      // Un error anterior vuelve a "cargando"; lo que ya se veía queda mientras llega lo nuevo.
+      setData((prev) => (prev[id] === 'error' ? { ...prev, [id]: undefined } : prev));
       const res = await fetch(`/api/crm/row-expand?type=${kind}&id=${encodeURIComponent(id)}`, { cache: 'no-store' }).catch(() => null);
       const body = res?.ok ? ((await res.json().catch(() => null)) as Expansion | null) : null;
       loading.current.delete(id);
-      setData((prev) => ({ ...prev, [id]: body ?? 'error' }));
+      setData((prev) => ({ ...prev, [id]: body ?? (prev[id] && prev[id] !== 'error' ? prev[id] : 'error') }));
     },
     [kind],
   );
 
   const toggle = useCallback(
     (id: string) => {
+      const opening = !open.has(id);
       setOpen((prev) => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
       });
-      if (!open.has(id) && (data[id] === undefined || data[id] === 'error')) void load(id);
+      if (opening) void load(id);
     },
-    [open, data, load],
+    [open, load],
   );
 
   return { open, data, toggle, retry: load };
@@ -167,7 +177,9 @@ export function RowExpansionRow({
                           <Link href={`/app/crm/companies/${c.id}`} className="row-exp-link">
                             {c.name}
                           </Link>
-                          <span className="row-exp-meta">{[c.primary ? t('primary') : '', c.domain].filter(Boolean).join(' · ')}</span>
+                          <span className="row-exp-meta" data-primary={c.primary ? 'true' : undefined} data-testid={c.primary ? 'row-exp-primary' : undefined}>
+                            {[c.primary ? t('primary') : '', c.domain].filter(Boolean).join(' · ')}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -180,7 +192,7 @@ export function RowExpansionRow({
                   {t('lastActivity')}
                 </h3>
                 {data.lastActivity ? (
-                  <p className="row-exp-activity">
+                  <p className="row-exp-activity" data-testid="row-exp-last-activity">
                     <span className="row-exp-activity-icon" aria-hidden="true">
                       <CrmIcon name={ACTIVITY_ICON[data.lastActivity.type] ?? 'note'} size={14} />
                     </span>
@@ -227,7 +239,8 @@ function when(value: string, locale: string): string {
   const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
+  const year = d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' as const } : {};
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', ...year, hour: 'numeric', minute: '2-digit' }).format(d);
 }
 
 /** Botón de la primera columna que despliega la fila. */
@@ -243,6 +256,14 @@ export function ExpandToggle({ id, name, expanded, onToggle }: { id: string; nam
       aria-label={label}
       title={label}
       onClick={onToggle}
+      onKeyDown={(e) => {
+        // Esc sobre la flecha también pliega la fila.
+        if (e.key === 'Escape' && expanded) {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }
+      }}
       data-testid="row-expand"
     >
       <CrmIcon name={expanded ? 'chevronDown' : 'chevronRight'} size={14} />
