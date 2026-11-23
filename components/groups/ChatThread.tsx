@@ -451,7 +451,8 @@ export default function ChatThread(props: ThreadProps) {
   // Fotos de perfil de los miembros (remitentes del grupo, visor).
   const memberPics = useMemo(() => new Map(props.members.filter((m) => m.picture).map((m) => [m.phone, m.picture!])), [props.members]);
   // Miembros internos (del equipo o de la empresa; lib/internal-contacts.ts): "Interno" al lado de su nombre.
-  const internalPhones = useMemo(() => new Set(props.members.filter((m) => m.internal).map((m) => m.phone)), [props.members]);
+  // Con los teléfonos ocultos dos personas pueden verse igual ("+54 ••• 00"): ahí vale solo la marca del mensaje.
+  const internalPhones = useMemo(() => new Set(props.members.filter((m) => m.internal && !(m as { masked?: boolean }).masked).map((m) => m.phone)), [props.members]);
   // "@" en el pie de un archivo (vista previa de adjuntos): los participantes del grupo, con su foto.
   const captionMentionables = useMemo(
     () => (props.chat.kind === 'group' ? props.members.filter((m) => !m.me).map((m) => ({ phone: m.phone, name: m.name, avatar: m.picture || undefined })) : undefined),

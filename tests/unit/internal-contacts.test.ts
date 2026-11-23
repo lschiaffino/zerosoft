@@ -160,7 +160,7 @@ describe('Lines: lo interno no espera respuesta', () => {
     expect((await getChat(u.id, group.id))!.awaitingSince).not.toBeNull();
 
     const msgs = await listMessages(u.id, group.id);
-    expect(msgs.filter((m) => m.senderInternal).map((m) => m.senderPhone).sort()).toEqual([OTHER, TEAMMATE]);
+    expect(msgs.filter((m) => m.senderInternal).map((m) => m.senderPhone).sort()).toEqual([OTHER, TEAMMATE].sort());
     expect(msgs.filter((m) => m.direction === 'in' && m.senderPhone === CUSTOMER).every((m) => !m.senderInternal)).toBe(true);
     const members = await listMembers(u.id, group.id);
     expect(members.find((m) => m.phone === TEAMMATE)?.internal).toBe(true);
