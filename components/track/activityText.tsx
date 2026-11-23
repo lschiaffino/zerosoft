@@ -81,6 +81,7 @@ function eventIcon(type: string, meta: Record<string, unknown> = {}): TrackIconN
     case 'cycle_change':
       // Sin activity type propio en el CHECK: project, team, padre y sub-issues van por acá.
       if (meta.field === 'project') return 'plans';
+      if (meta.field === 'release') return 'release';
       if (meta.field === 'team') return 'team';
       if (meta.field === 'parent') return 'parent';
       if (meta.field === 'subissue') return 'subtasks';
@@ -162,6 +163,10 @@ export function describeActivity(
       if (meta.field === 'project') {
         if (!to) return tt('projectRemoved', { user: name, from });
         return from ? tt('projectChange', { user: name, from, to }) : tt('projectAdded', { user: name, to });
+      }
+      if (meta.field === 'release') {
+        if (!to) return tt('releaseRemoved', { user: name, from });
+        return from ? tt('releaseChange', { user: name, from, to }) : tt('releaseAdded', { user: name, to });
       }
       if (meta.field === 'parent') {
         const link = (ident: string, issueId: string) =>

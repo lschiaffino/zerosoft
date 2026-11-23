@@ -108,7 +108,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 | Estado Duplicado que pasa el contexto al original | falta | (2026-11-23) Marcar duplicado suma la relación y cancela; comentarios, adjuntos y suscriptos quedan en el duplicado |
 | Formularios de pedidos a triage | falta | (2026-11-23) |
-| Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
+| Releases (pipelines, versiones, notas) | parcial | (T5, 2026-11-23) Releases por team: nombre, versión, fecha objetivo y estado (planeado, en curso, publicado); issues desde la página del release, la propiedad Release del issue, ⌘K y la selección, y solos al mergear un PR vinculado (al release en curso del team); avance, issues por estado y notas generadas con los títulos (novedades, mejoras, arreglos por label), editables. Release como propiedad, filtro y agrupado en listas y tableros; ⌘K los encuentra. Falta: pipelines de release y avisos de deploy desde el CI (Linear los usa para releases continuos) |
 
 ### Automatización
 

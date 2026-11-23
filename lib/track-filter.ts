@@ -14,6 +14,7 @@ export const FILTER_FIELDS = [
   'label',
   'cycle',
   'milestone',
+  'release',
   'team',
   'project',
   'estimate',
@@ -232,6 +233,7 @@ const SET_COLUMNS: Record<string, string> = {
   creator: 'i.creator_id',
   cycle: 'i.cycle_id',
   milestone: 'i.milestone_id',
+  release: 'i.release_id',
   team: 'i.project_id',
   project: 'i.plan_id',
 };

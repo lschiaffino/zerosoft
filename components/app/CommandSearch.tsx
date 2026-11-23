@@ -72,6 +72,7 @@ const GLYPHS: Record<Extract<CommandIcon, { kind: 'glyph' }>['name'], TrackIconN
   subissue: 'subtasks',
   user: 'user',
   milestone: 'milestone',
+  release: 'release',
 };
 
 /** Ícono de una opción: glifo de estado, barras de prioridad, avatar o color. */
@@ -123,6 +124,7 @@ function useGroupOrder() {
         'issues',
         'trackViews',
         'trackCycles',
+        'trackReleases',
         'trackMilestones',
         'trackLabels',
         'trackPlans',
@@ -335,6 +337,8 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
       { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
       { group: 'track', label: tPlanning('cycles'), meta: '', href: '/app/track/cycles' },
+      { group: 'track', label: tTrack('cmdk.releases'), meta: '', href: '/app/track/releases' },
+      { group: 'track', label: tTrack('cmdk.newRelease'), meta: '', href: '/app/track/releases?new=1' },
       { group: 'track', label: tPlanning('insights'), meta: '', href: '/app/track/insights' },
       { group: 'track', label: tPlanning('dashboards'), meta: '', href: '/app/track/dashboards' },
       { group: 'track', label: tTrack('cmdk.integrations'), meta: '', href: '/app/track/settings?tab=integrations' },

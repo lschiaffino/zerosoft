@@ -33,7 +33,7 @@ interface GroupedIssuesTableProps {
   statusByName?: boolean;
   locale: string;
   labels: Parameters<typeof IssuesTable>[0]["labels"];
-  groupLabels: { noCycle: string; noLabel: string; noMilestone?: string; noProject?: string };
+  groupLabels: { noCycle: string; noLabel: string; noMilestone?: string; noProject?: string; noRelease?: string };
   /** Milestones del project en orden (agrupar por milestone). */
   milestones?: Array<{ id: string; name: string }>;
   /** "Show empty groups": status, prioridad y milestones sin issues también se ven. */
@@ -130,6 +130,7 @@ export default function GroupedIssuesTable({
     if (field === "label") return groupLabels.noLabel;
     if (field === "planMilestone") return groupLabels.noMilestone ?? name;
     if (field === "plan") return groupLabels.noProject ?? name;
+    if (field === "release") return groupLabels.noRelease ?? name;
     return name;
   };
   const title = (key: string, name: string) => titleFor(groupBy, key, name);
@@ -158,6 +159,7 @@ export default function GroupedIssuesTable({
       {field === "label" && g.color && <span className="track-label-tag-dot" style={{ background: g.color }} aria-hidden />}
       {field === "planMilestone" && <span className="tp-ms-diamond" aria-hidden />}
       {field === "plan" && <TrackIcon name="plans" size={13} />}
+      {field === "release" && <TrackIcon name="release" size={13} />}
     </>
   );
 

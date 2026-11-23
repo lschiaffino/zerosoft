@@ -55,7 +55,8 @@ export type TrackIconName =
   | 'callout'
   | 'inbox'
   | 'at'
-  | 'assign';
+  | 'assign'
+  | 'release';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
@@ -114,6 +115,7 @@ const PATHS: Record<TrackIconName, ReactNode> = {
   todo: <path d="M4 5h5v5H4zM5.5 7.5l1 1 1.5-1.8M12 7.5h8M4 14h5v5H4zM12 16.5h8" />,
   toggle: <path d="M5 5l5 4-5 4M13 9h7M9 17h11" />,
   callout: <path d="M4 4h16v16H4zM12 8v.01M12 11v5" />,
+  release: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9" />,
 };
 
 /** Íconos de trazo de Track. Decorativos: el texto o aria-label va en el control. */

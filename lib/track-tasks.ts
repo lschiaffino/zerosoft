@@ -37,6 +37,8 @@ export interface IssuePatch {
   subOrder?: number | null;
   /** Project (plan) del issue. */
   planId?: string | null;
+  /** Release del team (lib/track-releases). */
+  releaseId?: string | null;
   /** Lista completa de labels (ids del workspace). */
   labels?: Array<{ id: string }>;
 }
@@ -47,6 +49,7 @@ export interface PatchExtras {
   milestones?: Array<{ id: string; name: string }>;
   labels?: Array<{ id: string; name: string; color: string }>;
   plans?: Array<{ id: string; name: string }>;
+  releases?: Array<{ id: string; name: string; version?: string }>;
 }
 
 export function isCompletedCategory(category: string | null | undefined): boolean {
@@ -126,6 +129,12 @@ export function applyIssuePatch(
   if (patch.planMilestoneId !== undefined) {
     next.plan_milestone_id = patch.planMilestoneId ?? null;
     next.plan_milestone_name = patch.planMilestoneId ? (next.plan_milestone_name ?? null) : null;
+  }
+  if (patch.releaseId !== undefined) {
+    const rel = patch.releaseId ? extras.releases?.find((r) => r.id === patch.releaseId) : undefined;
+    next.release_id = patch.releaseId ?? null;
+    next.release_name = patch.releaseId ? (rel?.name ?? next.release_name ?? null) : null;
+    next.release_version = patch.releaseId ? (rel?.version ?? null) : null;
   }
   if (patch.planId !== undefined) {
     next.plan_id = patch.planId ?? null;
@@ -418,6 +427,7 @@ export function inversePatch(prev: TrackIssueWithStatus, patch: IssuePatch): Iss
   if (patch.parentId !== undefined) out.parentId = prev.parent_id;
   if (patch.subOrder !== undefined) out.subOrder = prev.sub_order ?? null;
   if (patch.planId !== undefined) out.planId = prev.plan_id ?? null;
+  if (patch.releaseId !== undefined) out.releaseId = prev.release_id ?? null;
   if (patch.labels !== undefined) out.labels = labelIds(prev.labels);
   return out;
 }

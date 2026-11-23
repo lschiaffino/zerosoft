@@ -57,6 +57,7 @@ import { rowTargetId, useTrackCommands } from './trackCommands';
 import { pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { TRACK_ISSUES_CHANGED } from './trackEvents';
 import { useTrackLive } from './useTrackLive';
+import { releaseLabel, useReleases } from './useReleases';
 import { useIssuePages } from './useIssuePages';
 import { useListViews, type ListViewsSource } from './useListViews';
 import { buildTrackUiLabels } from './ui-labels';
@@ -68,7 +69,7 @@ const IssuesGantt = dynamic(() => import('./IssuesGantt'));
 const QuickIssueModal = dynamic(() => import('./QuickIssueModal'));
 const SaveViewDialog = dynamic(() => import('./SaveViewDialog'));
 
-const ALL_PROPS: DisplayProp[] = ['id', 'priority', 'status', 'labels', 'cycle', 'milestone', 'due', 'assignee', 'project', 'estimate', 'links', 'status_time', 'created', 'updated'];
+const ALL_PROPS: DisplayProp[] = ['id', 'priority', 'status', 'labels', 'cycle', 'milestone', 'release', 'due', 'assignee', 'project', 'estimate', 'links', 'status_time', 'created', 'updated'];
 const SUBGROUP_SEP = '\u0001';
 const DEFAULT_LAYOUTS: readonly ListLayout[] = ['list', 'board'];
 
@@ -431,6 +432,13 @@ export default function TrackIssueList({
   const projectNames = useMemo(() => Object.fromEntries((projects ?? []).map((p) => [p.id, p.name])), [projects]);
   const cmdLabels = useMemo(() => (team ? labelsForTeam(labelsList, team.projectId) : labelsList), [labelsList, team]);
   const filterMilestones = milestones ?? team?.milestones;
+  // Releases (lib/track-releases): los de este team, o de los teams que ve la persona en las listas de varios.
+  const allReleases = useReleases();
+  const releases = useMemo(
+    () => (scope.projectId ? allReleases.filter((r) => r.project_id === scope.projectId) : allReleases),
+    [allReleases, scope.projectId],
+  );
+  const filterReleases = useMemo(() => releases.map((r) => ({ id: r.id, name: releaseLabel(r) })), [releases]);
 
   // Totales del server con las claves de los grupos (status de varios teams: por nombre).
   const byName = !singleTeam;
@@ -566,6 +574,7 @@ export default function TrackIssueList({
       labels: cmdLabels,
       cycles: team ? team.cycles : [],
       milestones: team ? team.milestones : [],
+      releases,
       priorities: ui.priorities,
       meId: userId,
       today,
@@ -915,6 +924,7 @@ export default function TrackIssueList({
             noLabel: ui.display.noLabel,
             noMilestone: tl('noMilestone'),
             noProject: tl('noProject'),
+            noRelease: ui.display.noRelease,
             loadMore: t('project.loadMore'),
           }}
           editing={{ ...editing, members }}
@@ -1059,6 +1069,7 @@ export default function TrackIssueList({
               members={members}
               cycles={cycles}
               milestones={filterMilestones}
+              releases={filterReleases}
               teams={scope.projectId ? [] : (projects ?? []).map((p) => ({ id: p.id, name: p.name }))}
               plans={scope.planId ? [] : plans}
               issueLabels={cmdLabels}

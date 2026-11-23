@@ -144,6 +144,8 @@ export const issueCreateSchema = z.object({
 
 export const issueUpdateSchema = issueCreateSchema.omit({ triage: true }).partial().extend({
   title: shortText.optional(),
+  /** Release del team (lib/track-releases); null lo saca. */
+  releaseId: id.nullish(),
   /** Orden manual dentro de los sub-issues del padre (arrastrar). */
   subOrder: z.number().finite().nullish(),
 });
@@ -175,6 +177,7 @@ export const bulkIssuesSchema = z.discriminatedUnion('action', [
         cycleId: id.nullable().optional(),
         addLabelIds: z.array(id).max(10).optional(),
         removeLabelIds: z.array(id).max(10).optional(),
+        releaseId: id.nullable().optional(),
       })
       .refine((p) => Object.values(p).some((v) => v !== undefined), { message: 'empty_patch' }),
   }),
@@ -286,6 +289,36 @@ export const milestoneCreateSchema = z.object({
 });
 
 export const milestoneUpdateSchema = milestoneCreateSchema.partial();
+
+// ---------- Releases ----------
+
+const releaseStatus = z.enum(['planned', 'in_progress', 'released']);
+
+export const releaseCreateSchema = z.object({
+  /** Team (track_projects) del release. */
+  projectId: id,
+  name,
+  version: z.string().trim().max(60).optional(),
+  targetDate: day.nullish(),
+  status: releaseStatus.optional(),
+  autoGithub: z.boolean().optional(),
+});
+
+export const releaseUpdateSchema = z.object({
+  name: name.optional(),
+  version: z.string().trim().max(60).optional(),
+  targetDate: day.nullable().optional(),
+  status: releaseStatus.optional(),
+  /** null vuelve a las notas generadas. */
+  notes: z.string().max(TRACK_MARKDOWN_MAX).nullable().optional(),
+  autoGithub: z.boolean().optional(),
+});
+
+export const releaseIssuesSchema = z.object({
+  issueIds: z.array(id).min(1).max(200),
+  /** true saca los issues del release. */
+  remove: z.boolean().optional(),
+});
 
 // ---------- Plantillas de issue ----------
 

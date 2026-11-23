@@ -13,7 +13,8 @@
     "more": "Mais",
     "newIssue": "Novo issue",
     "newPlan": "Novo projeto",
-    "newTeam": "Nova equipe"
+    "newTeam": "Nova equipe",
+    "releases": "Releases"
   },
   "common": {
     "viewAll": "Ver tudo",
@@ -534,7 +535,9 @@
     "integrations": "Track: Slack, Sentry e outras integrações",
     "apiMcp": "Track: API, webhooks e MCP",
     "access": "Track: equipes privadas e convidados",
-    "audit": "Track: audit log"
+    "audit": "Track: audit log",
+    "releases": "Releases",
+    "newRelease": "Novo release"
   },
   "statusSettings": {
     "title": "Status do workflow",
@@ -766,7 +769,8 @@
       "label": "Etiqueta",
       "project": "Equipe",
       "planMilestone": "Milestone",
-      "plan": "Project"
+      "plan": "Project",
+      "release": "Release"
     },
     "sorts": {
       "manual": "Manual",
@@ -780,7 +784,8 @@
       "revenue": "Receita de clientes",
       "estimate": "Estimativa",
       "status_time": "Tempo no status"
-    }
+    },
+    "noRelease": "Sem release"
   },
   "subscription": {
     "subscribe": "Inscrever-me",
@@ -1540,7 +1545,10 @@
       "currentCycle": "Atual",
       "upcomingCycle": "Próximo",
       "addToCycle": "Adicionar ao cycle {name}",
-      "deleteNotAllowed": "Você não tem permissão para excluir issues. Peça a um admin do workspace."
+      "deleteNotAllowed": "Você não tem permissão para excluir issues. Peça a um admin do workspace.",
+      "release": "Adicionar a um release…",
+      "noRelease": "Sem release",
+      "addToRelease": "Adicionar ao release {name}"
     },
     "editor": {
       "todo": "Lista de tarefas",
@@ -1617,7 +1625,10 @@
       "subissueRemoved": "{user} removeu o sub-issue",
       "autoClosedSubs": "O Track fechou este issue porque todos os sub-issues estão concluídos",
       "autoClosedParent": "O Track fechou este issue porque o pai foi fechado",
-      "savedOffline": "Salvo neste dispositivo. É publicado quando a conexão voltar."
+      "savedOffline": "Salvo neste dispositivo. É publicado quando a conexão voltar.",
+      "releaseAdded": "{user} adicionou este issue ao release {to}",
+      "releaseRemoved": "{user} tirou este issue do release {from}",
+      "releaseChange": "{user} passou este issue do release {from} para {to}"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1704,7 +1715,8 @@
         "hierarchy": "Sub-issues",
         "team": "Team",
         "project": "Project",
-        "status_age": "Tempo no status"
+        "status_age": "Tempo no status",
+        "release": "Release"
       },
       "noAssignee": "Sem responsável",
       "noCycle": "Sem cycle",
@@ -1773,7 +1785,8 @@
       "matchToggle": "Mudar para {next}",
       "noProject": "Sem project",
       "days": "{count, plural, one {# dia} other {# dias}}",
-      "moreThan": "Mais de {value}"
+      "moreThan": "Mais de {value}",
+      "noRelease": "Sem release"
     },
     "peek": {
       "title": "Prévia do issue",
@@ -1813,7 +1826,8 @@
         "estimate": "Estimativa",
         "links": "Links",
         "status_time": "Tempo no status",
-        "updated": "Atualizado"
+        "updated": "Atualizado",
+        "release": "Release"
       },
       "reset": "Voltar ao padrão",
       "collapse": "Recolher {name}",
@@ -1858,7 +1872,8 @@
       "setEstimate": "Estimar",
       "setStart": "Data de início",
       "setDue": "Prazo",
-      "properties": "Propriedades"
+      "properties": "Propriedades",
+      "addRelease": "Adicionar a um release"
     },
     "rel": {
       "blocks": "Marcar como bloqueando…",
@@ -1956,5 +1971,63 @@
       "w": "{n} sem",
       "mo": "{n} mês"
     }
+  },
+  "releases": {
+    "title": "Releases",
+    "new": "Novo release",
+    "empty": "Ainda não há releases",
+    "emptyHint": "Um release junta os issues que saem juntos numa versão: acompanhe o andamento e publique as notas.",
+    "name": "Nome",
+    "version": "Versão",
+    "team": "Team",
+    "targetDate": "Data prevista",
+    "status": "Status",
+    "progress": "Andamento",
+    "issues": "Issues",
+    "statuses": {
+      "planned": "Planejado",
+      "in_progress": "Em andamento",
+      "released": "Publicado"
+    },
+    "create": "Criar release",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "error": "Não foi possível salvar o release. Tente de novo.",
+    "loadError": "Não foi possível carregar os releases. Tente de novo.",
+    "namePlaceholder": "Nome do release",
+    "versionPlaceholder": "1.4.0",
+    "rename": "Renomear",
+    "delete": "Excluir release",
+    "deleteTitle": "Excluir release",
+    "deleteConfirm": "Excluir {name}? Os issues ficam, sem release.",
+    "deleted": "Release excluído",
+    "created": "Release criado",
+    "more": "Opções do release",
+    "notes": "Notas do release",
+    "notesGenerated": "Geradas com os títulos dos issues",
+    "notesEdited": "Editadas à mão",
+    "editNotes": "Editar notas",
+    "resetNotes": "Gerar de novo",
+    "copyNotes": "Copiar",
+    "copied": "Notas copiadas",
+    "notesFeatures": "Novidades",
+    "notesImprovements": "Melhorias",
+    "notesFixes": "Correções",
+    "notesEmpty": "Ainda não há issues.",
+    "addIssues": "Adicionar issues",
+    "addIssuesHint": "Busque issues de {team}",
+    "removeIssue": "Tirar {id} do release",
+    "removed": "{id} saiu do release",
+    "added": "{count, plural, one {# issue adicionado} other {# issues adicionados}}",
+    "autoGithub": "Adicionar issues quando um pull request vinculado for mergeado",
+    "noDate": "Sem data",
+    "released": "Publicado em {date}",
+    "target": "Para {date}",
+    "issueCount": "{count, plural, one {# issue} other {# issues}}",
+    "issuesEmpty": "Este release ainda não tem issues. Adicione aqui, a partir de um issue (Release) ou de uma lista com ⌘K. Com o GitHub conectado, os pull requests mergeados adicionam seus issues.",
+    "back": "Releases",
+    "teamFilter": "Todos os teams",
+    "loading": "Carregando releases…",
+    "property": "Release"
   }
 }

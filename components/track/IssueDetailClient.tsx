@@ -33,6 +33,7 @@ import { restoreCursorOnReturn } from './kbCursor';
 import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { dropUndo, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { useTrackLive } from './useTrackLive';
+import { useReleases } from './useReleases';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
 import type { CommentReaction } from '@/lib/track-ux';
@@ -329,7 +330,10 @@ export default function IssueDetailClient({
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
   }, []);
 
-  const project = useMemo<ProjectContext>(
+  // Releases del team del issue (chip del panel y "Add to release…" en ⌘K).
+  const allReleases = useReleases();
+  const teamReleases = useMemo(() => allReleases.filter((r) => r.project_id === issue.project_id), [allReleases, issue.project_id]);
+  const project = useMemo<ProjectContext & { releases: typeof teamReleases }>(
     () => ({
       id: issue.project_id,
       name: initialProjectName,
@@ -338,8 +342,9 @@ export default function IssueDetailClient({
       cycles: initialCycles,
       milestones: initialMilestones,
       labels: workspaceLabels,
+      releases: teamReleases,
     }),
-    [issue.project_id, initialProjectName, initialStatuses, initialMembers, initialCycles, initialMilestones, workspaceLabels],
+    [issue.project_id, initialProjectName, initialStatuses, initialMembers, initialCycles, initialMilestones, workspaceLabels, teamReleases],
   );
   const projectMap = useMemo(() => ({ [project.id]: project }), [project]);
   const updatedLabel = useCallback(
@@ -926,6 +931,7 @@ export default function IssueDetailClient({
       labels: workspaceLabels,
       cycles: initialCycles,
       milestones: initialMilestones,
+      releases: teamReleases,
       priorities: labels.priorities,
       meId: userId,
       today,
@@ -1551,6 +1557,7 @@ export default function IssueDetailClient({
               statuses={initialStatuses}
               cycles={initialCycles}
               milestones={initialMilestones}
+              releases={teamReleases}
               members={initialMembers}
               locale={locale}
               ui={ui}

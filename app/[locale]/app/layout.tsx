@@ -644,6 +644,7 @@ export default async function AppLayout(
               insights: tPlanning('sidebar.insights'),
               dashboards: tPlanning('sidebar.dashboards'),
               customers: tTrack('sidebar.customers'),
+              releases: tTrack('sidebar.releases'),
               workspace: tTrack('sidebar.workspace'),
               yourTeams: tTrack('sidebar.yourTeams'),
               more: tTrack('sidebar.more'),

@@ -1388,6 +1388,8 @@ export interface TrackIssueRow {
   archived_at?: string | null;
   /** Desde cuándo está en el status actual (lo escribe un trigger; ver lib/track-status-time.ts). */
   status_changed_at?: string | null;
+  /** Release del team en el que va (lib/track-releases). */
+  release_id?: string | null;
   created_at: string;
   updated_at: string;
 }

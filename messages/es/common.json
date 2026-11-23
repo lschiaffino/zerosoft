@@ -247,7 +247,8 @@
     "presenceAway": "Ausente",
     "presenceOffline": "Desconectado",
     "presenceStatus": "Estado en Lines",
-    "presenceHelp": "Lines: solo quienes están en línea reciben chats nuevos. Ausente conserva sus chats; Desconectado puede pasarlos a otros si una regla lo pide."
+    "presenceHelp": "Lines: solo quienes están en línea reciben chats nuevos. Ausente conserva sus chats; Desconectado puede pasarlos a otros si una regla lo pide.",
+    "groupTrackReleases": "Releases"
   },
   "manifesto": {
     "p1": "Un equipo de diez personas paga <strong>$6.000 al año</strong> por un CRM, $1.440 por agendar reuniones y $420 por acortar links. Esos precios se calculan por cabeza o por plan.",
