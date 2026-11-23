@@ -178,15 +178,23 @@ test('pestañas (.ui-tabs): en Líquido no hay tapa lisa en los bordes; los otro
       return { image: getComputedStyle(el).backgroundImage };
     }, look);
   // Current, Líneas, Clásico y Retro: la tapa es del color del fondo de la página (la sombra solo se ve si las pestañas no entran).
+  const current = (await paint('current')).image;
   for (const look of ['current', 'lines', 'classic', 'retro'] as const) {
     const { image } = await paint(look);
-    expect(image, look).toContain('linear-gradient');
     expect(image.split('linear-gradient').length - 1, look).toBe(4);
-    expect(image, look).not.toMatch(/^linear-gradient\(to right, rgba\(0, 0, 0, 0\) 60%/);
+    // Tapa y sombra con color (no transparentes), iguales a las de Current.
+    const stops = [...image.matchAll(/rgba?\([^)]*\)|color\([^)]*\)/g)].map((m) => m[0]);
+    expect(stops.some((c) => !/rgba\(0, 0, 0, 0\)/.test(c)), look).toBe(true);
+    if (look !== 'retro') expect(image, look).toBe(current);
   }
   // Líquido: fondo en degradé, sin tapa ni sombra (antes pintaba un bloque claro en cada borde).
   const liquid = await paint('liquid');
   const stops = [...liquid.image.matchAll(/rgba?\([^)]*\)/g)].map((m) => m[0]);
   expect(stops.length).toBeGreaterThan(0);
   for (const c of stops) expect(c, liquid.image).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  // También en oscuro.
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const dark = await paint('liquid');
+  for (const c of [...dark.image.matchAll(/rgba?\([^)]*\)/g)].map((m) => m[0])) expect(c, dark.image).toMatch(/rgba\(0, 0, 0, 0\)/);
+  await page.emulateMedia({ colorScheme: 'light' });
 });
