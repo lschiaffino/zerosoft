@@ -131,4 +131,44 @@ describe('hilos de projects e iniciativas: comentarios', () => {
     expect(notes.some((n) => n.user_id === guest.id)).toBe(false);
     expect(notes.some((n) => n.user_id === w.member.id)).toBe(false);
   });
+
+  it('un comentario de un project no se toca desde otro; se borra con su project', async () => {
+    const { w, plan, owner, member } = await setup();
+    const { createPlan: mk, deletePlan } = await import('@/lib/track-plans');
+    const other = await mk({ teamId: w.team.id, ownerId: w.owner.id }, w.owner.id, planCreateSchema.parse({ name: 'Other' }));
+    if (!other.ok) throw new Error(other.error);
+    const root = (await (await as(member, w.member.id, () => plans.POST(req('POST', { body: 'Mine' }), P(plan.id)))).json()) as { id: string };
+    // Por la ruta de otro project: 404 en todo.
+    expect((await as(member, w.member.id, () => planComment.PATCH(req('PATCH', { body: 'x' }), P(other.plan.id, root.id)))).status).toBe(404);
+    expect((await as(member, w.member.id, () => planComment.DELETE(req('DELETE'), P(other.plan.id, root.id)))).status).toBe(404);
+    expect((await as(owner, w.owner.id, () => planResolve.POST(req('POST', { resolved: true }), P(other.plan.id, root.id)))).status).toBe(404);
+    expect((await as(owner, w.owner.id, () => planReact.POST(req('POST', { emoji: '👍' }), P(other.plan.id, root.id)))).status).toBe(404);
+    // Una respuesta con un padre de otro project queda como comentario suelto de este.
+    const stray = await as(owner, w.owner.id, () => plans.POST(req('POST', { body: 'Stray', parentId: root.id }), P(other.plan.id)));
+    expect(((await stray.json()) as { parent_id: string | null }).parent_id).toBeNull();
+    // Resolver una respuesta: 404.
+    const reply = (await (await as(owner, w.owner.id, () => plans.POST(req('POST', { body: 'Re', parentId: root.id }), P(plan.id)))).json()) as { id: string };
+    expect((await as(owner, w.owner.id, () => planResolve.POST(req('POST', { resolved: true }), P(plan.id, reply.id)))).status).toBe(404);
+    // Borrar el project se lleva sus comentarios.
+    await deletePlan(plan.id);
+    const left = (await getDb().prepare('SELECT COUNT(*) AS c FROM track_entity_comments WHERE plan_id = ?').get(plan.id)) as { c: number };
+    expect(left.c).toBe(0);
+  });
+
+  it('avisos a quienes siguen el project, no a quien dejó el workspace', async () => {
+    const { w, plan, member } = await setup();
+    const { setPlanFollow } = await import('@/lib/track-plans');
+    const { addMember, removeMember } = await import('@/lib/teams');
+    const leaver = await makeUser('ent-c-leaver');
+    await addMember(w.team.id, leaver.id, 'member');
+    await setPlanFollow(plan.id, w.friend.id, true);
+    await setPlanFollow(plan.id, leaver.id, true);
+    await removeMember(w.team.id, leaver.id);
+    await as(member, w.member.id, () => plans.POST(req('POST', { body: 'Status' }), P(plan.id)));
+    const notes = (await getDb()
+      .prepare("SELECT user_id, type FROM notifications WHERE source_type = 'track_plan' AND source_id = ?")
+      .all(plan.id)) as Array<{ user_id: string; type: string }>;
+    expect(notes.find((n) => n.user_id === w.friend.id)?.type).toBe('comment');
+    expect(notes.some((n) => n.user_id === leaver.id)).toBe(false);
+  });
 });

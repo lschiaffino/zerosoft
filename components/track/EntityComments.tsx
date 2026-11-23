@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { TrackIssueActivityWithAuthor, ProjectMember } from '@/lib/track-data';
 import type { CommentReaction } from '@/lib/track-ux';
@@ -40,6 +40,13 @@ export default function EntityComments({ type, id }: { type: 'plan' | 'initiativ
   useEffect(() => {
     void load();
   }, [load]);
+  // Un link a #comments (los avisos) llega antes de que el hilo exista: se baja cuando carga.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (!thread || jumped.current || window.location.hash !== '#comments') return;
+    jumped.current = true;
+    requestAnimationFrame(() => document.getElementById('comments')?.scrollIntoView({ block: 'start' }));
+  }, [thread]);
 
   const labels = useMemo(
     () => ({
@@ -83,6 +90,14 @@ export default function EntityComments({ type, id }: { type: 'plan' | 'initiativ
       <h3 className="tp-card-title" id={`tp-comments-${id}`}>
         {labels.title}
       </h3>
+      {error && thread && (
+        <p className="ui-error" role="alert">
+          {t('entityComments.loadError')}{' '}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void load()}>
+            {t('common.retry')}
+          </button>
+        </p>
+      )}
       {error && !thread ? (
         <p className="ui-error" role="alert">
           {t('entityComments.loadError')}{' '}

@@ -10,9 +10,8 @@
 import { getDb } from './db';
 import { createNotification, EMAIL_MENTION_RE, NAME_MENTION_RE } from './notifications';
 import { isAllowedReaction, type CommentReaction } from './track-ux';
-import { isGuest } from './track-access';
-import { listWorkspaceMembers, planRecipients, type WorkspaceScope } from './track-plans';
-import { trackWorkspaceId } from './track-labels';
+import { planRecipients } from './track-plans';
+import { canUseApp } from './workspace';
 import type { TrackIssueActivityWithAuthor } from './track-data';
 
 export type CommentEntityType = 'plan' | 'initiative';
@@ -28,8 +27,8 @@ export interface CommentEntity {
 
 interface EntityCommentRow {
   id: string;
-  entity_type: CommentEntityType;
-  entity_id: string;
+  plan_id: string | null;
+  initiative_id: string | null;
   user_id: string;
   body: string;
   parent_id: string | null;
@@ -40,6 +39,11 @@ interface EntityCommentRow {
 }
 
 export type EntityMutation<T> = { ok: true; value: T } | { ok: false; reason: 'not_found' | 'forbidden' };
+
+/** Columna del padre: plan_id o initiative_id (nunca viene del pedido). */
+function col(type: CommentEntityType): 'plan_id' | 'initiative_id' {
+  return type === 'plan' ? 'plan_id' : 'initiative_id';
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -59,45 +63,65 @@ export async function listEntityThread(type: CommentEntityType, entityId: string
   const db = getDb();
   const rows = (await db
     .prepare(
-      `SELECT c.id, c.entity_id AS issue_id, c.user_id, 'comment' AS type,
+      `SELECT c.id, ? AS issue_id, c.user_id, 'comment' AS type,
          json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at, 'parentId', c.parent_id,
            'resolvedAt', c.resolved_at, 'resolvedBy', (SELECT COALESCE(rb.name, rb.email) FROM users rb WHERE rb.id = c.resolved_by)) AS meta,
          c.created_at, u.name AS user_name, u.email AS user_email
        FROM track_entity_comments c JOIN users u ON u.id = c.user_id
-       WHERE c.entity_type = ? AND c.entity_id = ?
-       ORDER BY c.created_at ASC
+       WHERE c.${col(type)} = ?
+       ORDER BY c.created_at DESC
        LIMIT 1000`,
     )
-    .all(type, entityId)) as TrackIssueActivityWithAuthor[];
+    .all(entityId, entityId)) as TrackIssueActivityWithAuthor[];
+  // Los 1000 más nuevos, en orden.
+  rows.reverse();
   const reactions = (await db
     .prepare(
       `SELECT r.comment_id, r.emoji, r.user_id, COALESCE(u.name, u.email) AS user_name
        FROM track_entity_comment_reactions r
        JOIN track_entity_comments c ON c.id = r.comment_id
        JOIN users u ON u.id = r.user_id
-       WHERE c.entity_type = ? AND c.entity_id = ?
-       ORDER BY r.created_at ASC`,
+       WHERE c.${col(type)} = ?
+       ORDER BY r.created_at ASC
+       LIMIT 5000`,
     )
-    .all(type, entityId)) as CommentReaction[];
+    .all(entityId)) as CommentReaction[];
   return { rows, reactions };
 }
 
 async function getEntityComment(e: Pick<CommentEntity, 'type' | 'id'>, commentId: string): Promise<EntityCommentRow | undefined> {
   return (await getDb()
-    .prepare('SELECT * FROM track_entity_comments WHERE id = ? AND entity_type = ? AND entity_id = ?')
-    .get(commentId, e.type, e.id)) as EntityCommentRow | undefined;
+    .prepare(`SELECT * FROM track_entity_comments WHERE id = ? AND ${col(e.type)} = ?`)
+    .get(commentId, e.id)) as EntityCommentRow | undefined;
 }
 
 /**
- * Quienes pueden leer el hilo y ser mencionados: personas del workspace que
- * no son invitadas de Track.
+ * Quienes pueden leer el hilo y ser mencionados: en un workspace de equipo,
+ * sus personas que usan Track (no las invitadas del workspace ni las de
+ * Track); en un workspace personal, solo su dueña. Una consulta.
  */
 export async function audience(e: CommentEntity): Promise<Array<{ id: string; name: string | null; email: string }>> {
-  const scope: WorkspaceScope = { teamId: e.team_id, ownerId: e.owner_id ?? '' };
-  const members = await listWorkspaceMembers(scope);
-  const ws = trackWorkspaceId(e.team_id, e.owner_id ?? '');
+  const db = getDb();
+  if (!e.team_id) {
+    return (await db.prepare('SELECT id, name, email FROM users WHERE id = ?').all(e.owner_id ?? '')) as Array<{ id: string; name: string | null; email: string }>;
+  }
+  const rows = (await db
+    .prepare(
+      `SELECT u.id, u.name, u.email, m.role, m.apps FROM team_members m JOIN users u ON u.id = m.user_id
+        WHERE m.team_id = ? AND m.role != 'guest'
+          AND NOT EXISTS (SELECT 1 FROM track_guests g WHERE g.workspace_id = ? AND g.email = lower(u.email))
+        UNION
+       SELECT u.id, u.name, u.email, 'owner' AS role, '*' AS apps FROM teams t JOIN users u ON u.id = t.owner_id WHERE t.id = ?
+        ORDER BY 2, 3`,
+    )
+    .all(e.team_id, e.team_id, e.team_id)) as Array<{ id: string; name: string | null; email: string; role: string; apps: string | null }>;
+  const seen = new Set<string>();
   const out: Array<{ id: string; name: string | null; email: string }> = [];
-  for (const m of members) if (!(await isGuest(ws, m.id))) out.push(m);
+  for (const r of rows) {
+    if (seen.has(r.id) || !canUseApp({ role: r.role, apps: r.apps }, 'track')) continue;
+    seen.add(r.id);
+    out.push({ id: r.id, name: r.name, email: r.email });
+  }
   return out;
 }
 
@@ -117,11 +141,13 @@ export async function createEntityComment(
   }
   await db
     .prepare(
-      'INSERT INTO track_entity_comments (id, entity_type, entity_id, user_id, body, parent_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO track_entity_comments (id, ${col(e.type)}, user_id, body, parent_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, e.type, e.id, userId, body, parentId, nowIso());
+    .run(id, e.id, userId, body, parentId, nowIso());
   // Responder reabre el hilo.
-  if (parentId) await db.prepare('UPDATE track_entity_comments SET resolved_at = NULL, resolved_by = NULL WHERE id = ?').run(parentId);
+  if (parentId) {
+    await db.prepare(`UPDATE track_entity_comments SET resolved_at = NULL, resolved_by = NULL WHERE id = ? AND ${col(e.type)} = ?`).run(parentId, e.id);
+  }
   await notifyComment(e, userId, body, parentId).catch(() => undefined);
   return (await getEntityComment(e, id)) as EntityCommentRow;
 }
@@ -140,6 +166,8 @@ async function notifyComment(e: CommentEntity, actorId: string, body: string, pa
   const sourceType = e.type === 'plan' ? 'track_plan' : 'track_initiative';
   const meta = { ...(e.type === 'plan' ? { planId: e.id, planName: e.name } : { initiativeId: e.id, initiativeName: e.name }), actorName, actorId, kind: 'comment' };
   const notified = new Set<string>([actorId]);
+  // Un aviso que falla no frena a los demás.
+  const send = (n: Parameters<typeof createNotification>[0]) => createNotification(n).catch(() => undefined);
 
   const mentioned = new Set<string>();
   for (const m of body.matchAll(EMAIL_MENTION_RE)) {
@@ -155,7 +183,7 @@ async function notifyComment(e: CommentEntity, actorId: string, body: string, pa
   for (const uid of mentioned) {
     if (notified.has(uid)) continue;
     notified.add(uid);
-    await createNotification({
+    await send({
       userId: uid,
       type: 'mention',
       title: `${actorName} mentioned you in ${e.name}`,
@@ -169,13 +197,13 @@ async function notifyComment(e: CommentEntity, actorId: string, body: string, pa
 
   const followers = new Set<string>(e.type === 'plan' ? await planRecipients(e.id) : e.lead_id ? [e.lead_id] : []);
   const thread = (await db
-    .prepare('SELECT DISTINCT user_id FROM track_entity_comments WHERE entity_type = ? AND entity_id = ? AND (id = ? OR parent_id = ?)')
-    .all(e.type, e.id, parentId ?? '', parentId ?? '')) as Array<{ user_id: string }>;
+    .prepare(`SELECT DISTINCT user_id FROM track_entity_comments WHERE ${col(e.type)} = ? AND (id = ? OR parent_id = ?)`)
+    .all(e.id, parentId ?? '', parentId ?? '')) as Array<{ user_id: string }>;
   for (const t of thread) followers.add(t.user_id);
   for (const uid of followers) {
     if (notified.has(uid) || !allowed.has(uid)) continue;
     notified.add(uid);
-    await createNotification({
+    await send({
       userId: uid,
       type: 'comment',
       title: `${actorName} commented on ${e.name}`,
@@ -208,9 +236,8 @@ export async function updateEntityComment(e: CommentEntity, commentId: string, u
 export async function deleteEntityComment(e: CommentEntity, commentId: string, userId: string): Promise<EntityMutation<null>> {
   const mine = await own(e, commentId, userId);
   if (!mine.ok) return mine;
-  const db = getDb();
-  await db.prepare('DELETE FROM track_entity_comments WHERE entity_type = ? AND entity_id = ? AND parent_id = ?').run(e.type, e.id, commentId);
-  await db.prepare('DELETE FROM track_entity_comments WHERE id = ?').run(commentId);
+  // Las respuestas se van con la raíz (parent_id ON DELETE CASCADE).
+  await getDb().prepare(`DELETE FROM track_entity_comments WHERE id = ? AND ${col(e.type)} = ?`).run(commentId, e.id);
   return { ok: true, value: null };
 }
 
