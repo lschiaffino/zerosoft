@@ -1,6 +1,7 @@
 'use client';
 
 import GroupMembers from './wa/GroupMembers';
+import { Retry } from './wa/icons';
 import type { MemberTargetResult } from '@/lib/wa-group-members';
 import type { NewChatEntry } from '@/lib/wa-new-chat';
 import { useLinesPersonSheet } from './person-sheet';
@@ -369,11 +370,15 @@ export default function ChatDetails({
             }}
           >
             {caps.groups && (
-              <p className="gr-detail-link">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void syncMembers()} aria-busy={memberBusy || undefined}>
+              // Una fila de acción más, como Agregar miembros (antes era un botón fantasma suelto y corrido).
+              <div className="wa-gm-actions">
+                <button type="button" className="wa-gm-action is-quiet" data-testid="group-sync-members" onClick={() => void syncMembers()} disabled={memberBusy} aria-busy={memberBusy || undefined}>
+                  <span className="wa-gm-action-icon" aria-hidden="true">
+                    <Retry size={18} />
+                  </span>
                   {t('details.syncMembers')}
                 </button>
-              </p>
+              </div>
             )}
           </GroupMembers>
         </section>
