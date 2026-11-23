@@ -18,6 +18,7 @@ import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
 import { listMembers } from './teams';
 import { findMentions, newMentions, type Mentionable } from './crm-mentions';
+import { activityBodyText, noteMarkdownToText } from './crm-note-format';
 import { canSeeActivity, canSeeOwnedRow, ownerScopeFor } from './crm-visibility';
 import type { TeamRole } from './teams';
 
@@ -26,27 +27,30 @@ export type MentionablePerson = Mentionable & { role?: TeamRole };
 
 type MailLocale = 'en' | 'es' | 'pt';
 
-const COPY: Record<MailLocale, { subject: string; heading: string; line: string; open: string; kinds: Record<string, string> }> = {
+/** Dónde está la mención: el texto de una nota o tarea, o un comentario de una actividad (C1). */
+export type MentionKind = 'note' | 'task' | 'comment';
+
+const COPY: Record<MailLocale, { subject: string; heading: string; line: string; open: string; kinds: Record<MentionKind, string> }> = {
   en: {
-    subject: '{actor} mentioned you in a {kind}',
+    subject: '{actor} mentioned you in {kind}',
     heading: 'You were mentioned',
-    line: '<strong>{actor}</strong> mentioned you in a {kind} on <strong>{record}</strong>:',
+    line: '<strong>{actor}</strong> mentioned you in {kind} on <strong>{record}</strong>:',
     open: 'Open it in the CRM',
-    kinds: { note: 'note', task: 'task' },
+    kinds: { note: 'a note', task: 'a task', comment: 'a comment' },
   },
   es: {
-    subject: '{actor} te mencionó en una {kind}',
+    subject: '{actor} te mencionó en {kind}',
     heading: 'Te mencionaron',
-    line: '<strong>{actor}</strong> te mencionó en una {kind} de <strong>{record}</strong>:',
+    line: '<strong>{actor}</strong> te mencionó en {kind} de <strong>{record}</strong>:',
     open: 'Abrir en el CRM',
-    kinds: { note: 'nota', task: 'tarea' },
+    kinds: { note: 'una nota', task: 'una tarea', comment: 'un comentario' },
   },
   pt: {
-    subject: '{actor} mencionou você em uma {kind}',
+    subject: '{actor} mencionou você em {kind}',
     heading: 'Você foi mencionado',
-    line: '<strong>{actor}</strong> mencionou você em uma {kind} de <strong>{record}</strong>:',
+    line: '<strong>{actor}</strong> mencionou você em {kind} de <strong>{record}</strong>:',
     open: 'Abrir no CRM',
-    kinds: { note: 'nota', task: 'tarefa' },
+    kinds: { note: 'uma nota', task: 'uma tarefa', comment: 'um comentário' },
   },
 };
 
@@ -106,7 +110,7 @@ async function recordLabel(a: Pick<CrmActivityRow, 'contact_id' | 'company_id' |
 
 /** La actividad con lo que decide quién la ve. */
 type MentionActivity = Pick<CrmActivityRow, 'id' | 'type' | 'subject' | 'body' | 'contact_id' | 'company_id' | 'deal_id'> &
-  Partial<Pick<CrmActivityRow, 'lead_id' | 'object_record_id'>>;
+  Partial<Pick<CrmActivityRow, 'lead_id' | 'object_record_id' | 'body_format'>>;
 
 interface NotifyOpts {
   activity: MentionActivity;
@@ -116,10 +120,16 @@ interface NotifyOpts {
   locale?: string;
   /** Workspace dueño: si viene, solo se avisa a quien puede ver la actividad. */
   workspaceId?: string;
+  /**
+   * Comentario de la actividad (C1): su markdown. Las menciones se buscan ahí
+   * (y en `before`, el texto anterior del comentario), y el aviso dice "un
+   * comentario". Quién recibe el aviso sigue siendo quien ve la actividad.
+   */
+  comment?: string;
 }
 
 /** ¿La persona ve la actividad: sus registros, su lead, su registro de objeto y, si es de un chat, el chat? */
-async function personSeesActivity(workspaceId: string, activity: MentionActivity, person: MentionablePerson, locale?: string): Promise<boolean> {
+export async function personSeesActivity(workspaceId: string, activity: MentionActivity, person: MentionablePerson, locale?: string): Promise<boolean> {
   const scope = await ownerScopeFor({ workspaceId, personId: person.id, role: person.role ?? 'member' });
   if (!(await canSeeActivity(workspaceId, activity.id, scope))) return false;
   if (activity.lead_id && !(await canSeeOwnedRow(workspaceId, 'crm_leads', activity.lead_id, scope))) return false;
@@ -163,8 +173,9 @@ export async function notifyActivityMentions(opts: NotifyOpts): Promise<string[]
  */
 export async function notifyMentionsDetailed(opts: NotifyOpts): Promise<{ notified: string[]; withoutAccess: string[] }> {
   const { activity, actor, people } = opts;
-  if (!MENTION_TYPES.has(activity.type)) return { notified: [], withoutAccess: [] };
-  const text = `${activity.subject}\n${activity.body}`;
+  const isComment = opts.comment !== undefined;
+  if (!isComment && !MENTION_TYPES.has(activity.type)) return { notified: [], withoutAccess: [] };
+  const text = isComment ? (opts.comment ?? '') : `${activity.subject}\n${activity.body}`;
   const ids = (opts.before === undefined ? findMentions(text, people) : newMentions(opts.before, text, people)).filter(
     (id) => id !== actor.id,
   );
@@ -172,10 +183,11 @@ export async function notifyMentionsDetailed(opts: NotifyOpts): Promise<{ notifi
   const L = COPY[mailLocale(opts.locale)];
   const actorName = actor.name?.trim() || actor.email;
   const record = await recordLabel(activity);
-  const kind = L.kinds[activity.type] ?? activity.type;
+  const kind = L.kinds[isComment ? 'comment' : (activity.type as MentionKind)] ?? activity.type;
   const href = activityHref(activity);
   const url = `${baseUrl()}/${mailLocale(opts.locale)}${href}`;
-  const excerpt = (activity.body || activity.subject).slice(0, 600);
+  // Markdown (nota con formato o comentario) → texto plano: el aviso y el email no muestran marcas.
+  const excerpt = (isComment ? noteMarkdownToText(opts.comment ?? '') : activityBodyText(activity) || activity.subject).slice(0, 600);
   const notified: string[] = [];
   const withoutAccess: string[] = [];
   for (const id of ids) {

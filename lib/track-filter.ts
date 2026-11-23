@@ -23,6 +23,7 @@ export const FILTER_FIELDS = [
   'updated',
   'relation',
   'hierarchy',
+  'status_age',
 ] as const;
 export type FilterField = (typeof FILTER_FIELDS)[number];
 
@@ -49,7 +50,7 @@ export interface FilterState extends IssueFilter {
 
 export const EMPTY_FILTERS: FilterState = { match: 'and', rules: [], q: '' };
 
-export type FieldKind = 'set' | 'date' | 'number' | 'relation' | 'hierarchy';
+export type FieldKind = 'set' | 'date' | 'number' | 'relation' | 'hierarchy' | 'age';
 
 export function fieldKind(field: FilterField): FieldKind {
   switch (field) {
@@ -64,6 +65,9 @@ export function fieldKind(field: FilterField): FieldKind {
       return 'relation';
     case 'hierarchy':
       return 'hierarchy';
+    // Time in status: días en el status actual ("más de N días", "menos de N días").
+    case 'status_age':
+      return 'age';
     default:
       return 'set';
   }
@@ -79,11 +83,16 @@ export function operatorsFor(field: FilterField): FilterOperator[] {
     case 'relation':
     case 'hierarchy':
       return ['is', 'is_not'];
+    case 'age':
+      return ['gte', 'lte'];
     default:
       // status y priority nunca están vacíos (priority siempre tiene valor).
       return field === 'priority' ? ['is', 'is_not'] : ['is', 'is_not', 'empty', 'not_empty'];
   }
 }
+
+/** Días que ofrece el filtro de time in status (también acepta cualquier entero de 1 a 3650). */
+export const STATUS_AGE_DAYS = [1, 2, 3, 7, 14, 30, 60, 90] as const;
 
 export const RELATION_VALUES = ['blocked', 'blocking', 'related', 'duplicate'] as const;
 export const HIERARCHY_VALUES = ['top', 'sub', 'parent'] as const;
@@ -244,6 +253,13 @@ function ruleSql(rule: FilterRule, today: string, opts: FilterSqlOptions = {}): 
     const day = resolveFilterDate(rule.values[0] ?? '', today);
     if (!day) return null;
     return { sql: rule.op === 'before' ? `${col} < ?` : `${col} > ?`, args: [day] };
+  }
+  if (kind === 'age') {
+    const days = Number(rule.values[0]);
+    if (!Number.isInteger(days) || days < 0 || days > 3650) return null;
+    // Sin dato (issues anteriores al registro que no se pudieron reconstruir): cuenta desde la creación.
+    const since = 'julianday(COALESCE(i.status_changed_at, i.created_at))';
+    return { sql: `(julianday('now') - ${since}) ${rule.op === 'lte' ? '<' : '>='} ?`, args: [days] };
   }
   if (kind === 'number') {
     if (rule.op === 'empty') return { sql: 'i.estimate IS NULL', args: [] };

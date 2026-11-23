@@ -50,6 +50,8 @@ interface GroupedIssuesTableProps {
    */
   quickAddGroups?: readonly IssueGroupBy[];
   hideColumns?: OptionalColumn[];
+  /** Columnas que arrancan ocultas y se piden (created y las propiedades compactas). */
+  showColumns?: OptionalColumn[];
   selection?: IssueSelection & { label: string; allLabel: string };
   /** Sub-issues debajo de su padre dentro de cada grupo. */
   nested?: boolean;
@@ -91,6 +93,7 @@ export default function GroupedIssuesTable({
   quickAddProjects,
   quickAddGroups,
   hideColumns = [],
+  showColumns,
   selection,
   nested = false,
   onAddInGroup,
@@ -169,6 +172,7 @@ export default function GroupedIssuesTable({
       labels={labels}
       editing={editing}
       hideColumns={hidden}
+      showColumns={showColumns}
       showHeader={false}
       fixedLayout
       selection={selection}

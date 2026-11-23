@@ -130,8 +130,8 @@ test('crm timeline: Cmd/Ctrl+Enter guarda y el tipo sale de una sola fuente', as
   await page.getByTestId('timeline-create').click();
   await page.getByTestId('timeline-create-note').click();
   await expect(composer).toHaveAttribute('data-kind', 'note');
-  await composer.locator('textarea').fill('Saved from the keyboard');
-  await composer.locator('textarea').press('Control+Enter');
+  await composer.getByTestId('timeline-note-editor').fill('Saved from the keyboard');
+  await composer.getByTestId('timeline-note-editor').press('Control+Enter');
   await expect.poll(async () => (await rows()).find((r) => r.body === 'Saved from the keyboard')?.type).toBe('note');
   await expect(composer).toHaveCount(0);
 

@@ -109,6 +109,11 @@
   --side-bg: rgb(255 255 255 / 0.5);
   --chrome-bg: rgb(255 255 255 / 0.6);
   --card-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 3px rgb(0 0 0 / 0.06);
+  /* El fondo es un degradé (--wall): la tapa lisa de las pestañas que no entran se vería como un
+     bloque en los bordes. Sin tapa ni sombra; el corte de la última pestaña ya dice que sigue. */
+  --tabs-edge-cover: transparent;
+  --tabs-edge-shade: transparent;
+  --tabs-edge-shade-soft: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -211,6 +216,23 @@
   background-image: var(--glass-sheen);
   -webkit-backdrop-filter: var(--pop-blur);
   backdrop-filter: var(--pop-blur);
+}
+
+/* Una lista con role="menu" dentro de otra superficie flotante (el menú de
+   filtros o el de Display de Track, o un menú dentro de otro menú) es parte de
+   esa superficie: sin fondo, borde ni sombra propios, así no queda un panel
+   dentro de otro. */
+:root:is([data-look='lines'], [data-look='classic'], [data-look='liquid'], [data-look='retro']) :is(
+  [role='menu'], .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu,
+  .track-filter-menu, .track-saved-views-menu, .track-menu
+) [role='menu'] {
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* Ítems de un menú o una lista: el relleno al pasar lleva su propia esquina. */

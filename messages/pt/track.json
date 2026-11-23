@@ -372,6 +372,47 @@
       "kind": "Tipo",
       "project": "Project",
       "team": "Team"
+    },
+    "tabs": {
+      "priority": "Prioridade",
+      "other": "Outras"
+    },
+    "rule": {
+      "priority": "O que foi atribuído a você, menções, triagem e SLAs que esperam sua ação, lembretes e mudanças de status ou prioridade em issues que você segue.",
+      "other": "Todo o resto: comentários, outras edições, sub-issues, relações, atualizações de projetos e outros apps."
+    },
+    "emptyPriority": "Nada espera por você agora",
+    "markRead": "Marcar como lida",
+    "markUnread": "Marcar como não lida",
+    "delete": "Excluir notificação",
+    "more": "Mais ações",
+    "actionError": "Não foi possível atualizar a notificação. Tente de novo.",
+    "why": {
+      "subscribed": "você está inscrito"
+    },
+    "keys": {
+      "move": "mover",
+      "read": "lida ou não lida",
+      "snooze": "adiar",
+      "delete": "excluir"
+    },
+    "reason": {
+      "assigned": "{actor} atribuiu a você",
+      "mentioned": "{actor} mencionou você",
+      "commented": "{actor} comentou",
+      "status": "{actor} mudou o status",
+      "statusTo": "{actor} mudou o status para {status}",
+      "priority": "{actor} mudou a prioridade",
+      "updated": "{actor} editou o issue",
+      "subissue": "{actor} adicionou um sub-issue",
+      "relation": "{actor} adicionou uma relação",
+      "reminder": "Lembrete que você definiu",
+      "triage": "Aguarda sua triagem",
+      "sla_risk": "SLA em risco",
+      "sla_breach": "SLA vencido",
+      "agent": "{agent} publicou uma atualização",
+      "project": "{actor} publicou uma atualização do projeto",
+      "approval": "Aguarda sua aprovação"
     }
   },
   "notifications": {
@@ -737,7 +778,8 @@
       "identifier": "Identificador",
       "customers": "Quantidade de clientes",
       "revenue": "Receita de clientes",
-      "estimate": "Estimativa"
+      "estimate": "Estimativa",
+      "status_time": "Tempo no status"
     }
   },
   "subscription": {
@@ -1524,7 +1566,8 @@
       "menu": {
         "slash": "Inserir",
         "mention": "Pessoas e issues",
-        "issue": "Issues"
+        "issue": "Issues",
+        "people": "Pessoas"
       },
       "toolbar": "Formatação",
       "bold": "Negrito",
@@ -1532,7 +1575,8 @@
       "code": "Código",
       "link": "Link",
       "linkPlaceholder": "Cole ou digite um link e aperte Enter",
-      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo."
+      "tooLong": "Longo demais: o limite é de 200.000 caracteres. O resto não será salvo.",
+      "mention": "Mencionar alguém da equipe"
     },
     "thread": {
       "postError": "Não foi possível publicar o comentário. Tente de novo.",
@@ -1661,7 +1705,8 @@
         "relation": "Relações",
         "hierarchy": "Sub-issues",
         "team": "Team",
-        "project": "Project"
+        "project": "Project",
+        "status_age": "Tempo no status"
       },
       "noAssignee": "Sem responsável",
       "noCycle": "Sem cycle",
@@ -1714,7 +1759,9 @@
         "date_empty": "está vazio",
         "date_not_empty": "tem valor",
         "is_any": "é algum de",
-        "is_none": "não é nenhum de"
+        "is_none": "não é nenhum de",
+        "age_gte": "mais de",
+        "age_lte": "menos de"
       },
       "pickDate": "Escolher data",
       "remove": "Remover filtro {field}",
@@ -1726,7 +1773,9 @@
       "and": "e",
       "or": "ou",
       "matchToggle": "Mudar para {next}",
-      "noProject": "Sem project"
+      "noProject": "Sem project",
+      "days": "{count, plural, one {# dia} other {# dias}}",
+      "moreThan": "Mais de {value}"
     },
     "peek": {
       "title": "Prévia do issue",
@@ -1761,7 +1810,12 @@
         "cycle": "Cycle",
         "due": "Prazo",
         "project": "Equipe",
-        "created": "Criado"
+        "created": "Criado",
+        "milestone": "Milestone",
+        "estimate": "Estimativa",
+        "links": "Links",
+        "status_time": "Tempo no status",
+        "updated": "Atualizado"
       },
       "reset": "Voltar ao padrão",
       "collapse": "Recolher {name}",
@@ -1888,5 +1942,21 @@
     "noMilestone": "Sem milestone",
     "noProject": "Sem project",
     "showingFirst": "Mostrando os primeiros {shown} de {total}. Adicione um filtro para reduzir."
+  },
+  "statusTime": {
+    "label": "Tempo no status",
+    "inStatusFor": "Em {status} há {time}",
+    "breakdown": "Tempo em cada status",
+    "deleted": "Status excluído",
+    "estimate": "Estimativa: {count}",
+    "links": "{count, plural, one {# link} other {# links}}",
+    "updatedOn": "Atualizado em {date}",
+    "short": {
+      "m": "{n} min",
+      "h": "{n} h",
+      "d": "{n} d",
+      "w": "{n} sem",
+      "mo": "{n} mês"
+    }
   }
 }

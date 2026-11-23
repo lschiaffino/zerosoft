@@ -827,6 +827,8 @@ export interface EmailMessageView {
 
 export interface EmailThreadView {
   threadId: string;
+  /** La actividad que registra el thread (la de su primer email que tiene una): ahí cuelga su hilo de comentarios (C1). */
+  activityId?: string | null;
   subject: string;
   lastAt: string;
   messages: EmailMessageView[];
@@ -912,6 +914,8 @@ export async function listEmailThreads(
     } else {
       byThread.set(key, { threadId: key, subject: e.subject.replace(/^(re|fwd?):\s*/i, '') || '', lastAt: e.sent_at, messages: [msg] });
     }
+    // Las filas vienen del más nuevo al más viejo: la última que se ve con actividad es la del primer email.
+    if (e.activity_id) byThread.get(key)!.activityId = e.activity_id;
   }
   const threads = [...byThread.values()].map((t) => ({
     ...t,

@@ -141,3 +141,106 @@ export function inboxGroupKey(x: Pick<InboxFacts, 'kind' | 'projectId' | 'team'>
   if (group === 'team') return x.team ?? INBOX_NONE;
   return '';
 }
+
+// ---------- Priority / Other (Priority inbox de Linear, sep. 2025) ----------
+
+/**
+ * Pestañas de la bandeja. La regla de qué va a Priority:
+ *
+ * 1. Te asignaron algo (issue, chat, tarea) o te mencionaron (en un issue,
+ *    un comentario, un doc, un chat de Lines).
+ * 2. Algo espera una acción tuya: un issue en triage del que sos responsable,
+ *    un SLA en riesgo o vencido, una aprobación pendiente, o un recordatorio
+ *    que pusiste vos.
+ * 3. En un issue al que estás suscripto cambió el status o la prioridad.
+ *
+ * Todo lo demás va a Other: comentarios sin mención, otras ediciones,
+ * sub-issues, relaciones, updates de projects y avisos de otras apps.
+ */
+export const INBOX_TABS = ['priority', 'other'] as const;
+export type InboxTab = (typeof INBOX_TABS)[number];
+
+/** Por qué llegó un aviso: la acción (línea gris de la fila) y el ícono del avatar. */
+export type InboxReason =
+  | 'assigned'
+  | 'mentioned'
+  | 'commented'
+  | 'status'
+  | 'priority'
+  | 'updated'
+  | 'subissue'
+  | 'relation'
+  | 'reminder'
+  | 'triage'
+  | 'sla_risk'
+  | 'sla_breach'
+  | 'agent'
+  | 'project'
+  | 'approval'
+  | 'other';
+
+/** Tipos que siempre son Priority, de cualquier app. */
+const PRIORITY_TYPES = new Set([
+  'mention',
+  'assigned',
+  'track_reminder',
+  'talk_mention',
+  'talk_dm',
+  'social_assigned',
+  'social_approval',
+  'crm_approval',
+  'time_approval',
+]);
+
+const APPROVAL_TYPES = new Set(['social_approval', 'crm_approval', 'time_approval']);
+
+interface ReasonInput {
+  type: string;
+  source_type?: string | null;
+  meta: Record<string, unknown>;
+}
+
+function changesOf(meta: Record<string, unknown>): string[] {
+  return typeof meta.changes === 'string' ? meta.changes.split(',').filter(Boolean) : [];
+}
+
+export function inboxReason(n: ReasonInput): InboxReason {
+  const kind = typeof n.meta.kind === 'string' ? n.meta.kind : '';
+  if (n.source_type === 'track_triage' || kind === 'triage_owner') return 'triage';
+  if (n.source_type === 'track_sla' || kind === 'sla_risk' || kind === 'sla_breach') return kind === 'sla_breach' ? 'sla_breach' : 'sla_risk';
+  if (n.source_type === 'track_agent') return 'agent';
+  if (APPROVAL_TYPES.has(n.type)) return 'approval';
+  switch (n.type) {
+    case 'assigned':
+    case 'social_assigned':
+      return 'assigned';
+    case 'mention':
+    case 'talk_mention':
+    case 'talk_dm':
+      return 'mentioned';
+    case 'comment':
+      return 'commented';
+    case 'status_change':
+      return 'status';
+    case 'issue_update':
+      return changesOf(n.meta).includes('priority') ? 'priority' : 'updated';
+    case 'subtask':
+      return 'subissue';
+    case 'relation':
+      return 'relation';
+    case 'track_reminder':
+      return 'reminder';
+    case 'project_update':
+      return 'project';
+    default:
+      return n.source_type === 'track_plan' ? 'project' : 'other';
+  }
+}
+
+export function inboxTab(n: ReasonInput): InboxTab {
+  if (PRIORITY_TYPES.has(n.type)) return 'priority';
+  const reason = inboxReason(n);
+  return reason === 'triage' || reason === 'sla_risk' || reason === 'sla_breach' || reason === 'status' || reason === 'priority' || reason === 'approval'
+    ? 'priority'
+    : 'other';
+}

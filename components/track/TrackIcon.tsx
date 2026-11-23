@@ -53,11 +53,15 @@ export type TrackIconName =
   | 'milestone'
   | 'toggle'
   | 'callout'
-  | 'inbox';
+  | 'inbox'
+  | 'at'
+  | 'assign';
 
 // Trazo de 2px, cuadrado (mismo idioma que components/app/icons.tsx).
 const PATHS: Record<TrackIconName, ReactNode> = {
   milestone: <path d="M12 3l9 9-9 9-9-9z" />,
+  at: <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM16 8v5a2.5 2.5 0 0 0 5 0v-1a9 9 0 1 0-3.5 7.1" />,
+  assign: <path d="M5 5v6a4 4 0 0 0 4 4h10M15 11l4 4-4 4" />,
   paperclip: <path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L9.7 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7" />,
   inbox: <path d="M4 13l2.5-8h11L20 13v6H4zM4 13h5l1 2h4l1-2h5" />,
   settings: <path d="M4 7h8M16 7h4M12 4v6M4 17h4M12 17h8M8 14v6" />,

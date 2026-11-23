@@ -265,6 +265,8 @@ export interface CrmActivityRow {
   type: 'note' | 'task' | 'call' | 'meeting' | 'email';
   subject: string;
   body: string;
+  /** C1: 'text' (plano) o 'md' (nota con formato, lib/crm-note-format.ts). */
+  body_format?: 'text' | 'md';
   due_at: string | null;
   done: 0 | 1;
   done_at: string | null;
@@ -1386,6 +1388,8 @@ export interface TrackIssueRow {
   plan_milestone_id?: string | null;
   /** Archivado (a mano o por el auto-archivo del team): sale de las listas. */
   archived_at?: string | null;
+  /** Desde cuándo está en el status actual (lo escribe un trigger; ver lib/track-status-time.ts). */
+  status_changed_at?: string | null;
   created_at: string;
   updated_at: string;
 }

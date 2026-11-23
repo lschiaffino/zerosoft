@@ -377,7 +377,8 @@
       "effort": "Effort (estimate)",
       "cycle_time": "Cycle time",
       "lead_time": "Lead time",
-      "issue_age": "Issue age"
+      "issue_age": "Issue age",
+      "time_in_status": "Time in status"
     },
     "slices": {
       "status": "Status",
