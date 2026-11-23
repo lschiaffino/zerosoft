@@ -84,6 +84,7 @@ export default function RecordCombobox({
   return (
     <div className="crm-combo">
       <input
+        className="input"
         type="text"
         role="combobox"
         aria-autocomplete="list"

@@ -388,3 +388,18 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 }
 .export-view-notice.is-error { border-color: var(--danger, var(--ink)); }
 .export-view-notice .icon-btn { flex: none; min-width: 40px; min-height: 40px; margin: -10px -4px -10px 0; }
+
+/* ============================================================
+   QA del CRM (C4)
+   ============================================================ */
+/* En el teléfono la pestaña de feedback tapaba filas, tarjetas de deals y KPI: en los listados y los dashboards del
+   CRM no flota (como en el chat de Lines e Inbox, styles/wa-mobile.css). Se manda desde el menú de la cuenta
+   ("Enviar feedback"), que abre el mismo panel; abierto, se ve. */
+@media (max-width: 640px) {
+  body:has(.crm-list-page, .cdb-grid) .fl-root:not(.is-open) { visibility: hidden; pointer-events: none; }
+}
+/* Pestañas de vistas en el teléfono: la activa se lee entera ("Todos los contactos"); la que sigue se corta. */
+@media (max-width: 640px) {
+  .views-tabs .view-tab.active { flex: none; }
+  .views-tabs .view-tab.active .view-tab-link { max-width: 220px; }
+}

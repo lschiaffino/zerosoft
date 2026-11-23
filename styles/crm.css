@@ -330,6 +330,8 @@
   border-radius: var(--r-md);
   background: transparent;
   padding: 12px;
+  /* 40 px de alto, como el resto de los controles (en el teléfono, el área táctil). */
+  min-height: 40px;
   font-size: 11px;
   color: var(--dim);
   cursor: pointer;
@@ -350,6 +352,7 @@
 }
 
 .kb-add-stage-actions { display: flex; gap: 8px; }
+@media (max-width: 640px) { .kb-add-stage-actions .btn { min-height: 40px; } }
 
 /* ---------- Timeline ---------- */
 
@@ -3791,6 +3794,7 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 /* La flecha sigue el tema (en oscuro la fija del select base no se ve). */
 .filter-select.filter-btn:is(.pipe-menu-btn, .dr-filter-btn) { background-image: var(--select-chevron); }
 .filter-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.filter-quick-tail { display: inline-flex; align-items: center; gap: 8px; flex: none; max-width: 100%; }
 .filter-quick .filter-clear { margin-left: 4px; }
 @media (max-width: 640px) {
   .deals-filter-bar .filter-toolbar { flex-wrap: wrap; }
@@ -3834,7 +3838,8 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 
 .dr-filter-btn { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .dr-filter-value { font-weight: 500; }
-.dr-filter .dr-filter-menu { width: 280px; max-width: calc(100vw - 32px); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+/* Desde y Hasta con lugar para la fecha entera (dd/mm/aaaa y el calendario). */
+.dr-filter .dr-filter-menu { width: 320px; max-width: calc(100vw - 32px); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .dr-filter-presets { display: flex; flex-direction: column; }
 .dr-filter-preset {
   text-align: left; min-height: 34px; padding: 0 10px; border: 0; background: none;
@@ -3844,7 +3849,7 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 .dr-filter-preset.on { background: var(--ui-selected); font-weight: 500; }
 .dr-filter-custom { border-top: 1px solid var(--line); padding-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .dr-filter-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--brand-gray-2); min-width: 0; }
-.dr-filter-field .input { min-width: 0; width: 100%; }
+.dr-filter-field .input { min-width: 0; width: 100%; padding-inline: 8px; }
 .dr-filter-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 640px) { .dr-filter-preset { min-height: 40px; } }
 

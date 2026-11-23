@@ -351,8 +351,11 @@ export default function ContactsFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
-        {children}
-        <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        {/* Filtros avanzados y "Editar filtros rápidos" van juntos: el ícono no queda solo en una fila. */}
+        <span className="filter-quick-tail">
+          {children}
+          <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        </span>
         {activeFilters > 0 && (
           <button
             type="button"
