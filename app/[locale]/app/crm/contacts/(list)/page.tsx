@@ -1,5 +1,5 @@
 import { listSequences } from '@/lib/crm-sequences';
-import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
+import { fieldAccessFor, redactRow, scoreSqlRules, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { isWorkspaceAdmin, realUserId, requireUser } from '@/lib/session';
@@ -36,6 +36,7 @@ import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema
 
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import ViewTabs from '@/components/crm/ViewTabs';
+import { TableColumnsProvider } from '@/components/crm/EditColumns';
 import { loadListViews } from '@/components/crm/viewTabsData';
 import CrmPager from '@/components/crm/CrmPager';
 import PageHeader from '@/components/ui/PageHeader';
@@ -187,6 +188,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     filters: advancedCount ? filterModel : undefined,
     filterEnv: { viewerId: realUserId(user), timeZone, strictCustom: true },
     customTypes,
+    // Con campos ocultos: orden y filtros por el score que la persona ve.
+    scoreRules: scoreSqlRules(fieldAccess.hidden),
     sort: sort as ContactFilter['sort'],
     page,
     pageSize,
@@ -209,7 +212,8 @@ export default async function ContactsPage(props: ContactsPageProps) {
     .filter((cf) => cf.options.length > 0);
 
   const cellCtx = { locale, yes: t('common.yes'), no: t('common.no'), users: new Map(owners.map((o) => [o.value, o.label])) };
-  const tableRows: ContactRow[] = rows.map((c) => ({
+  // El score de cada fila sin los puntos de reglas sobre campos que la persona tiene ocultos (como la ficha).
+  const tableRows: ContactRow[] = rows.map((r) => redactRow(r, fieldAccess.hidden)).map((c) => ({
     id: c.id,
     name: `${c.first_name} ${c.last_name}`.trim() || c.email || '—',
     email: c.email,
@@ -284,6 +288,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
   }
   if (state.cols) viewState.cols = state.cols;
   if (state.freeze) viewState.freeze = state.freeze;
+  if (state.widths) viewState.widths = state.widths;
   Object.assign(query, views.keep);
   // El tamaño de página es de la URL (no de la vista): lo conservan los links del listado.
   if (pageSize !== PAGE_SIZES[0]) query.per = String(pageSize);
@@ -330,6 +335,14 @@ export default async function ContactsPage(props: ContactsPageProps) {
         teams={views.teams}
       />
 
+      {/* Columnas (orden, fija, anchos) para "Editar columnas" de la barra y para la tabla. */}
+      <TableColumnsProvider
+        entity="contacts"
+        customColumns={customColumns(customFieldDefs)}
+        viewCols={state.cols}
+        viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
+        viewWidths={state.widths}
+      >
       <ContactsFilters
         q={q}
         lifecycle={lifecycle}
@@ -388,8 +401,6 @@ export default async function ContactsPage(props: ContactsPageProps) {
         <>
           <ContactsTable
             rows={tableRows}
-            viewCols={state.cols}
-            viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
             customColumns={customColumns(customFieldDefs)}
             sources={[...SOURCES]}
             sort={sort}
@@ -410,6 +421,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
           </div>
         </>
       )}
+      </TableColumnsProvider>
     </div>
   );
 }

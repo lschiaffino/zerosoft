@@ -33,6 +33,7 @@
     "start": "Arrancar",
     "stop": "Parar",
     "running": "Corriendo",
+    "trackShortcut": "Cargar horas (N)",
     "startTimer": "Arrancar cronómetro",
     "saveEntry": "Guardar entrada",
     "newTitle": "Nueva entrada de horas",

@@ -3,13 +3,13 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
+import HeaderCell from './ColumnHeader';
 import TableScroll from './TableScroll';
 import SelectAllMatching, { useListQuery, type MatchingSelection } from './SelectAllMatching';
 import { customSortValue } from '@/lib/crm-list-sort';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
-import { EditColumnsInBar, useTableColumns } from './EditColumns';
+import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
@@ -51,9 +51,6 @@ export interface CompanyRow {
 }
 
 interface CompaniesTableProps {
-  /** Columnas en orden (`cols` de la URL o de la vista activa) y si la primera queda fija. */
-  viewCols?: string;
-  viewFreeze?: boolean;
   rows: CompanyRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
@@ -71,36 +68,17 @@ interface CompaniesTableProps {
   total?: number;
 }
 
-const COLS = [
-  { id: 'name', labelKey: 'companies.table.name', defaultVisible: true },
-  { id: 'domain', labelKey: 'companies.table.domain', defaultVisible: true },
-  { id: 'industry', labelKey: 'companies.table.industry', defaultVisible: true },
-  { id: 'phone', labelKey: 'companies.table.phone', defaultVisible: false },
-  { id: 'location', labelKey: 'companies.table.location', defaultVisible: true },
-  { id: 'contacts', labelKey: 'companies.table.contacts', defaultVisible: true },
-  { id: 'deals', labelKey: 'deals.title', defaultVisible: true },
-  { id: 'lifecycle', labelKey: 'companies.table.lifecycle', defaultVisible: true },
-  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
-  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
-  { id: 'parent', labelKey: 'companies.detail.parent', defaultVisible: false },
-  { id: 'created', labelKey: 'companies.table.created', defaultVisible: false },
-  { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
-  { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
-  { id: 'nextActivity', labelKey: 'activityDates.nextActivity', defaultVisible: false },
-];
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
   const t = useTranslations('crm');
   const crmOpts = useCrmOptions();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
-  const columnDefs = [
-    ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
-    ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
-  ];
-  const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
+  // Orden, columna fija y anchos: los de la página (TableColumnsProvider), los mismos que "Editar columnas".
+  const cols = useIndexColumns()!;
   const order = cols.order;
+  const sized = sizedTable(cols);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
@@ -274,15 +252,6 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, local
 
   return (
     <>
-      <EditColumnsInBar
-        columns={columnDefs}
-        first="name"
-        order={cols.order}
-        freeze={cols.freeze}
-        onApply={cols.apply}
-        onReset={cols.reset}
-      />
-
       {allSelected && (
         <SelectAllMatching
           entity="companies"
@@ -297,9 +266,9 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, local
         />
       )}
 
-      <ColumnMenuContext.Provider value={{ order: cols.order, first: 'name', freeze: cols.freeze, apply: cols.apply }}>
       <TableScroll>
-        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
+        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}${sized.className}`} style={sized.style}>
+          <IndexColGroup cols={cols} />
           <thead>
             <tr>
               <th className="cell-check" data-card="check">
@@ -336,7 +305,6 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, local
           </tbody>
         </table>
       </TableScroll>
-      </ColumnMenuContext.Provider>
 
       {selected.size > 0 && (
         <BulkActionsBar

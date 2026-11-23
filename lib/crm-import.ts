@@ -584,7 +584,8 @@ export async function importContacts(
           result.errors.push(uniqueRowError(rowNo, created));
           continue;
         }
-        // Otra entrada creó ese email mientras corría el import: no se duplica.
+        // El email ya es de un contacto que quien importa no ve (o lo creó otra entrada mientras corría
+        // el import): no se duplica ni se toca. Cuenta como salteado, igual que uno repetido que sí ve.
         if (created instanceof ContactEmailTakenError) {
           result.skipped++;
           continue;
@@ -780,8 +781,10 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
           ? await findCompany(userId, { name: raw.companyName, domain: raw.companyDomain }, db, true, opts.linkScope)
           : null;
       const contactIds: string[] = [];
+      const notLinked: string[] = [];
       const contactScope = inScope('crm_contacts', opts.linkScope);
-      for (const { email, name: personName } of extractEmails(raw.contactEmail)) {
+      const emails = extractEmails(raw.contactEmail);
+      for (const { email, name: personName } of emails) {
         const found = (await db
           .prepare(
             `SELECT id FROM crm_contacts WHERE user_id = ? AND lower(trim(email)) = lower(trim(?))${contactScope.sql} ORDER BY created_at ASC, id ASC LIMIT 1`,
@@ -800,16 +803,19 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
             ...(company ? { companyId: company.id } : {}),
           }, undefined, opts),
         );
-        // El email es de un contacto que quien importa no ve: no se vincula.
+        // El email es de un contacto que quien importa no ve: no se vincula (ni se crea otro).
         if (contact instanceof ContactEmailTakenError) {
-          if (!opts.linkScope) contactIds.push(contact.existing.id);
+          if (opts.linkScope) notLinked.push(email);
+          else contactIds.push(contact.existing.id);
           continue;
         }
         contactIds.push(contact.id);
       }
-      if (raw.contactEmail?.trim() && !contactIds.length) {
+      if (raw.contactEmail?.trim() && !emails.length) {
         result.errors.push(`Row ${rowNo}: no valid email in "${raw.contactEmail}", contact not linked`);
       }
+      // Lo que pasó, sin decir de quién es el contacto ni que existe.
+      for (const email of notLinked) result.errors.push(`Row ${rowNo}: contact "${email}" not linked`);
 
       const fields = {
         name,

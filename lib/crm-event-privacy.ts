@@ -21,7 +21,7 @@
  * - quote.*: el quote se manda si ve su deal.
  */
 import { getDb, type Db } from './db';
-import { hiddenFieldsFor, isUnrestricted, redactCustomJson, redactScoreBreakdown, type FieldViewer } from './crm-field-perms';
+import { hiddenFieldsFor, isUnrestricted, redactCustomJson, redactRow, type FieldViewer } from './crm-field-perms';
 import { canSeeActivityRefs, canSeeEntity, canSeeOwner, ownerScopeFor, type ActivityRefs, type OwnerScope } from './crm-visibility';
 import { maskPrivateRef, PRIVATE_REFS, visibleRecordIds } from './crm-record-scope';
 import { normalizeRole } from './teams';
@@ -119,8 +119,12 @@ export async function recordEventFor(
   const hidden = await hiddenFieldsFor(sub.viewer, FIELD_ENTITY[entity], db);
   let out: EventData = { ...data };
   if ('custom' in out) out.custom = withoutHidden(out.custom, hidden);
-  // El desglose del score de un contacto: sin las reglas sobre campos ocultos (mismo helper que las filas).
-  if (hidden.size && typeof out.score_breakdown === 'string') out.score_breakdown = redactScoreBreakdown(out.score_breakdown, hidden.scoreRules);
+  // El score de un contacto: el desglose sin las reglas sobre campos ocultos y el total sin sus puntos (mismo helper que las filas).
+  if (hidden.size && typeof out.score_breakdown === 'string') {
+    const shown = redactRow({ custom: '{}', score: out.score, score_breakdown: out.score_breakdown }, hidden);
+    out.score_breakdown = shown.score_breakdown;
+    if (typeof out.score === 'number') out.score = shown.score;
+  }
   if (isObj(out.change) && 'changed' in out.change) out.change = { ...out.change, changed: changedWithoutHidden(out.change.changed, hidden) };
   // *.deleted de un merge: el registro en el que se fusionó, si no lo ve, sale en null con la marca.
   const mergedInto = { table: RECORD_TABLE[entity], id: 'mergedInto', fields: [], flag: 'merged_into_private' } as const;

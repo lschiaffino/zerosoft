@@ -52,7 +52,7 @@ export default function NewEnvelope({
         if (file.size > maxMb * 1024 * 1024) return setError(errorText('pdf_too_large'));
         const fd = new FormData();
         fd.set('file', file);
-        fd.set('title', title.trim() || file.name.replace(/\.pdf$/i, ''));
+        fd.set('title', title.trim() || file.name.replace(/\.(pdf|jpe?g|png)$/i, ''));
         fd.set('locale', locale);
         if (crm) fd.set('crm', crm.ref);
         const r = await api<{ envelope: { id: string } }>('/api/sign/envelopes', { method: 'POST', body: fd });
@@ -118,7 +118,7 @@ export default function NewEnvelope({
           {source === 'upload' ? (
             <label className="ui-field">
               <span className="label">{t('new.file')}</span>
-              <input className="input" type="file" name="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input className="input" type="file" name="file" accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png" data-testid="sign-new-file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               <span className="ui-help">{t('new.fileHint', { mb: maxMb })}</span>
             </label>
           ) : docsAvailable ? (

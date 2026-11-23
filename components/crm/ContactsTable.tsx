@@ -3,13 +3,13 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
+import HeaderCell from './ColumnHeader';
 import TableScroll from './TableScroll';
 import SelectAllMatching, { useListQuery, type MatchingSelection } from './SelectAllMatching';
 import { customSortValue } from '@/lib/crm-list-sort';
 import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
-import { EditColumnsInBar, useTableColumns } from './EditColumns';
+import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
@@ -56,9 +56,6 @@ interface Option {
 }
 
 interface ContactsTableProps {
-  /** Columnas en orden (`cols` de la URL o de la vista activa) y si la primera queda fija. */
-  viewCols?: string;
-  viewFreeze?: boolean;
   rows: ContactRow[];
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
@@ -83,25 +80,9 @@ interface ContactsTableProps {
   total?: number;
 }
 
-const COLS = [
-  { id: 'name', labelKey: 'contacts.table.name', defaultVisible: true },
-  { id: 'email', labelKey: 'contacts.table.email', defaultVisible: true },
-  { id: 'phone', labelKey: 'contacts.table.phone', defaultVisible: true },
-  { id: 'company', labelKey: 'contacts.table.company', defaultVisible: true },
-  { id: 'lifecycle', labelKey: 'contacts.table.lifecycle', defaultVisible: true },
-  { id: 'leadStatus', labelKey: 'contacts.table.leadStatus', defaultVisible: false },
-  { id: 'source', labelKey: 'contacts.table.source', defaultVisible: false },
-  { id: 'score', labelKey: 'scoring.column', defaultVisible: false },
-  { id: 'tags', labelKey: 'tags.column', defaultVisible: true },
-  { id: 'owner', labelKey: 'filters.field.owner', defaultVisible: true },
-  { id: 'created', labelKey: 'contacts.table.created', defaultVisible: true },
-  { id: 'lastActivity', labelKey: 'activityDates.lastActivity', defaultVisible: false },
-  { id: 'lastContacted', labelKey: 'activityDates.lastContacted', defaultVisible: false },
-  { id: 'nextActivity', labelKey: 'activityDates.nextActivity', defaultVisible: false },
-];
 
 /** Tabla de contactos con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function ContactsTable({ viewCols, viewFreeze,
+export default function ContactsTable({
   rows,
   sources,
   sort,
@@ -120,12 +101,10 @@ export default function ContactsTable({ viewCols, viewFreeze,
   const t = useTranslations('crm');
   const crmOpts = useCrmOptions();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const columnDefs = [
-    ...COLS.map((c) => ({ id: c.id, label: t(c.labelKey), defaultVisible: c.defaultVisible })),
-    ...customColumns.map((c) => ({ id: c.id, label: c.label, defaultVisible: false })),
-  ];
-  const cols = useTableColumns({ entity: 'contacts', columns: columnDefs, storageKey: 'zs-contacts-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
+  // Orden, columna fija y anchos: los de la página (TableColumnsProvider), los mismos que "Editar columnas".
+  const cols = useIndexColumns()!;
   const order = cols.order;
+  const sized = sizedTable(cols);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
@@ -343,15 +322,6 @@ export default function ContactsTable({ viewCols, viewFreeze,
 
   return (
     <>
-      <EditColumnsInBar
-        columns={columnDefs}
-        first="name"
-        order={cols.order}
-        freeze={cols.freeze}
-        onApply={cols.apply}
-        onReset={cols.reset}
-      />
-
       {allSelected && (
         <SelectAllMatching
           entity="contacts"
@@ -366,9 +336,9 @@ export default function ContactsTable({ viewCols, viewFreeze,
         />
       )}
 
-      <ColumnMenuContext.Provider value={{ order: cols.order, first: 'name', freeze: cols.freeze, apply: cols.apply }}>
       <TableScroll>
-        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}`}>
+        <table className={`table crm-table crm-cards${cols.freeze ? ' is-frozen' : ''}${sized.className}`} style={sized.style}>
+          <IndexColGroup cols={cols} />
           <thead>
             <tr>
               <th className="cell-check" data-card="check">
@@ -405,7 +375,6 @@ export default function ContactsTable({ viewCols, viewFreeze,
           </tbody>
         </table>
       </TableScroll>
-      </ColumnMenuContext.Provider>
 
       {selected.size > 0 && (
         <BulkActionsBar
