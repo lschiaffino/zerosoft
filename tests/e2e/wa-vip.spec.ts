@@ -77,9 +77,12 @@ for (const width of [1280, 390]) {
       await page.goto(`/en/app/inbox/v/vip?t=${threadId}`, { waitUntil: 'networkidle' });
       await expect(conv.locator('.gr-thread-head')).toContainText(vip.name, { timeout: FIRST_MS });
       await conv.locator('.gr-thread-actions').getByRole('button', { name: 'More actions' }).click();
+      // La fila sale de la pestaña al instante (antes de que conteste el servidor): se espera la respuesta y después la base.
+      const unvip = page.waitForResponse((r) => r.url().endsWith('/api/inbox/threads') && r.request().method() === 'POST' && (r.request().postDataJSON() as { action?: string } | null)?.action === 'unvip', { timeout: FIRST_MS });
       await page.getByTestId('menu-vip').click();
       await expect(page.locator('.ib-item', { hasText: vip.name })).toHaveCount(0, { timeout: FIRST_MS });
-      expect((await sql('SELECT COUNT(*) AS n FROM inbox_vips WHERE handle = ?', [String(thread.handle)]))[0].n).toBe(0);
+      expect((await unvip).ok()).toBe(true);
+      await expect.poll(async () => (await sql('SELECT COUNT(*) AS n FROM inbox_vips WHERE handle = ?', [String(thread.handle)]))[0].n, { timeout: FIRST_MS }).toBe(0);
       expect(errors, errors.join('\n')).toEqual([]);
     });
 

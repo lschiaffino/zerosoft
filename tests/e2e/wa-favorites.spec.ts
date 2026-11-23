@@ -92,7 +92,8 @@ for (const width of [1280, 390]) {
         await page.reload({ waitUntil: 'networkidle' });
       }
       await expect(row).toHaveCount(0, { timeout: FIRST_MS });
-      expect((await sql('SELECT favorite_at FROM inbox_threads WHERE id = ?', [threadId]))[0].favorite_at).toBeNull();
+      // La fila sale antes de que conteste el servidor: la base se espera, no se lee una sola vez.
+      await expect.poll(async () => (await sql('SELECT favorite_at FROM inbox_threads WHERE id = ?', [threadId]))[0].favorite_at, { timeout: FIRST_MS }).toBeNull();
       expect(errors, errors.join('\n')).toEqual([]);
     });
 
@@ -136,7 +137,8 @@ for (const width of [1280, 390]) {
         await page.getByTestId('lines-tab-favorites').click();
       }
       await expect(row).toHaveCount(0, { timeout: FIRST_MS });
-      expect((await sql('SELECT favorite_at FROM groups_chats WHERE id = ?', [chatId]))[0].favorite_at).toBeNull();
+      // La fila sale antes de que conteste el servidor: la base se espera, no se lee una sola vez.
+      await expect.poll(async () => (await sql('SELECT favorite_at FROM groups_chats WHERE id = ?', [chatId]))[0].favorite_at, { timeout: FIRST_MS }).toBeNull();
       expect(errors, errors.join('\n')).toEqual([]);
     });
   });
