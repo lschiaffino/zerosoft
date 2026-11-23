@@ -291,27 +291,41 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
   // Un aviso con una acción en curso no recibe otra (U o Backspace dos veces seguidas).
   const busy = useRef(new Set<string>());
 
-  async function setRead(n: Notification, read: boolean) {
-    if (busy.current.has(n.id)) return;
-    busy.current.add(n.id);
+  /**
+   * Leída o sin leer, optimista (como posponer y borrar): cambia ya y, si el
+   * servidor falla, vuelve atrás. Los pedidos de un mismo aviso van en fila,
+   * así U,U con una respuesta lenta termina donde se dejó.
+   */
+  const readQueue = useRef(new Map<string, Promise<void>>());
+  function setRead(n: Notification, read: boolean) {
+    const before = n.read_at;
+    if (Boolean(before) === read) return;
     setActionError(null);
-    const res = await fetch(`/api/notifications/${n.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ read }),
-    }).catch(() => null);
-    busy.current.delete(n.id);
-    if (!res?.ok) {
-      setActionError(ti('actionError'));
-      return;
-    }
-    const wasUnread = !n.read_at;
-    setRows((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: read ? (x.read_at ?? new Date().toISOString()) : null } : x)));
-    if (tab !== 'snoozed') {
-      if (read && wasUnread) bump(n, -1);
-      if (!read && !wasUnread) bump(n, 1);
-    }
-    notifyChanged();
+    const mark = (value: string | null) => setRows((prev) => prev.map((x) => (x.id === n.id ? { ...x, read_at: value } : x)));
+    const count = (toRead: boolean) => {
+      if (tab !== 'snoozed') bump(n, toRead ? -1 : 1);
+    };
+    mark(read ? new Date().toISOString() : null);
+    count(read);
+    const prev = readQueue.current.get(n.id) ?? Promise.resolve();
+    const next = prev.then(async () => {
+      const res = await fetch(`/api/notifications/${n.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ read }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        mark(before);
+        count(!read);
+        setActionError(ti('actionError'));
+        return;
+      }
+      notifyChanged();
+    });
+    readQueue.current.set(n.id, next);
+    void next.finally(() => {
+      if (readQueue.current.get(n.id) === next) readQueue.current.delete(n.id);
+    });
   }
 
   const activeRef = useRef(active);
@@ -653,6 +667,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     const next = e.relatedTarget as Node | null;
     if (next && listRef.current?.contains(next)) return;
     if (next && (next as HTMLElement).closest?.('.track-menu')) return;
+    // Un clic afuera (el foco cae al body, p. ej. al cerrar Posponer) deja la fila del teclado: la próxima H o U sigue en ella.
+    if (!next) return;
     setActive(null);
   };
   useEffect(() => {
@@ -665,7 +681,7 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     <Popover
       ariaLabel={extra ? ti('more') : tr('inboxSnooze.snooze')}
       className={`track-inbox-icon track-inbox-snooze${extra ? ' is-more' : ''}`}
-      width={248}
+      width={340}
       trigger={<TrackIcon name={extra ? 'more' : 'clock'} size={14} />}
     >
       {(close) => (

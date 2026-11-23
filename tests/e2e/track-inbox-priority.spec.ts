@@ -140,6 +140,32 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await expect(page.getByRole('menu')).toBeVisible();
   await page.mouse.click(5, 790);
   await expect(page.getByRole('menu')).toHaveCount(0);
+  // La fila del teclado sigue: otra H vuelve a abrir Posponer, con los textos enteros.
+  await expect(row(page, s.assigned)).toHaveClass(/is-kb-active/);
+  await page.keyboard.press('h');
+  await expect(page.getByRole('menu')).toBeVisible();
+  for (const item of await page.getByRole('menuitem').all()) {
+    expect(await item.evaluate((el) => [...el.querySelectorAll('span')].every((x) => x.scrollWidth <= x.clientWidth + 1))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+
+  // U dos veces seguidas con el servidor lento: queda como estaba (optimista y en fila).
+  await page.route('**/api/notifications/*', async (route) => {
+    if (route.request().method() === 'PATCH') await new Promise((r) => setTimeout(r, 400));
+    await route.continue();
+  });
+  let saved = 0;
+  page.on('response', (r) => {
+    if (r.request().method() === 'PATCH' && r.url().includes(`/api/notifications/${s.assigned}`)) saved += 1;
+  });
+  await row(page, s.assigned).locator('.track-inbox-link').focus();
+  await page.keyboard.press('u');
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'true');
+  await page.keyboard.press('u');
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
+  await expect.poll(() => saved).toBe(2);
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
+  await page.unroute('**/api/notifications/*');
 
   // Backspace borra y la siguiente queda activa.
   await row(page, s.assigned).locator('.track-inbox-link').focus();
