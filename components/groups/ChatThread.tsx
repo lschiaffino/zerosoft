@@ -383,6 +383,8 @@ export default function ChatThread(props: ThreadProps) {
   const [bottomAt, setBottomAt] = useState(props.messages[props.messages.length - 1]?.createdAt ?? '');
   const [recording, setRecording] = useState<{ startedAt: number; elapsed: number; paused: boolean; carried: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // El campo pudo recibir el foco antes de que React lo viera (un clic antes de hidratar): se lee al montar.
+  useLayoutEffect(() => setComposerFocused(typeof document !== 'undefined' && document.activeElement === inputRef.current), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Abrir el chat con un clic deja el cursor en el campo, como WhatsApp (no con j/k ni en el teléfono).
   useFocusOnOpen(inputRef, props.chat.id);
   const boxRef = useRef<HTMLDivElement>(null);

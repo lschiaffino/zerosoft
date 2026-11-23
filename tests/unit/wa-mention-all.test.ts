@@ -47,6 +47,29 @@ describe('@all: el campo', () => {
     expect(waMentionSuggestions('a', en, 50).map((p) => p.id)).toEqual(['5490000000106', MENTION_ALL]);
   });
 
+  it('con la palabra entera, Todos primero aunque alguien empiece igual', () => {
+    const en = waMentionables([{ phone: '5490000000108', name: 'Allison' }], undefined, 'all');
+    expect(waMentionSuggestions('all', en, 50).map((p) => p.id)).toEqual([MENTION_ALL, '5490000000108']);
+    expect(waMentionSuggestions('al', en, 50).map((p) => p.id)).toEqual(['5490000000108', MENTION_ALL]);
+  });
+
+  it('si alguien se llama "All", Todos escribe "@todos"; si las dos palabras son de personas, no se ofrece', () => {
+    const one = waMentionables([{ phone: '5490000000109', name: 'All' }], new Map([['All', '5490000000109']]), 'all');
+    const all = one.find((p) => p.id === MENTION_ALL)!;
+    expect(all.name).toBe('todos');
+    expect(serializeWaMentions('@All hola', one).mentions).toEqual(['5490000000109']);
+    expect(serializeWaMentions('@todos hola', one).mentions).toEqual([MENTION_ALL]);
+    const both = waMentionables(
+      [
+        { phone: '5490000000109', name: 'All' },
+        { phone: '5490000000110', name: 'Todos' },
+      ],
+      undefined,
+      'todos',
+    );
+    expect(both.some((p) => p.id === MENTION_ALL)).toBe(false);
+  });
+
   it('en un grupo grande Todos sigue en la lista', () => {
     const many = Array.from({ length: 80 }, (_, i) => ({ phone: `54900000${String(1000 + i)}`, name: i % 2 ? '' : `Persona ${i}` }));
     const list = waMentionSuggestions('', waMentionables(many, undefined, 'todos'), 50);

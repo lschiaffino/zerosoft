@@ -9,7 +9,7 @@
  * teléfono de un participante, sin importar mayúsculas, el más largo primero.
  */
 import { findMentionHits, mentionSuggestions, type MentionHit, type Mentionable } from './crm-mentions';
-import { MENTION_ALL } from './wa-mention-all';
+import { MENTION_ALL, MENTION_ALL_WORDS } from './wa-mention-all';
 
 /** Un participante del grupo que se puede mencionar. */
 export interface WaParticipant {
@@ -46,8 +46,11 @@ export function waMentionables(participants: ReadonlyArray<WaParticipant>, picke
   // (quien llama pasa la palabra; sin ella no se ofrece). Va al final: con alguien que se llama igual ("Todos"),
   // gana esa persona (findMentionHits desempata por orden) y "todos" pasa a escribirse "@all".
   if (all) {
-    const taken = out.some((p) => (p.name ?? '').toLowerCase() === all.toLowerCase());
-    out.push({ id: MENTION_ALL, name: taken ? MENTION_ALL : all, email: MENTION_ALL });
+    // La palabra que escribe: la del idioma, o la otra ("all" / "todos") si alguien se llama así; si las dos están
+    // tomadas por personas, no se ofrece (mencionaría a una persona en vez de al grupo).
+    const taken = new Set(out.map((p) => (p.name ?? '').toLowerCase()));
+    const word = [all, ...MENTION_ALL_WORDS].find((w) => !taken.has(w.toLowerCase()));
+    if (word) out.push({ id: MENTION_ALL, name: word, email: taken.has(MENTION_ALL) ? word : MENTION_ALL });
   }
   return out;
 }
@@ -67,7 +70,8 @@ export function waMentionSuggestions(query: string, pool: Mentionable[], limit =
     Math.max(1, limit - 1),
   );
   const q = query.trim().toLowerCase();
-  if (!q) return [all, ...people];
+  // Sin texto, o con la palabra entera ("@all", "@todos"): Todos primero.
+  if (!q || q === (all.name ?? '').toLowerCase() || q === all.email.toLowerCase()) return [all, ...people];
   if (![all.name ?? '', all.email].some((w) => w.toLowerCase().startsWith(q))) return people;
   // mentionSuggestions ordena por puntaje: primero los que empiezan así (nombre, una palabra del nombre o teléfono).
   const strong = people.filter((p) => {

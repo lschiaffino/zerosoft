@@ -1,5 +1,5 @@
 import { e2eDb } from './helpers/db';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { waLinkIp } from './helpers/wa-link';
 
 /**
@@ -78,6 +78,12 @@ async function inboxAccount(request: APIRequestContext) {
   };
 }
 
+/** Un clic afuera del campo y de la lista: en los mensajes, justo arriba de la lista del "@" (no en la cabecera, que en el teléfono vuelve atrás o abre la info). */
+async function clickAbove(page: Page, pop: Locator) {
+  const box = (await pop.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, Math.max(box.y - 40, 140));
+}
+
 async function noSideScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
@@ -137,7 +143,7 @@ for (const width of [1280, 390]) {
       await page.keyboard.press('Backspace');
       await input.pressSequentially('@');
       await expect(pop).toBeVisible();
-      await page.getByRole('heading', { level: 2, name: title }).click();
+      await clickAbove(page, pop);
       await expect(pop).toBeHidden();
       await input.click();
       await page.keyboard.press('End');
@@ -151,12 +157,13 @@ for (const width of [1280, 390]) {
       await expect(pop).toBeHidden();
       await expect(input).toHaveValue('Mañana a las 9 @all ');
       await expect(page.locator('.wa-input-mirror .wa-input-mention')).toHaveText('@all');
+      await input.pressSequentially('nos vemos');
       await shot(page, `lines-all-field-${width}`);
 
       const sent = page.waitForRequest((r) => r.method() === 'POST' && /\/api\/groups\/chats\/[^/]+\/messages$/.test(r.url()));
       await page.keyboard.press('Enter');
       const payload = (await sent).postDataJSON() as { body: string; mentions?: string[] };
-      expect(payload.body).toBe('Mañana a las 9 @all');
+      expect(payload.body).toBe('Mañana a las 9 @all nos vemos');
       expect(payload.mentions).toEqual(['all']);
       // Salió con la marca: el falso avisó a cada participante.
       await expect
@@ -223,7 +230,7 @@ for (const width of [1280, 390]) {
       await page.keyboard.press('Backspace');
       await input.pressSequentially('@');
       await expect(pop).toBeVisible();
-      await page.locator('.ib-wa-thread').click({ position: { x: 10, y: 10 } });
+      await clickAbove(page, pop);
       await expect(pop).toBeHidden();
       await input.click();
       await page.keyboard.press('End');

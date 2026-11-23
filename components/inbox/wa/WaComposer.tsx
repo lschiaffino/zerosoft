@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { initialDraft, useDraftAutosave } from '@/components/ui/useDraft';
 import { isOffline, newClientId } from '@/lib/optimistic-send';
@@ -103,6 +103,8 @@ const WaComposer = forwardRef<
   // Esc cierra la lista de "@" para esa mención (dónde empieza).
   const [mentionClosedAt, setMentionClosedAt] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
+  // El campo pudo recibir el foco antes de que React lo viera (un clic antes de hidratar): se lee al montar.
+  useLayoutEffect(() => setFocused(typeof document !== 'undefined' && document.activeElement === area.current), []); // eslint-disable-line react-hooks/exhaustive-deps
   // Lo elegido de la lista: etiqueta escrita → teléfono (con dos personas del mismo nombre, gana esta).
   const picked = useRef(new Map<string, string>());
   const [pickedVersion, setPickedVersion] = useState(0);
