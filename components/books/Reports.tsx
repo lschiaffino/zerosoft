@@ -350,7 +350,7 @@ export function GeneralLedgerView({ report, asOf, accounts, accountId }: { repor
                       {tr('credit')}
                     </th>
                     <th scope="col" className="num">
-                      {tr('balance')}
+                      {tr('runningBalance')}
                     </th>
                   </tr>
                 </thead>
@@ -359,7 +359,7 @@ export function GeneralLedgerView({ report, asOf, accounts, accountId }: { repor
                     <th scope="row" colSpan={4}>
                       {tr('opening')}
                     </th>
-                    <td className="num" data-label={tr('balance')}>
+                    <td className="num" data-label={tr('runningBalance')}>
                       {m(a.opening)}
                     </td>
                   </tr>
@@ -380,7 +380,7 @@ export function GeneralLedgerView({ report, asOf, accounts, accountId }: { repor
                       <td className="num" data-label={tr('credit')}>
                         {z(e.credit)}
                       </td>
-                      <td className="num data" data-label={tr('balance')}>
+                      <td className="num data" data-label={tr('runningBalance')}>
                         {m(e.balance)}
                       </td>
                     </tr>

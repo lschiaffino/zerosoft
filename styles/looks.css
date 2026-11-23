@@ -213,6 +213,23 @@
   backdrop-filter: var(--pop-blur);
 }
 
+/* Una lista con role="menu" dentro de otra superficie flotante (el menú de
+   filtros o el de Display de Track, o un menú dentro de otro menú) es parte de
+   esa superficie: sin fondo, borde ni sombra propios, así no queda un panel
+   dentro de otro. */
+:root:is([data-look='lines'], [data-look='classic'], [data-look='liquid'], [data-look='retro']) :is(
+  [role='menu'], .track-md-menu, .track-display-panel, .track-display-choice-menu, .track-context-menu,
+  .track-filter-menu, .track-saved-views-menu, .track-menu
+) [role='menu'] {
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* Ítems de un menú o una lista: el relleno al pasar lleva su propia esquina. */
 :root:is([data-look='lines'], [data-look='classic'], [data-look='liquid'], [data-look='retro']) :is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'], [role='option'], .zs-ctx-item, .zs-msel-opt, .cmdk-item, .band-menu-item) {
   border-radius: var(--radius-item);
