@@ -9,7 +9,8 @@ import { formatDate } from '@/lib/utils';
 import type { ProjectMember, TrackIssueWithStatus } from '@/lib/track-data';
 import type { TrackStatusRow } from '@/lib/db';
 import type { IssuePatch } from '@/lib/track-tasks';
-import { groupDropTarget, groupIssues, groupPreset, type BoardGroupBy } from '@/lib/track-views';
+import { groupDropTarget, groupIssues, groupPreset, orderGroups, type BoardGroupBy } from '@/lib/track-views';
+import { GroupReorderControls, useGroupReorder } from './GroupReorder';
 import type { IssueDraft } from './useIssueStore';
 import type { IssueSelection } from './BulkEdit';
 import StatusBadge from './StatusBadge';
@@ -69,6 +70,11 @@ interface IssuesBoardProps {
   onQuickCreate?: (title: string, preset: Partial<IssueDraft>) => void;
   /** Propiedades visibles de Display: las cards muestran solo esas (y ocultan las vacías). */
   show?: readonly DisplayProp[];
+  /** Orden propio de las columnas (claves), guardado en la vista. */
+  groupOrder?: string[];
+  /** Arrastrar el asa de una columna o "Mover a la izquierda/derecha": el orden nuevo. */
+  onReorderGroups?: (keys: string[]) => void;
+  onResetGroupOrder?: () => void;
 }
 
 function cardLabels(raw: string): Array<{ id: string; name: string; color: string }> {
@@ -100,6 +106,9 @@ export default function IssuesBoard({
   selection,
   statusByName = false,
   milestones,
+  groupOrder,
+  onReorderGroups,
+  onResetGroupOrder,
 }: IssuesBoardProps) {
   const t = useTranslations('track');
   const show = new Set<DisplayProp>(showProps);
@@ -109,12 +118,19 @@ export default function IssuesBoard({
 
   // Status, prioridad y milestones muestran todas sus columnas aunque estén
   // vacías; el resto, solo los valores que tienen issues (más "sin valor" al final).
-  const columns = groupIssues(issues, groupBy, {
+  const natural = groupIssues(issues, groupBy, {
     statuses,
     projectNames,
     milestones,
     includeEmpty: groupBy === 'status' || groupBy === 'priority' || (groupBy === 'planMilestone' && Boolean(milestones?.length)),
   }).filter((g) => groupBy !== 'status' || g.key !== '' || g.issues.length > 0);
+  // Orden propio de las columnas (arrastrar el asa o el menú de la columna), como Linear.
+  const columns = orderGroups(natural, groupOrder);
+  const reorder = useGroupReorder(
+    columns.map((c) => c.key),
+    'x',
+    onReorderGroups,
+  );
 
   /** Patch que aplica soltar en una columna (o null si ese agrupado no se puede mover). */
   const dropPatch = (key: string): IssuePatch | null => groupPreset(groupBy, key, { movable: true });
@@ -177,8 +193,8 @@ export default function IssuesBoard({
   };
 
   return (
-    <div className={`track-board${dragId ? ' is-dragging' : ''}`}>
-      {columns.map((column) => {
+    <div className={`track-board${dragId ? ' is-dragging' : ''}${reorder.dragging ? ' is-reordering' : ''}`} data-group-list="">
+      {columns.map((column, index) => {
         const colIssues = column.issues;
         const colKey = column.key;
         const title = columnName(colKey, column.name);
@@ -191,15 +207,17 @@ export default function IssuesBoard({
         return (
           <div
             key={colKey || 'none'}
-            className={`track-board-column${isOver && !isSource ? ' is-drop-target' : ''}`}
+            className={`track-board-column${isOver && !isSource ? ' is-drop-target' : ''}${reorder.itemClass(colKey)}`}
             data-track-drop={drop}
             data-testid="track-board-column"
+            data-group-key={colKey}
             onDragOver={ownDrop ? (e) => onColumnDragOver(e, colKey) : undefined}
             onDragLeave={ownDrop ? (e) => onColumnDragLeave(e, colKey) : undefined}
             onDrop={ownDrop ? (e) => onColumnDrop(e, colKey) : undefined}
             aria-label={title}
           >
             <div className="track-board-header">
+              <GroupReorderControls part="grip" groupKey={colKey} name={title} index={index} count={columns.length} axis="x" reorder={reorder} />
               {groupBy === 'status' && !editing ? (
                 <StatusBadge name={title} color={column.color ?? null} category={column.category ?? null} />
               ) : (
@@ -219,6 +237,16 @@ export default function IssuesBoard({
               <span className="track-board-count" data-testid="track-board-count">
                 {total}
               </span>
+              <GroupReorderControls
+                part="menu"
+                groupKey={colKey}
+                name={title}
+                index={index}
+                count={columns.length}
+                axis="x"
+                reorder={reorder}
+                onReset={groupOrder?.length ? onResetGroupOrder : undefined}
+              />
             </div>
             <div className="track-board-cards">
               {colIssues.length === 0 && !(onQuickCreate && preset) && <p className="track-board-empty">{labels.empty}</p>}

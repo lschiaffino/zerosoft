@@ -4,7 +4,7 @@ import { cancelBatch, firstOpenPart, replaceBatch } from '@/lib/inbox/schedule';
 import { scheduledPatchSchema, scheduledReplaceSchema } from '@/lib/inbox/schemas';
 import { sendScheduledNow } from '@/lib/inbox/send';
 import { InboxError } from '@/lib/inbox/types';
-import { deleteUploads } from '@/lib/uploads';
+import { deleteOwnedUploads } from '@/lib/uploads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,7 +51,7 @@ export async function DELETE(req: Request, ctx: Ctx) {
     else {
       const row = await getScheduledOwned(owner, id);
       await cancelScheduled(owner, id);
-      if (row.media_url) await deleteUploads([row.media_url]);
+      if (row.media_url) await deleteOwnedUploads({ userId: owner }, [row.media_url], { folder: 'inbox' });
     }
     return iJson({ scheduled: await listScheduled(owner) });
   });

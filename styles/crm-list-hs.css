@@ -388,3 +388,60 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 }
 .export-view-notice.is-error { border-color: var(--danger, var(--ink)); }
 .export-view-notice .icon-btn { flex: none; min-width: 40px; min-height: 40px; margin: -10px -4px -10px 0; }
+/* ============================================================
+   C4: anchos de columna como en HubSpot (arrastrar el borde del
+   encabezado, doble clic ajusta, flechas con el foco en el borde).
+   ============================================================ */
+.crm-table thead th[data-col] { position: relative; }
+.th-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.th-resize::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  right: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+.crm-table thead th:hover .th-resize::after { background: var(--line); }
+.th-resize:hover::after,
+.th-resize:active::after,
+.th-resize:focus-visible::after { background: var(--ink); }
+.th-resize:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.th-resize:focus:not(:focus-visible) { outline: none; }
+
+/* Con anchos guardados la tabla deja de acomodarse sola: cada columna mide lo suyo y lo que no entra se corta con "…". */
+@media (min-width: 641px) {
+  .crm-table.is-sized { table-layout: fixed; width: var(--crm-table-w, auto); min-width: 0; }
+  .crm-table.is-sized:not(.is-fitting) :is(th, td) { overflow: hidden; text-overflow: ellipsis; }
+  .crm-table.is-sized :is(.cell-name, .hs-name .cell-name, td .cell-inline, .cell-email.cell-inline, .cell-email .cell-inline, .cell-crm-tags .tag-dots) { max-width: 100%; }
+  .crm-table.is-sized.is-fitting :is(.cell-name, .hs-name .cell-name, td .cell-inline, .cell-email.cell-inline, .cell-email .cell-inline, .cell-crm-tags .tag-dots) { max-width: none; }
+  .crm-table.is-sized td.cell-record { max-width: none; }
+  .crm-table.is-sized :is(td, th).cell-date { width: auto; }
+  .crm-table.is-sized th .th-wrap { display: flex; min-width: 0; max-width: 100%; }
+  .crm-table.is-sized th .th-wrap > :is(.th-sort, .th-label) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crm-table.is-sized th.num .th-wrap { justify-content: flex-end; }
+}
+/* En el teléfono la tabla es de tarjetas: sin anchos ni bordes para arrastrar. */
+@media (max-width: 640px) {
+  .crm-cards > colgroup,
+  .crm-cards .th-resize { display: none; }
+}
+/* Teléfono y tablet en vertical (puntero táctil): los <select> de la barra van a 16 px (si no iOS hace
+   zoom al tocarlos, ui.css); los botones de la misma barra (fechas, más filtros, columnas) también, así
+   la fila se lee pareja. Desde 1024 px la barra va en una sola línea y queda como está. */
+@media (pointer: coarse) and (max-width: 1023px) {
+  .deals-filter-bar :is(.filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .export-view-btn, .seg-toggle-item) { font-size: 16px; }
+}

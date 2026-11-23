@@ -681,6 +681,7 @@ export function buildIssueActions(
     actions.push({
       id: 'duplicate',
       label: t('markDuplicate'),
+      meta: 'M M',
       keywords: 'duplicate duplicado duplicata mark marcar',
       placeholder: t('searchDuplicate'),
       icon: { kind: 'glyph', name: 'duplicate' },
@@ -908,6 +909,9 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 
   }
 }
 
+/** Segunda tecla después de M → página de la paleta (relaciones, como Linear). */
+export const MARK_CHORDS: Record<string, string> = { m: 'duplicate', b: 'relate-blocked', x: 'relate-blocks', r: 'relate-related' };
+
 interface UseTrackCommandsOptions {
   /** Issues sobre los que actúan (ya resuelta la prioridad selección > fila > issue abierto). */
   getTargets: () => TrackIssueWithStatus[];
@@ -1009,9 +1013,32 @@ export function useTrackCommands(opts: UseTrackCommandsOptions): void {
     };
     const off = setCommandContext(build);
 
+    // M y después una tecla, como Linear: M M duplicado de…, M B bloqueado por…, M X bloquea…, M R relacionado con….
+    let markAt = 0;
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.defaultPrevented || isTypingTarget(e.target) || overlayOpen()) return;
       if (!(e.metaKey || e.ctrlKey) && inGoSequence()) return;
+      const plain = !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
+      const chord = plain && markAt && Date.now() - markAt < 1200 ? MARK_CHORDS[e.key.toLowerCase()] : undefined;
+      markAt = 0;
+      if (chord) {
+        const page = chord;
+        const targets = targetsNow();
+        if (targets.length === 0) return;
+        const o = ref.current;
+        const all = [...buildIssueActions(targets, o.data, o.handlers, o.t, o.formatDay), ...(o.extra?.(targets) ?? [])];
+        if (!all.some((a) => a.id === page)) return;
+        e.preventDefault();
+        pin(targets);
+        openCommandMenu(page);
+        return;
+      }
+      // M y otra tecla que no es de relación: esa tecla hace lo suyo (S, P, A…).
+      if (plain && e.key.toLowerCase() === 'm' && targetsNow().length > 0) {
+        markAt = Date.now();
+        e.preventDefault();
+        return;
+      }
       const sc = shortcutFor(e);
       if (!sc) return;
       const o = ref.current;

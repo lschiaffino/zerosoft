@@ -194,7 +194,7 @@ export default function EnvelopeEditor({ initial, maxMb }: { initial: EnvelopeDt
         <span className="sg-rowmeta num">{env.pages.length ? t('editor.pages', { n: env.pages.length }) : ''}</span>
         <label className="btn btn-sm btn-outline sg-file-btn">
           {env.hasDocument ? t('editor.replace') : t('editor.upload')}
-          <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => void replaceDocument(e.target.files?.[0] ?? null)} disabled={busy} />
+          <input type="file" data-testid="sign-replace-file" accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(e) => void replaceDocument(e.target.files?.[0] ?? null)} disabled={busy} />
         </label>
       </section>
 
