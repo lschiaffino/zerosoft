@@ -10,6 +10,7 @@
  * - flattenFields: dibuja los valores y las firmas en las páginas.
  * - appendCertificate: suma el certificado de finalización al final.
  * - textToPdf: una carta en texto (ofertas de Hiring) como PDF A4.
+ * - imageToPdf: una foto o un escaneo (JPEG o PNG) como una página A4.
  *
  * Las fuentes son las estándar (Helvetica, WinAnsi): lo que no entra sale como "?".
  */
@@ -236,9 +237,14 @@ export function pageBoxes(doc: PDFDocument): PageBox[] {
  * tipos) es pdf_invalid, nunca un 500.
  */
 export async function sanitizePdf(input: Buffer | Uint8Array): Promise<{ bytes: Buffer; pages: PageBox[] }> {
-  const buf = Buffer.from(input);
-  if (!sniffPdf(buf)) throw new SignError('pdf_invalid', 415);
+  let buf: Buffer = Buffer.from(input);
   if (buf.length > MAX_PDF_BYTES) throw new SignError('pdf_too_large', 413);
+  if (!sniffPdf(buf)) {
+    // Una foto o un escaneo: se arma el PDF y sigue el mismo camino que uno subido.
+    const fromImage = await imageToPdf(buf);
+    if (!fromImage) throw new SignError('pdf_invalid', 415);
+    buf = fromImage;
+  }
   try {
     guardPdf(buf);
     return await sanitizeLoaded(buf);
@@ -493,7 +499,7 @@ export async function appendCertificate(flattened: Buffer, c: CertificateInput):
   line(`Created: ${utcStamp(c.createdAt)}   Sent: ${utcStamp(c.sentAt)}   Completed: ${utcStamp(c.completedAt)}`);
   line('Hashes (SHA-256)', { size: 11, bold: true, gap: 14 });
   line(`Original document as sent for signature: ${c.documentHash}`, { size: 8 });
-  if (c.uploadHash && c.uploadHash !== c.documentHash) line(`File as uploaded, before removing scripts and actions: ${c.uploadHash}`, { size: 8 });
+  if (c.uploadHash && c.uploadHash !== c.documentHash) line(`File as uploaded, before converting it or removing scripts and actions: ${c.uploadHash}`, { size: 8 });
   line(`Signed pages, as saved before this certificate was added: ${c.flattenedHash}`, { size: 8 });
   line('That intermediate file is re-saved together with this certificate, so its hash cannot be recomputed from this PDF. The hash of the final file, with this certificate, is in the completion email and on the envelope page: compute the SHA-256 of this file to check it.', { size: 8, gray: 0.4 });
 
@@ -557,4 +563,147 @@ export async function textToPdf(title: string, body: string): Promise<Buffer> {
   put(title, bold, 16);
   for (const para of body.replace(/\r/g, '').split(/\n{2,}/)) put(para.replace(/^#+\s*/gm, '').replace(/\*\*/g, ''), font, 10.5, 10);
   return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+// ---------- Imágenes (JPEG y PNG) como documento ----------
+
+/** Lado máximo de una imagen, en píxeles. */
+export const MAX_IMAGE_SIDE = 10_000;
+/**
+ * Píxeles de un PNG: pdf-lib lo descomprime entero en memoria (4 bytes por
+ * píxel), así que se acota antes de leerlo. Un JPEG viaja sin descomprimir.
+ */
+export const MAX_PNG_PIXELS = 16_000_000;
+
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+export type ImageKind = 'jpeg' | 'png';
+
+/** JPEG o PNG por sus bytes, o null. */
+export function sniffImage(buf: Buffer): ImageKind | null {
+  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf.length >= 24 && buf.subarray(0, 8).equals(PNG_MAGIC) && buf.subarray(12, 16).toString('latin1') === 'IHDR') return 'png';
+  return null;
+}
+
+/** Ancho y alto de un PNG desde su encabezado (IHDR), sin descomprimirlo. */
+export function pngSize(buf: Buffer): { width: number; height: number } | null {
+  if (sniffImage(buf) !== 'png') return null;
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+/** Tamaño de un JPEG: el primer marcador SOF (el de la imagen; las miniaturas EXIF van dentro de APP1 y se saltean). */
+function jpegDims(buf: Buffer): { width: number; height: number } | null {
+  let i = 2;
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) return null;
+    const marker = buf[i + 1];
+    if (marker === 0xff) {
+      i++;
+      continue;
+    }
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      i += 2;
+      continue;
+    }
+    const len = buf.readUInt16BE(i + 2);
+    if (len < 2) return null;
+    const sof = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    if (sof) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    if (marker === 0xda || marker === 0xd9) return null;
+    i += 2 + len;
+  }
+  return null;
+}
+
+/**
+ * Orientación EXIF de un JPEG (1 a 8; 1 si no hay). Los celulares guardan la
+ * foto como sale del sensor y anotan acá cómo girarla.
+ */
+export function jpegOrientation(buf: Buffer): number {
+  let i = 2;
+  while (i + 4 < buf.length) {
+    if (buf[i] !== 0xff) return 1;
+    const marker = buf[i + 1];
+    if (marker === 0xda || marker === 0xd9) return 1;
+    const len = buf.readUInt16BE(i + 2);
+    if (len < 2) return 1;
+    if (marker === 0xe1 && buf.subarray(i + 4, i + 10).toString('latin1') === 'Exif\0\0') {
+      const tiff = i + 10;
+      const end = Math.min(buf.length, i + 2 + len);
+      if (tiff + 8 > end) return 1;
+      const order = buf.subarray(tiff, tiff + 2).toString('latin1');
+      if (order !== 'II' && order !== 'MM') return 1;
+      const le = order === 'II';
+      const u16 = (o: number) => (le ? buf.readUInt16LE(o) : buf.readUInt16BE(o));
+      const u32 = (o: number) => (le ? buf.readUInt32LE(o) : buf.readUInt32BE(o));
+      const ifd = tiff + u32(tiff + 4);
+      if (ifd + 2 > end) return 1;
+      const count = u16(ifd);
+      for (let k = 0; k < count; k++) {
+        const e = ifd + 2 + k * 12;
+        if (e + 12 > end) return 1;
+        if (u16(e) === 0x0112) {
+          const v = u16(e + 8);
+          return v >= 1 && v <= 8 ? v : 1;
+        }
+      }
+      return 1;
+    }
+    i += 2 + len;
+  }
+  return 1;
+}
+
+const A4: [number, number] = [595.28, 841.89];
+const IMAGE_MARGIN = 36;
+
+/**
+ * Una imagen JPEG o PNG como PDF de una página A4 (vertical u horizontal según
+ * la imagen), centrada dentro de márgenes de media pulgada y girada según su
+ * EXIF. null si no es una imagen. Errores: image_too_large, pdf_invalid.
+ */
+export async function imageToPdf(input: Buffer | Uint8Array): Promise<Buffer | null> {
+  const buf = Buffer.from(input);
+  const kind = sniffImage(buf);
+  if (!kind) return null;
+  const dims = kind === 'png' ? pngSize(buf) : jpegDims(buf);
+  if (!dims || dims.width < 1 || dims.height < 1) throw new SignError('pdf_invalid', 415);
+  if (dims.width > MAX_IMAGE_SIDE || dims.height > MAX_IMAGE_SIDE) throw new SignError('image_too_large', 413);
+  if (kind === 'png' && dims.width * dims.height > MAX_PNG_PIXELS) throw new SignError('image_too_large', 413);
+  const orientation = kind === 'jpeg' ? jpegOrientation(buf) : 1;
+  // 5 a 8 van de costado: el ancho que se ve es el alto guardado. Los espejados se muestran sin espejar.
+  const sideways = orientation >= 5;
+  const shownW = sideways ? dims.height : dims.width;
+  const shownH = sideways ? dims.width : dims.height;
+  try {
+    const doc = await PDFDocument.create();
+    // Copia con su propio ArrayBuffer: pdf-lib lee el buffer de fondo e ignora el offset de un Buffer chico de Node.
+    const bytes = new Uint8Array(buf);
+    const img = kind === 'png' ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+    const [pw, ph] = shownW > shownH ? [A4[1], A4[0]] : A4;
+    const scale = Math.min((pw - 2 * IMAGE_MARGIN) / shownW, (ph - 2 * IMAGE_MARGIN) / shownH);
+    const w = shownW * scale;
+    const h = shownH * scale;
+    const left = (pw - w) / 2;
+    const bottom = (ph - h) / 2;
+    const page = doc.addPage([pw, ph]);
+    // El ancho y alto de drawImage son los de la imagen guardada; la rotación es alrededor de (x, y).
+    const drawW = sideways ? h : w;
+    const drawH = sideways ? w : h;
+    if (orientation === 3 || orientation === 4) page.drawImage(img, { x: left + w, y: bottom + h, width: drawW, height: drawH, rotate: degrees(180) });
+    else if (orientation === 6 || orientation === 5) page.drawImage(img, { x: left, y: bottom + h, width: drawW, height: drawH, rotate: degrees(-90) });
+    else if (orientation === 8 || orientation === 7) page.drawImage(img, { x: left + w, y: bottom, width: drawW, height: drawH, rotate: degrees(90) });
+    else page.drawImage(img, { x: left, y: bottom, width: drawW, height: drawH });
+    return Buffer.from(await doc.save({ useObjectStreams: false }));
+  } catch (err) {
+    if (err instanceof SignError) throw err;
+    throw new SignError('pdf_invalid', 415);
+  }
+}
+
+/** Nombre del documento guardado: una imagen pasa a llamarse .pdf. */
+export function signDocumentName(name: string): string {
+  const clean = name.slice(0, 200);
+  return /\.(jpe?g|png)$/i.test(clean) ? clean.replace(/\.(jpe?g|png)$/i, '.pdf') : clean;
 }

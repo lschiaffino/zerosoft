@@ -5,7 +5,7 @@
  * completados. Sin React, para testear.
  */
 import { encodeFilter, normalizeFilter, type FilterRule, type FilterState } from './track-filter';
-import { DISPLAY_PROPS, ISSUE_SORTS, TEAM_SCOPES, type DisplayProp, type IssueGroupBy, type IssueSort, type TeamScope } from './track-views';
+import { DISPLAY_PROPS, ISSUE_SORTS, TEAM_SCOPES, parseGroupOrder, type DisplayProp, type GroupOrder, type IssueGroupBy, type IssueSort, type TeamScope } from './track-views';
 
 export type MyIssuesTabKey = 'assigned' | 'created' | 'subscribed' | 'activity';
 
@@ -34,6 +34,8 @@ export interface ListPrefs {
   completed: CompletedWindowValue;
   emptyGroups: boolean;
   props: DisplayProp[];
+  /** Orden propio de grupos y columnas por campo (arrastrar encabezados), como Linear. */
+  groupOrder?: GroupOrder;
 }
 
 const PROP_KEYS = DISPLAY_PROPS;
@@ -89,6 +91,7 @@ export function parseListPrefs(raw: unknown, fallback: ListPrefs, groups: readon
     completed: r.completed === 'all' || r.completed === 'week' || r.completed === 'none' ? r.completed : fallback.completed,
     emptyGroups: typeof r.emptyGroups === 'boolean' ? r.emptyGroups : fallback.emptyGroups,
     props: Array.isArray(r.props) ? r.props.filter((p): p is ListPrefs['props'][number] => (PROP_KEYS as readonly string[]).includes(p as string)) : fallback.props,
+    groupOrder: r.groupOrder !== undefined ? parseGroupOrder(r.groupOrder) : (fallback.groupOrder ?? {}),
   };
 }
 
@@ -185,6 +188,8 @@ export interface ViewState {
   sort: IssueSort;
   showSub: boolean;
   completed: CompletedWindowValue;
+  /** Orden propio de los grupos (se guarda con la vista y se comparte con ella). */
+  groupOrder?: GroupOrder;
 }
 
 /** Cuerpo para crear o actualizar una vista: el agrupado y lo demás viajan dentro de `filters`. */
@@ -199,6 +204,7 @@ export function viewPayload(v: ViewState): { viewType: ListLayout; filters: Reco
       ...(v.subGroup !== 'none' ? { subGroupBy: v.subGroup } : {}),
       ...(!v.showSub ? { subIssues: 'hide' } : {}),
       ...(v.completed !== 'all' ? { completed: v.completed } : {}),
+      ...(v.groupOrder && Object.keys(v.groupOrder).length ? { groupOrder: v.groupOrder } : {}),
     },
     sort: v.sort,
   };
@@ -213,7 +219,7 @@ export function viewToState(
   groups: readonly IssueGroupBy[],
   fallbackGroup: IssueGroupBy,
 ): ViewState {
-  const { groupBy, subGroupBy, subIssues, completed, ...rest } = view.filters ?? {};
+  const { groupBy, subGroupBy, subIssues, completed, groupOrder, ...rest } = view.filters ?? {};
   const pick = (g: unknown, fb: IssueGroupBy) => (groups.includes(g as IssueGroupBy) ? (g as IssueGroupBy) : fb);
   const n = normalizeFilter(rest);
   return {
@@ -224,12 +230,18 @@ export function viewToState(
     sort: (ISSUE_SORTS as readonly string[]).includes(view.sort) ? (view.sort as IssueSort) : 'newest',
     showSub: subIssues !== 'hide',
     completed: completed === 'week' || completed === 'none' ? completed : 'all',
+    groupOrder: parseGroupOrder(groupOrder),
   };
 }
 
 /** Firma comparable del estado (marca la vista con cambios sin guardar). */
 export function viewSignature(v: ViewState): string {
-  return JSON.stringify([v.layout, v.filters.match, v.filters.rules, v.filters.q ?? '', v.group, v.subGroup, v.sort, v.showSub, v.completed]);
+  const order = v.groupOrder ?? {};
+  const groupOrder = Object.keys(order)
+    .sort()
+    .filter((k) => order[k as IssueGroupBy]?.length)
+    .map((k) => [k, order[k as IssueGroupBy]]);
+  return JSON.stringify([v.layout, v.filters.match, v.filters.rules, v.filters.q ?? '', v.group, v.subGroup, v.sort, v.showSub, v.completed, groupOrder]);
 }
 
 // ---------- URL del team ----------

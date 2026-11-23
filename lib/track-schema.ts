@@ -253,10 +253,13 @@ export const relationCreateSchema = z.object({
 
 export const viewTypeSchema = z.enum(['list', 'board', 'calendar', 'gantt']);
 
+/** Filtros y display de una vista guardada: con tope de tamaño (el orden de grupos viaja acá y se comparte). */
+const viewFilters = z.record(z.unknown()).refine((f) => JSON.stringify(f).length <= 50_000, { message: 'too_large' });
+
 export const issueViewCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   viewType: viewTypeSchema,
-  filters: z.record(z.unknown()).default({}),
+  filters: viewFilters.default({}),
   sort: z.enum(ISSUE_SORTS).default('newest'),
   columns: z.array(z.string()).max(20).optional(),
   /** Vista de equipo (la ven todos los del proyecto). */
@@ -266,7 +269,7 @@ export const issueViewCreateSchema = z.object({
 export const issueViewUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   viewType: viewTypeSchema.optional(),
-  filters: z.record(z.unknown()).optional(),
+  filters: viewFilters.optional(),
   sort: z.enum(ISSUE_SORTS).optional(),
   columns: z.array(z.string()).max(20).optional(),
   shared: z.boolean().optional(),
