@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
 import TableScroll from './TableScroll';
@@ -13,6 +13,8 @@ import InlineEditCell from './InlineEditCell';
 import InlineStageCell from './InlineStageCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { PreviewNav, useListNav } from './RecordNav';
+import { useCrmLive } from './useCrmLive';
 import TagDots, { type TagDot } from './TagDots';
 import type { BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
@@ -162,6 +164,11 @@ export default function DealsTable({ viewCols, viewFreeze,
   const cols = useTableColumns({ entity: 'deals', columns: columnDefs, storageKey: 'zs-deals-columns', first: 'name', viewCols, viewFreeze });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
+  // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
+  const rowIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  useListNav('deals', rowIds);
+  useCrmLive({ list: 'deals', ids: rowIds });
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
@@ -399,7 +406,14 @@ export default function DealsTable({ viewCols, viewFreeze,
       )}
 
       {previewId && (
-        <RecordPreview type="deal" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
+        <RecordPreview
+          type="deal"
+          id={previewId}
+          locale={locale}
+          owners={owners}
+          onClose={() => setPreviewId(null)}
+          nav={<PreviewNav ids={rowIds} id={previewId} onStep={setPreviewId} />}
+        />
       )}
     </>
   );

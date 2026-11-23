@@ -5481,5 +5481,11 @@
     },
     "clear": "Clear selection",
     "error": "Couldn't select them. Try again."
+  },
+  "recordNav": {
+    "label": "Records in this list",
+    "previous": "Previous record",
+    "next": "Next record",
+    "position": "{n} of {total}"
   }
 }

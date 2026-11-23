@@ -1,6 +1,7 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCrmLive } from './useCrmLive';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
@@ -102,6 +103,8 @@ interface RecordPreviewProps {
   onClose: () => void;
   /** Personas del workspace: la propiedad Propietario se edita con esta lista (sin ella, no aparece). */
   owners?: Array<{ value: string; label: string }>;
+  /** Anterior / siguiente de la tabla o el board que la abrió (RecordNav.tsx PreviewNav). */
+  nav?: ReactNode;
 }
 
 const PLURAL: Record<PreviewType, 'contacts' | 'companies' | 'deals'> = {
@@ -151,7 +154,7 @@ function initials(name: string): string {
  * editables en línea con los mismos permisos que la ficha (el servidor los
  * aplica: PATCH /api/crm/<objeto>/<id>), asociaciones y "Abrir registro".
  */
-export default function RecordPreview({ type, id, locale, onClose, owners = [] }: RecordPreviewProps) {
+export default function RecordPreview({ type, id, locale, onClose, owners = [], nav }: RecordPreviewProps) {
   const t = useTranslations('crm');
   const plural = PLURAL[type];
   const titleId = useId();
@@ -198,6 +201,12 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
   useEffect(() => {
     if (showRecent) void loadRecent();
   }, [showRecent, loadRecent]);
+
+  // En vivo: si un compañero cambia este registro (algo que esta persona ve), se vuelve a leer.
+  useCrmLive({ record: { kind: type, id } }, () => {
+    void reload();
+    if (showRecent) void loadRecent();
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -684,6 +693,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
         <div className="preview-head">
           <span className="preview-kind">{t(`preview.kind.${type}`)}</span>
           <span className="preview-head-tools">
+            {nav}
             {isAdmin && (
               <Link
                 href={`/app/crm/settings?tab=data&object=${plural}#preview-layout`}

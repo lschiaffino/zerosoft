@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -9,6 +9,8 @@ import { isDealRotting } from '@/lib/crm-rotting';
 import { announceQueued, isQueuedResponse } from '@/lib/offline-queue';
 import DealForm from './DealForm';
 import RecordPreview from './RecordPreview';
+import { PreviewNav, useListNav } from './RecordNav';
+import { useCrmLive } from './useCrmLive';
 import { scoreBand } from './DealInsightCard';
 import { AddStageColumn } from './AddPipelineStage';
 import { parseRequiredFields } from '@/lib/crm-stage-rules';
@@ -167,6 +169,25 @@ export default function DealsBoard({
   const [moveMenuPos, setMoveMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const moveMenuRef = useRef<HTMLDivElement | null>(null);
   const moveCardEl = useRef<HTMLElement | null>(null);
+
+  // Ficha y vista previa caminan por las tarjetas en el orden del board (columna por columna).
+  const dealIds = useMemo(() => cols.flatMap((c) => c.deals.map((d) => d.id)), [cols]);
+  useListNav('deals', dealIds);
+  // Un compañero mueve o cambia un deal que esta persona ve: el board se refresca, pero nunca en medio de
+  // un arrastre o de un diálogo de movimiento (se espera a que termine).
+  const busyRef = useRef(false);
+  busyRef.current = !!(pendingMove || reqMove || approval || moveMenuFor);
+  const refreshWhenIdle = useCallback(() => {
+    const go = () => {
+      if (dragRef.current || busyRef.current) {
+        window.setTimeout(go, 1000);
+        return;
+      }
+      router.refresh();
+    };
+    go();
+  }, [router]);
+  useCrmLive({ list: 'deals', ids: dealIds, pipelineId }, refreshWhenIdle);
 
   useEffect(() => {
     if (!moveMenuFor) return;
@@ -852,7 +873,14 @@ export default function DealsBoard({
       )}
 
       {previewId && (
-        <RecordPreview type="deal" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
+        <RecordPreview
+          type="deal"
+          id={previewId}
+          locale={locale}
+          owners={owners}
+          onClose={() => setPreviewId(null)}
+          nav={<PreviewNav ids={dealIds} id={previewId} onStep={setPreviewId} />}
+        />
       )}
 
       {approval && (

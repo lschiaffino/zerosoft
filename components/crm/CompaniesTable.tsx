@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import HeaderCell, { ColumnMenuContext } from './ColumnHeader';
@@ -11,6 +11,8 @@ import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { PreviewNav, useListNav } from './RecordNav';
+import { useCrmLive } from './useCrmLive';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
@@ -101,6 +103,11 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
   const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
+  // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
+  const rowIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  useListNav('companies', rowIds);
+  useCrmLive({ list: 'companies', ids: rowIds });
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
   // (la barra masiva nunca actúa sobre registros que ya no se ven).
@@ -367,7 +374,14 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
       )}
 
       {previewId && (
-        <RecordPreview type="company" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
+        <RecordPreview
+          type="company"
+          id={previewId}
+          locale={locale}
+          owners={owners}
+          onClose={() => setPreviewId(null)}
+          nav={<PreviewNav ids={rowIds} id={previewId} onStep={setPreviewId} />}
+        />
       )}
     </>
   );

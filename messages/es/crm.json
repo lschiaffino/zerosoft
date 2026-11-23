@@ -5481,5 +5481,11 @@
     },
     "clear": "Quitar la selección",
     "error": "No se pudieron elegir. Probá de nuevo."
+  },
+  "recordNav": {
+    "label": "Registros de esta lista",
+    "previous": "Registro anterior",
+    "next": "Registro siguiente",
+    "position": "{n} de {total}"
   }
 }

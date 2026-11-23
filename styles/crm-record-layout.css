@@ -24,6 +24,16 @@
 }
 .rec-topbar-actions { justify-content: flex-end; margin-left: auto; }
 
+/* Anterior / siguiente de la lista de donde vino (ficha y vista previa). */
+.rec-nav { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.rec-topbar .rec-nav { margin-right: auto; }
+.rec-nav-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; }
+.rec-nav-btn:disabled { opacity: 0.4; cursor: default; }
+.rec-nav-pos { padding: 0 4px; font-size: 0.8125rem; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (pointer: coarse) {
+  .rec-nav-btn { min-width: 40px; min-height: 40px; }
+}
+
 .rec3 {
   display: grid;
   grid-template-columns: 276px minmax(0, 1fr) 264px;

@@ -9,7 +9,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'HubSpot',
   alsoCompared: ['Pipedrive', 'Attio'],
-  lastReviewed: '2026-11-22',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'objects', label: { en: 'Objects and records', es: 'Objetos y registros', pt: 'Objetos e registros' } },
     { id: 'properties', label: { en: 'Properties', es: 'Propiedades', pt: 'Propriedades' } },
@@ -487,6 +487,22 @@ const parity: ProductParity = {
       label: { en: 'Preview a record in a side panel and edit it there', es: 'Vista previa de un registro en un panel lateral, editable ahí', pt: 'Prévia de um registro em um painel lateral, editável ali' },
       detail: { en: 'Opens from the contacts, companies and deals tables, the deal board and the work queue. Properties are edited in place with the same field permissions as the record page. Admins choose, per object, which properties show in About and which cards follow (deal stage, recent activity, associations, custom properties), from Settings or the Customize link in the panel. Quick actions log a note, a call or a task, send an email or share a meeting link, and associated records are added or removed from their cards. Missing: other objects (leads, custom objects) and per-team layouts', es: 'Se abre desde las tablas de contactos, empresas y deals, el board de deals y la cola de trabajo. Las propiedades se editan ahí con los mismos permisos por campo que la ficha. Los admins eligen, por objeto, qué propiedades muestra Acerca de y qué tarjetas siguen (etapa del deal, actividad reciente, asociaciones, propiedades personalizadas), desde Ajustes o con Personalizar en el panel. Las acciones rápidas registran una nota, una llamada o una tarea, mandan un email o comparten un link de reunión, y los registros asociados se agregan o quitan desde sus tarjetas. Falta: otros objetos (leads, objetos propios) y vistas por equipo', pt: 'Abre nas tabelas de contatos, empresas e negócios, no quadro de negócios e na fila de trabalho. As propriedades são editadas ali com as mesmas permissões por campo do registro. Os admins escolhem, por objeto, quais propriedades aparecem em Sobre e quais cartões vêm depois (etapa do negócio, atividade recente, associações, propriedades personalizadas), nos Ajustes ou em Personalizar no painel. As ações rápidas registram uma nota, uma ligação ou uma tarefa, enviam um e-mail ou compartilham um link de reunião, e os registros associados são adicionados ou removidos nos seus cartões. Falta: outros objetos (leads, objetos próprios) e layouts por equipe' },
       status: 'partial',
+      competitorHas: true,
+    },
+    {
+      id: 'record-prev-next',
+      area: 'record',
+      label: { en: 'Previous and next record from the list you came from', es: 'Registro anterior y siguiente de la lista de donde viniste', pt: 'Registro anterior e próximo da lista de onde você veio' },
+      detail: { en: 'The record page and the preview step through the rows of the table or the cards of the board they were opened from, in its order and with its filters, with ‹ › buttons, the position (3 of 25) and the J and K keys; Back returns to that list with its filters. It walks the page on screen: past the last row of the page it stops', es: 'La ficha y la vista previa recorren las filas de la tabla o las tarjetas del board de donde se abrieron, en su orden y con sus filtros, con los botones ‹ ›, la posición (3 de 25) y las teclas J y K; Volver regresa a esa lista con sus filtros. Recorre la página que está en pantalla: después de la última fila de la página se detiene', pt: 'O registro e a prévia percorrem as linhas da tabela ou os cartões do quadro de onde foram abertos, na sua ordem e com seus filtros, com os botões ‹ ›, a posição (3 de 25) e as teclas J e K; Voltar retorna a essa lista com seus filtros. Percorre a página que está na tela: depois da última linha da página ele para' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
+      id: 'live-updates',
+      area: 'record',
+      label: { en: 'Lists, boards and records update live when a teammate changes something', es: 'Listas, boards y fichas que se actualizan solos cuando un compañero cambia algo', pt: 'Listas, quadros e registros que se atualizam sozinhos quando um colega muda algo' },
+      detail: { en: 'Contacts, companies and deals tables, the deal board, the record page and the preview refresh within a few seconds while the tab is open. Only what the viewer can see counts: a record outside their visibility or a hidden property never triggers a refresh', es: 'Las tablas de contactos, empresas y deals, el board de deals, la ficha y la vista previa se refrescan en unos segundos mientras la pestaña está abierta. Solo cuenta lo que la persona ve: un registro fuera de su visibilidad o una propiedad oculta nunca dispara un refresco', pt: 'As tabelas de contatos, empresas e negócios, o quadro de negócios, o registro e a prévia se atualizam em poucos segundos enquanto a aba está aberta. Só conta o que a pessoa vê: um registro fora da sua visibilidade ou uma propriedade oculta nunca dispara uma atualização' },
+      status: 'have',
       competitorHas: true,
     },
     {
