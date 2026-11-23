@@ -91,7 +91,7 @@
     "role_unfilled": "Completá nombre y email de cada rol.",
     "no_signer_role": "La plantilla necesita un rol que firme.",
     "csv_empty": "El CSV no tiene filas.",
-    "csv_header": "El CSV necesita un encabezado con name y email.",
+    "csv_header": "El CSV necesita un encabezado con name y email, o una columna de nombre y una de email para un rol.",
     "csv_too_many": "Hasta 50 filas por tanda.",
     "invalid_roles": "Revisá los roles: cada uno con nombre y una clave distinta.",
     "invalid_row": "falta el nombre o un email válido",
@@ -120,7 +120,8 @@
     "pdf_unsupported": "Este PDF usa una compresión que no aceptamos. Imprimilo a un PDF nuevo y subí ese.",
     "admin_only": "Solo un admin puede borrar un sobre completo.",
     "document_changed": "El documento guardado no coincide con el que se envió. No se firmó nada; escribí a soporte.",
-    "bulk_daily_cap": "El envío masivo está limitado a 1.000 sobres por día por workspace."
+    "bulk_daily_cap": "El envío masivo está limitado a 1.000 sobres por día por workspace.",
+    "csv_role_incomplete": "Un rol del CSV tiene columna de nombre sin la de email, o al revés."
   },
   "new": {
     "title": "Nuevo sobre",
@@ -322,7 +323,7 @@
     "roleName": "Nombre del rol",
     "addRole": "Sumar rol",
     "useDraft": "Crear como borrador",
-    "bulkHelp": "Un sobre por fila, hasta {max} por día. El CSV necesita un encabezado con name y email: cada fila completa el rol {role}. Los otros roles de abajo son iguales en todos los sobres. Sale en tandas; mandar la misma lista de nuevo no duplica sobres.",
+    "bulkHelp": "Un sobre por fila, hasta {max} por día. Con las columnas name y email, cada fila completa el rol {role}. Sale en tandas; mandar la misma lista de nuevo no duplica sobres.",
     "csv": "CSV",
     "csvFile": "O subí un archivo CSV",
     "bulkSent": "{n, plural, one {# sobre enviado} other {# sobres enviados}}.",
@@ -330,7 +331,11 @@
     "bulkSend": "Enviar a la lista",
     "bulkUnavailable": "El envío masivo necesita un documento y un rol que firme.",
     "deleteTitle": "¿Borrar esta plantilla?",
-    "deleteBody": "Los sobres ya creados desde ella no cambian."
+    "deleteBody": "Los sobres ya creados desde ella no cambian.",
+    "bulkColumnsHelp": "Para completar otros roles desde la lista, sumá una columna de nombre y una de email para cada uno, como \"Manager name\" y \"Manager email\". Una columna title o message cambia el título o el mensaje de ese sobre. Los roles sin columnas se completan abajo y son iguales para todos los sobres.",
+    "bulkAllRoles": "Empezar una lista con todos los roles",
+    "bulkFromCsv": "Desde el CSV: {roles}.",
+    "bulkRoleIncomplete": "El CSV tiene solo una de las columnas de nombre y email para {role}."
   },
   "viewer": {
     "error": "No se pudo mostrar el documento. Recargá la página para probar de nuevo.",

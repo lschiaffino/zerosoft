@@ -91,7 +91,7 @@
     "role_unfilled": "Preencha nome e email de cada papel.",
     "no_signer_role": "O modelo precisa de um papel que assina.",
     "csv_empty": "O CSV não tem linhas.",
-    "csv_header": "O CSV precisa de um cabeçalho com name e email.",
+    "csv_header": "O CSV precisa de um cabeçalho com name e email, ou de uma coluna de nome e uma de email para um papel.",
     "csv_too_many": "Até 50 linhas por lote.",
     "invalid_roles": "Verifique os papéis: cada um com nome e uma chave diferente.",
     "invalid_row": "falta o nome ou um email válido",
@@ -120,7 +120,8 @@
     "pdf_unsupported": "Este PDF usa uma compressão que não aceitamos. Imprima para um novo PDF e envie esse.",
     "admin_only": "Só um admin pode excluir um envelope concluído.",
     "document_changed": "O documento guardado não corresponde ao que foi enviado. Nada foi assinado; fale com o suporte.",
-    "bulk_daily_cap": "O envio em massa é limitado a 1.000 envelopes por dia por workspace."
+    "bulk_daily_cap": "O envio em massa é limitado a 1.000 envelopes por dia por workspace.",
+    "csv_role_incomplete": "Um papel do CSV tem coluna de nome sem a de email, ou o contrário."
   },
   "new": {
     "title": "Novo envelope",
@@ -322,7 +323,7 @@
     "roleName": "Nome do papel",
     "addRole": "Adicionar papel",
     "useDraft": "Criar como rascunho",
-    "bulkHelp": "Um envelope por linha, até {max} por dia. O CSV precisa de um cabeçalho com name e email: cada linha preenche o papel {role}. Os outros papéis abaixo são iguais em todos os envelopes. Sai em lotes; enviar a mesma lista de novo não duplica envelopes.",
+    "bulkHelp": "Um envelope por linha, até {max} por dia. Com as colunas name e email, cada linha preenche o papel {role}. Sai em lotes; enviar a mesma lista de novo não duplica envelopes.",
     "csv": "CSV",
     "csvFile": "Ou envie um arquivo CSV",
     "bulkSent": "{n, plural, one {# envelope enviado} other {# envelopes enviados}}.",
@@ -330,7 +331,11 @@
     "bulkSend": "Enviar para a lista",
     "bulkUnavailable": "O envio em massa precisa de um documento e um papel que assina.",
     "deleteTitle": "Excluir este modelo?",
-    "deleteBody": "Os envelopes já criados a partir dele não mudam."
+    "deleteBody": "Os envelopes já criados a partir dele não mudam.",
+    "bulkColumnsHelp": "Para preencher outros papéis pela lista, adicione uma coluna de nome e uma de email para cada um, como \"Manager name\" e \"Manager email\". Uma coluna title ou message muda o título ou a mensagem daquele envelope. Os papéis sem colunas são preenchidos abaixo e são iguais para todos os envelopes.",
+    "bulkAllRoles": "Começar uma lista com todos os papéis",
+    "bulkFromCsv": "Do CSV: {roles}.",
+    "bulkRoleIncomplete": "O CSV tem só uma das colunas de nome e email para {role}."
   },
   "viewer": {
     "error": "Não foi possível mostrar o documento. Recarregue a página para tentar de novo.",

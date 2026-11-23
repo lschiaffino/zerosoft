@@ -91,7 +91,7 @@
     "role_unfilled": "Fill in a name and email for every role.",
     "no_signer_role": "The template needs a signer role.",
     "csv_empty": "The CSV has no rows.",
-    "csv_header": "The CSV needs a header with name and email.",
+    "csv_header": "The CSV needs a header with name and email, or a name and email column for a role.",
     "csv_too_many": "Up to 50 rows per batch.",
     "invalid_roles": "Check the roles: each needs a name and a different key.",
     "invalid_row": "missing name or a valid email",
@@ -120,7 +120,8 @@
     "pdf_unsupported": "This PDF uses a compression we do not accept. Print it to a new PDF and upload that.",
     "admin_only": "Only an admin can delete a completed envelope.",
     "document_changed": "The stored document does not match the one that was sent. Nothing was signed; contact support.",
-    "bulk_daily_cap": "Bulk send is limited to 1,000 envelopes a day per workspace."
+    "bulk_daily_cap": "Bulk send is limited to 1,000 envelopes a day per workspace.",
+    "csv_role_incomplete": "A role in the CSV has a name column without an email column, or the other way round."
   },
   "new": {
     "title": "New envelope",
@@ -322,7 +323,7 @@
     "roleName": "Role name",
     "addRole": "Add role",
     "useDraft": "Create as draft",
-    "bulkHelp": "One envelope per row, up to {max} a day. The CSV needs a header with name and email: each row fills the {role} role. The other roles below are the same for every envelope. It goes out in batches; sending the same list again does not duplicate envelopes.",
+    "bulkHelp": "One envelope per row, up to {max} a day. With name and email columns, each row fills the {role} role. It goes out in batches; sending the same list again does not duplicate envelopes.",
     "csv": "CSV",
     "csvFile": "Or upload a CSV file",
     "bulkSent": "{n, plural, one {# envelope sent} other {# envelopes sent}}.",
@@ -330,7 +331,11 @@
     "bulkSend": "Send to the list",
     "bulkUnavailable": "Bulk send needs a document and a signer role.",
     "deleteTitle": "Delete this template?",
-    "deleteBody": "Envelopes already created from it are not affected."
+    "deleteBody": "Envelopes already created from it are not affected.",
+    "bulkColumnsHelp": "To fill other roles from the list, add a name and an email column for each, such as \"Manager name\" and \"Manager email\". A title or message column changes the title or message of that envelope. Roles without columns are filled below and are the same for every envelope.",
+    "bulkAllRoles": "Start a list with every role",
+    "bulkFromCsv": "From the CSV: {roles}.",
+    "bulkRoleIncomplete": "The CSV has only one of the name and email columns for {role}."
   },
   "viewer": {
     "error": "The document could not be shown. Reload the page to try again.",
