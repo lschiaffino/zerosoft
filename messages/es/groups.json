@@ -2094,7 +2094,8 @@
         "media": "Archivos",
         "notes": "Notas",
         "tasks": "Tareas",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "IA"
       },
       "empty": {
         "media": "Todavía no hay fotos ni videos en este chat",
@@ -2114,7 +2115,57 @@
       "untitledDeal": "Negocio sin nombre",
       "crmOff": "La app CRM está apagada para vos. HubSpot aparece acá cuando tu workspace lo conecta.",
       "sharedLabel": "Compartido en este chat",
-      "noteAttachment": "Nota con un adjunto"
+      "noteAttachment": "Nota con un adjunto",
+      "ai": {
+        "askTitle": "Preguntale a la IA",
+        "askLabel": "Pregunta sobre este chat",
+        "askPlaceholder": "¿Qué pidió el cliente?",
+        "ask": "Preguntar",
+        "asking": "Leyendo el chat…",
+        "suggestionsLabel": "Preguntas sugeridas",
+        "suggest": {
+          "summary": "Resumí este chat",
+          "asked": "¿Qué pidió el cliente?",
+          "pending": "¿Qué quedó pendiente?"
+        },
+        "basedOn": "Según {n, plural, one {# mensaje} other {# mensajes}}",
+        "askHint": "La IA lee solo los mensajes de este chat que vos ves. Nunca manda nada.",
+        "analyzeTitle": "Sentimiento y tareas",
+        "analyzeHint": "Lee el chat, dice cómo está la otra parte y por qué, y propone tareas. No se crea nada hasta que lo aprobás.",
+        "analyze": "Analizar el chat",
+        "reanalyze": "Volver a analizar",
+        "analyzing": "Analizando…",
+        "sentimentLabel": "Sentimiento",
+        "sentiment": {
+          "positive": "Positivo",
+          "neutral": "Neutral",
+          "negative": "Negativo"
+        },
+        "proposalsTitle": "Tareas propuestas",
+        "noProposals": "No hay nada pendiente para seguir en este chat.",
+        "titleLabel": "Título",
+        "kindLabel": "Crear como",
+        "kind": {
+          "task": "Tarea",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Prioridad",
+        "priority": {
+          "low": "Baja",
+          "medium": "Media",
+          "high": "Alta"
+        },
+        "create": "Crear",
+        "creating": "Creando…",
+        "dismiss": "Descartar",
+        "createdTask": "Tarea creada:",
+        "createdTicket": "Ticket creado:",
+        "createError": "No se pudo crear. Probá de nuevo.",
+        "whereLines": "Las tareas van a la pestaña Tareas de este chat y a CRM › Tareas. Los tickets, a Tickets.",
+        "whereInbox": "Las tareas van a CRM › Tareas, a tu nombre.",
+        "crmOff": "La app CRM está apagada para vos: estas no se pueden crear como tareas acá.",
+        "noMessages": "Este chat todavía no tiene mensajes para leer."
+      }
     },
     "contactSheet": {
       "title": "Info. del contacto",

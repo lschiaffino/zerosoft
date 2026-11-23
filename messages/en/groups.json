@@ -2094,7 +2094,8 @@
         "media": "Files",
         "notes": "Notes",
         "tasks": "Tasks",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "AI"
       },
       "empty": {
         "media": "No photos or videos in this chat yet",
@@ -2114,7 +2115,57 @@
       "untitledDeal": "Untitled deal",
       "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it.",
       "sharedLabel": "Shared in this chat",
-      "noteAttachment": "Note with an attachment"
+      "noteAttachment": "Note with an attachment",
+      "ai": {
+        "askTitle": "Ask about this chat",
+        "askLabel": "Question about this chat",
+        "askPlaceholder": "What did the customer ask for?",
+        "ask": "Ask",
+        "asking": "Reading the chat…",
+        "suggestionsLabel": "Suggested questions",
+        "suggest": {
+          "summary": "Summarize this chat",
+          "asked": "What did the customer ask for?",
+          "pending": "What is still pending?"
+        },
+        "basedOn": "Based on {n, plural, one {# message} other {# messages}}",
+        "askHint": "The AI only reads the messages of this chat that you can see. It never sends anything.",
+        "analyzeTitle": "Sentiment and follow-ups",
+        "analyzeHint": "Reads the chat, says how the other side feels and why, and proposes tasks. Nothing is created until you approve it.",
+        "analyze": "Analyze chat",
+        "reanalyze": "Analyze again",
+        "analyzing": "Analyzing…",
+        "sentimentLabel": "Sentiment",
+        "sentiment": {
+          "positive": "Positive",
+          "neutral": "Neutral",
+          "negative": "Negative"
+        },
+        "proposalsTitle": "Proposed tasks",
+        "noProposals": "Nothing to follow up in this chat.",
+        "titleLabel": "Title",
+        "kindLabel": "Create as",
+        "kind": {
+          "task": "Task",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Priority",
+        "priority": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "create": "Create",
+        "creating": "Creating…",
+        "dismiss": "Dismiss",
+        "createdTask": "Task created:",
+        "createdTicket": "Ticket created:",
+        "createError": "Couldn't create it. Try again.",
+        "whereLines": "Tasks go to this chat's Tasks tab and to CRM › Tasks. Tickets go to Tickets.",
+        "whereInbox": "Tasks go to CRM › Tasks, assigned to you.",
+        "crmOff": "The CRM app is off for you, so these can't be created as tasks here.",
+        "noMessages": "This chat has no messages to read yet."
+      }
     },
     "contactSheet": {
       "title": "Contact info",

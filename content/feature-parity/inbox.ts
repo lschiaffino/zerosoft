@@ -404,6 +404,14 @@ const parity: ProductParity = {
         'No painel de dados: a relação e o que está pendente com um contato, ou o que rolou num grupo. Feito só com essa conversa e suas notas, e salvo até chegarem mensagens novas',
       ],
     }),
+    row('wa-ai-tab', 'whatsapp', ['AI tab in the chat: questions, sentiment and proposed tasks', 'Pestaña IA del chat: preguntas, sentimiento y tareas propuestas', 'Aba IA da conversa: perguntas, sentimento e tarefas propostas'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'In the info panel: ask the AI about the chat using only its messages, see the sentiment with a short reason, and approve proposed tasks one by one into CRM › Tasks (when you use the CRM). Nothing is created or sent on its own. Tested with the fake model',
+        'En el panel de info: preguntarle a la IA sobre el chat solo con sus mensajes, ver el sentimiento con un motivo corto y aprobar de a una las tareas propuestas, que van a CRM › Tareas (si usás el CRM). No se crea ni se manda nada solo. Probado con el modelo falso',
+        'No painel de dados: perguntar à IA sobre a conversa só com as mensagens dela, ver o sentimento com um motivo curto e aprovar uma a uma as tarefas propostas, que vão para CRM › Tarefas (se você usa o CRM). Nada é criado nem enviado sozinho. Testado com o modelo falso',
+      ],
+    }),
     row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
       detail: [
         'Swipe a message right to reply, swipe a chat right for read and pin or left for archive and more (also with the mouse), hold it to drop it on a folder. In the browser, not a native app',

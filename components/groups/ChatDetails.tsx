@@ -1,7 +1,9 @@
 'use client';
 
 import GroupMembers from './wa/GroupMembers';
-import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry } from './wa/icons';
+import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry, Sparkle } from './wa/icons';
+import ChatAiPanel from './wa/ChatAiPanel';
+import type { ChatAnswer, ChatInsights } from '@/lib/groups-ai-rules';
 import DetailsTabs from './wa/DetailsTabs';
 import SharedMedia from './wa/SharedMedia';
 import { ChatNotes, CrmDeals } from './ChatDetailsParts';
@@ -20,7 +22,7 @@ import { useGroupsInbox } from './InboxShell';
 import GroupSettingsSection from './GroupSettingsSection';
 import HubspotSection from './HubspotSection';
 import PropertyInput from './PropertyInput';
-import { ChatTasksSection } from './TaskModal';
+import { ChatTasksSection, TASKS_CHANGED } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
 import AssignmentHistory from './AssignmentHistory';
@@ -636,6 +638,39 @@ export default function ChatDetails({
     </>
   );
 
+  // Pestaña IA: preguntas, sentimiento y tareas propuestas (components/groups/wa/ChatAiPanel.tsx). Lo propuesto se
+  // crea con las mismas acciones de la pestaña Tareas (tarea del chat, que va también a CRM › Tareas, o ticket).
+  const aiSection = (
+    <ChatAiPanel
+      key={chat.id}
+      kinds={['task', 'ticket']}
+      where={tdet('ai.whereLines')}
+      ask={async (question) => {
+        const r = await api<ChatAnswer>(`/api/groups/chats/${chat.id}/summary`, { body: { action: 'ask', question, locale } });
+        return r.data ? { ok: true, data: r.data } : { ok: false, code: r.error };
+      }}
+      analyze={async () => {
+        const r = await api<ChatInsights>(`/api/groups/chats/${chat.id}/summary`, { body: { action: 'insights', locale } });
+        return r.data ? { ok: true, data: r.data } : { ok: false, code: r.error };
+      }}
+      create={async (p) => {
+        if (p.kind === 'ticket') {
+          const r = await api<TicketLite>('/api/groups/tickets', { body: { chatId: chat.id, title: p.title, priority: p.priority } });
+          if (!r.data) return { ok: false, code: r.error };
+          const tk = r.data;
+          setTickets((list) => [tk, ...(list ?? []).filter((x) => x.id !== tk.id)]);
+          return { ok: true, data: { kind: 'ticket', href: `/app/lines/tickets?open=${tk.id}`, label: `#${tk.number} ${tk.title}` } };
+        }
+        const r = await api<{ id: string; title: string }>('/api/groups/tasks', {
+          body: { chatId: chat.id, title: p.title, notes: p.notes, priority: p.priority, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        });
+        if (!r.data) return { ok: false, code: r.error };
+        window.dispatchEvent(new Event(TASKS_CHANGED));
+        return { ok: true, data: { kind: 'task', href: `/app/lines/tasks?open=${r.data.id}`, label: r.data.title || p.title } };
+      }}
+    />
+  );
+
   return (
     <div className={`gr-detail-body${compact ? ' is-compact' : ''}`}>
       {compact ? (
@@ -654,6 +689,7 @@ export default function ChatDetails({
             { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ChatNotes chatId={chat.id} people={people} me={me} version={notesKey} onJumpToMessage={onJumpToMessage} /> },
             { id: 'tasks', label: tdet('tabs.tasks'), icon: <CheckCircle size={18} />, content: tasksSection },
             { id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: crmSection },
+            { id: 'ai', label: tdet('tabs.ai'), icon: <Sparkle size={18} />, content: aiSection },
           ]}
         />
       ) : (
@@ -662,6 +698,7 @@ export default function ChatDetails({
           {membersSection}
           {crmSection}
           {tasksSection}
+          {aiSection}
           {historySection}
         </>
       )}

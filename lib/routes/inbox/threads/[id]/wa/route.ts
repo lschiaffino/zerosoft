@@ -51,6 +51,9 @@ export async function GET(req: Request, ctx: Ctx) {
  * { action: 'loadOlder' } le pide los mensajes anteriores al más viejo guardado;
  * { action: 'members', op, phones } agrega, quita o cambia admins del grupo (resultado por persona),
  * { action: 'invite', revoke? } da el link y { action: 'inviteSend', phones, text } lo manda por 1:1.
+ * Pestaña IA: { action: 'aiAsk', question, locale }, { action: 'aiInsights', locale } (sentimiento y tareas
+ * propuestas, más `canCreate`: si la persona usa el CRM) y { action: 'aiTask', title, notes?, priority? } (crea en
+ * CRM › Tareas la que la persona aprobó).
  */
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -130,6 +133,16 @@ export async function POST(req: Request, ctx: Ctx) {
   if (limited) return limited;
   return withOwner(async (owner) => {
     if (b?.action === 'summary') return iJson({ summary: await makeSummary(owner, id) });
+    // La pestaña IA del panel: preguntar sobre el chat, sentimiento y tareas propuestas, y crear la que se aprueba.
+    if (b?.action === 'aiAsk' || b?.action === 'aiInsights' || b?.action === 'aiTask') {
+      const x = b as { question?: unknown; locale?: unknown; title?: unknown; notes?: unknown; priority?: unknown };
+      const locale = x.locale === 'es' || x.locale === 'pt' ? x.locale : 'en';
+      const ai = await import('@/lib/inbox/wa-insights');
+      if (b.action === 'aiAsk') return iJson(await ai.askInboxChat(owner, id, String(x.question ?? ''), locale));
+      if (b.action === 'aiTask') return iJson({ task: await ai.createInsightTask(owner, id, x) }, 201);
+      const [insights, canCreate] = await Promise.all([ai.inboxChatInsights(owner, id, locale), ai.inboxCanCreateTasks()]);
+      return iJson({ ...insights, canCreate });
+    }
     if (b?.action === 'block' || b?.action === 'unblock') {
       await setBlocked(owner, id, b.action === 'block');
       return iJson({ ok: true });

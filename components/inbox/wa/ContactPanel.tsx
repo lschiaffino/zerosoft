@@ -10,6 +10,8 @@ import DetailsTabs from '@/components/groups/wa/DetailsTabs';
 import SharedMedia from '@/components/groups/wa/SharedMedia';
 import type { SheetSharedItem } from '@/components/groups/wa/ContactSheet';
 import ThreadNotes from './ThreadNotes';
+import ChatAiPanel from '@/components/groups/wa/ChatAiPanel';
+import type { ChatAnswer, ChatInsights } from '@/lib/groups-ai-rules';
 import { ArchiveIcon, Ban, BriefcaseIcon, Close, ExitIcon, GroupIcon, InfoIcon, MuteIcon, Note, PhotoIcon, Sparkle } from '@/components/groups/wa/icons';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
@@ -438,6 +440,38 @@ export default function ContactPanel({
             { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ThreadNotes key={thread.id} threadId={thread.id} /> },
             ...(!group && thread.channel === 'whatsapp'
               ? [{ id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: <InboxHubspotCard threadId={thread.id} /> }]
+              : []),
+            // IA: preguntas, sentimiento y tareas propuestas; la que se aprueba va a CRM › Tareas, a tu nombre.
+            ...(thread.channel === 'whatsapp'
+              ? [
+                  {
+                    id: 'ai',
+                    label: tdet('tabs.ai'),
+                    icon: <Sparkle size={18} />,
+                    content: (
+                      <ChatAiPanel
+                        key={thread.id}
+                        kinds={['task']}
+                        where={tdet('ai.whereInbox')}
+                        ask={async (question) => {
+                          const r = await api<ChatAnswer>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'aiAsk', question, locale } });
+                          return r.ok ? { ok: true, data: r.data } : { ok: false, code: r.data.error ?? 'failed' };
+                        }}
+                        analyze={async () => {
+                          const r = await api<ChatInsights & { canCreate: boolean }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'aiInsights', locale } });
+                          return r.ok ? { ok: true, data: r.data } : { ok: false, code: r.data.error ?? 'failed' };
+                        }}
+                        create={async (p) => {
+                          const r = await api<{ task: { id: string; title: string; href: string } }>(`/api/inbox/threads/${thread.id}/wa`, {
+                            method: 'POST',
+                            json: { action: 'aiTask', title: p.title, notes: p.notes, priority: p.priority },
+                          });
+                          return r.ok ? { ok: true, data: { kind: 'task', href: r.data.task.href, label: r.data.task.title } } : { ok: false, code: r.data.error ?? 'failed' };
+                        }}
+                      />
+                    ),
+                  },
+                ]
               : []),
           ]}
         />

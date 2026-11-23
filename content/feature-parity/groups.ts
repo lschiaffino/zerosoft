@@ -502,6 +502,13 @@ const parity: ProductParity = {
       ],
     }),
     row('ai-summary', 'automation', ['AI summary of a chat', 'Resumen AI de un chat', 'Resumo IA de um chat'], 'have'),
+    row('ai-chat-tab', 'automation', ['AI tab in the chat: questions, sentiment and proposed tickets', 'Pestaña IA del chat: preguntas, sentimiento y tickets propuestos', 'Aba IA da conversa: perguntas, sentimento e tickets propostos'], 'partial', {
+      detail: [
+        'In the chat panel: ask the AI about the chat (summary, what the customer asked for, what is pending) using only the messages you can see, with hidden phone numbers kept hidden; sentiment (positive, neutral or negative) with a short reason; and proposed tasks or tickets you edit and approve one by one. Nothing is created without your approval. On request, not automatic on every chat. Tested with the fake model',
+        'En el panel del chat: preguntarle a la IA sobre el chat (resumen, qué pidió el cliente, qué quedó pendiente) solo con los mensajes que ves, y con los teléfonos ocultos si los ves ocultos; el sentimiento (positivo, neutral o negativo) con un motivo corto; y tareas o tickets propuestos que editás y aprobás de a uno. No se crea nada sin tu aprobación. A pedido, no automático en cada chat. Probado con el modelo falso',
+        'No painel da conversa: perguntar à IA sobre a conversa (resumo, o que o cliente pediu, o que ficou pendente) só com as mensagens que você vê, e com os telefones ocultos se você os vê ocultos; o sentimento (positivo, neutro ou negativo) com um motivo curto; e tarefas ou tickets propostos que você edita e aprova um a um. Nada é criado sem a sua aprovação. Sob demanda, não automático em cada conversa. Testado com o modelo falso',
+      ],
+    }),
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
     }),

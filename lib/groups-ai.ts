@@ -98,7 +98,7 @@ async function groupsModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): 
   return resolveAiModel();
 }
 
-async function groupsObject<T>(opts: {
+export async function groupsObject<T>(opts: {
   ws: string;
   feature: string;
   instructions: string;

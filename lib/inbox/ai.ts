@@ -287,14 +287,14 @@ export function inboxAiState(): InboxAiState {
   return aiEnabled() ? 'ready' : 'not_configured';
 }
 
-type InboxModel = { model: LanguageModel; modelId: string; via: 'openrouter' | 'gateway' };
+export type InboxModel = { model: LanguageModel; modelId: string; via: 'openrouter' | 'gateway' };
 
 /**
  * Modelos a probar, en orden: OpenRouter (si hay clave) y después el Gateway
  * (si está). Si el primero falla de entrada o no escribe nada, se prueba el
  * siguiente: la persona no ve un error mientras haya otro modelo que ande.
  */
-function inboxAiModels(): InboxModel[] {
+export function inboxAiModels(): InboxModel[] {
   const state = inboxAiState();
   if (state === 'disabled') throw new InboxError('ai_disabled', 503);
   if (state !== 'ready') return [];
@@ -314,7 +314,7 @@ function inboxAiModels(): InboxModel[] {
   return out;
 }
 
-function mapError(err: unknown): InboxError {
+export function mapError(err: unknown): InboxError {
   if (err instanceof InboxError) return err;
   if (err instanceof AiError) return new InboxError(err.code, err.code === 'ai_disabled' ? 503 : 429);
   return new InboxError('ai_failed', 502);
@@ -344,7 +344,7 @@ export function aiFailureLogLine(via: string, modelId: string, err: unknown): st
   return `[inbox-ai] ${via} ${modelId} failed: ${name}${status}${code}`;
 }
 
-function logFailure(via: string, modelId: string, err: unknown) {
+export function logFailure(via: string, modelId: string, err: unknown) {
   console.error(aiFailureLogLine(via, modelId, err));
 }
 
