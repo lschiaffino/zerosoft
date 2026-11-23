@@ -785,10 +785,11 @@ async function trashedAttachmentUrls(owner: NoteOwner, id: string | null): Promi
 }
 
 /**
- * Saca los adjuntos que otra nota o una página de Docs del workspace siguen
- * usando (por ejemplo una copia de la nota) y los archivos que no subió esta
- * persona en este workspace para Notes (una URL pegada de otra app, de otra
- * persona o de otro workspace no se borra al vaciar la papelera).
+ * Saca los adjuntos que otra nota, una página de Docs o un archivo de Talk del
+ * workspace siguen usando (por ejemplo una copia de la nota), y los archivos
+ * que no son de Notes de este workspace (uno de otro workspace o de otra app,
+ * pegado en la nota, no se borra al vaciar la papelera). Los de antes sin app
+ * cuentan como de Notes si nada más los usa.
  */
 async function unreferencedUrls(owner: NoteOwner, urls: string[]): Promise<string[]> {
   const db = getDb();
@@ -797,11 +798,15 @@ async function unreferencedUrls(owner: NoteOwner, urls: string[]): Promise<strin
   const { isFileUrlPath } = await import('./files/url');
   for (const url of urls) {
     if (isFileUrlPath(url)) {
-      const row = await ownedFileRow(url, { userId: owner.personId });
-      if (!row || row.workspace_id !== owner.workspaceId || row.folder !== 'docs' || row.app === 'docs') continue;
+      const row = await ownedFileRow(url, { workspaceId: owner.workspaceId });
+      if (!row || row.workspace_id !== owner.workspaceId || row.folder !== 'docs' || (row.app !== null && row.app !== 'notes')) continue;
     }
-    const inDocs = await db.prepare('SELECT 1 AS x FROM docs_pages WHERE user_id = ? AND instr(content, ?) > 0 LIMIT 1').get(owner.workspaceId, url);
+    const inDocs = await db
+      .prepare('SELECT 1 AS x FROM docs_pages WHERE user_id = ? AND (instr(content, ?) > 0 OR cover_url = ?) LIMIT 1')
+      .get(owner.workspaceId, url, url);
     if (inDocs) continue;
+    const inTalk = await db.prepare('SELECT 1 AS x FROM talk_files WHERE workspace_id = ? AND url = ? LIMIT 1').get(owner.workspaceId, url).catch(() => null);
+    if (inTalk) continue;
     const hit = await db
       .prepare('SELECT 1 AS x FROM notes WHERE workspace_id = ? AND instr(content, ?) > 0 LIMIT 1')
       .get(owner.workspaceId, url);

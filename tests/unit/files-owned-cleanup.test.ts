@@ -58,22 +58,27 @@ describe('CRM: documentos y videos solo con archivos del CRM de este workspace',
 });
 
 describe('Notes: vaciar la papelera borra solo los adjuntos propios', () => {
-  it('un archivo de otra persona, de otro workspace o de Docs pegado en la nota queda; el propio se borra', async () => {
+  it('un archivo de otro workspace, de Docs o que otra nota usa queda; el de la nota se borra (también el que subió un colaborador)', async () => {
     const w = await workspaceWithMember('own-notes');
     const ws = w.owner.id;
     const owner = { workspaceId: ws, personId: w.member.id };
-    const mine = await saveUpload('docs', 'mine.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.member.id });
-    const teammate = await saveUpload('docs', 'mate.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.friend.id });
+    const mine = await saveUpload('docs', 'mine.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.member.id, app: 'notes' });
+    // Lo subió alguien con quien se compartió la nota para editar: es de la nota.
+    const collaborator = await saveUpload('docs', 'collab.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.friend.id, app: 'notes' });
+    // Uno de un compañero que su propia nota sigue usando.
+    const teammate = await saveUpload('docs', 'mate.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.friend.id, app: 'notes' });
+    await createNote({ workspaceId: ws, personId: w.friend.id }, { title: 'Theirs', content: [{ id: 'x', type: 'image', content: '', url: teammate, name: 'x.png', size: 3, mime: 'image/png' }] });
     const otherWs = await saveUpload('docs', 'far.png', 'image/png', Buffer.from('png'), { workspaceId: w.stranger.id, userId: w.member.id });
     const docsFile = await saveUpload('docs', 'page.png', 'image/png', Buffer.from('png'), { workspaceId: ws, userId: w.member.id, app: 'docs' });
     const block = (id: string, url: string) => ({ id, type: 'image' as const, content: '', url, name: `${id}.png`, size: 3, mime: 'image/png' });
     const note = await createNote(owner, {
       title: 'Pasted',
-      content: [block('a', mine), block('b', teammate), block('c', otherWs), block('d', docsFile)],
+      content: [block('a', mine), block('b', teammate), block('c', otherWs), block('d', docsFile), block('e', collaborator)],
     });
     await trashNote(owner, note.id);
     expect(await deleteNoteForever(owner, note.id)).toBe(true);
     expect(await exists(mine)).toBe(false);
+    expect(await exists(collaborator)).toBe(false);
     expect(await exists(teammate)).toBe(true);
     expect(await exists(otherWs)).toBe(true);
     expect(await exists(docsFile)).toBe(true);

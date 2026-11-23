@@ -84,6 +84,14 @@ async function isCrmMediaFile(workspaceId: string, url: string): Promise<boolean
   return !!row && row.workspace_id === workspaceId && row.folder === 'crm';
 }
 
+/** ¿Otro documento o video del workspace sigue usando el archivo? (no se borra de abajo de otro) */
+async function crmMediaUrlInUse(workspaceId: string, url: string): Promise<boolean> {
+  const db = getDb();
+  const doc = await db.prepare('SELECT 1 AS x FROM crm_documents WHERE user_id = ? AND url = ? LIMIT 1').get(workspaceId, url);
+  if (doc) return true;
+  return !!(await db.prepare('SELECT 1 AS x FROM crm_videos WHERE user_id = ? AND url = ? LIMIT 1').get(workspaceId, url));
+}
+
 // ============================================================
 // Documentos
 // ============================================================
@@ -148,7 +156,7 @@ export async function deleteDocument(userId: string, id: string): Promise<boolea
   const doc = await getDocument(userId, id);
   if (!doc) return false;
   await getDb().prepare('DELETE FROM crm_documents WHERE id = ? AND user_id = ?').run(id, userId);
-  if (await isCrmMediaFile(userId, doc.url)) await deleteUploads([doc.url]);
+  if ((await isCrmMediaFile(userId, doc.url)) && !(await crmMediaUrlInUse(userId, doc.url))) await deleteUploads([doc.url]);
   return true;
 }
 
@@ -478,7 +486,7 @@ export async function deleteVideo(userId: string, id: string): Promise<boolean> 
   const v = await getVideo(userId, id);
   if (!v) return false;
   await getDb().prepare('DELETE FROM crm_videos WHERE id = ? AND user_id = ?').run(id, userId);
-  if (await isCrmMediaFile(userId, v.url)) await deleteUploads([v.url]);
+  if ((await isCrmMediaFile(userId, v.url)) && !(await crmMediaUrlInUse(userId, v.url))) await deleteUploads([v.url]);
   return true;
 }
 
