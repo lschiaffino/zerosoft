@@ -32,6 +32,8 @@ import { readListNav } from './trackNav';
 import { restoreCursorOnReturn } from './kbCursor';
 import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { dropUndo, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
+import { fetchDuplicateMark, requestMarkDuplicate, requestUnmarkDuplicate, undoMarkDuplicate } from './duplicateApi';
+import type { DuplicateMarkView } from '@/lib/track-duplicates';
 import { useTrackLive } from './useTrackLive';
 import type { TrackUiLabels } from './ui-labels';
 import type { TrackCycleRow, TrackStatusRow } from '@/lib/db';
@@ -183,6 +185,8 @@ interface IssueDetailClientProps {
   initialSubscribed: boolean;
   /** Si el issue está en sus favoritos (estrella). */
   initialFavorite?: boolean;
+  /** Marca de duplicado (banner "Duplicado de…"); el original solo si quien mira lo ve. */
+  initialDuplicateMark?: DuplicateMarkView | null;
   /** Escala de estimación del team (⇧E). */
   estimateScale?: string;
   labels: DetailLabels;
@@ -246,7 +250,7 @@ export default function IssueDetailClient({
   userId,
   initialIssue,
   initialProjectName,
-  initialStatuses,
+  initialStatuses: statusesProp,
   initialCycles,
   initialMilestones = [],
   initialReminder,
@@ -259,6 +263,7 @@ export default function IssueDetailClient({
   initialReactions = [],
   initialSubscribed,
   initialFavorite = false,
+  initialDuplicateMark = null,
   estimateScale,
   labels,
   ui,
@@ -295,6 +300,9 @@ export default function IssueDetailClient({
   const subscriptionApi = useRef<{ subscribed: boolean; toggle: () => void } | null>(null);
   // Estrella (favoritos en el sidebar, como Linear).
   const [favorite, setFavorite] = useState(initialFavorite);
+  // Estados del team: se vuelven a pedir cuando aparece uno nuevo (el Duplicate de la primera marca).
+  const [initialStatuses, setTeamStatuses] = useState(statusesProp);
+  const [dupMark, setDupMark] = useState<DuplicateMarkView | null>(initialDuplicateMark);
   const toggleFavorite = useCallback(async () => {
     const next = !favorite;
     setFavorite(next);
@@ -404,8 +412,10 @@ export default function IssueDetailClient({
   }, [issue.id]);
 
   const refreshRelations = useCallback(async () => {
-    const res = await fetch(`/api/track/issues/${issue.id}/relations`).catch(() => null);
+    // La marca de duplicado va con las relaciones: borrar la relación o un cambio de otro la saca.
+    const [res, mark] = await Promise.all([fetch(`/api/track/issues/${issue.id}/relations`).catch(() => null), fetchDuplicateMark(issue.id)]);
     if (res?.ok) setRelations(((await res.json()) as { rows: TrackIssueRelationWithTarget[] }).rows);
+    if (mark !== undefined) setDupMark(mark);
   }, [issue.id]);
 
   const handleIssueChange = useCallback(async () => {
@@ -886,15 +896,57 @@ export default function IssueDetailClient({
     [labels.relations, refreshRelations, refreshActivities],
   );
 
-  // Como "Mark as duplicate" de Linear: relación con el original y el issue pasa a cancelado.
-  const markDuplicate = useCallback(
-    async (target: TrackIssueWithStatus, canonical: TrackIssueWithStatus) => {
-      if (!(await addRelation(target.id, canonical.id, 'duplicates'))) return;
-      const cancelled = [...initialStatuses].sort((a, b) => a.position - b.position).find((st) => st.category === 'cancelled');
-      if (cancelled && target.id === issueRef.current.id) await patchIssueRef.current({ statusId: cancelled.id }, { undo: false });
-      pushNotice(tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }));
+  // Como "Mark as duplicate" de Linear: estado Duplicate del team, relación con el original y
+  // suscriptos y pedidos al original (lib/track-duplicates). ⌘Z o "Quitar duplicado" lo deshacen.
+  const afterDuplicateChange = useCallback(
+    async (targetId: string, mark: DuplicateMarkView | null) => {
+      if (targetId === issueRef.current.id) {
+        setDupMark(mark);
+        const res = await fetch(`/api/track/projects/${issueRef.current.project_id}/statuses`).catch(() => null);
+        if (res?.ok) setTeamStatuses(((await res.json()) as { rows: TrackStatusRow[] }).rows);
+        await Promise.all([refreshIssue(), refreshActivities(), refreshRelations()]);
+      } else {
+        await refreshChildren();
+      }
     },
-    [addRelation, initialStatuses, tc],
+    [refreshIssue, refreshActivities, refreshRelations, refreshChildren],
+  );
+  const unmarkDuplicate = useCallback(
+    async (target: { id: string; identifier: string }, opts: { undo?: () => Promise<void> } = {}) => {
+      const res = await requestUnmarkDuplicate(target.id);
+      if (!res.ok) {
+        setSaveError(tx('dup.error'));
+        return false;
+      }
+      await afterDuplicateChange(target.id, null);
+      if (opts.undo) pushUndo(tx('dup.unmarked', { id: target.identifier }), opts.undo);
+      return true;
+    },
+    [afterDuplicateChange, tx],
+  );
+  const markDuplicate = useCallback(
+    async (target: TrackIssueWithStatus, canonical: { id: string; identifier: string }) => {
+      const res = await requestMarkDuplicate(target.id, canonical.id);
+      if (!res.ok) {
+        setSaveError(tx('dup.error'));
+        return;
+      }
+      await afterDuplicateChange(target.id, res.mark);
+      const previous = res.previousOriginalId;
+      pushUndo(
+        tc('markedDuplicate', { id: target.identifier, of: canonical.identifier }),
+        async () => {
+          const back = await undoMarkDuplicate(target.id, previous);
+          if (back.ok) await afterDuplicateChange(target.id, back.mark);
+          else setSaveError(tx('dup.error'));
+        },
+        async () => {
+          const again = await requestMarkDuplicate(target.id, canonical.id);
+          if (again.ok) await afterDuplicateChange(target.id, again.mark);
+        },
+      );
+    },
+    [afterDuplicateChange, tc, tx],
   );
 
   const relationActions = useCallback((): CommandAction[] => {
@@ -922,9 +974,9 @@ export default function IssueDetailClient({
     });
     const me = () => issueRef.current.id;
     return [
-      make('relate-blocks', tx('rel.blocks'), (r) => void addRelation(me(), r.id, 'blocks')),
-      make('relate-blocked', tx('rel.blockedBy'), (r) => void addRelation(r.id, me(), 'blocks')),
-      make('relate-related', tx('rel.related'), (r) => void addRelation(me(), r.id, 'related')),
+      { ...make('relate-blocks', tx('rel.blocks'), (r) => void addRelation(me(), r.id, 'blocks')), meta: 'M X' },
+      { ...make('relate-blocked', tx('rel.blockedBy'), (r) => void addRelation(r.id, me(), 'blocks')), meta: 'M B' },
+      { ...make('relate-related', tx('rel.related'), (r) => void addRelation(me(), r.id, 'related')), meta: 'M R' },
     ];
   }, [tc, tx, addRelation]);
 
@@ -1263,7 +1315,7 @@ export default function IssueDetailClient({
                   {moreItem('dup', tc('markDuplicate'), () => {
                     close();
                     window.setTimeout(() => openCommandMenu('duplicate', { targetId: issue.id }), 0);
-                  })}
+                  }, 'M M', { testId: 'track-menu-duplicate' })}
                   {moreItem('move', tc('moveToTeam'), () => {
                     close();
                     window.setTimeout(() => openCommandMenu('move-team', { targetId: issue.id }), 0);
@@ -1334,6 +1386,46 @@ export default function IssueDetailClient({
             <span>{tx('side.archived')}</span>
             <button type="button" className="btn btn-sm" onClick={() => void setArchived([issue.id], false)} data-testid="track-restore-issue">
               {tx('side.restore')}
+            </button>
+          </div>
+        )}
+        {dupMark && (
+          <div className="track-duplicate-banner" role="status" data-testid="track-duplicate-banner">
+            <span className="track-duplicate-banner-icon" aria-hidden>
+              <TrackIcon name="duplicate" size={14} />
+            </span>
+            <span className="track-duplicate-banner-text">
+              {dupMark.original ? (
+                <>
+                  <span>{tx('dup.of')}</span>{' '}
+                  <Link href={issueHref(dupMark.original)} className="track-duplicate-banner-link" data-testid="track-duplicate-original">
+                    <span className="track-identifier">{dupMark.original.identifier}</span>{' '}
+                    <span className="track-duplicate-banner-title">{dupMark.original.title}</span>
+                  </Link>
+                </>
+              ) : (
+                tx('dup.hidden')
+              )}
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm track-duplicate-banner-action"
+              data-testid="track-unmark-duplicate"
+              onClick={() => {
+                const target = { id: issue.id, identifier: issue.identifier };
+                const originalRef = dupMark.original;
+                void unmarkDuplicate(target, {
+                  // ⌘Z vuelve a marcarlo (sin sumar otra entrada a la pila).
+                  undo: originalRef
+                    ? async () => {
+                        const again = await requestMarkDuplicate(target.id, originalRef.id);
+                        if (again.ok) await afterDuplicateChange(target.id, again.mark);
+                      }
+                    : undefined,
+                });
+              }}
+            >
+              {tx('dup.unmark')}
             </button>
           </div>
         )}

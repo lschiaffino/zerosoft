@@ -69,6 +69,14 @@ interface RichEditorProps {
   className?: string;
   /** Comentarios: alto mínimo chico. */
   compact?: boolean;
+  /**
+   * Referencias a issues de Track ("#", issues en el menú de "@" y chips con
+   * estado). false fuera de Track (notas y comentarios del CRM): "@" solo
+   * sugiere personas y no se consulta Track.
+   */
+  issueRefs?: boolean;
+  /** Barra de formato fija (negrita, cursiva, listas, link, mención), como el editor de notas de HubSpot. */
+  toolbar?: boolean;
 }
 
 type TriggerKind = 'slash' | 'mention' | 'issue';
@@ -154,6 +162,8 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     autoFocus,
     className = '',
     compact = false,
+    issueRefs = true,
+    toolbar: fixedToolbar = false,
   },
   ref,
 ) {
@@ -168,6 +178,8 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
   onChangeRef.current = onChange;
   const membersRef = useRef(members);
   membersRef.current = members;
+  const issueRefsRef = useRef(issueRefs);
+  issueRefsRef.current = issueRefs;
   // La lectura (MarkdownView) muestra las menciones con el nombre de estas personas.
   useEffect(() => rememberMembers(members), [members]);
   const [empty, setEmpty] = useState(!value.trim());
@@ -204,7 +216,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     };
     paint();
     const ids = Array.from(new Set(refs.map((r) => r.dataset.issueRef!).filter(Boolean)));
-    if (ids.length) void resolveRefs(ids).then(paint);
+    if (ids.length && issueRefsRef.current) void resolveRefs(ids).then(paint);
     for (const chip of Array.from(root.querySelectorAll<HTMLElement>('[data-mention]'))) {
       const email = chip.dataset.mention!.slice(1).toLowerCase();
       const m = membersRef.current.find((x) => x.email.toLowerCase() === email);
@@ -506,7 +518,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
 
   // ---------- menú "/", "@" y "#" ----------
 
-  const wantsIssues = trigger && (trigger.kind === 'issue' || trigger.kind === 'mention');
+  const wantsIssues = issueRefs && trigger && (trigger.kind === 'issue' || trigger.kind === 'mention');
   const issueQuery = wantsIssues ? trigger.query : null;
   useEffect(() => {
     if (issueQuery === null) {
@@ -590,7 +602,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       emit();
     };
     if (trigger.kind === 'slash') {
-      return SLASH.filter((s) => !q || te(`slash.${s.cmd}`).toLowerCase().includes(q) || s.keywords.includes(q)).map((s) => ({
+      return SLASH.filter((s) => (s.cmd !== 'image' || onUpload) && (!q || te(`slash.${s.cmd}`).toLowerCase().includes(q) || s.keywords.includes(q))).map((s) => ({
         key: s.cmd,
         label: te(`slash.${s.cmd}`),
         meta: s.hint,
@@ -659,6 +671,10 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       return;
     }
     const kind: TriggerKind = m[2] === '/' ? 'slash' : m[2] === '@' ? 'mention' : 'issue';
+    if (kind === 'issue' && !issueRefs) {
+      setTrigger(null);
+      return;
+    }
     const start = m.index + m[1].length;
     // "/" solo al empezar un bloque o después de un espacio (no en una URL a medias).
     setTrigger((prev) => {
@@ -731,8 +747,48 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     rootRef.current?.focus();
     window.getSelection()?.removeAllRanges();
     window.getSelection()?.addRange(range);
-    if (url && /^(https?:\/\/|mailto:|\/)/i.test(url)) exec('createLink', url);
-    else if (url) exec('createLink', `https://${url}`);
+    const href = !url ? '' : /^(https?:\/\/|mailto:|\/)/i.test(url) ? url : `https://${url}`;
+    if (href && range.collapsed) exec('insertHTML', `<a href="${escapeHtml(href)}">${escapeHtml(url)}</a>&nbsp;`);
+    else if (href) exec('createLink', href);
+    emit();
+  }
+
+  // ---------- barra fija ----------
+
+  /** El cursor quedó afuera del editor (clic en la barra sin haber escrito): va al final. */
+  function ensureCaret() {
+    const root = rootRef.current;
+    if (!root) return;
+    root.focus();
+    const r = caretRange();
+    if (r && root.contains(r.startContainer)) return;
+    const end = document.createRange();
+    end.selectNodeContents(root);
+    end.collapse(false);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(end);
+  }
+
+  function blockFromBar(rule: BlockRule) {
+    ensureCaret();
+    applyBlock(rule);
+    emit();
+  }
+
+  /** Link: con texto elegido, pide la URL y lo enlaza; sin selección, inserta la URL como link. */
+  function linkFromBar() {
+    ensureCaret();
+    const r = caretRange();
+    if (r) setLinkInput({ range: r.cloneRange(), value: '' });
+  }
+
+  function mentionFromBar() {
+    ensureCaret();
+    const r = caretRange();
+    const node = r?.startContainer;
+    const prev = node && node.nodeType === 3 ? (node as Text).data.charAt(r.startOffset - 1) : '';
+    exec('insertText', prev && !/\s/.test(prev) ? ' @' : '@');
+    refreshTrigger();
     emit();
   }
 
@@ -1140,6 +1196,58 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
         onBlur?.();
       }}
     >
+      {fixedToolbar && (
+        <div className="track-rte-fixedbar" role="toolbar" aria-label={te('toolbar')} data-testid="rte-fixed-toolbar">
+          {(
+            [
+              ['bold', 'bold', 'Meta+B', () => format('bold')],
+              ['italic', 'italic', 'Meta+I', () => format('italic')],
+              ['strike', 'strike', 'Meta+Shift+X', () => format('strike')],
+              ['slash.bullet', 'list', undefined, () => blockFromBar({ kind: 'bullet' })],
+              ['slash.numbered', 'numbered', undefined, () => blockFromBar({ kind: 'numbered' })],
+              ['link', 'link', 'Meta+K', () => linkFromBar()],
+              ...(members.length ? ([['mention', 'user', undefined, () => mentionFromBar()]] as const) : []),
+            ] as const
+          ).map(([label, icon, keys, run]) => (
+            <button
+              key={label}
+              type="button"
+              className="btn btn-ghost btn-sm btn-icon"
+              aria-label={te(label)}
+              title={te(label)}
+              aria-keyshortcuts={keys}
+              data-format={label}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={run}
+            >
+              <TrackIcon name={icon} size={14} />
+            </button>
+          ))}
+          {linkInput && !toolbar && (
+            <input
+              className="input track-rte-link"
+              autoFocus
+              value={linkInput.value}
+              placeholder={te('linkPlaceholder')}
+              aria-label={te('link')}
+              onChange={(e) => setLinkInput({ ...linkInput, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  applyLink();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setLinkInput(null);
+                  rootRef.current?.focus();
+                }
+              }}
+              onBlur={() => setLinkInput(null)}
+            />
+          )}
+        </div>
+      )}
       <div
         ref={rootRef}
         className={`track-rte-content track-markdown${empty ? ' is-empty' : ''}`}
@@ -1181,10 +1289,10 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
           style={{ top: menuPos.top, left: menuPos.left }}
           id={menuId}
           role="listbox"
-          aria-label={te(`menu.${trigger.kind}`)}
+          aria-label={te(trigger.kind === 'mention' && !issueRefs ? 'menu.people' : `menu.${trigger.kind}`)}
           data-testid="track-md-menu"
         >
-          <p className="track-md-menu-head">{te(`menu.${trigger.kind}`)}</p>
+          <p className="track-md-menu-head">{te(trigger.kind === 'mention' && !issueRefs ? 'menu.people' : `menu.${trigger.kind}`)}</p>
           {options.map((o, i) => (
             <button
               key={o.key}
@@ -1210,7 +1318,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
           ))}
         </div>
       )}
-      {(toolbar || linkInput) && (
+      {(toolbar || (linkInput && !fixedToolbar)) && (
         <div
           className="track-rte-toolbar"
           role="toolbar"

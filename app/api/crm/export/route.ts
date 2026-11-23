@@ -68,11 +68,14 @@ export async function GET(req: NextRequest) {
   // `list`: "Exportar la vista": la query del listado (vista activa, filtros rápidos y avanzados, orden),
   // que se vuelve a evaluar acá con quien exporta: su alcance, sus vistas y sus permisos por campo. Con tope.
   const listQuery = sp.get('list');
+  /** "Exportar la vista": cuántos registros tiene la vista (puede pasar el tope) y en qué orden van. */
+  let viewTotal: number | null = null;
   if (listQuery !== null) {
     if (entity === 'activities' || ids) return crmError(400, 'invalid_input');
     const res = await resolveMatching(user, entity, listQuery, EXPORT_VIEW_CAP);
     if ('error' in res) return crmError(400, res.error);
     ids = res.ids;
+    viewTotal = res.total;
   }
   const rawRows = await exportRows(
     user.id,
@@ -84,7 +87,13 @@ export async function GET(req: NextRequest) {
     ids,
   );
   // Defensa extra: sin los campos propios ocultos para quien exporta (hoy solo admins, que los ven todos).
-  const rows: typeof rawRows = entity === 'activities' ? rawRows : ((await redactRowsFor(sessionFieldViewer(user), entity, rawRows as Array<{ custom: string }>)) as typeof rawRows);
+  const redacted: typeof rawRows = entity === 'activities' ? rawRows : ((await redactRowsFor(sessionFieldViewer(user), entity, rawRows as Array<{ custom: string }>)) as typeof rawRows);
+  // La vista exportada sale en el orden de la vista (el de su columna de orden), no por fecha de creación.
+  const order = viewTotal !== null && ids ? new Map(ids.map((id, i) => [id, i])) : null;
+  const rows = order ? [...redacted].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)) : redacted;
+  // Con tope: el cliente avisa que se exportaron los primeros EXPORT_VIEW_CAP de `total`.
+  const viewHeaders: Record<string, string> =
+    viewTotal !== null ? { 'x-export-total': String(viewTotal), 'x-export-count': String(rows.length), 'x-export-cap': String(EXPORT_VIEW_CAP) } : {};
   const date = new Date().toISOString().slice(0, 10);
   const filename = `crm-${entity}-${date}.${format}`;
 
@@ -93,6 +102,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'content-disposition': `attachment; filename="${filename}"`,
+        ...viewHeaders,
       },
     });
   }
@@ -107,6 +117,7 @@ export async function GET(req: NextRequest) {
     headers: {
       'content-type': 'text/csv; charset=utf-8',
       'content-disposition': `attachment; filename="${filename}"`,
+      ...viewHeaders,
     },
   });
 }
