@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Typeform',
   alsoCompared: ['Google Forms', 'Tally'],
-  lastReviewed: '2026-10-30',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'questions', label: loc(['Question types', 'Tipos de pregunta', 'Tipos de pergunta']) },
     { id: 'screens', label: loc(['Screens and fields', 'Pantallas y campos', 'Telas e campos']) },
@@ -75,6 +75,13 @@ const parity: ProductParity = {
     row('welcome-ending', 'screens', ['Welcome screen and several ending screens', 'Pantalla de bienvenida y varios finales', 'Tela de boas-vindas e vários finais'], 'have', { weight: 2 }),
     row('statement', 'screens', ['Statement screens', 'Pantallas de texto', 'Telas de texto'], 'have'),
     row('hidden-fields', 'screens', ['Hidden fields from URL parameters', 'Campos ocultos desde parámetros de la URL', 'Campos ocultos a partir de parâmetros da URL'], 'have'),
+    row('redirect-answers', 'screens', ['Redirect on completion with answers in the URL', 'Redirigir al terminar con las respuestas en la URL', 'Redirecionar ao terminar com as respostas na URL'], 'have', {
+      detail: [
+        'Each ending can send people to an https address with answers, hidden fields and the score as URL-encoded parameters; they never change the domain',
+        'Cada final puede llevar a una dirección https con respuestas, campos ocultos y el puntaje como parámetros codificados; nunca cambian el dominio',
+        'Cada final pode levar a um endereço https com respostas, campos ocultos e a pontuação como parâmetros codificados; nunca mudam o domínio',
+      ],
+    }),
     row('validation', 'screens', ['Required fields and validation', 'Campos obligatorios y validación', 'Campos obrigatórios e validação'], 'have', {
       weight: 2,
       detail: [

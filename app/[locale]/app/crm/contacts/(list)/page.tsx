@@ -342,6 +342,7 @@ export default async function ContactsPage(props: ContactsPageProps) {
         viewCols={state.cols}
         viewFreeze={state.freeze === '1' ? true : state.freeze === '0' ? false : undefined}
         viewWidths={state.widths}
+        filters={{ fields: filterFields, model: filterModel, baseQuery: query, quick: [lifecycle && 'lifecycle', leadStatus && 'leadStatus', source && 'source', owner && 'owner', tag && 'tag', (createdFrom || createdTo) && 'created', (activityFrom || activityTo || noActivity) && 'lastActivity'].filter((k): k is string => !!k) }}
       >
       <ContactsFilters
         q={q}

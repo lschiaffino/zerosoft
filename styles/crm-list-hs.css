@@ -445,20 +445,24 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 @media (pointer: coarse) and (max-width: 1023px) {
   .deals-filter-bar :is(.filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .export-view-btn, .seg-toggle-item) { font-size: 16px; }
 }
+
 /* ============================================================
-   QA del CRM (C4)
+   C4: filtrar desde el encabezado de la columna (como en HubSpot).
    ============================================================ */
-/* En el teléfono la pestaña de feedback tapaba filas, tarjetas de deals y KPI: en los listados y los dashboards del
-   CRM no flota (como en el chat de Lines e Inbox, styles/wa-mobile.css). Se manda desde el menú de la cuenta
-   ("Enviar feedback"), que abre el mismo panel; abierto, se ve. */
+.th-filtered { display: inline-flex; align-items: center; flex: none; color: var(--ink); }
+.th-menu.th-filter { width: 300px; max-width: calc(100vw - 16px); max-height: min(480px, calc(100vh - 16px)); padding: 12px; overflow-y: auto; }
+.th-filter-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.th-filter-title { margin: 0 0 2px; font-size: 0.8125rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.th-filter .select, .th-filter .input { width: 100%; }
+.th-filter .crm-af-range { display: flex; align-items: center; gap: 6px; }
+.th-filter .crm-af-range .input { flex: 1 1 0; min-width: 0; }
+.th-filter .crm-af-options-list { max-height: 220px; overflow-y: auto; }
+.th-filter-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.th-filter-clear { margin-right: auto; }
+/* En el teléfono el filtro es una hoja abajo, con telón, como los otros menús (app-shared.css). */
 @media (max-width: 640px) {
-  body:has(.crm-list-page, .cdb-grid) .fl-root:not(.is-open),
-  body:has(.crm-list-page, .cdb-grid) #zs-chat-btn { visibility: hidden; pointer-events: none; }
+  .th-filter :is(.btn, .select, .input) { min-height: 40px; }
 }
-/* Pestañas de vistas en el teléfono: la activa se lee entera ("Todos los contactos"); la que sigue se corta. */
-@media (max-width: 640px) {
-  /* La activa no se achica (su tope deja lugar a Más y Agregar vista); la otra cede. */
-  .views-tabs .view-tab.active { flex: none; }
-  .views-tabs .view-tab:not(.active) { flex-shrink: 1000; }
-  .views-tabs .view-tab.active .view-tab-link { max-width: min(220px, calc(100vw - 200px)); }
+@media (pointer: coarse) {
+  .th-menu-item { min-height: 44px; }
 }
