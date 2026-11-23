@@ -94,7 +94,15 @@
     "primary": "Principal",
     "makePrimary": "Hacer principal",
     "label": "Etiqueta",
-    "noLabel": "Sin etiqueta"
+    "noLabel": "Sin etiqueta",
+    "typeToSearch": "Escribí para buscar",
+    "noMatches": "No hay coincidencias.",
+    "searching": "Buscando…",
+    "search": {
+      "contact": "Buscá contactos",
+      "company": "Buscá empresas",
+      "deal": "Buscá deals"
+    }
   },
   "enums": {
     "lifecycle": {
@@ -1509,7 +1517,8 @@
     "duplicate_label": "Ya hay un label con ese nombre.",
     "too_many_labels": "Llegaste al límite de labels para esta asociación.",
     "invalid_queue": "Esa cola no existe o no la podés ver.",
-    "too_many": "Este workspace llegó al límite."
+    "too_many": "Este workspace llegó al límite.",
+    "too_many_tasks": "Se pueden crear tareas para hasta 200 registros a la vez. Achicá la vista y probá de nuevo."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -5008,7 +5017,9 @@
     "openRecord": "Abrir registro",
     "noMoreFilters": "Todavía no hay más filtros para empresas. Usá los filtros avanzados.",
     "perPage": "{count} por página",
-    "perPageLabel": "Filas por página"
+    "perPageLabel": "Filas por página",
+    "exportView": "Exportar vista",
+    "exportViewHint": "Bajá en CSV todos los registros de esta vista, no solo esta página"
   },
   "bulkBar": {
     "label": "Acciones en masa",
@@ -5020,7 +5031,16 @@
     "add": "Agregar",
     "clear": "Quitar selección",
     "addedToList": "{count, plural, one {# contacto agregado a la lista.} other {# contactos agregados a la lista.}}",
-    "deleted": "{count, plural, one {# registro movido a la papelera.} other {# registros movidos a la papelera.}}"
+    "deleted": "{count, plural, one {# registro movido a la papelera.} other {# registros movidos a la papelera.}}",
+    "createTasks": "Crear tareas",
+    "taskTitle": "Título de la tarea",
+    "taskDue": "Vence",
+    "taskAssign": "Asignar a",
+    "taskAssignOwner": "Owner del registro",
+    "taskAssignMe": "Yo",
+    "createTasksCta": "{count, plural, one {Crear # tarea} other {Crear # tareas}}",
+    "tasksCreated": "{count, plural, one {Se creó # tarea.} other {Se crearon # tareas.}}",
+    "tasksFailed": "{count, plural, one {Se salteó # registro.} other {Se saltearon # registros.}}"
   },
   "propSearch": {
     "placeholder": "Buscar propiedades",
@@ -5058,7 +5078,8 @@
       "nextMonth": "Mes que viene",
       "thisQuarter": "Este trimestre",
       "next30": "Próximos 30 días",
-      "overdue": "Antes de hoy"
+      "overdue": "Antes de hoy",
+      "none": "Sin actividad"
     }
   },
   "dash": {
@@ -5185,7 +5206,12 @@
       "formerMember": "Ex integrante",
       "seeAll": "Ver todos",
       "drillHint": "Elegí una barra o un valor para ver sus registros",
-      "perDayUnit": "/ día"
+      "perDayUnit": "/ día",
+      "vsPrevValue": "vs. {value} el período anterior",
+      "pts": "{value, plural, one {# punto} other {# puntos}}",
+      "velocityDetail": "{count, plural, one {# deal abierto} other {# deals abiertos}} · ciclo de {cycle} días",
+      "velocityFormula": "{open} deals abiertos × {rate}% de cierre × {avg} de ticket promedio ÷ ciclo de {cycle} días",
+      "conversionShort": "{value}% avanzó"
     },
     "edit": {
       "title": "Editar reporte",
@@ -5331,7 +5357,8 @@
         "status": "Estado",
         "type": "Tipo",
         "owner": "Propietario",
-        "date": "Fecha"
+        "date": "Fecha",
+        "lifecycle": "Etapa del ciclo de vida"
       }
     },
     "empty": {
@@ -5341,5 +5368,118 @@
       "noDashBody": "Creá un dashboard, o empezá con la plantilla de ventas y sus 12 reportes listos.",
       "noData": "Todavía no hay datos del CRM en este período. Los reportes se llenan a medida que tu equipo carga deals, contactos y actividades."
     }
+  },
+  "layouts": {
+    "editCards": "Editar tarjetas",
+    "customize": "Personalizar",
+    "cardSettingsTitle": "Tarjetas del board",
+    "cardSettingsDesc": "Elegí qué propiedades muestra cada tarjeta de deal en el board, por pipeline. El nombre del deal va siempre arriba.",
+    "previewSettingsTitle": "Vista previa de registros",
+    "previewSettingsDesc": "Elegí qué muestra el panel de vista previa cuando abrís un contacto, una empresa o un deal desde una lista o el board: las propiedades de \"Acerca de\" y las tarjetas de abajo, en orden.",
+    "about": {
+      "contacts": "Acerca de este contacto",
+      "companies": "Acerca de esta empresa",
+      "deals": "Acerca de este deal"
+    },
+    "aboutHelp": "Estas propiedades se ven primero. El resto queda a un clic en \"Ver todas las propiedades\".",
+    "cardsTitle": "Tarjetas de la vista previa",
+    "cardsHelp": "Las tarjetas debajo de \"Acerca de\", en este orden.",
+    "hide": "Ocultar",
+    "show": "Mostrar",
+    "hiddenCards": "Tarjetas ocultas",
+    "remove": "Quitar",
+    "addLabel": "Propiedad para agregar",
+    "full": "Hasta {max} propiedades",
+    "allAdded": "Ya están todas las propiedades",
+    "noProps": "Todavía no hay propiedades.",
+    "privacyHelp": "Cada persona ve solo las propiedades que tiene permitidas. Una propiedad oculta para alguien no aparece en su vista previa.",
+    "cardPrivacyHelp": "Hasta {max} propiedades. Una propiedad oculta para alguien no aparece en sus tarjetas.",
+    "noPipelines": "Primero creá un pipeline.",
+    "sampleLabel": "Tarjeta de muestra",
+    "sample": {
+      "deal": "Deal de muestra",
+      "company": "Empresa",
+      "contact": "Contacto",
+      "nextStep": "Mandar la propuesta"
+    },
+    "cardProps": {
+      "company": "Empresa",
+      "contact": "Contacto",
+      "createdAt": "Fecha de creación",
+      "lastActivity": "Última actividad"
+    },
+    "sections": {
+      "stage": "Etapa del deal",
+      "activity": "Actividad reciente",
+      "contacts": "Contactos",
+      "companies": "Empresas",
+      "deals": "Deals",
+      "custom": "Propiedades personalizadas"
+    }
+  },
+  "previewActions": {
+    "logged": {
+      "note": "Nota guardada.",
+      "email": "Email enviado.",
+      "call": "Llamada registrada.",
+      "task": "Tarea creada."
+    },
+    "title": {
+      "note": "Nota nueva",
+      "email": "Email nuevo",
+      "call": "Registrar una llamada",
+      "task": "Tarea nueva"
+    },
+    "to": "Para",
+    "subject": "Asunto",
+    "taskTitle": "Tarea",
+    "taskNotes": "Notas",
+    "body": {
+      "note": "Nota",
+      "email": "Mensaje",
+      "call": "Qué se habló"
+    },
+    "send": "Enviar",
+    "save": "Guardar",
+    "viewActivity": "Ver toda la actividad",
+    "noActivity": "Todavía no hay actividad.",
+    "done": "Hecha",
+    "recent": "Actividad reciente",
+    "addCompany": "Agregar empresa",
+    "addDeal": "Agregar deal",
+    "addContact": "Agregar contacto"
+  },
+  "columnMenu": {
+    "label": "Opciones de la columna: {name}",
+    "sortAsc": "Ordenar ascendente",
+    "sortDesc": "Ordenar descendente",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "remove": "Quitar columna"
+  },
+  "quickFilterPicker": {
+    "button": "Editar filtros rápidos",
+    "title": "Filtros rápidos de esta vista",
+    "reset": "Volver a los de siempre"
+  },
+  "selectAll": {
+    "page": "{count, plural, one {Está elegido el registro de esta página.} other {Están elegidos los # registros de esta página.}}",
+    "select": {
+      "contacts": "Elegir los {count} contactos de esta vista",
+      "companies": "Elegir las {count} empresas de esta vista",
+      "deals": "Elegir los {count} deals de esta vista"
+    },
+    "all": {
+      "contacts": "Están elegidos los {count} contactos de esta vista.",
+      "companies": "Están elegidas las {count} empresas de esta vista.",
+      "deals": "Están elegidos los {count} deals de esta vista."
+    },
+    "capped": {
+      "contacts": "Están elegidos los primeros {count} de {total} contactos de esta vista (el tope de una acción masiva).",
+      "companies": "Están elegidas las primeras {count} de {total} empresas de esta vista (el tope de una acción masiva).",
+      "deals": "Están elegidos los primeros {count} de {total} deals de esta vista (el tope de una acción masiva)."
+    },
+    "clear": "Quitar la selección",
+    "error": "No se pudieron elegir. Probá de nuevo."
   }
 }

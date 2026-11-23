@@ -148,6 +148,10 @@ a.report-type-tab { text-decoration: none; display: inline-block; }
   display: flex;
   flex-direction: column;
   padding: 4px;
+  /* Con muchos dashboards la lista scrollea en vez de tapar media página. */
+  max-height: min(360px, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .rb-menu button {
   text-align: left;

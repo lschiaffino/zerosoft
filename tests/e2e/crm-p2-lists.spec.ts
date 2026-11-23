@@ -292,7 +292,9 @@ test.describe('record page', () => {
 
     // Asociar una empresa desde la tarjeta de la derecha, y quitarla.
     const card = page.locator('[data-card="contact.companies"]');
-    await card.getByRole('combobox', { name: 'Associate company…' }).selectOption(company.id);
+    await card.getByTestId('record-card-add').click();
+    await card.getByTestId('assoc-picker-search').fill(`000 P2 assoc ${tag}`);
+    await card.getByRole('option', { name: new RegExp(`000 P2 assoc ${tag}`) }).click();
     await expect(card.getByRole('link', { name: `000 P2 assoc ${tag}` })).toBeVisible();
     await card.getByRole('button', { name: `Remove 000 P2 assoc ${tag}` }).click();
     await expect(card.getByRole('link', { name: `000 P2 assoc ${tag}` })).toHaveCount(0);

@@ -78,8 +78,8 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
     const modal = [...document.querySelectorAll('dialog[open]')].find((d) => (d as HTMLDialogElement).matches(':modal'));
     // Un drawer o panel modal abierto (el sidebar en el teléfono, el switcher) tapa la página: se mira solo eso.
     // En el teléfono los menús anclados bajan al pie como hoja con telón (styles/app-shared.css): lo de atrás queda tapado.
-    const phoneSheet = (el: Element) => !el.matches('.record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu') || getComputedStyle(el).position === 'fixed';
-    const sheet = [...document.querySelectorAll('.side.open, .band-menu-panel, [aria-modal="true"], .record-more-menu, .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu')].find((el) => visible(el) && phoneSheet(el));
+    const phoneSheet = (el: Element) => !el.matches('.record-more-menu, .book-meeting-menu, .dash-add-menu, .rb-menu, .chat-alerts-panel, .column-toggle-menu') || getComputedStyle(el).position === 'fixed';
+    const sheet = [...document.querySelectorAll('.side.open, .band-menu-panel, [aria-modal="true"], .record-more-menu, .book-meeting-menu, .dash-add-menu, .rb-menu, .chat-alerts-panel, .column-toggle-menu')].find((el) => visible(el) && phoneSheet(el));
     const scope: Element = modal ?? sheet ?? document.body;
 
     // 1. Scroll horizontal de la página.
@@ -139,6 +139,13 @@ export async function auditView(page: Page, opts: { tap?: boolean } = {}): Promi
         if (r.width >= vw * 0.9 && r.height >= vh * 0.5 && !(el.textContent ?? '').trim()) continue;
         // Escondido arriba hasta recibir foco (el "saltar al contenido"; a veces el foco cae ahí al cerrar un overlay).
         if ((r.bottom <= 0 && window.scrollY === 0) || el.classList.contains('skip-link')) continue;
+        // Tapado por un overlay (una hoja de acciones encima de la tabla): no se puede tocar, no compite.
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        if (cx >= 0 && cx <= vw && cy >= 0 && cy <= vh) {
+          const hit = document.elementFromPoint(cx, cy);
+          if (hit && !target.contains(hit) && !hit.contains(target) && hit.closest('[role="menu"], [role="dialog"], .dash-add-menu, .record-more-menu, .book-meeting-menu')) continue;
+        }
         const field = el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || (isInput && !['checkbox', 'radio', 'range', 'color', 'submit', 'button', 'reset', 'image'].includes(type));
         targets.push({ el, t: target, r, field });
       }

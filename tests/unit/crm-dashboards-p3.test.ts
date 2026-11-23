@@ -360,8 +360,9 @@ describe('los totales cuentan solo lo que quien mira ve', () => {
     expect(memberRaw).toContain('"kind":"error"');
     expect(memberRaw).not.toMatch(/77700\d/);
     expect(memberRaw).not.toContain('custom:arr');
-    // Un reporte propio no tiene drill-down de biblioteca.
-    expect((await drill(owner(s), d.id, wid)).status).toBe(400);
+    // Drill-down del reporte propio (P6): owner lo abre; member, con el campo oculto, no.
+    expect((await drill(owner(s), d.id, wid)).status).toBe(200);
+    expect((await drill(member(s), d.id, wid)).status).toBe(403);
   });
 
   it('agregar de la biblioteca, duplicar, cambiar tamaño y orden, quitar', async () => {

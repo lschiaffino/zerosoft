@@ -10,8 +10,8 @@
 
 /* ---------- Encabezado: selector, metadatos y acciones ---------- */
 
-.cdb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
-.cdb-switcher { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cdb-head { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.cdb-switcher { position: relative; min-width: 0; max-width: min(420px, 100%); display: flex; }
 .cdb-switcher-btn {
   display: inline-flex;
   align-items: center;
@@ -30,9 +30,19 @@
 }
 .cdb-switcher-btn:hover, .cdb-switcher-btn[aria-expanded='true'] { border-color: var(--ink); }
 .cdb-switcher-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdb-meta { display: flex; flex-wrap: wrap; gap: 4px 0; margin: 0; font-size: 0.8125rem; color: var(--dim); }
-.cdb-meta > span + span::before { content: '·'; margin: 0 6px; }
-.cdb-head-actions { display: flex; align-items: center; gap: 8px; }
+.cdb-meta { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; margin: 0; font-size: 0.8125rem; color: var(--dim); }
+.cdb-meta > * + *::before { content: '·'; margin: 0 8px; color: var(--dim); }
+.cdb-meta-item, .cdb-meta-share { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.cdb-meta-share {
+  min-height: 32px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: var(--radius-1);
+  background: transparent; color: var(--dim); font: inherit; cursor: pointer;
+}
+.cdb-meta-share:hover { background: var(--ui-hover); color: var(--ink); }
+.cdb-meta-share:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cdb-meta-icon { flex: none; }
+.cdb-head-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.cdb-head-actions .btn { min-height: 36px; }
+.cdb-btn-chevron { margin-left: 6px; }
 
 .cdb-switcher-panel {
   position: absolute;
@@ -108,7 +118,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 340px;
+  /* Alto fijo por tamaño: los tiles de una fila miden lo mismo y el gráfico llena el suyo
+     (nada de tiles estirados por el vecino con media caja vacía). Lo que no entra hace scroll adentro. */
+  height: 372px;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-1);
@@ -117,7 +129,8 @@
 .cdb-tile:hover, .cdb-tile:focus-within { border-color: color-mix(in srgb, var(--ink) 40%, var(--line)); }
 .cdb-tile[data-size='small'] { grid-column: span 3; }
 .cdb-tile[data-size='wide'] { grid-column: span 12; }
-.cdb-tile.cdb-tile-kpi { min-height: 156px; }
+.cdb-tile.cdb-tile-kpi { height: auto; min-height: 164px; }
+.cdb-tile.cdb-tile-error, .cdb-tile.cdb-tile-custom:has(.rb-kpi) { height: auto; min-height: 164px; }
 .cdb-tile.is-dragged { opacity: 0.4; }
 .cdb-grid.is-dragging { cursor: grabbing; user-select: none; }
 .cdb-tile.drop-before::before, .cdb-tile.drop-after::after {
@@ -163,7 +176,7 @@
 .cdb-grip { position: absolute; left: -1px; top: 10px; width: 16px; cursor: grab; touch-action: none; opacity: 0; }
 .cdb-tile:hover .cdb-grip, .cdb-grip:focus-visible { opacity: 1; }
 .cdb-grip:hover, .cdb-tile-menu:hover, .cdb-tile-menu[aria-expanded='true'] { background: var(--ui-hover); color: var(--ink); }
-.cdb-tile-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
+.cdb-tile-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 6px 16px 16px; }
 
 .cdb-empty { margin: auto; padding: 16px; text-align: center; font-size: 0.8125rem; color: var(--dim); }
 .cdb-skeleton { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
@@ -178,7 +191,7 @@
 
 /* ---------- KPI ---------- */
 
-.cdb-kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.cdb-kpi { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
 .cdb-kpi-value {
   align-self: flex-start;
   margin: 0;
@@ -187,19 +200,22 @@
   background: transparent;
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
+  font-size: clamp(1.625rem, 2.3vw, 2.25rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.1;
   text-align: left;
+  white-space: nowrap;
 }
 button.cdb-kpi-value { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; }
 button.cdb-kpi-value:hover { text-decoration-color: currentColor; }
-.cdb-kpi-meta { display: flex; flex-direction: column; gap: 2px; font-size: 0.8125rem; }
-.cdb-delta { font-weight: 600; }
+.cdb-kpi-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; line-height: 1.35; }
+.cdb-delta-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.cdb-delta { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cdb-delta.is-up { color: var(--ok-ink); }
 .cdb-delta.is-down { color: var(--bad-ink); }
-.cdb-delta .cdb-muted { font-weight: 400; }
+.cdb-delta.is-flat { color: var(--dim); }
+.cdb-delta-arrow { fill: currentColor; flex: none; }
 
 .cdb-total { margin: 0; display: flex; align-items: baseline; gap: 6px; }
 .cdb-total-num { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
@@ -219,7 +235,9 @@ button.cdb-kpi-value:hover { text-decoration-color: currentColor; }
 
 /* ---------- Columnas y líneas (SVG) ---------- */
 
-.cdb-chart { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.cdb-chart { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.cdb-plot { position: relative; flex: 1; min-height: 160px; }
+.cdb-plot > .cdb-svg { position: absolute; inset: 0 auto auto 0; }
 .cdb-svg { display: block; overflow: visible; }
 .cdb-grid line, line.cdb-grid { stroke: var(--line); stroke-width: 1; shape-rendering: crispEdges; }
 .cdb-axis { fill: var(--dim); font-size: 11px; font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
@@ -250,12 +268,19 @@ rect.cdb-hit[role='img'] { cursor: default; }
 .cdb-tip-label { flex: 1; color: var(--dim); }
 .cdb-tip-value { font-variant-numeric: tabular-nums; }
 
-.cdb-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; font-size: 0.75rem; color: var(--dim); }
+.cdb-legend { flex: none; display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; padding: 0; list-style: none; font-size: 0.75rem; color: var(--dim); }
 .cdb-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.cdb-legend-num { color: var(--ink); font-variant-numeric: tabular-nums; }
+.cdb-legend-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 6px; margin: 0 -6px;
+  border: 0; border-radius: var(--radius-1); background: transparent; color: var(--dim); font: inherit; cursor: pointer;
+}
+.cdb-legend-btn:hover { background: var(--ui-hover); color: var(--ink); }
+.cdb-legend-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* ---------- Barras horizontales ---------- */
 
-.cdb-hbars { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.cdb-hbars { flex: 1; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
 .cdb-hbar-row {
   display: grid;
   grid-template-columns: minmax(80px, 32%) minmax(0, 1fr) auto;
@@ -280,9 +305,6 @@ button.cdb-hbar-row:hover { background: var(--ui-hover); }
 .cdb-hbar + .cdb-hbar { border-radius: 0 3px 3px 0; }
 .cdb-hbar-value { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cdb-hbar-extra { font-size: 0.6875rem; color: var(--dim); }
-.cdb-series-drill { display: flex; flex-wrap: wrap; gap: 0 14px; margin-top: 4px; font-size: 0.75rem; }
-.cdb-series-drill .cdb-link { color: var(--dim); text-decoration-color: transparent; }
-.cdb-series-drill .cdb-link:hover { color: var(--ink); text-decoration-color: currentColor; }
 .cdb-kpi-unit { font-size: 0.875rem; font-weight: 500; color: var(--dim); letter-spacing: 0; margin-left: 4px; }
 
 /* Filtros del dashboard: el selector de components/ui/MenuSelect con caja. */
@@ -309,17 +331,19 @@ button.cdb-hbar-row:hover { background: var(--ui-hover); }
 .cdb-filters .zs-msel:hover, .cdb-filters .zs-msel.is-open { border-color: var(--ink); background: var(--bg); }
 @media (max-width: 1023px) { .cdb-filters .zs-msel { height: 40px; } .zs-msel-opt { min-height: 40px; } }
 
-/* ---------- Embudo ---------- */
+/* ---------- Embudo ----------
+   Alineado a la izquierda: nombre y número arriba de cada barra, y la conversión
+   desde la etapa anterior entre una etapa y la siguiente. Se lee igual a 390px. */
 
-.cdb-funnel { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.cdb-funnel { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.cdb-funnel-step { display: flex; flex-direction: column; }
 .cdb-funnel-row {
-  display: grid;
-  grid-template-columns: minmax(80px, 30%) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   width: 100%;
-  min-height: 34px;
-  padding: 2px 6px;
+  padding: 4px 6px 6px;
+  margin: 0;
   border: 0;
   border-radius: var(--radius-1);
   background: transparent;
@@ -330,10 +354,14 @@ button.cdb-hbar-row:hover { background: var(--ui-hover); }
 }
 button.cdb-funnel-row { cursor: pointer; }
 button.cdb-funnel-row:hover { background: var(--ui-hover); }
-.cdb-funnel-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdb-funnel-track { display: flex; justify-content: center; height: 18px; }
-.cdb-funnel-bar { height: 100%; background: var(--cdb); border-radius: 3px; }
-.cdb-funnel-value { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cdb-funnel-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+.cdb-funnel-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdb-funnel-value { flex: none; margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cdb-funnel-track { display: block; height: 12px; background: color-mix(in srgb, var(--ink) 5%, transparent); border-radius: 2px; }
+.cdb-funnel-bar { display: block; height: 100%; background: var(--cdb); border-radius: 2px 4px 4px 2px; }
+.cdb-funnel-top { justify-content: flex-start; }
+.cdb-funnel-conv { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cdb-funnel { gap: 2px; }
 
 /* ---------- Dona ---------- */
 
@@ -501,13 +529,27 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
 }
 @media (max-width: 640px) {
   .cdb-grid { gap: 12px; }
-  .cdb-tile, .cdb-tile[data-size], .cdb-tile[data-size='small'] { grid-column: 1 / -1; min-height: 0; }
+  .cdb-tile, .cdb-tile[data-size], .cdb-tile[data-size='small'] { grid-column: 1 / -1; min-height: 0; height: auto; }
+  /* Los KPI chicos van de a dos: la fila de números se ve de un vistazo, como en HubSpot mobile. */
+  .cdb-tile.cdb-tile-kpi[data-size='small'] { grid-column: span 6; min-height: 0; }
+  .cdb-tile-kpi .cdb-tile-head { padding: 10px 4px 2px 12px; }
+  .cdb-tile-kpi .cdb-tile-body { padding: 4px 12px 12px; }
+  .cdb-tile-kpi .cdb-kpi-value { font-size: 1.375rem; }
+  .cdb-tile-kpi .cdb-kpi-unit { font-size: 0.75rem; margin-left: 2px; }
+  .cdb-tile-kpi .cdb-kpi-meta { font-size: 0.75rem; }
+  .cdb-tile-kpi .cdb-tile-sub { display: none; }
+  .cdb-tile-chart .cdb-tile-body { min-height: 260px; }
+  .cdb-hbars > .cdb-hbar-row { flex: none; }
+  .cdb-hbars, .cdb-funnel { max-height: 420px; }
   .cdb-tile-body { min-height: 0; }
   .cdb-grip { display: none; }
   .cdb-tile-menu { width: 40px; height: 40px; }
-  .cdb-head { flex-direction: column; align-items: stretch; }
+  .cdb-switcher { flex: 1 1 100%; max-width: 100%; }
   .cdb-switcher-btn { width: 100%; justify-content: space-between; }
-  .cdb-head-actions > .btn { flex: 1; min-height: 40px; }
+  .cdb-meta { flex: 1 1 100%; }
+  .cdb-meta-share { min-height: 40px; }
+  .cdb-head-actions { flex: 1 1 100%; margin-left: 0; }
+  .cdb-head-actions > .btn { flex: 1; min-height: 40px; justify-content: center; }
   .cdb-filters > * { max-width: 100%; }
   .cdb-filter-actions { margin-left: 0; }
   .cdb-date { width: 140px; }
@@ -517,7 +559,7 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
 @media (pointer: coarse) {
   .cdb-grip, .cdb-tile-menu { width: 40px; height: 40px; }
   .cdb-grip { opacity: 1; }
-  .cdb-hbar-row, .cdb-funnel-row, .cdb-donut-row, .cdb-lib-cat, .cdb-link { min-height: 40px; }
+  .cdb-hbar-row, .cdb-funnel-row, .cdb-donut-row, .cdb-lib-cat, .cdb-link, .cdb-legend-btn { min-height: 40px; }
 }
 @media (forced-colors: active) {
   .cdb-bar, .cdb-hbar, .cdb-funnel-bar, .cdb-slice, .cdb-key { forced-color-adjust: none; }
@@ -545,3 +587,21 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
 
 /* El número de un KPI se toca para ver sus registros: 40px de alto. */
 button.cdb-kpi-value { min-height: 40px; min-width: 40px; }
+
+/* Pocas filas (etapas, categorías del forecast) se reparten el alto del tile en vez de dejar un hueco abajo. */
+.cdb-hbars > .cdb-hbar-row { flex: 1 0 auto; max-height: 46px; }
+
+/* Reportes propios en un tile: el drill-down se ve como un enlace tranquilo, sin subrayado fuerte. */
+.cdb-custom .rb-drill-num { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; min-height: 40px; text-align: left; }
+.cdb-custom .rb-drill-num:hover { text-decoration: underline; text-underline-offset: 4px; }
+.cdb-custom .rb-drill-link { padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; min-height: 28px; }
+.cdb-custom .rb-drill-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cdb-custom button.rb-drill-row { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-1); }
+.cdb-custom button.rb-drill-row:hover { background: var(--ui-hover); }
+.cdb-custom .rb-drill-item { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-1); }
+.cdb-custom .rb-drill-item:hover { background: var(--ui-hover); }
+.cdb-custom .rb-drill-dot { cursor: pointer; }
+.cdb-custom .rb-drill-dot:focus-visible { outline: 2px solid var(--ink); }
+@media (pointer: coarse) {
+  .cdb-custom .rb-drill-link, .cdb-custom .rb-drill-item { min-height: 40px; }
+}

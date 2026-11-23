@@ -51,13 +51,19 @@ interface DateRangeFilterProps {
   locale: string;
   onChange: (from: string, to: string) => void;
   testId?: string;
+  /**
+   * Opción "Sin actividad" (HubSpot la tiene en la última actividad): `none`
+   * dice si está elegida y `onNone` la elige (y limpia el rango).
+   */
+  none?: boolean;
+  onNone?: () => void;
 }
 
 /**
  * Filtro rápido por fecha (como "Create date" o "Close date" en HubSpot): un
  * botón que abre rangos rápidos y un rango a medida. Esc y el click afuera lo cierran.
  */
-export default function DateRangeFilter({ label, kind, from, to, locale, onChange, testId }: DateRangeFilterProps) {
+export default function DateRangeFilter({ label, kind, from, to, locale, onChange, testId, none = false, onNone }: DateRangeFilterProps) {
   const t = useTranslations('crm.dateFilter');
   const [open, setOpen] = useState(false);
   /** Corrimiento del menú (px, desde el borde izquierdo del botón) para que entre en la pantalla. */
@@ -109,8 +115,18 @@ export default function DateRangeFilter({ label, kind, from, to, locale, onChang
       return d;
     }
   };
-  const active = !!(from || to);
-  const summary = from && to ? (from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`) : from ? `≥ ${fmt(from)}` : to ? `≤ ${fmt(to)}` : '';
+  const active = !!(from || to) || none;
+  const summary = none
+    ? t('presets.none')
+    : from && to
+      ? from === to
+        ? fmt(from)
+        : `${fmt(from)} – ${fmt(to)}`
+      : from
+        ? `≥ ${fmt(from)}`
+        : to
+          ? `≤ ${fmt(to)}`
+          : '';
 
   function apply(f: string, tt: string) {
     setOpen(false);
@@ -145,13 +161,27 @@ export default function DateRangeFilter({ label, kind, from, to, locale, onChang
           <div className="dr-filter-presets">
             {PRESETS[kind].map((p) => {
               const r = presetRange(p);
-              const on = r.from === from && r.to === to;
+              const on = !none && r.from === from && r.to === to;
               return (
                 <button key={p} type="button" className={`dr-filter-preset${on ? ' on' : ''}`} aria-pressed={on} onClick={() => apply(r.from, r.to)}>
                   {t(`presets.${p}`)}
                 </button>
               );
             })}
+            {onNone && (
+              <button
+                type="button"
+                className={`dr-filter-preset${none ? ' on' : ''}`}
+                aria-pressed={none}
+                data-testid={testId ? `${testId}-none` : undefined}
+                onClick={() => {
+                  setOpen(false);
+                  onNone();
+                }}
+              >
+                {t('presets.none')}
+              </button>
+            )}
           </div>
           <form
             className="dr-filter-custom"

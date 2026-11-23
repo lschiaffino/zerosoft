@@ -69,6 +69,12 @@ interface PropertiesPanelProps {
   optimistic?: boolean;
   /** Después de guardar bien (la vista previa vuelve a leer el registro). */
   onSaved?: (key: string) => void;
+  /**
+   * Registro compartido de lo guardado en `custom` desde la última lectura,
+   * cuando dos paneles editan propiedades personalizadas del mismo registro
+   * (la vista previa): así un guardado no pisa el del otro panel.
+   */
+  savedCustomRef?: React.MutableRefObject<Record<string, unknown>>;
 }
 
 const ERROR_CODES = [
@@ -97,6 +103,7 @@ export default function PropertiesPanel({
   viewAllLabel,
   optimistic = false,
   onSaved,
+  savedCustomRef,
 }: PropertiesPanelProps) {
   const t = useTranslations('crm');
   const router = useRouter();
@@ -118,10 +125,11 @@ export default function PropertiesPanel({
    * Propiedades propias guardadas desde la última lectura: el PATCH manda el objeto
    * `custom` entero y, sin esto, dos cambios seguidos antes de releer pisaban el primero.
    */
-  const savedCustom = useRef<Record<string, unknown>>({});
+  const ownSavedCustom = useRef<Record<string, unknown>>({});
+  const savedCustom = savedCustomRef ?? ownSavedCustom;
   useEffect(() => {
     savedCustom.current = {};
-  }, [custom]);
+  }, [custom, savedCustom]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -382,6 +390,7 @@ export default function PropertiesPanel({
           ) : field.href && field.value ? (
             <a
               className="prop-value prop-link"
+              title={typeof display === 'string' ? display : undefined}
               href={field.href}
               target={/^(tel|mailto):/.test(field.href) ? undefined : '_blank'}
               rel="noreferrer"

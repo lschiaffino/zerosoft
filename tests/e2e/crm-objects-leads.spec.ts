@@ -63,7 +63,11 @@ test('objetos propios: definir, propiedad, registro, asociación, sidebar y Cmd+
   // Asociar un contacto desde Relacionados.
   const contact = await (await request.post('/api/crm/contacts', { data: { firstName: 'Assoc', lastName: tag, email: `a-${tag}@obj.io` } })).json();
   await page.locator('.record-tabs').getByRole('link', { name: 'Related', exact: true }).click();
-  await page.getByLabel('Associate a contact').selectOption(contact.id);
+  // "+ Agregar" abre el selector con búsqueda (como en HubSpot).
+  const related = page.locator('.association-panel').filter({ has: page.getByTestId('assoc-add') }).first();
+  await related.getByTestId('assoc-add').click();
+  await related.getByRole('combobox', { name: 'Associate a contact' }).fill(`Assoc ${tag}`);
+  await related.getByRole('option', { name: new RegExp(`Assoc ${tag}`) }).click();
   await expect(page.locator('.record-related')).toContainText(`Assoc ${tag}`);
   // Y se ve desde el contacto.
   await page.goto(`/en/app/crm/contacts/${contact.id}?tab=related`, { waitUntil: 'networkidle' });

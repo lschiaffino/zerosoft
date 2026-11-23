@@ -11,10 +11,11 @@ import '@/styles/crm-record-layout.css';
 import '@/styles/crm-list-hs.css';
 import '@/styles/crm-timeline.css';
 import '@/styles/crm-ai.css';
+import '@/styles/crm-layouts.css';
 import '@/styles/track-triage.css';
 import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
 import '@/styles/crm-reports.css';
 import '@/styles/crm-dashboards.css';
 
@@ -32,7 +33,7 @@ export default async function CrmLayout(props: { children: ReactNode; params: Pr
       <Suspense fallback={null}>
         <OfflineSync />
       </Suspense>
-      <CrmViewerProvider isAdmin={!!user && isWorkspaceAdmin(user)}>
+      <CrmViewerProvider isAdmin={!!user && isWorkspaceAdmin(user)} personId={user ? realUserId(user) : ''}>
         <CrmObjectsBranch />
         {props.children}
         <CrmAssistant />

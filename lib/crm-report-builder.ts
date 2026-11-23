@@ -276,6 +276,8 @@ export interface ReportRecordsResult {
   labels: Record<string, string>;
   total: number;
   truncated: boolean;
+  /** Campo de fecha al que se aplicó el rango de un dashboard (si se pidió y el reporte tiene uno). */
+  dateField?: string;
 }
 
 export interface ReportAggregateRow {
@@ -292,6 +294,8 @@ export interface ReportAggregateResult {
   /** Métrica sobre todo el conjunto (KPI y fila de total). */
   total: number;
   truncated: boolean;
+  /** Campo de fecha al que se aplicó el rango de un dashboard (si se pidió y el reporte tiene uno). */
+  dateField?: string;
 }
 
 export type ReportResult = ReportRecordsResult | ReportAggregateResult;

@@ -15,6 +15,7 @@
  *
  * Puro: lo usan el servidor, el cliente y los tests.
  */
+import { AGENTS_TOUR } from './agents';
 import { BOARD_TOUR } from './board';
 import { CAL_TOUR } from './cal';
 import { DOCS_TOUR } from './docs';
@@ -33,7 +34,7 @@ import { TALK_TOUR } from './talk';
 import { TRACK_TOUR } from './track';
 import { VOICE_TOUR } from './voice';
 
-export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec', 'people', 'hiring', 'social', 'flow', 'pulse'] as const;
+export const TOUR_KEYS = ['lines', 'inbox', 'notes', 'track', 'docs', 'board', 'forms', 'cal', 'talk', 'send', 'voice', 'rec', 'people', 'hiring', 'social', 'flow', 'pulse', 'agents'] as const;
 export type TourKey = (typeof TOUR_KEYS)[number];
 
 /** Para quién es un paso: equipo (asignar, notas, acceso a líneas) o persona sola. */
@@ -90,6 +91,7 @@ export const TOURS: Record<TourKey, TourDef> = {
   social: SOCIAL_TOUR,
   flow: FLOW_TOUR,
   pulse: PULSE_TOUR,
+  agents: AGENTS_TOUR,
 };
 
 /** Evento para abrir un tour a mano (menú de la cuenta): `detail.tour` es la clave. Lo escucha TourHost. */

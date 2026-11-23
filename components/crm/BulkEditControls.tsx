@@ -19,6 +19,8 @@ interface BulkEditControlsProps {
   /** p. ej. /api/crm/contacts/bulk */
   endpoint: string;
   ids: string[];
+  /** "Todos los que coinciden": la query del listado (el server la vuelve a evaluar); manda en vez de `ids`. */
+  matching?: string;
   fields: BulkEditField[];
   disabled?: boolean;
   /** Se llama al terminar bien (la tabla limpia la selección). */
@@ -31,7 +33,7 @@ function initialValue(field: BulkEditField | undefined): string {
 }
 
 /** Bulk bar: elegir una propiedad (owner incluido) y un valor, y aplicarlo a los seleccionados. */
-export default function BulkEditControls({ endpoint, ids, fields, disabled, onDone }: BulkEditControlsProps) {
+export default function BulkEditControls({ endpoint, ids, matching, fields, disabled, onDone }: BulkEditControlsProps) {
   const t = useTranslations('crm');
   const router = useRouter();
   const [fieldKey, setFieldKey] = useState(fields[0]?.key ?? '');
@@ -62,7 +64,7 @@ export default function BulkEditControls({ endpoint, ids, fields, disabled, onDo
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'set_property', ids, field: field.key, value: payload }),
+      body: JSON.stringify({ action: 'set_property', ...(matching !== undefined ? { matching: { query: matching } } : { ids }), field: field.key, value: payload }),
     }).catch(() => null);
     setBusy(false);
     const data = (await res?.json().catch(() => null)) as { error?: string; count?: number; failed?: number; blocked?: number } | null;

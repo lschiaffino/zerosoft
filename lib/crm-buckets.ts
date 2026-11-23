@@ -19,18 +19,27 @@ export function weekBucketStart(bucket: string): Date | null {
   return new Date(firstMonday + (week - 1) * 7 * DAY_MS);
 }
 
-export function monthLabel(month: string, locale: string): string {
+export function monthLabel(month: string, locale: string, withYear = false): string {
   const [y, m] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 1)));
+  return new Intl.DateTimeFormat(locale, { month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
 
-/** Etiqueta legible por locale: "Oct 20" / "20 oct" para días y semanas (su lunes), "oct" para meses, "Q4 2026". */
-export function bucketLabel(bucket: string, locale: string): string {
-  const day = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+/** ¿Las claves de período caen en más de un año? Entonces las etiquetas llevan el año. */
+export function bucketsSpanYears(buckets: string[]): boolean {
+  return new Set(buckets.map((b) => b.slice(0, 4))).size > 1;
+}
+
+/**
+ * Etiqueta legible por locale: "Oct 20" / "20 oct" para días y semanas (su
+ * lunes), "oct" para meses, "Q4 2026". Con withYear (un rango que cruza
+ * años) días, semanas y meses llevan el año: "Nov 2025".
+ */
+export function bucketLabel(bucket: string, locale: string, withYear = false): string {
+  const day = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
   if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) return day.format(new Date(`${bucket}T00:00:00Z`));
   const week = weekBucketStart(bucket);
   if (week) return day.format(week);
-  if (/^\d{4}-\d{2}$/.test(bucket)) return monthLabel(bucket, locale);
+  if (/^\d{4}-\d{2}$/.test(bucket)) return monthLabel(bucket, locale, withYear);
   const q = /^(\d{4})-Q([1-4])$/.exec(bucket);
   if (q) return `${locale.startsWith('en') ? 'Q' : 'T'}${q[2]} ${q[1]}`;
   return bucket;

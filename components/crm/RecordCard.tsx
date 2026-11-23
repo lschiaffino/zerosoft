@@ -38,6 +38,11 @@ interface RecordCardProps {
    */
   addLabel?: string;
   /**
+   * "+ Agregar" siempre en el encabezado, como en HubSpot (las tarjetas de
+   * asociaciones): abre el selector del panel (`[data-card-add]`).
+   */
+  addAlways?: boolean;
+  /**
    * El contenido ya trae su propio título (paneles que existían antes de la
    * ficha en columnas): la tarjeta no repite el título y, plegada, deja a la
    * vista solo esa primera línea.
@@ -61,6 +66,7 @@ export default function RecordCard({
   label,
   count,
   addLabel,
+  addAlways = false,
   bare,
   aside,
   testId,
@@ -91,6 +97,12 @@ export default function RecordCard({
     // Con la tarjeta ya abierta: el selector de "asociar existente" o, si no hay, el botón de crear.
     window.setTimeout(() => {
       const body = bodyRef.current;
+      const opener = body?.querySelector<HTMLElement>('button[data-card-add]');
+      // El selector "+ Agregar" del panel: se abre (aunque su botón esté oculto bajo el del encabezado).
+      if (opener) {
+        if (opener.getAttribute('aria-expanded') !== 'true') opener.click();
+        return;
+      }
       const target =
         body?.querySelector<HTMLElement>('[data-card-add]') ??
         body?.querySelector<HTMLElement>('.assoc-add-row select, .assoc-add-row button, .assoc-add-row a');
@@ -105,6 +117,7 @@ export default function RecordCard({
     <section
       className={`rec-card${bare ? ' rec-card-bare' : ''} ${className}`.trim()}
       data-collapsed={collapsed ? 'true' : undefined}
+      data-head-add={addAlways && addLabel ? 'true' : undefined}
       data-card={id}
       data-testid={testId}
       id={anchor}
@@ -128,8 +141,8 @@ export default function RecordCard({
             {count !== undefined && <span className="rec-card-count num">{count}</span>}
           </h2>
           {aside}
-          {addLabel && collapsed && (
-            <button type="button" className="btn btn-ghost btn-sm rec-card-add" data-testid="record-card-add" onClick={add}>
+          {addLabel && (collapsed || addAlways) && (
+            <button type="button" className="btn btn-ghost btn-sm rec-card-add" data-testid="record-card-add" aria-haspopup={addAlways ? 'dialog' : undefined} onClick={add}>
               <span aria-hidden="true">+</span> {addLabel}
             </button>
           )}

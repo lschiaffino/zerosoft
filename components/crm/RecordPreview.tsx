@@ -1,10 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import BookMeetingMenu from '@/components/crm/BookMeetingMenu';
 import CrmIcon from './CrmIcon';
+import AssociationPanel, { type AssociationOption } from './AssociationPanel';
+import PreviewActions, { RecentActivity, type RecentItem } from './PreviewActions';
+import { useCrmAdmin } from './CrmViewer';
+import { customLayoutName, defaultPreviewLayout, type PreviewLayout } from '@/lib/crm-layouts-shared';
 import PhoneTouch from './PhoneTouch';
 import PropertiesPanel, { type PropField } from './PropertiesPanel';
 import DealStagePanel, { type StageOption } from './DealStagePanel';
@@ -107,13 +110,6 @@ const PLURAL: Record<PreviewType, 'contacts' | 'companies' | 'deals'> = {
   deal: 'deals',
 };
 
-/** Propiedades a la vista sin abrir "Ver todas" (como "Información clave" en HubSpot). */
-const KEY_PROPS: Record<PreviewType, string[]> = {
-  contact: ['email', 'phone', 'jobTitle', 'lifecycleStage', 'leadStatus', 'ownerId'],
-  company: ['domain', 'industry', 'phone', 'lifecycleStage', 'ownerId', 'city'],
-  deal: ['amount', 'closeDate', 'ownerId', 'priority', 'dealType', 'nextStep'],
-};
-
 function parseCustom(json: string | undefined): Record<string, unknown> {
   try {
     const v: unknown = JSON.parse(json || '{}');
@@ -162,6 +158,14 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
   const [defs, setDefs] = useState<FieldDef[]>([]);
   const [stages, setStages] = useState<StageOption[]>([]);
+  const [layout, setLayout] = useState<PreviewLayout>(() => defaultPreviewLayout(PLURAL[type]));
+  /** La configuración ya llegó (la actividad reciente no se pide si está oculta). */
+  const [layoutReady, setLayoutReady] = useState(false);
+  /** Lo guardado en `custom` desde la última lectura, compartido por los dos paneles de propiedades. */
+  const savedCustom = useRef<Record<string, unknown>>({});
+  const [recent, setRecent] = useState<RecentItem[] | null>(null);
+  const [recentLoading, setRecentLoading] = useState(false);
+  const isAdmin = useCrmAdmin();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -176,6 +180,24 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     const data = (await res.json()) as PreviewPayload;
     if (seq === reloadSeq.current) setPayload(data);
   }, [plural, id]);
+
+  // Actividad reciente: las mismas que la ficha le muestra a la persona (GET /api/crm/timeline).
+  const recentSeq = useRef(0);
+  const loadRecent = useCallback(async () => {
+    const seq = ++recentSeq.current;
+    setRecentLoading(true);
+    const res = await fetch(`/api/crm/timeline?kind=${type}&id=${encodeURIComponent(id)}&offset=0`, { cache: 'no-store' }).catch(() => null);
+    const data = res?.ok ? ((await res.json().catch(() => null)) as { items?: RecentItem[] } | null) : null;
+    if (seq !== recentSeq.current) return;
+    // Lo último que pasó: por fecha de creación (el timeline pone primero lo fijado y las tareas por vencimiento).
+    const items = [...(data?.items ?? [])].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+    setRecent(items.slice(0, 3));
+    setRecentLoading(false);
+  }, [type, id]);
+  const showRecent = layoutReady && layout.sections.includes('activity');
+  useEffect(() => {
+    if (showRecent) void loadRecent();
+  }, [showRecent, loadRecent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,11 +214,17 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
             .then((r) => (r.ok ? (r.json() as Promise<{ rows: Array<{ id: string; stages: StageOption[] }> }>) : { rows: [] }))
             .catch(() => ({ rows: [] as Array<{ id: string; stages: StageOption[] }> }))
         : Promise.resolve(null),
+      // Qué muestra la vista previa (Ajustes › Datos), ya sin las propiedades que la persona tiene ocultas.
+      fetch(`/api/crm/layouts?kind=preview&entity=${plural}`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ layout: PreviewLayout }>) : null))
+        .catch(() => null),
     ])
-      .then(([data, fieldRows, pipelines]) => {
+      .then(([data, fieldRows, pipelines, layoutRes]) => {
         if (cancelled) return;
         setPayload(data);
         setDefs(fieldRows.rows ?? []);
+        if (layoutRes?.layout) setLayout(layoutRes.layout);
+        setLayoutReady(true);
         if (data && pipelines && 'deal' in data) {
           const p = pipelines.rows.find((x) => x.id === (data as DealPayload).deal.pipeline_id);
           setStages(p?.stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost })) ?? []);
@@ -384,6 +412,8 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     if (!payload) return null;
     let title = '';
     let lines: React.ReactNode[] = [];
+    // Datos clave bajo el nombre (como los "highlights" de HubSpot): nombre del dato y valor, a la izquierda.
+    let facts: Array<{ key: string; label: string; value: React.ReactNode }> = [];
     if (type === 'contact') {
       const c = (payload as ContactPayload).contact;
       const company = (payload as ContactPayload).company;
@@ -405,30 +435,26 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     } else if (type === 'company') {
       const c = (payload as CompanyPayload).company;
       title = c.name;
+      const where = [c.industry, [c.city, c.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
       lines = [
         c.domain && (
           <a key="domain" href={`https://${c.domain}`} target="_blank" rel="noopener noreferrer" className="preview-meta-link">
             {c.domain} <CrmIcon name="external" size={12} />
           </a>
         ),
-        [c.industry, [c.city, c.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ') && (
-          <span key="where">{[c.industry, [c.city, c.country].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}</span>
-        ),
+        where && <span key="where">{where}</span>,
       ];
     } else {
       const p = payload as DealPayload;
       title = p.deal.name;
-      lines = [
-        <span key="amount" className="preview-amount num">
-          {formatMoney(p.deal.amount, p.deal.currency, locale)}
-        </span>,
-        p.deal.close_date && (
-          <span key="close">
-            {t('deals.form.closeDate')}: {formatDay(p.deal.close_date, locale)}
-          </span>
-        ),
+      const stageName = stages.find((s) => s.id === p.deal.stage_id)?.name;
+      facts = [
+        { key: 'amount', label: t('deals.form.amount'), value: <span className="num">{formatMoney(p.deal.amount, p.deal.currency, locale)}</span> },
+        { key: 'close', label: t('deals.form.closeDate'), value: p.deal.close_date ? formatDay(p.deal.close_date, locale) : '—' },
+        ...(stageName ? [{ key: 'stage', label: t('deals.form.stage'), value: stageName }] : []),
       ];
     }
+    const shown = lines.filter(Boolean);
     return (
       <div className="preview-header">
         <div className="preview-ident">
@@ -439,22 +465,17 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
             {title}
           </h2>
         </div>
-        <div className="preview-meta">{lines.filter(Boolean)}</div>
-      </div>
-    );
-  }
-
-  function renderStage() {
-    if (!payload || type !== 'deal') return null;
-    const p = payload as DealPayload;
-    if (!stages.length) return null;
-    return (
-      <div className="preview-stage">
-        <span className="preview-stage-label">
-          {p.pipeline?.name ? `${p.pipeline.name} · ` : ''}
-          {t('deals.form.stage')}
-        </span>
-        <DealStagePanel key={p.deal.stage_id} variant="select" dealId={p.deal.id} stages={stages} currentStageId={p.deal.stage_id} onMoved={reload} />
+        {shown.length > 0 && <div className="preview-meta">{shown}</div>}
+        {facts.length > 0 && (
+          <dl className="preview-facts" data-testid="preview-facts">
+            {facts.map((f) => (
+              <div key={f.key} className={`preview-fact preview-fact-${f.key}`}>
+                <dt>{f.label}</dt>
+                <dd>{f.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
     );
   }
@@ -476,114 +497,177 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
     );
   }
 
-  function assocList(items: Array<{ id: string; href: string; name: string; meta?: string }>, empty: string) {
-    if (!items.length) return <p className="muted preview-empty">{empty}</p>;
-    return (
-      <ul className="preview-list">
-        {items.map((it) => (
-          <li key={it.id}>
-            <Link href={it.href} className="preview-list-name">
-              {it.name}
-            </Link>
-            {it.meta && <span className="preview-list-meta">{it.meta}</span>}
-          </li>
-        ))}
-      </ul>
+  function renderStage() {
+    if (!payload || type !== 'deal') return null;
+    const p = payload as DealPayload;
+    if (!stages.length) return null;
+    return section(
+      'stage',
+      p.pipeline?.name ? `${t('deals.form.stage')} · ${p.pipeline.name}` : t('deals.form.stage'),
+      undefined,
+      <div className="preview-stage">
+        <DealStagePanel key={p.deal.stage_id} variant="select" dealId={p.deal.id} stages={stages} currentStageId={p.deal.stage_id} onMoved={reload} />
+      </div>,
     );
   }
 
-  function renderAssociations() {
+  // Opciones para asociar: las primeras al abrir el buscador y el resto buscando (las rutas ya
+  // aplican la visibilidad por owner: no aparece nada que la persona no ve).
+  const loaders = useMemo(() => {
+    const list = (plural: 'contacts' | 'companies' | 'deals') => async (): Promise<AssociationOption[]> => {
+      const res = await fetch(`/api/crm/${plural}?pageSize=20`).catch(() => null);
+      const data = res?.ok ? ((await res.json().catch(() => null)) as { rows?: Array<Record<string, unknown>> } | null) : null;
+      return (data?.rows ?? []).map((r) => optionOf(plural, r));
+    };
+    const find = (plural: 'contacts' | 'companies' | 'deals') => async (q: string): Promise<AssociationOption[]> => {
+      const res = await fetch(`/api/crm/search?q=${encodeURIComponent(q)}`).catch(() => null);
+      const data = res?.ok ? ((await res.json().catch(() => null)) as Record<string, Array<Record<string, unknown>>> | null) : null;
+      return (data?.[plural] ?? []).map((r) => optionOf(plural, r));
+    };
+    return {
+      contacts: { load: list('contacts'), search: find('contacts') },
+      companies: { load: list('companies'), search: find('companies') },
+      deals: { load: list('deals'), search: find('deals') },
+    };
+  }, []);
+
+  // Asociar y quitar por la ruta de asociaciones (verifica que la persona ve los dos registros).
+  const ASSOC_TYPE = { contacts: 'contact', companies: 'company', deals: 'deal' } as const;
+  async function linkRecords(method: 'POST' | 'DELETE', sid: 'contacts' | 'companies' | 'deals', otherId: string): Promise<{ error?: string } | void> {
+    const res = await fetch('/api/crm/associations', {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fromType: type, fromId: id, toType: ASSOC_TYPE[sid], toId: otherId }),
+    }).catch(() => null);
+    if (res?.ok) return;
+    const data = (await res?.json().catch(() => null)) as { error?: string } | null;
+    return { error: data?.error ?? 'generic' };
+  }
+
+  function assocCard(
+    sid: 'contacts' | 'companies' | 'deals',
+    title: string,
+    records: Array<{ id: string; name: string; meta?: string }>,
+    empty: string,
+    addLabel: string,
+  ) {
+    return section(sid, title, records.length,
+      <AssociationPanel
+        records={records.map((r) => ({ ...r, href: `/app/crm/${sid}/${r.id}` }))}
+        options={[]}
+        onAssociate={(otherId) => linkRecords('POST', sid, otherId)}
+        onRemove={(otherId) => linkRecords('DELETE', sid, otherId)}
+        addLabel={addLabel}
+        emptyLabel={empty}
+        search={loaders[sid].search}
+        loadOptions={loaders[sid].load}
+        onChanged={() => void reload()}
+        testId={`preview-assoc-${sid}`}
+      />,
+    );
+  }
+
+  function renderAssociation(sid: string): React.ReactNode {
     if (!payload) return null;
-    const contactItem = (c: PreviewContact) => ({ id: c.id, href: `/app/crm/contacts/${c.id}`, name: contactName(c), meta: c.email || undefined });
-    const companyItem = (c: PreviewCompany) => ({ id: c.id, href: `/app/crm/companies/${c.id}`, name: c.name, meta: c.domain || undefined });
+    const contactItem = (c: PreviewContact) => ({ id: c.id, name: contactName(c), meta: c.email || undefined });
+    const companyItem = (c: PreviewCompany) => ({ id: c.id, name: c.name, meta: c.domain || undefined });
     if (type === 'contact') {
       const p = payload as ContactPayload;
-      const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
-      return (
-        <>
-          {section('companies', t('deals.detail.companies'), companies.length,
-            assocList(companies.map(companyItem), t('deals.detail.noCompany')),
-          )}
-          {section('deals', t('contacts.detail.deals'), p.deals.length,
-            assocList(
-              p.deals.map((d) => ({
-                id: d.id,
-                href: `/app/crm/deals/${d.id}`,
-                name: d.name,
-                meta: [d.stage_name, formatMoney(d.amount, d.currency, locale)].filter(Boolean).join(' · '),
-              })),
-              t('contacts.detail.noDeals'),
-            ),
-          )}
-        </>
-      );
+      if (sid === 'companies') {
+        const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
+        return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'));
+      }
+      if (sid === 'deals') {
+        return assocCard('deals', t('contacts.detail.deals'),
+          p.deals.map((d) => ({ id: d.id, name: d.name, meta: [d.stage_name, formatMoney(d.amount, d.currency, locale)].filter(Boolean).join(' · ') })),
+          t('contacts.detail.noDeals'), t('previewActions.addDeal'));
+      }
+      return null;
     }
     if (type === 'company') {
       const p = payload as CompanyPayload;
-      return (
-        <>
-          {section('contacts', t('companies.detail.contacts'), p.contacts.length,
-            assocList(p.contacts.map(contactItem), t('companies.detail.noContacts')),
-          )}
-          {section('deals', t('companies.detail.deals'), p.deals.length,
-            assocList(
-              p.deals.map((d) => ({ id: d.id, href: `/app/crm/deals/${d.id}`, name: d.name, meta: formatMoney(d.amount, d.currency, locale) })),
-              t('companies.detail.noDeals'),
-            ),
-          )}
-        </>
-      );
+      if (sid === 'contacts') {
+        return assocCard('contacts', t('companies.detail.contacts'), p.contacts.map(contactItem), t('companies.detail.noContacts'), t('previewActions.addContact'));
+      }
+      if (sid === 'deals') {
+        return assocCard('deals', t('companies.detail.deals'),
+          p.deals.map((d) => ({ id: d.id, name: d.name, meta: formatMoney(d.amount, d.currency, locale) })),
+          t('companies.detail.noDeals'), t('previewActions.addDeal'));
+      }
+      return null;
     }
     const p = payload as DealPayload;
-    const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
-    return (
-      <>
-        {section('contacts', t('deals.detail.contacts'), p.contacts.length,
-            assocList(p.contacts.map(contactItem), t('deals.detail.noContacts')),
-          )}
-        {section('companies', t('deals.detail.companies'), companies.length,
-            assocList(companies.map(companyItem), t('deals.detail.noCompany')),
-          )}
-      </>
-    );
+    if (sid === 'contacts') {
+      return assocCard('contacts', t('deals.detail.contacts'), p.contacts.map(contactItem), t('deals.detail.noContacts'), t('previewActions.addContact'));
+    }
+    if (sid === 'companies') {
+      const companies = p.companies?.length ? p.companies : p.company ? [p.company] : [];
+      return assocCard('companies', t('deals.detail.companies'), companies.map(companyItem), t('deals.detail.noCompany'), t('previewActions.addCompany'));
+    }
+    return null;
   }
 
-  function renderProperties() {
+  const aboutTitle =
+    type === 'contact' ? t('contacts.detail.aboutSection') : type === 'company' ? t('companies.detail.aboutSection') : t('deals.detail.aboutSection');
+
+  function renderAbout() {
     if (!payload) return null;
-    const std = standardFields();
-    const aboutTitle =
-      type === 'contact' ? t('contacts.detail.aboutSection') : type === 'company' ? t('companies.detail.aboutSection') : t('deals.detail.aboutSection');
-    const keys = KEY_PROPS[type].filter((k) => std.some((f) => f.key === k));
-    const customSections = customFieldSections(defs, customFields, t('preview.customProps'));
-    return (
-      <>
-        {section('about', aboutTitle, undefined, (
-          <PropertiesPanel
-            endpoint={endpoint}
-            fields={std}
-            custom={custom}
-            compactKeys={keys}
-            viewAllLabel={t('preview.allProps')}
-            optimistic
-            onSaved={() => void reload()}
-          />
-        ))}
-        {/* Un solo panel para todas las propiedades propias (agrupadas): el PATCH manda el
-            objeto custom entero, y dos paneles con su propia copia se pisaban entre sí. */}
-        {customSections.length > 0 &&
-          section('custom', t('preview.customProps'), undefined, (
-            <PropertiesPanel
-              endpoint={endpoint}
-              fields={customFields}
-              custom={custom}
-              sections={customSections.length > 1 || customSections[0].title !== t('preview.customProps') ? customSections : undefined}
-              optimistic
-              onSaved={() => void reload()}
-            />
-          ))}
-      </>
-    );
+    // Propias del objeto más las personalizadas configuradas acá (las demás van en su tarjeta: ninguna se repite).
+    const configured = new Set(layout.properties);
+    const fields = [...standardFields(), ...customFields.filter((f) => configured.has(f.key))];
+    // Lo configurado en Ajustes, en ese orden; "Ver todas" abre el resto. Sin nada configurado
+    // (o todo oculto para quien mira), lo de por defecto.
+    let keys = layout.properties.filter((k) => fields.some((f) => f.key === k));
+    if (!keys.length) keys = defaultPreviewLayout(PLURAL[type]).properties.filter((k) => fields.some((f) => f.key === k));
+    return section('about', aboutTitle, undefined, (
+      <PropertiesPanel
+        endpoint={endpoint}
+        fields={fields}
+        custom={custom}
+        compactKeys={keys}
+        viewAllLabel={t('preview.allProps')}
+        optimistic
+        onSaved={() => void reload()}
+        savedCustomRef={savedCustom}
+      />
+    ));
   }
+
+  function renderCustom() {
+    // Propiedades personalizadas agrupadas, sin las que ya están a la vista en "Acerca de".
+    const inAbout = new Set(layout.properties.filter((k) => customLayoutName(k)));
+    const rest = customFields.filter((f) => !inAbout.has(f.key));
+    const restDefs = defs.filter((d) => !inAbout.has(`custom.${d.name}`));
+    const customSections = customFieldSections(restDefs, rest, t('preview.customProps'));
+    if (!customSections.length) return null;
+    return section('custom', t('preview.customProps'), undefined, (
+      <PropertiesPanel
+        endpoint={endpoint}
+        fields={rest}
+        custom={custom}
+        sections={customSections.length > 1 || customSections[0].title !== t('preview.customProps') ? customSections : undefined}
+        optimistic
+        onSaved={() => void reload()}
+        savedCustomRef={savedCustom}
+      />
+    ));
+  }
+
+  function renderSection(sid: string): React.ReactNode {
+    if (sid === 'stage') return renderStage();
+    if (sid === 'custom') return renderCustom();
+    if (sid === 'activity') {
+      return section('activity', t('previewActions.recent'), undefined,
+        <RecentActivity items={recent} loading={recentLoading} locale={locale} href={`${detailHref}?tab=activity`} />,
+      );
+    }
+    return renderAssociation(sid);
+  }
+
+  let emailTo = '';
+  if (payload && type === 'contact') emailTo = (payload as ContactPayload).contact.email || '';
+  else if (payload && type === 'deal') emailTo = (payload as DealPayload).contacts.find((c) => c.email)?.email ?? '';
+  else if (payload && type === 'company') emailTo = (payload as CompanyPayload).contacts.find((c) => c.email)?.email ?? '';
 
   return (
     <div className="preview-overlay" onClick={onClose} role="presentation">
@@ -599,9 +683,20 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
       >
         <div className="preview-head">
           <span className="preview-kind">{t(`preview.kind.${type}`)}</span>
-          <button ref={closeRef} type="button" className="icon-btn preview-close" onClick={onClose} aria-label={t('common.close')}>
-            <CrmIcon name="x" />
-          </button>
+          <span className="preview-head-tools">
+            {isAdmin && (
+              <Link
+                href={`/app/crm/settings?tab=data&object=${plural}#preview-layout`}
+                className="btn btn-ghost btn-sm preview-customize"
+                data-testid="preview-customize"
+              >
+                {t('layouts.customize')}
+              </Link>
+            )}
+            <button ref={closeRef} type="button" className="icon-btn preview-close" onClick={onClose} aria-label={t('common.close')}>
+              <CrmIcon name="x" />
+            </button>
+          </span>
         </div>
 
         <div className="preview-body">
@@ -623,12 +718,21 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
           {!loading && !error && payload && (
             <>
               {renderHeader()}
-              <div className="preview-actions">
-                <BookMeetingMenu name={prefillName} email={prefillEmail} locale={locale} />
-              </div>
-              {renderStage()}
-              {renderProperties()}
-              {renderAssociations()}
+              <PreviewActions
+                type={type}
+                id={id}
+                locale={locale}
+                emailTo={emailTo}
+                meetingName={prefillName}
+                meetingEmail={prefillEmail}
+                onLogged={() => {
+                  if (showRecent) void loadRecent();
+                }}
+              />
+              {renderAbout()}
+              {layout.sections.map((sid) => (
+                <Fragment key={sid}>{renderSection(sid)}</Fragment>
+              ))}
             </>
           )}
         </div>
@@ -641,4 +745,14 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [] }
       </aside>
     </div>
   );
+}
+
+/** Opción de asociación a partir de una fila de lista o de búsqueda. */
+function optionOf(plural: 'contacts' | 'companies' | 'deals', r: Record<string, unknown>): AssociationOption {
+  const str = (k: string) => (typeof r[k] === 'string' ? (r[k] as string) : '');
+  if (plural === 'contacts') {
+    const name = `${str('first_name')} ${str('last_name')}`.trim() || str('email') || '—';
+    return { id: str('id'), value: str('email') && name !== str('email') ? `${name} · ${str('email')}` : name };
+  }
+  return { id: str('id'), value: str('name') || '—' };
 }

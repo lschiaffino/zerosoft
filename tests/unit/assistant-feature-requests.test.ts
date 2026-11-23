@@ -191,7 +191,8 @@ describe('copia a GitHub', () => {
     expect(p.body).not.toContain(u.email);
     expect(p.body).not.toContain(u.id);
     expect(p.body).not.toContain('Name fr-payload');
-    expect(p.body).not.toContain('5555');
+    // El teléfono entero (un id al azar puede tener "5555" adentro).
+    expect(p.body).not.toContain('5555 1234');
     expect(buildIssuePayload({ ...input, item: { ...input.item, priority: 1 } }).labels).toEqual(['from-assistant', 'priority']);
   });
 

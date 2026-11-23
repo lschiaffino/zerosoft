@@ -127,3 +127,253 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
 }
 
 .filter-more-empty { margin: 0; font-size: 0.8125rem; }
+
+/* ============================================================
+   P5: los tres índices iguales, sin pastillas, columnas que no se cortan,
+   menú de columna, seleccionar todos los que coinciden y la ficha.
+   ============================================================ */
+
+/* ---------- Valores con significado: texto (con un punto), nunca una pastilla ---------- */
+.dot-label,
+.cell-inline.dot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  font-weight: 400;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cell-inline.dot-label { padding: 2px 4px; margin-left: -4px; border-radius: var(--radius-1); }
+.cell-inline.dot-label:hover { background: var(--brand-enamel); }
+.dot-label[class*='stage-']::before,
+.dot-label[class*='prio-']::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-gray-3, var(--line));
+}
+.dot-label.stage-mql::before, .dot-label.stage-sql::before, .dot-label.stage-opportunity::before { background: var(--brand-gray-1); }
+.dot-label.stage-customer::before, .dot-label.stage-evangelist::before { background: var(--accent); }
+.dot-label.prio-medium::before { background: var(--brand-gray-1); }
+.dot-label.prio-high::before { background: var(--ink); }
+.crm-table .dot-label { font-size: 13px; }
+/* En la ficha, debajo del nombre: separados con un punto medio, como el resto de la línea. */
+.rec-keyline .dot-label { font-size: inherit; color: var(--brand-gray-1); }
+.assoc-primary { font-size: 0.75rem; color: var(--brand-gray-1); white-space: nowrap; }
+.score-tier { padding: 0; border: 0; font-weight: 500; color: var(--brand-gray-1); }
+.score-tier::before { content: '· '; }
+
+/* ---------- La tabla se desplaza adentro, con el borde marcado ---------- */
+.table-scroll { position: relative; min-width: 0; max-width: 100%; }
+.table-scroll > .table-wrap { background: none; }
+.table-scroll::before,
+.table-scroll::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 3;
+  width: 24px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.table-scroll::after {
+  right: 1px;
+  width: 40px;
+  /* Lo que sigue se desvanece contra el fondo (nada queda cortado a la vista) y una sombra marca el borde. */
+  background:
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 14%, transparent), transparent 10px),
+    linear-gradient(to left, var(--bg) 8px, color-mix(in srgb, var(--bg) 85%, transparent) 20px, transparent);
+}
+.table-scroll::before {
+  left: 1px;
+  width: 40px;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 14%, transparent), transparent 10px),
+    linear-gradient(to right, var(--bg) 8px, color-mix(in srgb, var(--bg) 85%, transparent) 20px, transparent);
+}
+.table-scroll[data-more-right='true']::after { opacity: 1; }
+/* Con la primera columna fija, la sombra izquierda va pegada a ella. */
+.table-scroll[data-more-left='true']:not(:has(.is-frozen))::before { opacity: 1; }
+/* Lo que no entra en la celda se corta con "…" (el valor entero va en el title o en la ficha). */
+.crm-table .cell-crm-tags .tag-dots { display: flex; flex-wrap: nowrap; gap: 10px; max-width: 200px; overflow: hidden; }
+.crm-table .cell-crm-tags .tag-dot { display: block; flex: 0 1 auto; min-width: 0; margin-right: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-table .cell-crm-tags .tag-dot-mark { display: inline-block; margin-right: 5px; vertical-align: middle; }
+.crm-table .cell-crm-tags .tag-dot-more { flex: none; }
+.crm-table td .cell-inline { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.crm-table .cell-email.cell-inline, .crm-table .cell-email .cell-inline { max-width: 230px; }
+/* "Editar filtros rápidos": un botón de ícono al final de la fila. */
+.qf-picker-btn { width: 32px; padding: 0; justify-content: center; }
+
+/* ---------- Encabezado con menú de columna ---------- */
+.crm-table th .th-wrap { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; }
+.crm-table th.num .th-wrap { justify-content: flex-end; }
+.th-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.crm-table th:hover .th-menu-btn,
+.th-menu-btn:focus-visible,
+.th-menu-btn[aria-expanded='true'] { opacity: 1; }
+.th-menu-btn:hover, .th-menu-btn[aria-expanded='true'] { color: var(--ink); background: var(--brand-enamel); }
+@media (hover: none) { .th-menu-btn { opacity: 1; width: 40px; height: 40px; } }
+.th-menu { position: fixed; right: auto; z-index: 70; min-width: 200px; }
+.th-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.th-menu-item:hover:not(:disabled), .th-menu-item:focus-visible { background: var(--brand-enamel); outline: none; }
+.th-menu-item:disabled { color: var(--brand-gray-2); cursor: default; }
+.th-menu-item.danger { color: var(--bad-ink, var(--ink)); }
+.th-menu-sep { height: 1px; margin: 4px 2px; background: var(--line); }
+
+/* ---------- Seleccionar todos los que coinciden ---------- */
+.select-all-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 10px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--brand-enamel);
+  font-size: 0.8125rem;
+  color: var(--ink);
+  text-align: center;
+}
+.select-all-banner .link-btn { font-size: 0.8125rem; font-weight: 600; color: var(--ink); text-decoration-color: currentColor; min-height: 32px; }
+.select-all-banner .bulk-error { color: var(--bad-ink, var(--ink)); }
+
+/* ---------- Crear tareas en masa ---------- */
+.bk-tasks { flex-direction: column; align-items: stretch; min-width: 260px; }
+.bk-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; }
+.bk-field .input, .bk-field .filter-select { width: 100%; height: 32px; min-height: 32px; color: var(--ink); background-color: var(--bg); }
+
+/* ---------- Barras de los tres índices: los mismos controles, la misma medida ---------- */
+.deals-filter-bar .filter-toolbar { align-items: center; gap: 8px; }
+.deals-filter-bar .filter-search .input { height: 32px; min-height: 32px; }
+.deals-filter-bar :is(.filter-select, .filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .seg-toggle) { height: 32px; min-height: 32px; box-sizing: border-box; }
+.deals-filter-bar .seg-toggle-item { min-height: 30px; }
+.deals-filter-bar .column-toggle-btn { padding: 0 12px; border-color: var(--ui-field); border-radius: var(--radius-1); text-decoration: none; }
+.deals-filter-bar .filter-sort { width: auto; min-width: 110px; max-width: 220px; field-sizing: content; padding-right: 30px; }
+/* En escritorio, búsqueda y acciones en una sola línea en los tres índices (la búsqueda cede espacio). */
+@media (min-width: 1024px) {
+  /* La búsqueda cede espacio antes de que las acciones pasen a otra línea (nunca se salen de la pantalla). */
+  .deals-filter-bar .filter-toolbar .filter-search { flex: 1 1 160px; min-width: 160px; max-width: 280px; }
+  .deals-filter-bar .filter-right { flex-wrap: nowrap; flex: none; }
+}
+/* Filtros rápidos: del ancho de lo que dicen (no del nombre más largo de la lista), como en HubSpot. */
+.filter-quick .filter-select:not(.filter-btn) { width: auto; max-width: 220px; field-sizing: content; padding-right: 30px; }
+.filter-quick > .dr-filter > .filter-btn { max-width: 260px; }
+.qf-picker-menu { min-width: 240px; padding: 8px; gap: 4px; }
+.qf-picker-title { margin: 0 4px 4px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-1); }
+.qf-picker-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.qf-picker-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 6px; border-radius: var(--radius-1); font-size: 0.8125rem; cursor: pointer; }
+.qf-picker-item:hover { background: var(--brand-enamel); }
+.qf-picker-menu > .btn { align-self: flex-start; }
+.export-view-btn { white-space: nowrap; }
+@media (max-width: 640px) {
+  .deals-filter-bar :is(.filter-select, .filter-select.filter-btn, .filter-more, .filter-clear, .column-toggle-btn, .seg-toggle, .filter-search .input) { height: 40px; min-height: 40px; }
+  .qf-picker-item { min-height: 40px; }
+  .export-view-btn span { display: none; }
+  .select-all-banner .link-btn { min-height: 40px; }
+}
+
+/* ---------- Ficha: el email entero sin cortar a mitad de palabra ---------- */
+.prop-row .prop-value { overflow-wrap: normal; word-break: normal; }
+.prop-row .prop-value:is(a, .prop-link, .prop-btn) { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-row .prop-value .prop-link, .prop-row .prop-value a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
+/* ---------- Ficha: "Destacados" como en HubSpot (etiqueta arriba, valor abajo, misma escala) ---------- */
+[data-testid='record-highlights'] .record-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px 16px;
+}
+[data-testid='record-highlights'] .record-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+[data-testid='record-highlights'] .record-facts dt { font-size: 0.75rem; color: var(--brand-gray-2); }
+[data-testid='record-highlights'] .record-facts dd {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: left;
+}
+
+/* ---------- Ficha: asociaciones con "+ Agregar" y un selector con búsqueda ---------- */
+.rec-card[data-head-add='true'] .assoc-add-trigger { display: none; }
+.rec-card[data-head-add='true'] .rec-card-add { margin-left: auto; }
+.assoc-picker-wrap { position: relative; }
+.assoc-add-trigger { gap: 4px; padding-left: 4px; }
+.assoc-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+  padding: 8px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  box-shadow: 0 12px 32px var(--ui-shadow, rgba(0, 0, 0, 0.12));
+}
+.rec-card[data-head-add='true'] .assoc-picker-wrap { position: static; }
+.rec-card[data-head-add='true'] { position: relative; }
+.rec-card[data-head-add='true'] .assoc-picker { top: 40px; }
+.assoc-picker-search { width: 100%; height: 32px; min-height: 32px; }
+.assoc-picker-list { display: flex; flex-direction: column; max-height: 260px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.assoc-picker-item { display: flex; flex-direction: column; gap: 1px; min-height: 36px; justify-content: center; padding: 4px 8px; border-radius: var(--radius-1); cursor: pointer; }
+.assoc-picker-item.is-active { background: var(--brand-enamel); }
+.assoc-picker-name { font-size: 0.8125rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assoc-picker-meta { font-size: 0.75rem; color: var(--brand-gray-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assoc-picker-empty { margin: 4px 8px; font-size: 0.8125rem; color: var(--brand-gray-1); }
+.assoc-picker-foot { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+@media (max-width: 640px) {
+  .assoc-picker-item, .assoc-add-trigger, .rec-card[data-head-add='true'] .rec-card-add { min-height: 40px; }
+  .assoc-picker-search { height: 40px; min-height: 40px; }
+}

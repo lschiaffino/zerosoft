@@ -94,7 +94,15 @@
     "primary": "Primary",
     "makePrimary": "Make primary",
     "label": "Label",
-    "noLabel": "No label"
+    "noLabel": "No label",
+    "typeToSearch": "Type to search",
+    "noMatches": "No matches.",
+    "searching": "Searching…",
+    "search": {
+      "contact": "Search contacts",
+      "company": "Search companies",
+      "deal": "Search deals"
+    }
   },
   "enums": {
     "lifecycle": {
@@ -1509,7 +1517,8 @@
     "duplicate_label": "There is already a label with that name.",
     "too_many_labels": "You reached the limit of labels for this association.",
     "invalid_queue": "That queue does not exist or you cannot see it.",
-    "too_many": "This workspace reached the limit."
+    "too_many": "This workspace reached the limit.",
+    "too_many_tasks": "Create tasks for up to 200 records at a time. Narrow the view and try again."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -5008,7 +5017,9 @@
     "openRecord": "Open record",
     "noMoreFilters": "No more filters for companies yet. Use Advanced filters.",
     "perPage": "{count} per page",
-    "perPageLabel": "Rows per page"
+    "perPageLabel": "Rows per page",
+    "exportView": "Export view",
+    "exportViewHint": "Download every record in this view as CSV, not only this page"
   },
   "bulkBar": {
     "label": "Bulk actions",
@@ -5020,7 +5031,16 @@
     "add": "Add",
     "clear": "Clear selection",
     "addedToList": "{count, plural, one {# contact added to the list.} other {# contacts added to the list.}}",
-    "deleted": "{count, plural, one {# record moved to trash.} other {# records moved to trash.}}"
+    "deleted": "{count, plural, one {# record moved to trash.} other {# records moved to trash.}}",
+    "createTasks": "Create tasks",
+    "taskTitle": "Task title",
+    "taskDue": "Due date",
+    "taskAssign": "Assign to",
+    "taskAssignOwner": "Record owner",
+    "taskAssignMe": "Me",
+    "createTasksCta": "{count, plural, one {Create # task} other {Create # tasks}}",
+    "tasksCreated": "{count, plural, one {# task created.} other {# tasks created.}}",
+    "tasksFailed": "{count, plural, one {# record was skipped.} other {# records were skipped.}}"
   },
   "propSearch": {
     "placeholder": "Search properties",
@@ -5058,7 +5078,8 @@
       "nextMonth": "Next month",
       "thisQuarter": "This quarter",
       "next30": "Next 30 days",
-      "overdue": "Before today"
+      "overdue": "Before today",
+      "none": "No activity"
     }
   },
   "dash": {
@@ -5185,7 +5206,12 @@
       "formerMember": "Former member",
       "seeAll": "See all",
       "drillHint": "Select a bar or value to see its records",
-      "perDayUnit": "/ day"
+      "perDayUnit": "/ day",
+      "vsPrevValue": "vs {value} previous period",
+      "pts": "{value, plural, one {# pt} other {# pts}}",
+      "velocityDetail": "{count, plural, one {# open deal} other {# open deals}} · {cycle}-day cycle",
+      "velocityFormula": "{open} open deals × {rate}% win rate × {avg} average deal ÷ {cycle}-day sales cycle",
+      "conversionShort": "{value}% moved on"
     },
     "edit": {
       "title": "Edit report",
@@ -5331,7 +5357,8 @@
         "status": "Status",
         "type": "Type",
         "owner": "Owner",
-        "date": "Date"
+        "date": "Date",
+        "lifecycle": "Lifecycle stage"
       }
     },
     "empty": {
@@ -5341,5 +5368,118 @@
       "noDashBody": "Create a dashboard, or start from the Sales template with 12 ready-made reports.",
       "noData": "There's no CRM data in this period yet. Reports fill in as your team adds deals, contacts and activities."
     }
+  },
+  "layouts": {
+    "editCards": "Edit cards",
+    "customize": "Customize",
+    "cardSettingsTitle": "Board cards",
+    "cardSettingsDesc": "Choose which properties each deal card shows on the board, per pipeline. The deal name is always on top.",
+    "previewSettingsTitle": "Record preview",
+    "previewSettingsDesc": "Choose what the preview panel shows when you open a contact, company or deal from a list or the board: the properties in \"About\" and the cards below it, in order.",
+    "about": {
+      "contacts": "About this contact",
+      "companies": "About this company",
+      "deals": "About this deal"
+    },
+    "aboutHelp": "These properties show first. The rest stay one click away in \"View all properties\".",
+    "cardsTitle": "Cards in the preview",
+    "cardsHelp": "The cards below \"About\", in this order.",
+    "hide": "Hide",
+    "show": "Show",
+    "hiddenCards": "Hidden cards",
+    "remove": "Remove",
+    "addLabel": "Property to add",
+    "full": "Up to {max} properties",
+    "allAdded": "Every property is already added",
+    "noProps": "No properties yet.",
+    "privacyHelp": "People only see the properties they are allowed to see. A property hidden from someone is left out of their preview.",
+    "cardPrivacyHelp": "Up to {max} properties. A property hidden from someone is left out of their cards.",
+    "noPipelines": "Create a pipeline first.",
+    "sampleLabel": "Sample card",
+    "sample": {
+      "deal": "Sample deal",
+      "company": "Company",
+      "contact": "Contact",
+      "nextStep": "Send the proposal"
+    },
+    "cardProps": {
+      "company": "Company",
+      "contact": "Contact",
+      "createdAt": "Create date",
+      "lastActivity": "Last activity"
+    },
+    "sections": {
+      "stage": "Deal stage",
+      "activity": "Recent activity",
+      "contacts": "Contacts",
+      "companies": "Companies",
+      "deals": "Deals",
+      "custom": "Custom properties"
+    }
+  },
+  "previewActions": {
+    "logged": {
+      "note": "Note saved.",
+      "email": "Email sent.",
+      "call": "Call logged.",
+      "task": "Task created."
+    },
+    "title": {
+      "note": "New note",
+      "email": "New email",
+      "call": "Log a call",
+      "task": "New task"
+    },
+    "to": "To",
+    "subject": "Subject",
+    "taskTitle": "Task",
+    "taskNotes": "Notes",
+    "body": {
+      "note": "Note",
+      "email": "Message",
+      "call": "What was said"
+    },
+    "send": "Send",
+    "save": "Save",
+    "viewActivity": "View all activity",
+    "noActivity": "No activity yet.",
+    "done": "Done",
+    "recent": "Recent activity",
+    "addCompany": "Add company",
+    "addDeal": "Add deal",
+    "addContact": "Add contact"
+  },
+  "columnMenu": {
+    "label": "Column options: {name}",
+    "sortAsc": "Sort ascending",
+    "sortDesc": "Sort descending",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "remove": "Remove column"
+  },
+  "quickFilterPicker": {
+    "button": "Edit quick filters",
+    "title": "Quick filters in this view",
+    "reset": "Reset to default"
+  },
+  "selectAll": {
+    "page": "{count, plural, one {The # record on this page is selected.} other {All # records on this page are selected.}}",
+    "select": {
+      "contacts": "Select all {count} contacts in this view",
+      "companies": "Select all {count} companies in this view",
+      "deals": "Select all {count} deals in this view"
+    },
+    "all": {
+      "contacts": "All {count} contacts in this view are selected.",
+      "companies": "All {count} companies in this view are selected.",
+      "deals": "All {count} deals in this view are selected."
+    },
+    "capped": {
+      "contacts": "The first {count} of {total} contacts in this view are selected (the limit for one bulk action).",
+      "companies": "The first {count} of {total} companies in this view are selected (the limit for one bulk action).",
+      "deals": "The first {count} of {total} deals in this view are selected (the limit for one bulk action)."
+    },
+    "clear": "Clear selection",
+    "error": "Couldn't select them. Try again."
   }
 }
