@@ -600,18 +600,14 @@ export const SENDER_LEFT = 'sender_left';
 /**
  * Aviso al dueño del workspace (siempre admin) de que una secuencia quedó con
  * inscripciones pausadas porque quien enviaba salió. Uno por secuencia
- * mientras no lo lea, aunque se pausen varias inscripciones.
+ * mientras no lo lea, aunque se pausen varias inscripciones a la vez (el
+ * chequeo y el alta van en la misma sentencia).
  */
 async function notifySenderLeft(workspaceId: string, sequence: CrmSequenceRow): Promise<void> {
-  const db = getDb();
-  const pending = await db
-    .prepare("SELECT 1 FROM notifications WHERE user_id = ? AND type = 'crm_sequence' AND source_type = 'crm_sequence' AND source_id = ? AND read_at IS NULL LIMIT 1")
-    .get(workspaceId, sequence.id);
-  if (pending) return;
   try {
-    const { createNotification } = await import('./notifications');
+    const { createNotificationUnlessUnread } = await import('./notifications');
     const { localized } = await import('./notification-copy');
-    await createNotification({
+    await createNotificationUnlessUnread({
       userId: workspaceId,
       type: 'crm_sequence',
       title: localized('sequenceSenderLeft', { sequence: sequence.name }),
