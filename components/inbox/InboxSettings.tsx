@@ -607,7 +607,7 @@ export default function InboxSettings({ initial, gmailResult, canManageInternal 
         onDone={reloadQuiet}
       />
       {/* Contactos internos del workspace (lib/internal-contacts.ts): los mismos que en Lines; los cambian los admins. */}
-      <section className="ib-section" id="internal" aria-label={ti('title')}>
+      <section className="ib-section" id="internal" aria-label={ti('title')} data-setting="inbox-internal">
         {canManageInternal ? (
           <InternalContactsPanel apiBase="/api/inbox/internal" />
         ) : (
