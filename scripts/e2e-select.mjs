@@ -227,6 +227,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
   }
   const p = plan(changed, event);
+  // SCRATCH (no se mergea): solo el spec de capturas.
+  if (changed.some((f) => f.includes('tests/e2e/zz-l1-shots'))) Object.assign(p, { mode: 'selected', specs: ['zz-l1-shots.spec.ts'], shards: 1, real: false, quarantine: false, docker: false, mac: false, build: true });
   const e2e = p.mode !== 'none';
   const out = {
     mode: p.mode,
