@@ -11,7 +11,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { ChatDto, ChatPresence, GroupsPerson, LabelDto, MemberDto, MessageDto, PropertyDef, QuickReply } from '@/lib/groups';
 import type { ProviderCaps } from '@/lib/groups-provider';
 import { findMentionHits, mentionQueryAt, mentionSegments, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { allFirst, deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { MENTION_ALL, mentionAllWord } from '@/lib/wa-mention-all';
 import { TRANSLATE_LANGS, messageActions } from '@/lib/groups-inbox-rules';
 import { useGroupsInbox } from './InboxShell';
 import { fetchIfChanged, withTimeout } from '@/lib/conditional-fetch';
@@ -771,12 +772,15 @@ export default function ChatThread(props: ThreadProps) {
   // "@" en una nota abre las personas del equipo; en un grupo de WhatsApp, los participantes (como WhatsApp). La
   // mención sale como mención de verdad (avisa a la persona). "/" abre los comandos y las respuestas rápidas, más abajo.
   const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
-  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current), [props.members, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "@all" (o "@todos"): todo el grupo, solo si la línea lo puede mandar (lib/wa-mention-all.ts). Las notas internas no.
+  const allWord = chat.kind === 'group' && props.caps.mentionAll && !props.sample ? mentionAllWord(locale) : null;
+  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
   const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
   const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
   const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
   const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
-  const mentionMatches = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6) : [];
+  const mentionMatches = mentionOpen && mentionPool ? allFirst(mentionSuggestions(mentionQuery.query, mentionPool, waMentions ? 50 : 6)) : [];
+  const memberCount = props.members.filter((m) => !m.me).length;
 
   // Idioma del cliente: el detectado en su último mensaje traducido.
   const customerLang = useMemo(() => {
@@ -2792,19 +2796,35 @@ export default function ChatThread(props: ThreadProps) {
             <ul className="wa-mention-pop" role="listbox" aria-label={t('thread.mentionPeople')}>
               {mentionMatches.map((p, i) => (
                 <li key={p.id} role="option" aria-selected={i === mentionIndex}>
-                  <button
-                    type="button"
-                    title={waMentions ? `+${p.id}` : p.email}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
-                    onClick={() => pickMention(i)}
-                  >
-                    <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
-                    <span className="wa-mention-who">
-                      <span className="wa-mention-name">{p.name || p.email}</span>
-                      {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
-                    </span>
-                  </button>
+                  {waMentions && p.id === MENTION_ALL ? (
+                    <button
+                      type="button"
+                      data-testid="mention-all"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                      onClick={() => pickMention(i)}
+                    >
+                      <Avatar name={chat.name} kind="group" size={32} src={chat.pictureUrl || undefined} seed={chat.id} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{t('thread.mentionAll', { word: p.name ?? MENTION_ALL })}</span>
+                        <span className="wa-mention-phone">{t('thread.mentionAllHint', { count: memberCount })}</span>
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      title={waMentions ? `+${p.id}` : p.email}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
+                      onClick={() => pickMention(i)}
+                    >
+                      <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{p.name || p.email}</span>
+                        {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -2924,6 +2944,8 @@ export default function ChatThread(props: ThreadProps) {
                   if (mentionClosedAt !== null && !e.target.value.slice(mentionClosedAt).startsWith('@')) setMentionClosedAt(null);
                 }}
                 onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+                // Tocar afuera cierra la lista del "@" (elegir una opción no saca el foco: onMouseDown la frena).
+                onBlur={() => mentionQuery && setMentionClosedAt(mentionQuery.start)}
                 onKeyDown={onComposerKey}
                 placeholder={mode === 'note' ? t('thread.notePlaceholder') : tray.items.length ? t('wa.addCaption') : slash.placeholder(t('wa.typeMessage'))}
                 {...slash.inputProps}
@@ -3004,6 +3026,7 @@ export default function ChatThread(props: ThreadProps) {
             stickerLine={stickerLine}
             sending={sending}
             mentionables={captionMentionables}
+            mentionAll={allWord ? { word: allWord, count: memberCount, name: chat.name, picture: chat.pictureUrl || undefined, seed: chat.id } : null}
             onLater={!editing ? () => openLater(true) : undefined}
           />
         )}

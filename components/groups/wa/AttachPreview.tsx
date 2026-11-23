@@ -10,7 +10,8 @@ import EmojiPicker from './EmojiPicker';
 import MentionTextarea from './MentionTextarea';
 import Avatar from './Avatar';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText, type Mentionable } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
+import { allFirst, deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks } from '@/lib/wa-compose-mentions';
+import { MENTION_ALL } from '@/lib/wa-mention-all';
 import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasBlur, hasEdits, needsRender, outputName, renderEdits, sendScale, viewSize, type Ctx2D, type Edits } from '@/lib/wa-image-edit';
 import { blurredPhoto, filteredPhoto } from './photo-sources';
 import '@/styles/wa-editor.css';
@@ -119,6 +120,7 @@ export default function AttachPreview({
   stickerLine,
   sending,
   mentionables,
+  mentionAll,
   onLater,
 }: {
   items: TrayItem[];
@@ -147,6 +149,8 @@ export default function AttachPreview({
    * mención se ve en verde y sale como mención de WhatsApp). Sin esto (o vacío), el pie no menciona.
    */
   mentionables?: ReadonlyArray<{ phone: string; name: string; avatar?: string }>;
+  /** "@all" en el pie: la palabra ("all" o "todos") si la línea puede mencionar a todo el grupo (lib/wa-mention-all.ts). */
+  mentionAll?: { word: string; count: number; name: string; picture?: string; seed: string } | null;
   /**
    * Enviar más tarde (un solo archivo): el reloj junto a Enviar, clic derecho en Enviar o ⌘⇧Enter en el pie, como en
    * el campo del chat. La foto sale con sus cambios (se arma antes, igual que al mandar).
@@ -165,8 +169,8 @@ export default function AttachPreview({
   const picked = useRef(new Map<string, string>());
   const [pickedVersion, setPickedVersion] = useState(0);
   const pool = useMemo<Mentionable[] | null>(
-    () => (mentionables?.length ? waMentionables(mentionables, picked.current) : null),
-    [mentionables, pickedVersion], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (mentionables?.length ? waMentionables(mentionables, picked.current, mentionAll?.word) : null),
+    [mentionables, pickedVersion, mentionAll?.word], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const pics = useMemo(() => new Map((mentionables ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar!])), [mentionables]);
   const caption = it?.caption ?? '';
@@ -177,7 +181,7 @@ export default function AttachPreview({
   const hits = useMemo(() => (pool ? findMentionHits(caption, pool) : []), [caption, pool]);
   const query = pool && captionFocus ? mentionQueryAt(caption, caret) : null;
   const mentionOpen = !!query && closedAt !== query.start && !mentionAlreadyDone(query.start, caret, hits);
-  const people = mentionOpen && pool ? mentionSuggestions(query.query, pool, 50) : [];
+  const people = mentionOpen && pool ? allFirst(mentionSuggestions(query.query, pool, 50)) : [];
 
   /** El pie de un archivo y, en un grupo con menciones, cómo sale a WhatsApp. */
   const setCaptionOf = (key: string, text: string, list: Mentionable[] | null = pool) => {
@@ -195,7 +199,7 @@ export default function AttachPreview({
     const ins = `${mentionText(p)} `;
     const next = (caption.slice(0, query.start) + ins + caption.slice(caret)).slice(0, 1024);
     const pos = Math.min(next.length, query.start + ins.length);
-    setCaptionOf(it.key, next, mentionables?.length ? waMentionables(mentionables, picked.current) : null);
+    setCaptionOf(it.key, next, mentionables?.length ? waMentionables(mentionables, picked.current, mentionAll?.word) : null);
     setCaret(pos);
     setMentionIdx(0);
     pendingCaret.current = pos;
@@ -458,19 +462,35 @@ export default function AttachPreview({
             <ul className="wa-mention-pop wa-attach-mentions" role="listbox" aria-label={t('thread.mentionPeople')} data-testid="caption-mentions">
               {people.map((p, i) => (
                 <li key={`${p.id}:${p.name}`} role="option" aria-selected={i === mentionIdx}>
-                  <button
-                    type="button"
-                    title={`+${p.id}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
-                    onClick={() => pickMention(p)}
-                  >
-                    <Avatar name={p.name || p.id} kind="dm" size={32} src={pics.get(p.id) || undefined} seed={p.id} />
-                    <span className="wa-mention-who">
-                      <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
-                      {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
-                    </span>
-                  </button>
+                  {p.id === MENTION_ALL && mentionAll ? (
+                    <button
+                      type="button"
+                      data-testid="mention-all"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                      onClick={() => pickMention(p)}
+                    >
+                      <Avatar name={mentionAll.name} kind="group" size={32} src={mentionAll.picture || undefined} seed={mentionAll.seed} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{t('thread.mentionAll', { word: p.name ?? MENTION_ALL })}</span>
+                        <span className="wa-mention-phone">{t('thread.mentionAllHint', { count: mentionAll.count })}</span>
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      title={`+${p.id}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                      onClick={() => pickMention(p)}
+                    >
+                      <Avatar name={p.name || p.id} kind="dm" size={32} src={pics.get(p.id) || undefined} seed={p.id} />
+                      <span className="wa-mention-who">
+                        <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
+                        {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                      </span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

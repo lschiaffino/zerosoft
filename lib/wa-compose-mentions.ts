@@ -9,6 +9,7 @@
  * teléfono de un participante, sin importar mayúsculas, el más largo primero.
  */
 import { findMentionHits, type MentionHit, type Mentionable } from './crm-mentions';
+import { MENTION_ALL } from './wa-mention-all';
 
 /** Un participante del grupo que se puede mencionar. */
 export interface WaParticipant {
@@ -29,9 +30,12 @@ export function waMentionLabel(p: WaParticipant): string {
  * menciona). `picked` (etiqueta → teléfono, lo elegido en la lista) va
  * primero: con dos personas del mismo nombre gana la que se eligió.
  */
-export function waMentionables(participants: ReadonlyArray<WaParticipant>, picked?: ReadonlyMap<string, string>): Mentionable[] {
+export function waMentionables(participants: ReadonlyArray<WaParticipant>, picked?: ReadonlyMap<string, string>, all?: string | null): Mentionable[] {
   const out: Mentionable[] = [];
   const seen = new Set<string>();
+  // "@all" (y la palabra del idioma, "@todos"): menciona a todo el grupo. Solo donde el proveedor lo manda
+  // (quien llama pasa la palabra; sin ella no se ofrece). Va primero en la lista.
+  if (all) out.push({ id: MENTION_ALL, name: all, email: MENTION_ALL });
   const add = (phone: string, label: string) => {
     if (!PHONE.test(phone)) return;
     const key = `${phone}\n${label.toLowerCase()}`;
@@ -42,6 +46,12 @@ export function waMentionables(participants: ReadonlyArray<WaParticipant>, picke
   for (const [label, phone] of picked ?? []) add(phone, label);
   for (const p of participants) add(p.phone, waMentionLabel(p));
   return out;
+}
+
+/** La lista del "@" con "todos" primero (si está), como WhatsApp. */
+export function allFirst<T extends { id: string }>(list: T[]): T[] {
+  const i = list.findIndex((p) => p.id === MENTION_ALL);
+  return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)];
 }
 
 /** Tramos de las menciones del texto (para pintarlas en el campo). */
@@ -60,12 +70,15 @@ export function serializeWaMentions(text: string, people: Mentionable[]): { body
   let pos = 0;
   const mentions: string[] = [];
   for (const h of hits) {
-    body += `${text.slice(pos, h.start)}@${h.id}`;
+    // "@all" queda como se escribió ("@all" o "@todos"): WhatsApp avisa a todos por la marca, no por el texto.
+    body += h.id === MENTION_ALL ? text.slice(pos, h.end) : `${text.slice(pos, h.start)}@${h.id}`;
     pos = h.end;
     if (!mentions.includes(h.id)) mentions.push(h.id);
   }
   body += text.slice(pos);
-  return { body, mentions: mentions.slice(0, 50) };
+  // "all" primero, así el tope de 50 nunca lo deja afuera.
+  const ordered = mentions.includes(MENTION_ALL) ? [MENTION_ALL, ...mentions.filter((m) => m !== MENTION_ALL)] : mentions;
+  return { body, mentions: ordered.slice(0, 50) };
 }
 
 /**
@@ -106,7 +119,7 @@ export function cleanWaMentionPicks(raw: unknown): WaMentionPick[] {
     const o = (it ?? {}) as { phone?: unknown; label?: unknown };
     const phone = typeof o.phone === 'string' ? o.phone : '';
     const label = typeof o.label === 'string' ? o.label.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
-    if (!PHONE.test(phone)) continue;
+    if (!PHONE.test(phone) && !(phone === MENTION_ALL && label)) continue;
     if (!out.some((p) => p.phone === phone && p.label === label)) out.push({ phone, label });
     if (out.length >= 50) break;
   }
@@ -121,7 +134,16 @@ export function cleanWaMentionPicks(raw: unknown): WaMentionPick[] {
 export function applyWaMentionPicks(text: string, picks: unknown): { body: string; mentions: string[] } {
   const list = cleanWaMentionPicks(picks);
   if (!list.length) return { body: text, mentions: [] };
-  return serializeWaMentions(text, waMentionables(list.map((p) => ({ phone: p.phone, name: p.label }))));
+  // "todos" reconoce también "@all" (el id va como segundo texto): sirve con la palabra de cualquier idioma.
+  const all = list.some((p) => p.phone === MENTION_ALL) ? 'todos' : null;
+  return serializeWaMentions(
+    text,
+    waMentionables(
+      list.filter((p) => p.phone !== MENTION_ALL).map((p) => ({ phone: p.phone, name: p.label })),
+      undefined,
+      all,
+    ),
+  );
 }
 
 /**

@@ -12,6 +12,7 @@ import { sendWhatsappText, waProviderFor } from './whatsapp';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { onceInFlight } from '../send-once';
 import { applyWaMentionPicks } from '../wa-compose-mentions';
+import { mentionSendOpts } from '../wa-mention-all';
 import { captionMentions } from './wa-media';
 import type { MediaKind } from '../groups-media';
 
@@ -90,15 +91,16 @@ async function deliverMedia(account: AccountRow, thread: ThreadRow, row: Schedul
   const caption = mentions.length ? out.body : row.body;
   let id: string;
   try {
+    const provider = waProviderFor(account);
     id = (
-      await waProviderFor(account).sendMedia(thread.external_id, {
+      await provider.sendMedia(thread.external_id, {
         url: row.media_url.startsWith('https://') ? row.media_url : '',
         mimetype: voice ? mimetype : row.media_type || 'application/octet-stream',
         filename: row.media_name || 'archivo',
         ...(voice ? { kind: 'voice' as const } : { caption: caption || undefined }),
         base64: data.toString('base64'),
         ...(replyTo ? { replyTo } : {}),
-        ...(mentions.length ? { mentions } : {}),
+        ...mentionSendOpts(mentions, provider.caps),
       })
     ).id;
   } catch (err) {

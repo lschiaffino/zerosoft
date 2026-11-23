@@ -13,7 +13,8 @@ import type { GifItem } from '@/components/groups/wa/GifPanel';
 import Avatar from '@/components/groups/wa/Avatar';
 import MentionTextarea from '@/components/groups/wa/MentionTextarea';
 import { findMentionHits, mentionQueryAt, mentionSuggestions, mentionText } from '@/lib/crm-mentions';
-import { deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { allFirst, deleteMentionToken, mentionAlreadyDone, serializeWaMentions, waMentionables, waMentionPicks, type WaMentionPick } from '@/lib/wa-compose-mentions';
+import { MENTION_ALL } from '@/lib/wa-mention-all';
 import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
@@ -74,12 +75,14 @@ const WaComposer = forwardRef<
     onPasteFiles?: (files: File[]) => void;
     /** Participantes para mencionar con "@" (grupos). */
     mentionables?: Array<{ phone: string; name: string; avatar?: string }>;
+    /** "@all" en un grupo: la palabra ("all" o "todos"), cuántos avisa y el grupo para el avatar (lib/wa-mention-all.ts). */
+    mentionAll?: { word: string; count: number; name: string; picture?: string; seed: string } | null;
     /** Se escribió algo (para mandar "escribiendo"). */
     onTyping?: () => void;
     /** Comandos "/" del chat (los arma la conversación con las acciones de su cabecera). */
     commands?: SlashCommand[];
   }
->(function WaComposer({ thread, via, stickerLine, snippets, disabled, paused, banner, above, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, onTyping, commands }, ref) {
+>(function WaComposer({ thread, via, stickerLine, snippets, disabled, paused, banner, above, editing, replyToId, attach, onCancelBanner, onSent, onSaveEdit, onSendLater, onError, onMic, onPasteFiles, mentionables, mentionAll, onTyping, commands }, ref) {
   const t = useTranslations('inbox.composer');
   const w = useTranslations('inboxWa');
   // Un composer por chat (WaConversation lo monta con key): abre con el borrador más nuevo, el local o el del servidor.
@@ -169,7 +172,7 @@ const WaComposer = forwardRef<
   // Menciones (grupos): "@" abre los participantes; en el campo la mención se ve en verde y al mandar sale como
   // mención de WhatsApp ("@<teléfono>" con la lista de mencionados), que le avisa a la persona.
   const mentionPics = useMemo(() => new Map((mentionables ?? []).filter((p) => p.avatar).map((p) => [p.phone, p.avatar!])), [mentionables]);
-  const mentionPool = useMemo(() => (mentionables?.length ? waMentionables(mentionables, picked.current) : null), [mentionables, pickedVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mentionPool = useMemo(() => (mentionables?.length ? waMentionables(mentionables, picked.current, mentionAll?.word) : null), [mentionables, pickedVersion, mentionAll?.word]); // eslint-disable-line react-hooks/exhaustive-deps
   /** Programar lo escrito: en un grupo, con las menciones (al salir "@Nombre" pasa a "@<teléfono>", como al mandar ya). */
   const later = () => {
     const out = text.trim();
@@ -178,7 +181,7 @@ const WaComposer = forwardRef<
   const mentionHits = useMemo(() => (mentionPool && !editing ? findMentionHits(text, mentionPool) : []), [text, mentionPool, editing]);
   const mentionQuery = mentionPool && !editing ? mentionQueryAt(text, caret) : null;
   const mentionOpen = !!mentionQuery && mentionClosedAt !== mentionQuery.start && !mentionAlreadyDone(mentionQuery.start, caret, mentionHits);
-  const people = mentionOpen && mentionPool ? mentionSuggestions(mentionQuery.query, mentionPool, 50) : [];
+  const people = mentionOpen && mentionPool ? allFirst(mentionSuggestions(mentionQuery.query, mentionPool, 50)) : [];
 
   /** Cambia "@an" por "@Ana " y recuerda a quién se mencionó. */
   const insertMention = (p: (typeof people)[number]) => {
@@ -453,19 +456,35 @@ const WaComposer = forwardRef<
         <ul className="wa-mention-pop ib-wa-mentions" role="listbox" aria-label={w('mention')}>
           {people.map((p, i) => (
             <li key={`${p.id}:${p.name}`} role="option" aria-selected={i === mentionIdx}>
-              <button
-                type="button"
-                title={`+${p.id}`}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
-                onClick={() => insertMention(p)}
-              >
-                <Avatar name={p.name || p.id} kind="dm" size={32} src={mentionPics.get(p.id) || undefined} seed={p.id} />
-                <span className="wa-mention-who">
-                  <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
-                  {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
-                </span>
-              </button>
+              {p.id === MENTION_ALL && mentionAll ? (
+                <button
+                  type="button"
+                  data-testid="mention-all"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                  onClick={() => insertMention(p)}
+                >
+                  <Avatar name={mentionAll.name} kind="group" size={32} src={mentionAll.picture || undefined} seed={mentionAll.seed} />
+                  <span className="wa-mention-who">
+                    <span className="wa-mention-name">{w('mentionAll', { word: p.name ?? MENTION_ALL })}</span>
+                    <span className="wa-mention-phone">{w('mentionAllHint', { count: mentionAll.count })}</span>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  title={`+${p.id}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
+                  onClick={() => insertMention(p)}
+                >
+                  <Avatar name={p.name || p.id} kind="dm" size={32} src={mentionPics.get(p.id) || undefined} seed={p.id} />
+                  <span className="wa-mention-who">
+                    <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
+                    {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                  </span>
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -529,6 +548,8 @@ const WaComposer = forwardRef<
             onPasteFiles(files);
           }}
           onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+          // Tocar afuera cierra la lista del "@" (elegir una opción no saca el foco: onMouseDown la frena).
+          onBlur={() => mentionQuery && setMentionClosedAt(mentionQuery.start)}
           onChange={(e) => {
             const v = e.target.value;
             setText(v);

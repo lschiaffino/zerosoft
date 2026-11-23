@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-22',
+  lastReviewed: '2026-11-23',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -330,6 +330,13 @@ const parity: ProductParity = {
         'Type @ to pick a member (photo, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account, and clicking one opens that contact info. The caption of a photo, video or document mentions too. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
         'Con @ se elige a alguien del grupo (foto, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta, y hacer clic en una abre la info del contacto. El pie de una foto, un video o un documento también menciona. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
         'Com @ se escolhe alguém do grupo (foto, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta, e clicar em uma abre os dados do contato. A legenda de uma foto, um vídeo ou um documento também menciona. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
+    row('wa-mention-all', 'whatsapp', ['@all in groups', '@all en grupos', '@all em grupos'], 'partial', {
+      detail: [
+        'Type @ in a group and Everyone comes first: it writes @all (@todos in Spanish and Portuguese, both words work) and every member of the group gets notified, also in a photo, video or document caption and in a message sent later. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ en un grupo aparece primero Todos: escribe @todos (@all en inglés, valen las dos palabras) y le llega el aviso a cada miembro del grupo, también en el pie de una foto, un video o un documento y en un mensaje programado. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ em um grupo aparece primeiro Todos: escreve @todos (@all em inglês, as duas palavras valem) e cada membro do grupo recebe o aviso, também na legenda de uma foto, um vídeo ou um documento e em uma mensagem agendada. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {

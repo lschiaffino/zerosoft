@@ -10,6 +10,7 @@ import { getDb } from '../db';
 import { addMessage, getAccount, getMessageRow, getThreadRow, nowIso, saveDraft, sentWithClientId, type AccountRow, type ThreadRow } from './core';
 import { pokeLive } from '../wa-live';
 import { onceInFlight } from '../send-once';
+import { MENTION_ALL, keepMentionAll } from '../wa-mention-all';
 import { InboxError, LIMITS, type WaMessageMeta } from './types';
 import { forwardWhatsappMedia } from './wa-media';
 import { sendWhatsappText, waProviderFor } from './whatsapp';
@@ -69,7 +70,9 @@ export async function sendWaMessage(owner: string, threadId: string, body: strin
     replyTo = quoted.external_id;
   }
   // Solo se mencionan teléfonos que están escritos en el texto, y solo en grupos.
-  const mentions = thread.kind === 'group' ? [...new Set((opts.mentions ?? []).filter((p) => /^\d{6,16}$/.test(p) && text.includes(`@${p}`)))].slice(0, 50) : [];
+  // "@all" (o "@todos") en el texto: todo el grupo (lib/wa-mention-all.ts), primero en la lista.
+  const all = keepMentionAll(opts.mentions, text, thread.kind === 'group') ? [MENTION_ALL] : [];
+  const mentions = thread.kind === 'group' ? [...all, ...new Set((opts.mentions ?? []).filter((p) => /^\d{6,16}$/.test(p) && text.includes(`@${p}`)))].slice(0, 50) : [];
   const account = await getAccount(owner, thread.account_id);
   await onceInFlight(
     opts.clientId ? `inbox:${threadId}:${opts.clientId}` : null,
