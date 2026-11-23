@@ -780,15 +780,26 @@ export async function sendCrmEmail(userId: string, input: SendCrmEmailInput): Pr
 /**
  * Condición SQL: la persona ve el email `e` (alias de crm_emails): es suyo
  * (person_id: su buzón o lo que mandó ella) o tiene un contacto que ve, el
- * principal o uno asociado. Sin alcance, todos ('1').
+ * principal o uno asociado. Sin alcance, todos ('1'). Sin persona, ninguno es
+ * "suyo" (un person_id vacío o NULL no cuenta).
  */
-export function emailVisibleSql(scope: OwnerScope | undefined, personId: string | null | undefined): { sql: string; args: string[] } {
+export function emailVisibleSql(scope: OwnerScope | undefined, personId: string): { sql: string; args: string[] } {
   const c = scopeAnd('vc', scope);
   if (!c.sql) return { sql: '1', args: [] };
   return {
-    sql: `(COALESCE(e.person_id, '') = ? OR EXISTS (SELECT 1 FROM crm_contacts vc WHERE vc.user_id = e.user_id
+    sql: `((? != '' AND COALESCE(e.person_id, '') = ?) OR EXISTS (SELECT 1 FROM crm_contacts vc WHERE vc.user_id = e.user_id
             AND (vc.id = e.contact_id OR vc.id IN (SELECT vec.contact_id FROM crm_email_contacts vec WHERE vec.email_id = e.id))${c.sql}))`,
-    args: [personId ?? '', ...c.args],
+    args: [personId, personId, ...c.args],
+  };
+}
+
+/** Condición SQL (sobre `alias` de crm_emails): su thread no tiene ningún email que la persona no ve. */
+function threadAllVisibleSql(alias: string, scope: OwnerScope | undefined, personId: string): { sql: string; args: string[] } {
+  const vis = emailVisibleSql(scope, personId);
+  if (vis.sql === '1') return { sql: '1', args: [] };
+  return {
+    sql: `NOT EXISTS (SELECT 1 FROM crm_emails e WHERE e.user_id = ${alias}.user_id AND e.thread_id = ${alias}.thread_id AND NOT ${vis.sql})`,
+    args: vis.args,
   };
 }
 
@@ -797,12 +808,7 @@ export function emailVisibleSql(scope: OwnerScope | undefined, personId: string 
  * así no se usa para responder ni para registrar en él (no entra un email
  * en una conversación que la persona no ve, ni se toma su Message-ID).
  */
-export async function threadHasHiddenEmail(
-  userId: string,
-  threadId: string,
-  scope: OwnerScope | undefined,
-  personId: string | null | undefined,
-): Promise<boolean> {
+export async function threadHasHiddenEmail(userId: string, threadId: string, scope: OwnerScope | undefined, personId: string): Promise<boolean> {
   const vis = emailVisibleSql(scope, personId);
   if (vis.sql === '1') return false;
   const row = await getDb()
@@ -814,21 +820,22 @@ export async function threadHasHiddenEmail(
 /**
  * Datos para responder en un thread del workspace (Message-ID del último
  * mensaje). Con alcance, solo un thread cuyos emails ve todos quien responde
- * (`personId`: los suyos cuentan como vistos); si no, null, como uno que no existe.
+ * (`personId`: los suyos cuentan como vistos); si no, null, como uno que no
+ * existe. El chequeo y la lectura van en la misma consulta.
  */
 export async function threadReplyInfo(
   userId: string,
   threadId: string,
-  scope?: OwnerScope,
-  personId?: string | null,
+  scope: OwnerScope | undefined,
+  personId: string,
 ): Promise<{ threadId: string; inReplyTo: string; subject: string } | null> {
-  if (scope && (await threadHasHiddenEmail(userId, threadId, scope, personId))) return null;
+  const all = threadAllVisibleSql('te', scope, personId);
   const last = (await getDb()
     .prepare(
-      `SELECT thread_id, message_id, subject FROM crm_emails WHERE user_id = ? AND thread_id = ?
-       ORDER BY sent_at DESC LIMIT 1`,
+      `SELECT te.thread_id, te.message_id, te.subject FROM crm_emails te WHERE te.user_id = ? AND te.thread_id = ? AND ${all.sql}
+       ORDER BY te.sent_at DESC LIMIT 1`,
     )
-    .get(userId, threadId)) as { thread_id: string; message_id: string; subject: string } | undefined;
+    .get(userId, threadId, ...all.args)) as { thread_id: string; message_id: string; subject: string } | undefined;
   if (!last) return null;
   return { threadId: last.thread_id, inReplyTo: last.message_id, subject: last.subject };
 }
