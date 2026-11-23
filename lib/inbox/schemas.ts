@@ -31,7 +31,8 @@ export const sendSchema = z.object({
   body: z.string().min(1).max(LIMITS.message),
   sendAt: iso.optional(),
   replyTo: id.optional(),
-  mentions: z.array(z.string().regex(/^\d{6,16}$/)).max(50).optional(),
+  /** Teléfonos mencionados y "all" ("@all": todo el grupo; lib/wa-mention-all.ts). */
+  mentions: z.array(z.string().regex(/^(\d{6,16}|all)$/)).max(50).optional(),
   /** false: WhatsApp sin vista previa del link (la persona la sacó en el composer). */
   linkPreview: z.boolean().optional(),
   /** Id que puso la pantalla al mandar: vuelve en meta.cid y reemplaza su burbuja provisoria (lib/optimistic-send.ts). */
@@ -124,7 +125,7 @@ const part = z.object({
   replyTo: id.optional(),
   /** Menciones en un grupo: "@label" en el texto es la persona con ese teléfono (lib/wa-compose-mentions.ts). */
   mentions: z
-    .array(z.object({ phone: z.string().regex(/^\d{6,16}$/), label: z.string().max(200) }))
+    .array(z.object({ phone: z.string().regex(/^(\d{6,16}|all)$/), label: z.string().max(200) }))
     .max(50)
     .optional(),
 });

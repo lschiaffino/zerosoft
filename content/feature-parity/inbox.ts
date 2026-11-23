@@ -332,6 +332,13 @@ const parity: ProductParity = {
         'Com @ se escolhe alguém do grupo (foto, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta, e clicar em uma abre os dados do contato. A legenda de uma foto, um vídeo ou um documento também menciona. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
+    row('wa-mention-all', 'whatsapp', ['@all in groups', '@all en grupos', '@all em grupos'], 'partial', {
+      detail: [
+        'Type @ in a group and Everyone comes first: it writes @all (@todos in Spanish and Portuguese, both words work) and every member of the group gets notified, also in a photo, video or document caption and in a message sent later. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ en un grupo aparece primero Todos: escribe @todos (@all en inglés, valen las dos palabras) y le llega el aviso a cada miembro del grupo, también en el pie de una foto, un video o un documento y en un mensaje programado. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ em um grupo aparece primeiro Todos: escreve @todos (@all em inglês, as duas palavras valem) e cada membro do grupo recebe o aviso, também na legenda de uma foto, um vídeo ou um documento e em uma mensagem agendada. Testado com o provedor falso; falta testar com WhatsApp real',
+      ],
+    }),
     row('wa-link-previews', 'whatsapp', ['Link previews', 'Vista previa de links', 'Prévia de links'], 'partial', {
       detail: [
         'Like WhatsApp: a large image on top for pages with a big image, a small thumbnail for logos, text only without an image, with the domain and the site icon. Read on our server (never from the browser) and cached for a week. While typing, the preview shows above the field and can be removed before sending. Large, compact or off in Display. A WhatsApp group invite gets its own card (round group photo, name, Join group with a confirmation, Open in WhatsApp). Tested with the fake reader and provider; not yet tried with real WhatsApp',
