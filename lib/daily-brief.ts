@@ -20,6 +20,8 @@ import { getDb } from './db';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { maskPhone, maskPhoneText } from './groups-mask';
 import { localDayIn } from './track-recurrence';
+import type { InternalSet } from './internal-contacts';
+import { internalThreadSql } from './inbox/core';
 
 export type BriefApp = 'lines' | 'inbox';
 
@@ -195,9 +197,10 @@ async function inboxPart(kind: BriefKind, from: string, where: string[], args: A
 
 /**
  * Inbox: el resumen de `owner` (su id real). Cada consulta filtra por
- * owner_id: en ninguna entra otra persona.
+ * owner_id: en ninguna entra otra persona. `internal`: lo interno del
+ * workspace activo (lib/internal-contacts.ts): no está por responder, como en la vista.
  */
-export async function inboxBrief(owner: string, now = new Date()): Promise<DailyBrief> {
+export async function inboxBrief(owner: string, now = new Date(), internal?: InternalSet): Promise<DailyBrief> {
   const db = getDb();
   const nowS = now.toISOString();
   const since = new Date(now.getTime() - BRIEF_RECENT_MS).toISOString();
@@ -218,8 +221,15 @@ export async function inboxBrief(owner: string, now = new Date()): Promise<Daily
       ? `(${mine.map(() => "(t.account_id = ? AND EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(m.meta) THEN json_extract(m.meta, '$.mentions') END) je WHERE je.value = ?))").join(' OR ')})`
       : '0',
   ];
+  const skip = internal && (internal.handles.size || internal.domains.length) ? internalThreadSql(internal) : null;
   const [reply, reminders, groups, mentions] = await Promise.all([
-    inboxPart('reply', threads, [...active, 't.last_from_me = 0', "t.kind <> 'group'", 't.last_message_at IS NOT NULL'], [owner, nowS], 'MIN(t.last_message_at) ASC'),
+    inboxPart(
+      'reply',
+      threads,
+      [...active, 't.last_from_me = 0', "t.kind <> 'group'", 't.last_message_at IS NOT NULL', ...(skip ? [`NOT ${skip.sql}`] : [])],
+      [owner, nowS, ...(skip?.args ?? [])],
+      'MIN(t.last_message_at) ASC',
+    ),
     inboxPart('reminders', threads, ['t.owner_id = ?', 't.removed_at IS NULL', 't.follow_up_at IS NOT NULL', 't.follow_up_at <= ?'], [owner, nowS], 'MIN(t.follow_up_at) ASC'),
     inboxPart('unreadGroups', threads, [...active, "t.kind = 'group'", 't.unread > 0', 't.last_from_me = 0'], [owner, nowS], 'MAX(t.last_message_at) DESC'),
     inboxPart('groupMentions', mentionFrom, mentionWhere, [owner, since, ...mine.flatMap((a) => [a.id, a.phone])], 'MAX(m.sent_at) DESC'),
@@ -256,10 +266,13 @@ export async function restoreBrief(userId: string, key: string): Promise<void> {
   await getDb().prepare('DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = ?').run(userId, key);
 }
 
-/** La tarjeta de Inbox de `owner` para su día local `day` (null si la cerró hoy). */
-export async function inboxBriefPayload(owner: string, day: string, now = new Date()): Promise<BriefPayload> {
+/**
+ * La tarjeta de Inbox de `owner` para su día local `day` (null si la cerró hoy). `internal`: lo interno del
+ * workspace activo (lib/internal-contacts.ts), que no está por responder.
+ */
+export async function inboxBriefPayload(owner: string, day: string, now = new Date(), internal?: InternalSet): Promise<BriefPayload> {
   if (await briefDismissed(owner, briefKey('inbox'), day)) return { day, dismissed: true, email: false, brief: null };
-  const [brief, email] = await Promise.all([inboxBrief(owner, now), briefEmailOn(owner)]);
+  const [brief, email] = await Promise.all([inboxBrief(owner, now, internal), briefEmailOn(owner)]);
   return { day, dismissed: false, email, brief };
 }
 

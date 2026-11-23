@@ -18,6 +18,7 @@ import { createNotification } from '@/lib/notifications';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
 import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
 import { saveWorkspaceAppRule } from '@/lib/workspace-apps';
+import { loadInternalSet, setInternalContact } from '@/lib/internal-contacts';
 import { createGroupTask } from '@/lib/groups-tasks';
 
 const session = vi.hoisted(() => ({ user: null as SessionUser | null }));
@@ -229,6 +230,9 @@ describe('Inbox: solo el de la persona', () => {
     expect(ids(b, 'groupMentions')).toEqual([group.id]);
     expect(JSON.stringify(b)).not.toContain(other.id);
     expect(JSON.stringify(b)).not.toContain('mirá');
+    // Marcado como interno en el workspace: ya no está por responder (como la vista).
+    await setInternalContact(w.owner.id, w.owner.id, A, true);
+    expect(count(await inboxBrief(w.member.id, new Date(), await loadInternalSet(w.owner.id)), 'reply')).toBe(0);
     const friend = await inboxBrief(w.friend.id);
     expect(JSON.stringify(friend)).not.toContain(dm.id);
     expect(ids(friend, 'reply')).toEqual([other.id]);

@@ -22,6 +22,7 @@ import { userCanUseApp } from './workspace';
 import { blockedAppsFor } from './workspace-apps';
 import { localDayIn, localHourIn } from './track-recurrence';
 import { briefIsEmpty, inboxBrief, linesBrief, type DailyBrief } from './daily-brief';
+import { loadInternalSet } from './internal-contacts';
 import type { ProductKey } from './products';
 import en from '@/messages/en/groups.json';
 import es from '@/messages/es/groups.json';
@@ -116,7 +117,7 @@ async function briefsFor(c: Candidate, now: Date): Promise<DailyBrief[]> {
   }
   // Inbox es personal, pero la app la habilita el workspace activo (como en la sesión).
   if ((access ? access.can('inbox') : true) && (await db.prepare('SELECT 1 AS x FROM inbox_accounts WHERE owner_id = ? LIMIT 1').get(user.id))) {
-    out.push(await inboxBrief(user.id, now));
+    out.push(await inboxBrief(user.id, now, access ? await loadInternalSet(access.ws) : undefined));
   }
   return out.filter((b) => !briefIsEmpty(b));
 }
