@@ -16,6 +16,7 @@ import { cachedLinesAnalytics, clearAnalyticsCache } from '@/lib/groups-analytic
 import { systemViewer, updatePlatformSettings } from '@/lib/groups-access';
 import {
   cleanDomain,
+  companyDomain,
   handleForRef,
   internalHandleSql,
   internalRef,
@@ -37,6 +38,7 @@ vi.mock('@/lib/session', async (orig) => ({ ...((await orig()) as object), getCu
 const TEAMMATE = '5490000000201';
 const CUSTOMER = '5490000000202';
 const OTHER = '5490000000203';
+const LINE2 = '5490000000204';
 
 beforeEach(() => {
   vi.stubEnv('GROUPS_FAKE', '1');
@@ -82,6 +84,13 @@ describe('contactos internos: lo puro', () => {
     expect(normalizeHandle('123')).toBeNull();
     expect(normalizeHandle('123456789012345@lid')).toBeNull();
     expect(normalizeHandle('no es nada')).toBeNull();
+    // Un texto con un número adentro no es un teléfono; el 00 internacional es el +; el dispositivo del JID se va.
+    expect(normalizeHandle('Juan 1155550000')).toBeNull();
+    expect(normalizeHandle('00 54 9 11 0000-0201')).toBe('5491100000201');
+    expect(normalizeHandle(`${TEAMMATE}:12@s.whatsapp.net`)).toBe(TEAMMATE);
+    // Dominios de correo gratis no pueden ser de la empresa.
+    expect(companyDomain('gmail.com')).toBeNull();
+    expect(companyDomain('@Empresa.com')).toBe('empresa.com');
     expect(cleanDomain('@Empresa.com')).toBe('empresa.com');
     expect(cleanDomain('https://empresa.com/x')).toBe('empresa.com');
     expect(cleanDomain('nada')).toBeNull();
@@ -123,8 +132,10 @@ describe('contactos internos: por workspace', () => {
     const masked = await listInternalContacts(u.id, { mask: true });
     expect(masked[0].handle).not.toContain(TEAMMATE);
     expect(await handleForRef(u.id, masked[0].ref)).toBe(TEAMMATE);
-    // La referencia de otro workspace no encuentra nada.
+    // La referencia de otro workspace no encuentra nada, aunque ese workspace tenga el mismo número marcado.
+    await setInternalContact(other.id, other.id, TEAMMATE, true);
     expect(await handleForRef(other.id, internalRef(u.id, TEAMMATE))).toBeNull();
+    expect(await handleForRef(other.id, internalRef(other.id, TEAMMATE))).toBe(TEAMMATE);
     await expect(setInternalContact(u.id, u.id, 'basura', true)).rejects.toMatchObject({ code: 'invalid_handle' });
   });
 });
@@ -152,15 +163,16 @@ describe('Lines: lo interno no espera respuesta', () => {
     expect(await tickets()).toBe(1);
     const t = (await getDb().prepare('SELECT first_response_at FROM groups_tickets WHERE id = ?').get(ticket.id)) as { first_response_at: string | null };
     expect(t.first_response_at).not.toBeNull();
-    // La línea misma (regla de las líneas) también es el equipo.
-    await ingestEvents(n, [msg(gid, CUSTOMER, '¿y?', 5), msg(gid, OTHER, 'acá estamos', 6)]);
+    // Otra línea del workspace (regla de las líneas) que está en el mismo grupo también es el equipo.
+    await line(u.id, LINE2);
+    await ingestEvents(n, [msg(gid, CUSTOMER, '¿y?', 5), msg(gid, LINE2, 'acá estamos', 6)]);
     expect((await getChat(u.id, group.id))!.awaitingSince).toBeNull();
     // Un cliente que vuelve a escribir: espera otra vez.
     await ingestEvents(n, [msg(gid, CUSTOMER, 'gracias, una cosa más', 8)]);
     expect((await getChat(u.id, group.id))!.awaitingSince).not.toBeNull();
 
     const msgs = await listMessages(u.id, group.id);
-    expect(msgs.filter((m) => m.senderInternal).map((m) => m.senderPhone).sort()).toEqual([OTHER, TEAMMATE].sort());
+    expect(msgs.filter((m) => m.senderInternal).map((m) => m.senderPhone).sort()).toEqual([LINE2, TEAMMATE].sort());
     expect(msgs.filter((m) => m.direction === 'in' && m.senderPhone === CUSTOMER).every((m) => !m.senderInternal)).toBe(true);
     const members = await listMembers(u.id, group.id);
     expect(members.find((m) => m.phone === TEAMMATE)?.internal).toBe(true);
@@ -177,6 +189,23 @@ describe('Lines: lo interno no espera respuesta', () => {
     const no = (await listChats(u.id, u.id, { filters: { internal: 'no' } })).rows;
     expect(no.some((c) => c.phone === TEAMMATE)).toBe(false);
     expect(no.some((c) => c.phone === CUSTOMER)).toBe(true);
+
+    // Un chat cerrado no se reabre por lo que escribe alguien interno; un cliente sí lo reabre.
+    await getDb().prepare("UPDATE groups_chats SET status = 'closed' WHERE id = ?").run(group.id);
+    await ingestEvents(n, [msg(gid, TEAMMATE, 'cierro esto', 11)]);
+    expect((await getChat(u.id, group.id))!.status).toBe('closed');
+    await ingestEvents(n, [msg(gid, CUSTOMER, 'una más', 12)]);
+    expect((await getChat(u.id, group.id))!.status).toBe('open');
+  });
+
+  it('marcar a alguien como interno deja de hacer esperar a sus chats 1:1 que ya esperaban', async () => {
+    const u = await makeUser('int-stop');
+    const n = await line(u.id, OTHER);
+    await ingestEvents(n, [msg(`${TEAMMATE}@s.whatsapp.net`, TEAMMATE, 'hola', 1)]);
+    const dm = (await listChats(u.id, u.id)).rows.find((c) => c.kind === 'dm')!;
+    expect((await getChat(u.id, dm.id))!.awaitingSince).not.toBeNull();
+    await setInternalContact(u.id, u.id, TEAMMATE, true);
+    expect((await getChat(u.id, dm.id))!.awaitingSince).toBeNull();
   });
 
   it('los reportes son de clientes: sin lo que escribe alguien interno ni sus chats 1:1', async () => {
@@ -278,7 +307,10 @@ describe('contactos internos: acceso a las rutas', () => {
     // Basura: 400.
     session.user = asOwner(w.owner);
     expect((await route.POST(new Request('http://x/api/groups/internal', { method: 'POST', body: JSON.stringify({ handle: 'nada', internal: true }) }))).status).toBe(400);
-    expect((await route.PATCH(new Request('http://x/api/groups/internal', { method: 'PATCH', body: JSON.stringify({ domains: ['empresa.com', 'basura'] }) }))).status).toBe(200);
+    // Un dominio inválido o de correo gratis no se guarda (nada a medias).
+    expect((await route.PATCH(new Request('http://x/api/groups/internal', { method: 'PATCH', body: JSON.stringify({ domains: ['empresa.com', 'basura'] }) }))).status).toBe(400);
+    expect((await route.PATCH(new Request('http://x/api/groups/internal', { method: 'PATCH', body: JSON.stringify({ domains: ['gmail.com'] }) }))).status).toBe(400);
+    expect((await route.PATCH(new Request('http://x/api/groups/internal', { method: 'PATCH', body: JSON.stringify({ domains: ['empresa.com'] }) }))).status).toBe(200);
     expect((await loadInternalSet(w.owner.id)).domains).toEqual(['empresa.com']);
   });
 

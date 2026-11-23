@@ -63,6 +63,7 @@ export const GUARDS = [
   '@/lib/import-http#importUser',
   '@/lib/inbox/http#inboxOwner',
   '@/lib/inbox/http#withOwner',
+  '@/lib/inbox/http#withOwnerWs',
   '@/lib/mcp/server#handleMcpPost',
   '@/lib/notes-v1#notesApi',
   '@/lib/people-http#withPeople',

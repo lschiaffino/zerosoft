@@ -9,6 +9,7 @@ import { groupsViewer } from './groups-access';
 import type { TeamRole } from './teams';
 import {
   InternalContactError,
+  companyDomain,
   getInternalSettings,
   handleForRef,
   listInternalContacts,
@@ -38,7 +39,12 @@ export async function internalGet(ws: string, me: string, role: TeamRole): Promi
 export async function internalPatch(ws: string, me: string, role: TeamRole, body: Record<string, unknown>): Promise<NextResponse> {
   const patch: { lines?: boolean; domains?: string[] } = {};
   if (typeof body.lines === 'boolean') patch.lines = body.lines;
-  if (Array.isArray(body.domains)) patch.domains = body.domains.filter((d): d is string => typeof d === 'string').slice(0, 50);
+  if (Array.isArray(body.domains)) {
+    const raw = body.domains.filter((d): d is string => typeof d === 'string').slice(0, 50);
+    // Un dominio que no es válido o es de correo gratis (gmail.com) se rechaza: no se guarda a medias.
+    if (raw.some((d) => !companyDomain(d))) return fail(400, 'invalid_domain');
+    patch.domains = raw;
+  }
   if (!Object.keys(patch).length) return fail(400, 'invalid_input');
   await updateInternalSettings(ws, patch);
   return internalGet(ws, me, role);

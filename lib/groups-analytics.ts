@@ -217,11 +217,10 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
     where.push(scope.sql);
     args.push(...scope.args);
   }
-  // Lo que escribe alguien interno en un grupo es del equipo: no es un mensaje de cliente.
-  if (hasInternal(ctx)) {
-    where.push("NOT (m.direction = 'in' AND m.sender_phone IN (SELECT value FROM json_each(?)))");
-    args.push(ctx.internalPhones as string);
-  }
+  // Lo que escribe alguien interno es del equipo (lib/internal-contacts.ts): en `b` va como 'team', así no cuenta
+  // como mensaje de cliente (ni como enviado) y la primera respuesta lo toma como respuesta del equipo.
+  const internal = hasInternal(ctx);
+  if (internal) args.unshift(ctx.internalPhones as string);
   const off = tzOffsetSql(ctx.segments, 'x.ts');
   const parts = sections.map((s) =>
     s === 'pc'
@@ -231,7 +230,9 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
   );
   const sql = `WITH b AS MATERIALIZED (
       SELECT x.*, (x.ts + ${off}) / 86400 AS day, ((x.ts + ${off}) % 86400) / 3600 AS hour FROM (
-        SELECT m.id, m.chat_id, m.number_id, m.direction, m.author_id, m.author_kind, m.created_at AS at,
+        SELECT m.id, m.chat_id, m.number_id,
+               ${internal ? "CASE WHEN m.direction = 'in' AND m.sender_phone IN (SELECT value FROM json_each(?)) THEN 'team' ELSE m.direction END" : 'm.direction'} AS direction,
+               m.author_id, m.author_kind, m.created_at AS at,
                CAST(strftime('%s', m.created_at) AS INTEGER) AS ts,
                CASE WHEN m.created_at >= ? THEN 1 ELSE 0 END AS cur${
                  events
@@ -247,9 +248,11 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
       pairs
         ? `,
     t AS (
-      SELECT id, chat_id, direction, author_id, author_kind, at, ts, cur, day,
-             LAG(direction) OVER (PARTITION BY chat_id ORDER BY at, direction, id) AS prev
-      FROM b WHERE direction = 'in' OR (direction = 'out' AND author_kind != 'broadcast')
+      SELECT id, chat_id, dir AS direction, author_id, kind AS author_kind, at, ts, cur, day,
+             LAG(dir) OVER (PARTITION BY chat_id ORDER BY at, dir, id) AS prev
+      FROM (SELECT id, chat_id, author_id, at, ts, cur, day, CASE WHEN direction = 'team' THEN 'out' ELSE direction END AS dir,
+                   CASE WHEN direction = 'team' THEN 'internal' ELSE author_kind END AS kind FROM b)
+      WHERE dir = 'in' OR (dir = 'out' AND kind != 'broadcast')
     ),
     p AS MATERIALIZED (
       SELECT direction, cur, day, ts, LEAD(ts) OVER w AS rts, LEAD(author_id) OVER w AS rby, LEAD(author_kind) OVER w AS rkind

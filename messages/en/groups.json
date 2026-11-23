@@ -904,6 +904,7 @@
     "pageTitle": "This page did not load",
     "pageBody": "Something failed on our side. Try again.",
     "invalid_handle": "Enter a phone number with its country code, or an email address.",
+    "invalid_domain": "Enter your company's domain (like company.com). Free email domains like gmail.com can't be internal.",
     "too_many": "There are too many marked contacts. Remove some first.",
     "generic": "Something went wrong. Try again.",
     "offline_files": "Files need a connection. They stay here and you can send them when you are back online. Text messages are queued and go out on their own.",

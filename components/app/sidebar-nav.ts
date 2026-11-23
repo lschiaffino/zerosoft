@@ -282,7 +282,7 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string; analytics: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
+  inbox: { inbox: string; reply: string; waiting: string; internal?: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Time (Harvest): hoja de horas, proyectos y reportes. */
@@ -1102,6 +1102,8 @@ export function buildNav(
             { href: '/app/inbox', label: l.inbox, active: pathname === '/app/inbox' || at('/app/inbox/agents') || ['whatsapp', 'email', 'groups', 'unread', 'pinned'].some(view), icon: 'inbox', branch: true },
             { href: '/app/inbox/v/reply', label: l.reply, active: view('reply'), icon: 'chat' },
             { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
+            // Los chats con contactos internos (lib/internal-contacts.ts): fuera de Por responder, en su vista.
+            ...(l.internal ? [{ href: '/app/inbox/v/internal', label: l.internal, active: view('internal'), icon: 'people' as const }] : []),
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
             { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
             // Sacados de Inbox vive adentro de Archivados (components/inbox/RemovedList.tsx).

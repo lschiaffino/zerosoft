@@ -2103,7 +2103,16 @@ function answeredStatements(chatId: string, at: string): BatchStatement[] {
  * Lo que un mensaje nuevo le cambia a su chat en la lista (`where` elige el chat). Uno que sale (`unarchive`: mandado
  * desde acá o desde el teléfono, no uno que falló ni una llamada) saca el chat de Archivados, como WhatsApp.
  */
-function chatTouch(at: string, preview: string, incoming: boolean, where: string, whereArgs: string[], unarchive: boolean | 'newest' = !incoming): BatchStatement {
+function chatTouch(at: string, preview: string, incoming: boolean | 'internal', where: string, whereArgs: string[], unarchive: boolean | 'newest' = !incoming): BatchStatement {
+  // De alguien interno (lib/internal-contacts.ts): es el equipo, no un cliente. Sube y queda sin leer, pero no espera
+  // respuesta, no reabre un chat cerrado ni lo saca de pospuesto o de Archivados.
+  if (incoming === 'internal') {
+    return {
+      sql: `UPDATE groups_chats SET last_message_at = ?, last_message_preview = ?, unread_count = unread_count + 1 - COALESCE(marked_unread, 0), marked_unread = 0,
+           hidden_at = NULL, presence = NULL, updated_at = ? WHERE ${where}`,
+      args: [at, preview, at, ...whereArgs],
+    };
+  }
   if (!incoming && unarchive) {
     // 'newest': lo que llega del teléfono desarchiva solo si es lo más nuevo del chat (uno viejo que llega tarde no).
     const sure = unarchive === 'newest' ? 0 : 1;
@@ -2170,6 +2179,7 @@ async function saveInbound(
   m: Omit<InsertMessage, 'chatId' | 'replyToId'> & { replyToProviderId?: string },
   preview: string,
   withSettings: boolean,
+  internal = false,
 ): Promise<{ chat: ChatRow; created: boolean; row: MessageRow | null; settings: GroupsSettings | null }> {
   const id = newId();
   const v = messageValues(id, m);
@@ -2185,9 +2195,10 @@ async function saveInbound(
     },
     ...(m.direction === 'out' ? [unarchiveMark(at, 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], true)] : []),
     // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
-    ...(m.direction === 'in' ? [snoozeWakeMark('lines', 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id])] : []),
+    // Lo de alguien interno no lo despierta.
+    ...(m.direction === 'in' && !internal ? [snoozeWakeMark('lines', 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id])] : []),
     // Solo si el mensaje entró: uno repetido no existe con este id.
-    chatTouch(at, preview, m.direction === 'in', 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
+    chatTouch(at, preview, m.direction === 'in' ? (internal ? 'internal' : true) : false, 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
   ];
   if (withSettings) stmts.push({ sql: 'SELECT data FROM groups_settings WHERE user_id = ?', args: [number.user_id] });
   const res = await dbBatch(stmts);
@@ -3092,6 +3103,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         const meta = inboundMeta(ev);
         const media = ev.media && (ev.media.type || ev.media.url) ? ev.media : null;
         const chatInput: ChatInput = { providerChatId: ev.chatId, kind: isGroup ? 'group' : 'dm', name: dmName, phone: isGroup ? '' : phoneDigits(ev.chatId) };
+        // Quien escribe es interno (lib/internal-contacts.ts): se sabe antes de guardar, para que no reabra el chat.
+        const fromInternal = !ev.fromMe && isInternalHandle(await batchInternal(), ev.senderPhone || chatInput.phone);
         // Una sola ida a la base: el chat, el mensaje y el chat al tope de la lista (lo que avisa a las pantallas).
         const stored = await saveInbound(
           number,
@@ -3115,6 +3128,7 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           },
           previewOf(ev.body.slice(0, 8000), media?.type ?? '', (media?.name ?? '').slice(0, 200), meta ?? {}),
           settings === null,
+          fromInternal,
         );
         saved = true;
         settings ??= stored.settings;
@@ -3158,15 +3172,15 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
             // Alguien interno (del equipo o de la empresa; lib/internal-contacts.ts) escribe como el equipo: su mensaje
             // cuenta como respuesta (el chat deja de esperar y los tickets abiertos toman su primera respuesta), y no
             // abre tickets ni pasa por el modo "preguntas".
-            internal = isInternalHandle(await batchInternal(), ev.senderPhone || chatInput.phone);
+            internal = fromInternal;
             if (internal) await markAnswered(chat.id, at);
             // Modo "preguntas": el chat espera recién cuando la AI dice que el mensaje pide respuesta (lib/groups-flag.ts).
             else if (st.flagMode === 'questions') {
               await getDb().prepare('UPDATE groups_chats SET awaiting_since = NULL WHERE id = ? AND awaiting_since = ?').run(chat.id, at);
             }
             // Archivado: vuelve a la lista con un mensaje nuevo, salvo que el workspace pida mantenerlos archivados (o el
-            // chat tenga "Mantener archivado": el trigger de la base lo deja como estaba).
-            if (chat.archived_at && !st.keepArchived) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
+            // chat tenga "Mantener archivado": el trigger de la base lo deja como estaba). Lo interno no lo saca.
+            if (chat.archived_at && !st.keepArchived && !internal) await getDb().prepare('UPDATE groups_chats SET archived_at = NULL WHERE id = ?').run(chat.id);
             // Ticket por palabra clave: antes de responder.
             if (!internal && matchKeyword(st.ticketKeywords, row.body)) {
               const { createTicket } = await import('./groups-tickets');

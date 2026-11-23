@@ -69,7 +69,7 @@ export default function ContactSheet({
   onMute?: (on: boolean) => void;
   onBlock?: (on: boolean) => void;
   /** Marcarla como interna o no (lib/internal-contacts.ts): solo si `card.canMarkInternal`. */
-  onInternal?: (on: boolean) => void;
+  onInternal?: (on: boolean) => void | Promise<void>;
   loadShared: (kind: SharedTab | 'starred') => Promise<SheetSharedItem[] | null>;
 }) {
   const t = useTranslations('groups.wa.contactSheet');
@@ -83,6 +83,7 @@ export default function ContactSheet({
   const [viewerAt, setViewerAt] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
+  const [internalBusy, setInternalBusy] = useState(false);
 
   useEffect(() => {
     const d = ref.current;
@@ -208,7 +209,18 @@ export default function ContactSheet({
                           <span className="wa-sheet-row-sub">{ti('sheetHelp')}</span>
                         </span>
                         <span className="ui-switch">
-                          <input type="checkbox" role="switch" checked={!!card.internal} onChange={(e) => onInternal(e.target.checked)} data-testid="wa-sheet-internal" />
+                          <input
+                            type="checkbox"
+                            role="switch"
+                            checked={!!card.internal}
+                            disabled={internalBusy}
+                            onChange={(e) => {
+                              const on = e.target.checked;
+                              setInternalBusy(true);
+                              void Promise.resolve(onInternal(on)).finally(() => setInternalBusy(false));
+                            }}
+                            data-testid="wa-sheet-internal"
+                          />
                         </span>
                       </label>
                     ) : (

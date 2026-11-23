@@ -18,8 +18,9 @@
  * Por workspace (el id del dueño): lo ven igual todas las personas. Lo
  * administran los admins (las rutas lo exigen). Server-only.
  */
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import { getDb } from './db';
+import { isPublicDomain } from './workspace';
 
 export interface InternalSettings {
   /** Los números conectados en Lines cuentan como internos. */
@@ -48,9 +49,15 @@ export function cleanDomain(raw: unknown): string | null {
   return DOMAIN.test(d) ? d : null;
 }
 
+/** Un dominio que puede ser de la empresa: válido y no de correo gratis (gmail.com dejaría afuera a los clientes). */
+export function companyDomain(raw: unknown): string | null {
+  const d = cleanDomain(raw);
+  return d && !isPublicDomain(d) ? d : null;
+}
+
 export function normalizeInternalSettings(raw: unknown): InternalSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const domains = Array.isArray(r.domains) ? [...new Set(r.domains.map(cleanDomain).filter((d): d is string => !!d))].slice(0, MAX_INTERNAL_DOMAINS) : [];
+  const domains = Array.isArray(r.domains) ? [...new Set(r.domains.map(companyDomain).filter((d): d is string => !!d))].slice(0, MAX_INTERNAL_DOMAINS) : [];
   return { lines: r.lines !== false, domains };
 }
 
@@ -66,7 +73,11 @@ export function normalizeHandle(raw: unknown): string | null {
     return EMAIL.test(e) && cleanDomain(e.split('@')[1]) ? e : null;
   }
   if (/@lid$/i.test(s)) return null;
-  const d = s.replace(/@.*$/, '').replace(/\D/g, '');
+  // Un JID ("<dígitos>:<dispositivo>@s.whatsapp.net") o un teléfono escrito: solo dígitos, +, espacios, guiones,
+  // puntos y paréntesis ("Juan 1155550000" no es un teléfono). El 00 internacional es lo mismo que el +.
+  const bare = s.replace(/@.*$/, '').replace(/:\d+$/, '');
+  if (!/^[+\d\s().-]+$/.test(bare)) return null;
+  const d = bare.replace(/\D/g, '').replace(/^00(?=\d{8})/, '');
   return PHONE.test(d) ? d : null;
 }
 
@@ -74,8 +85,14 @@ export function handleKind(handle: string): 'phone' | 'email' {
   return handle.includes('@') ? 'email' : 'phone';
 }
 
+/** Sin secreto configurado: una clave fija solo sirve para desarrollo; en producción, error (la referencia se podría adivinar). */
+function devFallback(value: string): string {
+  if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new Error('NEXTAUTH_SECRET is required');
+  return value;
+}
+
 function secret(): string {
-  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'zerosoft-internal';
+  return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || devFallback('zerosoft-internal');
 }
 
 /** Referencia opaca de un contacto (para quien ve los teléfonos ocultos: lo saca de la lista sin ver el número). */
@@ -94,23 +111,34 @@ export async function getInternalSettings(ws: string): Promise<InternalSettings>
 }
 
 export async function updateInternalSettings(ws: string, patch: Partial<InternalSettings>): Promise<InternalSettings> {
-  const next = normalizeInternalSettings({ ...(await getInternalSettings(ws)), ...patch });
+  const before = await getInternalSettings(ws);
+  const next = normalizeInternalSettings({ ...before, ...patch });
   await getDb()
     .prepare(
       `INSERT INTO internal_contact_settings (workspace_id, data, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(workspace_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
     )
     .run(ws, JSON.stringify(next), new Date().toISOString());
+  // La regla de las líneas recién prendida: sus chats 1:1 que esperaban dejan de esperar.
+  if (next.lines && !before.lines) {
+    const set = await loadInternalSet(ws);
+    await stopWaiting(ws, [...set.handles].filter((h) => handleKind(h) === 'phone'));
+  }
   return next;
 }
 
 /**
- * Cuándo cambió lo interno del workspace (ajustes o contactos): va en la versión de las listas que responden 304
- * (Inbox), así un cambio se ve sin esperar a que cambie otra cosa.
+ * La versión de lo interno del workspace (ajustes, contactos y las líneas de la regla): va primero en la versión
+ * de las listas que responden 304 (Inbox) y en la caché de los reportes, así un cambio se ve ya. Una sola lectura.
  */
 export async function internalVersion(ws: string): Promise<string> {
-  const row = (await getDb().prepare('SELECT updated_at FROM internal_contact_settings WHERE workspace_id = ?').get(ws)) as { updated_at: string } | undefined;
-  return row?.updated_at ?? '';
+  const row = (await getDb()
+    .prepare(
+      `SELECT (SELECT updated_at FROM internal_contact_settings WHERE workspace_id = ?) AS s,
+              (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') || ':' || COALESCE(group_concat(phone), '') FROM groups_numbers WHERE user_id = ? AND phone <> '') AS n`,
+    )
+    .get(ws, ws)) as { s: string | null; n: string | null } | undefined;
+  return createHash('sha256').update(`${ws}|${row?.s ?? ''}|${row?.n ?? ''}`).digest('base64url').slice(0, 16);
 }
 
 async function touchInternal(ws: string, now: Date): Promise<void> {
@@ -144,7 +172,8 @@ export async function loadInternalSet(ws: string): Promise<InternalSet> {
   const excluded = new Set<string>();
   for (const r of rows) (r.internal ? handles : excluded).add(r.handle);
   if (settings.lines) {
-    const lines = (await db.prepare("SELECT phone FROM groups_numbers WHERE user_id = ? AND phone <> ''").all(ws)) as Array<{ phone: string }>;
+    // Las líneas del workspace (no las de ejemplo).
+    const lines = (await db.prepare("SELECT phone FROM groups_numbers WHERE user_id = ? AND phone <> '' AND provider <> 'sample'").all(ws)) as Array<{ phone: string }>;
     for (const l of lines) {
       const d = normalizeHandle(l.phone);
       if (d && !excluded.has(d)) handles.add(d);
@@ -225,7 +254,7 @@ export async function handleForRef(ws: string, ref: string): Promise<string | nu
 
 export class InternalContactError extends Error {
   constructor(
-    public code: 'invalid_handle' | 'too_many',
+    public code: 'invalid_handle' | 'too_many' | 'invalid_domain',
     public status = 400,
   ) {
     super(code);
@@ -257,5 +286,19 @@ export async function setInternalContact(ws: string, actor: string | null, rawHa
     )
     .run(ws, handle, internal ? 1 : 0, name.replace(/\s+/g, ' ').trim().slice(0, 120), actor, now.toISOString());
   if (res.changes > 0) await touchInternal(ws, now);
+  // Marcado como interno: sus chats 1:1 que esperaban respuesta dejan de esperar (no esperan al próximo mensaje).
+  if (internal && handleKind(handle) === 'phone') await stopWaiting(ws, [handle]);
   return res.changes > 0;
+}
+
+/** Los chats 1:1 de Lines con esos teléfonos dejan de esperar respuesta (y de estar marcados como vencidos). */
+export async function stopWaiting(ws: string, phones: string[]): Promise<void> {
+  const list = phones.filter((p) => PHONE.test(p)).slice(0, MAX_INTERNAL_CONTACTS);
+  if (!list.length) return;
+  await getDb()
+    .prepare(
+      `UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL
+       WHERE user_id = ? AND kind = 'dm' AND awaiting_since IS NOT NULL AND phone IN (SELECT value FROM json_each(?))`,
+    )
+    .run(ws, JSON.stringify(list));
 }

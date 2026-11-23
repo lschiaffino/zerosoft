@@ -50,6 +50,21 @@ export async function inboxInternal(): Promise<{ ws: string | null; set: Interna
   return { ws: user.id, set: await loadInternalSet(user.id), admin: roleAtLeast(user.role, 'admin') };
 }
 
+/**
+ * Como withOwner, más el workspace activo (lo interno es del workspace; lib/internal-contacts.ts) y si es admin.
+ * Una sola lectura de la sesión. Sin sesión o con un token delegado, 401.
+ */
+export async function withOwnerWs(fn: (owner: string, ctx: { ws: string; admin: boolean }) => Promise<NextResponse>): Promise<NextResponse> {
+  if (delegatedIdentity()) return iJson({ error: 'unauthorized' }, 401);
+  const user = await getCurrentUser();
+  if (!user) return iJson({ error: 'unauthorized' }, 401);
+  try {
+    return await fn(realUserId(user), { ws: user.id, admin: roleAtLeast(user.role, 'admin') });
+  } catch (err) {
+    return iFail(err);
+  }
+}
+
 export async function parseBody<S extends z.ZodTypeAny>(req: Request, schema: S): Promise<z.infer<S>> {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) throw new InboxError('invalid_input', 400);

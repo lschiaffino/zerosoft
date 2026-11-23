@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Mudar a largura da lista de conversas", "details": "Mudar a largura da info do contato", "hint": "Arraste para mudar a largura. Clique duas vezes para voltar ao original." },
   "rowMenu": { "label": "Opções de {name}", "newWindow": "Abrir em outra janela", "archive": "Arquivar conversa", "unarchive": "Desarquivar conversa", "snooze": "Adiar…", "unsnooze": "Cancelar adiamento", "pin": "Fixar conversa", "unpin": "Desafixar conversa", "favorite": "Adicionar aos Favoritos", "unfavorite": "Remover dos Favoritos", "vip": "Marcar como VIP", "unvip": "Remover dos VIP", "mute": "Silenciar notificações", "unmute": "Ativar notificações", "move": "Adicionar a uma pasta", "contactInfo": "Dados do contato", "keepArchived": "Manter arquivada", "keepArchivedOff": "Deixar de manter arquivada", "groupInfo": "Dados do grupo" },
-  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
+  "nav": { "inbox": "Caixa de entrada", "reply": "Para responder", "waiting": "Aguardando", "internal": "Internos", "snoozed": "Adiados", "scheduled": "Agendados", "done": "Arquivados", "removed": "Removidos do Inbox", "compose": "Nova mensagem", "analytics": "Análise", "contacts": "Contatos" },
   "views": {
     "inbox": "Caixa de entrada",
     "unread": "Não lidos",

@@ -904,6 +904,7 @@
     "pageTitle": "Esta página não carregou",
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
     "invalid_handle": "Digite um telefone com o código do país, ou um e-mail.",
+    "invalid_domain": "Digite o domínio da sua empresa (como empresa.com). Domínios de e-mail gratuitos como gmail.com não podem ser internos.",
     "too_many": "Há contatos marcados demais. Tire alguns primeiro.",
     "generic": "Algo deu errado. Tente de novo.",
     "offline_files": "Arquivos precisam de conexão. Ficam aqui e você pode enviá-los quando a conexão voltar. Os textos ficam na fila e saem sozinhos.",

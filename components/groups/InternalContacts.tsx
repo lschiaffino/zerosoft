@@ -91,7 +91,7 @@ export default function InternalContactsPanel({ apiBase }: { apiBase: '/api/grou
         <p className="ui-error" role="alert">
           {loadError}
         </p>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => void load()}>
+        <button type="button" className="btn btn-secondary btn-sm gr-internal-retry" onClick={() => void load()}>
           {t('retry')}
         </button>
       </div>

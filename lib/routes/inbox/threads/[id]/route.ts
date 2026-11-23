@@ -11,8 +11,8 @@ import {
   saveNotes,
   type ThreadAction,
 } from '@/lib/inbox/core';
-import { iJson, inboxInternal, parseBody, withOwner } from '@/lib/inbox/http';
-import { internalVersion, isInternalHandle, type InternalSet } from '@/lib/internal-contacts';
+import { iJson, parseBody, withOwner, withOwnerWs } from '@/lib/inbox/http';
+import { internalVersion, isInternalHandle, loadInternalSet, type InternalSet } from '@/lib/internal-contacts';
 import { markInternalThread } from '@/lib/inbox/core';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
@@ -49,7 +49,7 @@ type Ctx = { params: Promise<{ id: string }> };
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
-  return withOwner(async (owner) => {
+  return withOwnerWs(async (owner, { ws }) => {
     const around = new URL(req.url).searchParams.get('around')?.slice(0, 60) || undefined;
     // Sin cambios desde la última vez (una fila): 304 sin armar el chat.
     const rev = await threadRev(owner, id);
@@ -57,10 +57,10 @@ export async function GET(req: Request, ctx: Ctx) {
     // El mismo chat en otras cuentas: un mensaje en cualquiera cambia la conversación (y su versión).
     const same = await withInboxSameChatIds(owner, [id]);
     const extraRev = same.length > 1 ? await sameChatRev(owner, same.slice(1)) : '';
-    // Quién es interno es del workspace (lib/internal-contacts.ts): un cambio ahí también cambia la versión.
-    const internal = await inboxInternal();
-    const iv = internal.ws ? await internalVersion(internal.ws) : '';
-    return versioned(req, versionTag('t', rev ?? 0, `${id},${around ?? ''}${extraRev},${iv}`), () => buildDetail(owner, id, around, internal.set));
+    // Quién es interno es del workspace (lib/internal-contacts.ts): su versión va primero; lo interno se lee solo si
+    // hay que armar el chat.
+    const iv = await internalVersion(ws);
+    return versioned(req, versionTag('t', rev ?? 0, `${iv},${id},${around ?? ''}${extraRev}`), async () => buildDetail(owner, id, around, await loadInternalSet(ws)));
   });
 }
 
@@ -123,7 +123,7 @@ async function buildDetail(owner: string, id: string, around: string | undefined
 /** Acción (Hecho, posponer, fijar…), borrador, notas o nombre. */
 export async function PATCH(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
-  return withOwner(async (owner) => {
+  return withOwnerWs(async (owner, { ws }) => {
     const body = await parseBody(req, threadPatchSchema);
     if ('draft' in body) await saveDraft(owner, id, body.draft);
     else if ('notes' in body) await saveNotes(owner, id, body.notes);
@@ -144,7 +144,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         }
       }
     }
-    return iJson({ thread: markInternalThread(await getThread(owner, id), (await inboxInternal()).set) });
+    return iJson({ thread: markInternalThread(await getThread(owner, id), await loadInternalSet(ws)) });
   });
 }
 

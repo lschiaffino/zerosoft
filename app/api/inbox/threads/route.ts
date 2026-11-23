@@ -2,8 +2,8 @@ import { after } from 'next/server';
 import { listThreadsPage } from '@/lib/inbox/core';
 import { refreshVisible } from '@/lib/inbox/wa-meta';
 import { bulkActionSchema, removedActionSchema } from '@/lib/inbox/schemas';
-import { iJson, inboxInternal, withOwner } from '@/lib/inbox/http';
-import { internalVersion, type InternalSet } from '@/lib/internal-contacts';
+import { iJson, withOwner, withOwnerWs } from '@/lib/inbox/http';
+import { internalVersion, loadInternalSet, type InternalSet } from '@/lib/internal-contacts';
 import { threadAction } from '@/lib/inbox/send';
 import { isInboxView } from '@/lib/inbox/types';
 import { ownerRev, versionTag, versioned } from '@/lib/inbox/revisions';
@@ -22,13 +22,13 @@ export const dynamic = 'force-dynamic';
  * Sin ?cursor=, los primeros ?limit= (300). Con If-None-Match y sin cambios responde 304.
  */
 export async function GET(req: Request) {
-  return withOwner(async (owner) => {
+  return withOwnerWs(async (owner, { ws }) => {
     const sp = new URL(req.url).searchParams;
-    // Sin cambios de la persona desde la última vez (una fila): 304 sin armar la lista.
-    // Quién es interno es del workspace (lib/internal-contacts.ts): un cambio ahí también cambia la versión.
-    const internal = await inboxInternal();
-    const iv = internal.ws ? await internalVersion(internal.ws) : '';
-    return versioned(req, versionTag('l', await ownerRev(owner), `${sp.toString()}|${iv}`), () => buildList(owner, sp, internal.set));
+    // Sin cambios de la persona desde la última vez (una fila): 304 sin armar la lista. Quién es interno es del
+    // workspace (lib/internal-contacts.ts): su versión va primero (el resto se corta si es largo) y lo interno se lee
+    // solo si hay que armar la lista.
+    const iv = await internalVersion(ws);
+    return versioned(req, versionTag('l', await ownerRev(owner), `${iv}|${sp.toString()}`), async () => buildList(owner, sp, await loadInternalSet(ws)));
   });
 }
 
