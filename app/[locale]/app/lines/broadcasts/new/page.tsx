@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/session';
 import { getChat, listChats, listLabels, listNumbers, listPropertyDefs, type ChatDto } from '@/lib/groups';
 import { savedListChatIds } from '@/lib/groups-org';
 import { pageViewer } from '@/lib/groups-page';
-import { canSeeChat, maskChat } from '@/lib/groups-access';
+import { canSeeChat, maskChat, scopeChatCrmRef } from '@/lib/groups-access';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import BroadcastComposer from '@/components/groups/BroadcastComposer';
@@ -36,7 +36,7 @@ export default async function NewBroadcastPage(props: { params: Promise<{ locale
     for (const c of fromList) {
       if (known.has(c.id)) continue;
       const dto = await getChat(user.id, c.id);
-      if (dto) rows.push(maskChat(viewer, dto));
+      if (dto) rows.push(await scopeChatCrmRef(viewer, maskChat(viewer, dto)));
     }
   }
   return (
