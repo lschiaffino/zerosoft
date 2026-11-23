@@ -672,7 +672,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
    A 640px o menos baja al pie, a todo el ancho y con telón, como una hoja de acciones. */
 @media (max-width: 640px) {
   /* "Mover a…" del tablero ya se ubica junto a su card dentro de la pantalla: queda anclado. */
-  :is(.record-more-menu:not(.kb-move-menu), .book-meeting-menu, .dash-add-menu, .chat-alerts-panel, .column-toggle-menu) {
+  :is(.record-more-menu:not(.kb-move-menu), .book-meeting-menu, .dash-add-menu, .rb-menu, .chat-alerts-panel, .column-toggle-menu) {
     position: fixed !important;
     top: auto !important;
     right: 8px !important;
@@ -725,7 +725,7 @@ section.ui-section { padding-top: 0; padding-bottom: 0; }
   /* El ID repite el link del título: en el teléfono se va y el título gana el ancho. */
   @media (max-width: 640px) { .track-table-wrap.is-linear .track-col-id { display: none; } }
   /* Hoja de "Agregar widget" (CRM): cada opción es una fila de 44px. */
-  .dash-add-menu button { min-height: 44px; }
+  .dash-add-menu button, .rb-menu button { min-height: 44px; }
   /* Emojis de Groups: 8 columnas de 40px en vez de 9 de 38. */
   .wa-emoji .wa-emoji-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)) !important; }
   .wa-emoji .wa-emoji-grid button { height: 40px !important; }
