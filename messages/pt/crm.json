@@ -4873,7 +4873,9 @@
       "rescheduled": "Reagendada",
       "no_show": "Não compareceu",
       "canceled": "Cancelada"
-    }
+    },
+    "notePlaceholderSolo": "Escreva uma nota",
+    "noteTooLong": "A nota é longa demais."
   },
   "assocLabels": {
     "title": "Rótulos de associação",
@@ -5019,7 +5021,11 @@
     "perPage": "{count} por página",
     "perPageLabel": "Linhas por página",
     "exportView": "Exportar visualização",
-    "exportViewHint": "Baixe em CSV todos os registros desta visualização, não só esta página"
+    "exportViewHint": "Baixe em CSV todos os registros desta visualização, não só esta página",
+    "exportPreparing": "Preparando a exportação…",
+    "exportTruncated": "Exportamos os primeiros {cap} de {total} registros. Restrinja os filtros para exportar o resto.",
+    "exportError": "Não foi possível exportar esta visualização. Revise os filtros e tente de novo.",
+    "exportNoticeClose": "Fechar"
   },
   "bulkBar": {
     "label": "Ações em massa",
@@ -5487,5 +5493,26 @@
     "previous": "Registro anterior",
     "next": "Próximo registro",
     "position": "{n} de {total}"
+  },
+  "comments": {
+    "add": "Comentar",
+    "count": "{count, plural, one {# comentário} other {# comentários}}",
+    "loading": "Carregando comentários…",
+    "loadError": "Não foi possível carregar os comentários.",
+    "retry": "Tentar de novo",
+    "listLabel": "Comentários",
+    "edited": "(editado)",
+    "actions": "Ações do comentário",
+    "editLabel": "Editar comentário",
+    "deleteConfirm": "Excluir este comentário?",
+    "composerLabel": "Adicionar um comentário",
+    "placeholder": "Adicione um comentário",
+    "placeholderMention": "Adicione um comentário. Com @ você menciona alguém da equipe",
+    "save": "Comentar",
+    "saving": "Salvando…",
+    "saveError": "Não foi possível salvar o comentário. Tente de novo.",
+    "deleteError": "Não foi possível excluir o comentário. Tente de novo.",
+    "tooMany": "Esta atividade chegou ao limite de comentários.",
+    "tooLong": "O comentário é longo demais."
   }
 }

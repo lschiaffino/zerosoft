@@ -104,12 +104,12 @@
 .aic-polish .aic-link { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; text-decoration: none; color: var(--aic-ink-2); }
 .aic-polish .aic-link:hover { color: var(--aic-ink); }
 
-/* En un chat, "Pulir" e "Insertado · Deshacer" flotan como el micrófono de dictado (styles/voice-host.css .vc-bar):
-   un chip chico sobre el borde de arriba del campo, sin ocupar lugar, así la conversación no salta cuando aparece.
-   Va a la derecha del campo dejando libre la esquina del micrófono (24px + 8px); a la izquierda pisaría las solapas
-   WhatsApp | Nota interna. La caja del campo (.wa-input-box) es position: relative. */
+/* En un chat, "Pulir" e "Insertado · Deshacer" flotan: un chip chico sobre el borde de arriba del campo, sin ocupar
+   lugar, así la conversación no salta cuando aparece. Va a la derecha del campo (el micrófono de dictado va dentro
+   del campo, styles/voice-host.css .vc-bar.is-inset); a la izquierda pisaría las solapas WhatsApp | Nota interna.
+   La caja del campo (.wa-input-box) es position: relative. */
 .aic-undo.aic-float {
-  position: absolute; z-index: 6; right: 40px; bottom: calc(100% + 8px); flex-wrap: nowrap; gap: 6px;
+  position: absolute; z-index: 6; right: 0; bottom: calc(100% + 8px); flex-wrap: nowrap; gap: 6px;
   height: 24px; margin: 0; padding: 0 8px; white-space: nowrap; font-size: 0.75rem;
   color: var(--ink-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-1);
 }

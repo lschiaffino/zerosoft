@@ -21,9 +21,10 @@
   color: var(--ink);
   font-family: var(--font-ui);
 }
-/* Con el campo abierto, el launcher de feedback y la burbuja de soporte taparían Enviar. */
-body:has(.ib-composer) .fl-root,
-body:has(.ib-composer) #zs-chat-root { display: none !important; }
+/* Con el campo abierto (correo o WhatsApp), el launcher de feedback y la burbuja de soporte taparían Enviar y la
+   pestaña quedaba cortada contra el borde del chat: se ocultan, como en Lines. */
+body:has(:is(.ib-composer, .ib-wa-composer)) .fl-root,
+body:has(:is(.ib-composer, .ib-wa-composer)) #zs-chat-root { display: none !important; }
 
 .ib-app :focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .ib-dim { color: var(--brand-gray-2); }
