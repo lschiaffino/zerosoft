@@ -193,7 +193,7 @@ a.track-request-customer:hover { text-decoration: underline; text-underline-offs
   min-height: 30px;
   font-size: 0.8125rem;
 }
-.track-x-prop > dt { display: inline-flex; color: var(--brand-gray-2); }
+.track-x-prop > dt { position: relative; display: inline-flex; color: var(--brand-gray-2); }
 .track-x-prop > dd { margin: 0; min-width: 0; }
 .track-x-menu-note { padding: 6px 10px; }
 
