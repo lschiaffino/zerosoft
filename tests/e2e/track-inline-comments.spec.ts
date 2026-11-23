@@ -103,7 +103,7 @@ test('1280: comentar una parte de la descripción, resaltado, ir al hilo y resol
   // Publicar: ⌘↵ o el botón.
   await select(page, QUOTE);
   await page.getByTestId('track-rte-comment').click();
-  await page.getByTestId('track-inline-editor').locator('.track-rte-content').click();
+  await page.getByTestId('track-inline-editor').click();
   await page.keyboard.type('Repro on Safari too');
   await shot(page, 'track-inline-composer-1280');
   await page.getByTestId('track-inline-submit').click();
@@ -180,7 +180,7 @@ test('390: comentar desde el teléfono; sin scroll lateral; cinco aspectos', asy
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
   await check(page, 'track inline composer 390', { tap: true, ignore: /track-detail-title-input/ });
-  await page.getByTestId('track-inline-editor').locator('.track-rte-content').click();
+  await page.getByTestId('track-inline-editor').click();
   await page.keyboard.type('Phone note');
   await submit.click();
   await expect(composer).toHaveCount(0);
@@ -195,7 +195,7 @@ test('1280: resaltado y composer en los cinco aspectos, claro y oscuro', async (
   await openIssue(page, issue.id);
   await select(page, QUOTE);
   await page.getByTestId('track-rte-comment').click();
-  await page.getByTestId('track-inline-editor').locator('.track-rte-content').click();
+  await page.getByTestId('track-inline-editor').click();
   await page.keyboard.type('Looks check');
   await page.getByTestId('track-inline-submit').click();
   await expect.poll(() => highlighted(page)).toBe(1);
