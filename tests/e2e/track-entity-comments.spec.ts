@@ -120,7 +120,8 @@ test('390: hilo de un project sin scroll lateral; cinco aspectos, claro y oscuro
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
   await page.emulateMedia({ colorScheme: 'light' });
-  await check(page, 'track plan comments 390', { tap: true });
+  // El nombre del project (textarea de una línea) es de la página, no del hilo.
+  await check(page, 'track plan comments 390', { tap: true, ignore: /tp-title-input/ });
   await ctx.close();
 });
 
