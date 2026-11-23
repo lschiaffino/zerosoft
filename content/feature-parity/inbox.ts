@@ -110,9 +110,9 @@ const parity: ProductParity = {
     row('daily-brief', 'triage', ['Daily brief', 'Resumen del día', 'Resumo do dia'], 'have', {
       competitorHas: false,
       detail: [
-        'A card at the top of the inbox with your chats to reply, reminders due, groups with unread messages and mentions of you in groups, from your own Inbox only. Hide it until tomorrow, or get it by email every morning together with Lines (Settings › Notifications)',
-        'Una tarjeta arriba de la bandeja con tus chats por responder, recordatorios vencidos, grupos con mensajes sin leer y menciones a vos en grupos, solo de tu Inbox. Se oculta hasta mañana, o te llega por email cada mañana junto con Lines (Ajustes › Avisos)',
-        'Um cartão no topo da caixa com suas conversas para responder, lembretes vencidos, grupos com mensagens não lidas e menções a você em grupos, só do seu Inbox. Dá para ocultar até amanhã, ou receber por e-mail toda manhã junto com o Lines (Ajustes › Avisos)',
+        'A card at the top of the inbox with your chats to reply (internal contacts excluded), reminders due, groups with unread messages and mentions of you in groups, from your own Inbox only. Hide it until tomorrow, or get it by email every morning together with Lines (Settings › Notifications)',
+        'Una tarjeta arriba de la bandeja con tus chats por responder (sin los contactos internos), recordatorios vencidos, grupos con mensajes sin leer y menciones a vos en grupos, solo de tu Inbox. Se oculta hasta mañana, o te llega por email cada mañana junto con Lines (Ajustes › Avisos)',
+        'Um cartão no topo da caixa com suas conversas para responder (sem os contatos internos), lembretes vencidos, grupos com mensagens não lidas e menções a você em grupos, só do seu Inbox. Dá para ocultar até amanhã, ou receber por e-mail toda manhã junto com o Lines (Ajustes › Avisos)',
       ],
     }),
     row('internal-contacts', 'triage', ['Internal contacts out of To reply', 'Contactos internos fuera de Por responder', 'Contatos internos fora de Por responder'], 'have', {
