@@ -110,6 +110,7 @@ export default function ContactPanel({
         id: m.id,
         url: ['image', 'video', 'document'].includes(m.mediaType) ? `/api/inbox/media/${m.id}` : '',
         video: m.mediaType === 'video',
+        kind: (['image', 'video', 'audio', 'document', 'sticker'] as const).find((k) => k === m.mediaType),
         name: m.mediaName,
         body: m.body,
         sentAt: m.sentAt,

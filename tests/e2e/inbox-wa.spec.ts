@@ -308,7 +308,7 @@ test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen c
   // Lo compartido (pestaña Archivos): la foto del grupo y el documento.
   await detailsTab(page, 'media');
   await expect(panel.locator('.wa-sheet-grid .wa-sheet-thumb img')).toHaveCount(1);
-  await panel.getByRole('tab', { name: 'Docs' }).click();
+  await panel.getByRole('button', { name: 'Docs', exact: true }).click();
   await expect(panel.locator('.wa-sheet-row', { hasText: 'Lista de compras.pdf' })).toBeVisible();
   // Resumen con IA (modelo falso en e2e), en Info.
   await detailsTab(page, 'info');

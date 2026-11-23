@@ -2110,7 +2110,9 @@
       "deals": "Negocios",
       "noDeals": "No hay negocios del contacto o la empresa vinculados.",
       "untitledDeal": "Negocio sin nombre",
-      "crmOff": "La app CRM está apagada para vos. HubSpot aparece acá cuando tu workspace lo conecta."
+      "crmOff": "La app CRM está apagada para vos. HubSpot aparece acá cuando tu workspace lo conecta.",
+      "sharedLabel": "Compartido en este chat",
+      "noteAttachment": "Nota con un adjunto"
     },
     "contactSheet": {
       "title": "Info. del contacto",

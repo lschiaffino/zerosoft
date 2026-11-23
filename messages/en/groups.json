@@ -2110,7 +2110,9 @@
       "deals": "Deals",
       "noDeals": "No deals for the linked contact or company.",
       "untitledDeal": "Untitled deal",
-      "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it."
+      "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it.",
+      "sharedLabel": "Shared in this chat",
+      "noteAttachment": "Note with an attachment"
     },
     "contactSheet": {
       "title": "Contact info",

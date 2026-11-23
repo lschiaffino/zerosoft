@@ -140,6 +140,7 @@ export default function ChatDetails({
         id: m.id,
         url: m.url,
         video: m.mime.startsWith('video/'),
+        kind: m.mime.startsWith('image/') ? 'image' : m.mime.startsWith('video/') ? 'video' : m.mime.startsWith('audio/') ? 'audio' : m.mime ? 'document' : undefined,
         name: m.name,
         body: m.body,
         sentAt: m.sentAt,

@@ -2110,7 +2110,9 @@
       "deals": "Negócios",
       "noDeals": "Nenhum negócio do contato ou da empresa vinculados.",
       "untitledDeal": "Negócio sem nome",
-      "crmOff": "O app CRM está desligado para você. O HubSpot aparece aqui quando seu workspace o conecta."
+      "crmOff": "O app CRM está desligado para você. O HubSpot aparece aqui quando seu workspace o conecta.",
+      "sharedLabel": "Compartilhado nesta conversa",
+      "noteAttachment": "Nota com um anexo"
     },
     "contactSheet": {
       "title": "Dados do contato",

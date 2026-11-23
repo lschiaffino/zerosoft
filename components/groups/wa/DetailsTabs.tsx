@@ -83,8 +83,8 @@ export default function DetailsTabs({ tabs, storageKey, label }: { tabs: Details
   useEffect(() => {
     const onTab = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
-      if (!ids.includes(id)) return;
       pending = null;
+      if (!ids.includes(id)) return;
       pick(id);
     };
     window.addEventListener(DETAILS_TAB_EVENT, onTab);
@@ -112,7 +112,7 @@ export default function DetailsTabs({ tabs, storageKey, label }: { tabs: Details
               type="button"
               role="tab"
               id={`${uid}-tab-${t.id}`}
-              aria-controls={`${uid}-panel-${t.id}`}
+              aria-controls={seen.has(t.id) ? `${uid}-panel-${t.id}` : undefined}
               aria-selected={on}
               tabIndex={on ? 0 : -1}
               className={`wa-dtab${on ? ' is-on' : ''}`}

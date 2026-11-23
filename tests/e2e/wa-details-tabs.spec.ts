@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from '@
 import { e2eDb } from './helpers/db';
 import { ownWorkspace } from './helpers/own-workspace';
 import { waLinkIp } from './helpers/wa-link';
+import { ensureDetailsTab } from './helpers/details-tab';
 
 /**
  * El panel de un chat en Lines y en Inbox con pestañas (components/groups/wa/DetailsTabs.tsx), como Periskope:
@@ -89,9 +90,13 @@ async function walk(page: Page, app: 'lines' | 'inbox', urls: { group: string; d
   const open = async (url: string) => {
     await page.goto(url, { waitUntil: 'networkidle' });
     await expect(page.locator('.gr-msg').first()).toBeVisible({ timeout: 45_000 });
-    await page.locator('.wa-head-avatar, .wa-head-who').first().click();
+    // Hasta que la página hidrata, el clic en el encabezado todavía no abre nada: se reintenta.
     const panel = page.locator(panelSel);
-    await expect(panel.getByRole('tablist')).toBeVisible();
+    const head = page.locator(app === 'lines' ? '.gr-thread-head .wa-head-avatar' : '.ib-wa-thread .wa-head-who').first();
+    await expect(async () => {
+      if (!(await panel.getByRole('tablist').isVisible())) await head.click();
+      await expect(panel.getByRole('tablist')).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
     return panel;
   };
 
@@ -120,7 +125,8 @@ async function walk(page: Page, app: 'lines' | 'inbox', urls: { group: string; d
   await panel.locator('[data-details-tab="media"]').click();
   const shared = panel.getByTestId('details-shared');
   await expect(shared).toBeVisible();
-  await shared.getByRole('tab', { name: 'Links' }).click();
+  await shared.getByRole('button', { name: 'Links', exact: true }).click();
+  await expect(shared.getByRole('button', { name: 'Links', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(shared.getByRole('link', { name: /example\.test\/receta/ })).toBeVisible();
   await expect(panel.getByTestId('chat-starred')).toBeVisible();
 
@@ -161,9 +167,8 @@ for (const width of [1280, 390]) {
     const note = `Nota del equipo ${tag}`;
     expect((await request.post(`/api/groups/chats/${chats.dm}/messages`, { data: { body: note, note: true } })).ok()).toBe(true);
     await page.goto(urls.dm, { waitUntil: 'networkidle' });
-    await page.locator('.wa-head-avatar, .wa-head-who').first().click();
+    await ensureDetailsTab(page, 'notes', () => page.locator('.gr-thread-head .wa-head-avatar').first().click());
     const panel = page.locator('.gr-details');
-    await panel.locator('[data-details-tab="notes"]').click();
     await expect(panel.getByTestId('details-note').filter({ hasText: note })).toBeVisible();
     // CRM: sin vínculo, el buscador para vincular un contacto o una empresa.
     await panel.locator('[data-details-tab="crm"]').click();
@@ -188,7 +193,7 @@ for (const width of [1280, 390]) {
     await panel.getByRole('button', { name: 'Save notes' }).click();
     await expect(panel.getByText('Saved')).toBeVisible();
     await page.goto(urls.dm, { waitUntil: 'networkidle' });
-    await page.locator('.wa-head-avatar, .wa-head-who').first().click();
+    await ensureDetailsTab(page, 'notes', () => page.locator('.ib-wa-thread .wa-head-who').first().click());
     await expect(page.locator('.ib-wa-details').getByRole('textbox', { name: 'Notes about this chat' })).toHaveValue(`Prefiere que le escriban a la tarde ${tag}`);
     // En la computadora, el botón Notas del encabezado abre esa pestaña.
     if (width === 1280) {

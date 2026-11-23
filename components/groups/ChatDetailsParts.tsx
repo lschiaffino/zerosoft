@@ -78,7 +78,7 @@ export function ChatNotes({
                   {author(n.authorId)} · <LocalText>{parseDbUtc(n.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
                 </span>
                 <span className="gr-starred-text" dir="auto">
-                  {n.body}
+                  {n.body || t('noteAttachment')}
                 </span>
               </button>
             </li>

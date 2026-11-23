@@ -6,6 +6,7 @@ import MediaViewer, { type ViewerItem } from './MediaViewer';
 import { DocIcon } from './icons';
 import { posterFrame } from './format';
 import type { SheetSharedItem } from './ContactSheet';
+import { parseDbUtc } from '@/lib/utils';
 
 type Kind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -34,10 +35,15 @@ export default function SharedMedia({
   const [failed, setFailed] = useState<Partial<Record<Kind, boolean>>>({});
   const [viewerAt, setViewerAt] = useState<string | null>(null);
 
+  // Solo cuenta la última respuesta de cada lista (dos cambios seguidos de destacados pueden volver al revés).
+  const seq = useRef<Partial<Record<Kind, number>>>({});
   const fetchKind = (kind: Kind) => {
+    const n = (seq.current[kind] ?? 0) + 1;
+    seq.current[kind] = n;
     setItems((s) => ({ ...s, [kind]: null }));
     setFailed((s) => ({ ...s, [kind]: false }));
     void load(kind).then((list) => {
+      if (seq.current[kind] !== n) return;
       setItems((s) => ({ ...s, [kind]: list ?? [] }));
       setFailed((s) => ({ ...s, [kind]: list === null }));
     });
@@ -56,7 +62,10 @@ export default function SharedMedia({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [starredKey]);
 
-  const when = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+  // Lines manda la hora de la base (UTC sin zona) e Inbox ISO: parseDbUtc lee las dos.
+  const when = (iso: string) => parseDbUtc(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+  const whenFull = (iso: string) => parseDbUtc(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
+  const kindLabel = (m: SheetSharedItem) => ts(m.kind === 'image' || m.kind === 'sticker' ? 'photo' : m.kind === 'video' ? 'video' : 'document');
   const media = (items.media ?? []).filter((m) => m.url);
   const viewerItems: ViewerItem[] = media.map((m) => ({
     id: m.id,
@@ -83,9 +92,9 @@ export default function SharedMedia({
   return (
     <div className="wa-shared" data-testid="details-shared">
       <section className="gr-detail-section">
-        <div className="wa-sheet-tabs" role="tablist" aria-label={t('tabs.media')}>
+        <div className="wa-sheet-tabs" role="group" aria-label={t('sharedLabel')}>
           {(['media', 'docs', 'links'] as const).map((k) => (
-            <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'is-on' : ''} onClick={() => setTab(k)}>
+            <button key={k} type="button" aria-pressed={tab === k} className={tab === k ? 'is-on' : ''} onClick={() => setTab(k)}>
               {ts(`tabs.${k}`)}
             </button>
           ))}
@@ -161,10 +170,10 @@ export default function SharedMedia({
               <li key={m.id}>
                 <button type="button" className="gr-starred-item" data-testid="chat-starred-item" onClick={() => onJumpToMessage?.(m.id)} disabled={!onJumpToMessage}>
                   <span className="ui-help">
-                    {m.fromMe ? ts('you') : m.senderName || chatName} · {when(m.sentAt)}
+                    {m.fromMe ? ts('you') : m.senderName || chatName} · {whenFull(m.sentAt)}
                   </span>
                   <span className="gr-starred-text" dir="auto">
-                    {m.body || m.name || ts('document')}
+                    {m.body || m.name || kindLabel(m)}
                   </span>
                 </button>
               </li>
