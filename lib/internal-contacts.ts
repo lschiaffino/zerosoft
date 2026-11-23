@@ -132,10 +132,11 @@ export async function updateInternalSettings(ws: string, patch: Partial<Internal
  * de las listas que responden 304 (Inbox) y en la caché de los reportes, así un cambio se ve ya. Una sola lectura.
  */
 export async function internalVersion(ws: string): Promise<string> {
+  // Solo los teléfonos que entran en la regla, en orden (el estado de conexión de una línea no cambia nada).
   const row = (await getDb()
     .prepare(
       `SELECT (SELECT updated_at FROM internal_contact_settings WHERE workspace_id = ?) AS s,
-              (SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), '') || ':' || COALESCE(group_concat(phone), '') FROM groups_numbers WHERE user_id = ? AND phone <> '') AS n`,
+              (SELECT group_concat(phone) FROM (SELECT phone FROM groups_numbers WHERE user_id = ? AND phone <> '' AND provider <> 'sample' ORDER BY phone)) AS n`,
     )
     .get(ws, ws)) as { s: string | null; n: string | null } | undefined;
   return createHash('sha256').update(`${ws}|${row?.s ?? ''}|${row?.n ?? ''}`).digest('base64url').slice(0, 16);
@@ -180,6 +181,21 @@ export async function loadInternalSet(ws: string): Promise<InternalSet> {
     }
   }
   return { handles, excluded, domains: settings.domains };
+}
+
+/**
+ * ¿Ese teléfono es interno en el workspace? Como condición SQL, para decidirlo en la misma ida a la base que
+ * guarda un mensaje (lib/groups.ts, saveInbound): las mismas reglas que isInternalHandle para un teléfono.
+ * `phone` ya en dígitos ('' nunca es interno).
+ */
+export function internalPhoneSql(ws: string, phone: string): { sql: string; args: string[] } {
+  return {
+    sql: `(? <> '' AND NOT EXISTS (SELECT 1 FROM internal_contacts zix WHERE zix.workspace_id = ? AND zix.handle = ? AND zix.internal = 0)
+      AND (EXISTS (SELECT 1 FROM internal_contacts zii WHERE zii.workspace_id = ? AND zii.handle = ? AND zii.internal = 1)
+        OR (COALESCE((SELECT CASE WHEN json_valid(zis.data) THEN json_extract(zis.data, '$.lines') END FROM internal_contact_settings zis WHERE zis.workspace_id = ?), 1) <> 0
+          AND EXISTS (SELECT 1 FROM groups_numbers zin WHERE zin.user_id = ? AND zin.phone = ? AND zin.provider <> 'sample'))))`,
+    args: [phone, ws, phone, ws, phone, ws, ws, phone],
+  };
 }
 
 /** ¿Es interno? Un teléfono (con o sin JID) o un correo. */

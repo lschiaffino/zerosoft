@@ -670,7 +670,9 @@ async function response(ctx: Ctx): Promise<ResponseData> {
 
 /** De quién es un mensaje enviado: una persona, el teléfono, un agente de IA o una automatización. Los envíos masivos no cuentan. */
 function sender(kind: unknown, id: unknown): { key: string; kind: SenderKind; id: string | null } | null {
-  if (kind === 'broadcast') return null;
+  // Envíos masivos, y lo que respondió alguien interno desde su teléfono (lib/internal-contacts.ts): cuentan en el
+  // tiempo de respuesta general, no como un remitente de la lista.
+  if (kind === 'broadcast' || kind === 'internal') return null;
   if ((kind === 'person' || kind === 'scheduled') && typeof id === 'string' && id) return { key: `p:${id}`, kind: 'person', id };
   if (kind === 'phone') return { key: 'phone', kind: 'phone', id: null };
   if (kind === 'agent') return { key: 'ai', kind: 'ai', id: null };

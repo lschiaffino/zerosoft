@@ -74,7 +74,7 @@ import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyT
 import { lineColor, type LineColor } from './line-colors';
 import type { NumberStats } from './groups-number-stats';
 import { routeSelfChat } from './wa-self-chat';
-import { EMPTY_INTERNAL_SET, internalPhonesJson, isInternalHandle, loadInternalSet, type InternalSet } from './internal-contacts';
+import { EMPTY_INTERNAL_SET, internalPhoneSql, internalPhonesJson, isInternalHandle, loadInternalSet } from './internal-contacts';
 
 export { mediaKind, propertyText };
 
@@ -2179,14 +2179,20 @@ async function saveInbound(
   m: Omit<InsertMessage, 'chatId' | 'replyToId'> & { replyToProviderId?: string },
   preview: string,
   withSettings: boolean,
-  internal = false,
-): Promise<{ chat: ChatRow; created: boolean; row: MessageRow | null; settings: GroupsSettings | null }> {
+): Promise<{ chat: ChatRow; created: boolean; row: MessageRow | null; settings: GroupsSettings | null; internal: boolean }> {
   const id = newId();
   const v = messageValues(id, m);
   const at = m.createdAt ?? nowIso();
+  // Quien escribe es interno (lib/internal-contacts.ts): se decide en la misma ida, sin leer nada antes. Lo de alguien
+  // interno no hace esperar al chat, no lo reabre, no lo despierta del pospuesto ni lo saca de Archivados.
+  const inbound = m.direction === 'in';
+  const internalSql = inbound ? internalPhoneSql(number.user_id, phoneDigits(m.senderPhone ?? '') || chat.phone || '') : null;
   const stmts: BatchStatement[] = [
     chatInsert(number, chat),
-    { sql: 'SELECT * FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?', args: [number.id, chat.providerChatId] },
+    {
+      sql: `SELECT *, ${internalSql ? internalSql.sql : '0'} AS sender_internal FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?`,
+      args: [...(internalSql?.args ?? []), number.id, chat.providerChatId],
+    },
     {
       sql: `INSERT OR IGNORE INTO groups_messages (${MESSAGE_COLS})
        VALUES (?, ?, (SELECT id FROM groups_chats WHERE number_id = ? AND provider_chat_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -2196,18 +2202,25 @@ async function saveInbound(
     ...(m.direction === 'out' ? [unarchiveMark(at, 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], true)] : []),
     // Uno que llega a un chat pospuesto lo despierta: el desarchivado va también al teléfono (lib/wa-archive-sync.ts).
     // Lo de alguien interno no lo despierta.
-    ...(m.direction === 'in' && !internal ? [snoozeWakeMark('lines', 'c.id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id])] : []),
-    // Solo si el mensaje entró: uno repetido no existe con este id.
-    chatTouch(at, preview, m.direction === 'in' ? (internal ? 'internal' : true) : false, 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], m.direction === 'out' ? 'newest' : false),
+    ...(internalSql ? [snoozeWakeMark('lines', `c.id = (SELECT chat_id FROM groups_messages WHERE id = ?) AND NOT ${internalSql.sql}`, [id, ...internalSql.args])] : []),
+    // Solo si el mensaje entró: uno repetido no existe con este id. Lo que llega va por una de las dos sentencias.
+    ...(internalSql
+      ? [
+          chatTouch(at, preview, true, `id = (SELECT chat_id FROM groups_messages WHERE id = ?) AND NOT ${internalSql.sql}`, [id, ...internalSql.args], false),
+          chatTouch(at, preview, 'internal', `id = (SELECT chat_id FROM groups_messages WHERE id = ?) AND ${internalSql.sql}`, [id, ...internalSql.args], false),
+        ]
+      : [chatTouch(at, preview, false, 'id = (SELECT chat_id FROM groups_messages WHERE id = ?)', [id], 'newest')]),
   ];
   if (withSettings) stmts.push({ sql: 'SELECT data FROM groups_settings WHERE user_id = ?', args: [number.user_id] });
   const res = await dbBatch(stmts);
   const data = withSettings ? (res[res.length - 1].rows[0] as { data: string } | undefined) : undefined;
+  const chatRow = res[1].rows[0] as unknown as ChatRow & { sender_internal?: number };
   return {
-    chat: res[1].rows[0] as unknown as ChatRow,
+    chat: chatRow,
     created: res[0].changes > 0,
     row: (res[2].rows[0] as unknown as MessageRow | undefined) ?? null,
     settings: withSettings ? (data ? normalizeSettings(parseJson(data.data, {})) : { ...DEFAULT_SETTINGS }) : null,
+    internal: Boolean(chatRow?.sender_internal),
   };
 }
 
@@ -3067,9 +3080,6 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
   // Los ajustes del workspace llegan con el primer mensaje de la tanda (en la misma ida a la base).
   let settings: GroupsSettings | null = null;
   const batchSettings = async () => (settings ??= await getSettings(ws));
-  // Quién es interno en el workspace (lib/internal-contacts.ts): se lee una vez por tanda, con el primer mensaje que llega.
-  let internalSet: InternalSet | null = null;
-  const batchInternal = async () => (internalSet ??= await loadInternalSet(ws));
   // Lo que llega con el id de la línea y no es del chat con uno mismo (Meta AI, un lid con el teléfono propio) va a su chat.
   const slice = routeSelfChat(events.slice(0, 200), number.phone);
   // La libreta del número (nombres de perfil, lid ↔ teléfono). Si la tanda trae a alguien solo con su lid, primero:
@@ -3103,9 +3113,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
         const meta = inboundMeta(ev);
         const media = ev.media && (ev.media.type || ev.media.url) ? ev.media : null;
         const chatInput: ChatInput = { providerChatId: ev.chatId, kind: isGroup ? 'group' : 'dm', name: dmName, phone: isGroup ? '' : phoneDigits(ev.chatId) };
-        // Quien escribe es interno (lib/internal-contacts.ts): se sabe antes de guardar, para que no reabra el chat.
-        const fromInternal = !ev.fromMe && isInternalHandle(await batchInternal(), ev.senderPhone || chatInput.phone);
         // Una sola ida a la base: el chat, el mensaje y el chat al tope de la lista (lo que avisa a las pantallas).
+        // También dice si quien escribe es interno (lib/internal-contacts.ts).
         const stored = await saveInbound(
           number,
           chatInput,
@@ -3128,8 +3137,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           },
           previewOf(ev.body.slice(0, 8000), media?.type ?? '', (media?.name ?? '').slice(0, 200), meta ?? {}),
           settings === null,
-          fromInternal,
         );
+        const fromInternal = !ev.fromMe && stored.internal;
         saved = true;
         settings ??= stored.settings;
         const row = stored.row;

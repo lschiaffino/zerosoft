@@ -55,7 +55,16 @@ function message(chatId: string, over: Record<string, unknown> = {}) {
 }
 
 async function noSideScroll(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Si algo se sale del ancho, el error dice qué (clase y ancho).
+  const wide = await page.evaluate(() =>
+    document.documentElement.scrollWidth <= window.innerWidth
+      ? []
+      : [...document.querySelectorAll<HTMLElement>('body *')]
+          .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && el.getBoundingClientRect().width > 0)
+          .slice(0, 8)
+          .map((el) => `${el.tagName}.${String(el.className).slice(0, 60)} ${Math.round(el.getBoundingClientRect().right)}`),
+  );
+  expect(wide).toEqual([]);
 }
 
 /** Lo que se toca en la pantalla mide al menos 40 px de alto. */

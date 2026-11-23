@@ -385,7 +385,10 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-internal-list li { gap: 6px 12px; }
 .gr-internal-who { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 0; }
 .gr-internal-handle { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.gr-internal-state { width: auto; min-width: 140px; min-height: 40px; }
+.gr-internal select.gr-internal-state.select { width: auto; min-width: 140px; max-width: 100%; min-height: 40px; }
+/* En el teléfono nada se sale del ancho (la lista y los formularios bajan de renglón). */
+.gr-internal, .gr-internal > *, .gr-internal-form > * { min-width: 0; }
+.gr-internal .input { max-width: 100%; }
 .gr-internal-list .btn, .gr-internal .gr-mini-list .btn { min-height: 40px; }
 .gr-internal .gr-check-label { min-height: 40px; }
 .gr-internal-retry { min-height: 40px; }
