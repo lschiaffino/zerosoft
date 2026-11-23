@@ -18,6 +18,8 @@ interface RecordComboboxProps {
   disabled?: boolean;
   /** Búsqueda en el servidor (más allá de las opciones precargadas). Devuelve opciones. */
   search?: (q: string) => Promise<ComboOption[]>;
+  /** Clase del campo (`input` = el campo de la app; sin ella, lo estiliza quien lo contiene, como el alta de leads). */
+  inputClassName?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export default function RecordCombobox({
   ariaLabel,
   disabled,
   search,
+  inputClassName,
 }: RecordComboboxProps) {
   const listId = useId();
   const [extra, setExtra] = useState<ComboOption[]>([]);
@@ -84,7 +87,7 @@ export default function RecordCombobox({
   return (
     <div className="crm-combo">
       <input
-        className="input"
+        className={inputClassName}
         type="text"
         role="combobox"
         aria-autocomplete="list"

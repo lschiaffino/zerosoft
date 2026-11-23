@@ -1,4 +1,4 @@
-import { expect as baseExpect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
  * CRM, arreglos de QA del bloque C4:
@@ -21,11 +21,38 @@ async function noSideScroll(page: Page) {
 }
 
 const kpiTiles = (page: Page) => page.locator('[data-testid="cdb-tile"][data-shape="kpi"]');
+const uid = () => Math.random().toString(36).slice(2, 8);
+
+/** Un dashboard propio con cuatro KPI chicos y un gráfico (el "Sales" de la cuenta demo lo tocan otros tests). */
+async function kpiDashboard(request: APIRequestContext) {
+  const res = await request.post('/api/crm/dashboards', { data: { name: `QA KPIs ${uid()}`, template: 'blank' } });
+  expect(res.ok(), await res.text()).toBe(true);
+  const d = (await res.json()) as { id: string };
+  for (const reportKey of ['revenue_won_kpi', 'deals_created_kpi', 'win_rate_kpi', 'sales_velocity', 'deals_created']) {
+    const w = await request.post(`/api/crm/dashboards/${d.id}/widgets`, { data: { type: 'library', config: { reportKey }, ...(reportKey.endsWith('kpi') || reportKey === 'sales_velocity' ? { size: 'small' } : {}) } });
+    expect(w.ok(), await w.text()).toBe(true);
+  }
+  return d.id;
+}
+
+/** Sin la pestaña flotante, el feedback se manda desde el menú de la cuenta y abre el mismo panel. */
+async function feedbackFromMenu(page: Page) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none; }' });
+  await page.locator('.band-menu').click();
+  await page.getByTestId('workspace-switcher').click();
+  await page.getByTestId('side-feedback').click();
+  const panel = page.locator('.fl-root .fl-panel');
+  await expect(panel).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+}
 
 test.describe('dashboards', () => {
-  test('KPI values line up in a row; switcher uses the app font and icons (1280)', async ({ page }) => {
+  test('KPI values line up in a row, KPI height while loading; switcher uses the app font and icons (1280)', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 860 });
-    await page.goto('/en/app/crm/dashboards', { waitUntil: 'networkidle' });
+    const id = await kpiDashboard(request);
+    await page.goto(`/en/app/crm/dashboards?d=${id}`, { waitUntil: 'networkidle' });
+    await expect(kpiTiles(page)).toHaveCount(4);
     await expect(kpiTiles(page).first().locator('.cdb-kpi-value')).toBeVisible();
     const rows = await kpiTiles(page).evaluateAll((tiles) =>
       tiles.map((el) => ({ top: Math.round(el.getBoundingClientRect().top), value: Math.round(el.querySelector('.cdb-kpi-value')?.getBoundingClientRect().top ?? -1) })),
@@ -33,6 +60,26 @@ test.describe('dashboards', () => {
     const byRow = new Map<number, number[]>();
     for (const r of rows) byRow.set(r.top, [...(byRow.get(r.top) ?? []), r.value]);
     for (const values of byRow.values()) expect(Math.max(...values) - Math.min(...values), JSON.stringify(rows)).toBeLessThanOrEqual(1);
+
+    // Cargando (otro período): los KPI tienen el alto de un KPI, no el de un gráfico.
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => (release = r));
+    await page.route('**/api/crm/dashboards/data', async (route) => {
+      await held;
+      await route.continue();
+    });
+    try {
+      await page.getByTestId('cdb-filter-range').click();
+      await page.getByRole('option', { name: 'This quarter' }).click();
+      const loading = page.locator('.cdb-tile-loading[data-shape="kpi"]');
+      await expect(loading).toHaveCount(4);
+      const heights = await loading.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+      for (const h of heights) expect(h).toBeLessThan(220);
+    } finally {
+      release();
+      await page.unroute('**/api/crm/dashboards/data');
+    }
+    await expect(page.locator('.cdb-tile-loading')).toHaveCount(0);
 
     await page.getByTestId('cdb-switcher').click();
     const panel = page.getByTestId('cdb-switcher-panel');
@@ -50,34 +97,30 @@ test.describe('dashboards', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('KPI tiles at 390: period visible, no stretched loading tiles, no feedback tab over them', async ({ browser, baseURL }) => {
+  test('KPI tiles at 390: period visible, two per row, no feedback tab over them (feedback from the menu)', async ({ browser, baseURL, request }) => {
+    const id = await kpiDashboard(request);
     const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
-    const page = await ctx.newPage();
-    // Cargando: los KPI ya tienen el alto de un KPI.
-    let release: () => void = () => {};
-    const held = new Promise<void>((r) => (release = r));
-    await page.route('**/api/crm/dashboards/data', async (route) => {
-      await held;
-      await route.continue();
-    });
-    await page.goto('/en/app/crm/dashboards', { waitUntil: 'domcontentloaded' });
-    await expect(kpiTiles(page).first()).toBeVisible();
-    const loadingHeight = await kpiTiles(page).first().evaluate((el) => el.getBoundingClientRect().height);
-    expect(loadingHeight).toBeLessThan(260);
-    release();
-    await expect(kpiTiles(page).first().locator('.cdb-kpi-value')).toBeVisible();
-    await expect(kpiTiles(page).first().locator('.cdb-tile-sub')).toBeVisible();
-    await expect(page.locator('.fl-root')).toBeHidden();
-    await noSideScroll(page);
-    await page.screenshot({ path: 'test-results/crm-c4-qa-dashboards-390.png' });
-    await ctx.close();
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`/en/app/crm/dashboards?d=${id}`, { waitUntil: 'networkidle' });
+      await expect(page.locator('.fl-root')).toBeHidden();
+      await expect(kpiTiles(page).first().locator('.cdb-kpi-value')).toBeVisible();
+      await expect(kpiTiles(page).first().locator('.cdb-tile-sub')).toBeVisible();
+      const [a, b] = await kpiTiles(page).evaluateAll((els) => els.slice(0, 2).map((el) => Math.round(el.getBoundingClientRect().top)));
+      expect(a).toBe(b);
+      await noSideScroll(page);
+      await page.screenshot({ path: 'test-results/crm-c4-qa-dashboards-390.png' });
+      await feedbackFromMenu(page);
+    } finally {
+      await ctx.close();
+    }
   });
 });
 
 test.describe('lists', () => {
   test('date filter inputs fit; preview Add company uses the app field (1280)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 860 });
-    await page.goto('/en/app/crm/contacts', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/crm/contacts?sv=all', { waitUntil: 'networkidle' });
     await page.getByTestId('contacts-created-filter').click();
     const menu = page.getByTestId('contacts-created-filter-menu');
     await expect(menu).toBeVisible();
@@ -106,26 +149,28 @@ test.describe('lists', () => {
 
   test('390: add stage is 40 px, the active view tab is not cut, the quick filter icon is not alone, no feedback tab', async ({ browser, baseURL }) => {
     const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
+    try {
     const page = await ctx.newPage();
     await page.goto('/en/app/crm/deals', { waitUntil: 'networkidle' });
+    await expect(page.locator('.fl-root')).toBeHidden();
     const addStage = page.getByTestId('kb-add-stage');
     await addStage.scrollIntoViewIfNeeded();
     expect((await addStage.boundingBox())!.height).toBeGreaterThanOrEqual(40);
-    await expect(page.locator('.fl-root')).toBeHidden();
 
-    await page.goto('/en/app/crm/contacts', { waitUntil: 'networkidle' });
+    await page.goto('/en/app/crm/contacts?sv=all', { waitUntil: 'networkidle' });
+    await expect(page.locator('.fl-root')).toBeHidden();
     const name = page.locator('.view-tab.active .view-tab-name');
     const cut = await name.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
     expect(cut).toBe(false);
-    const tops = await page.getByTestId('quick-filters').evaluate((row) => {
-      const adv = row.querySelector('[data-testid="adv-filters-open"]');
-      const picker = row.querySelector('[data-testid="quick-filter-picker"]');
-      return { adv: Math.round(adv?.getBoundingClientRect().top ?? -1), picker: Math.round(picker?.getBoundingClientRect().top ?? -2) };
+    const centers = await page.getByTestId('quick-filters').evaluate((row) => {
+      const mid = (el: Element | null) => (el ? el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2 : -100);
+      return { adv: mid(row.querySelector('[data-testid="adv-filters-open"]')), picker: mid(row.querySelector('[data-testid="quick-filter-picker"]')) };
     });
-    expect(tops.picker).toBe(tops.adv);
-    await expect(page.locator('.fl-root')).toBeHidden();
+    expect(Math.abs(centers.picker - centers.adv)).toBeLessThanOrEqual(1);
     await noSideScroll(page);
     await page.screenshot({ path: 'test-results/crm-c4-qa-contacts-390.png' });
-    await ctx.close();
+    } finally {
+      await ctx.close();
+    }
   });
 });

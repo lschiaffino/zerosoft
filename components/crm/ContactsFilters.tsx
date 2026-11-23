@@ -352,10 +352,10 @@ export default function ContactsFilters({
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
         {/* Filtros avanzados y "Editar filtros rápidos" van juntos: el ícono no queda solo en una fila. */}
-        <span className="filter-quick-tail">
+        <div className="filter-quick-tail">
           {children}
           <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
-        </span>
+        </div>
         {activeFilters > 0 && (
           <button
             type="button"

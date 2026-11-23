@@ -396,10 +396,12 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
    CRM no flota (como en el chat de Lines e Inbox, styles/wa-mobile.css). Se manda desde el menú de la cuenta
    ("Enviar feedback"), que abre el mismo panel; abierto, se ve. */
 @media (max-width: 640px) {
-  body:has(.crm-list-page, .cdb-grid) .fl-root:not(.is-open) { visibility: hidden; pointer-events: none; }
+  body:has(.crm-list-page, .cdb-grid) .fl-root:not(.is-open),
+  body:has(.crm-list-page, .cdb-grid) #zs-chat-btn { visibility: hidden; pointer-events: none; }
 }
 /* Pestañas de vistas en el teléfono: la activa se lee entera ("Todos los contactos"); la que sigue se corta. */
 @media (max-width: 640px) {
-  .views-tabs .view-tab.active { flex: none; }
-  .views-tabs .view-tab.active .view-tab-link { max-width: 220px; }
+  .views-tabs .view-tab.active { flex: 0 1 auto; }
+  .views-tabs .view-tab:not(.active) { flex-shrink: 1000; }
+  .views-tabs .view-tab.active .view-tab-link { max-width: min(220px, calc(100vw - 200px)); }
 }

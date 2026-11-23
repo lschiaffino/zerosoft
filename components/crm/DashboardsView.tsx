@@ -1442,7 +1442,7 @@ function SwitcherPanel({
                 <span className="cdb-switcher-check" aria-hidden="true">
                   {b.id === activeId && <CrmIcon name="check" size={14} />}
                 </span>
-                {b.name}
+                <span className="cdb-switcher-item-label">{b.name}</span>
               </span>
               <span className="cdb-switcher-item-meta">
                 {b.isDefault ? `${t('dash.switcher.default')} · ` : ''}
