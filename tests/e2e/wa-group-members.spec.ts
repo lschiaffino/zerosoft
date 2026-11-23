@@ -163,6 +163,15 @@ for (const width of [1280, 390]) {
     expect((await synced).ok()).toBe(true);
     await expect(sync).toBeEnabled();
 
+    // Con el estilo zerosoft (puesto en la página) el ícono de Agregar miembros se ve: no es del mismo color que su círculo.
+    const icon = await page.evaluate(() => {
+      document.querySelector('.gr-inbox')?.setAttribute('data-chat-style', 'zerosoft');
+      const el = document.querySelector<HTMLElement>('aside.gr-details [data-testid="group-add-members"] .wa-gm-action-icon')!;
+      const cs = getComputedStyle(el);
+      return { color: cs.color, background: cs.backgroundColor };
+    });
+    expect(icon.color, JSON.stringify(icon)).not.toBe(icon.background);
+
     // Un grupo donde la línea entró con un link: no es admin.
     const join = await request.post('/api/groups/join', { data: { numberId: line.id, invite: `https://chat.whatsapp.com/E2eNoAdmin${uid()}` } });
     expect(join.ok(), await join.text()).toBe(true);
