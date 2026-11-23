@@ -1574,7 +1574,8 @@
       "code": "Código",
       "link": "Link",
       "linkPlaceholder": "Pegá o escribí un link y apretá Enter",
-      "tooLong": "Demasiado largo: el límite es de 200.000 caracteres. El resto no se va a guardar."
+      "tooLong": "Demasiado largo: el límite es de 200.000 caracteres. El resto no se va a guardar.",
+      "comment": "Comentar la selección"
     },
     "thread": {
       "postError": "No se pudo publicar el comentario. Probá de nuevo.",
@@ -1880,6 +1881,12 @@
       "remove": "Sacar de favoritos",
       "added": "Agregado a favoritos",
       "removed": "Sacado de favoritos"
+    },
+    "inline": {
+      "title": "Comentar este texto",
+      "placeholder": "Dejá un comentario…",
+      "submit": "Comentar",
+      "cancel": "Cancelar"
     }
   },
   "teamSettings": {

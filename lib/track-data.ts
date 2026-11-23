@@ -2380,9 +2380,9 @@ export async function createIssueComment(
   }
   await db
     .prepare(
-      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at, parent_id) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO track_issue_comments (id, issue_id, user_id, body, created_at, parent_id, anchor_text) VALUES (?, ?, ?, ?, ?, ?, ?)',
     )
-    .run(id, issueId, userId, payload.body.trim(), nowIso(), parentId);
+    .run(id, issueId, userId, payload.body.trim(), nowIso(), parentId, parentId ? null : (payload.anchor?.replace(/\s+/g, ' ').trim() || null));
   // Responder reabre el hilo si estaba resuelto.
   if (parentId) {
     await db.prepare('UPDATE track_issue_comments SET resolved_at = NULL, resolved_by = NULL WHERE id = ?').run(parentId);
@@ -2677,7 +2677,7 @@ export async function listIssueActivities(issueId: string): Promise<TrackIssueAc
        -- Los comentarios se leen siempre de su tabla (texto vigente, editado o no).
        SELECT c.id, c.issue_id, c.user_id, 'comment' AS type,
          json_object('commentId', c.id, 'body', c.body, 'editedAt', c.updated_at,
-           'parentId', c.parent_id, 'resolvedAt', c.resolved_at,
+           'parentId', c.parent_id, 'resolvedAt', c.resolved_at, 'anchor', c.anchor_text,
            'resolvedBy', (SELECT COALESCE(rb.name, rb.email) FROM users rb WHERE rb.id = c.resolved_by)) AS meta,
          c.created_at, u.name AS user_name, u.email AS user_email
        FROM track_issue_comments c
