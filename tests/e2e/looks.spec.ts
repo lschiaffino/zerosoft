@@ -166,3 +166,33 @@ test('Retro: la cabecera de columna es un botón en relieve y la celda que encab
   expect(cells.row.boxShadow).toBe('none');
   expect(cells.row.backgroundColor).toBe(cells.cell.backgroundColor);
 });
+
+test('pestañas (.ui-tabs): en Líquido no hay tapa lisa en los bordes; los otros aspectos quedan igual', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/app/track/inbox', { waitUntil: 'networkidle' });
+  const tabs = page.locator('.ui-tabs').first();
+  await expect(tabs).toBeVisible();
+  const paint = (look: LookName) =>
+    tabs.evaluate((el, l) => {
+      document.documentElement.setAttribute('data-look', l);
+      return { image: getComputedStyle(el).backgroundImage };
+    }, look);
+  // Current, Líneas, Clásico y Retro: la tapa es del color del fondo de la página (la sombra solo se ve si las pestañas no entran).
+  for (const look of ['current', 'lines', 'classic', 'retro'] as const) {
+    const { image } = await paint(look);
+    expect(image.split('linear-gradient').length - 1, look).toBe(4);
+    // Tapa y sombra con color (no transparentes).
+    const stops = [...image.matchAll(/rgba?\([^)]*\)|color\([^)]*\)/g)].map((m) => m[0]);
+    expect(stops.some((c) => !/rgba\(0, 0, 0, 0\)/.test(c)), look).toBe(true);
+  }
+  // Líquido: fondo en degradé, sin tapa ni sombra (antes pintaba un bloque claro en cada borde).
+  const liquid = await paint('liquid');
+  const stops = [...liquid.image.matchAll(/rgba?\([^)]*\)/g)].map((m) => m[0]);
+  expect(stops.length).toBeGreaterThan(0);
+  for (const c of stops) expect(c, liquid.image).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  // También en oscuro.
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const dark = await paint('liquid');
+  for (const c of [...dark.image.matchAll(/rgba?\([^)]*\)/g)].map((m) => m[0])) expect(c, dark.image).toMatch(/rgba\(0, 0, 0, 0\)/);
+  await page.emulateMedia({ colorScheme: 'light' });
+});

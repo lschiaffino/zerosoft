@@ -7,6 +7,9 @@ import BookMeetingMenu from './BookMeetingMenu';
 import CrmIcon, { type CrmIconName } from './CrmIcon';
 import { useCrmPersonId } from './CrmViewer';
 import { isQueuedResponse, announceQueued } from '@/lib/offline-queue';
+import type { Mentionable } from '@/lib/crm-mentions';
+import { NOTE_MD_MAX, noteMarkdownToText } from '@/lib/crm-note-format';
+import NoteEditor from './RichNote';
 
 export type PreviewRecordType = 'contact' | 'company' | 'deal';
 type ComposeKind = 'note' | 'email' | 'call' | 'task';
@@ -53,6 +56,20 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const firstRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Personas para @mencionar en la nota (se piden la primera vez que se abre una nota).
+  const [people, setPeople] = useState<Mentionable[] | null>(null);
+  useEffect(() => {
+    if (kind !== 'note' || people) return;
+    let alive = true;
+    fetch('/api/crm/mentionables')
+      .then((r) => (r.ok ? (r.json() as Promise<{ people: Mentionable[] }>) : { people: [] }))
+      .then((d) => alive && setPeople(d.people))
+      .catch(() => alive && setPeople([]));
+    return () => {
+      alive = false;
+    };
+  }, [kind, people]);
   const triggerRefs = useRef<Partial<Record<ComposeKind, HTMLButtonElement | null>>>({});
 
   useEffect(() => {
@@ -82,7 +99,9 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
 
   const canSubmit =
     !posting &&
-    (kind === 'note' || kind === 'call'
+    (kind === 'note'
+      ? body.trim() !== '' && body.length <= NOTE_MD_MAX
+      : kind === 'call'
       ? body.trim() !== ''
       : kind === 'task'
         ? subject.trim() !== ''
@@ -109,6 +128,8 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
         body: body.trim() || undefined,
         subject: kind === 'note' ? undefined : subject.trim() || undefined,
       };
+      // La nota se escribe con formato (C1), como en el timeline de la ficha.
+      if (kind === 'note') payload.bodyFormat = 'md';
       if (personId) payload.ownerId = personId;
       if (kind === 'task' && due) payload.dueAt = due;
       res = await fetch('/api/crm/activities', {
@@ -136,6 +157,8 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
   }
 
   function keys(e: React.KeyboardEvent<HTMLFormElement>) {
+    // El editor de la nota ya usó la tecla (cerrar el menú de @, ⌘↵): no se repite.
+    if (e.defaultPrevented) return;
     if (e.key === 'Escape') {
       // Cierra el composer, no la vista previa.
       e.preventDefault();
@@ -182,7 +205,7 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
       </div>
 
       {kind && (
-        <form id={formId} className="preview-composer" onSubmit={submit} onKeyDown={keys} data-testid="preview-composer" aria-label={t(`previewActions.title.${kind}`)}>
+        <form ref={formRef} id={formId} className="preview-composer" onSubmit={submit} onKeyDown={keys} data-testid="preview-composer" aria-label={t(`previewActions.title.${kind}`)}>
           <p className="preview-composer-title">{t(`previewActions.title.${kind}`)}</p>
           {kind === 'email' && (
             <label className="preview-composer-field">
@@ -209,10 +232,26 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
               <input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
             </label>
           )}
+          {kind === 'note' ? (
+            <div className="preview-composer-field">
+              <span>{t('previewActions.body.note')}</span>
+              <NoteEditor
+                value={body}
+                onChange={setBody}
+                people={people ?? []}
+                ariaLabel={t('previewActions.body.note')}
+                testId="preview-composer-body"
+                onSubmit={() => formRef.current?.requestSubmit()}
+                onEscape={close}
+                autoFocus
+              />
+              {body.length > NOTE_MD_MAX && <p className="ui-error">{t('timeline.noteTooLong')}</p>}
+            </div>
+          ) : (
           <label className="preview-composer-field">
             <span>{kind === 'task' ? t('previewActions.taskNotes') : t(`previewActions.body.${kind}`)}</span>
             <textarea
-              ref={kind === 'note' || kind === 'call' ? firstRef : undefined}
+              ref={kind === 'call' ? firstRef : undefined}
               className="input preview-composer-body"
               rows={kind === 'task' ? 2 : 4}
               value={body}
@@ -220,6 +259,7 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
               data-testid="preview-composer-body"
             />
           </label>
+          )}
           {error && (
             <p className="ui-error" role="alert">
               {error}
@@ -256,6 +296,7 @@ export interface RecentItem {
   created_at: string;
   due_at: string | null;
   done: 0 | 1;
+  body_format?: 'text' | 'md';
 }
 
 function when(value: string, locale: string): string {
@@ -276,7 +317,7 @@ export function RecentActivity({ items, locale, href, loading }: { items: Recent
     <>
       <ul className="preview-recent" data-testid="preview-recent">
         {items.map((it) => {
-          const text = (it.subject || it.body || '').replace(/\s+/g, ' ').trim();
+          const text = (it.subject || (it.body_format === 'md' ? noteMarkdownToText(it.body) : it.body) || '').replace(/\s+/g, ' ').trim();
           return (
             <li key={it.id} className="preview-recent-item">
               <span className="preview-recent-icon" aria-hidden="true">

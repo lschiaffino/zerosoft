@@ -3,6 +3,7 @@
  * Las rutas validan con <schema>.safeParse(body) y mapean issues a crm.errors.*.
  */
 import { z } from 'zod';
+import { NOTE_FORMATS, NOTE_MD_MAX } from './crm-note-format';
 import { CRM_CUSTOM_FIELD_TYPES } from './schema/types';
 import { MAX_ROTTING_DAYS } from './crm-rotting';
 import { MAX_REQUIRED_FIELDS } from './crm-stage-rules';
@@ -233,7 +234,10 @@ export const dealMoveSchema = z.object({
 export const activityCreateSchema = z.object({
   type: activityType,
   subject: shortText.optional(),
-  body: longText.optional(),
+  /** Texto plano o, en notas con formato, markdown (lib/crm-note-format.ts). */
+  body: z.string().trim().max(NOTE_MD_MAX).optional(),
+  /** C1: 'md' = nota con formato (markdown saneado al guardar). Solo notas; el resto queda en 'text'. */
+  bodyFormat: z.enum(NOTE_FORMATS).optional(),
   dueAt: isoDate.nullish(),
   direction: z.enum(['inbound', 'outbound']).optional(),
   outcome: shortText.optional(),

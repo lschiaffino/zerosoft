@@ -11,6 +11,7 @@ import {
   type TaskBucket,
 } from '@/lib/crm';
 import { activityCreateSchema } from '@/lib/crm-schema';
+import { bodyTooLong } from '@/lib/crm-note-format';
 import { catchRef, crmError, CrmRefError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
 import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '@/lib/crm-mention-notify';
 import { requestLocale } from '@/lib/request-locale';
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = activityCreateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  if (bodyTooLong(parsed.data)) return crmError(400, 'invalid_input');
 
   const scope = await sessionScope(user);
   if (!(await canSeeActivityRefs(user.id, { contact_id: parsed.data.contactId, company_id: parsed.data.companyId, deal_id: parsed.data.dealId, owner_id: realUserId(user) }, scope))) {

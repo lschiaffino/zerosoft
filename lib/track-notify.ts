@@ -22,6 +22,7 @@ import { getDb } from './db';
 import { trackVisibleExpr } from './track-access';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
+import { visibleNotifications } from './notification-access';
 import { siteUrl } from './board-urls';
 import { desktopNoteFor } from './desktop-email';
 import { localDayIn, localHourIn, safeTimeZone } from './track-recurrence';
@@ -120,6 +121,8 @@ export async function setNotifyPrefs(
 export interface TrackMailItem {
   id: string;
   type: string;
+  source_type?: string | null;
+  source_id?: string | null;
   title: string;
   body: string | null;
   href: string | null;
@@ -223,8 +226,36 @@ export function buildTrackEmail(
 
 // ---------- Envíos ----------
 
-const ITEM_COLUMNS = 'n.id, n.type, n.title, n.body, n.href, n.meta, n.created_at';
+const ITEM_COLUMNS = 'n.id, n.type, n.source_type, n.source_id, n.title, n.body, n.href, n.meta, n.created_at';
+
 const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
+
+/** Avisos que se miran por email como mucho para descartar los que la persona ya no ve. */
+const MAIL_SCAN_LIMIT = 1000;
+
+/**
+ * Los avisos del email: solo los de cosas que la persona hoy puede ver (pudo
+ * perder el acceso entre el aviso y el envío; lib/notification-access). Lee
+ * de a tandas hasta juntar `max` visibles; el total descuenta los ocultos.
+ */
+async function mailItems(userId: string, where: string, args: string[], max: number): Promise<{ items: TrackMailItem[]; total: number }> {
+  const db = getDb();
+  const size = Math.max(max * 2, 50);
+  const items: TrackMailItem[] = [];
+  let hidden = 0;
+  for (let offset = 0; offset < MAIL_SCAN_LIMIT && items.length < max; offset += size) {
+    const rows = (await db
+      .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC, n.id DESC LIMIT ? OFFSET ?`)
+      .all(...args, size, offset)) as TrackMailItem[];
+    const shown = await visibleNotifications(userId, rows.map((r) => ({ ...r, source_type: r.source_type ?? null, source_id: r.source_id ?? null })));
+    hidden += rows.length - shown.length;
+    items.push(...shown);
+    if (rows.length < size) break;
+  }
+  if (!items.length) return { items: [], total: 0 };
+  const count = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
+  return { items: items.slice(0, max), total: Math.max(count - hidden, items.length) };
+}
 
 /** Emails inmediatos (cron de cada minuto). Devuelve cuántos emails salieron. */
 export async function sendImmediateTrackEmails(opts: { now?: Date; limit?: number } = {}): Promise<number> {
@@ -256,11 +287,8 @@ export async function sendImmediateTrackEmails(opts: { now?: Date; limit?: numbe
     if (!claimed.changes) continue;
     const where = `n.user_id = ? AND ${VISIBLE} AND n.created_at > ? AND n.created_at <= ?`;
     const args = [u.user_id, nowTs, u.cursor_at ?? '', cutoff];
-    const items = (await db
-      .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC LIMIT ?`)
-      .all(...args, IMMEDIATE_MAX_ITEMS)) as TrackMailItem[];
+    const { items, total } = await mailItems(u.user_id, where, args, IMMEDIATE_MAX_ITEMS);
     if (items.length === 0) continue;
-    const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
     const mail = buildTrackEmail(items, mailLocale(u.locale), 'immediate', total, await desktopNoteFor(u.user_id, mailLocale(u.locale)));
     const res = await sendEmail({ to: u.email, ...mail }).catch(() => null);
     if (res?.ok) sent++;
@@ -328,12 +356,9 @@ export async function sendTrackDigests(opts: { now?: Date; limit?: number } = {}
     const from = c.cursor_at && c.cursor_at > since ? c.cursor_at : since;
     const where = `n.user_id = ? AND ${VISIBLE} AND n.created_at > ? AND n.created_at <= ?`;
     const args = [c.user_id, nowTs, from, nowTs];
-    const items = (await db
-      .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC LIMIT ?`)
-      .all(...args, DIGEST_MAX_ITEMS)) as TrackMailItem[];
+    const { items, total } = await mailItems(c.user_id, where, args, DIGEST_MAX_ITEMS);
     await db.prepare('UPDATE track_notify_prefs SET cursor_at = ? WHERE user_id = ?').run(nowTs, c.user_id);
     if (items.length === 0) continue;
-    const total = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
     const mail = buildTrackEmail(items, mailLocale(c.locale), 'digest', total, await desktopNoteFor(c.user_id, mailLocale(c.locale)));
     const res = await sendEmail({ to: c.email, ...mail }).catch(() => null);
     if (res?.ok) sent++;
