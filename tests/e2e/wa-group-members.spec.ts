@@ -152,6 +152,17 @@ for (const width of [1280, 390]) {
     await adminCycle(page, panel, a);
     expect(await noSideScroll(page)).toBe(true);
 
+    // Actualizar: una fila de acción como Agregar miembros (misma columna, alto tocable) que vuelve a pedir los miembros.
+    const sync = page.locator('aside.gr-details').getByTestId('group-sync-members');
+    await sync.scrollIntoViewIfNeeded();
+    const [syncBox, addBox] = [await sync.boundingBox(), await panel.getByTestId('group-add-members').boundingBox()];
+    expect(syncBox && addBox && Math.abs(syncBox.x - addBox.x)).toBeLessThanOrEqual(1);
+    expect(syncBox!.height).toBeGreaterThanOrEqual(40);
+    const synced = page.waitForResponse((r) => r.url().endsWith(`/api/groups/chats/${chatId}/members`) && r.request().method() === 'POST');
+    await sync.click();
+    expect((await synced).ok()).toBe(true);
+    await expect(sync).toBeEnabled();
+
     // Un grupo donde la línea entró con un link: no es admin.
     const join = await request.post('/api/groups/join', { data: { numberId: line.id, invite: `https://chat.whatsapp.com/E2eNoAdmin${uid()}` } });
     expect(join.ok(), await join.text()).toBe(true);
