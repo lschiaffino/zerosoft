@@ -101,7 +101,7 @@ export async function listNotifications(
   return (await db
     .prepare(
       `SELECT * FROM notifications ${where}
-       ORDER BY ${options.snoozed ? 'snoozed_until ASC' : 'COALESCE(snoozed_until, created_at) DESC'} LIMIT ? OFFSET ?`,
+       ORDER BY ${options.snoozed ? 'snoozed_until ASC, id ASC' : 'COALESCE(snoozed_until, created_at) DESC, id DESC'} LIMIT ? OFFSET ?`,
     )
     .all(...args, limit, offset)) as NotificationRow[];
 }

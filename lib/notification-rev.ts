@@ -2,7 +2,9 @@
  * La campana de avisos consulta cada 30 s. Para que "nada cambió" no lea los
  * avisos de la persona, cada cambio en notifications sube una versión por
  * persona (notification_rev, la mantienen triggers: migración 393_fewer_reads)
- * y la respuesta lleva un ETag con esa versión. Si el pedido trae el mismo,
+ * y también cada cambio de acceso a Track (dejar un team, team privado,
+ * invitados: migración 20261123_0545_notification_rev_access), porque la
+ * campana filtra por el acceso de hoy. La respuesta lleva un ETag con esa versión. Si el pedido trae el mismo,
  * sale 304 leyendo una fila.
  *
  * Lo único que cambia la respuesta sin escribir nada es un aviso pospuesto

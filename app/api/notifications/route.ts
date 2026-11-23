@@ -31,6 +31,7 @@ async function getPrivate(req: NextRequest) {
   // Nada cambió desde la última respuesta (lib/notification-rev.ts): 304 leyendo una fila.
   const uid = realUserId(user);
   const hide = hiddenAppPaths(user);
+  // Un cambio de acceso también sube la versión (migración 20261123_0545_notification_rev_access).
   const key = notificationKey(uid, req.nextUrl.search, hide);
   const rev = await notificationRev(uid);
   const sent = req.headers.get('if-none-match');

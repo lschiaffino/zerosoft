@@ -27,7 +27,7 @@ vi.mock('@/lib/email', async (orig) => ({
 
 const { GET, PATCH } = await import('@/app/api/notifications/route');
 const { desktopBadge } = await import('@/lib/desktop-badge');
-const { sendImmediateTrackEmails, setNotifyPrefs } = await import('@/lib/track-notify');
+const { sendImmediateTrackEmails, sendTrackDigests, setNotifyPrefs } = await import('@/lib/track-notify');
 
 /** Marcas que no deben salir en lo que ve quien no tiene acceso. */
 const SECRET_ISSUE = 'zz-secret-issue-title';
@@ -112,6 +112,35 @@ describe('campana: los avisos respetan el acceso de hoy', () => {
     expect(shows((await bell(asMember(w.owner, w.member))).text)).toMatchObject({ secretIssue: true, unread: 4 });
   });
 
+  it('una respuesta guardada (ETag) no sobrevive a perder el acceso', async () => {
+    const w = await workspaceWithMember('notif-etag');
+    const team = await createProject(w.owner.id, w.team.id, { name: 'Soon private' });
+    const issue = await createIssue(team.id, w.owner.id, { title: 'x', priority: 'low', description: [] });
+    await createNotification({ userId: w.member.id, type: 'assigned', title: SECRET_ISSUE, href: `/app/track/issues/${issue.id}`, sourceType: 'track_issue', sourceId: issue.id });
+    session.user = asMember(w.owner, w.member);
+    const first = await GET(new NextRequest('http://localhost/api/notifications?limit=5'));
+    expect(await first.text()).toContain(SECRET_ISSUE);
+    const etag = first.headers.get('etag')!;
+    // Sin cambios: 304.
+    expect((await GET(new NextRequest('http://localhost/api/notifications?limit=5', { headers: { 'if-none-match': etag } }))).status).toBe(304);
+    await setProjectVisibility(team.id, 'private', w.owner.id);
+    const after = await GET(new NextRequest('http://localhost/api/notifications?limit=5', { headers: { 'if-none-match': etag } }));
+    expect(after.status).toBe(200);
+    expect(await after.text()).not.toContain(SECRET_ISSUE);
+  });
+
+  it('comentarios (por el link) y avisos de algo borrado', async () => {
+    const w = await workspaceWithMember('notif-misc');
+    const team = await createProject(w.owner.id, w.team.id, { name: 'T' });
+    const issue = await createIssue(team.id, w.owner.id, { title: 'x', priority: 'low', description: [] });
+    await createNotification({ userId: w.member.id, type: 'comment', title: SECRET_ISSUE, href: `/app/track/issues/${issue.id}`, sourceType: 'track_comment', sourceId: 'comment-1' });
+    await createNotification({ userId: w.member.id, type: 'assigned', title: OPEN_ISSUE, href: '/app/track/issues/gone', sourceType: 'track_issue', sourceId: 'gone' });
+    await setProjectVisibility(team.id, 'private', w.owner.id);
+    const seen = shows((await bell(asMember(w.owner, w.member))).text);
+    // El del issue que ya no ve, no; el de algo que ya no existe queda como estaba.
+    expect(seen).toMatchObject({ secretIssue: false, open: true, unread: 1, rows: 1 });
+  });
+
   it('marcar todo leído devuelve el contador visible', async () => {
     const { w } = await setup();
     session.user = asMember(w.owner, w.member);
@@ -153,6 +182,21 @@ describe('escritorio y emails: lo mismo', () => {
     expect(toMember).toHaveLength(1);
     expect(toMember[0].text).toContain(OPEN_ISSUE);
     expect(toMember[0].text + toMember[0].html + toMember[0].subject).not.toContain(SECRET_ISSUE);
+    expect(mail.sent.filter((m) => m.to === leaver.email)).toHaveLength(0);
+  });
+
+  it('el resumen diario tampoco los incluye', async () => {
+    const { w, leaver } = await setup();
+    await setNotifyPrefs(w.friend.id, { emailMode: 'digest', timezone: 'UTC', locale: 'en' }, new Date(Date.now() - 10 * 60_000));
+    await setNotifyPrefs(leaver.id, { emailMode: 'digest', timezone: 'UTC', locale: 'en' }, new Date(Date.now() - 10 * 60_000));
+    const at = new Date();
+    at.setUTCHours(9, 0, 0, 0);
+    if (at.getTime() < Date.now()) at.setUTCDate(at.getUTCDate() + 1);
+    await sendTrackDigests({ now: at });
+    const toGuest = mail.sent.filter((m) => m.to === w.friend.email);
+    expect(toGuest).toHaveLength(1);
+    expect(toGuest[0].text).toContain(OPEN_ISSUE);
+    expect(toGuest[0].text + toGuest[0].html).not.toContain(SECRET_ISSUE);
     expect(mail.sent.filter((m) => m.to === leaver.email)).toHaveLength(0);
   });
 });

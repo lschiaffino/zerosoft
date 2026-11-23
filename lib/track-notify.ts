@@ -228,24 +228,34 @@ export function buildTrackEmail(
 
 const ITEM_COLUMNS = 'n.id, n.type, n.source_type, n.source_id, n.title, n.body, n.href, n.meta, n.created_at';
 
-/** Avisos que se leen por email para descartar los que la persona ya no ve. */
-const MAIL_SCAN_LIMIT = 500;
+const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
+
+/** Avisos que se miran por email como mucho para descartar los que la persona ya no ve. */
+const MAIL_SCAN_LIMIT = 1000;
 
 /**
  * Los avisos del email: solo los de cosas que la persona hoy puede ver (pudo
- * perder el acceso entre el aviso y el envío; lib/notification-access).
+ * perder el acceso entre el aviso y el envío; lib/notification-access). Lee
+ * de a tandas hasta juntar `max` visibles; el total descuenta los ocultos.
  */
 async function mailItems(userId: string, where: string, args: string[], max: number): Promise<{ items: TrackMailItem[]; total: number }> {
   const db = getDb();
-  const rows = (await db
-    .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC LIMIT ?`)
-    .all(...args, MAIL_SCAN_LIMIT)) as TrackMailItem[];
-  if (!rows.length) return { items: [], total: 0 };
-  const shown = await visibleNotifications(userId, rows.map((r) => ({ ...r, source_type: r.source_type ?? null, source_id: r.source_id ?? null })));
+  const size = Math.max(max * 2, 50);
+  const items: TrackMailItem[] = [];
+  let hidden = 0;
+  for (let offset = 0; offset < MAIL_SCAN_LIMIT && items.length < max; offset += size) {
+    const rows = (await db
+      .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC, n.id DESC LIMIT ? OFFSET ?`)
+      .all(...args, size, offset)) as TrackMailItem[];
+    const shown = await visibleNotifications(userId, rows.map((r) => ({ ...r, source_type: r.source_type ?? null, source_id: r.source_id ?? null })));
+    hidden += rows.length - shown.length;
+    items.push(...shown);
+    if (rows.length < size) break;
+  }
+  if (!items.length) return { items: [], total: 0 };
   const count = ((await db.prepare(`SELECT COUNT(*) AS c FROM notifications n WHERE ${where}`).get(...args)) as { c: number }).c;
-  return { items: shown.slice(0, max), total: Math.max(count - (rows.length - shown.length), shown.length) };
+  return { items: items.slice(0, max), total: Math.max(count - hidden, items.length) };
 }
-const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
 
 /** Emails inmediatos (cron de cada minuto). Devuelve cuántos emails salieron. */
 export async function sendImmediateTrackEmails(opts: { now?: Date; limit?: number } = {}): Promise<number> {

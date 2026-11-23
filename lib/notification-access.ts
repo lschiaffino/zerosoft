@@ -196,12 +196,14 @@ export async function listVisibleNotifications(
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
   const want = page * limit;
+  // Tandas chicas para la campana (5 avisos), de hasta 100 para páginas grandes.
+  const size = Math.min(100, Math.max(want * 2, 20));
   const out: NotificationRow[] = [];
-  for (let batch = 1; batch * 100 <= LIST_SCAN_LIMIT; batch++) {
-    const rows = await listNotifications(userId, { ...options, limit: 100, page: batch });
+  for (let batch = 1; batch * size <= LIST_SCAN_LIMIT; batch++) {
+    const rows = await listNotifications(userId, { ...options, limit: size, page: batch });
     const shown = await visibleNotifications(userId, keep ? rows.filter(keep) : rows);
     out.push(...shown);
-    if (out.length >= want || rows.length < 100) break;
+    if (out.length >= want || rows.length < size) break;
   }
   return out.slice((page - 1) * limit, want);
 }
@@ -218,7 +220,7 @@ export async function countVisibleUnread(userId: string, opts: { hidePaths?: rea
     .prepare(
       `SELECT id, source_type, source_id, href FROM notifications
         WHERE user_id = ? AND read_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?) AND ${TRACK_ROWS_SQL}${hide.sql}
-        LIMIT ?`,
+        ORDER BY created_at DESC LIMIT ?`,
     )
     .all(userId, new Date().toISOString(), ...hide.args, LIST_SCAN_LIMIT)) as AccessRow[];
   if (!rows.length) return total;
