@@ -11,6 +11,7 @@ import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
@@ -101,6 +102,8 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
   const cols = useTableColumns({ entity: 'companies', columns: columnDefs, storageKey: 'zs-companies-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
+  const expansion = useRowExpansion('company');
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
   // (la barra masiva nunca actúa sobre registros que ya no se ven).
@@ -172,7 +175,7 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
         return (
           <RecordNameCell
             href={`/app/crm/companies/${row.id}`}
-            name={row.name}
+            name={row.name} expand={<ExpandToggle id={row.id} name={row.name} expanded={expansion.open.has(row.id)} onToggle={() => expansion.toggle(row.id)} />}
             avatar={<CompanyLogo domain={row.domain} name={row.name} size={24} />}
             onPreview={() => setPreviewId(row.id)}
           />
@@ -318,7 +321,8 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
+              <Fragment key={row.id}>
+              <tr className={`${selected.has(row.id) ? 'is-selected' : ''}${expansion.open.has(row.id) ? ' is-expanded' : ''}`.trim() || undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -332,6 +336,18 @@ export default function CompaniesTable({ viewCols, viewFreeze, rows, sort, lifec
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
               </tr>
+              {expansion.open.has(row.id) && (
+                <RowExpansionRow
+                  kind="company"
+                  id={row.id}
+                  name={row.name}
+                  colSpan={order.length + 1}
+                  data={expansion.data[row.id]}
+                  onRetry={() => void expansion.retry(row.id)}
+                  onClose={() => expansion.toggle(row.id)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

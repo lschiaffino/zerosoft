@@ -11,6 +11,7 @@ import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { EditColumnsInBar, useTableColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
@@ -129,6 +130,8 @@ export default function ContactsTable({ viewCols, viewFreeze,
   const cols = useTableColumns({ entity: 'contacts', columns: columnDefs, storageKey: 'zs-contacts-columns', first: 'name', viewCols, viewFreeze, defaultFreeze: true });
   const order = cols.order;
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
+  const expansion = useRowExpansion('contact');
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
@@ -199,7 +202,9 @@ export default function ContactsTable({ viewCols, viewFreeze,
   function bodyCell(id: string, row: ContactRow): ReactNode {
     switch (id) {
       case 'name':
-        return <RecordNameCell href={`/app/crm/contacts/${row.id}`} name={row.name} onPreview={() => setPreviewId(row.id)} />;
+        return <RecordNameCell href={`/app/crm/contacts/${row.id}`} name={row.name} onPreview={() => setPreviewId(row.id)}
+            expand={<ExpandToggle id={row.id} name={row.name} expanded={expansion.open.has(row.id)} onToggle={() => expansion.toggle(row.id)} />}
+          />;
       case 'email':
         return (
           <td className="card-contact-email" data-card="line">
@@ -391,7 +396,8 @@ export default function ContactsTable({ viewCols, viewFreeze,
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
+              <Fragment key={row.id}>
+              <tr className={`${selected.has(row.id) ? 'is-selected' : ''}${expansion.open.has(row.id) ? ' is-expanded' : ''}`.trim() || undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -405,6 +411,18 @@ export default function ContactsTable({ viewCols, viewFreeze,
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
               </tr>
+              {expansion.open.has(row.id) && (
+                <RowExpansionRow
+                  kind="contact"
+                  id={row.id}
+                  name={row.name}
+                  colSpan={order.length + 1}
+                  data={expansion.data[row.id]}
+                  onRetry={() => void expansion.retry(row.id)}
+                  onClose={() => expansion.toggle(row.id)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

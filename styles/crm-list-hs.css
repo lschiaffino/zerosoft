@@ -377,3 +377,75 @@ tr:hover .hs-open, .hs-open:focus-visible { opacity: 1; }
   .assoc-picker-item, .assoc-add-trigger, .rec-card[data-head-add='true'] .rec-card-add { min-height: 40px; }
   .assoc-picker-search { height: 40px; min-height: 40px; }
 }
+
+/* ============================================================
+   C4: fila desplegada (asociados y última actividad), como la
+   vista previa de fila de HubSpot. Solo tokens: los cinco aspectos.
+   ============================================================ */
+.row-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--brand-gray-2);
+  cursor: pointer;
+}
+.row-expand-btn:hover, .row-expand-btn[aria-expanded='true'] { color: var(--ink); background: var(--brand-enamel); }
+.row-expand-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.crm-table tbody tr.is-expanded > td { border-bottom-color: transparent; }
+.crm-table tbody tr.row-expansion:hover > td { background: none; }
+.crm-table td.row-expansion-cell {
+  height: auto;
+  padding: 0 0 12px;
+  white-space: normal;
+  border-bottom: 1px solid var(--line);
+}
+/* El panel queda a la vista aunque la tabla esté desplazada de costado (en escritorio: en el
+   teléfono hay paneles fijos dentro de las celdas, como el registro de llamada, y el contenedor los movería). */
+@media (min-width: 641px) {
+  .table-scroll > .table-wrap { container-type: inline-size; }
+}
+.row-exp {
+  position: sticky;
+  left: 0;
+  box-sizing: border-box;
+  width: min(100%, 100cqw);
+  padding: 10px 12px 12px 46px;
+  font-size: 0.8125rem;
+}
+.row-exp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 24px; }
+.row-exp-sec { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.row-exp-title { display: flex; align-items: baseline; gap: 6px; margin: 0 0 2px; font-size: 0.75rem; font-weight: 600; color: var(--brand-gray-1); }
+.row-exp-count { font-family: var(--font-data); font-weight: 500; color: var(--brand-gray-2); }
+.row-exp-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.row-exp-item { display: flex; flex-direction: column; min-width: 0; padding: 3px 0; }
+.row-exp-link { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--ink); text-decoration: none; }
+.row-exp-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.row-exp-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--brand-gray-1); }
+.row-exp-empty, .row-exp-state { margin: 0; color: var(--brand-gray-1); }
+.row-exp-more { align-self: flex-start; font-size: 0.75rem; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.row-exp-more:hover { text-decoration-color: currentColor; }
+.row-exp-activity { display: flex; gap: 8px; margin: 0; min-width: 0; }
+.row-exp-activity-icon { flex: none; display: inline-flex; padding-top: 2px; color: var(--brand-gray-2); }
+.row-exp-activity-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row-exp-activity-type { font-size: 0.75rem; color: var(--brand-gray-1); }
+.row-exp-activity-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--ink); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  /* Tarjetas: la fila desplegada va debajo de su tarjeta, a lo ancho. */
+  .crm-cards tbody tr.row-expansion { display: block; padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+  .crm-cards tbody tr.is-expanded { border-bottom: 0; }
+  .crm-cards tbody td.row-expansion-cell { display: block; padding: 0; border: 0; }
+  .row-exp { position: static; width: auto; padding: 0 0 0 42px; }
+  .row-exp-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .row-expand-btn { width: 40px; height: 40px; margin: -4px -8px -4px -10px; }
+  .row-exp-item { min-height: 40px; justify-content: center; }
+  .row-exp-more { display: inline-flex; align-items: center; min-height: 40px; }
+  .row-exp-state .link-btn { min-height: 40px; }
+}
