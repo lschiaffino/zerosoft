@@ -154,8 +154,9 @@ describe('Lines: solo lo que la persona ve', () => {
     const { createTicket } = await import('@/lib/groups-tickets');
     await createTicket(w.owner.id, w.owner.id, { chatId: seen.id, title: 'Uno' });
     await createTicket(w.owner.id, w.owner.id, { chatId: hidden.id, title: 'Dos' });
-    // Uno vencido en cada chat: en riesgo solo el que se ve.
-    await getDb().prepare('UPDATE groups_tickets SET first_response_due_at = ? WHERE user_id = ?').run(new Date(Date.now() - 60_000).toISOString(), w.owner.id);
+    // Uno por vencer en cada chat (en una hora: no vencido, así el cron de SLA de otro test no lo toma): en riesgo solo
+    // el que se ve.
+    await getDb().prepare('UPDATE groups_tickets SET first_response_due_at = ? WHERE user_id = ?').run(new Date(Date.now() + 60 * 60_000).toISOString(), w.owner.id);
     for (const chatId of [seen.id, hidden.id]) {
       await createNotification({ userId: w.member.id, type: 'mention', title: 'x', body: SECRET, href: `/app/lines/inbox/${chatId}`, sourceType: 'groups_chat', sourceId: chatId });
       // Una tarea de la persona en cada chat, para hoy; y otra para la semana que viene (no cuenta).
@@ -210,12 +211,16 @@ describe('Inbox: solo el de la persona', () => {
     await addMessage(group, { externalId: 'b-2b', fromMe: false, body: '@5490000000398 otra', senderHandle: B, meta: JSON.stringify({ mentions: ['5490000000398'] }) });
     const other = await upsertThread(theirs, { externalId: `${C}@s.whatsapp.net`, kind: 'dm', handle: C });
     await addMessage(other, { externalId: 'b-3', fromMe: false, body: 'para otra persona', senderHandle: C });
-    await getDb().prepare('UPDATE inbox_threads SET follow_up_at = ? WHERE id = ?').run(new Date(Date.now() - 60_000).toISOString(), dm.id);
+    // El recordatorio vence dentro de un mes (y se mira desde entonces): uno vencido hoy lo dispararía el cron de
+    // otro test que comparte la base.
+    const month = Date.now() + 30 * 86_400_000;
+    await getDb().prepare('UPDATE inbox_threads SET follow_up_at = ? WHERE id = ?').run(new Date(month).toISOString(), dm.id);
 
     const b = await inboxBrief(w.member.id);
     expect(ids(b, 'reply')).toEqual([dm.id]);
     expect(ids(b, 'unreadGroups')).toEqual([group.id]);
-    expect(ids(b, 'reminders')).toEqual([dm.id]);
+    expect(count(b, 'reminders')).toBe(0);
+    expect(ids(await inboxBrief(w.member.id, new Date(month + 60_000)), 'reminders')).toEqual([dm.id]);
     expect(count(b, 'groupMentions')).toBe(1);
     expect(ids(b, 'groupMentions')).toEqual([group.id]);
     expect(JSON.stringify(b)).not.toContain(other.id);
