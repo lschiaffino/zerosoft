@@ -29,7 +29,8 @@ import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import AdvancedFilters, { AdvancedFilterChips } from '@/components/crm/AdvancedFilters';
 import { contactFilterFields, filterFieldShapes } from '@/components/crm/advancedFilterFields';
-import { countFilterRules, parseFilterModel, sanitizeFilterModel, serializeFilterModel } from '@/lib/crm-filter-model';
+import { countFilterRules, serializeFilterModel } from '@/lib/crm-filter-model';
+import { listFilterModel } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { listScores } from '@/lib/crm-scoring';
 import { scoreTier, tierFilterValue, tierRanges } from '@/lib/crm-scoring-schema';
@@ -157,7 +158,12 @@ export default async function ContactsPage(props: ContactsPageProps) {
         })),
     ],
   });
-  const filterModel = sanitizeFilterModel(parseFilterModel(rawFilters), filterFieldShapes(filterFields));
+  // El mismo filtro que aplican "Seleccionar todos" y "Exportar la vista" (lib/crm-filter-http.ts).
+  const filterModel = listFilterModel(rawFilters, 'contacts', {
+    customTypes,
+    env: { viewerId: realUserId(user), timeZone, strictCustom: true },
+    shapes: filterFieldShapes(filterFields),
+  });
   const advancedCount = countFilterRules(filterModel);
   const filtersParam = serializeFilterModel(filterModel);
 

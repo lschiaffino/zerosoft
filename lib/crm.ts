@@ -6,6 +6,7 @@
 import { shiftReminder } from './crm-tasks-shared';
 import { recordStageEntry } from './crm-stage-history';
 import { assertRefs, CrmRefError, ownedContactIds } from './crm-refs';
+import { activityBodyText, plainToMarkdown, sanitizeNoteMarkdown, type NoteFormat } from './crm-note-format';
 import { deleteUploads } from './uploads';
 import { dayRangeUtc, getUserTimeZone } from './user-tz';
 import type { WebhookEvent } from './webhooks';
@@ -2376,6 +2377,14 @@ export interface ActivityInput {
   queueId?: string | null;
   /** Solo tareas: recordatorio a quien la tiene, en UTC (lib/crm-task-reminders.ts). */
   reminderAt?: string | null;
+  /** C1: 'md' = nota con formato (solo notas). */
+  bodyFormat?: NoteFormat;
+}
+
+/** Cuerpo y formato a guardar: markdown saneado en una nota con formato (C1), texto plano tal cual en el resto. */
+function bodyToStore(type: string, body: string, format: NoteFormat | undefined | null): { body: string; format: NoteFormat } {
+  if (type === 'note' && format === 'md') return { body: sanitizeNoteMarkdown(body), format: 'md' };
+  return { body, format: 'text' };
 }
 
 export type ActivityListRow = CrmActivityRow & {
@@ -2523,15 +2532,16 @@ export async function createActivity(
 ): Promise<CrmActivityRow> {
   const db = getDb();
   await assertActivityRefs(userId, data, db);
+  const stored = bodyToStore(data.type ?? 'note', data.body ?? '', data.bodyFormat);
   const id = crypto.randomUUID();
   const ts = now();
   await db
     .prepare(
       `INSERT INTO crm_activities
-       (id, user_id, owner_id, type, subject, body, due_at, direction, outcome, channel, duration_min,
+       (id, user_id, owner_id, type, subject, body, body_format, due_at, direction, outcome, channel, duration_min,
         contact_id, company_id, deal_id, lead_id, object_record_id, project_id, repeat, task_kind, priority, queue_id, reminder_at,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -2539,7 +2549,8 @@ export async function createActivity(
       data.ownerId ?? null,
       data.type ?? 'note',
       data.subject ?? '',
-      data.body ?? '',
+      stored.body,
+      stored.format,
       data.dueAt ?? null,
       data.direction ?? '',
       data.outcome ?? '',
@@ -2589,7 +2600,22 @@ export async function updateActivity(
   const sets: Array<[string, string | number | null]> = [];
   if (data.type !== undefined) sets.push(['type', data.type]);
   if (data.subject !== undefined) sets.push(['subject', data.subject]);
-  if (data.body !== undefined) sets.push(['body', data.body]);
+  if (data.body !== undefined || data.bodyFormat !== undefined || (data.type !== undefined && data.type !== existing.type)) {
+    // El formato sigue al tipo: una nota con formato que pasa a otro tipo vuelve a texto plano.
+    const type = data.type ?? existing.type;
+    const format: NoteFormat = type === 'note' && (data.bodyFormat ?? existing.body_format) === 'md' ? 'md' : 'text';
+    // Sin cuerpo nuevo: se convierte el de antes para que se lea igual en el formato nuevo.
+    const raw =
+      data.body ??
+      (format === 'text' && existing.body_format === 'md'
+        ? activityBodyText(existing)
+        : format === 'md' && existing.body_format !== 'md'
+          ? plainToMarkdown(existing.body)
+          : existing.body);
+    const stored = bodyToStore(type, raw, format);
+    sets.push(['body', stored.body]);
+    sets.push(['body_format', stored.format]);
+  }
   if (data.dueAt !== undefined) {
     sets.push(['due_at', data.dueAt]);
     // Nueva fecha → el aviso de vencimiento (task_due) vuelve a quedar pendiente.

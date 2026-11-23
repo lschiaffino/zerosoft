@@ -84,7 +84,7 @@ describe('select all matching: the server re-evaluates the list with the actor',
     expect('total' in res && res.total).toBe(3);
   });
 
-  it('a hidden field neither filters nor sorts for the member, and an advanced rule naming it is rejected', async () => {
+  it('a hidden field neither filters nor sorts for the member, and an advanced rule naming it is dropped like the list page does', async () => {
     const { w, tag, a, b } = await seed('p5-hidden');
     const f = await createCustomField(w.owner.id, { entity: 'contacts', name: 'secret', label: 'Secret', type: 'text' });
     await setFieldPermissions(w.owner.id, f.id, [{ subject: MEMBER_SUBJECT, access: 'hidden' }]);
@@ -99,7 +99,9 @@ describe('select all matching: the server re-evaluates the list with the actor',
     const rule = encodeURIComponent(JSON.stringify({ v: 1, groups: [{ rules: [{ f: 'custom:secret', o: 'is', v: ['yes'] }] }] }));
     session.user = asMember(w.owner, w.member);
     const res = await bulk({ action: 'count', matching: { query: `q=${tag}&filters=${rule}` } });
-    expect(res.status).toBe(400);
+    // La página descarta la regla (lib/crm-filter-http.ts listFilterModel): acá también, sin revelar nada.
+    expect(res.status).toBe(200);
+    expect(await count(res)).toBe(3);
   });
 
   it('tags on all matching follow the same scope', async () => {

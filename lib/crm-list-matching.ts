@@ -7,11 +7,11 @@
  * server lo vuelve a evaluar con la persona que pide: su alcance por owner
  * (lib/crm-visibility.ts), sus vistas (una que no ve no aporta filtros) y sus
  * permisos por campo (un campo oculto no filtra ni ordena: la regla que lo
- * nombra es un error, como en el export filtrado). Siempre con tope.
+ * nombra se descarta, igual que en la página). Siempre con tope.
  */
-import { fieldAccessFor, sessionFieldViewer } from './crm-field-perms';
+import { fieldAccessFor, scoreSqlRules, sessionFieldViewer } from './crm-field-perms';
 import { filterTypeFor } from './crm-custom-fields';
-import { requestFilter } from './crm-filter-http';
+import { listFilterModel } from './crm-filter-http';
 import { sessionScope } from './crm-visibility';
 import { listViewContext, sessionViewViewer } from './crm-views';
 import { SAVED_VIEW_PARAM, resolveViewState, type ViewQuery } from './crm-views-shared';
@@ -93,12 +93,10 @@ export async function resolveMatching(user: MatchingUser, entity: MatchingEntity
   const ctx = await listViewContext(viewViewer, entity, sv, hidden);
   const { state } = resolveViewState(entity, params, ctx.activeQuery);
 
-  const adv = await requestFilter(new URLSearchParams(state.filters ? { filters: state.filters } : {}), entity, {
-    viewer,
-    viewerId: (user.actingUser?.id ?? user.id),
-    timeZone,
-  });
-  if ('error' in adv) return { error: 'invalid_filter' };
+  // El mismo filtro que aplica la página (lib/crm-filter-http.ts listFilterModel): lo que la página
+  // descarta (una propiedad borrada o un campo oculto para quien pide) acá tampoco filtra ni da error.
+  const filterEnv = { viewerId: user.actingUser?.id ?? user.id, timeZone, strictCustom: true as const };
+  const advModel = listFilterModel(state.filters, entity, { customTypes, env: filterEnv });
   const common = {
     q: str(state.q?.trim()),
     owner: str(state.owner),
@@ -109,8 +107,8 @@ export async function resolveMatching(user: MatchingUser, entity: MatchingEntity
     activityTo: day(state.activityTo),
     activityNone: state.noActivity === '1' || undefined,
     custom: customFrom(state, visibleNames),
-    filters: adv.filters,
-    filterEnv: { viewerId: (user.actingUser?.id ?? user.id), timeZone, strictCustom: true as const },
+    filters: advModel.groups.length ? advModel : undefined,
+    filterEnv,
     customTypes,
     ownerScope: scope,
   };
@@ -127,7 +125,7 @@ export async function resolveMatching(user: MatchingUser, entity: MatchingEntity
       source: str(state.source),
       sort: sortOf(CONTACT_SORTS) as ContactFilter['sort'],
       // Orden y filtros por score con el total que la persona ve (sin reglas sobre sus campos ocultos).
-      scoreRules: adv.scoreRules,
+      scoreRules: scoreSqlRules(hidden),
     };
     return listContactIds(user.id, f, cap);
   }

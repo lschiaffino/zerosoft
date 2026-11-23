@@ -265,6 +265,8 @@ export interface CrmActivityRow {
   type: 'note' | 'task' | 'call' | 'meeting' | 'email';
   subject: string;
   body: string;
+  /** C1: 'text' (plano) o 'md' (nota con formato, lib/crm-note-format.ts). */
+  body_format?: 'text' | 'md';
   due_at: string | null;
   done: 0 | 1;
   done_at: string | null;
