@@ -29,6 +29,7 @@ import { runRecurringIssues } from '@/lib/track-recurring';
 import { runHousekeeping } from '@/lib/track-housekeeping';
 import { runPlanUpdateReminders } from '@/lib/track-plan-updates';
 import { fireIssueReminders, sendImmediateTrackEmails, sendTrackDigests } from '@/lib/track-notify';
+import { sendDailyBriefEmails } from '@/lib/daily-brief-email';
 import { runSlaChecks } from '@/lib/track-sla';
 import { processPendingAgentSessions } from '@/lib/track-agents';
 import { recheckLinkSafety } from '@/lib/link-safety';
@@ -124,6 +125,8 @@ export async function GET(req: NextRequest) {
   const trackAgents = await processPendingAgentSessions({ limit: 20, budgetMs: 20_000 }).catch(() => null);
   const trackEmails = await sendImmediateTrackEmails({ limit: 200 }).catch(() => null);
   const trackDigests = await sendTrackDigests({ limit: 500 }).catch(() => null);
+  // Resumen del día de Lines e Inbox por email, a la mañana de cada persona (lib/daily-brief-email.ts).
+  const dailyBriefs = await sendDailyBriefEmails({ limit: 500 }).catch(() => null);
   // Link: revisión semanal de destinos contra Safe Browsing (claim por fila) y
   // limpieza de las visitas para deep linking diferido (viven una hora).
   const linkSafety = await recheckLinkSafety({ limit: 500 }).catch(() => null);
@@ -232,6 +235,6 @@ export async function GET(req: NextRequest) {
     .catch(() => null);
   // Pedidos del asistente que no llegaron a su issue de GitHub (solo con BACKLOG_GITHUB_*).
   const backlogIssues = await syncPendingBacklogIssues({ limit: 20 }).catch(() => null);
-  return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, crmWorkflowWaits, taskDigests, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
+  return NextResponse.json({ shopAbandoned, lifecycle, groupsBridge, peopleScheduled, reminders: await reminders.json(), webhookRetries, dueTasks, crmWorkflowWaits, taskDigests, chatEmails, noteReminders, talkRetention, docReminders, docVerify, docAuditPruned, trackCycles, trackRecurring, trackReminders, trackPlanReminders, trackHousekeeping, trackSla, trackAgents, trackEmails, trackDigests, dailyBriefs, linkSafety, linkDeferred, offlineRequests, sendClaims, linkHistory, analytics, biSubscriptions, biCache, peopleOoo, waitlist, hiring, sign, books, forms, trashPurged, softDeletedPurged, pushNotificationsPruned, securityPurged, erasures, boardTrashPurged, boardEventsPruned, assistantFilesSwept, boardSearchBackfill,
     docsDomainsPurged, linkPreviewsPruned, flowPruned, flow, emailSync, outlookSync, sequences, voice, scoring, agentKnowledge, agentAlerts, agentQuality, agentRedacted, robots, ideas, backlogIssues });
 }

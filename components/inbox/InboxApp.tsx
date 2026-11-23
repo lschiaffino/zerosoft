@@ -41,6 +41,7 @@ import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import InboxNewChat from './InboxNewChat';
 import ImportBanner from './ImportBanner';
+import DailyBrief from '@/components/groups/DailyBrief';
 import RemovedList from './RemovedList';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
@@ -1467,6 +1468,16 @@ export default function InboxApp(props: {
         </div>
         {/* El avance de la importación, como en Lines. */}
         {!q && <ImportBanner />}
+        {/* Resumen del día (lib/daily-brief.ts): en la bandeja; se cierra por hoy. */}
+        {!q && !folder && view === 'inbox' && (
+          <DailyBrief
+            endpoint="/api/inbox/brief"
+            onOpen={(kind, chats) => {
+              if (kind === 'reply') go({ view: 'reply', folderId: null });
+              else if (chats[0]) open(chats[0].id);
+            }}
+          />
+        )}
         {!q && !folder && view !== 'archived' && view !== 'nofolder' && (state.counts.archived ?? 0) > 0 && (
           <Link href={viewHref('archived')} prefetch={false} className="ib-archived-entry" data-testid="inbox-archived-entry">
             <ArchiveIcon size={20} />

@@ -2084,6 +2084,34 @@
         "film": "Película"
       }
     },
+    "brief": {
+      "title": "Hoy",
+      "dismiss": "Ocultar hasta mañana",
+      "empty": "No hay nada esperándote ahora.",
+      "unnamed": "Chat",
+      "andMore": "{list} y {n} más",
+      "kind": {
+        "waiting": "{n, plural, one {chat espera tu respuesta} other {chats esperan tu respuesta}}",
+        "sla": "{n, plural, one {ticket cerca de su SLA} other {tickets cerca de su SLA}}",
+        "groups": "{n, plural, one {grupo sin asignar sin respuesta} other {grupos sin asignar sin respuesta}}",
+        "tickets": "{n, plural, one {ticket nuevo} other {tickets nuevos}}",
+        "tasks": "{n, plural, one {tarea para hoy} other {tareas para hoy}}",
+        "mentions": "{n, plural, one {mención en una nota} other {menciones en notas}}",
+        "reply": "{n, plural, one {chat por responder} other {chats por responder}}",
+        "reminders": "{n, plural, one {recordatorio vencido} other {recordatorios vencidos}}",
+        "unreadGroups": "{n, plural, one {grupo con mensajes sin leer} other {grupos con mensajes sin leer}}",
+        "groupMentions": "{n, plural, one {mención en un grupo} other {menciones en grupos}}"
+      },
+      "emailOn": "Te llega por email cada mañana. Cambiar",
+      "emailOff": "Recibirlo por email cada mañana",
+      "email": {
+        "subject": "Tu día en zerosoft",
+        "heading": "Hoy",
+        "intro": "Esto es lo que te espera.",
+        "open": "Abrir {app}",
+        "footer": "Te llega este email porque prendiste el resumen del día. Lo cambiás en Ajustes › Avisos."
+      }
+    },
     "contactSheet": {
       "title": "Info. del contacto",
       "close": "Cerrar",

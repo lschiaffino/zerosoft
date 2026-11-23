@@ -51,6 +51,7 @@ import { ArchiveIcon, ArrowLeft, Ban, Bell, CheckCircle, CheckIcon, Chevron, Clo
 import { MessageMenu, type MenuItem } from './ThreadParts';
 import type { ImportStatus } from '@/lib/groups-import';
 import LinesImportNotices from './LinesImportNotices';
+import DailyBrief from './DailyBrief';
 import { useChatStyle } from '@/components/chat-style/ChatStyle';
 import { EMPTY_FOLDERS, FOLDERS_CHANGED, FolderSelect, LineBadge, LineDot, LineSelector, MoveToFolderModal, lineGroupOf, notifyFoldersChanged, type LineFoldersResponse, type LineGroupOption, type LineOption } from './LineFolders';
 import { useChatGestures, type SwipeActions } from '@/components/ui/chat-gestures';
@@ -1700,6 +1701,19 @@ export default function InboxShell({
           )}
           {/* Con una línea o un grupo de líneas elegido, solo sus avisos. */}
           <LinesImportNotices imports={imports.filter((im) => inLine(im.numberId))} line="all" />
+          {/* Resumen del día (lib/daily-brief.ts): en la bandeja, sin búsqueda; se cierra por hoy. */}
+          {!archivedView && !deletedView && !debounced && (
+            <DailyBrief
+              endpoint="/api/groups/brief"
+              onOpen={(kind, chats) => {
+                if (kind === 'waiting') setFilters({ waiting: 'yes', assignees: [ME] });
+                else if (kind === 'groups') setFilters({ waiting: 'yes', kinds: ['group'], assignees: [NONE] });
+                else if (kind === 'sla' || kind === 'tickets') router.push('/app/lines/tickets');
+                else if (kind === 'tasks') router.push('/app/lines/tasks');
+                else if (chats[0]) router.push(`/app/lines/inbox/${chats[0].id}${listSuffix}`);
+              }}
+            />
+          )}
           {error && (
             <div className="gr-error" role="alert">
               {t('inbox.loadError')}
