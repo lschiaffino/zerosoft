@@ -148,6 +148,8 @@ export interface SidebarLabels {
     dashboards?: string;
     /** Pedidos de clientes (T3). */
     customers?: string;
+    /** Formularios de pedidos (form templates de Linear). */
+    forms?: string;
     /** Secciones como en Linear: "Workspace" y "Your teams". */
     workspace?: string;
     yourTeams?: string;
@@ -761,6 +763,7 @@ export function buildNav(
             ...(labels.track.customers
               ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
               : []),
+            ...(labels.track.forms ? [{ href: '/app/track/forms', label: labels.track.forms, active: at('/app/track/forms'), icon: 'forms' as const }] : []),
             ...(labels.track.analytics
               ? [{ href: '/app/track/analytics', label: labels.track.analytics, active: at('/app/track/analytics'), icon: 'reports' as const }]
               : []),
