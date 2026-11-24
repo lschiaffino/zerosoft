@@ -849,7 +849,7 @@ async function readTranscriptFile(url: string, ws: string): Promise<string> {
   return (await res.text().catch(() => '')).slice(0, MAX_TRANSCRIPT_BYTES);
 }
 
-async function activityTranscripts(activityId: string): Promise<string[]> {
+export async function activityTranscripts(activityId: string): Promise<string[]> {
   const files = (await getDb()
     .prepare(
       `SELECT f.filename, f.size, f.url, a.user_id AS ws FROM crm_task_files f JOIN crm_activities a ON a.id = f.activity_id
@@ -884,7 +884,7 @@ async function callSource(workspaceId: string, activityId: string, scope: OwnerS
   return { activity: a, text, hash: hashOf([text]) };
 }
 
-function fakeCallSummary(text: string): CallSummary {
+export function fakeCallSummary(text: string): CallSummary {
   const sentences = text
     .split(/(?<=[.!?])\s+|\n+/)
     .map((s) => s.trim())
