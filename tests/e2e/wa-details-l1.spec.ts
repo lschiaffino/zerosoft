@@ -204,7 +204,7 @@ for (const width of [1280, 390]) {
     await expect(crm).toBeVisible();
     await search.fill(`Acme ${tag} `);
     await expect(results).toBeVisible();
-    await panel.locator('.ib-wa-card-title').first().click();
+    await crm.locator('.ib-wa-card-title').first().click();
     await expect(results).toHaveCount(0);
     await search.fill(`Acme ${tag}`);
     await results.getByRole('button', { name: new RegExp(`Acme ${tag}`) }).click();
