@@ -294,7 +294,12 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
     case 'message':
     case 'message.any': {
       const fromMe = p.fromMe === true;
-      const chatId = String(fromMe ? p.to ?? '' : p.from ?? '');
+      // Un 1:1 que WAHA direcciona por lid: el id con teléfono viene al lado (NOWEB: key.remoteJidAlt, GOWS: Info.*Alt).
+      const wkey = (data.key ?? {}) as Json;
+      const winfo = (data.Info ?? {}) as Json;
+      const rawChat = String(fromMe ? p.to ?? '' : p.from ?? '');
+      const chatId = pnJid(rawChat, wkey.remoteJidAlt, wkey.senderPn, data.senderPn, p.senderPn, fromMe ? winfo.RecipientAlt : winfo.SenderAlt);
+      const chatLid = !isGroupJid(rawChat) && isLidJid(rawChat) && chatId !== rawChat ? lidDigits(rawChat) : '';
       const id = String(p.id ?? '');
       if (!chatId || !id || chatId === 'status@broadcast') return [];
       const isGroup = isGroupJid(chatId);
@@ -316,6 +321,7 @@ export function parseWahaWebhook(body: unknown): InboundEvent[] {
             : undefined,
           replyToProviderId: p.replyTo ? idString((p.replyTo as Json).id ?? p.replyTo) || undefined : undefined,
           timestamp: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000).toISOString() : undefined,
+          ...(chatLid ? { chatLid } : {}),
         },
       ];
     }
