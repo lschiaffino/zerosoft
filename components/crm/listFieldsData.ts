@@ -5,6 +5,7 @@ import { listTags } from '@/lib/crm-tags';
 import { sessionScope } from '@/lib/crm-visibility';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { ownerOptions } from '@/lib/crm-owners';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import { listRuleFields, type RuleField } from './listRuleFields';
 
 /**
@@ -22,6 +23,7 @@ export async function listFieldsFor(user: SessionUser, locale: string, exceptLis
   ]);
   return listRuleFields({
     t: (k) => t(k),
+    options: await optionHelpersFor(user.id, t),
     owners,
     tags: tags.map((x) => ({ value: x.id, label: x.name })),
     staticLists: lists.filter((l) => l.kind === 'static' && l.id !== exceptListId).map((l) => ({ value: l.id, label: l.name })),
