@@ -378,7 +378,8 @@
       "cycle_time": "Cycle time",
       "lead_time": "Lead time",
       "issue_age": "Idade",
-      "time_in_status": "Tempo no status"
+      "time_in_status": "Tempo no status",
+      "triage_time": "Tempo na triagem"
     },
     "slices": {
       "status": "Status",

@@ -1463,9 +1463,10 @@ export async function moveIssueToTeam(
         await db
           .prepare(
             `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL,
+               triage_resolved_at = CASE WHEN triage = 1 THEN ? ELSE triage_resolved_at END,
                triage = 0, labels = COALESCE(?, labels), updated_at = ? WHERE id = ?`,
           )
-          .run(targetProjectId, identifier, status?.id ?? null, labelsJson, now, id);
+          .run(targetProjectId, identifier, status?.id ?? null, now, labelsJson, now, id);
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : '';

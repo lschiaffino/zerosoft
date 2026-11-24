@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { z } from 'zod';
 import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
-import { bulkDeleteContacts, bulkUpdateContacts, LIFECYCLE_STAGES } from '@/lib/crm';
-import { catchRef, crmError, CrmRefError, forbidden, unauthorized } from '@/lib/crm-http';
+import { bulkDeleteContacts, bulkUpdateContacts } from '@/lib/crm';
+import { catchRef, CrmRefError, crmError, forbidden, unauthorized } from '@/lib/crm-http';
 import { assertVisibleRefs, sessionScope } from '@/lib/crm-visibility';
 import { bulkSetProperty } from '@/lib/crm-bulk';
 import { BULK_TASKS_CAP, bulkCreateTasks, bulkTargetFields, bulkTargetIds, bulkTaskFields } from '@/lib/crm-bulk-target';
@@ -63,12 +63,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ count: res.count, failed: res.failed });
   }
   if (action === 'set_lifecycle') {
-    if (typeof value !== 'string' || !(LIFECYCLE_STAGES as readonly string[]).includes(value)) {
-      return crmError(400, 'invalid_input');
-    }
-    return NextResponse.json({
-      count: await bulkUpdateContacts(user.id, ids, { lifecycleStage: value }),
-    });
+    if (typeof value !== 'string' || !value) return crmError(400, 'invalid_input');
+    // Una opción activa del workspace (lib/crm-property-options.ts): si no, 400 invalid_option.
+    const count = await catchRef(bulkUpdateContacts(user.id, ids, { lifecycleStage: value }));
+    if (count instanceof CrmRefError) return crmError(400, count.code);
+    return NextResponse.json({ count });
   }
   // Borrar en masa es solo para admins.
   if (!isWorkspaceAdmin(user)) return forbidden();

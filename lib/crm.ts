@@ -97,6 +97,8 @@ import {
 
 // ---------- Constantes ----------
 
+import { assertOptionValues, defaultOptionValue, listOptionSets } from './crm-property-options';
+
 import {
   ACTIVITY_TYPES,
   LIFECYCLE_STAGES,
@@ -193,6 +195,18 @@ async function fireEvent(
   if (event.entity === 'contact' && (event.type === 'contact_created' || event.type === 'contact_updated')) {
     const { recalcContactScoreSafe } = await import('./crm-scoring');
     await recalcContactScoreSafe(userId, event.entityId);
+  }
+  // Lifecycle automático (C2): Opportunity al crear un deal, Customer al ganarlo. Nunca tira.
+  if (event.entity === 'deal' && (event.type === 'deal_created' || event.type === 'deal_won')) {
+    const { advanceLifecycleForDeal } = await import('./crm-lifecycle-auto');
+    await advanceLifecycleForDeal(userId, event.entityId, event.type);
+    // Un deal que se crea ya ganado también lleva a Customer.
+    if (event.type === 'deal_created') {
+      const won = await getDb()
+        .prepare('SELECT 1 FROM crm_deals d JOIN crm_stages s ON s.id = d.stage_id WHERE d.id = ? AND d.user_id = ? AND s.is_won = 1')
+        .get(event.entityId, userId);
+      if (won) await advanceLifecycleForDeal(userId, event.entityId, 'deal_won');
+    }
   }
   try {
     const mod = await import('./crm-workflows');
@@ -826,6 +840,9 @@ export async function createContact(
 ): Promise<CrmContactRow> {
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   await assertUniqueCustom(userId, 'contacts', null, data.custom, {}, db);
+  // Lifecycle y lead status: opciones activas del workspace (lib/crm-property-options.ts).
+  const optionSets = await listOptionSets(userId, db);
+  await assertOptionValues(userId, data, null, db, optionSets);
   const id = crypto.randomUUID();
   const email = cleanContactEmail(data.email);
   // Auto-link: si no vino empresa explícita, intentamos por dominio del email.
@@ -854,8 +871,8 @@ export async function createContact(
       data.website ?? '',
       data.city ?? '',
       data.country ?? '',
-      data.lifecycleStage ?? 'lead',
-      data.leadStatus ?? 'new',
+      data.lifecycleStage ?? defaultOptionValue(optionSets.lifecycle, 'lifecycle'),
+      data.leadStatus ?? defaultOptionValue(optionSets.leadStatus, 'leadStatus'),
       data.source ?? '',
       companyId,
       JSON.stringify(data.custom ?? {}),
@@ -888,6 +905,7 @@ export async function updateContact(
   if (!existing) return null;
   await assertRefs(userId, { companyId: data.companyId, ownerId: data.ownerId }, db);
   await assertUniqueCustom(userId, 'contacts', id, data.custom, parseCustom(existing.custom), db);
+  await assertOptionValues(userId, data, existing, db);
   const sets = toColumnValues(CONTACT_COLS, data as Record<string, unknown>);
   // El email es la identidad del contacto (lib/crm-contact-email.ts). Solo se
   // chequea cuando cambia: un duplicado de antes se puede seguir editando.
@@ -1082,6 +1100,7 @@ export async function bulkUpdateContacts(
   patch: { lifecycleStage?: string },
 ): Promise<number> {
   if (!ids.length || !patch.lifecycleStage) return 0;
+  await assertOptionValues(userId, { lifecycleStage: patch.lifecycleStage });
   const ph = ids.map(() => '?').join(',');
   return (
     await getDb()
@@ -1106,6 +1125,7 @@ export async function bulkUpdateCompanies(
   patch: { lifecycleStage?: string },
 ): Promise<number> {
   if (!ids.length || !patch.lifecycleStage) return 0;
+  await assertOptionValues(userId, { lifecycleStage: patch.lifecycleStage });
   const ph = ids.map(() => '?').join(',');
   return (
     await getDb()
@@ -1411,6 +1431,8 @@ export async function createCompany(
 ): Promise<CrmCompanyRow> {
   await assertRefs(userId, { ownerId: data.ownerId }, db);
   await assertUniqueCustom(userId, 'companies', null, data.custom, {}, db);
+  const optionSets = await listOptionSets(userId, db);
+  await assertOptionValues(userId, { lifecycleStage: data.lifecycleStage }, null, db, optionSets);
   const id = crypto.randomUUID();
   await db
     .prepare(
@@ -1430,7 +1452,7 @@ export async function createCompany(
       data.website ?? '',
       data.city ?? '',
       data.country ?? '',
-      data.lifecycleStage ?? 'lead',
+      data.lifecycleStage ?? defaultOptionValue(optionSets.lifecycle, 'lifecycle'),
       JSON.stringify(data.custom ?? {}),
     );
   const siteSets = toColumnValues(COMPANY_SITE_COLS, data as Record<string, unknown>);
@@ -1459,6 +1481,7 @@ export async function updateCompany(
   if (!existing) return null;
   await assertRefs(userId, { ownerId: data.ownerId }, db);
   await assertUniqueCustom(userId, 'companies', id, data.custom, parseCustom(existing.custom), db);
+  await assertOptionValues(userId, { lifecycleStage: data.lifecycleStage }, existing, db);
   // Primero la jerarquía: si hay ciclo lanza CrmRefError y no se guarda nada.
   if (data.parentCompanyId !== undefined) {
     await setParentCompany(userId, id, data.parentCompanyId, db);
