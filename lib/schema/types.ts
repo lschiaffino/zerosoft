@@ -790,6 +790,8 @@ export interface CrmSettingsRow {
   member_visibility: string;
   /** JSON string[] con los resultados de llamada; NULL = los de siempre. */
   call_outcomes?: string | null;
+  /** 1 = el lifecycle de contactos y empresas avanza solo con sus deals (C2). */
+  lifecycle_auto?: number;
   updated_at: string;
 }
 
@@ -1390,6 +1392,8 @@ export interface TrackIssueRow {
   archived_at?: string | null;
   /** Desde cuándo está en el status actual (lo escribe un trigger; ver lib/track-status-time.ts). */
   status_changed_at?: string | null;
+  /** Cuándo salió de triage (Insights › Triage time). */
+  triage_resolved_at?: string | null;
   created_at: string;
   updated_at: string;
 }

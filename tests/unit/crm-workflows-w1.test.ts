@@ -420,7 +420,7 @@ describe('W1: acciones nuevas y empresas', () => {
     });
     const c = await createContact(a.id, { email: 'mql@w1.test' });
     await addListMembers(a.id, list.id, [c.id]);
-    await updateContact(a.id, c.id, { lifecycleStage: 'marketingqualifiedlead' });
+    await updateContact(a.id, c.id, { lifecycleStage: 'mql' });
     const [run] = await runs(a.id, wf.id);
     expect(run.status).toBe('done');
     const deal = (await getDb()

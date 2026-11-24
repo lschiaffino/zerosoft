@@ -9,6 +9,7 @@
 import { BULK_EMPTY_STRING, BULK_FIELDS, isBulkField, type BulkEntity } from './crm-bulk-fields';
 import { companyUpdateSchema, contactUpdateSchema, dealUpdateSchema } from './crm-schema';
 import { CrmRefError } from './crm-refs';
+import { BUILTIN_OPTIONS, optionPropertyOf } from './crm-property-options-shared';
 import {
   listCustomFields,
   moveDeal,
@@ -61,6 +62,13 @@ export function buildBulkPatch(
   if (!parsed.success) return null;
   const data = parsed.data as Record<string, unknown>;
   if (!(field in data)) return null;
+  // Lifecycle y lead status: sin las opciones del workspace a mano, solo una clave de fábrica o una propia (opt_…);
+  // que esté activa lo chequea el guardado de cada registro.
+  const optionProp = optionPropertyOf(field);
+  if (optionProp && typeof data[field] === 'string') {
+    const v = data[field] as string;
+    if (!(BUILTIN_OPTIONS[optionProp] as readonly string[]).includes(v) && !v.startsWith('opt_')) return null;
+  }
   return { kind: 'field', patch: { [field]: data[field] } };
 }
 

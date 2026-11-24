@@ -11,7 +11,8 @@ import { canSeeActivity, canSeeOwner, scopeCompanyDetail, sessionScope, scopeAnd
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb } from '@/lib/db';
 import { buildRecordTimeline } from '@/lib/crm-timeline';
-import { getCompany, LIFECYCLE_STAGES, nextTaskFor, parseCustom } from '@/lib/crm';
+import { getCompany, nextTaskFor, parseCustom } from '@/lib/crm';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import CrmQuickCreate from '@/components/crm/CrmQuickCreate';
 import DangerDelete from '@/components/crm/DangerDelete';
 import AssociationPanel from '@/components/crm/AssociationPanel';
@@ -74,6 +75,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  const crmOpts = await optionHelpersFor(user.id, t);
 
   const rawDetail = await getCompany(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.company.owner_id, user.id)) notFound();
@@ -112,8 +114,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
   const stageName = new Map(stageRows.map((s) => [s.id, s.name]));
   const fmtBase = (n: number) => formatMoney(n, rollup.currency, locale);
 
-  const lifecycleLabel = (v: string): string =>
-    (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
+  const lifecycleLabel = (v: string): string => crmOpts.label('lifecycle', v);
 
   const fmtAmount = (amount: number, currency: string): string =>
     new Intl.NumberFormat(locale, {
@@ -154,7 +155,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
     instagram_url: t('companiesEnrich.instagram'),
   };
   const historyValues: Record<string, Record<string, string>> = {
-    lifecycle_stage: Object.fromEntries(LIFECYCLE_STAGES.map((v) => [v, t(`enums.lifecycle.${v}`)])),
+    lifecycle_stage: crmOpts.labelMap('lifecycle'),
   };
 
   const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));
@@ -343,7 +344,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
       label: t('companies.form.lifecycle'),
       type: 'select',
       value: company.lifecycle_stage,
-      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+      options: crmOpts.choices('lifecycle', company.lifecycle_stage),
     },
     {
       key: 'ownerId',

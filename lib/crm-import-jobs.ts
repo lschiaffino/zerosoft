@@ -28,6 +28,7 @@ import { setParentCompany, syncContactPrimary, syncDealPrimary } from './crm-ass
 import { companyMergeFillPatch, normalizeCompanyDomain } from './crm-company-merge';
 import { getCrmSettings } from './crm-currency';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
+import { listOptionSets, matchOption, type OptionProperty, type OptionSets } from './crm-property-options';
 import { coerceCustom, normalizeImportValue, parseImportDate, workspacePeople, type Person } from './crm-import';
 import { createPipeline, listCustomFields, listPipelinesWithStages, mergeFillPatch, parseCustom } from './crm';
 import { emailFreeSql, findContactByEmail, sameContactEmail } from './crm-contact-email';
@@ -726,6 +727,16 @@ interface WriteCtx {
   baseCurrency: string;
   counts: GroupCounts;
   errors: string[];
+  /** Opciones de Lifecycle y Lead status del workspace: un valor ajeno que coincide con una propia (por nombre) la toma. */
+  options?: OptionSets;
+}
+
+/** Lifecycle o lead status ajeno → el nuestro: el mapeo de fábrica y, si no, una opción propia del workspace con ese nombre. */
+function optionFor(ctx: WriteCtx, prop: OptionProperty, raw: string): string | null {
+  const field = prop === 'lifecycle' ? 'lifecycleStage' : 'leadStatus';
+  const builtin = inEnum<string>(prop === 'lifecycle' ? LIFECYCLE_STAGES : LEAD_STATUSES, normalizeImportValue(field, raw));
+  if (builtin) return builtin;
+  return ctx.options ? matchOption(ctx.options[prop], raw) : null;
 }
 
 function ownerFor(ctx: WriteCtx, srcOwner: string): string {
@@ -798,7 +809,7 @@ async function insertRow(
 async function writeCompany(ctx: WriteCtx, src: SrcCompany, extMap: Map<string, string>): Promise<void> {
   const { db, userId } = ctx;
   const domain = normalizeCompanyDomain(src.domain);
-  const lifecycle = inEnum(LIFECYCLE_STAGES, normalizeImportValue('lifecycleStage', src.lifecycleStage));
+  const lifecycle = optionFor(ctx, 'lifecycle', src.lifecycleStage);
   const custom = customValues(ctx, 'companies', src.custom, `company ${src.id}`);
   const cols: Array<[string, string | number | null]> = [
     ['name', src.name.slice(0, 200) || domain],
@@ -878,8 +889,8 @@ async function writeContact(ctx: WriteCtx, src: SrcContact, extMap: Map<string, 
   const { db, userId } = ctx;
   const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(src.email) ? src.email : '';
   if (src.email && !email) pushError(ctx, `contact ${src.id}: invalid email "${src.email.slice(0, 80)}", imported without it`);
-  const lifecycle = inEnum(LIFECYCLE_STAGES, normalizeImportValue('lifecycleStage', src.lifecycleStage));
-  const leadStatus = inEnum(LEAD_STATUSES, normalizeImportValue('leadStatus', src.leadStatus));
+  const lifecycle = optionFor(ctx, 'lifecycle', src.lifecycleStage);
+  const leadStatus = optionFor(ctx, 'leadStatus', src.leadStatus);
   const source = src.source ? (inEnum(SOURCES, normalizeImportValue('source', src.source)) ?? 'other') : '';
   const custom = customValues(ctx, 'contacts', src.custom, `contact ${src.id}`);
   const cols: Array<[string, string | number | null]> = [
@@ -1159,7 +1170,7 @@ async function writePage(
   const tx = await getClient().transaction('write');
   const db = txDb(tx);
   try {
-    const ctx: WriteCtx = { db, userId, provider, plan, defs, baseCurrency, counts, errors };
+    const ctx: WriteCtx = { db, userId, provider, plan, defs, baseCurrency, counts, errors, options: await listOptionSets(userId, db) };
     const extMap = await extLookup(db, userId, provider, obj, items.map((i) => i.id));
     const companyIds = items.flatMap((i) =>
       i.kind === 'contact' || i.kind === 'deal'
