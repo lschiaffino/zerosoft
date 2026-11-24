@@ -165,6 +165,8 @@ const CRM_DEFS: SettingDef[] = [
   crmDef('crm-currency', 'sales', 'crm:settings.currency', 'crm:settings.currencyDesc', { en: 'exchange rates, dollars', es: 'moneda, tipo de cambio, dólares', pt: 'moeda, câmbio, dólares' }),
   crmDef('crm-call-outcomes', 'sales', 'crm:calls.settingsTitle', 'crm:calls.settingsDesc'),
   crmDef('crm-custom-fields', 'data', 'crm:settings.customFields', 'crm:settings.customFieldsDesc', { en: 'properties, custom properties', es: 'propiedades, campos personalizados', pt: 'propriedades, campos personalizados' }),
+  crmDef('crm-property-options', 'data', 'crm:propertyOptions.title', 'crm:propertyOptions.desc', { en: 'lifecycle stage, lead status, property options, edit options', es: 'etapa del ciclo de vida, estado del lead, opciones de propiedades', pt: 'estágio do ciclo de vida, status do lead, opções de propriedades' }),
+  crmDef('crm-lifecycle-auto', 'data', 'crm:propertyOptions.autoTitle', 'crm:propertyOptions.autoDesc', { en: 'automatic lifecycle, opportunity, customer', es: 'ciclo de vida automático, oportunidad, cliente', pt: 'ciclo de vida automático, oportunidade, cliente' }),
   crmDef('crm-create-form', 'data', 'crm:createForm.title', 'crm:createForm.desc', { en: 'required fields, new record form', es: 'campos obligatorios, formulario de alta', pt: 'campos obrigatórios, formulário de criação' }),
   crmDef('crm-preview-layout', 'data', 'crm:layouts.previewSettingsTitle', 'crm:layouts.previewSettingsDesc', { en: 'preview sidebar, record preview, customize preview', es: 'vista previa, panel lateral, personalizar vista previa', pt: 'pré-visualização, painel lateral, personalizar' }),
   crmDef('crm-field-permissions', 'data', 'crm:fieldPerms.title', 'crm:fieldPerms.desc'),

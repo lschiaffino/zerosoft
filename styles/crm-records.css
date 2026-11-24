@@ -678,6 +678,34 @@ a.assoc-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .assoc-labels-add { display: flex; gap: 8px; flex-wrap: wrap; }
 .assoc-labels-add .input { flex: 1 1 200px; min-width: 0; }
 
+/* Ajustes: opciones de Lifecycle stage y Lead status (agregar, renombrar, ordenar, archivar). */
+.prop-options { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.prop-options-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.prop-options-title { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--brand-ink); }
+.prop-options-subtitle { margin: 6px 0 0; font-size: 0.8125rem; font-weight: 600; color: var(--dim); }
+.prop-options-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.prop-options-row {
+  display: grid;
+  /* Columnas fijas: los nombres quedan alineados aunque cambie la cantidad de registros. */
+  grid-template-columns: minmax(0, 1fr) 96px 168px;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.prop-options-row.is-archived .input { color: var(--dim); }
+.prop-options-count { font-size: 0.8125rem; white-space: nowrap; text-align: right; }
+.prop-options-tools { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
+.prop-options-tools .btn { min-height: 40px; min-width: 40px; }
+.prop-options-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.prop-options-add .input { flex: 1 1 200px; min-width: 0; }
+.prop-options-add .btn { min-height: 40px; }
+@media (max-width: 520px) {
+  .prop-options-row { grid-template-columns: minmax(0, 1fr) 88px; }
+  .prop-options-tools { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
 /* Ajustes: formulario de alta (qué propiedades, orden, obligatorias). */
 .create-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .create-form-object { max-width: 280px; }

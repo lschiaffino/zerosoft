@@ -4,7 +4,8 @@ import { Link } from '@/i18n/navigation';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { requireUser } from '@/lib/session';
-import { LIFECYCLE_STAGES, parseListFilter } from '@/lib/crm';
+import { parseListFilter } from '@/lib/crm';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import { listForViewer } from '@/lib/crm-list-access';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { sessionScope } from '@/lib/crm-visibility';
@@ -35,8 +36,8 @@ export default async function ListDetailPage(props: ListDetailPageProps) {
   if (!detail) notFound();
   const { list, members, memberCount } = detail;
 
-  const lifecycleLabel = (v: string): string =>
-    (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
+  const crmOpts = await optionHelpersFor(user.id, t);
+  const lifecycleLabel = (v: string): string => crmOpts.label('lifecycle', v);
 
   const memberRows: MemberRow[] = members.map((c) => ({
     id: c.id,
