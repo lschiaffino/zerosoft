@@ -1,5 +1,6 @@
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from '@/lib/crm-constants';
+import type { OptionHelpers } from '@/lib/crm-property-options-shared';
 import type { FilterBuilderField } from './FilterBuilder';
 import { customBuilderFields } from './customFieldViews';
 
@@ -24,6 +25,8 @@ export function listRuleFields(opts: {
   tags: Option[];
   staticLists: Option[];
   customDefs: CrmCustomFieldRow[];
+  /** Opciones de Lifecycle y Lead status del workspace (sin esto, las de fábrica). */
+  options?: OptionHelpers;
 }): RuleField[] {
   const { t } = opts;
   const yesNo = [
@@ -38,14 +41,14 @@ export function listRuleFields(opts: {
       key: 'lifecycle',
       label: t('filters.field.lifecycle'),
       type: 'select',
-      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+      options: opts.options?.all('lifecycle') ?? LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
     },
     {
       group: 'props',
       key: 'leadStatus',
       label: t('filters.field.leadStatus'),
       type: 'select',
-      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+      options: opts.options?.all('leadStatus') ?? LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
     },
     {
       group: 'props',

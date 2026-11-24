@@ -30,7 +30,7 @@ import {
   type FormStatus,
   type FormSubmitBody,
 } from './crm-forms-schema';
-import { LIFECYCLE_STAGES } from './crm-constants';
+import { isAllowedOption, listOptionSets, optionRank, type OptionSets } from './crm-property-options';
 import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
@@ -517,8 +517,15 @@ export type SubmitResult =
     }
   | { ok: false; error: 'not_found' | 'paused' | 'invalid' | 'captcha'; fieldErrors?: Record<string, FieldError> };
 
-function lifecycleRank(stage: string): number {
-  return (LIFECYCLE_STAGES as readonly string[]).indexOf(stage);
+/**
+ * Lifecycle y lead status del formulario que siguen siendo opciones activas
+ * del workspace: una que se archivó después no rompe el envío, se ignora.
+ */
+function activeFormOptions(s: { lifecycleStage: string; leadStatus: string }, sets: OptionSets): { lifecycleStage: string; leadStatus: string } {
+  return {
+    lifecycleStage: s.lifecycleStage && isAllowedOption(sets.lifecycle, s.lifecycleStage) ? s.lifecycleStage : '',
+    leadStatus: s.leadStatus && isAllowedOption(sets.leadStatus, s.leadStatus) ? s.leadStatus : '',
+  };
 }
 
 function hashIp(ip: string): string {
@@ -558,6 +565,8 @@ export async function submitForm(
 
   const workspaceId = form.user_id;
   const mapped = mapSubmission(form.fields, values);
+  const optionSets = await listOptionSets(workspaceId, db);
+  const formOptions = activeFormOptions(s, optionSets);
   const email = (mapped.contact.email ?? '').trim().toLowerCase();
 
   const crm = await import('./crm');
@@ -643,8 +652,8 @@ export async function submitForm(
             website: mapped.contact.website,
             city: mapped.contact.city,
             country: mapped.contact.country,
-            lifecycleStage: s.lifecycleStage || undefined,
-            leadStatus: s.leadStatus || undefined,
+            lifecycleStage: formOptions.lifecycleStage || undefined,
+            leadStatus: formOptions.leadStatus || undefined,
             source: s.source || 'form',
             companyId,
             ownerId: ownerValid,
@@ -734,8 +743,10 @@ export async function submitForm(
     }
     if (companyId && !existing.company_id) patch.companyId = companyId;
     // Lifecycle solo avanza (nunca retrocede un customer a lead).
-    if (s.lifecycleStage && lifecycleRank(s.lifecycleStage) > lifecycleRank(existing.lifecycle_stage)) {
-      patch.lifecycleStage = s.lifecycleStage;
+    // El orden es el del workspace (Ajustes › Datos › Opciones).
+    const lc = formOptions.lifecycleStage;
+    if (lc && optionRank(optionSets.lifecycle, lc) > optionRank(optionSets.lifecycle, existing.lifecycle_stage)) {
+      patch.lifecycleStage = lc;
     }
     if (!existing.source && s.source) patch.source = s.source;
     contact = Object.keys(patch).length
