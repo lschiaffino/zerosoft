@@ -11,9 +11,8 @@
  * aviso va con el marcador en lugar del título. No se escribe nada de la
  * tarea en los logs.
  */
+import { personCanUseApp } from './workspace-apps';
 import { getDb, type CrmActivityRow } from './db';
-import { personAppAccess } from './api-auth';
-import { canUseApp } from './workspace';
 import { canSeeActivity, ownerScopeFor } from './crm-visibility';
 import { createNotification } from './notifications';
 import { escapeHtml, formatWhen, renderBrandedHtml, sendEmail } from './email';
@@ -72,8 +71,8 @@ function parseUtc(v: string): Date {
  */
 export async function reminderRecipientSees(task: CrmActivityRow, personId: string): Promise<boolean> {
   const ws = task.user_id;
-  const access = await personAppAccess(ws, personId).catch(() => null);
-  if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'crm')) return false;
+  const access = await personCanUseApp(ws, personId, 'crm');
+  if (!access) return false;
   const scope = await ownerScopeFor({ workspaceId: ws, personId, role: access.role });
   // canSeeActivity ya mira contacto, empresa, deal, lead y registro de objeto (misma regla que el índice).
   return canSeeActivity(ws, task.id, scope);
