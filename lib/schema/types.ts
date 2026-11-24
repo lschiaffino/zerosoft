@@ -1392,6 +1392,8 @@ export interface TrackIssueRow {
   status_changed_at?: string | null;
   /** Release del team en el que va (lib/track-releases). */
   release_id?: string | null;
+  /** Cuándo salió de triage (Insights › Triage time). */
+  triage_resolved_at?: string | null;
   created_at: string;
   updated_at: string;
 }
