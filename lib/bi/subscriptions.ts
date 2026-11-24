@@ -205,6 +205,9 @@ async function deliver(r: Row): Promise<string | null> {
   if (!access) return 'creator_left';
   const viewer: BiViewer = { workspaceId: r.workspace_id, personId: r.created_by, role: access.role, apps: access.apps };
   if (!viewerCan(viewer, 'analytics')) return 'creator_no_access';
+  // También Apps del workspace (Analytics apagada para quien la armó: no sale).
+  const { personCanUseApp } = await import('../workspace-apps');
+  if (!(await personCanUseApp(r.workspace_id, r.created_by, 'analytics'))) return 'creator_no_access';
   const digest = await buildDigest(viewer, r.dashboard_id, baseUrl());
   if (!digest) return 'dashboard_missing';
   if (r.channel === 'talk') {
