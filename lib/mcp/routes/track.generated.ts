@@ -98,11 +98,12 @@ import * as r95 from "@/lib/routes/track/recurring/[id]/route";
 import * as r96 from "@/app/api/track/refs/route";
 import * as r97 from "@/lib/routes/track/statuses/[id]/route";
 import * as r98 from "@/lib/routes/track/templates/[id]/route";
-import * as r99 from "@/lib/routes/track/triage-rules/[id]/route";
-import * as r100 from "@/lib/routes/track/views/[id]/route";
-import * as r101 from "@/lib/routes/track/views/[id]/default/route";
-import * as r102 from "@/lib/routes/track/views/[id]/favorite/route";
-import * as r103 from "@/app/api/track/views/favorites/route";
+import * as r99 from "@/lib/routes/track/templates/[id]/submit/route";
+import * as r100 from "@/lib/routes/track/triage-rules/[id]/route";
+import * as r101 from "@/lib/routes/track/views/[id]/route";
+import * as r102 from "@/lib/routes/track/views/[id]/default/route";
+import * as r103 from "@/lib/routes/track/views/[id]/favorite/route";
+import * as r104 from "@/app/api/track/views/favorites/route";
 
 export const routes: Record<string, unknown> = {
   "/api/track/access": r0,
@@ -204,9 +205,10 @@ export const routes: Record<string, unknown> = {
   "/api/track/refs": r96,
   "/api/track/statuses/[id]": r97,
   "/api/track/templates/[id]": r98,
-  "/api/track/triage-rules/[id]": r99,
-  "/api/track/views/[id]": r100,
-  "/api/track/views/[id]/default": r101,
-  "/api/track/views/[id]/favorite": r102,
-  "/api/track/views/favorites": r103,
+  "/api/track/templates/[id]/submit": r99,
+  "/api/track/triage-rules/[id]": r100,
+  "/api/track/views/[id]": r101,
+  "/api/track/views/[id]/default": r102,
+  "/api/track/views/[id]/favorite": r103,
+  "/api/track/views/favorites": r104,
 };
