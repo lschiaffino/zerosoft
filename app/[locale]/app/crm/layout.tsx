@@ -20,6 +20,7 @@ import '@/styles/track-editor.css';
 import CrmAssistant from '@/components/crm/CrmAssistant';
 import { CrmViewerProvider } from '@/components/crm/CrmViewer';
 import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { listOptionSets } from '@/lib/crm-property-options';
 import '@/styles/crm-reports.css';
 import '@/styles/crm-dashboards.css';
 
@@ -32,12 +33,14 @@ export const metadata: Metadata = {
 export default async function CrmLayout(props: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await props.params;
   const user = await getCurrentUser();
+  // Opciones de Lifecycle stage y Lead status del workspace, para los selectores y nombres del cliente.
+  const options = user ? await listOptionSets(user.id).catch(() => undefined) : undefined;
   return (
     <ClientMessages locale={locale} namespaces={['crm', 'trackTriage.customers', 'track.ux.editor']}>
       <Suspense fallback={null}>
         <OfflineSync />
       </Suspense>
-      <CrmViewerProvider isAdmin={!!user && isWorkspaceAdmin(user)} personId={user ? realUserId(user) : ''}>
+      <CrmViewerProvider isAdmin={!!user && isWorkspaceAdmin(user)} personId={user ? realUserId(user) : ''} options={options}>
         <CrmObjectsBranch />
         {props.children}
         <CrmAssistant />

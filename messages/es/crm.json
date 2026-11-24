@@ -1518,7 +1518,8 @@
     "too_many_labels": "Llegaste al límite de labels para esta asociación.",
     "invalid_queue": "Esa cola no existe o no la podés ver.",
     "too_many": "Este workspace llegó al límite.",
-    "too_many_tasks": "Se pueden crear tareas para hasta 200 registros a la vez. Achicá la vista y probá de nuevo."
+    "too_many_tasks": "Se pueden crear tareas para hasta 200 registros a la vez. Achicá la vista y probá de nuevo.",
+    "invalid_option": "Ese valor no es una opción activa de esta propiedad. Recargá la página para ver las opciones actuales."
   },
   "filters": {
     "advanced": "Filtros avanzados",
@@ -2894,6 +2895,44 @@
         "negative": "Negativo"
       },
       "nextSteps": "Próximos pasos"
+    },
+    "followup": {
+      "open": "Sugerir cambios con IA",
+      "title": "Cambios sugeridos",
+      "loading": "Leyendo la llamada…",
+      "regenerate": "Sugerir de nuevo",
+      "empty": "La llamada no sugiere cambios.",
+      "pending": "{count, plural, =0 {Todo revisado} one {# para revisar} other {# para revisar}}",
+      "hint": "Nada cambia hasta que lo apliques.",
+      "kind": {
+        "field": "Propiedad",
+        "stage": "Etapa del deal",
+        "email": "Email de seguimiento",
+        "task": "Tarea"
+      },
+      "apply": "Aplicar",
+      "send": "Enviar",
+      "addTask": "Crear tarea",
+      "move": "Mover deal",
+      "edit": "Editar",
+      "discard": "Descartar",
+      "cancel": "Cancelar",
+      "applied": "Aplicado",
+      "sent": "Enviado",
+      "taskAdded": "Tarea creada",
+      "moved": "Deal movido",
+      "emptyValue": "Vacío",
+      "yes": "Sí",
+      "no": "No",
+      "toLabel": "Para",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "taskTitle": "Tarea",
+      "due": "Vence",
+      "errors": {
+        "already_done": "Esta sugerencia ya se resolvió.",
+        "field_readonly": "No podés editar esta propiedad."
+      }
     },
     "board": {
       "scoreDeals": "Calcular scores con IA",
@@ -5498,6 +5537,42 @@
     },
     "clear": "Quitar la selección",
     "error": "No se pudieron elegir. Probá de nuevo."
+  },
+  "propertyOptions": {
+    "title": "Opciones de etapa del ciclo de vida y estado del lead",
+    "desc": "Agregá, renombrá, ordená y archivá las opciones de estas dos propiedades. Los registros conservan una opción archivada; solo deja de ofrecerse. Un nombre nuevo aparece en todos los registros.",
+    "properties": {
+      "lifecycle": "Etapa del ciclo de vida",
+      "leadStatus": "Estado del lead"
+    },
+    "placeholders": {
+      "lifecycle": "Etapa nueva, por ejemplo Partner",
+      "leadStatus": "Estado nuevo, por ejemplo En seguimiento"
+    },
+    "add": "Agregar opción",
+    "addLabel": "Opción nueva de {property}",
+    "nameOf": "Nombre de la opción: {name}",
+    "records": "{count, plural, =0 {Sin registros} one {# registro} other {# registros}}",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "archivedTitle": "Archivadas",
+    "archivedName": "{name} (archivada)",
+    "errors": {
+      "option_not_found": "Esa opción ya no existe. Recargá la página.",
+      "option_limit": "Esta propiedad ya tiene el máximo de opciones.",
+      "option_duplicate": "Ya hay otra opción con ese nombre.",
+      "option_last_active": "Dejá al menos una opción activa.",
+      "invalid_input": "Escribí un nombre para la opción."
+    },
+    "autoTitle": "Etapa del ciclo de vida automática",
+    "autoDesc": "Como en HubSpot: cuando se crea un deal, sus contactos y empresas pasan a Oportunidad; cuando se gana, a Cliente. Solo avanza, nunca retrocede. Cada cambio queda en el timeline del registro.",
+    "autoLabel": "Avanzar la etapa del ciclo de vida con los deals",
+    "systemActor": "Automático",
+    "reasons": {
+      "deal_created": "se creó un deal",
+      "deal_won": "se ganó un deal"
+    },
+    "changedTo": "La etapa del ciclo de vida pasó sola de {from} a {to}"
   },
   "comments": {
     "add": "Comentar",

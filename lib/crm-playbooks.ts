@@ -151,7 +151,8 @@ export async function runPlaybook(
   if (!record) return { ok: false, reason: 'not_found' };
 
   // Respuestas → propiedades (los custom se validan contra su campo y se suman a los que ya tiene).
-  const { standard, custom } = propertyPatch(playbook.questions, input.answers, input.entity);
+  const { listOptionSets } = await import('./crm-property-options');
+  const { standard, custom } = propertyPatch(playbook.questions, input.answers, input.entity, await listOptionSets(workspaceId, db));
   const updated: string[] = Object.keys(standard);
   let mergedCustom: Record<string, unknown> | undefined;
   if (Object.keys(custom).length) {

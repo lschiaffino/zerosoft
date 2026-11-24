@@ -16,7 +16,7 @@ import {
 import { api, copyText, downloadFile, LoadingRows, Modal } from './shared';
 import { BarChart, LineChart, SERIES } from './charts';
 
-const TIME = new Set(['cycle_time', 'lead_time', 'issue_age', 'time_in_status']);
+const TIME = new Set(['cycle_time', 'lead_time', 'issue_age', 'time_in_status', 'triage_time']);
 
 /** Etiqueta legible de una clave de bucket (status_type y priority se traducen). */
 export function useBucketLabel() {

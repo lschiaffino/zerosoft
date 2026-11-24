@@ -7,6 +7,8 @@ import { useRouter } from '@/i18n/navigation';
 import { renderPlaybookMarkdown } from '@/lib/crm-playbook-markdown';
 import { ENUM_PROPERTIES, type Playbook, type PlaybookEntity, type PlaybookQuestion } from '@/lib/crm-playbooks-schema';
 import { isDefaultOutcome } from '@/lib/crm-calls';
+import { optionPropertyOf } from '@/lib/crm-property-options-shared';
+import { useCrmOptions } from './CrmViewer';
 
 export interface PlaybookCallDraft {
   outcome?: string;
@@ -41,6 +43,7 @@ async function loadCallOutcomes(): Promise<string[]> {
  */
 export default function PlaybookRunner({ playbook, entity, entityId, values = {}, call, onClose, onSaved }: PlaybookRunnerProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const router = useRouter();
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -72,8 +75,8 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
   }, [logAs, outcomes.length]);
 
   const enumLabel = (q: PlaybookQuestion, v: string): string => {
-    if (q.property.endsWith(':lifecycleStage')) return t(`enums.lifecycle.${v}`);
-    if (q.property.endsWith(':leadStatus')) return t(`enums.leadStatus.${v}`);
+    if (q.property.endsWith(':lifecycleStage')) return crmOpts.label('lifecycle', v);
+    if (q.property.endsWith(':leadStatus')) return crmOpts.label('leadStatus', v);
     if (q.property.endsWith(':priority')) return t(`enums.priority.${v}`);
     return v;
   };
@@ -120,7 +123,9 @@ export default function PlaybookRunner({ playbook, entity, entityId, values = {}
     const value = answers[q.id] ?? '';
     const set = (v: string) => setAnswers((a) => ({ ...a, [q.id]: v }));
     const id = `${titleId}-${q.id}`;
-    const enumValues = ENUM_PROPERTIES[q.property];
+    const optionProp = optionPropertyOf(q.property.split(':')[1] ?? '');
+    // Lifecycle y lead status: las opciones activas del workspace (Ajustes › Datos).
+    const enumValues = optionProp ? crmOpts.choices(optionProp).map((o) => o.value) : ENUM_PROPERTIES[q.property];
     if (enumValues || q.type === 'select') {
       const opts = enumValues ? [...enumValues] : q.options;
       return (

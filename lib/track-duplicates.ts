@@ -220,7 +220,9 @@ export async function markIssueDuplicate(
   // Triage: se saca de la cola solo si sigue ahí (otro pudo aceptarlo recién).
   if (fresh.triage === 1) {
     const out = await db
-      .prepare("UPDATE track_issues SET triage = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1")
+      .prepare(
+        "UPDATE track_issues SET triage = 0, triage_resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1",
+      )
       .run(issue.id);
     if (out.changes === 0) {
       await db.prepare('DELETE FROM track_issue_duplicates WHERE issue_id = ? AND summary_activity_id IS NULL').run(issue.id);
