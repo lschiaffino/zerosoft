@@ -638,6 +638,7 @@ const OWN_CONTENT: Record<string, string> = {
   docs_comments: 'user_id',
   track_issue_comments: 'user_id',
   track_plan_update_comments: 'user_id',
+  track_entity_comments: 'user_id',
   talk_messages: 'user_id',
   talk_list_comments: 'user_id',
   rec_comments: 'user_id',

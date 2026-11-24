@@ -2001,5 +2001,11 @@
       "w": "{n}w",
       "mo": "{n}mo"
     }
+  },
+  "entityComments": {
+    "title": "Comments",
+    "placeholder": "Leave a comment…",
+    "empty": "No comments yet.",
+    "loadError": "Couldn't load the comments."
   }
 }

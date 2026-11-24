@@ -119,7 +119,7 @@ export function AddStageColumn({ pipelineId }: { pipelineId: string }) {
           </div>
         </div>
       ) : (
-        <button type="button" className="kb-add-stage" onClick={() => setOpen(true)}>
+        <button type="button" className="kb-add-stage" onClick={() => setOpen(true)} data-testid="kb-add-stage">
           {t('deals.addStage')}
         </button>
       )}

@@ -2001,5 +2001,11 @@
       "w": "{n} sem",
       "mo": "{n} mês"
     }
+  },
+  "entityComments": {
+    "title": "Comentários",
+    "placeholder": "Deixe um comentário…",
+    "empty": "Ainda não há comentários.",
+    "loadError": "Não foi possível carregar os comentários."
   }
 }

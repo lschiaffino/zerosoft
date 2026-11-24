@@ -60,6 +60,7 @@
 .cdb-switcher-search { margin: 8px; width: auto; }
 .cdb-switcher-list { list-style: none; margin: 0; padding: 0 4px; max-height: min(360px, 50dvh); overflow-y: auto; }
 .cdb-switcher-item {
+  font: inherit;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -76,11 +77,17 @@
 }
 .cdb-switcher-item.is-cursor { background: var(--ui-hover); }
 .cdb-switcher-item.is-active .cdb-switcher-item-name { font-weight: 600; }
-.cdb-switcher-item.is-active .cdb-switcher-item-name::before { content: '✓ '; }
-.cdb-switcher-item-name { font-size: 0.875rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdb-switcher-item-meta { font-size: 0.75rem; color: var(--dim); }
+/* La marca de la elegida es un ícono con su lugar reservado: los nombres quedan alineados. */
+.cdb-switcher-item-name { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; max-width: 100%; min-width: 0; }
+.cdb-switcher-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdb-switcher-check { flex: none; display: inline-flex; width: 14px; color: var(--ink); }
+.cdb-switcher-item-meta { padding-left: 20px; font-size: 0.75rem; color: var(--dim); }
 .cdb-switcher-none { padding: 10px; font-size: 0.8125rem; }
 .cdb-switcher-create {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
   min-height: 44px;
   padding: 0 14px;
@@ -129,7 +136,9 @@
 .cdb-tile:hover, .cdb-tile:focus-within { border-color: color-mix(in srgb, var(--ink) 40%, var(--line)); }
 .cdb-tile[data-size='small'] { grid-column: span 3; }
 .cdb-tile[data-size='wide'] { grid-column: span 12; }
-.cdb-tile.cdb-tile-kpi { height: auto; min-height: 164px; }
+.cdb-tile.cdb-tile-kpi, .cdb-tile[data-shape='kpi'] { height: auto; min-height: 164px; }
+/* El período de un KPI en una línea: los números de la fila quedan a la misma altura aunque un rango sea largo. */
+.cdb-tile[data-shape='kpi'] .cdb-tile-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdb-tile.cdb-tile-error, .cdb-tile.cdb-tile-custom:has(.rb-kpi) { height: auto; min-height: 164px; }
 .cdb-tile.is-dragged { opacity: 0.4; }
 .cdb-grid.is-dragging { cursor: grabbing; user-select: none; }
@@ -191,7 +200,9 @@
 
 /* ---------- KPI ---------- */
 
-.cdb-kpi { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+/* El número va arriba, debajo del título, en todos los KPI de una fila a la misma altura (lo que sigue
+   debajo puede tener una o dos líneas: no lo empuja). */
+.cdb-kpi { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 10px; }
 .cdb-kpi-value {
   align-self: flex-start;
   margin: 0;
@@ -531,13 +542,12 @@ dialog.ui-drawer.cdb-library { width: min(560px, 100vw); }
   .cdb-grid { gap: 12px; }
   .cdb-tile, .cdb-tile[data-size], .cdb-tile[data-size='small'] { grid-column: 1 / -1; min-height: 0; height: auto; }
   /* Los KPI chicos van de a dos: la fila de números se ve de un vistazo, como en HubSpot mobile. */
-  .cdb-tile.cdb-tile-kpi[data-size='small'] { grid-column: span 6; min-height: 0; }
-  .cdb-tile-kpi .cdb-tile-head { padding: 10px 4px 2px 12px; }
-  .cdb-tile-kpi .cdb-tile-body { padding: 4px 12px 12px; }
+  .cdb-tile.cdb-tile-kpi[data-size='small'], .cdb-tile[data-shape='kpi'][data-size='small'] { grid-column: span 6; min-height: 0; }
+  :is(.cdb-tile-kpi, .cdb-tile[data-shape='kpi']) .cdb-tile-head { padding: 10px 4px 2px 12px; }
+  :is(.cdb-tile-kpi, .cdb-tile[data-shape='kpi']) .cdb-tile-body { padding: 4px 12px 12px; }
   .cdb-tile-kpi .cdb-kpi-value { font-size: 1.375rem; }
   .cdb-tile-kpi .cdb-kpi-unit { font-size: 0.75rem; margin-left: 2px; }
   .cdb-tile-kpi .cdb-kpi-meta { font-size: 0.75rem; }
-  .cdb-tile-kpi .cdb-tile-sub { display: none; }
   .cdb-tile-chart .cdb-tile-body { min-height: 260px; }
   .cdb-hbars > .cdb-hbar-row { flex: none; }
   .cdb-hbars, .cdb-funnel { max-height: 420px; }
