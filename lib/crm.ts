@@ -3472,12 +3472,21 @@ export async function updateCustomField(
 }
 
 export async function deleteCustomField(userId: string, id: string): Promise<boolean> {
-  const ok =
-    (await getDb()
-      .prepare('DELETE FROM crm_custom_fields WHERE id = ? AND user_id = ?')
-      .run(id, userId)).changes > 0;
-  // Permisos por campo (lib/crm-field-perms.ts): se van con el campo.
-  if (ok) await getDb().prepare('DELETE FROM crm_field_permissions WHERE field_id = ? AND user_id = ?').run(id, userId);
+  const db = getDb();
+  const field = (await db.prepare('SELECT entity, name FROM crm_custom_fields WHERE id = ? AND user_id = ?').get(id, userId)) as
+    | { entity: string; name: string }
+    | undefined;
+  const ok = (await db.prepare('DELETE FROM crm_custom_fields WHERE id = ? AND user_id = ?').run(id, userId)).changes > 0;
+  if (!ok) return false;
+  // Permisos por campo (lib/crm-field-perms.ts): se van con el campo, salvo que quede otra definición con
+  // el mismo nombre (lee el mismo valor): pasan a esa, así borrar una no abre un campo oculto.
+  const twin = field
+    ? ((await db
+        .prepare('SELECT id FROM crm_custom_fields WHERE user_id = ? AND entity = ? AND name = ? ORDER BY position ASC, rowid ASC LIMIT 1')
+        .get(userId, field.entity, field.name)) as { id: string } | undefined)
+    : undefined;
+  if (twin) await db.prepare('UPDATE crm_field_permissions SET field_id = ? WHERE field_id = ? AND user_id = ?').run(twin.id, id, userId);
+  else await db.prepare('DELETE FROM crm_field_permissions WHERE field_id = ? AND user_id = ?').run(id, userId);
   return ok;
 }
 
@@ -3538,7 +3547,8 @@ export async function exportRows(
   const args: Array<string | number> = [userId];
   if (filter && entity !== 'activities') {
     const cond = compileFilterModel(
-      { alias, fields: CRM_FILTER_FIELDS[entity].fields, customTypes: filter.customTypes, ...filter.env },
+      // Con el alcance de quien exporta, como los listados (hoy el export es de owner y admins).
+      { alias, fields: scopedAssocCountFields(scopedCompanyNameFields(CRM_FILTER_FIELDS[entity].fields, ownerScope), ownerScope), customTypes: filter.customTypes, ...filter.env },
       filter.model,
     );
     if (cond) {

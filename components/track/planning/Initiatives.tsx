@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, useRef } from 'react';
 import InitiativeUpdates from './InitiativeUpdates';
+import EntityComments from '../EntityComments';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -523,6 +524,8 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
             </ul>
           </section>
         )}
+
+        <EntityComments type="initiative" id={ini.id} />
       </div>
 
       <aside className="tp-plan-side" aria-label={t('plan.properties')}>

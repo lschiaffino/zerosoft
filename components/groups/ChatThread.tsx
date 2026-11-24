@@ -148,6 +148,7 @@ import { CHAT_INFO_EVENT, takeChatInfo } from '@/lib/chat-info-request';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent, useOnChatSent } from '@/lib/ui/chat-sent';
 import { forwardedMany } from '@/lib/wa-forward';
+import { groupSubtitle } from '@/lib/wa-group-subtitle';
 import HubspotDock from './HubspotDock';
 import { showDetailsTab } from './wa/DetailsTabs';
 
@@ -1909,12 +1910,12 @@ export default function ChatThread(props: ThreadProps) {
 
   const assignee = chat.assignedTo ? nameOf(chat.assignedTo) : '';
   const teamName = props.teams.find((tm) => tm.id === chat.assignedTeamId)?.name ?? '';
-  // Primero los que tienen nombre (como WhatsApp), después los teléfonos.
-  const memberList = [...props.members]
-    .sort((a, b) => Number(!a.name) - Number(!b.name))
-    .slice(0, 12)
-    .map((mb) => mb.name || phoneLabel(mb.phone))
-    .filter(Boolean);
+  // Como WhatsApp Web: los que tienen nombre, después los teléfonos, y "Vos" al final (nunca el número de la línea).
+  const memberLine = groupSubtitle(
+    props.members.map((mb) => ({ name: mb.name, phone: phoneLabel(mb.phone), me: mb.me })),
+    t('wa.you'),
+    chat.memberCount,
+  );
   // Como WhatsApp: "escribiendo…" o "grabando audio…" reemplaza la línea de abajo del nombre; "en línea" solo en un 1 a 1.
   const presenceText = presence
     ? presence.state === 'available'
@@ -1927,9 +1928,7 @@ export default function ChatThread(props: ThreadProps) {
     : '';
   const subtitle =
     chat.kind === 'group'
-      ? memberList.length
-        ? `${memberList.join(', ')}${chat.memberCount > memberList.length ? '…' : ''}`
-        : t('thread.groupMeta', { n: chat.memberCount })
+      ? memberLine || t('thread.groupMeta', { n: chat.memberCount })
       : phoneLabel(chat.phone) || t('wa.whatsappContact');
 
   // "Responder desde": por defecto, la línea del último mensaje que entró o salió (si puede mandar), si no la del chat
@@ -2533,7 +2532,7 @@ export default function ChatThread(props: ThreadProps) {
             </button>
             <div className="gr-thread-title" onClick={toggleDetails}>
               <h2>{chat.name}</h2>
-              <span className={`wa-head-sub${presenceText && presence?.state !== 'available' ? ' is-typing' : ''}`} aria-live="polite">
+              <span className={`wa-head-sub${presenceText && presence?.state !== 'available' ? ' is-typing' : ''}`} aria-live="polite" data-testid="wa-head-sub">
                 {presenceText || subtitle}
               </span>
             </div>
