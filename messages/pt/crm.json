@@ -5525,5 +5525,43 @@
     "deleteError": "Não foi possível excluir o comentário. Tente de novo.",
     "tooMany": "Esta atividade chegou ao limite de comentários.",
     "tooLong": "O comentário é longo demais."
+  },
+  "rowExpand": {
+    "expand": "Ver associações e última atividade: {name}",
+    "collapse": "Ocultar associações e última atividade: {name}",
+    "region": "Associações e última atividade de {name}",
+    "loading": "Carregando…",
+    "error": "Não foi possível carregar as associações deste registro.",
+    "retry": "Tentar de novo",
+    "contacts": "Contatos",
+    "deals": "Negócios",
+    "openDeals": "Negócios abertos",
+    "companies": "Empresas",
+    "lastActivity": "Última atividade",
+    "noContacts": "Nenhum contato que você possa ver.",
+    "noDeals": "Nenhum negócio que você possa ver.",
+    "noOpenDeals": "Nenhum negócio aberto que você possa ver.",
+    "noCompanies": "Nenhuma empresa que você possa ver.",
+    "noActivity": "Ainda sem atividade.",
+    "unnamed": "Sem nome",
+    "primary": "Principal",
+    "closes": "fecha em {date}",
+    "status": {
+      "won": "Ganho",
+      "lost": "Perdido",
+      "open": "Aberto"
+    },
+    "allContacts": "Ver os {count} contatos",
+    "allDeals": "Ver os {count} negócios",
+    "allCompanies": "Ver as {count} empresas",
+    "openRecord": "Abrir o registro",
+    "types": {
+      "note": "Nota",
+      "email": "E-mail",
+      "call": "Ligação",
+      "task": "Tarefa",
+      "meeting": "Reunião",
+      "whatsapp": "WhatsApp"
+    }
   }
 }

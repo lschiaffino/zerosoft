@@ -405,8 +405,20 @@ export async function scopeChatCrmRef<T extends { crmContactId: string | null; c
   return (await scopeChatCrmRefs(viewer, [chat]))[0];
 }
 
+/** Una persona de un aviso de grupo (agregó, sacó, …) con el teléfono oculto: se muestra su nombre o el teléfono enmascarado. */
+function maskSysPerson(v: unknown): unknown {
+  const x = v as { p?: unknown; n?: unknown } | null;
+  if (!x || typeof x.p !== 'string' || !/^\d{5,20}$/.test(x.p)) return v;
+  return { p: maskField(x.p), n: typeof x.n === 'string' && x.n ? x.n : maskPhone(x.p) };
+}
+
 export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageDto): MessageDto {
   if (!viewer?.mask) return m;
+  const meta = (m.meta ?? {}) as Record<string, unknown>;
+  const sys = meta.sys as { by?: unknown; who?: unknown } | undefined;
+  // La lista de mencionados del mensaje (la pantalla no la usa): sin los teléfonos, solo los lid.
+  const listed = Array.isArray(meta.mentions) ? (meta.mentions as unknown[]).filter((x): x is string => typeof x === 'string' && !/^\d{5,20}$/.test(x)) : [];
+  const { mentions: _mentions, ...restMeta } = meta;
   return {
     ...m,
     senderPhone: m.senderPhone ? maskField(m.senderPhone) : '',
@@ -417,6 +429,16 @@ export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageD
     ...(m.mentionNames
       ? { mentionNames: Object.fromEntries(Object.entries(m.mentionNames).map(([d, t]) => [d, { ...t, phone: t.phone ? maskField(t.phone) : '' }])) }
       : {}),
+    // Avisos del grupo (agregó, sacó, …) sin teléfonos.
+    meta: {
+      ...restMeta,
+      ...(listed.length ? { mentions: listed } : {}),
+      ...(sys && typeof sys === 'object'
+        ? { sys: { ...sys, ...(sys.by ? { by: maskSysPerson(sys.by) } : {}), ...(Array.isArray(sys.who) ? { who: sys.who.map(maskSysPerson) } : {}) } }
+        : {}),
+    },
+    // La respuesta que cita un mensaje de otro chat: el teléfono de quien lo mandó, oculto.
+    ...(m.replyQuote ? { replyQuote: { ...m.replyQuote, senderPhone: m.replyQuote.senderPhone ? maskField(m.replyQuote.senderPhone) : '' } } : {}),
   };
 }
 

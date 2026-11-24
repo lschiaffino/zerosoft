@@ -13,6 +13,7 @@ import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import { PreviewNav, useListNav } from './RecordNav';
 import { useCrmLive } from './useCrmLive';
+import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
@@ -86,6 +87,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
   const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
   useListNav('companies', navIds);
   useCrmLive({ list: 'companies', ids: navIds });
+  // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
+  const rowIdList = navIds;
+  const expansion = useRowExpansion('company', rowIdList);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
   // (la barra masiva nunca actúa sobre registros que ya no se ven).
@@ -157,7 +161,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
         return (
           <RecordNameCell
             href={`/app/crm/companies/${row.id}`}
-            name={row.name}
+            name={row.name} expand={<ExpandToggle id={row.id} name={row.name} expanded={expansion.open.has(row.id)} onToggle={() => expansion.toggle(row.id)} />}
             avatar={<CompanyLogo domain={row.domain} name={row.name} size={24} />}
             onPreview={() => setPreviewId(row.id)}
           />
@@ -294,7 +298,8 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
+              <Fragment key={row.id}>
+              <tr className={`${selected.has(row.id) ? 'is-selected' : ''}${expansion.open.has(row.id) ? ' is-expanded' : ''}`.trim() || undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -308,6 +313,18 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
               </tr>
+              {expansion.open.has(row.id) && (
+                <RowExpansionRow
+                  kind="company"
+                  id={row.id}
+                  name={row.name}
+                  colSpan={order.length + 1}
+                  data={expansion.data[row.id]}
+                  onRetry={() => void expansion.retry(row.id)}
+                  onClose={() => expansion.toggle(row.id)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

@@ -15,6 +15,7 @@ import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
 import { PreviewNav, useListNav } from './RecordNav';
 import { useCrmLive } from './useCrmLive';
+import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import type { BulkEditField } from './BulkEditControls';
 import type { CustomCell, CustomColumn } from './customFieldViews';
@@ -147,6 +148,9 @@ export default function DealsTable({
   const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
   useListNav('deals', navIds);
   useCrmLive({ list: 'deals', ids: navIds });
+  // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
+  const rowIdList = navIds;
+  const expansion = useRowExpansion('deal', rowIdList);
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
@@ -179,7 +183,7 @@ export default function DealsTable({
     switch (id) {
       case 'name':
         // Como contactos y empresas: el nombre abre la vista previa; "Abrir" (o Cmd/Ctrl+clic) va al deal.
-        return <RecordNameCell href={`/app/crm/deals/${row.id}`} name={row.name} avatar={null} onPreview={() => setPreviewId(row.id)} />;
+        return <RecordNameCell href={`/app/crm/deals/${row.id}`} name={row.name} expand={<ExpandToggle id={row.id} name={row.name} expanded={expansion.open.has(row.id)} onToggle={() => expansion.toggle(row.id)} />} avatar={null} onPreview={() => setPreviewId(row.id)} />;
       case 'amount':
         return (
           <td className="cell-amount num" data-card="line">
@@ -326,7 +330,8 @@ export default function DealsTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
+              <Fragment key={row.id}>
+              <tr className={`${selected.has(row.id) ? 'is-selected' : ''}${expansion.open.has(row.id) ? ' is-expanded' : ''}`.trim() || undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -340,6 +345,18 @@ export default function DealsTable({
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
               </tr>
+              {expansion.open.has(row.id) && (
+                <RowExpansionRow
+                  kind="deal"
+                  id={row.id}
+                  name={row.name}
+                  colSpan={order.length + 1}
+                  data={expansion.data[row.id]}
+                  onRetry={() => void expansion.retry(row.id)}
+                  onClose={() => expansion.toggle(row.id)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

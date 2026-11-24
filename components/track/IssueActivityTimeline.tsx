@@ -50,7 +50,15 @@ interface ActivityLabels extends ActivityEventLabels {
 }
 
 interface IssueActivityTimelineProps {
+  /** Id del issue (o del project / la iniciativa, con `apiBase`). */
   issueId: string;
+  /**
+   * Dónde viven los comentarios (comments, comments/[id], …/resolve,
+   * …/reactions). Por defecto los del issue; los hilos de projects e
+   * iniciativas usan /api/track/plans/<id> y /api/track/initiatives/<id>.
+   */
+  apiBase?: string;
+
   locale: string;
   /** Usuario actual: solo el autor ve editar/borrar en sus comentarios. */
   userId?: string;
@@ -87,6 +95,8 @@ interface CommentItem {
   editedAt: string | null;
   resolvedAt: string | null;
   resolvedBy: string | null;
+  /** Comentario en línea: el texto de la descripción al que apunta. */
+  anchor: string | null;
 }
 
 function toComment(a: TrackIssueActivityWithAuthor): CommentItem {
@@ -100,11 +110,13 @@ function toComment(a: TrackIssueActivityWithAuthor): CommentItem {
     editedAt: str(meta.editedAt),
     resolvedAt: str(meta.resolvedAt),
     resolvedBy: str(meta.resolvedBy),
+    anchor: str(meta.anchor),
   };
 }
 
 export default function IssueActivityTimeline({
   issueId,
+  apiBase: apiBaseProp,
   locale,
   userId,
   activities,
@@ -119,6 +131,7 @@ export default function IssueActivityTimeline({
   onCreateSubIssue,
 }: IssueActivityTimelineProps) {
   const mounted = useMounted();
+  const apiBase = apiBaseProp ?? `/api/track/issues/${issueId}`;
   const tt = useTranslations('track.ux.thread');
   const tp = useTranslations('track.priorities');
   const attachmentUrls = useMemo(() => new Map(attachments.map((a) => [a.id, a.url])), [attachments]);
@@ -163,7 +176,7 @@ export default function IssueActivityTimeline({
   }, [reactions]);
 
   // Comentarios escritos sin conexión que esperan en este dispositivo.
-  const commentsPath = `/api/track/issues/${issueId}/comments`;
+  const commentsPath = `${apiBase}/comments`;
   const queuedRows = usePendingWrites(commentsPath, (p, m) => m === 'POST' && p === commentsPath);
   const queuedComments = queuedRows.flatMap((r) => {
     try {
@@ -177,7 +190,7 @@ export default function IssueActivityTimeline({
   async function post(body: string, parentId?: string): Promise<boolean> {
     setError(null);
     // Sin red queda en el dispositivo y se publica al volver (se ve abajo como pendiente).
-    const { res, queued } = await offlineFetch(`/api/track/issues/${issueId}/comments`, {
+    const { res, queued } = await offlineFetch(`${apiBase}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parentId ? { body, parentId } : { body }),
@@ -223,7 +236,7 @@ export default function IssueActivityTimeline({
     if (!body) return;
     setEditBusy(true);
     try {
-      const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}`, {
+      const res = await fetch(`${apiBase}/comments/${commentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body }),
@@ -239,7 +252,7 @@ export default function IssueActivityTimeline({
 
   async function removeComment(commentId: string) {
     if (!window.confirm(labels.deleteCommentConfirm)) return;
-    const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}`, { method: 'DELETE' });
+    const res = await fetch(`${apiBase}/comments/${commentId}`, { method: 'DELETE' });
     if (res.ok) onChange?.();
   }
 
@@ -250,7 +263,7 @@ export default function IssueActivityTimeline({
       ? reactions.filter((r) => !(r.comment_id === commentId && r.emoji === emoji && r.user_id === userId))
       : [...reactions, { comment_id: commentId, emoji, user_id: userId ?? '', user_name: tt('you') }];
     onReactions?.(optimistic);
-    const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}/reactions`, {
+    const res = await fetch(`${apiBase}/comments/${commentId}/reactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ emoji }),
@@ -265,7 +278,7 @@ export default function IssueActivityTimeline({
   }
 
   async function resolve(commentId: string, resolved: boolean) {
-    const res = await fetch(`/api/track/issues/${issueId}/comments/${commentId}/resolve`, {
+    const res = await fetch(`${apiBase}/comments/${commentId}/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resolved }),
@@ -463,10 +476,27 @@ export default function IssueActivityTimeline({
                   <TrackIcon name="reply" size={14} />
                 </button>
               )}
+              {isRoot && c.anchor && !c.resolvedAt && (
+                <button
+                  type="button"
+                  className="track-inline-trigger track-comment-tool"
+                  aria-label={tt('resolve')}
+                  title={tt('resolve')}
+                  onClick={() => void resolve(c.id, true)}
+                  data-testid="track-inline-resolve"
+                >
+                  <TrackIcon name="check" size={14} />
+                </button>
+              )}
               {commentMenu(c, isRoot)}
             </span>
           )}
         </div>
+        {isRoot && c.anchor && (
+          <blockquote className="track-comment-quote" data-testid="track-comment-quote">
+            {c.anchor}
+          </blockquote>
+        )}
         {editing ? (
           <div className="track-comment-edit">
             <RichEditor
