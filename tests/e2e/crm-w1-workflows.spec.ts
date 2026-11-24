@@ -58,7 +58,9 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
       const runs = page.getByTestId('workflow-runs');
       await expect(runs).toBeVisible(NAV);
       await expect(runs.getByRole('link', { name: `Wanda W1${tag}` })).toBeVisible();
-      await expect(runs.locator('tr[data-status="waiting"]')).toHaveCount(1);
+      // El workspace es compartido por las dos pantallas: el workflow de la otra también inscribe
+      // contactos nuevos, así que se cuentan solo las filas de este contacto y de este workflow.
+      await expect(runs.locator('tr[data-status="waiting"]').filter({ has: page.getByRole('link', { name: `Wanda W1${tag}` }) })).toHaveCount(1);
       // Inscripción: sin reinscripción, y un filtro se agrega y se quita.
       const enroll = page.getByTestId('workflow-enrollment').first();
       await expect(enroll.getByTestId('workflow-reenroll')).not.toBeChecked();
@@ -75,7 +77,7 @@ for (const [name, viewport] of [['1280', DESKTOP], ['390', PHONE]] as const) {
       const card = page.getByTestId('record-workflows');
       await expect(card).toBeVisible(NAV);
       await expect(card.getByRole('link', { name: `Follow up ${tag}` })).toBeVisible();
-      await expect(card.locator('li[data-status="waiting"]')).toHaveCount(1);
+      await expect(card.locator('li[data-status="waiting"]').filter({ has: page.getByRole('link', { name: `Follow up ${tag}` }) })).toHaveCount(1);
       await card.scrollIntoViewIfNeeded();
       await noHorizontalScroll(page);
       await page.screenshot({ path: `test-results/crm-w1-record-${name}.png`, fullPage: false });

@@ -1112,6 +1112,175 @@ dialog.ui-drawer.track-drawer {
   color: var(--brand-gray-2);
 }
 
+/* ---------- Bandeja con el issue al lado (como Linear) ----------
+   Escritorio: la lista a la izquierda y el issue del aviso abierto a la
+   derecha, con su propio scroll; la lista no se mueve. Teléfono y ventanas
+   angostas: el issue ocupa la página y la lista vuelve con la cruz o Esc. */
+
+.track-page.track-inbox-shell {
+  max-width: none;
+}
+
+.track-inbox-split {
+  min-width: 0;
+}
+
+.track-inbox-pane {
+  display: none;
+  min-width: 0;
+}
+
+.track-inbox-split.has-open .track-inbox-pane {
+  display: block;
+}
+
+.track-inbox-split.has-open > .track-inbox-page {
+  display: none;
+}
+
+/* El issue dentro del panel: sin el ancho ni el sticky de página. */
+.track-inbox-pane .app-page.track-detail {
+  max-width: none;
+}
+
+.track-inbox-item.is-open {
+  background: var(--ui-selected);
+}
+
+.track-inbox-pane-empty {
+  margin: 0;
+  padding: 48px 24px;
+  font-size: 0.875rem;
+  text-align: center;
+  color: var(--brand-gray-2);
+}
+
+@media (min-width: 1024px) {
+  .track-inbox-split {
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    align-items: start;
+    gap: 0;
+  }
+
+  /* La lista va arriba del panel: sus menús (Posponer, "…") se abren encima del issue. */
+  .track-inbox-split > .track-inbox-page,
+  .track-inbox-split.has-open > .track-inbox-page {
+    display: flex;
+    position: relative;
+    z-index: 1;
+    padding-right: 20px;
+  }
+
+  .track-inbox-pane {
+    display: block;
+    position: sticky;
+    top: var(--band-h, 48px);
+    height: calc(100dvh - var(--band-h, 48px) - 24px);
+    margin-top: -24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 24px 0 24px 24px;
+    border-left: 1px solid var(--line);
+    z-index: 0;
+  }
+
+  .track-inbox-pane-empty {
+    padding-top: 30vh;
+  }
+
+  /* Lista angosta: las acciones de la fila se superponen a la hora al pasar, sin robar ancho. */
+  /* Sin transform: un transform haría de los menús fijos (Posponer) hijos de la fila y se correrían. */
+  .track-inbox-split .track-inbox-item:not(.is-snoozed) .track-inbox-actions {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    background: inherit;
+  }
+
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):hover .track-inbox-actions,
+  .track-inbox-split .track-inbox-item.is-kb-active:not(.is-snoozed) .track-inbox-actions,
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):focus-within .track-inbox-actions {
+    background: var(--ui-selected);
+  }
+
+  .track-inbox-split .track-inbox-item:not(.is-snoozed):not(:hover):not(.is-kb-active):not(:focus-within) .track-inbox-actions {
+    pointer-events: none;
+  }
+
+  .track-inbox-split .track-inbox-item:not(.is-snoozed) {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+
+  /* Pospuestos: "Traer de vuelta" siempre a la vista, en su propia columna (no tapa la hora). */
+
+  /* El issue en el panel: la sticky de la columna de propiedades no aplica dentro del scroll. */
+  .track-inbox-pane .track-issue-page .track-detail-side {
+    position: static;
+    min-height: 0;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-main {
+    padding-right: 24px;
+  }
+}
+
+/* Teléfono y ventanas angostas: la cruz que vuelve a la lista, de 40px. */
+@media (max-width: 1023px) {
+  .track-head-icon.track-panel-close {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Panel angosto (pantallas de hasta 1599px: el panel queda por debajo de ~720px): el issue apila
+   las propiedades como en el teléfono. Media query y no container query: un contenedor de tamaño
+   haría del panel el bloque de los menús fijos del issue y los cortaría. */
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .track-inbox-pane .track-issue-page .track-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-main {
+    padding: 8px 0 24px;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-side {
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .track-inbox-pane .track-issue-page .track-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .track-inbox-pane .track-issue-page .track-prop-chip {
+    margin-left: 0;
+    border: 1px solid var(--line);
+  }
+
+  .track-inbox-pane .track-issue-page .track-prop-group {
+    padding: 0;
+  }
+}
+
+/* El issue que no se puede abrir en el panel (borrado, de otro workspace). */
+.track-inbox-pane-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 0;
+}
+
 /* ---------- Detalle del issue ----------
    Mismo ancho que el resto de las páginas: el filete de 4px termina igual. */
 
@@ -3452,4 +3621,10 @@ body:has(.track-bulk-bar) .track-undo-toasts { bottom: 72px; }
     max-width: none;
     max-height: 60vh;
   }
+}
+
+.track-inbox-pane-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
