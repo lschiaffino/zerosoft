@@ -45,4 +45,8 @@ test('Lines: las pestañas de filtro esfuman el borde con más para ver', async 
   const row = page.locator('.gr-filters[role="tablist"]');
   await row.evaluate((el) => ((el as HTMLElement).style.maxWidth = '220px'));
   await checkFade(row);
+  // Las pestañas se ensanchan sin que cambie la caja de la fila (la letra de la app llega tarde): el borde
+  // derecho vuelve a esfumarse en vez de quedar una pestaña cortada.
+  await row.evaluate((el) => el.querySelectorAll<HTMLElement>('.gr-filter').forEach((b) => (b.style.letterSpacing = '4px')));
+  await expect(row).toHaveAttribute('data-more-right', '');
 });

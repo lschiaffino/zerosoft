@@ -25,6 +25,7 @@ import { groupAlbums } from '@/lib/wa-albums';
 import { MessageMenu, openMenuAt, pointerOf, type MenuItem } from '@/components/groups/wa/Menu';
 import { colorIndex, dayLabel, firstUrl, localDayKey, onlyEmoji } from '@/components/groups/wa/format';
 import { ArrowDown, ArrowLeft, Ban, Bell, CheckCircle, Chevron, ClockIcon, CopyIcon, FolderIcon, Forwarded, InfoIcon, Note, FlagIcon, PinIcon, PollIcon, Plus, Retry, Search as SearchIcon, Smiley, StarIcon, Ticks, Trash } from '@/components/groups/wa/icons';
+import { showDetailsTab } from '@/components/groups/wa/DetailsTabs';
 import { ChatSearchPanel, useChatSearchShortcut, type ChatSearchFn } from '@/components/groups/wa/ChatSearch';
 import type { MessageHit } from '@/lib/inbox/message-search';
 import TouchMessageMenu from '@/components/groups/wa/TouchMessageMenu';
@@ -40,6 +41,7 @@ import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
 import WaComposer, { ComposerBanner } from './WaComposer';
 import { chatName, formatPhone, groupReactions, senderLabel } from './util';
+import { groupSubtitle } from '@/lib/wa-group-subtitle';
 import { mentionLabels, replaceMentions } from '@/lib/wa-mentions';
 import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
@@ -220,10 +222,7 @@ const WaConversation = forwardRef<
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
   const [hitId, setHitId] = useState<string | null>(null);
-  const [notesOpen, setNotesOpen] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
-  const [notesState, setNotesState] = useState<'' | 'saving' | 'saved'>('');
   const [recording, setRecording] = useState(false);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -316,7 +315,6 @@ const WaConversation = forwardRef<
     setFullPickerFor(null);
     setRxFor(null);
     setRevealed(new Set());
-    setNotesOpen(false);
     setHeld(null);
   }, [thread.id]);
 
@@ -737,27 +735,20 @@ const WaConversation = forwardRef<
   } else if (!group && thread.presence === 'online') subtitle = w('online');
   else if (!group && thread.lastSeenAt) subtitle = lastSeen(thread.lastSeenAt, locale, w);
   else if (group && wa?.participants.length) {
-    const list = wa.participants.map((p) => (p.me ? w('you') : p.name || formatPhone(p.phone)));
-    const mine = list.indexOf(w('you'));
-    if (mine > 0) list.push(list.splice(mine, 1)[0]);
-    subtitle = list.join(', ');
+    subtitle = groupSubtitle(wa.participants.map((p) => ({ name: p.name, phone: formatPhone(p.phone), me: p.me })), w('you'), wa.size) || w('clickInfo');
   } else subtitle = w('clickInfo');
 
-  const openNotes = async () => {
-    if (notesOpen) {
-      setNotesOpen(false);
-      return;
-    }
-    const r = await api<{ notes: string }>(`/api/inbox/threads/${thread.id}`);
-    setNotes(r.ok ? String(r.data.notes ?? '') : '');
-    setNotesOpen(true);
+  // Notas del chat: la pestaña Notas del panel de info (components/inbox/wa/ThreadNotes.tsx).
+  const openNotes = () => {
+    showDetailsTab('notes');
+    if (!props.infoOpen) props.onToggleInfo();
   };
 
   // Comandos "/" del campo: las mismas acciones de esta cabecera y de su menú.
   const slashCommands = useInboxThreadCommands({
     thread,
     onAction,
-    openNotes: () => void openNotes(),
+    openNotes,
     openInfo: props.onToggleInfo,
     rename: () => setRenaming(thread.title),
     attach: connected ? () => document.querySelector<HTMLInputElement>('.ib-wa-attach input[type=file]')?.click() : undefined,
@@ -792,7 +783,7 @@ const WaConversation = forwardRef<
     { key: 'search', label: gw('chatSearch.open'), onSelect: () => setSearchOpen(true) },
     { key: 'followUp', label: t('actions.followUp'), onSelect: () => onAction('followUp') },
     { key: 'move', label: t('actions.move'), onSelect: () => onAction('move') },
-    { key: 'notes', label: t('actions.notes'), onSelect: () => void openNotes() },
+    { key: 'notes', label: t('actions.notes'), onSelect: openNotes },
     { key: 'rename', label: t('actions.rename'), onSelect: () => setRenaming(thread.title) },
     { key: 'unread', label: thread.unread ? mo('read') : mo('unread'), divider: true, onSelect: () => onAction('unread') },
     { key: 'pin', label: thread.pinned ? mo('unpin') : mo('pin'), onSelect: () => onAction('pin') },
@@ -1249,7 +1240,7 @@ const WaConversation = forwardRef<
           <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
           <span className="gr-thread-title">
             <h2 dir="auto">{name}</h2>
-            <span className={`wa-head-sub${live ? ' is-typing' : ''}`}>{subtitle}</span>
+            <span className={`wa-head-sub${live ? ' is-typing' : ''}`} data-testid="wa-head-sub">{subtitle}</span>
           </span>
         </button>
         <div className="gr-thread-actions" data-tour="inbox-triage">
@@ -1265,7 +1256,7 @@ const WaConversation = forwardRef<
           <button type="button" className="wa-icon-btn ib-hide-sm" onClick={() => onAction('move')} aria-label={t('actions.move')} title={`${t('actions.move')} (V)`}>
             <FolderIcon size={20} />
           </button>
-          <button type="button" className={`wa-icon-btn ib-hide-sm${notesOpen ? ' is-on' : ''}`} onClick={() => void openNotes()} aria-expanded={notesOpen} aria-label={t('actions.notes')} title={t('actions.notes')}>
+          <button type="button" className="wa-icon-btn ib-hide-sm" onClick={openNotes} aria-label={t('actions.notes')} title={t('actions.notes')}>
             <Note size={20} />
           </button>
           {thread.pinned && <PinIcon size={16} label={t('list.pinned')} />}
@@ -1309,41 +1300,6 @@ const WaConversation = forwardRef<
           {thread.snoozedUntil && thread.followUpAt && ' · '}
           {thread.followUpAt && t('list.followUpAt', { when: longWhen(thread.followUpAt, locale) })}
         </p>
-      )}
-      {notesOpen && (
-        <div className="ib-notes">
-          <label className="label" htmlFor="ib-notes-text">
-            {t('notes.label')}
-          </label>
-          <p className="ib-help">{t('notes.help')}</p>
-          <textarea
-            id="ib-notes-text"
-            className="textarea"
-            rows={5}
-            value={notes}
-            maxLength={20000}
-            onChange={(e) => {
-              setNotes(e.target.value);
-              setNotesState('');
-            }}
-          />
-          <div className="ib-row">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              disabled={notesState === 'saving'}
-              onClick={async () => {
-                setNotesState('saving');
-                const r = await api(`/api/inbox/threads/${thread.id}`, { method: 'PATCH', json: { notes } });
-                setNotesState(r.ok ? 'saved' : '');
-                if (!r.ok) onError(r.data.error ?? 'generic');
-              }}
-            >
-              {notesState === 'saving' ? t('notes.saving') : t('notes.save')}
-            </button>
-            {notesState === 'saved' && <span className="ib-dim">{t('notes.saved')}</span>}
-          </div>
-        </div>
       )}
       <RefreshMissingBar state={refreshMissing.state} count={refreshMissing.count} onRetry={() => void refreshMissing.run()} onDismiss={refreshMissing.dismiss} />
       <div className="wa-scroll">

@@ -114,7 +114,7 @@ export async function personCard(viewer: GroupsViewer, groupId: string, phone: s
   };
 }
 
-export type SharedKind = 'media' | 'docs' | 'links' | 'starred';
+export type SharedKind = 'media' | 'docs' | 'links' | 'starred' | 'notes';
 
 export interface SharedItem {
   id: string;
@@ -127,6 +127,8 @@ export interface SharedItem {
   fromMe: boolean;
   senderName: string;
   urls?: string[];
+  /** Notas internas: quién de la cuenta la escribió (id de la persona; la pantalla pone el nombre). */
+  authorId?: string | null;
 }
 
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
@@ -134,6 +136,16 @@ const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 /** Lo compartido en un chat (fotos y videos, documentos, links o destacados), lo más nuevo primero. */
 export async function sharedContent(viewer: GroupsViewer, chatId: string, kind: SharedKind): Promise<SharedItem[]> {
   if (!(await canSeeChat(viewer, chatId))) throw new GroupsError('not_found', 404);
+  // Notas internas del chat (las ve quien ve el chat, como en la conversación): las últimas primero.
+  if (kind === 'notes') {
+    const notes = (await getDb()
+      .prepare(
+        `SELECT id, body, author_id, created_at FROM groups_messages
+         WHERE chat_id = ? AND user_id = ? AND direction = 'note' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100`,
+      )
+      .all(chatId, viewer.ws)) as Array<{ id: string; body: string; author_id: string | null; created_at: string }>;
+    return notes.map((r) => ({ id: r.id, kind, url: '', mime: '', name: '', body: r.body.slice(0, 2000), sentAt: r.created_at, fromMe: false, senderName: '', authorId: r.author_id }));
+  }
   const where =
     kind === 'media'
       ? "deleted_at IS NULL AND (media_type LIKE 'image/%' OR media_type LIKE 'video/%') AND COALESCE(json_extract(CASE WHEN json_valid(meta) THEN meta END, '$.media.kind'), '') <> 'sticker'"

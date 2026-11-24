@@ -5,11 +5,10 @@
  * las de mis notas y las que me asignaron en notas de otras personas. Las
  * notas bloqueadas y las de la papelera no aparecen. Server-only.
  */
+import { personCanUseApp } from './workspace-apps';
 import { getDb, type NoteRow } from './db';
 import type { DocsBlock } from './docs-types';
-import { personAppAccess } from './api-auth';
 import { createNotification } from './notifications';
-import { canUseApp } from './workspace';
 import { updateNote, type NoteOwner } from './notes';
 import { listNoteShares, noteShareCandidates, resolveNoteAccess, setNoteShare } from './notes-shares';
 import { blocksToText, noteHref } from './notes-types';
@@ -225,8 +224,8 @@ export async function fireNoteTasksDue(opts: { limit?: number; now?: Date } = {}
     // Solo a quien todavía puede abrir la nota; si no, al dueño (y se limpia la asignación).
     let recipient = r.person_id;
     if (r.assignee_id && r.assignee_id !== r.person_id) {
-      const member = await personAppAccess(r.workspace_id, r.assignee_id);
-      if (member && canUseApp({ role: member.role, apps: member.apps as never }, 'notes') && (await resolveNoteAccess({ workspaceId: r.workspace_id, personId: r.assignee_id }, r.note_id))) recipient = r.assignee_id;
+      const member = await personCanUseApp(r.workspace_id, r.assignee_id, 'notes');
+      if (member && (await resolveNoteAccess({ workspaceId: r.workspace_id, personId: r.assignee_id }, r.note_id))) recipient = r.assignee_id;
       else await db.prepare('UPDATE note_tasks SET assignee_id = NULL WHERE note_id = ? AND block_id = ?').run(r.note_id, r.block_id);
     }
     await createNotification({

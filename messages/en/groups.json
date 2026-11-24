@@ -2086,6 +2086,36 @@
         "film": "Film"
       }
     },
+    "details": {
+      "tabsLabel": "Chat details",
+      "tabs": {
+        "info": "Info",
+        "members": "Members",
+        "media": "Files",
+        "notes": "Notes",
+        "tasks": "Tasks",
+        "crm": "CRM"
+      },
+      "empty": {
+        "media": "No photos or videos in this chat yet",
+        "docs": "No documents in this chat yet",
+        "links": "No links in this chat yet",
+        "notes": "No internal notes in this chat yet."
+      },
+      "loadError": "Couldn't load this.",
+      "retry": "Try again",
+      "saveError": "Couldn't save. Try again.",
+      "you": "You",
+      "teammate": "A teammate",
+      "notesTitle": "Internal notes",
+      "notesHint": "Write one with Internal note under the conversation. Your team sees them; the contact doesn't.",
+      "deals": "Deals",
+      "noDeals": "No deals for the linked contact or company.",
+      "untitledDeal": "Untitled deal",
+      "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it.",
+      "sharedLabel": "Shared in this chat",
+      "noteAttachment": "Note with an attachment"
+    },
     "contactSheet": {
       "title": "Contact info",
       "close": "Close",

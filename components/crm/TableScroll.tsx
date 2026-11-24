@@ -20,6 +20,8 @@ export default function TableScroll({ children }: { children: ReactNode }) {
       const left = el.scrollLeft > 1;
       const right = max - el.scrollLeft > 1;
       setEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+      // El ancho a la vista: una fila desplegada (RowExpansion) lo usa para quedar entera aunque la tabla esté desplazada.
+      el.style.setProperty('--table-view-w', `${el.clientWidth}px`);
     };
     update();
     el.addEventListener('scroll', update, { passive: true });

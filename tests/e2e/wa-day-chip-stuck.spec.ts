@@ -24,7 +24,11 @@ function watchErrors(page: Page): string[] {
 
 /** Un chat 1:1 con muchos mensajes de hace dos días y uno de hoy: dos fechas, la vieja larga. */
 function events(name: string, jid: string, tag: string) {
-  const old = Date.now() - 2 * 86_400_000;
+  // Mediodía UTC de hace dos días: los 30 minutos de mensajes nunca cruzan la medianoche (cerca de las 00 UTC
+  // salían tres fechas en vez de dos).
+  const day = new Date();
+  day.setUTCDate(day.getUTCDate() - 2);
+  const old = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 12);
   const msg = (i: number, at: number) => ({
     type: 'message', chatId: jid, isGroup: false, fromMe: i % 3 === 0, senderPhone: i % 3 === 0 ? '' : jid.replace(/@.*/, ''), senderName: i % 3 === 0 ? '' : name,
     providerMessageId: `day-${tag}-${i}`, body: `Mensaje de prueba número ${i} con algo de texto para ocupar la línea`, timestamp: new Date(at).toISOString(),
