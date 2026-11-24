@@ -790,6 +790,8 @@ export interface CrmSettingsRow {
   member_visibility: string;
   /** JSON string[] con los resultados de llamada; NULL = los de siempre. */
   call_outcomes?: string | null;
+  /** 1 = el lifecycle de contactos y empresas avanza solo con sus deals (C2). */
+  lifecycle_auto?: number;
   updated_at: string;
 }
 
