@@ -1518,7 +1518,8 @@
     "too_many_labels": "Você atingiu o limite de rótulos para esta associação.",
     "invalid_queue": "Essa fila não existe ou você não pode vê-la.",
     "too_many": "Este workspace atingiu o limite.",
-    "too_many_tasks": "Dá para criar tarefas para até 200 registros por vez. Restrinja a visualização e tente de novo."
+    "too_many_tasks": "Dá para criar tarefas para até 200 registros por vez. Restrinja a visualização e tente de novo.",
+    "invalid_option": "Esse valor não é uma opção ativa desta propriedade. Recarregue a página para ver as opções atuais."
   },
   "filters": {
     "advanced": "Filtros avançados",
@@ -5498,6 +5499,42 @@
     },
     "clear": "Limpar seleção",
     "error": "Não foi possível selecionar. Tente de novo."
+  },
+  "propertyOptions": {
+    "title": "Opções de estágio do ciclo de vida e status do lead",
+    "desc": "Adicione, renomeie, ordene e arquive as opções dessas duas propriedades. Os registros mantêm uma opção arquivada; ela só deixa de ser oferecida. Um nome novo aparece em todos os registros.",
+    "properties": {
+      "lifecycle": "Estágio do ciclo de vida",
+      "leadStatus": "Status do lead"
+    },
+    "placeholders": {
+      "lifecycle": "Novo estágio, por exemplo Parceiro",
+      "leadStatus": "Novo status, por exemplo Em nutrição"
+    },
+    "add": "Adicionar opção",
+    "addLabel": "Nova opção de {property}",
+    "nameOf": "Nome da opção: {name}",
+    "records": "{count, plural, =0 {Nenhum registro} one {# registro} other {# registros}}",
+    "archive": "Arquivar",
+    "restore": "Restaurar",
+    "archivedTitle": "Arquivadas",
+    "archivedName": "{name} (arquivada)",
+    "errors": {
+      "option_not_found": "Essa opção não existe mais. Recarregue a página.",
+      "option_limit": "Esta propriedade já tem o máximo de opções.",
+      "option_duplicate": "Já existe outra opção com esse nome.",
+      "option_last_active": "Deixe pelo menos uma opção ativa.",
+      "invalid_input": "Escreva um nome para a opção."
+    },
+    "autoTitle": "Estágio do ciclo de vida automático",
+    "autoDesc": "Como no HubSpot: quando um negócio é criado, seus contatos e empresas passam para Oportunidade; quando é ganho, para Cliente. Só avança, nunca volta. Cada mudança fica na linha do tempo do registro.",
+    "autoLabel": "Avançar o estágio do ciclo de vida com os negócios",
+    "systemActor": "Automático",
+    "reasons": {
+      "deal_created": "um negócio foi criado",
+      "deal_won": "um negócio foi ganho"
+    },
+    "changedTo": "O estágio do ciclo de vida mudou sozinho de {from} para {to}"
   },
   "comments": {
     "add": "Comentar",

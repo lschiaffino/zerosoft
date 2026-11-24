@@ -5,10 +5,10 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   ACTIVITY_TYPES,
-  LIFECYCLE_STAGES,
   PRIORITIES,
   SOURCES,
 } from '@/lib/crm-constants';
+import { useCrmOptions } from './CrmViewer';
 import { type CrmReports } from '@/lib/crm';
 import {
   type ActivityLeaderboard,
@@ -653,6 +653,7 @@ export default function ReportsView({
   conversionRate,
 }: ReportsViewProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
 
   const funnelMax = Math.max(...funnel.map((s) => s.count), 1);
   const forecastTotal = forecastByStage.reduce((s, f) => s + f.forecast, 0);
@@ -660,8 +661,7 @@ export default function ReportsView({
 
   const sourceLabel = (n: string) =>
     (SOURCES as readonly string[]).includes(n) ? t(`enums.source.${n}`) : n;
-  const lifecycleLabel = (n: string) =>
-    (LIFECYCLE_STAGES as readonly string[]).includes(n) ? t(`enums.lifecycle.${n}`) : n;
+  const lifecycleLabel = (n: string) => crmOpts.label('lifecycle', n) || n;
   const activityLabel = (n: string) =>
     (ACTIVITY_TYPES as readonly string[]).includes(n) ? t(`enums.activityType.${n}`) : n;
   const priorityLabel = (n: string) =>
