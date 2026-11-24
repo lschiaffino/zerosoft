@@ -52,6 +52,8 @@ import { listObjects, objectEntity } from '@/lib/crm-objects';
 import { fieldAccessFor, listFieldPermissions, sessionFieldViewer, visibleFieldDefinitions } from '@/lib/crm-field-perms';
 import AppsPanel from '@/components/crm/AppsPanel';
 import AssociationLabelsPanel from '@/components/crm/AssociationLabelsPanel';
+import { LifecycleAutoSetting, PropertyOptionsPanel } from '@/components/crm/PropertyOptionsPanel';
+import { listOptionSets, optionUsage } from '@/lib/crm-property-options';
 import CreateFormPanel from '@/components/crm/CreateFormPanel';
 import { resolveCreateForm } from '@/lib/crm-create-form';
 import { listAssociationLabels } from '@/lib/crm-assoc-labels';
@@ -203,6 +205,14 @@ export default async function CrmSettingsPage(props: {
     );
   } else if (tab === 'data') {
     const viewer = sessionFieldViewer(user);
+    const [optionSets, lifecycleUsage, leadStatusUsage, crmSettingsData] = await Promise.all([
+      listOptionSets(user.id),
+      // Cuántos registros tiene cada opción cuenta todo el workspace: solo para quien lo ve todo (admins).
+      admin ? optionUsage(user.id, 'lifecycle') : Promise.resolve({}),
+      admin ? optionUsage(user.id, 'leadStatus') : Promise.resolve({}),
+      getCrmSettings(user.id),
+    ]);
+    const optionUsageMap = { lifecycle: lifecycleUsage, leadStatus: leadStatusUsage };
     const [customFields, tags, objects, permissions, salesTeams, assocLabels, contactForm, companyForm, dealForm] = await Promise.all([
       visibleFieldDefinitions(viewer),
       listTags(user.id, undefined, await sessionScope(user)),
@@ -228,6 +238,10 @@ export default async function CrmSettingsPage(props: {
         <FormSection setting="crm-custom-fields" title={t('settings.customFields')} description={t('settings.customFieldsDesc')}>
           <CustomFieldsPanel initialFields={customFields.filter((f) => !f.entity.startsWith('obj:'))} canEditUnique={admin} />
         </FormSection>
+        <FormSection setting="crm-property-options" title={t('propertyOptions.title')} description={t('propertyOptions.desc')}>
+          <PropertyOptionsPanel initial={optionSets} usage={optionUsageMap} canEdit={admin} />
+        </FormSection>
+        <LifecycleAutoSetting initial={crmSettingsData.lifecycleAuto} canEdit={admin} />
         <FormSection setting="crm-create-form" title={t('createForm.title')} description={t('createForm.desc')}>
           <CreateFormPanel
             initial={{ contacts: plain(contactForm), companies: plain(companyForm), deals: plain(dealForm) }}

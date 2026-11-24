@@ -10,6 +10,7 @@ import {
   type ResolvedCreateField,
 } from '@/lib/crm-create-form-shared';
 import { CUSTOM_PREFIX } from './formPayload';
+import { useCrmOptions } from './CrmViewer';
 
 export interface CreateFormOption {
   value: string;
@@ -110,6 +111,7 @@ interface CreateFormFieldsProps {
  */
 export default function CreateFormFields({ entity, fields, variant, idPrefix, ctx = {} }: CreateFormFieldsProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const label = useFieldLabel(entity);
   const quick = variant === 'quick';
   const cls = (kind: 'input' | 'select' | 'textarea') => (quick ? undefined : kind);
@@ -221,13 +223,18 @@ export default function CreateFormFields({ entity, fields, variant, idPrefix, ct
     const def = builtinField(entity, f.key);
     if (!def) return null;
     switch (def.input) {
-      case 'select':
+      case 'select': {
+        // Lifecycle y lead status: las opciones activas del workspace (Ajustes › Datos › Opciones).
+        const optionProp = def.enumKey === 'lifecycle' || def.enumKey === 'leadStatus' ? def.enumKey : null;
         return wrap(
           select(
-            (def.options ?? []).map((v) => ({ value: v, label: t(`enums.${def.enumKey}.${v}`) })),
+            optionProp
+              ? crmOpts.choices(optionProp)
+              : (def.options ?? []).map((v) => ({ value: v, label: t(`enums.${def.enumKey}.${v}`) })),
             def.defaultValue ? { defaultValue: def.defaultValue, empty: null } : {},
           ),
         );
+      }
       case 'company':
         return wrap(
           select(ctx.companies ?? [], {
