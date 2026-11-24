@@ -140,6 +140,33 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await expect(page.getByRole('menu')).toBeVisible();
   await page.mouse.click(5, 790);
   await expect(page.getByRole('menu')).toHaveCount(0);
+  // La fila del teclado sigue: otra H vuelve a abrir Posponer, con los textos enteros.
+  await expect(row(page, s.assigned)).toHaveClass(/is-kb-active/);
+  await page.keyboard.press('h');
+  await expect(page.getByRole('menu')).toBeVisible();
+  for (const item of await page.getByRole('menuitem').all()) {
+    expect(await item.evaluate((el) => [...el.querySelectorAll('span')].every((x) => x.scrollWidth <= x.clientWidth + 1))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+
+  // U dos veces seguidas con el servidor lento: queda como estaba (optimista y en fila).
+  await page.route('**/api/notifications/*', async (route) => {
+    if (route.request().method() === 'PATCH') await new Promise((r) => setTimeout(r, 400));
+    await route.continue();
+  });
+  const patched = (r: { request(): { method(): string }; url(): string }) =>
+    r.request().method() === 'PATCH' && r.url().includes(`/api/notifications/${s.assigned}`);
+  await row(page, s.assigned).locator('.track-inbox-link').focus();
+  const first = page.waitForResponse(patched);
+  await page.keyboard.press('u');
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'true');
+  await page.keyboard.press('u');
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
+  await first;
+  // El segundo pedido sale cuando termina el primero (en fila).
+  await page.waitForResponse(patched);
+  await expect(row(page, s.assigned)).toHaveAttribute('data-read', 'false');
+  await page.unroute('**/api/notifications/*');
 
   // Backspace borra y la siguiente queda activa.
   await row(page, s.assigned).locator('.track-inbox-link').focus();
@@ -157,7 +184,7 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await row(page, s.status).getByRole('button').click();
   await expect(row(page, s.status)).toHaveCount(0);
 
-  // Enter abre el issue (y lo marca leído).
+  // Enter abre el issue al lado de la lista (y lo marca leído).
   await page.getByTestId('track-inbox-tab-priority').click();
   await expect(row(page, s.status)).toBeVisible();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -165,9 +192,10 @@ test('teclado como Linear: J/K, U, H (Esc y clic afuera cierran), Backspace y En
   await expect(row(page, s.status)).toHaveClass(/is-kb-active/);
   await page.keyboard.press('Enter');
   // Con next dev la página del issue se compila la primera vez: más margen.
-  // La URL del issue pasa a la canónica (/issue/<ID>/<slug>).
-  await expect(page).toHaveURL(new RegExp(`/app/track/(issues/${s.issue.id}|issue/${s.issue.identifier}/)`), { timeout: 120_000 });
-  await expect(page.getByTestId('track-side-status')).toBeVisible({ timeout: 120_000 });
+  await expect(page).toHaveURL(new RegExp(`/app/track/inbox/${s.issue.id}\\?.*n=${s.status}`), { timeout: 120_000 });
+  await expect(page.getByTestId('track-inbox-issue').getByTestId('track-side-status')).toBeVisible({ timeout: 120_000 });
+  await expect(row(page, s.status)).toHaveAttribute('data-read', 'true');
+  await expect(row(page, s.status)).toBeVisible();
 });
 
 test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afuera; cinco aspectos, claro y oscuro', async ({ browser, request, baseURL }) => {
@@ -183,7 +211,7 @@ test('390: sin scroll lateral, menú "…" de 40px que cierra con Esc y clic afu
   expect(box && box.width >= 40 && box.height >= 40).toBeTruthy();
   await more.click();
   await expect(page.getByRole('menu')).toBeVisible();
-  await expect(page.getByRole('menuitem')).toHaveCount(5);
+  await expect(page.getByRole('menuitem')).toHaveCount(6);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
   await more.click();

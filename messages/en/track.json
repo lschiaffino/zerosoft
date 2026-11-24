@@ -394,7 +394,8 @@
       "move": "move",
       "read": "read or unread",
       "snooze": "snooze",
-      "delete": "delete"
+      "delete": "delete",
+      "open": "open"
     },
     "reason": {
       "assigned": "{actor} assigned this to you",
@@ -413,6 +414,18 @@
       "agent": "{agent} posted an update",
       "project": "{actor} posted a project update",
       "approval": "Waiting for your approval"
+    },
+    "unsubscribeIssue": "Unsubscribe from issue",
+    "subscribeIssue": "Subscribe to issue",
+    "unsubscribed": "Unsubscribed from {id}",
+    "resubscribed": "Subscribed to {id}",
+    "panel": {
+      "close": "Close",
+      "empty": "Select a notification to see it here",
+      "label": "Opened notification",
+      "missing": "This issue can't be opened here. It may have been deleted, or it belongs to another workspace.",
+      "retry": "Try again",
+      "openPage": "Open issue page"
     }
   },
   "notifications": {

@@ -2,6 +2,7 @@
 
 import LocalText from '@/components/ui/LocalText';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { parseDbUtc } from '@/lib/utils';
 
 interface HistoryEvent {
@@ -26,7 +27,15 @@ interface HistoryPanelProps {
 }
 
 export default function HistoryPanel({ entity, entityId, locale, labels }: HistoryPanelProps) {
+  const t = useTranslations('crm');
   const [events, setEvents] = useState<HistoryEvent[] | null>(null);
+  // Cambios del sistema (lifecycle automático): "Automático · deal ganado" en vez de un email.
+  const actorText = (actor: string): string => {
+    if (!actor.startsWith('system:')) return actor;
+    const reason = actor.slice(7);
+    const why = t.has(`propertyOptions.reasons.${reason}`) ? ` · ${t(`propertyOptions.reasons.${reason}`)}` : '';
+    return `${t('propertyOptions.systemActor')}${why}`;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +101,7 @@ export default function HistoryPanel({ entity, entityId, locale, labels }: Histo
             <span className="history-value">{formatValue(e.field, e.newValue)}</span>
           </span>
           <span className="history-meta">
-            {e.actorEmail ? `${e.actorEmail} · ` : ''}
+            {e.actorEmail ? `${actorText(e.actorEmail)} · ` : ''}
             <time dateTime={e.createdAt}><LocalText>{formatDate(e.createdAt)}</LocalText></time>
           </span>
         </li>

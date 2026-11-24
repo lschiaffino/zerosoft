@@ -9,7 +9,6 @@ import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { getDb } from '@/lib/db';
 import {
   ACTIVITY_DATE_SORTS,
-  LIFECYCLE_STAGES,
   listCompanies,
   listIndustries,
   type CompanyFilter,
@@ -21,6 +20,7 @@ import { customCells, customColumns, customFilterTypes, extraSortOptions } from 
 import { isExtraSort, type ExtraSort } from '@/lib/crm-list-sort';
 import { formatActivityDate } from '@/lib/crm-activity-dates';
 import { listMembers } from '@/lib/teams';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import { formatDate } from '@/lib/utils';
 import CompanyFilters from '@/components/crm/CompanyFilters';
 import CompaniesTable, { type CompanyRow } from '@/components/crm/CompaniesTable';
@@ -71,6 +71,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  const crmOpts = await optionHelpersFor(user.id, t);
 
   // Permisos por campo: sin los ocultos; los de solo lectura no se editan en masa.
   const fieldAccess = await fieldAccessFor(sessionFieldViewer(user), 'companies');
@@ -107,7 +108,8 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   // Industrias presentes para el filtro (select): solo las de empresas que la persona ve.
   const industries = await listIndustries(user.id, scope);
 
-  const lifecycles = LIFECYCLE_STAGES.map((value) => ({ value, label: t(`enums.lifecycle.${value}`) }));
+  // Filtros: todas (las archivadas marcadas); edición en masa: solo las activas.
+  const lifecycles = crmOpts.all('lifecycle');
 
   const teamMembers = workspaceTeamId(user)
     ? await listMembers(workspaceTeamId(user)!)
@@ -188,8 +190,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
     for (const r of prows) parentNames.set(r.id, r.name);
   }
 
-  const lifecycleLabel = (v: string): string =>
-    (LIFECYCLE_STAGES as readonly string[]).includes(v) ? t(`enums.lifecycle.${v}`) : v;
+  const lifecycleLabel = (v: string): string => crmOpts.label('lifecycle', v);
 
   const customFields = customFieldDefs
     .filter((cf) => cf.type === 'select')
@@ -231,7 +232,7 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
   // Propiedades de la edición en masa (owner primero: es la acción más común).
   const bulkFields: BulkEditField[] = [
     { key: 'ownerId', label: t('companies.form.owner'), type: 'select', options: owners, nullable: true },
-    { key: 'lifecycleStage', label: t('companies.form.lifecycle'), type: 'select', options: lifecycles },
+    { key: 'lifecycleStage', label: t('companies.form.lifecycle'), type: 'select', options: crmOpts.choices('lifecycle') },
     { key: 'industry', label: t('companies.form.industry'), type: 'text' },
     { key: 'employees', label: t('companies.form.employees'), type: 'number', nullable: true },
     { key: 'city', label: t('companies.form.city'), type: 'text' },
@@ -380,7 +381,6 @@ export default async function CompaniesPage(props: CompaniesPageProps) {
             rows={tableRows}
             customColumns={customColumns(customFieldDefs)}
             sort={sort}
-            lifecycles={[...LIFECYCLE_STAGES]}
             locale={locale}
             allTags={tagOptions}
             bulkFields={bulkFields}

@@ -222,6 +222,11 @@ export async function applyPicture(
   const stored = await store(url, scope).catch(() => '');
   if (!stored) return 'failed';
   await db.prepare('UPDATE wa_contacts SET picture = ?, picture_src = ? WHERE id = ?').run(stored.slice(0, 64_000), src, r.id);
+  // La misma foto en la fila de un lid y en la de un teléfono: es la misma persona, sus chats se juntan.
+  if (scope && src && !src.startsWith('data:') && src.includes('/')) {
+    const { linkPictureTwins } = await import('./wa-dedupe-run');
+    await linkPictureTwins(scope, { rowId: r.id });
+  }
   if (ours(r.picture) && r.picture !== stored) {
     const { deleteUploads } = await import('./uploads');
     await deleteUploads([r.picture]).catch(() => null);

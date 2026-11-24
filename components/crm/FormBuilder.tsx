@@ -18,7 +18,8 @@ import {
   type FormSettings,
   type FormStatus,
 } from '@/lib/crm-forms-schema';
-import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from '@/lib/crm-constants';
+import { SOURCES } from '@/lib/crm-constants';
+import { useCrmOptions } from './CrmViewer';
 import { builderTabForError, fieldKeyFromLabel, slugFromName, uniqueFieldKey } from '@/lib/crm-forms-builder';
 
 interface Option {
@@ -68,6 +69,7 @@ type BuilderTab = 'fields' | 'design' | 'after' | 'crm';
  */
 export default function FormBuilder(props: Props) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const router = useRouter();
   const idBase = useId();
   const { canEdit } = props;
@@ -716,9 +718,9 @@ export default function FormBuilder(props: Props) {
               disabled={!canEdit}
             >
               <option value="">{t('forms.builder.keepAsIs')}</option>
-              {LIFECYCLE_STAGES.map((v) => (
-                <option key={v} value={v}>
-                  {t(`enums.lifecycle.${v}`)}
+              {crmOpts.choices('lifecycle', settings.lifecycleStage || null).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
@@ -729,9 +731,9 @@ export default function FormBuilder(props: Props) {
             </label>
             <select id={fid('lead')} className="select" value={settings.leadStatus} onChange={(e) => setS('leadStatus', e.target.value)} disabled={!canEdit}>
               <option value="">{t('forms.builder.keepAsIs')}</option>
-              {LEAD_STATUSES.map((v) => (
-                <option key={v} value={v}>
-                  {t(`enums.leadStatus.${v}`)}
+              {crmOpts.choices('leadStatus', settings.leadStatus || null).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
