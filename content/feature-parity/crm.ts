@@ -1332,6 +1332,18 @@ status: 'partial',
       status: 'partial',
       competitorHas: true,
     },
+    {
+      id: 'ai-call-followup',
+      area: 'ai',
+      label: { en: 'AI updates after a call', es: 'IA de avance tras llamada', pt: 'IA de avanço após chamada' },
+      detail: {
+        en: 'On a logged call or meeting, AI reads the notes, attached transcripts and the browser-call transcript and suggests property values for the contact, company and deal, a later deal stage, a follow-up email and tasks. Each suggestion is a card you apply, edit or discard; nothing is saved without your click. Only properties you can edit are read or suggested, and suggestions are visible only to whoever asked for them. Missing: it runs when you ask, not automatically after every call, and multi-select and user properties are not suggested',
+        es: 'En una llamada o reunión registrada, la IA lee las notas, las transcripciones adjuntas y la de la llamada desde el navegador, y sugiere valores de propiedades del contacto, la empresa y el deal, una etapa siguiente del deal, un email de seguimiento y tareas. Cada sugerencia es una tarjeta que aplicás, editás o descartás; nada se guarda sin tu click. Solo lee y sugiere las propiedades que podés editar, y las sugerencias las ve solo quien las pidió. Falta: corre cuando la pedís, no sola después de cada llamada, y no sugiere propiedades de selección múltiple ni de persona',
+        pt: 'Em uma chamada ou reunião registrada, a IA lê as notas, as transcrições anexadas e a da chamada pelo navegador e sugere valores de propriedades do contato, da empresa e do negócio, uma etapa seguinte do negócio, um email de acompanhamento e tarefas. Cada sugestão é um cartão que você aplica, edita ou descarta; nada é salvo sem o seu clique. Só lê e sugere as propriedades que você pode editar, e as sugestões ficam visíveis só para quem pediu. Falta: roda quando você pede, não sozinha depois de cada chamada, e não sugere propriedades de seleção múltipla nem de pessoa',
+      },
+      status: 'partial',
+      competitorHas: true,
+    },
   ],
 };
 

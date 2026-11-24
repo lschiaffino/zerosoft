@@ -4,6 +4,7 @@ import { appFromPath, userCanUseApp } from '@/lib/workspace';
 import { unauthorized } from '@/lib/track-http';
 import { noStore } from '@/lib/no-store';
 import { listInboxNotifications } from '@/lib/notification-inbox';
+import { subscribedIssueIds } from '@/lib/track-subscriptions';
 import { INBOX_TABS, parseInboxFilter, type InboxTab } from '@/lib/notification-inbox-filter';
 
 export const runtime = 'nodejs';
@@ -35,7 +36,13 @@ async function getPrivate(req: NextRequest) {
         }
       : undefined,
   });
-  return NextResponse.json(result);
+  // Si sigue suscripta a cada issue: la fila ofrece darse de baja (o volver), como Linear.
+  const uid = realUserId(user);
+  const subscribed = await subscribedIssueIds(uid, result.rows.map((r) => r.issue?.id ?? '').filter(Boolean));
+  return NextResponse.json({
+    ...result,
+    rows: result.rows.map((r) => (r.issue ? { ...r, issue: { ...r.issue, subscribed: subscribed.has(r.issue.id) } } : r)),
+  });
 }
 
 /** Datos de la persona: sin caché (lib/no-store.ts). */
