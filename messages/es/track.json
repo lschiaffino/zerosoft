@@ -1625,6 +1625,7 @@
       "link": "Link",
       "linkPlaceholder": "Pegá o escribí un link y apretá Enter",
       "tooLong": "Demasiado largo: el límite es de 200.000 caracteres. El resto no se va a guardar.",
+      "comment": "Comentar la selección",
       "mention": "Mencionar a alguien del equipo"
     },
     "thread": {
@@ -1952,6 +1953,12 @@
       "added": "Agregado a favoritos",
       "removed": "Sacado de favoritos"
     },
+    "inline": {
+      "title": "Comentar este texto",
+      "placeholder": "Dejá un comentario…",
+      "submit": "Comentar",
+      "cancel": "Cancelar"
+    },
     "dup": {
       "of": "Duplicado de",
       "hidden": "Duplicado de un issue que no podés ver",
@@ -2034,5 +2041,11 @@
       "w": "{n} sem",
       "mo": "{n} mes"
     }
+  },
+  "entityComments": {
+    "title": "Comentarios",
+    "placeholder": "Dejá un comentario…",
+    "empty": "Todavía no hay comentarios.",
+    "loadError": "No se pudieron cargar los comentarios."
   }
 }

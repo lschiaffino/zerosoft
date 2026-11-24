@@ -19,12 +19,15 @@ export default function RecordNameCell({
   name,
   avatar,
   onPreview,
+  expand,
 }: {
   href: string;
   name: string;
   /** Por defecto, las iniciales del nombre; `null` = sin avatar (deals, como en HubSpot). */
   avatar?: ReactNode;
   onPreview: () => void;
+  /** Botón que despliega la fila (asociados y última actividad; RowExpansion.tsx). */
+  expand?: ReactNode;
 }) {
   const t = useTranslations('crm');
 
@@ -38,6 +41,7 @@ export default function RecordNameCell({
   return (
     <td data-card="main" className="cell-record">
       <span className="hs-name">
+        {expand}
         {avatar !== undefined ? (
           avatar
         ) : (

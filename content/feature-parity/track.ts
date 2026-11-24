@@ -586,15 +586,24 @@ const parity: ProductParity = {
       id: 'inline-description-comments',
       area: 'collaboration',
       label: { en: 'Inline comments on description text', es: 'Comentarios sobre el texto de la descripción', pt: 'Comentários sobre o texto da descrição' },
-      status: 'missing',
+      detail: {
+        en: 'Select text in an issue description and choose Comment in the selection toolbar: the thread shows the quote, the text stays highlighted until the thread is resolved, and clicking the highlight jumps to the thread. Replies, @mentions, reactions, edit and delete as in any comment. If the quoted text is edited away, the thread keeps its quote without a highlight',
+        es: 'Elegí texto de la descripción de un issue y tocá Comentar en la barra de la selección: el hilo muestra la cita, el texto queda resaltado hasta que se resuelve el hilo y un clic en el resaltado lleva al hilo. Respuestas, @menciones, reacciones, editar y borrar como cualquier comentario. Si el texto citado se borra, el hilo conserva la cita sin resaltado',
+        pt: 'Selecione um texto da descrição de um issue e toque em Comentar na barra da seleção: a thread mostra a citação, o texto fica destacado até a thread ser resolvida e um clique no destaque leva à thread. Respostas, @menções, reações, editar e excluir como qualquer comentário. Se o texto citado for apagado, a thread mantém a citação sem destaque',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
       id: 'project-initiative-comments',
       area: 'collaboration',
       label: { en: 'Comment threads on projects and initiatives', es: 'Hilos de comentarios en projects e iniciativas', pt: 'Threads de comentários em projetos e iniciativas' },
-      detail: { en: 'Comments exist on project and initiative updates, not on the project or initiative itself', es: 'Hay comentarios en los updates de projects e iniciativas, no en el project o la iniciativa', pt: 'Há comentários nas atualizações de projetos e iniciativas, não no projeto ou na iniciativa' },
-      status: 'missing',
+      detail: {
+        en: 'A Comments thread on the project and initiative overview, with the same comment component as issues: @mentions (only people who can see it), replies, resolve, reactions, and edit or delete your own. Followers of the project (lead, members, followers) or the initiative lead get notified; Track guests cannot see or comment',
+        es: 'Un hilo de Comentarios en el resumen del project y de la iniciativa, con el mismo componente de comentarios que los issues: @menciones (solo a quien lo puede ver), respuestas, resolver, reacciones, y editar o borrar los propios. Avisa a quienes siguen el project (lead, miembros, seguidores) o al lead de la iniciativa; los invitados de Track no lo ven ni comentan',
+        pt: 'Uma thread de Comentários no resumo do projeto e da iniciativa, com o mesmo componente de comentários dos issues: @menções (só a quem pode ver), respostas, resolver, reações, e editar ou excluir os seus. Avisa quem segue o projeto (lead, membros, seguidores) ou o lead da iniciativa; convidados do Track não veem nem comentam',
+      },
+      status: 'have',
       competitorHas: true,
     },
     {
