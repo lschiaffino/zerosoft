@@ -64,6 +64,8 @@ test('Campana: avisos traducidos, sin pospuestos y una sola acción de marcar to
 
   // Pospuesto desde la bandeja: deja de contar en la campana y en el sidebar sin recargar.
   const row = page.locator('.track-inbox-item', { hasText: identifier });
+  // Las acciones de la fila aparecen (y reciben el clic) al pasar sobre ella, como en Linear.
+  await row.hover();
   await row.getByRole('button', { name: /Posponer/ }).click();
   await page.getByRole('menuitem', { name: /mañana/i }).first().click();
   await expect(row).toHaveCount(0);

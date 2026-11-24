@@ -395,7 +395,8 @@
       "move": "moverse",
       "read": "leída o no leída",
       "snooze": "posponer",
-      "delete": "borrar"
+      "delete": "borrar",
+      "open": "abrir"
     },
     "reason": {
       "assigned": "{actor} te lo asignó",
@@ -414,6 +415,18 @@
       "agent": "{agent} publicó un update",
       "project": "{actor} publicó un update del project",
       "approval": "Espera tu aprobación"
+    },
+    "unsubscribeIssue": "Dejar de seguir el issue",
+    "subscribeIssue": "Seguir el issue",
+    "unsubscribed": "Ya no seguís {id}",
+    "resubscribed": "Seguís {id}",
+    "panel": {
+      "close": "Cerrar",
+      "empty": "Elegí un aviso para verlo acá",
+      "label": "Aviso abierto",
+      "missing": "Este issue no se puede abrir acá. Puede que se haya borrado o que sea de otro workspace.",
+      "retry": "Reintentar",
+      "openPage": "Abrir la página del issue"
     }
   },
   "notifications": {

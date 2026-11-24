@@ -2896,6 +2896,44 @@
       },
       "nextSteps": "Próximos pasos"
     },
+    "followup": {
+      "open": "Sugerir cambios con IA",
+      "title": "Cambios sugeridos",
+      "loading": "Leyendo la llamada…",
+      "regenerate": "Sugerir de nuevo",
+      "empty": "La llamada no sugiere cambios.",
+      "pending": "{count, plural, =0 {Todo revisado} one {# para revisar} other {# para revisar}}",
+      "hint": "Nada cambia hasta que lo apliques.",
+      "kind": {
+        "field": "Propiedad",
+        "stage": "Etapa del deal",
+        "email": "Email de seguimiento",
+        "task": "Tarea"
+      },
+      "apply": "Aplicar",
+      "send": "Enviar",
+      "addTask": "Crear tarea",
+      "move": "Mover deal",
+      "edit": "Editar",
+      "discard": "Descartar",
+      "cancel": "Cancelar",
+      "applied": "Aplicado",
+      "sent": "Enviado",
+      "taskAdded": "Tarea creada",
+      "moved": "Deal movido",
+      "emptyValue": "Vacío",
+      "yes": "Sí",
+      "no": "No",
+      "toLabel": "Para",
+      "subject": "Asunto",
+      "body": "Mensaje",
+      "taskTitle": "Tarea",
+      "due": "Vence",
+      "errors": {
+        "already_done": "Esta sugerencia ya se resolvió.",
+        "field_readonly": "No podés editar esta propiedad."
+      }
+    },
     "board": {
       "scoreDeals": "Calcular scores con IA",
       "progress": "{done} calculados, faltan {left}",

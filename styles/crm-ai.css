@@ -78,6 +78,37 @@ section.ai-card { padding-top: 0; padding-bottom: 0; }
 .ai-sentiment-positive { color: var(--ok-ink); }
 .ai-sentiment-negative { color: var(--bad-ink); }
 
+/* Cambios sugeridos tras una llamada (C5): tarjetas que se aplican de a una. */
+.ai-fu-hint { margin: 0; font-size: 0.75rem; }
+.ai-fu .ai-call-head { justify-content: space-between; }
+.ai-fu-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ai-fu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--surface-1, var(--bg));
+}
+.ai-fu-card.is-done { opacity: 0.8; }
+.ai-fu-head { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
+.ai-fu-record { font-size: 0.75rem; color: var(--dim); overflow-wrap: anywhere; }
+.ai-fu-change { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 0.875rem; min-width: 0; }
+.ai-fu-label { color: var(--ink-2); }
+.ai-fu-values { min-width: 0; overflow-wrap: anywhere; }
+.ai-fu-from { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--line); }
+.ai-fu-new { font-weight: 600; color: var(--ink); }
+.ai-fu-task { overflow-wrap: anywhere; }
+.ai-fu-due { font-size: 0.75rem; }
+.ai-fu-email { max-width: none; }
+.ai-fu-body { max-height: 12em; overflow-y: auto; font-size: 0.8125rem; color: var(--ink-2); }
+.ai-fu-reason { margin: 0; font-size: 0.75rem; overflow-wrap: anywhere; }
+.ai-fu-form { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ai-fu-form .input, .ai-fu-form .select, .ai-fu-form .textarea { width: 100%; max-width: 100%; }
+.ai-fu-actions .btn { white-space: nowrap; }
+
 /* Board: botón de score con su estado. */
 .ai-board { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ai-board .muted, .ai-board .form-error { font-size: 0.8125rem; }

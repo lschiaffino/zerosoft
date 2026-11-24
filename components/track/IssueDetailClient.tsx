@@ -197,6 +197,19 @@ interface IssueDetailClientProps {
   ui: TrackUiLabels;
   /** Borrar es solo para owner/admin (igual que el borrado masivo). */
   canDelete?: boolean;
+  /**
+   * Abierto en el panel de la bandeja, al lado de la lista: J/K son de la
+   * lista, Esc y la cruz vuelven a la bandeja.
+   */
+  panel?: boolean;
+}
+
+/** La bandeja con los filtros y la pestaña que tenía (sin el aviso abierto). */
+function inboxHref(): string {
+  const sp = new URLSearchParams(window.location.search);
+  sp.delete('n');
+  const qs = sp.toString();
+  return `/app/track/inbox${qs ? `?${qs}` : ''}`;
 }
 
 function parseDescription(raw: string): string {
@@ -258,6 +271,7 @@ export default function IssueDetailClient({
   labels,
   ui,
   canDelete = false,
+  panel = false,
 }: IssueDetailClientProps) {
   const t = useTranslations('track');
   const tx = useTranslations('track.ux');
@@ -781,7 +795,11 @@ export default function IssueDetailClient({
       },
       restore: () => router.push(`/app/track/issues/${id}`),
     });
-    router.push(teamPath(teamKeyOf(issue)));
+    if (panel) {
+      // La bandeja saca de la lista los avisos de este issue (InboxClient).
+      window.dispatchEvent(new CustomEvent('zs:track-issue-deleted', { detail: { issueId: id } }));
+      router.replace(inboxHref(), { scroll: false });
+    } else router.push(teamPath(teamKeyOf(issue)));
   }
 
   // ⌘⌫ borra (con confirmación), ⌘⇧, copia el link y ⌘⇧↑ abre el padre, como en Linear.
@@ -1152,7 +1170,11 @@ export default function IssueDetailClient({
     const nav = readListNav();
     setListNav(nav && nav.ids.includes(issue.id) ? nav : null);
   }, [issue.id]);
-  const navIds = useMemo(() => listNav?.ids ?? (siblings.length > 1 ? siblings.map((x) => x.id) : []), [listNav, siblings]);
+  // En el panel de la bandeja, J/K recorren los avisos (InboxClient), no los issues.
+  const navIds = useMemo(
+    () => (panel ? [] : (listNav?.ids ?? (siblings.length > 1 ? siblings.map((x) => x.id) : []))),
+    [panel, listNav, siblings],
+  );
   const navIndex = navIds.indexOf(issue.id);
   const goSibling = useCallback(
     (delta: number) => {
@@ -1173,14 +1195,20 @@ export default function IssueDetailClient({
         goSibling(e.key === 'j' ? 1 : -1);
       } else if (e.key === 'Escape') {
         // Esc vuelve a la lista de la que se vino; si se entró por un link, a los issues del team (como Linear).
+        // En el panel, cierra el panel y la bandeja sigue donde estaba.
         e.preventDefault();
+        if (panel) {
+          // Cerrar no suma historial: Atrás no vuelve a abrir el panel.
+          router.replace(inboxHref(), { scroll: false });
+          return;
+        }
         restoreCursorOnReturn(issueRef.current.id);
         router.push(listNav ? listNav.href : teamPath(teamKeyOf(issueRef.current)));
       }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [goSibling, navIndex, listNav, router]);
+  }, [goSibling, navIndex, listNav, router, panel]);
 
   const outgoing = relations.filter((r) => r.direction === 'outgoing');
   const incoming = relations.filter((r) => r.direction === 'incoming');
@@ -1209,7 +1237,12 @@ export default function IssueDetailClient({
   );
 
   return (
-    <div className="app-page track-detail track-issue-page" data-track-project-id={issue.project_id} data-track-issue-id={issue.id}>
+    <div
+      className={`app-page track-detail track-issue-page${panel ? ' is-panel' : ''}`}
+      data-track-project-id={issue.project_id}
+      data-track-issue-id={issue.id}
+      data-testid={panel ? 'track-inbox-issue' : undefined}
+    >
       <header className="track-detail-head">
         <div className="track-detail-topbar">
           <nav className="track-breadcrumb" aria-label={labels.back}>
@@ -1382,6 +1415,19 @@ export default function IssueDetailClient({
                 </>
               )}
             </Popover>
+            {panel && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon track-head-icon track-panel-close"
+                onClick={() => router.replace(inboxHref(), { scroll: false })}
+                aria-label={t('inbox.panel.close')}
+                title={`${t('inbox.panel.close')} · Esc`}
+                aria-keyshortcuts="Escape"
+                data-testid="track-inbox-panel-close"
+              >
+                <TrackIcon name="close" size={14} />
+              </button>
+            )}
           </div>
         </div>
         <span className="sr-only" role="status">
