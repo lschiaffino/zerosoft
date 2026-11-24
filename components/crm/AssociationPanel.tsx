@@ -244,6 +244,7 @@ export default function AssociationPanel({
             }}
           >
             <RecordCombobox
+              inputClassName="input"
               options={loaded.filter((o) => !associatedIds.has(o.id)).map((o) => ({ value: o.id, label: o.value }))}
               value=""
               onChange={(id) => {

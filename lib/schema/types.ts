@@ -1476,6 +1476,8 @@ export interface TrackIssueCommentRow {
   /** Hilo resuelto (solo en el comentario raíz). */
   resolved_at?: string | null;
   resolved_by?: string | null;
+  /** Comentario en línea: el texto de la descripción al que apunta (solo el raíz). */
+  anchor_text?: string | null;
 }
 
 export interface TrackIssueRelationRow {
