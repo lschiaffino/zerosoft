@@ -157,12 +157,17 @@ test('member con un campo oculto: no aparece ni en la respuesta ni en las tarjet
     const generated = page.waitForResponse((r) => r.url().includes('/api/crm/ai/followups') && r.request().method() === 'POST', { timeout: 0 });
     await item.getByTestId('ai-followup-open').click();
     const body = await (await generated).text();
+    // La nota es de la propia persona (puede citarse en la razón o el mail); lo que no puede llegar es
+    // el campo oculto: ni su clave ni una propuesta de cambio sobre él.
     expect(body).not.toContain(hidden.name);
-    expect(body).not.toContain('Budget code');
-    expect(body).not.toContain('BX-4400');
+    const proposed = (JSON.parse(body) as { items: Array<{ kind: string; field?: { key: string; label: string; value: unknown } }> }).items
+      .filter((i) => i.kind === 'field')
+      .map((i) => i.field!);
+    expect(proposed.map((f) => f.key)).toContain('amount');
+    expect(proposed.filter((f) => f.label === 'Budget code' || String(f.value).includes('BX-4400'))).toEqual([]);
     const block = item.getByTestId('ai-followup');
     await expect(block.getByRole('button', { name: /^Apply: Amount/ })).toBeVisible();
-    await expect(block.getByTestId('ai-followup-card').filter({ hasText: 'BX-4400' })).toHaveCount(0);
+    await expect(block.locator('[data-kind="field"]').filter({ hasText: 'BX-4400' })).toHaveCount(0);
     // Las tarjetas entran en 390 (la barra de etapas de la ficha es de otro componente).
     const fits = await block.evaluate((el) => el.scrollWidth <= el.clientWidth + 1 && el.getBoundingClientRect().right <= window.innerWidth + 1);
     expect(fits).toBe(true);
