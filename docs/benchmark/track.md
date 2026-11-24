@@ -16,6 +16,12 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 
 - **Inbox vuelve a tener:** abrir un aviso muestra el issue al lado de la lista (la lista queda, J/K mueven el panel, Esc y la cruz lo cierran) y a página completa en el teléfono; dejar de seguir el issue desde la fila (ícono o menú "…") o desde el issue abierto, sincronizados. Falta: los avisos de projects e iniciativas abren su página, no el panel.
 
+Paridad calculada con la tanda T3 completa (Inbox, comentarios en línea e hilos en projects e iniciativas): **87 %**, con 75 filas contadas.
+
+### Hilos en projects e iniciativas (tanda T3, 2026-11-23)
+
+- **Hilos de comentarios en projects e iniciativas pasa a tiene:** sección Comentarios en el resumen del project y de la iniciativa, con el mismo componente que los issues (@menciones solo a quien puede verlo, respuestas, resolver, reacciones, editar y borrar lo propio). Avisa a lead, miembros y seguidores del project o al lead de la iniciativa. Los invitados de Track no lo ven.
+
 ### Comentarios en línea (tanda T3, 2026-11-23)
 
 - **Comentarios sobre el texto de la descripción pasa a tiene:** elegir texto y "Comentar" en la barra de la selección abre un composer con la cita; el texto queda resaltado (API de resaltados de CSS, sin tocar el Markdown) hasta resolver el hilo, y un clic en el resaltado lleva al hilo. Si el texto citado se borra, el hilo queda con la cita y sin resaltado (Linear hace lo mismo).
