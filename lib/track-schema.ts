@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { ISSUE_SORTS } from './track-views';
 import { TRACK_MARKDOWN_MAX } from './track-markdown';
+import { formFieldsSchema } from './track-forms';
 
 const id = z.string().trim().min(1).max(64);
 const name = z.string().trim().min(1).max(200);
@@ -314,9 +315,18 @@ export const templateCreateSchema = z.object({
   estimate: z.number().int().min(0).max(1000).nullish(),
   labels: z.array(issueLabelInputSchema).max(10).optional(),
   isDefault: z.boolean().optional(),
+  /** Campos del formulario de pedidos (vacío = plantilla común). */
+  fields: formFieldsSchema.optional(),
 });
 
 export const templateUpdateSchema = templateCreateSchema.partial();
+
+/** Respuesta a un formulario de pedidos (lib/track-forms.ts). */
+export const templateSubmitSchema = z.object({
+  title: z.string().trim().min(1).max(500),
+  answers: z.record(z.string().max(40), z.union([z.string().max(20_000), z.boolean()])).default({}),
+  details: z.string().max(20_000).optional(),
+});
 
 // ---------- Issues que se repiten ----------
 
@@ -378,6 +388,7 @@ export type MilestoneCreatePayload = z.infer<typeof milestoneCreateSchema>;
 export type MilestoneUpdatePayload = z.infer<typeof milestoneUpdateSchema>;
 export type TemplateCreatePayload = z.infer<typeof templateCreateSchema>;
 export type TemplateUpdatePayload = z.infer<typeof templateUpdateSchema>;
+export type TemplateSubmitPayload = z.infer<typeof templateSubmitSchema>;
 export type RecurringCreatePayload = z.infer<typeof recurringCreateSchema>;
 export type RecurringUpdatePayload = z.infer<typeof recurringUpdateSchema>;
 export type NotifyPrefsPayload = z.infer<typeof notifyPrefsSchema>;

@@ -8,6 +8,7 @@
     "settings": "Settings",
     "inbox": "Inbox",
     "customers": "Customers",
+    "forms": "Request forms",
     "workspace": "Workspace",
     "yourTeams": "Your teams",
     "more": "More",
@@ -730,7 +731,8 @@
       "sentry": "Sentry",
       "support": "support",
       "import": "import",
-      "recurring": "recurring issue"
+      "recurring": "recurring issue",
+      "form": "a request form"
     },
     "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them.",
     "createdInApp": "Created in app"
@@ -878,6 +880,53 @@
     "error": "Could not save the template. Try again.",
     "pick": "Template",
     "none": "No template"
+  },
+  "forms": {
+    "fieldsTitle": "Form fields",
+    "fieldsHelp": "Add fields to turn this template into a request form. Anyone who can see the team fills it in from its link or from quick create, and it creates an issue with the answers, in triage when the team uses it. The description shows at the top of the form.",
+    "fieldLabel": "Question",
+    "fieldLabelPlaceholder": "What happened?",
+    "fieldType": "Type",
+    "types": {
+      "text": "Short text",
+      "textarea": "Long text",
+      "select": "Options",
+      "checkbox": "Checkbox"
+    },
+    "fieldOptions": "Options, one per line",
+    "fieldOptionsPlaceholder": "Web\nDesktop\nMobile",
+    "fieldHelp": "Help text",
+    "fieldRequired": "Required",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "removeField": "Remove",
+    "addField": "Add field",
+    "kind": "{count, plural, one {Form, # field} other {Form, # fields}}",
+    "open": "Open form",
+    "copyLink": "Copy link",
+    "linkCopied": "Form link copied",
+    "copyError": "Could not copy the link.",
+    "indexTitle": "Request forms",
+    "indexDesc": "Forms of the teams you can see. Each one creates an issue for that team.",
+    "indexEmptyTitle": "No request forms yet",
+    "indexEmptyBody": "Add fields to an issue template in a team's settings, under Templates, and it shows up here.",
+    "pageDesc": "Creates an issue in {team}.",
+    "pageDescTriage": "Creates an issue in {team}. It waits in triage until someone accepts it.",
+    "titleLabel": "Title",
+    "choose": "Choose…",
+    "details": "More details",
+    "submit": "Send request",
+    "sendError": "Could not send the request. Try again.",
+    "errors": {
+      "required": "This is required.",
+      "invalid_option": "Pick one of the options.",
+      "too_long": "This answer is too long."
+    },
+    "sentTitle": "Request sent as {id}",
+    "sentTriage": "It is in {team}'s triage. You are subscribed and get notified when it changes.",
+    "sentList": "It is in {team}'s issues. You are subscribed and get notified when it changes.",
+    "sendAnother": "Send another",
+    "openIssue": "Open issue"
   },
   "recurring": {
     "help": "Issues that Track creates on a schedule, such as a weekly review or a monthly invoice check.",

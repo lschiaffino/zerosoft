@@ -9,6 +9,11 @@ import type { TrackIssueTemplateRow, TrackProjectRow } from './db';
 import { normalizeIssueLabels, projectWorkspaceId } from './track-labels';
 import type { TemplateCreatePayload, TemplateUpdatePayload } from './track-schema';
 import { normalizeTemplateTitle } from './track-schema';
+import type { TrackFormField } from './track-forms';
+
+function fieldsJson(fields: TrackFormField[] | undefined): string {
+  return JSON.stringify(fields ?? []);
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -18,6 +23,26 @@ export async function listTemplates(projectId: string): Promise<TrackIssueTempla
   return (await getDb()
     .prepare('SELECT * FROM track_issue_templates WHERE project_id = ? ORDER BY is_default DESC, name COLLATE NOCASE ASC')
     .all(projectId)) as TrackIssueTemplateRow[];
+}
+
+/**
+ * Formularios de pedidos del workspace (plantillas con campos), con su team.
+ * Sin filtrar por acceso: el llamador descarta los teams que la persona no ve.
+ */
+export async function listWorkspaceFormTemplates(
+  teamId: string | null,
+  ownerId: string,
+): Promise<Array<TrackIssueTemplateRow & { team_name: string; team_slug: string }>> {
+  return (await getDb()
+    .prepare(
+      `SELECT t.*, p.name AS team_name, p.slug AS team_slug
+         FROM track_issue_templates t
+         JOIN track_projects p ON p.id = t.project_id
+        WHERE t.fields <> '[]' AND p.status = 'active' AND ${teamId ? 'p.team_id = ?' : 'p.team_id IS NULL AND p.owner_id = ?'}
+        ORDER BY p.name COLLATE NOCASE, t.name COLLATE NOCASE
+        LIMIT 500`,
+    )
+    .all(teamId ?? ownerId)) as Array<TrackIssueTemplateRow & { team_name: string; team_slug: string }>;
 }
 
 export async function getTemplate(id: string): Promise<TrackIssueTemplateRow | undefined> {
@@ -40,11 +65,13 @@ async function clearDefault(projectId: string): Promise<void> {
 export async function createTemplate(project: TrackProjectRow, payload: TemplateCreatePayload): Promise<TrackIssueTemplateRow> {
   const id = crypto.randomUUID();
   const now = nowIso();
-  if (payload.isDefault) await clearDefault(project.id);
+  // Un formulario no es la plantilla predeterminada: el alta rápida no lo precarga.
+  const isDefault = Boolean(payload.isDefault) && !payload.fields?.length;
+  if (isDefault) await clearDefault(project.id);
   await getDb()
     .prepare(
-      `INSERT INTO track_issue_templates (id, project_id, name, title, description, status_id, priority, assignee_id, estimate, labels, is_default, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO track_issue_templates (id, project_id, name, title, description, status_id, priority, assignee_id, estimate, labels, is_default, fields, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -57,7 +84,8 @@ export async function createTemplate(project: TrackProjectRow, payload: Template
       payload.assigneeId ?? null,
       payload.estimate ?? null,
       await labelsJson(project, payload.labels),
-      payload.isDefault ? 1 : 0,
+      isDefault ? 1 : 0,
+      fieldsJson(payload.fields),
       now,
       now,
     );
@@ -83,7 +111,10 @@ export async function updateTemplate(
   if (payload.assigneeId !== undefined) set('assignee_id', payload.assigneeId ?? null);
   if (payload.estimate !== undefined) set('estimate', payload.estimate ?? null);
   if (payload.labels !== undefined) set('labels', await labelsJson(project, payload.labels));
-  if (payload.isDefault !== undefined) {
+  if (payload.fields !== undefined) set('fields', fieldsJson(payload.fields));
+  // Un formulario no es la plantilla predeterminada: el alta rápida no lo precarga.
+  if (payload.fields?.length) set('is_default', 0);
+  else if (payload.isDefault !== undefined) {
     if (payload.isDefault) await clearDefault(project.id);
     set('is_default', payload.isDefault ? 1 : 0);
   }
