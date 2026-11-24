@@ -130,9 +130,9 @@ const parity: ProductParity = {
     // Bandeja
     row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', {
       detail: [
-        'A group that arrives without its subject asks WhatsApp for it right away, like Inbox, and shows "Group" until it comes; never the raw id. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Un grupo que llega sin asunto se lo pide a WhatsApp en el momento, como Inbox, y dice "Grupo" hasta que llega; nunca el id crudo. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Um grupo que chega sem assunto pede ao WhatsApp na hora, como no Inbox, e mostra "Grupo" até chegar; nunca o id cru. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'A group that arrives without its subject asks WhatsApp for it right away, like Inbox, and shows "Group" until it comes; never the raw id. Below the group name, its members like WhatsApp Web: names first, then numbers, and You last instead of the number of the line, like Inbox. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Un grupo que llega sin asunto se lo pide a WhatsApp en el momento, como Inbox, y dice "Grupo" hasta que llega; nunca el id crudo. Debajo del nombre del grupo, sus miembros como en WhatsApp Web: primero los nombres, después los números y Vos al final en lugar del número de la línea, como Inbox. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Um grupo que chega sem assunto pede ao WhatsApp na hora, como no Inbox, e mostra "Grupo" até chegar; nunca o id cru. Abaixo do nome do grupo, os membros como no WhatsApp Web: primeiro os nomes, depois os números e Você no final no lugar do número da linha, como no Inbox. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
       weight: 2,
     }),
