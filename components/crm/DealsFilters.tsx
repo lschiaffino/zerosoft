@@ -386,8 +386,11 @@ export default function DealsFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
-        {children}
-        <QuickFilterPicker entity="deals" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        {/* Filtros avanzados y "Editar filtros rápidos" van juntos: el ícono no queda solo en una fila. */}
+        <div className="filter-quick-tail">
+          {children}
+          <QuickFilterPicker entity="deals" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        </div>
         {activeFilters > 0 && (
           <button
             type="button"
