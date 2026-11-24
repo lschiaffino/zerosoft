@@ -25,6 +25,7 @@ import type { PlansMeta } from './PlansList';
 import PlanUpdates, { updateAuthor } from './PlanUpdates';
 import { SaveTemplateDialog } from './PlanTemplates';
 import TitleInput from '@/components/ui/TitleInput';
+import EntityComments from '../EntityComments';
 
 type Tab = 'overview' | 'issues' | 'updates';
 
@@ -774,6 +775,8 @@ function Overview({
       </section>
 
       <Milestones planId={plan.id} milestones={milestones} locale={locale} onChanged={onReload} />
+
+      <EntityComments type="plan" id={plan.id} />
     </div>
   );
 }
