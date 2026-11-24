@@ -2066,5 +2066,11 @@
     "loading": "Loading releases…",
     "property": "Release",
     "moreOf": "{name} options"
+  },
+  "entityComments": {
+    "title": "Comments",
+    "placeholder": "Leave a comment…",
+    "empty": "No comments yet.",
+    "loadError": "Couldn't load the comments."
   }
 }

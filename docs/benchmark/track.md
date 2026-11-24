@@ -13,6 +13,12 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **T4 y T5 (2026-11-23, más tarde):** estado Duplicado que pasa suscriptos, pedidos y un resumen al original (tiene), reordenar grupos y columnas arrastrando o con el teclado (tiene) y Releases por team con avance, notas generadas, propiedad, filtro y agrupado (parcial: sin pipelines de release ni avisos de deploy desde el CI).
 - Paridad calculada: **86 %** después de T4 y T5 (84 % al empezar la revisión, antes 95 %), con 75 filas contadas.
 
+Paridad calculada con la tanda T3 completa (Inbox, comentarios en línea e hilos en projects e iniciativas): **87 %**, con 75 filas contadas.
+
+### Hilos en projects e iniciativas (tanda T3, 2026-11-23)
+
+- **Hilos de comentarios en projects e iniciativas pasa a tiene:** sección Comentarios en el resumen del project y de la iniciativa, con el mismo componente que los issues (@menciones solo a quien puede verlo, respuestas, resolver, reacciones, editar y borrar lo propio). Avisa a lead, miembros y seguidores del project o al lead de la iniciativa. Los invitados de Track no lo ven.
+
 ### Comentarios en línea (tanda T3, 2026-11-23)
 
 - **Comentarios sobre el texto de la descripción pasa a tiene:** elegir texto y "Comentar" en la barra de la selección abre un composer con la cita; el texto queda resaltado (API de resaltados de CSS, sin tocar el Markdown) hasta resolver el hilo, y un clic en el resaltado lleva al hilo. Si el texto citado se borra, el hilo queda con la cita y sin resaltado (Linear hace lo mismo).
