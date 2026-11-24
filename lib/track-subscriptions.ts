@@ -90,3 +90,14 @@ export async function listIssueSubscriberIds(issueId: string): Promise<string[]>
 export async function isSubscribedToIssue(issueId: string, userId: string): Promise<boolean> {
   return (await listIssueSubscriberIds(issueId)).includes(userId);
 }
+
+/**
+ * De estos issues (que la persona ya ve), a cuáles está suscripta, con la
+ * misma regla que el botón del issue (listIssueSubscriberIds). Para la
+ * bandeja, que ofrece darse de baja por fila; son pocos por página.
+ */
+export async function subscribedIssueIds(userId: string, issueIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(issueIds.filter(Boolean))].slice(0, 100);
+  const on = await Promise.all(ids.map((id) => isSubscribedToIssue(id, userId)));
+  return new Set(ids.filter((_, i) => on[i]));
+}
