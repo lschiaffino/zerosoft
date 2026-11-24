@@ -131,57 +131,58 @@ import * as r128 from "@/lib/routes/crm/quotes/[id]/certificate/route";
 import * as r129 from "@/lib/routes/crm/records/[id]/route";
 import * as r130 from "@/lib/routes/crm/records/[id]/links/route";
 import * as r131 from "@/app/api/crm/reports/route";
-import * as r132 from "@/app/api/crm/sales-teams/route";
-import * as r133 from "@/lib/routes/crm/sales-teams/[id]/route";
-import * as r134 from "@/app/api/crm/scoring/recalculate/route";
-import * as r135 from "@/app/api/crm/scoring/rules/route";
-import * as r136 from "@/lib/routes/crm/scoring/rules/[id]/route";
-import * as r137 from "@/app/api/crm/scoring/scores/route";
-import * as r138 from "@/lib/routes/crm/scoring/scores/[id]/route";
-import * as r139 from "@/app/api/crm/search/route";
-import * as r140 from "@/app/api/crm/sequences/route";
-import * as r141 from "@/lib/routes/crm/sequences/[id]/route";
-import * as r142 from "@/lib/routes/crm/sequences/[id]/enroll/route";
-import * as r143 from "@/lib/routes/crm/sequences/enrollments/[id]/route";
-import * as r144 from "@/app/api/crm/settings/route";
-import * as r145 from "@/lib/routes/crm/stages/[id]/route";
-import * as r146 from "@/app/api/crm/tags/route";
-import * as r147 from "@/lib/routes/crm/tags/[id]/route";
-import * as r148 from "@/app/api/crm/tags/apply/route";
-import * as r149 from "@/app/api/crm/tags/record/route";
-import * as r150 from "@/lib/routes/crm/tasks/[id]/files/route";
-import * as r151 from "@/lib/routes/crm/tasks/[id]/snooze/route";
-import * as r152 from "@/lib/routes/crm/tasks/[id]/track/route";
-import * as r153 from "@/app/api/crm/tasks/bulk/route";
-import * as r154 from "@/app/api/crm/tasks/digest/route";
-import * as r155 from "@/app/api/crm/tasks/due-count/route";
-import * as r156 from "@/app/api/crm/tasks/projects/route";
-import * as r157 from "@/lib/routes/crm/tasks/projects/[id]/route";
-import * as r158 from "@/app/api/crm/tasks/queues/route";
-import * as r159 from "@/lib/routes/crm/tasks/queues/[id]/route";
-import * as r160 from "@/app/api/crm/timeline/route";
-import * as r161 from "@/app/api/crm/trash/route";
-import * as r162 from "@/lib/routes/crm/trash/[id]/restore/route";
-import * as r163 from "@/app/api/crm/videos/route";
-import * as r164 from "@/lib/routes/crm/videos/[id]/route";
-import * as r165 from "@/lib/routes/crm/videos/[id]/file/route";
-import * as r166 from "@/app/api/crm/views/route";
-import * as r167 from "@/lib/routes/crm/views/[id]/route";
-import * as r168 from "@/app/api/crm/views/tabs/route";
-import * as r169 from "@/app/api/crm/visibility/route";
-import * as r170 from "@/app/api/crm/voice/calls/route";
-import * as r171 from "@/lib/routes/crm/voice/calls/[id]/route";
-import * as r172 from "@/lib/routes/crm/voice/calls/[id]/end/route";
-import * as r173 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
-import * as r174 from "@/app/api/crm/voice/calls/[id]/summarize/route";
-import * as r175 from "@/app/api/crm/voice/fake/route";
-import * as r176 from "@/app/api/crm/voice/settings/route";
-import * as r177 from "@/app/api/crm/workflows/route";
-import * as r178 from "@/lib/routes/crm/workflows/[id]/route";
-import * as r179 from "@/lib/routes/crm/workflows/[id]/enroll-existing/route";
-import * as r180 from "@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route";
-import * as r181 from "@/lib/routes/crm/workflows/[id]/run/route";
-import * as r182 from "@/lib/routes/crm/workflows/[id]/toggle/route";
+import * as r132 from "@/app/api/crm/row-expand/route";
+import * as r133 from "@/app/api/crm/sales-teams/route";
+import * as r134 from "@/lib/routes/crm/sales-teams/[id]/route";
+import * as r135 from "@/app/api/crm/scoring/recalculate/route";
+import * as r136 from "@/app/api/crm/scoring/rules/route";
+import * as r137 from "@/lib/routes/crm/scoring/rules/[id]/route";
+import * as r138 from "@/app/api/crm/scoring/scores/route";
+import * as r139 from "@/lib/routes/crm/scoring/scores/[id]/route";
+import * as r140 from "@/app/api/crm/search/route";
+import * as r141 from "@/app/api/crm/sequences/route";
+import * as r142 from "@/lib/routes/crm/sequences/[id]/route";
+import * as r143 from "@/lib/routes/crm/sequences/[id]/enroll/route";
+import * as r144 from "@/lib/routes/crm/sequences/enrollments/[id]/route";
+import * as r145 from "@/app/api/crm/settings/route";
+import * as r146 from "@/lib/routes/crm/stages/[id]/route";
+import * as r147 from "@/app/api/crm/tags/route";
+import * as r148 from "@/lib/routes/crm/tags/[id]/route";
+import * as r149 from "@/app/api/crm/tags/apply/route";
+import * as r150 from "@/app/api/crm/tags/record/route";
+import * as r151 from "@/lib/routes/crm/tasks/[id]/files/route";
+import * as r152 from "@/lib/routes/crm/tasks/[id]/snooze/route";
+import * as r153 from "@/lib/routes/crm/tasks/[id]/track/route";
+import * as r154 from "@/app/api/crm/tasks/bulk/route";
+import * as r155 from "@/app/api/crm/tasks/digest/route";
+import * as r156 from "@/app/api/crm/tasks/due-count/route";
+import * as r157 from "@/app/api/crm/tasks/projects/route";
+import * as r158 from "@/lib/routes/crm/tasks/projects/[id]/route";
+import * as r159 from "@/app/api/crm/tasks/queues/route";
+import * as r160 from "@/lib/routes/crm/tasks/queues/[id]/route";
+import * as r161 from "@/app/api/crm/timeline/route";
+import * as r162 from "@/app/api/crm/trash/route";
+import * as r163 from "@/lib/routes/crm/trash/[id]/restore/route";
+import * as r164 from "@/app/api/crm/videos/route";
+import * as r165 from "@/lib/routes/crm/videos/[id]/route";
+import * as r166 from "@/lib/routes/crm/videos/[id]/file/route";
+import * as r167 from "@/app/api/crm/views/route";
+import * as r168 from "@/lib/routes/crm/views/[id]/route";
+import * as r169 from "@/app/api/crm/views/tabs/route";
+import * as r170 from "@/app/api/crm/visibility/route";
+import * as r171 from "@/app/api/crm/voice/calls/route";
+import * as r172 from "@/lib/routes/crm/voice/calls/[id]/route";
+import * as r173 from "@/lib/routes/crm/voice/calls/[id]/end/route";
+import * as r174 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
+import * as r175 from "@/app/api/crm/voice/calls/[id]/summarize/route";
+import * as r176 from "@/app/api/crm/voice/fake/route";
+import * as r177 from "@/app/api/crm/voice/settings/route";
+import * as r178 from "@/app/api/crm/workflows/route";
+import * as r179 from "@/lib/routes/crm/workflows/[id]/route";
+import * as r180 from "@/lib/routes/crm/workflows/[id]/enroll-existing/route";
+import * as r181 from "@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route";
+import * as r182 from "@/lib/routes/crm/workflows/[id]/run/route";
+import * as r183 from "@/lib/routes/crm/workflows/[id]/toggle/route";
 
 export const routes: Record<string, unknown> = {
   "/api/crm/activities": r0,
@@ -316,55 +317,56 @@ export const routes: Record<string, unknown> = {
   "/api/crm/records/[id]": r129,
   "/api/crm/records/[id]/links": r130,
   "/api/crm/reports": r131,
-  "/api/crm/sales-teams": r132,
-  "/api/crm/sales-teams/[id]": r133,
-  "/api/crm/scoring/recalculate": r134,
-  "/api/crm/scoring/rules": r135,
-  "/api/crm/scoring/rules/[id]": r136,
-  "/api/crm/scoring/scores": r137,
-  "/api/crm/scoring/scores/[id]": r138,
-  "/api/crm/search": r139,
-  "/api/crm/sequences": r140,
-  "/api/crm/sequences/[id]": r141,
-  "/api/crm/sequences/[id]/enroll": r142,
-  "/api/crm/sequences/enrollments/[id]": r143,
-  "/api/crm/settings": r144,
-  "/api/crm/stages/[id]": r145,
-  "/api/crm/tags": r146,
-  "/api/crm/tags/[id]": r147,
-  "/api/crm/tags/apply": r148,
-  "/api/crm/tags/record": r149,
-  "/api/crm/tasks/[id]/files": r150,
-  "/api/crm/tasks/[id]/snooze": r151,
-  "/api/crm/tasks/[id]/track": r152,
-  "/api/crm/tasks/bulk": r153,
-  "/api/crm/tasks/digest": r154,
-  "/api/crm/tasks/due-count": r155,
-  "/api/crm/tasks/projects": r156,
-  "/api/crm/tasks/projects/[id]": r157,
-  "/api/crm/tasks/queues": r158,
-  "/api/crm/tasks/queues/[id]": r159,
-  "/api/crm/timeline": r160,
-  "/api/crm/trash": r161,
-  "/api/crm/trash/[id]/restore": r162,
-  "/api/crm/videos": r163,
-  "/api/crm/videos/[id]": r164,
-  "/api/crm/videos/[id]/file": r165,
-  "/api/crm/views": r166,
-  "/api/crm/views/[id]": r167,
-  "/api/crm/views/tabs": r168,
-  "/api/crm/visibility": r169,
-  "/api/crm/voice/calls": r170,
-  "/api/crm/voice/calls/[id]": r171,
-  "/api/crm/voice/calls/[id]/end": r172,
-  "/api/crm/voice/calls/[id]/recording": r173,
-  "/api/crm/voice/calls/[id]/summarize": r174,
-  "/api/crm/voice/fake": r175,
-  "/api/crm/voice/settings": r176,
-  "/api/crm/workflows": r177,
-  "/api/crm/workflows/[id]": r178,
-  "/api/crm/workflows/[id]/enroll-existing": r179,
-  "/api/crm/workflows/[id]/enrollments/[runId]": r180,
-  "/api/crm/workflows/[id]/run": r181,
-  "/api/crm/workflows/[id]/toggle": r182,
+  "/api/crm/row-expand": r132,
+  "/api/crm/sales-teams": r133,
+  "/api/crm/sales-teams/[id]": r134,
+  "/api/crm/scoring/recalculate": r135,
+  "/api/crm/scoring/rules": r136,
+  "/api/crm/scoring/rules/[id]": r137,
+  "/api/crm/scoring/scores": r138,
+  "/api/crm/scoring/scores/[id]": r139,
+  "/api/crm/search": r140,
+  "/api/crm/sequences": r141,
+  "/api/crm/sequences/[id]": r142,
+  "/api/crm/sequences/[id]/enroll": r143,
+  "/api/crm/sequences/enrollments/[id]": r144,
+  "/api/crm/settings": r145,
+  "/api/crm/stages/[id]": r146,
+  "/api/crm/tags": r147,
+  "/api/crm/tags/[id]": r148,
+  "/api/crm/tags/apply": r149,
+  "/api/crm/tags/record": r150,
+  "/api/crm/tasks/[id]/files": r151,
+  "/api/crm/tasks/[id]/snooze": r152,
+  "/api/crm/tasks/[id]/track": r153,
+  "/api/crm/tasks/bulk": r154,
+  "/api/crm/tasks/digest": r155,
+  "/api/crm/tasks/due-count": r156,
+  "/api/crm/tasks/projects": r157,
+  "/api/crm/tasks/projects/[id]": r158,
+  "/api/crm/tasks/queues": r159,
+  "/api/crm/tasks/queues/[id]": r160,
+  "/api/crm/timeline": r161,
+  "/api/crm/trash": r162,
+  "/api/crm/trash/[id]/restore": r163,
+  "/api/crm/videos": r164,
+  "/api/crm/videos/[id]": r165,
+  "/api/crm/videos/[id]/file": r166,
+  "/api/crm/views": r167,
+  "/api/crm/views/[id]": r168,
+  "/api/crm/views/tabs": r169,
+  "/api/crm/visibility": r170,
+  "/api/crm/voice/calls": r171,
+  "/api/crm/voice/calls/[id]": r172,
+  "/api/crm/voice/calls/[id]/end": r173,
+  "/api/crm/voice/calls/[id]/recording": r174,
+  "/api/crm/voice/calls/[id]/summarize": r175,
+  "/api/crm/voice/fake": r176,
+  "/api/crm/voice/settings": r177,
+  "/api/crm/workflows": r178,
+  "/api/crm/workflows/[id]": r179,
+  "/api/crm/workflows/[id]/enroll-existing": r180,
+  "/api/crm/workflows/[id]/enrollments/[runId]": r181,
+  "/api/crm/workflows/[id]/run": r182,
+  "/api/crm/workflows/[id]/toggle": r183,
 };

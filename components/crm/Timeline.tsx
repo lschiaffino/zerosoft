@@ -1105,6 +1105,7 @@ export default function Timeline({
         {assocId === item.id && (
           <div className="atl-assoc-edit" data-testid="timeline-assoc-edit">
             <RecordCombobox
+              inputClassName="input"
               options={item.contact_id && item.contact_name ? [{ value: item.contact_id, label: item.contact_name }] : []}
               value={assoc.contactId}
               onChange={(v) => setAssoc((a) => ({ ...a, contactId: v }))}
@@ -1114,6 +1115,7 @@ export default function Timeline({
               search={(q) => searchRecords('contacts', q)}
             />
             <RecordCombobox
+              inputClassName="input"
               options={item.company_id && item.company_name ? [{ value: item.company_id, label: item.company_name }] : []}
               value={assoc.companyId}
               onChange={(v) => setAssoc((a) => ({ ...a, companyId: v }))}
@@ -1123,6 +1125,7 @@ export default function Timeline({
               search={(q) => searchRecords('companies', q)}
             />
             <RecordCombobox
+              inputClassName="input"
               options={item.deal_id && item.deal_name ? [{ value: item.deal_id, label: item.deal_name }] : []}
               value={assoc.dealId}
               onChange={(v) => setAssoc((a) => ({ ...a, dealId: v }))}

@@ -5557,5 +5557,43 @@
     "deleteError": "Couldn't delete the comment. Try again.",
     "tooMany": "This activity has reached the comment limit.",
     "tooLong": "The comment is too long."
+  },
+  "rowExpand": {
+    "expand": "Show associations and last activity: {name}",
+    "collapse": "Hide associations and last activity: {name}",
+    "region": "Associations and last activity of {name}",
+    "loading": "Loading…",
+    "error": "Could not load this record's associations.",
+    "retry": "Try again",
+    "contacts": "Contacts",
+    "deals": "Deals",
+    "openDeals": "Open deals",
+    "companies": "Companies",
+    "lastActivity": "Last activity",
+    "noContacts": "No contacts you can see.",
+    "noDeals": "No deals you can see.",
+    "noOpenDeals": "No open deals you can see.",
+    "noCompanies": "No companies you can see.",
+    "noActivity": "No activity yet.",
+    "unnamed": "No name",
+    "primary": "Primary",
+    "closes": "closes {date}",
+    "status": {
+      "won": "Won",
+      "lost": "Lost",
+      "open": "Open"
+    },
+    "allContacts": "See all {count} contacts",
+    "allDeals": "See all {count} deals",
+    "allCompanies": "See all {count} companies",
+    "openRecord": "Open record",
+    "types": {
+      "note": "Note",
+      "email": "Email",
+      "call": "Call",
+      "task": "Task",
+      "meeting": "Meeting",
+      "whatsapp": "WhatsApp"
+    }
   }
 }

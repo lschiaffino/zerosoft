@@ -501,8 +501,8 @@ export async function createChatNoteMentionNotification(args: {
 }
 
 // Mention parsing: @email@domain.com and @Some Name (up to 3 capitalized words).
-const EMAIL_MENTION_RE = /@[\w.-]+@[\w.-]+\.\w{2,}/g;
-const NAME_MENTION_RE = /@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;
+export const EMAIL_MENTION_RE = /@[\w.-]+@[\w.-]+\.\w{2,}/g;
+export const NAME_MENTION_RE = /@[A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*){0,2}/g;
 
 export async function createIssueCommentNotifications(args: {
   issue: IssueSummary;
