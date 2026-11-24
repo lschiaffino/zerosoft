@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeItem, type TrackMailItem } from '@/lib/track-notify';
 
-const item = (p: Partial<TrackMailItem> & { meta?: Record<string, string> }): TrackMailItem => ({
+const item = (p: Omit<Partial<TrackMailItem>, 'meta'> & { meta?: Record<string, string> }): TrackMailItem => ({
   id: 'n1',
   type: 'project_update',
   source_type: 'track_plan',
