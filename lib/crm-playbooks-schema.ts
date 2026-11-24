@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 import { LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES } from './crm-constants';
+import { isAllowedOption, optionPropertyOf, type OptionSets } from './crm-property-options-shared';
 
 export const PLAYBOOK_ENTITIES = ['contact', 'company', 'deal'] as const;
 export type PlaybookEntity = (typeof PLAYBOOK_ENTITIES)[number];
@@ -177,6 +178,8 @@ export function propertyPatch(
   questions: PlaybookQuestion[],
   answers: Record<string, string>,
   entity: PlaybookEntity,
+  /** Opciones del workspace (lib/crm-property-options.ts): sin esto, las de fábrica. */
+  options?: OptionSets,
 ): { standard: Record<string, string | number>; custom: Record<string, string> } {
   const standard: Record<string, string | number> = {};
   const custom: Record<string, string> = {};
@@ -190,7 +193,11 @@ export function propertyPatch(
       continue;
     }
     const allowed = ENUM_PROPERTIES[q.property];
-    if (allowed && !allowed.includes(value)) continue;
+    // Lifecycle y lead status: una opción activa del workspace; una que no lo es se deja afuera (no rompe la corrida).
+    const optionProp = optionPropertyOf(key);
+    if (optionProp && options) {
+      if (!isAllowedOption(options[optionProp], value)) continue;
+    } else if (allowed && !allowed.includes(value)) continue;
     if (PROPERTY_TYPES[q.property] === 'number') {
       const n = Number(value);
       if (!Number.isFinite(n) || n < 0) continue;

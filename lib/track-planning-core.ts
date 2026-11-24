@@ -374,6 +374,8 @@ export interface InsightIssue {
   completedAt: string | null;
   /** Desde cuándo está en el status actual (time in status). */
   statusChangedAt?: string | null;
+  /** Cuándo salió de triage (triage time); null si nunca pasó por triage o salió antes de registrarlo. */
+  triageResolvedAt?: string | null;
 }
 
 export interface InsightBucket {
@@ -492,6 +494,10 @@ function timeValue(issue: InsightIssue, measure: string, now: Date): number | nu
     if (issue.category === 'done' || issue.category === 'cancelled') return null;
     return daysBetween(issue.statusChangedAt ?? issue.createdAt, now.toISOString());
   }
+  // Triage time: desde que se creó hasta que salió de triage (aceptado, rechazado, duplicado o movido).
+  if (measure === 'triage_time') {
+    return issue.triageResolvedAt ? daysBetween(issue.createdAt, issue.triageResolvedAt) : null;
+  }
   return null;
 }
 
@@ -514,7 +520,7 @@ export function aggregateInsight(
   now: Date = new Date(),
 ): InsightResult {
   const measure = query.measure;
-  const isTime = measure === 'cycle_time' || measure === 'lead_time' || measure === 'issue_age' || measure === 'time_in_status';
+  const isTime = measure === 'cycle_time' || measure === 'lead_time' || measure === 'issue_age' || measure === 'time_in_status' || measure === 'triage_time';
   const unit: InsightResult['unit'] = isTime ? 'days' : measure === 'effort' ? 'points' : 'issues';
   const weight = (i: InsightIssue) => (measure === 'effort' ? Math.max(i.estimate ?? 0, 0) : 1);
 

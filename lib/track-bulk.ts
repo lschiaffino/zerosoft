@@ -264,7 +264,9 @@ export async function findWorkspaceIssueByIdentifier(
  */
 export async function claimTriage(issueId: string): Promise<boolean> {
   const res = await getDb()
-    .prepare("UPDATE track_issues SET triage = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1")
+    .prepare(
+      "UPDATE track_issues SET triage = 0, triage_resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND triage = 1",
+    )
     .run(issueId);
   return res.changes > 0;
 }

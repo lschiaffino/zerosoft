@@ -13,9 +13,8 @@ import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { scoreTier } from '@/lib/crm-scoring-schema';
 import { contactScores, listScores } from '@/lib/crm-scoring';
 import { getDb } from '@/lib/db';
+import { optionHelpersFor } from '@/lib/crm-property-options';
 import {
-  LEAD_STATUSES,
-  LIFECYCLE_STAGES,
   SOURCES,
   getContact,
   listCompanies,
@@ -95,6 +94,7 @@ export default async function ContactDetailPage(props: {
   const user = await requireUser(locale);
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  const crmOpts = await optionHelpersFor(user.id, t);
   const rawDetail = await getContact(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.contact.owner_id, user.id)) notFound();
   const detail = await maskDetailRefs(user.id, 'contact', scopeContactDetail(rawDetail, scope), scope);
@@ -139,8 +139,8 @@ export default async function ContactDetailPage(props: {
     owner_id: t('contacts.form.owner'),
   };
   const historyValues: Record<string, Record<string, string>> = {
-    lifecycle_stage: Object.fromEntries(LIFECYCLE_STAGES.map((v) => [v, t(`enums.lifecycle.${v}`)])),
-    lead_status: Object.fromEntries(LEAD_STATUSES.map((v) => [v, t(`enums.leadStatus.${v}`)])),
+    lifecycle_stage: crmOpts.labelMap('lifecycle'),
+    lead_status: crmOpts.labelMap('leadStatus'),
     source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
   };
 
@@ -306,14 +306,14 @@ export default async function ContactDetailPage(props: {
       label: t('contacts.form.lifecycle'),
       type: 'select',
       value: contact.lifecycle_stage,
-      options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+      options: crmOpts.choices('lifecycle', contact.lifecycle_stage),
     },
     {
       key: 'leadStatus',
       label: t('contacts.form.leadStatus'),
       type: 'select',
       value: contact.lead_status,
-      options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+      options: crmOpts.choices('leadStatus', contact.lead_status),
     },
     {
       key: 'source',
@@ -672,11 +672,11 @@ export default async function ContactDetailPage(props: {
             <>
               {contact.lifecycle_stage && (
                 <span className={`dot-label stage-${contact.lifecycle_stage}`}>
-                  {t(`enums.lifecycle.${contact.lifecycle_stage}`)}
+                  {crmOpts.label('lifecycle', contact.lifecycle_stage)}
                 </span>
               )}
               {contact.lead_status && (
-                <span className="dot-label">{t(`enums.leadStatus.${contact.lead_status}`)}</span>
+                <span className="dot-label">{crmOpts.label('leadStatus', contact.lead_status)}</span>
               )}
               {contact.job_title && <span>{contact.job_title}</span>}
               {company && (

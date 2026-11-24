@@ -23,6 +23,8 @@ export interface CrmSettings {
   /** Resultados de un mensaje de WhatsApp (lista aparte de la de llamadas). */
   whatsappOutcomes: string[];
   whatsappOutcomesCustom: boolean;
+  /** Lifecycle automático: Opportunity al crear un deal, Customer al ganarlo (lib/crm-lifecycle-auto.ts). */
+  lifecycleAuto: boolean;
 }
 
 export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<CrmSettings> {
@@ -36,12 +38,14 @@ export async function getCrmSettings(userId: string, db: Db = getDb()): Promise<
     callOutcomesCustom: parseOutcomeConfig(row?.call_outcomes).call.length > 0,
     whatsappOutcomes: parseCallOutcomes(row?.call_outcomes, 'whatsapp'),
     whatsappOutcomesCustom: parseOutcomeConfig(row?.call_outcomes).whatsapp.length > 0,
+    // Sin fila o sin la columna todavía: prendido, como HubSpot.
+    lifecycleAuto: row?.lifecycle_auto === undefined || row?.lifecycle_auto === null ? true : !!row.lifecycle_auto,
   };
 }
 
 export async function updateCrmSettings(
   userId: string,
-  patch: Partial<Pick<CrmSettings, 'baseCurrency' | 'quoteAcceptMovesDeal'>> & {
+  patch: Partial<Pick<CrmSettings, 'baseCurrency' | 'quoteAcceptMovesDeal' | 'lifecycleAuto'>> & {
     callOutcomes?: string[] | null;
     whatsappOutcomes?: string[] | null;
   },
@@ -50,6 +54,7 @@ export async function updateCrmSettings(
   const current = await getCrmSettings(userId, db);
   const baseCurrency = patch.baseCurrency ? patch.baseCurrency.toUpperCase() : current.baseCurrency;
   const quoteAcceptMovesDeal = patch.quoteAcceptMovesDeal ?? current.quoteAcceptMovesDeal;
+  const lifecycleAuto = patch.lifecycleAuto ?? current.lifecycleAuto;
   if (!CURRENCY_RE.test(baseCurrency)) throw new Error('invalid_currency');
   // Resultados por canal: undefined = sin cambios; null o lista vacía = los de siempre.
   const outcomes = serializeOutcomeConfig({
@@ -63,13 +68,13 @@ export async function updateCrmSettings(
   });
   await db
     .prepare(
-      `INSERT INTO crm_settings (user_id, base_currency, quote_accept_moves_deal, call_outcomes, updated_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO crm_settings (user_id, base_currency, quote_accept_moves_deal, call_outcomes, lifecycle_auto, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET base_currency = excluded.base_currency,
          quote_accept_moves_deal = excluded.quote_accept_moves_deal, call_outcomes = excluded.call_outcomes,
-         updated_at = excluded.updated_at`,
+         lifecycle_auto = excluded.lifecycle_auto, updated_at = excluded.updated_at`,
     )
-    .run(userId, baseCurrency, quoteAcceptMovesDeal ? 1 : 0, outcomes, nowDb());
+    .run(userId, baseCurrency, quoteAcceptMovesDeal ? 1 : 0, outcomes, lifecycleAuto ? 1 : 0, nowDb());
   const next = await getCrmSettings(userId, db);
   // La base vale 1 por definición: un rate guardado para ella no aplica.
   await db.prepare('DELETE FROM crm_exchange_rates WHERE user_id = ? AND currency = ?').run(userId, next.baseCurrency);

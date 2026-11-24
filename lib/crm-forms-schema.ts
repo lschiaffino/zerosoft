@@ -3,7 +3,8 @@
  * (cliente), la página pública /f/<key> y lib/crm-forms.ts (servidor).
  */
 import { z } from 'zod';
-import { LEAD_STATUSES, LIFECYCLE_STAGES, SOURCES } from './crm-constants';
+import { SOURCES } from './crm-constants';
+import { OPTION_VALUE_RE } from './crm-property-options-shared';
 import { compareText, isEmail, isPhone, urlParamsOf as sharedUrlParamsOf } from './form-engine';
 
 /** 'step' no es un campo: corta el formulario en pasos (su etiqueta es el título del paso). */
@@ -193,8 +194,9 @@ export const formSettingsSchema = z.object({
     .refine((v) => v === '' || /^https?:\/\//i.test(v), { message: 'invalid_url' }),
   notifyOwner: z.boolean(),
   notifyEmails: z.array(emailish).max(10),
-  lifecycleStage: z.enum(['', ...LIFECYCLE_STAGES]),
-  leadStatus: z.enum(['', ...LEAD_STATUSES]),
+  // Opciones del workspace (lib/crm-property-options.ts); una que ya no está activa se ignora al enviar.
+  lifecycleStage: z.union([z.literal(''), z.string().regex(OPTION_VALUE_RE)]),
+  leadStatus: z.union([z.literal(''), z.string().regex(OPTION_VALUE_RE)]),
   source: z.enum(['', ...SOURCES]),
   ownerId: z.string().max(64),
   listId: z.string().max(64),
