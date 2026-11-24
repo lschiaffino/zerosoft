@@ -41,6 +41,7 @@ import { Modal } from '../InboxDialogs';
 import type { ComposerHandle } from '../Composer';
 import WaComposer, { ComposerBanner } from './WaComposer';
 import { chatName, formatPhone, groupReactions, senderLabel } from './util';
+import { groupSubtitle } from '@/lib/wa-group-subtitle';
 import { mentionLabels, replaceMentions } from '@/lib/wa-mentions';
 import type { MentionLabels } from '@/components/groups/wa/RichText';
 import { swipeAndHold } from './gestures';
@@ -736,10 +737,7 @@ const WaConversation = forwardRef<
   } else if (!group && thread.presence === 'online') subtitle = w('online');
   else if (!group && thread.lastSeenAt) subtitle = lastSeen(thread.lastSeenAt, locale, w);
   else if (group && wa?.participants.length) {
-    const list = wa.participants.map((p) => (p.me ? w('you') : p.name || formatPhone(p.phone)));
-    const mine = list.indexOf(w('you'));
-    if (mine > 0) list.push(list.splice(mine, 1)[0]);
-    subtitle = list.join(', ');
+    subtitle = groupSubtitle(wa.participants.map((p) => ({ name: p.name, phone: formatPhone(p.phone), me: p.me })), w('you'), wa.size) || w('clickInfo');
   } else subtitle = w('clickInfo');
 
   // Notas del chat: la pestaña Notas del panel de info (components/inbox/wa/ThreadNotes.tsx).
@@ -1249,7 +1247,7 @@ const WaConversation = forwardRef<
           <Avatar name={name} kind={group ? 'group' : 'dm'} src={thread.avatar || undefined} seed={thread.id} size={36} />
           <span className="gr-thread-title">
             <h2 dir="auto">{name}</h2>
-            <span className={`wa-head-sub${live ? ' is-typing' : ''}`}>{subtitle}</span>
+            <span className={`wa-head-sub${live ? ' is-typing' : ''}`} data-testid="wa-head-sub">{subtitle}</span>
           </span>
         </button>
         <div className="gr-thread-actions" data-tour="inbox-triage">

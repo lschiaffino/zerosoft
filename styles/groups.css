@@ -794,6 +794,8 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* ---------- Organización y tickets (G2): listas guardadas, propiedades, ajustes del grupo, tareas, plantillas ---------- */
 .gr-list-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .gr-list-titlebar .gr-list-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* En un teléfono el título ("Caixa de entrada") se lee entero, como en WhatsApp: lo que se corta es el selector de línea. El tope deja lugar a los botones si el nombre de una lista es largo. */
+.gr-list-titlebar > .gr-list-title { flex-shrink: 0; max-width: 62%; }
 .gr-list-views { display: flex; gap: 4px; overflow-x: auto; min-width: 0; padding-bottom: 2px; scrollbar-width: thin; }
 .gr-view {
   flex: none;
