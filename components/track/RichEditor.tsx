@@ -70,6 +70,11 @@ interface RichEditorProps {
   /** Comentarios: alto mínimo chico. */
   compact?: boolean;
   /**
+   * Comentar el texto elegido (descripción del issue, como Linear): suma
+   * "Comentar" a la barra de la selección y recibe el texto y dónde está.
+   */
+  onComment?: (text: string, rect: DOMRect) => void;
+  /**
    * Referencias a issues de Track ("#", issues en el menú de "@" y chips con
    * estado). false fuera de Track (notas y comentarios del CRM): "@" solo
    * sugiere personas y no se consulta Track.
@@ -162,12 +167,15 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
     autoFocus,
     className = '',
     compact = false,
+    onComment,
     issueRefs = true,
     toolbar: fixedToolbar = false,
   },
   ref,
 ) {
   const te = useTranslations('track.ux.editor');
+  const onCommentRef = useRef(onComment);
+  onCommentRef.current = onComment;
   const router = useRouter();
   const wrapRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -711,7 +719,7 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
       }
       const rect = r.getBoundingClientRect();
       const w = wrap.getBoundingClientRect();
-      const width = 228;
+      const width = onCommentRef.current ? 264 : 228;
       // Arriba de la selección (como Linear); si no entra en la pantalla, abajo.
       setToolbar({
         top: rect.top - 40 < 0 ? rect.bottom - w.top + 6 : rect.top - w.top - 40,
@@ -1370,6 +1378,26 @@ const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEd
                 <TrackIcon name={icon} size={14} />
               </button>
             ))
+          )}
+          {!linkInput && onComment && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm btn-icon track-rte-comment"
+              aria-label={te('comment')}
+              title={te('comment')}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const r = caretRange();
+                const text = r ? r.toString() : '';
+                if (!r || !text.trim()) return;
+                const rect = r.getBoundingClientRect();
+                setToolbar(null);
+                onComment(text, rect);
+              }}
+              data-testid="track-rte-comment"
+            >
+              <TrackIcon name="comment" size={14} />
+            </button>
           )}
         </div>
       )}

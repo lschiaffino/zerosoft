@@ -78,6 +78,8 @@ export const GUARDS = [
   '@/lib/track-api-http#trackApiRoute',
   '@/lib/track-mcp#mcpHttpPost',
   '@/lib/track-planning-http#planningContext',
+  // Hilos de projects e iniciativas: cada handler pasa por planningContext (401 sin sesión).
+  '@/lib/track-entity-comments-http#entityCommentRoutes',
   '@/lib/track-triage-http#issueAccess',
   '@/lib/track-triage-http#projectAccess',
   '@/lib/voice-route#voiceAuth',
