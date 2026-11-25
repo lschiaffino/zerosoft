@@ -30,6 +30,7 @@ import { open, seal } from './secret-box';
 import { safeFetch } from './safe-fetch';
 import { HubspotApiError, bindHubspotTokenPortal, createHubspotClient, hubspotBudget, type HubspotClient } from './hubspot/client';
 import { inspectHubspotToken, looksLikeHubspotToken, type HubspotTokenInfo, type HubspotTokenKind } from './hubspot/token';
+import { hubspotScopeForRequest } from './hubspot/scopes';
 import type { FetchLike } from './groups-provider';
 import { fakeMode } from './groups-integrations';
 import { fakeHubspotFetch } from './groups-hubspot-fake';
@@ -165,6 +166,8 @@ export interface HubspotDto {
   webhook: boolean;
   /** Con qué se conectó: una service key o una private app heredada ('unknown' si no se pudo saber). */
   tokenKind: HubspotTokenKind;
+  /** Estado del sync para el admin (Ajustes): lo agrega la ruta, no lo trae getHubspot. */
+  sync?: HubspotSyncStatus | null;
 }
 
 type Conn = HubspotConn;
@@ -295,10 +298,16 @@ export function hubspotClient(token: string, maxWaitMs = 3_000): HubspotClient {
   return createHubspotClient({ token, fetch: fetcher(), budget: fakeMode() ? null : hubspotBudget({ token, maxWaitMs }) });
 }
 
+/** Lecturas y escrituras que se pueden repetir sin duplicar nada (una búsqueda es una lectura aunque vaya por POST). */
+const isRepeatable = (method: string, path: string) => method !== 'POST' || /\/(search|batch\/read)$/.test(path.split('?')[0] ?? '');
+
 async function request(token: string, method: string, path: string, body?: unknown, auth = true): Promise<Record<string, unknown>> {
   let res;
+  // Ante el límite de HubSpot (429) se espera y se reintenta; un 5xx o un corte de red solo en lo que no duplica nada
+  // (crear una nota o un contacto no se repite: si el primero llegó, saldrían dos).
+  const repeatable = isRepeatable(method, path);
   try {
-    res = await hubspotClient(token).send(path, { method, body, auth });
+    res = await hubspotClient(token).send(path, { method, body, auth, retries: 2, maxWaitMs: 4_000, retry5xx: repeatable, retryNetwork: repeatable });
   } catch (err) {
     throw fromApiError(err);
   }
@@ -315,7 +324,11 @@ async function hs(conn: Conn, method: string, path: string, body?: unknown): Pro
     return await request(conn.token, method, path, body);
   } catch (err) {
     // Un 404 de un registro no es un problema de la conexión.
-    if (err instanceof HubspotError && err.code !== 'hubspot_not_found') await markUsed(conn.ws, err.code).catch(() => null);
+    if (err instanceof HubspotError && err.code !== 'hubspot_not_found') {
+      // Sin permiso: se anota cuál falta, para que Ajustes lo diga.
+      const scope = err.code === 'hubspot_missing_scopes' ? hubspotScopeForRequest(method, path, conn.scopes) : null;
+      await markUsed(conn.ws, scope ? `${err.code}:${scope}` : err.code).catch(() => null);
+    }
     throw err;
   }
 }
@@ -402,6 +415,10 @@ async function clearWorkspaceData(ws: string): Promise<void> {
   for (const table of ['groups_hubspot_props', 'groups_hubspot_prop_groups', 'groups_hubspot_companies', 'groups_hubspot_values', 'groups_hubspot_sync_log', 'groups_hubspot_suggest']) {
     await db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(ws);
   }
+  // Las propiedades de contacto y negocio y lo que cada persona fijó son de la cuenta anterior; usan `ws`, no `user_id`.
+  for (const table of ['hubspot_object_schema', 'hubspot_view_props', 'hubspot_view_object_props']) {
+    await db.prepare(`DELETE FROM ${table} WHERE ws = ?`).run(ws);
+  }
   await db
     .prepare(
       "UPDATE groups_hubspot SET schema_synced_at = NULL, owners = '[]', pinned = '[]', sync_cursor = '{}', synced_at = NULL, verified_at = NULL, sync_backoff_until = NULL, sync_fails = 0, webhook_secret = '' WHERE user_id = ?",
@@ -421,6 +438,102 @@ export async function disconnectHubspot(ws: string): Promise<boolean> {
   // El esquema del contacto y del negocio es de esa cuenta: otra cuenta lo vuelve a importar.
   await getDb().prepare('DELETE FROM hubspot_object_schema WHERE ws = ?').run(ws);
   return res.changes > 0;
+}
+
+// ======================================================================
+// Estado del sync (Ajustes › Integraciones)
+// ======================================================================
+
+export interface HubspotSyncProblem {
+  kind: 'note' | 'link';
+  chatId: string;
+  chatName: string;
+  /** Código de error de la API (groups.errors.*) para una nota; 'deleted' o 'merged' para un vínculo roto. */
+  code: string;
+}
+
+export interface HubspotSyncStatus {
+  /** Empresas de HubSpot vinculadas a algún chat y cuántas ya no están (borradas o fusionadas). */
+  linkedCompanies: number;
+  brokenLinks: number;
+  /** Corridas seguidas del sync de empresas que fallaron y cuándo vuelve a intentar (null: anda). */
+  failures: number;
+  retryAt: string | null;
+  /** Notas de los últimos 7 días que no se pudieron dejar en HubSpot. */
+  noteErrors: number;
+  /** Los primeros casos, de líneas que ve todo el workspace (para decir cuáles son). */
+  problems: HubspotSyncProblem[];
+}
+
+/** Qué pasa con el sync: lo que Ajustes muestra al admin. Los nombres de chats de líneas restringidas no salen. */
+export async function getHubspotSyncStatus(ws: string, now = new Date()): Promise<HubspotSyncStatus> {
+  const db = getDb();
+  const one = async (sql: string, ...args: Array<string | number>) => Number(((await db.prepare(sql).get(...args)) as { n: number } | undefined)?.n ?? 0);
+  const linkedCompanies = await one("SELECT COUNT(DISTINCT object_id) AS n FROM groups_hubspot_links WHERE user_id = ? AND object_type = 'company'", ws);
+  const brokenLinks = await one("SELECT COUNT(DISTINCT object_id) AS n FROM groups_hubspot_links WHERE user_id = ? AND object_type = 'company' AND missing = 1", ws);
+  const since = dayOf(new Date(now.getTime() - (MANUAL_DAYS - 1) * 86_400_000));
+  const noteErrors = await one("SELECT COUNT(*) AS n FROM groups_hubspot_notes WHERE user_id = ? AND last_error != '' AND day >= ?", ws, since);
+  const state = (await db.prepare('SELECT sync_fails, sync_backoff_until FROM groups_hubspot WHERE user_id = ?').get(ws)) as { sync_fails: number | null; sync_backoff_until: string | null } | undefined;
+  const failures = Number(state?.sync_fails ?? 0);
+  const notes = (await db
+    .prepare(
+      `SELECT n.chat_id, c.name, n.last_error FROM groups_hubspot_notes n JOIN groups_chats c ON c.id = n.chat_id
+       JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
+       WHERE n.user_id = ? AND n.last_error != '' AND n.day >= ? ORDER BY n.synced_at DESC LIMIT 5`,
+    )
+    .all(ws, since)) as Array<{ chat_id: string; name: string; last_error: string }>;
+  const links = (await db
+    .prepare(
+      `SELECT l.chat_id, c.name, COALESCE(co.missing_reason, 'deleted') AS reason FROM groups_hubspot_links l JOIN groups_chats c ON c.id = l.chat_id
+       JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
+       LEFT JOIN groups_hubspot_companies co ON co.user_id = l.user_id AND co.company_id = l.object_id
+       WHERE l.user_id = ? AND l.object_type = 'company' AND l.missing = 1 ORDER BY l.created_at DESC LIMIT 5`,
+    )
+    .all(ws)) as Array<{ chat_id: string; name: string; reason: string }>;
+  return {
+    linkedCompanies,
+    brokenLinks,
+    failures,
+    retryAt: failures > 0 && state?.sync_backoff_until && state.sync_backoff_until > now.toISOString() ? state.sync_backoff_until : null,
+    noteErrors,
+    problems: [
+      ...links.map((r): HubspotSyncProblem => ({ kind: 'link', chatId: r.chat_id, chatName: r.name, code: r.reason === 'merged' ? 'merged' : 'deleted' })),
+      ...notes.map((r): HubspotSyncProblem => ({ kind: 'note', chatId: r.chat_id, chatName: r.name, code: r.last_error })),
+    ],
+  };
+}
+
+/**
+ * Vuelve a leer qué permisos tiene la clave guardada. Los permisos se leen al
+ * conectar: si después se agregan o se sacan en HubSpot, sin esto Lines sigue
+ * con los de antes hasta reconectar. Una clave que HubSpot ya no acepta queda
+ * anotada como error de la conexión.
+ */
+export async function recheckHubspotScopes(ws: string): Promise<string[]> {
+  const conn = await requireConn(ws);
+  let info: HubspotTokenInfo;
+  try {
+    info = await inspectToken(conn.token);
+  } catch (err) {
+    if (err instanceof HubspotError && err.code !== 'hubspot_not_found') await markUsed(ws, err.code).catch(() => null);
+    throw err;
+  }
+  // La clave guardada entra a otra cuenta que la que se conectó: no se pisa nada, se avisa.
+  const row = await connRow(ws);
+  if (row?.portal_id && row.portal_id !== info.portalId) {
+    await markUsed(ws, 'hubspot_invalid_token').catch(() => null);
+    throw new HubspotError('hubspot_invalid_token', 502);
+  }
+  const canLog = info.scopes.includes(NOTE_SCOPE);
+  const canCreate = info.scopes.includes(HUBSPOT_CONTACT_WRITE_SCOPE);
+  await getDb()
+    .prepare(
+      `UPDATE groups_hubspot SET scopes = ?, token_kind = ?, updated_at = ?,
+         log_notes = CASE WHEN ? = 1 THEN log_notes ELSE 0 END,
+         auto_create = CASE WHEN ? = 1 THEN auto_create ELSE 0 END WHERE user_id = ?`,
+    )
+    .run(JSON.stringify(info.scopes), info.kind, new Date().toISOString(), canLog ? 1 : 0, canCreate ? 1 : 0, ws);
+  return info.scopes;
 }
 
 // ======================================================================
@@ -1099,6 +1212,14 @@ interface NoteRow {
   locked_until: string | null;
 }
 
+/** Lo que queda anotado de una nota que falló: el código, y si faltaba un permiso, cuál. */
+function noteErrorCode(conn: Conn, err: unknown): string {
+  if (!(err instanceof HubspotError)) return 'error';
+  if (err.code !== 'hubspot_missing_scopes') return err.code;
+  const scope = hubspotScopeForRequest('POST', '/crm/v3/objects/notes', conn.scopes);
+  return scope ? `${err.code}:${scope}` : err.code;
+}
+
 const targetKey = (l: { object_type: HubspotType; object_id: string }) => `${l.object_type}:${l.object_id}`;
 
 const MESSAGE_FILTER = "m.direction IN ('in', 'out') AND m.deleted_at IS NULL";
@@ -1207,7 +1328,7 @@ async function syncNote(conn: Conn, chatId: string, day: string, opts: { force?:
   } catch (err) {
     await db
       .prepare('UPDATE groups_hubspot_notes SET last_error = ?, synced_at = ? WHERE chat_id = ? AND day = ?')
-      .run(err instanceof HubspotError ? err.code : 'error', new Date().toISOString(), chatId, day);
+      .run(noteErrorCode(conn, err), new Date().toISOString(), chatId, day);
     throw err;
   } finally {
     await db.prepare('UPDATE groups_hubspot_notes SET locked_until = NULL WHERE chat_id = ? AND day = ? AND locked_until = ?').run(chatId, day, lock);
@@ -1231,7 +1352,14 @@ export async function logChatToHubspot(ws: string, chatId: string, now = new Dat
     .all(chatId, ws, since)) as Array<{ day: string }>;
   if (days.length === 0) throw new HubspotError('hubspot_no_messages');
   let notes = 0;
-  for (const d of days) if (await syncNote(conn, chatId, d.day, { force: true })) notes++;
+  try {
+    for (const d of days) if (await syncNote(conn, chatId, d.day, { force: true })) notes++;
+  } catch (err) {
+    // Sin permiso para escribir: se dice cuál falta.
+    const code = noteErrorCode(conn, err);
+    if (err instanceof HubspotError && code !== err.code) throw new HubspotError(code, err.status);
+    throw err;
+  }
   return { notes, days: days.length };
 }
 
@@ -1240,39 +1368,34 @@ export async function logChatToHubspot(ws: string, chatId: string, now = new Dat
  * ayer) de los chats vinculados que tuvieron mensajes. Solo líneas visibles
  * para todo el workspace. Cada nota se reclama en syncNote.
  */
-export async function syncHubspotNotes(opts: { limit?: number; budgetMs?: number; now?: Date } = {}): Promise<number> {
+export async function syncHubspotNotes(opts: { limit?: number; budgetMs?: number; now?: Date; scan?: number; workspaceId?: string } = {}): Promise<number> {
   const db = getDb();
   const now = opts.now ?? new Date();
   const started = Date.now();
   const since = dayOf(new Date(now.getTime() - 86_400_000));
-  const stale = Date.now() - NOTE_MIN_GAP_MS;
-  const groups = (await db
+  const staleIso = new Date(Date.now() - NOTE_MIN_GAP_MS).toISOString();
+  // Ya quedan afuera, en la consulta y no después del LIMIT, las que están al día y las que se tocaron hace menos de 10
+  // minutos: si no, con cientos de chats vinculados las primeras (ya sincronizadas) ocupan todo el cupo y las nuevas no entran nunca.
+  const rows = (await db
     .prepare(
-      `SELECT m.user_id, m.chat_id, substr(m.created_at, 1, 10) AS day, COUNT(*) AS n, MAX(m.created_at) AS last
-       FROM groups_hubspot h
-       CROSS JOIN groups_messages m ON m.user_id = h.user_id
-       JOIN groups_chats c ON c.id = m.chat_id
-       JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
-       WHERE h.token != '' AND h.log_notes = 1 AND m.created_at >= ? AND ${MESSAGE_FILTER}
-         AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = m.chat_id AND l.missing = 0)
-       GROUP BY m.user_id, m.chat_id, substr(m.created_at, 1, 10)
-       ORDER BY last LIMIT 500`,
+      `SELECT g.user_id, g.chat_id, g.day FROM (
+         SELECT m.user_id, m.chat_id, substr(m.created_at, 1, 10) AS day, COUNT(*) AS n, MAX(m.created_at) AS last
+         FROM groups_hubspot h
+         CROSS JOIN groups_messages m ON m.user_id = h.user_id
+         JOIN groups_chats c ON c.id = m.chat_id
+         JOIN groups_numbers nb ON nb.id = c.number_id AND nb.visibility = 'all'
+         WHERE h.token != '' AND h.log_notes = 1 AND m.created_at >= ? AND ${MESSAGE_FILTER} AND (? = '' OR h.user_id = ?)
+           AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = m.chat_id AND l.missing = 0)
+         GROUP BY m.user_id, m.chat_id, substr(m.created_at, 1, 10)
+       ) g
+       WHERE NOT EXISTS (
+         SELECT 1 FROM groups_hubspot_notes x WHERE x.chat_id = g.chat_id AND x.day = g.day
+           AND ((x.synced_at IS NOT NULL AND x.synced_at > ?) OR (x.note_id != '' AND x.message_count = g.n AND x.last_message_at = g.last))
+       )
+       ORDER BY g.last LIMIT ?`,
     )
-    .all(since)) as Array<{ user_id: string; chat_id: string; day: string; n: number; last: string }>;
-  const notes = new Map(
-    ((await db.prepare('SELECT chat_id, day, note_id, message_count, last_message_at, synced_at FROM groups_hubspot_notes WHERE day >= ?').all(since)) as Array<
-      Pick<NoteRow, 'chat_id' | 'day' | 'note_id' | 'message_count' | 'last_message_at' | 'synced_at'>
-    >).map((x) => [`${x.chat_id}|${x.day}`, x]),
-  );
-  // Quedan las que cambiaron (o nunca se escribieron) y no se tocaron en los últimos 10 minutos.
-  const rows = groups
-    .filter((g) => {
-      const x = notes.get(`${g.chat_id}|${g.day}`);
-      if (!x) return true;
-      if (x.synced_at && Date.parse(x.synced_at) > stale) return false;
-      return !(x.note_id && x.message_count === Number(g.n) && x.last_message_at === g.last);
-    })
-    .slice(0, opts.limit ?? 20);
+    .all(since, opts.workspaceId ?? '', opts.workspaceId ?? '', staleIso, opts.scan ?? 500)) as Array<{ user_id: string; chat_id: string; day: string }>;
+  rows.splice(opts.limit ?? 20);
   let written = 0;
   const conns = new Map<string, Conn | null>();
   const blocked = new Set<string>();
