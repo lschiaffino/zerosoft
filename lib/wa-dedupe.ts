@@ -236,7 +236,12 @@ export interface MergeOptions {
    * puede no existir todavía, así que quien llama lo pide solo si ya está (TEAM_FOLDERS_TABLE_SQL).
    */
   teamFolders?: boolean;
+  /** Inbox: pasar también el vínculo con el CRM (inbox_crm_links). Como teamFolders: solo si la tabla ya existe (INBOX_CRM_LINKS_TABLE_SQL). */
+  crmLinks?: boolean;
 }
+
+/** ¿Ya existe la tabla de vínculos de Inbox con el CRM? (las limpiezas de migraciones viejas corren antes de crearla). */
+export const INBOX_CRM_LINKS_TABLE_SQL = "SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = 'inbox_crm_links'";
 
 /**
  * La corrida: después de los INSERT de candidatos, resuelve el sobreviviente,
@@ -369,6 +374,8 @@ export function mergeStatements(app: WaApp, run: string, opts: MergeOptions = {}
     stmts.push({ sql: `UPDATE inbox_messages SET thread_id = ${S('inbox_messages.thread_id')} WHERE thread_id IN ${P}`, args: [] });
     stmts.push({ sql: `INSERT OR IGNORE INTO inbox_thread_folders (thread_id, folder_id) SELECT ${S('f.thread_id')}, f.folder_id FROM inbox_thread_folders f WHERE f.thread_id IN ${P}`, args: [] });
     stmts.push({ sql: `UPDATE inbox_scheduled SET thread_id = ${S('inbox_scheduled.thread_id')} WHERE thread_id IN ${P}`, args: [] });
+    // El vínculo con el CRM (por chat y workspace): si el que queda ya tiene uno en ese workspace, queda el suyo.
+    if (opts.crmLinks) stmts.push({ sql: `UPDATE OR IGNORE inbox_crm_links SET thread_id = ${S('inbox_crm_links.thread_id')} WHERE thread_id IN ${P}`, args: [] });
   } else {
     // En Lines el id de WhatsApp es único por número: el mismo mensaje no puede estar en los dos chats del mismo número.
     messages = stmts.length;

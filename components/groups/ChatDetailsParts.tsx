@@ -2,24 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
 import LocalText from '@/components/ui/LocalText';
 import type { GroupsPerson } from '@/lib/groups';
 import type { ChatCrmDeal } from '@/lib/groups-crm-deals';
 import { parseDbUtc } from '@/lib/utils';
 import { api } from './ui';
+import CrmDealList from './wa/CrmDealList';
 
 interface NoteRow {
   id: string;
   body: string;
   sentAt: string;
   authorId?: string | null;
+  /** El chat está en varias líneas: la línea donde se escribió la nota. */
+  line?: string;
 }
 
 /**
  * Pestaña Notas del panel de Lines: las notas internas del chat (las que se escriben con "Nota interna" debajo de
  * la conversación), las últimas primero. Las ve quien ve el chat, igual que en la conversación; un toque lleva a
- * la nota. `version` cambia cuando se escribe o se borra una y la lista se vuelve a leer.
+ * la nota. Si el chat está en varias líneas, junta las de todas las que quien mira ve, cada una con su línea.
+ * `version` cambia cuando se escribe o se borra una y la lista se vuelve a leer.
  */
 export function ChatNotes({
   chatId,
@@ -76,6 +79,12 @@ export function ChatNotes({
               <button type="button" className="gr-starred-item gr-note-item" data-testid="details-note" onClick={() => onJumpToMessage?.(n.id)} disabled={!onJumpToMessage}>
                 <span className="ui-help">
                   {author(n.authorId)} · <LocalText>{parseDbUtc(n.sentAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })}</LocalText>
+                  {n.line ? (
+                    <span className="gr-note-line" data-testid="details-note-line">
+                      {' '}
+                      · {n.line}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="gr-starred-text" dir="auto">
                   {n.body || t('noteAttachment')}
@@ -96,7 +105,6 @@ export function ChatNotes({
  */
 export function CrmDeals({ chatId, version }: { chatId: string; version: string }) {
   const t = useTranslations('groups.wa.details');
-  const locale = useLocale();
   const [deals, setDeals] = useState<ChatCrmDeal[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -114,14 +122,6 @@ export function CrmDeals({ chatId, version }: { chatId: string; version: string 
     };
   }, [chatId, version, retry]);
 
-  const money = (d: ChatCrmDeal) => {
-    try {
-      return new Intl.NumberFormat(locale, { style: 'currency', currency: d.currency, maximumFractionDigits: 0 }).format(d.amount);
-    } catch {
-      return String(d.amount);
-    }
-  };
-
   return (
     <section className="gr-detail-section" data-testid="details-deals">
       <h3 className="gr-detail-title">{t('deals')}</h3>
@@ -134,19 +134,8 @@ export function CrmDeals({ chatId, version }: { chatId: string; version: string 
         </p>
       ) : deals === null ? (
         <span className="ui-skeleton ui-skeleton-row" aria-busy="true" />
-      ) : deals.length === 0 ? (
-        <p className="ui-help">{t('noDeals')}</p>
       ) : (
-        <ul className="gr-mini-list gr-deal-list">
-          {deals.map((d) => (
-            <li key={d.id} data-state={d.state}>
-              <Link href={`/app/crm/deals/${d.id}`}>{d.name || t('untitledDeal')}</Link>
-              <span className="ui-help">
-                {[d.stage, d.amount ? money(d) : ''].filter(Boolean).join(' · ')}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <CrmDealList deals={deals} />
       )}
     </section>
   );

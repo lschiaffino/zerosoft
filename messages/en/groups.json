@@ -2114,7 +2114,16 @@
       "untitledDeal": "Untitled deal",
       "crmOff": "The CRM app is off for you. HubSpot shows here when your workspace connects it.",
       "sharedLabel": "Shared in this chat",
-      "noteAttachment": "Note with an attachment"
+      "noteAttachment": "Note with an attachment",
+      "noName": "No name",
+      "crmOffInbox": "The CRM app is off for you.",
+      "crmSamePhone": "Contacts in your CRM with this phone number",
+      "crmLink": "Link",
+      "crmInboxHelp": "Only you see this link: your Inbox is yours. Deals of the linked contact and company show below.",
+      "crmTitle": "CRM",
+      "contact": "Contact",
+      "company": "Company",
+      "crmSearch": "Link a CRM company or contact"
     },
     "contactSheet": {
       "title": "Contact info",
