@@ -778,6 +778,10 @@
       "noTeams": "Not in any team",
       "capsTitle": "Extra permissions",
       "capsIntro": "Things only admins can do, given to this person without making them an admin. Changes apply on their next action.",
+      "inviteLockedDesc": "For now only admins can invite people to this workspace.",
+      "inviteLockedReason": "Ask an admin to invite the person for you, or to give you the \"Can invite to Lines\" permission.",
+      "inviteLinesOnly": "You can invite people with access to Lines only.",
+      "inviteLinesGo": "Invite from Lines",
       "capsByRole": "Owners and admins can already do all of this through their role.",
       "capsNeedsApp": "Only works while they can use {app}.",
       "caps": {
@@ -785,6 +789,11 @@
           "label": "Can connect numbers in Lines",
           "help": "Adds WhatsApp numbers with a QR code or credentials, and reconnects, renames, disconnects and deletes the numbers they add. Their numbers are private: only they and admins see the chats until they share them. It does not let them see other people's numbers or chats.",
           "confirm": "They will be able to link WhatsApp numbers to this workspace and delete the ones they add, along with those chats. Numbers added by others stay out of their reach."
+        },
+        "lines_invite": {
+          "label": "Can invite to Lines",
+          "help": "Invites people by email or link as members with Lines access only. They can't invite admins, give other apps, or see or change other people.",
+          "confirm": "They will be able to invite people to this workspace with access to Lines only. They can't give other roles or other apps."
         }
       },
       "promoteTitle": "Make {name} an admin?",

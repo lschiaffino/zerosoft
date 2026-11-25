@@ -159,6 +159,7 @@ interface Toast {
 export default function MembersPanel({
   openPerson = null,
   actorApps = '*',
+  canInviteLines = false,
   appOrder: sidebarOrder = APP_SWITCHER_ORDER,
   initial: initialDir,
   me,
@@ -171,6 +172,8 @@ export default function MembersPanel({
   openPerson?: string | null;
   /** Apps de quien edita: no puede dar otras. */
   actorApps?: Apps;
+  /** Un member con "Puede invitar a Lines": invita desde Lines, no desde acá. */
+  canInviteLines?: boolean;
   /** Orden del sidebar. */
   appOrder?: readonly ProductKey[];
   initial: DirectoryDto;
@@ -760,6 +763,26 @@ export default function MembersPanel({
 
   return (
     <>
+      {!admin && role !== 'guest' && (
+        <FormSection setting="members-invite" title={t('inviteTitle', { workspace: dir.team.name })} description={tp('inviteLockedDesc')}>
+          {canInviteLines ? (
+            <p className="ui-help" data-testid="invite-lines-only">
+              {tp('inviteLinesOnly')} <Link href="/app/lines/settings?tab=invite">{tp('inviteLinesGo')}</Link>
+            </p>
+          ) : (
+            <>
+              <div className="st-form-foot ws-invite-foot">
+                <button type="button" className="btn btn-primary" disabled aria-describedby="ws-invite-locked" data-testid="invite-locked">
+                  {t('send')}
+                </button>
+              </div>
+              <p id="ws-invite-locked" className="ui-help" data-testid="invite-locked-reason">
+                {tp('inviteLockedReason')}
+              </p>
+            </>
+          )}
+        </FormSection>
+      )}
       {admin && (
         <FormSection setting="members-invite" title={t('inviteTitle', { workspace: dir.team.name })} description={t(emailLogin ? 'inviteDesc' : 'inviteDescGoogle')}>
           {legacyNotice && (

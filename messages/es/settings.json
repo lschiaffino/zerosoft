@@ -778,6 +778,10 @@
       "noTeams": "No está en ningún equipo",
       "capsTitle": "Permisos extra",
       "capsIntro": "Cosas que solo hacen los admins, dadas a esta persona sin hacerla admin. Los cambios valen desde su próxima acción.",
+      "inviteLockedDesc": "Por ahora solo los admins invitan personas a este workspace.",
+      "inviteLockedReason": "Pedile a un admin que invite a la persona por vos, o que te dé el permiso \"Puede invitar a Lines\".",
+      "inviteLinesOnly": "Podés invitar gente con acceso solo a Lines.",
+      "inviteLinesGo": "Invitar desde Lines",
       "capsByRole": "El owner y los admins ya pueden hacer todo esto por su rol.",
       "capsNeedsApp": "Solo vale mientras pueda usar {app}.",
       "caps": {
@@ -785,6 +789,11 @@
           "label": "Puede conectar números en Lines",
           "help": "Agrega números de WhatsApp con QR o credenciales, y reconecta, renombra, desconecta y borra los números que agrega. Sus números son privados: los chats los ven solo esta persona y los admins hasta que los comparta. No le deja ver números ni chats de otras personas.",
           "confirm": "Va a poder vincular números de WhatsApp a este workspace y borrar los que agregue, con sus chats. Los números que agregaron otras personas quedan fuera de su alcance."
+        },
+        "lines_invite": {
+          "label": "Puede invitar a Lines",
+          "help": "Invita por email o con link a personas que entran como member y solo con Lines. No puede invitar admins ni dar otras apps, ni ver o cambiar a las demás personas.",
+          "confirm": "Va a poder invitar gente a este workspace con acceso solo a Lines. No puede dar otros roles ni otras apps."
         }
       },
       "promoteTitle": "¿Hacer admin a {name}?",
