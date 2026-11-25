@@ -816,6 +816,40 @@ export async function unlinkHubspot(ws: string, chatId: string, type: HubspotTyp
   return res.changes > 0;
 }
 
+/**
+ * Cron: vuelve a leer contactos o negocios vinculados (nombre, dueño, etapa,
+ * monto...) y deja la copia de cada vínculo al día, sin esperar a que alguien
+ * abra el chat. Los que HubSpot ya no devuelve quedan marcados como rotos.
+ * Máximo 100 ids por llamada.
+ */
+export async function refreshLinkedObjects(ws: string, type: 'contact' | 'deal', ids: string[]): Promise<{ read: number; missing: number }> {
+  const conn = await requireConn(ws);
+  const wanted = [...new Set(ids.filter((id) => /^\d{1,20}$/.test(id)))].slice(0, 100);
+  if (wanted.length === 0) return { read: 0, missing: 0 };
+  const json = await hs(conn, 'POST', `/crm/v3/objects/${PLURAL[type]}/batch/read`, { properties: PROPS[type], inputs: wanted.map((id) => ({ id })) });
+  const byId = new Map<string, RawObject>();
+  for (const raw of (Array.isArray(json.results) ? json.results : []) as RawObject[]) byId.set(String(raw.id ?? ''), raw);
+  const db = getDb();
+  const now = new Date().toISOString();
+  let read = 0;
+  let missing = 0;
+  for (const id of wanted) {
+    const raw = byId.get(id);
+    if (!raw) {
+      missing++;
+      await db.prepare('UPDATE groups_hubspot_links SET missing = 1, fetched_at = ? WHERE user_id = ? AND object_type = ? AND object_id = ?').run(now, ws, type, id);
+      continue;
+    }
+    read++;
+    const rec = await toRecord(conn, type, raw);
+    await db
+      .prepare('UPDATE groups_hubspot_links SET name = ?, props = ?, fetched_at = ?, missing = 0 WHERE user_id = ? AND object_type = ? AND object_id = ?')
+      .run(rec.name.slice(0, 300), storedProps(rec), now, ws, type, id);
+  }
+  await markUsed(ws).catch(() => null);
+  return { read, missing };
+}
+
 /** Vínculos del chat. Con `refresh`, trae de HubSpot los que tienen más de 10 minutos. */
 async function listLinks(conn: Conn, chatId: string, refresh: boolean): Promise<HubspotRecord[]> {
   const db = getDb();
@@ -1373,13 +1407,19 @@ export async function syncHubspotNotes(opts: { limit?: number; budgetMs?: number
   const now = opts.now ?? new Date();
   const started = Date.now();
   const since = dayOf(new Date(now.getTime() - 86_400_000));
-  const staleIso = new Date(Date.now() - NOTE_MIN_GAP_MS).toISOString();
-  // Ya quedan afuera, en la consulta y no después del LIMIT, las que están al día y las que se tocaron hace menos de 10
-  // minutos: si no, con cientos de chats vinculados las primeras (ya sincronizadas) ocupan todo el cupo y las nuevas no entran nunca.
-  const rows = (await db
-    .prepare(
-      `SELECT g.user_id, g.chat_id, g.day FROM (
-         SELECT m.user_id, m.chat_id, substr(m.created_at, 1, 10) AS day, COUNT(*) AS n, MAX(m.created_at) AS last
+  const stale = Date.now() - NOTE_MIN_GAP_MS;
+  const staleIso = new Date(stale).toISOString();
+  // Se recorre por páginas hasta juntar las que faltan: las que están al día no ocupan lugar. Antes un LIMIT 500 se
+  // llenaba con las primeras (ya sincronizadas) y con cientos de chats vinculados las nuevas no entraban nunca.
+  // Las tocadas hace menos de 10 minutos ya quedan afuera en la consulta.
+  const page = opts.scan ?? 500;
+  const want = opts.limit ?? 20;
+  const rows: Array<{ user_id: string; chat_id: string; day: string }> = [];
+  const known = new Map<string, Pick<NoteRow, 'note_id' | 'message_count' | 'last_message_at'>>();
+  for (let offset = 0; offset < page * 20 && rows.length < want; offset += page) {
+    const part = (await db
+      .prepare(
+        `SELECT m.user_id, m.chat_id, substr(m.created_at, 1, 10) AS day, COUNT(*) AS n, MAX(m.created_at) AS last
          FROM groups_hubspot h
          CROSS JOIN groups_messages m ON m.user_id = h.user_id
          JOIN groups_chats c ON c.id = m.chat_id
@@ -1387,15 +1427,24 @@ export async function syncHubspotNotes(opts: { limit?: number; budgetMs?: number
          WHERE h.token != '' AND h.log_notes = 1 AND m.created_at >= ? AND ${MESSAGE_FILTER} AND (? = '' OR h.user_id = ?)
            AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.chat_id = m.chat_id AND l.missing = 0)
          GROUP BY m.user_id, m.chat_id, substr(m.created_at, 1, 10)
-       ) g
-       WHERE NOT EXISTS (
-         SELECT 1 FROM groups_hubspot_notes x WHERE x.chat_id = g.chat_id AND x.day = g.day
-           AND ((x.synced_at IS NOT NULL AND x.synced_at > ?) OR (x.note_id != '' AND x.message_count = g.n AND x.last_message_at = g.last))
-       )
-       ORDER BY g.last LIMIT ?`,
-    )
-    .all(since, opts.workspaceId ?? '', opts.workspaceId ?? '', staleIso, opts.scan ?? 500)) as Array<{ user_id: string; chat_id: string; day: string }>;
-  rows.splice(opts.limit ?? 20);
+         HAVING NOT EXISTS (SELECT 1 FROM groups_hubspot_notes x WHERE x.chat_id = m.chat_id AND x.day = substr(m.created_at, 1, 10) AND x.synced_at IS NOT NULL AND x.synced_at > ?)
+         ORDER BY MAX(m.created_at), m.chat_id LIMIT ? OFFSET ?`,
+      )
+      .all(since, opts.workspaceId ?? '', opts.workspaceId ?? '', staleIso, page, offset)) as Array<{ user_id: string; chat_id: string; day: string; n: number; last: string }>;
+    if (part.length === 0) break;
+    const notes = (await db
+      .prepare(`SELECT chat_id, day, note_id, message_count, last_message_at FROM groups_hubspot_notes WHERE day >= ? AND chat_id IN (${part.map(() => '?').join(',')})`)
+      .all(since, ...part.map((r) => r.chat_id))) as Array<Pick<NoteRow, 'chat_id' | 'day' | 'note_id' | 'message_count' | 'last_message_at'>>;
+    for (const x of notes) known.set(`${x.chat_id}|${x.day}`, x);
+    for (const g of part) {
+      const x = known.get(`${g.chat_id}|${g.day}`);
+      // Al día: ya tiene su nota con los mismos mensajes.
+      if (x && x.note_id && x.message_count === Number(g.n) && x.last_message_at === g.last) continue;
+      rows.push(g);
+      if (rows.length >= want) break;
+    }
+    if (part.length < page) break;
+  }
   let written = 0;
   const conns = new Map<string, Conn | null>();
   const blocked = new Set<string>();
