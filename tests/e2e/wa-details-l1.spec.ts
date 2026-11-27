@@ -125,7 +125,7 @@ async function chipFloats(page: Page, chip: Locator) {
   const withChip = await composerHeight(page);
   const hide = await page.addStyleTag({ content: '[data-testid^="ai-compose-"].aic-float { display: none !important; }' });
   const without = await composerHeight(page);
-  await hide.evaluate((n) => n.remove());
+  await hide.evaluate((n) => (n as Element).remove());
   expect(withChip, 'el composer no cambia de alto con el chip').toBe(without);
   const box = (await chip.boundingBox())!;
   const vw = page.viewportSize()!.width;
