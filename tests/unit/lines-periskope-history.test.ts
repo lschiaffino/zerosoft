@@ -87,7 +87,7 @@ describe('historial de Periskope', () => {
     const a = await line(user.id, '5490000000100');
     // Ya llegó por WhatsApp (mismo id de WhatsApp): no se duplica. También deja el chat sin leer.
     await ingestEvents(a, [
-      { type: 'message', chatId: '5490000000731@s.whatsapp.net', isGroup: false, fromMe: false, senderPhone: '5490000000731', senderName: 'Persona de prueba', providerMessageId: 'WA1', body: 'texto 1', timestamp: Date.parse('2025-02-01T10:00:00.000Z') },
+      { type: 'message', chatId: '5490000000731@s.whatsapp.net', isGroup: false, fromMe: false, senderPhone: '5490000000731', senderName: 'Persona de prueba', providerMessageId: 'WA1', body: 'texto 1', timestamp: '2025-02-01T10:00:00.000Z' },
     ]);
     const chat = (await getDb().prepare('SELECT id, unread_count FROM groups_chats WHERE user_id = ?').get(user.id)) as { id: string; unread_count: number };
     const acc = account({
