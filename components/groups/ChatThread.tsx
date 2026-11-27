@@ -28,7 +28,7 @@ import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
-import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle, aiChipShown } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -2729,7 +2729,11 @@ export default function ChatThread(props: ThreadProps) {
           <ChatSearchPanel chatKey={chat.id} chatName={chat.name} group={chat.kind === 'group'} search={searchChat} onPick={(h, covering) => void jumpToHit(h, covering)} onClose={() => setSearchOpen(false)} />
         )}
 
-        <div className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
+        <div
+          className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}${aiAllowed && aiChipShown(ai) ? ' has-aic-chip' : ''}`}
+          data-voice-off
+          data-tour="lines-composer"
+        >
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
               las flechas (y Inicio/Fin) pasan de una a otra, como en cualquier lista de pestañas. */}
           {!editing && (

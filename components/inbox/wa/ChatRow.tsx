@@ -103,6 +103,12 @@ export default function ChatRow({ th, extra, timeLabel, archivedTag }: { th: Thr
               </span>
             )}
             {muted && <MuteIcon size={16} label={w('muted')} />}
+            {/* Como WhatsApp: "@" si un no leído te menciona o responde a un mensaje tuyo (verde aunque esté silenciado). */}
+            {unread && th.mentioned && (
+              <span className="wa-mention-badge" role="img" aria-label={w('unreadMention')} title={w('unreadMention')} data-testid="row-unread-mention">
+                @
+              </span>
+            )}
             {unread && (
               <span className={`wa-unread${muted ? ' is-muted' : ''}`} aria-label={w('unread', { n: th.unread })}>
                 {th.unread > 999 ? '999+' : th.unread}

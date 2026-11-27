@@ -87,6 +87,7 @@ import * as m81 from '@/lib/routes/track/triage-rules/[id]/route';
 import * as m82 from '@/lib/routes/track/views/[id]/route';
 import * as m83 from '@/lib/routes/track/views/[id]/default/route';
 import * as m84 from '@/lib/routes/track/views/[id]/favorite/route';
+import * as m85 from '@/lib/routes/track/templates/[id]/submit/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -173,6 +174,7 @@ const d = createDispatcher('zsPath', [
   { pattern: 'sentry/webhook/[id]', mod: m78 }, // lib/routes/track/sentry/webhook/[id]
   { pattern: 'statuses/[id]', mod: m79 }, // lib/routes/track/statuses/[id]
   { pattern: 'templates/[id]', mod: m80 }, // lib/routes/track/templates/[id]
+  { pattern: 'templates/[id]/submit', mod: m85 }, // lib/routes/track/templates/[id]/submit
   { pattern: 'triage-rules/[id]', mod: m81 }, // lib/routes/track/triage-rules/[id]
   { pattern: 'views/[id]', mod: m82 }, // lib/routes/track/views/[id]
   { pattern: 'views/[id]/default', mod: m83 }, // lib/routes/track/views/[id]/default

@@ -646,6 +646,8 @@ export interface ChatDto {
   agentId: string | null;
   status: 'open' | 'closed';
   unread: number;
+  /** Grupo con un no leído que menciona a la línea o responde a un mensaje suyo: el "@" de la lista (lib/wa-unread-mentions.ts). */
+  mentioned?: boolean;
   lastMessageAt: string | null;
   lastMessagePreview: string;
   awaitingSince: string | null;
@@ -1286,6 +1288,12 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
   const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
   // Chats 1:1 con alguien interno (lib/internal-contacts.ts): una lectura para la página.
   const internal = rows.some((r) => r.kind === 'dm' && r.phone) ? await loadInternalSet(ws) : EMPTY_INTERNAL_SET;
+  // El "@" de WhatsApp: grupos con un no leído que menciona a la línea o responde a uno de sus mensajes.
+  const { unreadMentionChats } = await import('./wa-unread-mentions');
+  const mentioned = await unreadMentionChats(
+    'lines',
+    rows.filter((r) => r.kind === 'group' && r.unread_count > 0).map((r) => ({ id: r.id, accountId: r.number_id, unread: r.unread_count })),
+  ).catch(() => new Set<string>());
   // Los vínculos al CRM, solo los que quien mira ve en el CRM (lib/groups-access.ts scopeChatCrmRefs).
   return {
     rows: await scopeChatCrmRefs(query.viewer, rows.map((r, i) => {
@@ -1308,6 +1316,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
         ...(r.kind === 'dm' && r.phone && isInternalHandle(internal, r.phone) ? { internal: true } : {}),
         ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
+        ...(mentioned.has(r.id) ? { mentioned: true } : {}),
       });
     })),
     total: Number(total.c),

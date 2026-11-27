@@ -994,12 +994,22 @@ async function withPreviewMentions(owner: string, threads: ThreadDto[]): Promise
   await withPresenceNames(threads).catch(() => null);
   await withLidTitles(owner, threads).catch(() => null);
   await withContactPictures(threads).catch(() => null);
+  await withUnreadMentions(threads).catch(() => null);
   const items = threads.map((t) => ({ accountId: t.channel === 'whatsapp' && t.preview.includes('@') ? t.accountId : '', text: t.preview }));
   if (!items.some((i) => i.accountId)) return threads;
   const { mentionSelf, resolveTextMentions, someoneWord } = await import('../wa-contacts');
   const texts = await resolveTextMentions('inbox', items, { someone: () => someoneWord(owner), self: mentionSelf('inbox', owner) }).catch(() => items.map((i) => i.text));
   threads.forEach((t, i) => (t.preview = texts[i]));
   return threads;
+}
+
+/** El "@" de WhatsApp en la lista: grupos con un no leído que te menciona o responde a un mensaje tuyo. */
+async function withUnreadMentions(threads: ThreadDto[]): Promise<void> {
+  const groups = threads.filter((t) => t.channel === 'whatsapp' && t.kind === 'group' && t.unread > 0);
+  if (!groups.length) return;
+  const { unreadMentionChats } = await import('../wa-unread-mentions');
+  const hit = await unreadMentionChats('inbox', groups.map((t) => ({ id: t.id, accountId: t.accountId, unread: t.unread })));
+  for (const t of groups) if (hit.has(t.id)) t.mentioned = true;
 }
 
 /**

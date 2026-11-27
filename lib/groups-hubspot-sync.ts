@@ -30,6 +30,7 @@ import { open } from './secret-box';
 import { fakeMode } from './groups-integrations';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
 import { HubspotApiError, createHubspotClient, hubspotBudget } from './hubspot/client';
+import { hubspotScopeForRequest } from './hubspot/scopes';
 import {
   HUBSPOT_WRITE_SCOPE,
   HubspotError,
@@ -37,7 +38,9 @@ import {
   hubspotFetcher,
   hubspotRecordUrl,
   markHubspotUsed,
+  recheckHubspotScopes,
   requireHubspotConn,
+  syncHubspotNotes,
   type HubspotConn,
 } from './groups-hubspot';
 import {
@@ -103,8 +106,8 @@ function validationDetail(json: Record<string, unknown>): string {
 async function call(conn: HubspotConn, method: string, path: string, body?: unknown, opts: CallOpts = {}): Promise<{ status: number; json: Record<string, unknown> }> {
   const retries = opts.retries ?? 2;
   const maxWait = opts.maxWaitMs ?? 4_000;
-  const fail = async (err: HubspotError): Promise<never> => {
-    if (!opts.quiet) await markHubspotUsed(conn.ws, err.code).catch(() => null);
+  const fail = async (err: HubspotError, mark = err.code): Promise<never> => {
+    if (!opts.quiet) await markHubspotUsed(conn.ws, mark).catch(() => null);
     throw err;
   };
   // El cliente compartido (lib/hubspot/client.ts) lleva el presupuesto de la clave y de su cuenta, y los reintentos:
@@ -123,7 +126,11 @@ async function call(conn: HubspotConn, method: string, path: string, body?: unkn
   }
   const json = res.json();
   if (res.status === 401) return fail(new HubspotError('hubspot_invalid_token', 502));
-  if (res.status === 403) return fail(new HubspotError('hubspot_missing_scopes', 502));
+  if (res.status === 403) {
+    // Se anota cuál permiso falta, para que Ajustes lo diga en vez de un error genérico.
+    const scope = hubspotScopeForRequest(method, path, conn.scopes);
+    return fail(new HubspotError('hubspot_missing_scopes', 502), scope ? `hubspot_missing_scopes:${scope}` : undefined);
+  }
   // Un registro que no está o un valor inválido no son un problema de la conexión.
   if (res.status === 404) throw new HubspotError('hubspot_not_found', 404);
   if (res.status === 400 || res.status === 409 || res.status === 422) throw new HubspotError('hubspot_validation', 422, validationDetail(json));
@@ -1082,11 +1089,15 @@ export async function syncHubspotCompanies(opts: { budgetMs?: number; now?: Date
       await syncWorkspace(r.user_id, deadline, now, out);
       await db.prepare('UPDATE groups_hubspot SET sync_fails = 0, sync_backoff_until = NULL WHERE user_id = ?').run(r.user_id);
     } catch (err) {
-      if (!(err instanceof HubspotError)) throw err;
-      // Límite, token vencido o sin permisos: este workspace espera cada vez más; los demás siguen.
+      // Límite, token vencido, sin permisos o un error nuestro: este workspace espera cada vez más; los demás siguen.
+      // Antes un error que no era de HubSpot cortaba la corrida de todos y no quedaba anotado en ningún lado.
+      if (!(err instanceof HubspotError)) {
+        console.error('[groups-hubspot] sync failed', err instanceof Error ? err.name : 'error');
+        await markHubspotUsed(r.user_id, 'hubspot_error').catch(() => null);
+      }
       const fails = Number(r.sync_fails ?? 0) + 1;
       const wait = Math.min(15 * 60_000, 30_000 * 2 ** (fails - 1));
-      if (err.code === 'hubspot_rate_limited') out.limited++;
+      if (err instanceof HubspotError && err.code === 'hubspot_rate_limited') out.limited++;
       await db.prepare('UPDATE groups_hubspot SET sync_fails = ?, sync_backoff_until = ? WHERE user_id = ?').run(fails, new Date(now.getTime() + wait).toISOString(), r.user_id);
     } finally {
       await db.prepare('UPDATE groups_hubspot SET sync_locked_until = NULL WHERE user_id = ? AND sync_locked_until = ?').run(r.user_id, lock);
@@ -1095,6 +1106,62 @@ export async function syncHubspotCompanies(opts: { budgetMs?: number; now?: Date
   // El registro guarda 90 días.
   await db.prepare('DELETE FROM groups_hubspot_sync_log WHERE created_at < ?').run(new Date(now.getTime() - LOG_KEEP_DAYS * 86_400_000).toISOString());
   return out;
+}
+
+export interface ResyncResult {
+  /** Empresas leídas de nuevo, cambios que entraron y las que ya no están en HubSpot. */
+  companies: number;
+  changed: number;
+  missing: number;
+  /** Notas que se volvieron a dejar en HubSpot (las que habían fallado y las que cambiaron). */
+  notes: number;
+  /** Los permisos que tiene la clave ahora. */
+  scopes: string[];
+  /** Quedaron empresas sin leer por el tiempo: se sigue en la próxima corrida del cron. */
+  partial: boolean;
+}
+
+/**
+ * "Sincronizar ahora" de Ajustes: vuelve a leer los permisos de la clave y a
+ * traer de HubSpot todas las empresas vinculadas (también encuentra las
+ * borradas o fusionadas), olvida la espera de un error anterior y reintenta
+ * las notas que habían fallado. Reclama el workspace como el cron: si el cron
+ * está corriendo ahora, dice que está ocupado y no hace nada dos veces.
+ */
+export async function resyncHubspot(ws: string, opts: { budgetMs?: number } = {}): Promise<ResyncResult> {
+  const db = getDb();
+  await requireHubspotConn(ws);
+  const lock = new Date(Date.now() + 120_000).toISOString();
+  const claim = await db
+    .prepare('UPDATE groups_hubspot SET sync_locked_until = ? WHERE user_id = ? AND token != \'\' AND (sync_locked_until IS NULL OR sync_locked_until < ?)')
+    .run(lock, ws, new Date().toISOString());
+  if (claim.changes === 0) throw new HubspotError('hubspot_sync_busy', 409);
+  const deadline = Date.now() + (opts.budgetMs ?? 20_000);
+  const out: ResyncResult = { companies: 0, changed: 0, missing: 0, notes: 0, scopes: [], partial: false };
+  try {
+    out.scopes = await recheckHubspotScopes(ws);
+    await db.prepare('UPDATE groups_hubspot SET sync_fails = 0, sync_backoff_until = NULL WHERE user_id = ?').run(ws);
+    const opt: CallOpts = { retries: 3, maxWaitMs: 8_000 };
+    await refreshHubspotSchema(ws, opt);
+    const ids = await linkedCompanyIds(ws);
+    for (const part of chunks(ids, BATCH)) {
+      if (Date.now() > deadline) {
+        out.partial = true;
+        break;
+      }
+      const r = await importHubspotCompanies(ws, part, 'manual', opt);
+      out.companies += r.read;
+      out.changed += r.changes;
+      out.missing += r.missing.length;
+    }
+    if (!out.partial) await db.prepare('UPDATE groups_hubspot SET synced_at = ?, verified_at = ? WHERE user_id = ?').run(new Date().toISOString(), new Date().toISOString(), ws);
+    // Las notas que fallaron se vuelven a intentar ya, no dentro de 10 minutos.
+    await db.prepare("UPDATE groups_hubspot_notes SET synced_at = NULL WHERE user_id = ? AND last_error != ''").run(ws);
+    out.notes = await syncHubspotNotes({ workspaceId: ws, limit: 50, budgetMs: Math.max(1_000, deadline - Date.now()) });
+    return out;
+  } finally {
+    await db.prepare('UPDATE groups_hubspot SET sync_locked_until = NULL WHERE user_id = ? AND sync_locked_until = ?').run(ws, lock);
+  }
 }
 
 // ======================================================================

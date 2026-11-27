@@ -34,7 +34,7 @@ interface Cycle {
   name: string;
 }
 
-const SOURCES = ['api', 'chat', 'flow', 'github', 'agent', 'import'];
+const SOURCES = ['api', 'chat', 'flow', 'github', 'agent', 'import', 'form'];
 
 function memberName(m: ProjectMember | undefined): string {
   return m ? m.name || m.email : '?';
