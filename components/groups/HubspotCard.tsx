@@ -172,6 +172,25 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
   const [propsOpen, setPropsOpen] = useState(false);
   const [secret, setSecret] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const locale = useLocale();
+  const when = (iso: string | null | undefined) => (iso ? parseDbUtc(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : '');
+
+  /** "Sincronizar ahora": lee de nuevo los permisos, las empresas y las notas que fallaron. */
+  async function syncNow() {
+    setSyncing(true);
+    const res = await api<{ result: { companies: number; changed: number; notes: number; partial: boolean }; hubspot: HubspotDto }>('/api/groups/hubspot/sync', { body: {} });
+    setSyncing(false);
+    if (!res.data) {
+      showToast(errText(res.error), true);
+      const now = await api<HubspotDto>('/api/groups/hubspot');
+      if (now.data) setRow(now.data);
+      return;
+    }
+    setRow(res.data.hubspot);
+    const r = res.data.result;
+    showToast(r.partial ? t('hubspot.card.syncPartial') : t('hubspot.card.syncDone', { companies: r.companies, changed: r.changed, notes: r.notes }));
+  }
 
   function edit() {
     setToken('');
@@ -220,7 +239,7 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
     const res = await api('/api/groups/hubspot', { method: 'DELETE' });
     setRemoving(false);
     if (!res.data) return showToast(errText(res.error), true);
-    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false, tokenKind: 'unknown' });
+    setRow({ ...row, connected: false, portalId: '', scopes: [], missingLogScopes: [], missingSyncScopes: [], autoLink: false, logNotes: false, autoCreate: false, missingContactScopes: [], lastError: '', lastUsedAt: null, schemaSyncedAt: null, syncedAt: null, webhook: false, tokenKind: 'unknown', sync: null });
     setHubspotSchema(null, 'company');
     setHubspotSchema(null, 'contact');
     setHubspotSchema(null, 'deal');
@@ -254,6 +273,30 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
               ? t('integrations.error', { code: errText(row.lastError) || row.lastError })
               : t('hubspot.card.connectedTo', { id: row.portalId })}
         </span>
+        {row.connected && (
+          <>
+            <br />
+            <span className="ui-help" data-testid="hubspot-card-synced">
+              {row.syncedAt ? t('hubspot.card.syncedAt', { time: when(row.syncedAt) }) : t('hubspot.card.neverSynced')}
+            </span>
+          </>
+        )}
+        {row.connected && row.sync && (row.sync.failures > 0 || row.sync.brokenLinks > 0 || row.sync.noteErrors > 0) && (
+          <ul className="ui-help" data-testid="hubspot-card-problems" aria-label={t('hubspot.card.problemsTitle')}>
+            {row.sync.failures > 0 && (
+              <li className="ui-error">{t('hubspot.card.syncFailing', { n: row.sync.failures, time: row.sync.retryAt ? when(row.sync.retryAt) : '-' })}</li>
+            )}
+            {row.sync.brokenLinks > 0 && <li>{t('hubspot.card.syncBroken', { n: row.sync.brokenLinks })}</li>}
+            {row.sync.noteErrors > 0 && <li>{t('hubspot.card.syncNotes', { n: row.sync.noteErrors })}</li>}
+            {row.sync.problems.map((p) => (
+              <li key={`${p.kind}-${p.chatId}`}>
+                {p.kind === 'link'
+                  ? t(p.code === 'merged' ? 'hubspot.card.problemMerged' : 'hubspot.card.problemDeleted', { name: p.chatName })
+                  : t('hubspot.card.problemNote', { name: p.chatName, error: errText(p.code) || p.code })}
+              </li>
+            ))}
+          </ul>
+        )}
         {row.connected && row.tokenKind !== 'unknown' && (
           <>
             <br />
@@ -276,6 +319,11 @@ export default function HubspotCard({ initial, scopes, canEdit }: { initial: Hub
           <button type="button" className="btn btn-secondary btn-sm" onClick={edit}>
             {row.connected ? t('integrations.edit') : t('integrations.connect')}
           </button>
+          {row.connected && (
+            <button type="button" className="btn btn-secondary btn-sm" disabled={syncing} aria-busy={syncing || undefined} onClick={() => void syncNow()} data-testid="hubspot-sync-now">
+              {syncing ? t('hubspot.card.syncing') : t('hubspot.card.syncNow')}
+            </button>
+          )}
           {row.connected && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPropsOpen(true)}>
               {t('hubspot.card.props')}
