@@ -1420,6 +1420,8 @@ export interface TrackIssueTemplateRow {
   estimate: number | null;
   labels: string; // JSON TrackLabel[]
   is_default: number;
+  /** JSON TrackFormField[] (lib/track-forms.ts); '[]' = plantilla sin formulario. */
+  fields: string;
   created_at: string;
   updated_at: string;
 }

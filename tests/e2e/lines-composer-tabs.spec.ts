@@ -177,13 +177,16 @@ for (const width of [1280, 390]) {
     expect(after.field).toBe(before.field);
     expect(after.pane).toBe(before.pane);
     expect(after.top).toBe(before.top);
-    // El chip flota sobre el borde de arriba del campo, dentro de la pantalla y sin tapar el renglón del texto.
+    // El chip flota sobre el borde de arriba del campo, en la fila de las solapas: dentro de la pantalla, sin tapar el
+    // renglón del texto ni la conversación.
     const chip = (await polish.boundingBox())!;
     const field = (await input.boundingBox())!;
     expect(chip.x).toBeGreaterThanOrEqual(0);
     expect(chip.x + chip.width).toBeLessThanOrEqual(width);
     expect(chip.y).toBeGreaterThanOrEqual(0);
     expect(chip.y + chip.height).toBeLessThanOrEqual(field.y);
+    const paneBottom = await page.evaluate(() => document.querySelector('.wa-messages')!.getBoundingClientRect().bottom);
+    expect(chip.y).toBeGreaterThanOrEqual(paneBottom - 0.5);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // Con el teclado se llega desde el campo; un clic abre la barra.
     await input.focus();

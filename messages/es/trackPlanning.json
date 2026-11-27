@@ -3,6 +3,7 @@
     "planning": "Planificación",
     "plans": "Proyectos",
     "initiatives": "Iniciativas",
+    "updates": "Updates",
     "roadmap": "Roadmap",
     "cycles": "Cycles",
     "analytics": "Analítica",
@@ -13,6 +14,7 @@
     "newPlan": "Nuevo proyecto",
     "newInitiative": "Nueva iniciativa",
     "plans": "Proyectos",
+    "updates": "Updates de proyectos e iniciativas",
     "roadmap": "Roadmap",
     "cycles": "Cycles",
     "insights": "Insights",
@@ -62,6 +64,27 @@
     "high": "Alta",
     "medium": "Media",
     "low": "Baja"
+  },
+  "pulse": {
+    "title": "Updates",
+    "subtitle": "Los updates de proyectos e iniciativas en un solo feed, del más nuevo al más viejo.",
+    "tabs": {
+      "for_me": "Para mí",
+      "all": "Todos"
+    },
+    "kind": {
+      "project": "Proyecto",
+      "initiative": "Iniciativa"
+    },
+    "comments": "{count, plural, one {# comentario} other {# comentarios}}",
+    "more": "Cargar más",
+    "error": "No se pudieron cargar los updates.",
+    "emptyMine": "Todavía no hay updates para vos",
+    "emptyMineBody": "Acá aparecen los updates de los proyectos que liderás, de los que sos miembro o que seguís, y de las iniciativas que liderás.",
+    "emptyAll": "Todavía no hay updates",
+    "emptyAllBody": "Cuando alguien publica un update de un proyecto o una iniciativa, aparece acá.",
+    "seeAll": "Ver todos los updates",
+    "goProjects": "Ir a proyectos"
   },
   "health": {
     "on_track": "En camino",

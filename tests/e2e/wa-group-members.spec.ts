@@ -14,7 +14,15 @@ import { waLinkIp } from './helpers/wa-link';
  */
 
 const uid = () => Math.random().toString(36).slice(2, 8);
-const phone = () => `1555${Math.floor(1e6 + Math.random() * 8e6)}`;
+/**
+ * Un número inventado que el WhatsApp falso acepta agregar: los que terminan en 99 los rechaza a propósito ("su
+ * privacidad no deja agregarlo", lib/groups-provider-fake.ts). Al azar salía uno así cada tanto y el test fallaba
+ * esperando a esa persona en la lista (pasó a 390 en Lines el 23/11).
+ */
+const phone = () => {
+  const p = `1555${Math.floor(1e6 + Math.random() * 8e6)}`;
+  return p.endsWith('99') ? `${p.slice(0, -1)}0` : p;
+};
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];

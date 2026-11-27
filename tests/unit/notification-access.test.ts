@@ -182,6 +182,9 @@ describe('escritorio y emails: lo mismo', () => {
     expect(toMember).toHaveLength(1);
     expect(toMember[0].text).toContain(OPEN_ISSUE);
     expect(toMember[0].text + toMember[0].html + toMember[0].subject).not.toContain(SECRET_ISSUE);
+    // Los updates de projects e iniciativas que ve también van al email.
+    expect(toMember[0].text).toContain(SECRET_PLAN);
+    expect(toMember[0].text).toContain(SECRET_INITIATIVE);
     expect(mail.sent.filter((m) => m.to === leaver.email)).toHaveLength(0);
   });
 
@@ -197,6 +200,9 @@ describe('escritorio y emails: lo mismo', () => {
     expect(toGuest).toHaveLength(1);
     expect(toGuest[0].text).toContain(OPEN_ISSUE);
     expect(toGuest[0].text + toGuest[0].html).not.toContain(SECRET_ISSUE);
+    // Un invitado no ve planificación: ni projects ni iniciativas en el resumen.
+    expect(toGuest[0].text + toGuest[0].html).not.toContain(SECRET_PLAN);
+    expect(toGuest[0].text + toGuest[0].html).not.toContain(SECRET_INITIATIVE);
     expect(mail.sent.filter((m) => m.to === leaver.email)).toHaveLength(0);
   });
 });

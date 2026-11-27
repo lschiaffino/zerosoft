@@ -88,6 +88,8 @@ test('HubSpot: conectar, vincular un grupo y un chat, registrar, filtrar y desco
   const tag = uid();
   // Arranca desconectado aunque una corrida anterior se haya cortado.
   await request.delete('/api/groups/hubspot');
+  // El HubSpot falso vive en memoria y otros specs lo cambian (borran o editan empresas): arranca de los datos de arranque.
+  expect((await request.post('/api/groups/hubspot/fake', { data: { reset: true } })).ok()).toBe(true);
   await request.put('/api/groups/prefs', { data: { line: 'all' } });
 
   const n = await fakeNumber(request, `HubSpot ${tag}`);
