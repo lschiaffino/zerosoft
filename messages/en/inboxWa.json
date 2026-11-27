@@ -8,6 +8,7 @@
   "keepArchivedHint": "New messages, and the ones you send, don't take it out of Archived.",
   "keptArchived": "Kept archived",
   "unread": "{n, plural, one {# unread message} other {# unread messages}}",
+  "unreadMention": "You were mentioned or someone replied to you",
   "kind": {
     "image": "Photo",
     "video": "Video",

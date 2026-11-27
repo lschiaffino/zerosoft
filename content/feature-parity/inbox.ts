@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-23',
+  lastReviewed: '2026-11-27',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -327,9 +327,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'whatsapp', ['Mentions in groups', 'Menciones en grupos', 'Menções em grupos'], 'partial', {
       detail: [
-        'Type @ to pick a member (photo, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account, and clicking one opens that contact info. The caption of a photo, video or document mentions too. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
-        'Con @ se elige a alguien del grupo (foto, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta, y hacer clic en una abre la info del contacto. El pie de una foto, un video o un documento también menciona. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
-        'Com @ se escolhe alguém do grupo (foto, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta, e clicar em uma abre os dados do contato. A legenda de uma foto, um vídeo ou um documento também menciona. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
+        'Type @ to pick a member (photo, name and number); the mention shows in green in the field and goes out as a WhatsApp mention, so the person gets notified. Received mentions show the name (or the number) also when WhatsApp sends an anonymous id, using the contacts of the account, and clicking one opens that contact info. The caption of a photo, video or document mentions too. In the chat list, a group with an unread message that mentions you or replies to one of your messages shows @ next to the unread count, like WhatsApp. Members without a visible number can not be mentioned. Tested with the fake provider; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo (foto, nombre y número); la mención se ve en verde en el campo y sale como mención de WhatsApp, así a la persona le llega el aviso. Las menciones que llegan muestran el nombre (o el número) también cuando WhatsApp manda un id anónimo, con los contactos de la cuenta, y hacer clic en una abre la info del contacto. El pie de una foto, un video o un documento también menciona. En la lista de chats, un grupo con un no leído que te menciona o responde a un mensaje tuyo muestra @ junto a los no leídos, como WhatsApp. No se puede mencionar a quien no tiene el número visible. Probado con el proveedor falso; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo (foto, nome e número); a menção aparece em verde no campo e sai como menção do WhatsApp, e a pessoa recebe o aviso. As menções recebidas mostram o nome (ou o número) também quando o WhatsApp envia um id anônimo, com os contatos da conta, e clicar em uma abre os dados do contato. A legenda de uma foto, um vídeo ou um documento também menciona. Na lista de conversas, um grupo com uma mensagem não lida que menciona você ou responde a uma mensagem sua mostra @ ao lado das não lidas, como no WhatsApp. Não dá para mencionar quem não tem o número visível. Testado com o provedor falso; falta testar com WhatsApp real',
       ],
     }),
     row('wa-mention-all', 'whatsapp', ['@all in groups', '@all en grupos', '@all em grupos'], 'partial', {
