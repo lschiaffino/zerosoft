@@ -68,7 +68,8 @@ test.beforeAll(async ({ request }) => {
   await request.delete('/api/groups/hubspot').catch(() => null);
 });
 test.afterAll(async ({ request }) => {
-  await request.post('/api/groups/hubspot/fake', { data: { rateLimit: 0 } }).catch(() => null);
+  // Este spec borra la empresa 9001 del HubSpot falso (en memoria): vuelve a los datos de arranque para los que siguen.
+  await request.post('/api/groups/hubspot/fake', { data: { reset: true } }).catch(() => null);
   await request.delete('/api/groups/hubspot').catch(() => null);
 });
 
