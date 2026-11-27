@@ -58,6 +58,8 @@ export interface ThreadDto {
   lastMessageAt: string | null;
   lastFromMe: boolean;
   unread: number;
+  /** Grupo de WhatsApp con un no leído que te menciona o responde a un mensaje tuyo: el "@" de la lista (lib/wa-unread-mentions.ts). */
+  mentioned?: boolean;
   pinned: boolean;
   /** En Favoritos (la lista de WhatsApp). Solo si lo está. */
   favorite?: boolean;

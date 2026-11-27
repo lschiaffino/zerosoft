@@ -1178,6 +1178,12 @@ export default function InboxShell({
                   </span>
                 )}
                 {c.muted && <MuteIcon size={16} label={t('wa.muted')} />}
+                {/* Como WhatsApp: "@" si un no leído te menciona o responde a un mensaje tuyo (verde aunque esté silenciado). */}
+                {c.unread > 0 && c.mentioned && (
+                  <span className="wa-mention-badge" role="img" aria-label={t('wa.unreadMention')} title={t('wa.unreadMention')} data-testid="row-unread-mention">
+                    @
+                  </span>
+                )}
                 {c.unread > 0 &&
                   (c.markedUnread && c.unread <= 1 ? (
                     <span className="gr-unread is-dot" role="img" aria-label={t('wa.markedUnread')} />

@@ -300,7 +300,8 @@
       "flow": "Flow",
       "github": "GitHub",
       "agent": "Agents",
-      "import": "Importação"
+      "import": "Importação",
+      "form": "Formulário de pedidos"
     },
     "addCondition": "Adicionar condição",
     "removeCondition": "Remover",

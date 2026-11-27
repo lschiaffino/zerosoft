@@ -633,14 +633,24 @@ const parity: ProductParity = {
       id: 'request-forms',
       area: 'automation',
       label: { en: 'Form templates and request forms into triage', es: 'Plantillas de formulario y formularios de pedidos a triage', pt: 'Modelos de formulário e formulários de pedidos para triagem' },
-      status: 'missing',
+      detail: {
+        en: 'An issue template with fields (short text, long text, options, checkbox; required or not, with help) is a form: anyone who can see the team fills it in from its link, Track › Request forms or quick create, and it creates an issue with the answers in triage, with the template\'s properties; triage rules can match the form source. Only for people in the workspace: no Slack Asks or email intake yet',
+        es: 'Una plantilla de issue con campos (texto corto, largo, opciones, casilla; obligatorios o no, con ayuda) es un formulario: quien ve el team lo completa desde su link, Track › Formularios de pedidos o el alta rápida, y crea un issue con las respuestas en triage, con las propiedades de la plantilla; las reglas de triage pueden filtrar por origen formulario. Solo para gente del workspace: todavía sin Asks de Slack ni entrada por email',
+        pt: 'Um modelo de issue com campos (texto curto, longo, opções, caixa; obrigatórios ou não, com ajuda) é um formulário: quem vê o team o preenche pelo link, Track › Formulários de pedidos ou a criação rápida, e ele cria um issue com as respostas na triagem, com as propriedades do modelo; as regras de triagem podem filtrar pela origem formulário. Só para pessoas do workspace: ainda sem Asks do Slack nem entrada por e-mail',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {
       id: 'pulse',
       area: 'collaboration',
       label: { en: 'Pulse: feed and daily digest of updates', es: 'Pulse: feed y resumen diario de updates', pt: 'Pulse: feed e resumo diário de atualizações' },
-      status: 'missing',
+      detail: {
+        en: 'Track › Updates: project and initiative updates in one feed, For me (projects you lead, are a member of or follow, initiatives you lead) or All. Updates also reach followers in the Inbox; no daily or weekly summary email and no audio digest yet',
+        es: 'Track › Updates: los updates de proyectos e iniciativas en un feed, Para mí (proyectos que liderás, de los que sos miembro o que seguís, iniciativas que liderás) o Todos. Los updates también llegan a los seguidores en el Inbox; todavía sin email de resumen diario o semanal ni versión en audio',
+        pt: 'Track › Updates: os updates de projetos e iniciativas em um feed, Para mim (projetos que você lidera, dos quais é membro ou que segue, iniciativas que lidera) ou Todos. Os updates também chegam aos seguidores na Inbox; ainda sem e-mail de resumo diário ou semanal nem versão em áudio',
+      },
+      status: 'partial',
       competitorHas: true,
     },
     {

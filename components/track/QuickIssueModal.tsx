@@ -19,6 +19,8 @@ import { Popover, PriorityIcon, StatusDot } from './InlineEditors';
 import RichEditor from './RichEditor';
 import TrackIcon from './TrackIcon';
 import { pickDefaultTemplate } from '@/lib/track-template-default';
+import { isFormTemplate } from '@/lib/track-forms';
+import { useRouter } from '@/i18n/navigation';
 import { buildIssueActions } from './trackCommands';
 import { pushNotice } from './trackUndo';
 import type { TrackUiLabels } from './ui-labels';
@@ -167,6 +169,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   dRef.current = d;
   const project = projects.find((p) => p.id === d.projectId);
   const [templateId, setTemplateId] = useState('');
+  const router = useRouter();
   const [createMore, setCreateMore] = useState(false);
   // Adjuntos del composer (clip, como Linear): se suben al crear.
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -259,8 +262,14 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
   // descripción solo si todavía están vacíos, para no pisar lo tipeado).
   const applyTemplate = useCallback(
     (id: string) => {
-      setTemplateId(id);
       const tpl = templates.find((x) => x.id === id);
+      // Un formulario de pedidos tiene sus propios campos: se completa en su página.
+      if (tpl && isFormTemplate(tpl)) {
+        closeRef.current();
+        router.push(`/app/track/forms/${encodeURIComponent(tpl.id)}`);
+        return;
+      }
+      setTemplateId(id);
       if (!tpl) return;
       setD((cur) => ({
         ...cur,
@@ -274,7 +283,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
       }));
       setDescKey((n) => n + 1);
     },
-    [templates, project],
+    [templates, project, router],
   );
 
   // Plantilla predeterminada del proyecto: se precarga una vez por proyecto en un borrador vacío
@@ -285,7 +294,7 @@ function QuickIssueModalBody({ onClose, projects, defaults, onCreate, labels, to
     if (!pid || restored || fixedParent || defaultApplied.current.has(pid) || templates.length === 0) return;
     defaultApplied.current.add(pid);
     const def = pickDefaultTemplate(templates);
-    if (def && !templateId && !d.title.trim() && !d.description.trim()) applyTemplate(def.id);
+    if (def && !isFormTemplate(def) && !templateId && !d.title.trim() && !d.description.trim()) applyTemplate(def.id);
   }, [d.projectId, d.title, d.description, restored, fixedParent, templates, templateId, applyTemplate]);
 
   // El borrador como un issue (para reusar los mismos menús de ⌘K que los atajos).

@@ -209,6 +209,13 @@
   margin: 0; min-width: 18px; height: 18px; padding: 0 5px; font-family: var(--wa-font); font-size: var(--wa-fs-meta); font-weight: 500; line-height: 18px;
   color: var(--wa-badge-ink); background: var(--wa-badge); border-radius: 9px;
 }
+/* El "@" de WhatsApp junto a los no leídos (te mencionaron o respondieron a un mensaje tuyo). Lines e Inbox. Sigue verde con el chat silenciado. */
+.wa-mention-badge {
+  display: inline-flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0;
+  font-family: var(--wa-font); font-size: 12px; font-weight: 600; line-height: 1;
+  color: var(--wa-badge-ink); background: var(--wa-badge); border-radius: 9px;
+}
+.wa-row-icons .wa-mention-badge { border-radius: var(--radius-1); }
 .gr-inbox .gr-row-meta { margin-top: 2px; }
 .gr-inbox .gr-row-meta .badge { height: 20px; padding: 0 6px; font-size: var(--wa-fs-meta); }
 .gr-inbox .gr-row-assignee { color: var(--wa-text-2); }
@@ -1415,6 +1422,7 @@ div.wa-transcript-text p + p { margin-top: 0.6em; }
 .gr-inbox[data-chat-style='zerosoft'] .wa-day.is-stuck > span { background: var(--wa-system-chip); border-radius: var(--radius-1); box-shadow: 0 0 0 1px var(--line); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-quote { border-radius: var(--radius-1); border-left-width: 2px; }
 .gr-inbox[data-chat-style='zerosoft'] .gr-reactions { border-color: var(--line); border-radius: var(--radius-1); }
+.gr-inbox[data-chat-style='zerosoft'] .wa-mention-badge,
 .gr-inbox[data-chat-style='zerosoft'] .gr-unread,
 .gr-inbox[data-chat-style='zerosoft'] .wa-unread { border-radius: var(--radius-1); font-family: var(--font-data); }
 .gr-inbox[data-chat-style='zerosoft'] .gr-msg-foot,

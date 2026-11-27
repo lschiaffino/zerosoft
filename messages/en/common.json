@@ -1220,7 +1220,8 @@
       "offline": "No connection. Check your internet and try again.",
       "gone": "This conversation is no longer available. Reload the page.",
       "failed": "The AI could not write this. Try again."
-    }
+    },
+    "insertedShort": "Inserted"
   },
   "slash": {
     "label": "Commands",
