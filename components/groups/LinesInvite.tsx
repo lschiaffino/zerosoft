@@ -77,10 +77,10 @@ export default function LinesInvite({ allowed, locale }: { allowed: boolean; loc
           />
         </div>
         <div className="st-form-foot ws-invite-foot">
-          <button type="submit" className="btn btn-primary" disabled={!allowed || !emails.trim() || busy} aria-describedby={allowed ? undefined : 'lines-invite-locked'} data-testid="lines-invite-send">
+          <button type="submit" className="btn btn-primary" style={{ minHeight: 40 }} disabled={!allowed || !emails.trim() || busy} aria-describedby={allowed ? undefined : 'lines-invite-locked'} data-testid="lines-invite-send">
             {t('send')}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => void onLink()} disabled={!allowed || busy} aria-describedby={allowed ? undefined : 'lines-invite-locked'} data-testid="lines-invite-link">
+          <button type="button" className="btn btn-secondary" style={{ minHeight: 40 }} onClick={() => void onLink()} disabled={!allowed || busy} aria-describedby={allowed ? undefined : 'lines-invite-locked'} data-testid="lines-invite-link">
             {t('link')}
           </button>
         </div>

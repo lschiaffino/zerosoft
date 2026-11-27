@@ -778,6 +778,7 @@
       "noTeams": "Não está em nenhuma equipe",
       "capsTitle": "Permissões extras",
       "capsIntro": "Coisas que só os admins fazem, dadas a esta pessoa sem torná-la admin. As mudanças valem a partir da próxima ação dela.",
+      "inviteLockedTitle": "Convites",
       "inviteLockedDesc": "Por enquanto só os admins convidam pessoas para este workspace.",
       "inviteLockedReason": "Peça a um admin para convidar a pessoa por você, ou para te dar a permissão \"Pode convidar para o Lines\".",
       "inviteLinesOnly": "Você pode convidar pessoas com acesso só ao Lines.",

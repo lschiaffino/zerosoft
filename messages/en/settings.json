@@ -778,6 +778,7 @@
       "noTeams": "Not in any team",
       "capsTitle": "Extra permissions",
       "capsIntro": "Things only admins can do, given to this person without making them an admin. Changes apply on their next action.",
+      "inviteLockedTitle": "Invitations",
       "inviteLockedDesc": "For now only admins can invite people to this workspace.",
       "inviteLockedReason": "Ask an admin to invite the person for you, or to give you the \"Can invite to Lines\" permission.",
       "inviteLinesOnly": "You can invite people with access to Lines only.",

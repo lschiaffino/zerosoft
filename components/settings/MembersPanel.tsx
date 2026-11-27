@@ -764,7 +764,7 @@ export default function MembersPanel({
   return (
     <>
       {!admin && role !== 'guest' && (
-        <FormSection setting="members-invite" title={t('inviteTitle', { workspace: dir.team.name })} description={tp('inviteLockedDesc')}>
+        <FormSection setting="members-invite" title={tp('inviteLockedTitle')} description={tp('inviteLockedDesc')}>
           {canInviteLines ? (
             <p className="ui-help" data-testid="invite-lines-only">
               {tp('inviteLinesOnly')} <Link href="/app/lines/settings?tab=invite">{tp('inviteLinesGo')}</Link>
