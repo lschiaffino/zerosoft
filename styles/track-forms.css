@@ -1,0 +1,136 @@
+/* Track › formularios de pedidos (form templates): editor de campos, página del formulario e índice. */
+
+/* Editor de campos dentro de la plantilla */
+.track-form-fields {
+  margin: 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.track-form-fields > legend {
+  padding: 0;
+  float: left;
+  width: 100%;
+}
+
+.track-form-fields > .ui-help {
+  margin: 0;
+  max-width: 60ch;
+}
+
+.track-form-field-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.track-form-field {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  min-width: 0;
+}
+
+.track-form-field-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 180px);
+  gap: 8px;
+}
+
+.track-form-field-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.track-form-field-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Página del formulario */
+.track-request-form,
+.track-request-sent {
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+  min-width: 0;
+}
+
+.track-request-instructions {
+  padding: 10px 12px;
+  border-left: 2px solid var(--line);
+  color: var(--brand-gray-1);
+}
+
+.track-request-required {
+  color: var(--bad-ink);
+}
+
+.track-request-sent-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.track-request-sent .ui-help {
+  margin: 0;
+}
+
+/* Índice de formularios */
+.track-forms-index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 720px;
+}
+
+.track-forms-index-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.track-forms-index-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding: 10px 4px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.track-forms-index-link:hover {
+  background: var(--ui-hover);
+}
+
+.track-forms-index-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.track-forms-index-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.track-forms-index-meta {
+  font-size: 0.8125rem;
+  color: var(--brand-gray-2);
+}
+
+@media (max-width: 640px) {
+  .track-form-field-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1532,7 +1532,8 @@ export type TrackIssueSource =
   | 'mcp'
   | 'slack'
   | 'sentry'
-  | 'support';
+  | 'support'
+  | 'form';
 
 export async function createIssue(
   projectId: string,

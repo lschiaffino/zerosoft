@@ -82,10 +82,10 @@ const APPS: Record<string, string[]> = {
   ],
   track: [
     '/en/app/track', '/en/app/track/inbox', '/en/app/track/my-tasks', '/en/app/track/issues', '/en/app/track/issues/{issue}',
-    '/en/app/track/projects', '/en/app/track/projects/{plan}', '/en/app/track/initiatives', '/en/app/track/initiatives/{initiative}',
+    '/en/app/track/projects', '/en/app/track/projects/{plan}', '/en/app/track/initiatives', '/en/app/track/initiatives/{initiative}', '/en/app/track/updates',
     '/en/app/track/cycles', '/en/app/track/roadmap', '/en/app/track/triage', '/en/app/track/teams', '/en/app/track/team/{team}',
     '/en/app/track/dashboards', '/en/app/track/dashboards/{trackDash}', '/en/app/track/insights', '/en/app/track/customers',
-    '/en/app/track/settings', '/en/app/track/projects/new', '/en/app/track/teams/new',
+    '/en/app/track/forms', '/en/app/track/settings', '/en/app/track/projects/new', '/en/app/track/teams/new',
   ],
   docs: ['/en/app/docs', '/en/app/docs/{doc}', '/en/app/docs/settings', '/en/app/docs/import'],
   crm: [

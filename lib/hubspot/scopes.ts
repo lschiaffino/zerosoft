@@ -36,6 +36,29 @@ export function scopesFromErrorCode(code: string | undefined | null): string[] {
     .slice(0, 30);
 }
 
+/** Permisos de escritura para dejar notas: la nota se asocia a registros de cualquiera de los tres tipos. */
+const NOTE_WRITE_SCOPES = ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write'] as const;
+
+/**
+ * El permiso que falta cuando HubSpot responde 403 a este pedido, o null si
+ * no se puede saber. `have` son los permisos que Lines tiene guardados para la
+ * clave: para una nota se nombra el primero de escritura que no figura ahí.
+ */
+export function hubspotScopeForRequest(method: string, path: string, have: readonly string[] = []): string | null {
+  const p = (path.split('?')[0] ?? '').replace(/\/+$/, '');
+  const read = method.toUpperCase() === 'GET' || /\/(search|batch\/read)$/.test(p);
+  if (/^\/crm\/v[34]\/objects\/notes(\/|$)/.test(p)) {
+    if (read) return null;
+    return NOTE_WRITE_SCOPES.find((s) => !have.includes(s)) ?? null;
+  }
+  let m = /^\/crm\/v[34]\/objects\/(contacts|companies|deals)(\/|$)/.exec(p);
+  if (m) return `crm.objects.${m[1]}.${read ? 'read' : 'write'}`;
+  m = /^\/crm\/v3\/properties\/(contacts|companies|deals)(\/|$)/.exec(p);
+  if (m) return `crm.schemas.${m[1]}.read`;
+  if (/^\/crm\/v3\/owners(\/|$)/.test(p)) return 'crm.objects.owners.read';
+  return null;
+}
+
 /** Dónde se crea cada tipo de clave y la documentación oficial. */
 export const HUBSPOT_SERVICE_KEYS_DOCS = 'https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/account-service-keys';
 export const HUBSPOT_LEGACY_APPS_DOCS = 'https://developers.hubspot.com/docs/apps/legacy-apps/private-apps/overview';

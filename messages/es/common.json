@@ -1221,7 +1221,8 @@
       "offline": "Sin conexión. Revisá tu internet y probá de nuevo.",
       "gone": "Esta conversación ya no está disponible. Recargá la página.",
       "failed": "La IA no pudo escribir esto. Probá de nuevo."
-    }
+    },
+    "insertedShort": "Insertado"
   },
   "slash": {
     "label": "Comandos",

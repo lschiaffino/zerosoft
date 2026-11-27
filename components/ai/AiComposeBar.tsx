@@ -75,12 +75,19 @@ function Act({ off, onAct, className, children, title, testid }: { off?: boolean
  */
 /**
  * Con la barra cerrada, en un chat: "Pulir" (un mensaje largo escrito a mano) o "Insertado · Deshacer", como un
- * chip que flota sobre el borde de arriba del campo, sin ocupar lugar (no empuja la conversación). Va adentro de la
- * caja del campo (MentionTextarea `adornment`); AiComposeBar con `floating` no lo repite.
+ * chip sobre el borde de arriba del campo. Va adentro de la caja del campo (MentionTextarea `adornment`: con el
+ * teclado se llega desde el campo con Tab); AiComposeBar con `floating` no lo repite. Nunca tapa la conversación: en
+ * Lines queda en la fila de las solapas WhatsApp | Nota interna; sin esa fila (Inbox), el composer se hace lugar
+ * arriba mientras se ve (`has-aic-chip`, ver aiChipShown).
  */
 export function AiComposeChip({ ai, tone = 'chat' }: { ai: AiCompose; tone?: 'chat' | 'app' }) {
   if (ai.open) return null;
   return <ClosedOffer ai={ai} tone={tone} floating />;
+}
+
+/** ¿Se ve el chip ("Pulir" o "Insertado · Deshacer")? El composer sin fila de solapas se hace lugar para él. */
+export function aiChipShown(ai: AiCompose): boolean {
+  return !ai.open && (ai.undo !== null || worthPolishing(ai.composerText));
 }
 
 function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'chat' | 'app'; floating?: boolean }) {
@@ -109,7 +116,16 @@ function ClosedOffer({ ai, tone, floating = false }: { ai: AiCompose; tone: 'cha
   if (ai.undo === null) return null;
   return (
     <p className={`aic-undo aic-${tone}${float}`} role="status" data-testid="ai-compose-undo">
-      <span>{t('inserted')}</span>
+      {floating ? (
+        // Flotando sobre el campo va corto ("Insertado"), para no pisar las solapas en el teléfono; el lector de
+        // pantalla lee la frase entera.
+        <span className="aic-undo-text" title={t('inserted')}>
+          <span aria-hidden="true">{t('insertedShort')}</span>
+          <span className="sr-only">{t('inserted')}</span>
+        </span>
+      ) : (
+        <span>{t('inserted')}</span>
+      )}
       <button type="button" className="aic-link" onMouseDown={floating ? (e) => e.preventDefault() : undefined} onClick={ai.undoInsert}>
         {t('undo')}
       </button>

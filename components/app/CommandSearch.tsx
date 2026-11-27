@@ -335,6 +335,7 @@ export default function CommandSearch({ allowedApps = '*', staff = false }: { al
       },
       { group: 'track', label: tPlanning('newInitiative'), meta: '', href: '/app/track/initiatives?new=1' },
       { group: 'track', label: tPlanning('plans'), meta: '', href: '/app/track/projects' },
+      { group: 'track', label: tPlanning('updates'), meta: '', href: '/app/track/updates' },
       { group: 'track', label: tPlanning('roadmap'), meta: '', href: '/app/track/roadmap' },
       { group: 'track', label: tPlanning('cycles'), meta: '', href: '/app/track/cycles' },
       { group: 'track', label: tTrack('cmdk.releases'), meta: '', href: '/app/track/releases' },

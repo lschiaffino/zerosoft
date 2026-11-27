@@ -20,7 +20,8 @@ export default function ThreadNotes({ threadId }: { threadId: string }) {
   useEffect(() => {
     let live = true;
     setFailed(false);
-    void api<{ notes: string }>(`/api/inbox/threads/${threadId}`).then((r) => {
+    // Solo las notas (una fila): no la conversación entera con la info de WhatsApp.
+    void api<{ notes: string }>(`/api/inbox/threads/${threadId}/wa?part=notes`).then((r) => {
       if (!live) return;
       if (r.ok) setNotes(String(r.data.notes ?? ''));
       else setFailed(true);

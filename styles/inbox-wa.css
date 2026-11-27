@@ -188,6 +188,17 @@ textarea.ib-wa-edit-input { resize: vertical; min-height: 88px; }
 .ib-wa-edit-actions .is-primary { color: var(--wa-primary); }
 .ib-wa-summary .btn { align-self: flex-start; }
 .ib-wa-summary .ib-wa-card-title { color: var(--wa-primary-ink); }
+/* El CRM de zerosoft en la pestaña CRM (components/inbox/wa/InboxCrm.tsx): con los colores del chat. */
+.ib-wa-crm .gr-crm-links li { color: var(--wa-text); font-size: var(--wa-fs-preview); }
+.ib-wa-crm .gr-crm-links a { color: var(--wa-text); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.ib-wa-crm .ui-help, .ib-wa-crm-suggest .ui-help { margin: 0; font-size: 0.75rem; color: var(--wa-text-2); }
+.ib-wa-crm-suggest { display: flex; flex-direction: column; gap: 4px; }
+.ib-wa-crm .gr-crm-results { background: var(--wa-panel); border-color: var(--wa-border); }
+.ib-wa-crm .gr-crm-results button { color: var(--wa-text); }
+.ib-wa-crm .gr-crm-results button:hover { background: var(--wa-row-hover); }
+@media (max-width: 640px) {
+  .ib-wa-crm :is(.btn, .gr-crm-results button) { min-height: 40px; }
+}
 
 .ib-wa-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--wa-border); }
 .ib-wa-tabs button { flex: 1; padding: 7px 4px; font: inherit; font-size: var(--wa-fs-preview); color: var(--wa-text-2); background: none; border: 0; border-bottom: 3px solid transparent; cursor: pointer; }

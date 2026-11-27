@@ -184,7 +184,7 @@ html[data-look='retro'] .gr-inbox :is(.gr-quote, .wa-replying, .wa-image, .wa-vi
 html[data-look='retro'] .gr-inbox .gr-bubble.is-media:not(:has(.wa-text)) .gr-msg-foot { border-radius: 0; }
 html[data-look='retro'] .gr-inbox .wa-chevron { border-radius: 0; }
 html[data-look='retro'] .gr-inbox .gr-reactions { background: var(--rt-face); border: 0; border-radius: 0; box-shadow: var(--rt-raised); }
-html[data-look='retro'] .gr-inbox :is(.gr-unread, .wa-unread, .wa-to-end-n, .wa-gm-badge, .gr-line-badge) { border-radius: 0; }
+html[data-look='retro'] .gr-inbox :is(.gr-unread, .wa-unread, .wa-mention-badge, .wa-to-end-n, .wa-gm-badge, .gr-line-badge) { border-radius: 0; }
 html[data-look='retro'] .gr-inbox .gr-emoji-picker button { border-radius: 0; }
 html[data-look='retro'] .gr-inbox .gr-emoji-picker button:is(:hover, :focus-visible) { background: transparent; box-shadow: var(--rt-raised); transform: none; }
 

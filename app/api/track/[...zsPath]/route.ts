@@ -80,15 +80,16 @@ import * as m74 from '@/lib/routes/track/projects/[id]/triage-rules/route';
 import * as m75 from '@/lib/routes/track/projects/[id]/triage-settings/route';
 import * as m76 from '@/lib/routes/track/projects/[id]/views/route';
 import * as m77 from '@/lib/routes/track/recurring/[id]/route';
-import * as m78 from '@/lib/routes/track/releases/[id]/route';
-import * as m79 from '@/lib/routes/track/releases/[id]/issues/route';
-import * as m80 from '@/lib/routes/track/sentry/webhook/[id]/route';
-import * as m81 from '@/lib/routes/track/statuses/[id]/route';
-import * as m82 from '@/lib/routes/track/templates/[id]/route';
-import * as m83 from '@/lib/routes/track/triage-rules/[id]/route';
-import * as m84 from '@/lib/routes/track/views/[id]/route';
-import * as m85 from '@/lib/routes/track/views/[id]/default/route';
-import * as m86 from '@/lib/routes/track/views/[id]/favorite/route';
+import * as m78 from '@/lib/routes/track/sentry/webhook/[id]/route';
+import * as m79 from '@/lib/routes/track/statuses/[id]/route';
+import * as m80 from '@/lib/routes/track/templates/[id]/route';
+import * as m81 from '@/lib/routes/track/triage-rules/[id]/route';
+import * as m82 from '@/lib/routes/track/views/[id]/route';
+import * as m83 from '@/lib/routes/track/views/[id]/default/route';
+import * as m84 from '@/lib/routes/track/views/[id]/favorite/route';
+import * as m85 from '@/lib/routes/track/templates/[id]/submit/route';
+import * as m86 from '@/lib/routes/track/releases/[id]/route';
+import * as m87 from '@/lib/routes/track/releases/[id]/issues/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -172,15 +173,16 @@ const d = createDispatcher('zsPath', [
   { pattern: 'projects/[id]/triage-settings', mod: m75 }, // lib/routes/track/projects/[id]/triage-settings
   { pattern: 'projects/[id]/views', mod: m76 }, // lib/routes/track/projects/[id]/views
   { pattern: 'recurring/[id]', mod: m77 }, // lib/routes/track/recurring/[id]
-  { pattern: 'releases/[id]', mod: m78 }, // lib/routes/track/releases/[id]
-  { pattern: 'releases/[id]/issues', mod: m79 }, // lib/routes/track/releases/[id]/issues
-  { pattern: 'sentry/webhook/[id]', mod: m80 }, // lib/routes/track/sentry/webhook/[id]
-  { pattern: 'statuses/[id]', mod: m81 }, // lib/routes/track/statuses/[id]
-  { pattern: 'templates/[id]', mod: m82 }, // lib/routes/track/templates/[id]
-  { pattern: 'triage-rules/[id]', mod: m83 }, // lib/routes/track/triage-rules/[id]
-  { pattern: 'views/[id]', mod: m84 }, // lib/routes/track/views/[id]
-  { pattern: 'views/[id]/default', mod: m85 }, // lib/routes/track/views/[id]/default
-  { pattern: 'views/[id]/favorite', mod: m86 }, // lib/routes/track/views/[id]/favorite
+  { pattern: 'sentry/webhook/[id]', mod: m78 }, // lib/routes/track/sentry/webhook/[id]
+  { pattern: 'statuses/[id]', mod: m79 }, // lib/routes/track/statuses/[id]
+  { pattern: 'releases/[id]', mod: m86 }, // lib/routes/track/releases/[id]
+  { pattern: 'releases/[id]/issues', mod: m87 }, // lib/routes/track/releases/[id]/issues
+  { pattern: 'templates/[id]', mod: m80 }, // lib/routes/track/templates/[id]
+  { pattern: 'templates/[id]/submit', mod: m85 }, // lib/routes/track/templates/[id]/submit
+  { pattern: 'triage-rules/[id]', mod: m81 }, // lib/routes/track/triage-rules/[id]
+  { pattern: 'views/[id]', mod: m82 }, // lib/routes/track/views/[id]
+  { pattern: 'views/[id]/default', mod: m83 }, // lib/routes/track/views/[id]/default
+  { pattern: 'views/[id]/favorite', mod: m84 }, // lib/routes/track/views/[id]/favorite
 ]);
 
 export const GET = d.GET;

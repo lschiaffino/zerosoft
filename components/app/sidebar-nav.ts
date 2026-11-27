@@ -140,6 +140,8 @@ export interface SidebarLabels {
     planning?: string;
     plans?: string;
     initiatives?: string;
+    /** Updates de projects e initiatives en un feed (Pulse de Linear). */
+    updates?: string;
     roadmap?: string;
     analytics?: string;
     insights?: string;
@@ -148,6 +150,8 @@ export interface SidebarLabels {
     customers?: string;
     /** Releases (lib/track-releases). */
     releases?: string;
+    /** Formularios de pedidos (form templates de Linear). */
+    forms?: string;
     /** Secciones como en Linear: "Workspace" y "Your teams". */
     workspace?: string;
     yourTeams?: string;
@@ -733,6 +737,7 @@ export function buildNav(
               ? [
                   { href: '/app/track/projects', label: labels.track.plans, active: pathname === '/app/track/projects' || at('/app/track/projects/'), icon: 'plans' as const },
                   { href: '/app/track/initiatives', label: labels.track.initiatives ?? '', active: at('/app/track/initiatives'), icon: 'initiatives' as const },
+                  ...(labels.track.updates ? [{ href: '/app/track/updates', label: labels.track.updates, active: at('/app/track/updates'), icon: 'live' as const }] : []),
                 ]
               : []),
             // Todos los issues del workspace: no se marca dentro de un issue (ahí se marca su team).
@@ -763,6 +768,7 @@ export function buildNav(
             ...(labels.track.customers
               ? [{ href: '/app/track/customers', label: labels.track.customers, active: at('/app/track/customers'), icon: 'contacts' as const }]
               : []),
+            ...(labels.track.forms ? [{ href: '/app/track/forms', label: labels.track.forms, active: at('/app/track/forms'), icon: 'forms' as const }] : []),
             ...(labels.track.analytics
               ? [{ href: '/app/track/analytics', label: labels.track.analytics, active: at('/app/track/analytics'), icon: 'reports' as const }]
               : []),

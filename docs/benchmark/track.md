@@ -109,7 +109,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
 | Comentarios sobre el texto de la descripción | falta | (2026-11-23) |
 | Hilos de comentarios en projects e iniciativas | falta | (2026-11-23) Solo en sus updates |
-| Pulse (feed y resumen diario de updates) | falta | (2026-11-23) |
+| Pulse (feed y resumen diario de updates) | parcial | (2026-11-23) Track › Updates: feed de updates de proyectos e iniciativas, Para mí (lead, miembro o seguidor; iniciativas que lidera o con sus proyectos) y Todos, paginado. Los updates avisan a seguidores en el Inbox, pero el resumen diario por email solo lleva avisos de issues (source_type track_issue): falta el email de resumen de updates y el audio |
 
 ### Planificación
 
@@ -122,7 +122,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 | Estado Duplicado que pasa el contexto al original | tiene | (T4, 2026-11-23) Desde ⌘K, el menú del issue, M M o triage: estado Duplicate del team (tipo cancelado, se crea la primera vez), relación, suscriptos que ven el original y pedidos de clientes pasan a él, y el original recibe un resumen (título, extracto, comentarios y archivos). Aviso en el duplicado con link y Quitar; ⌘Z deshace todo. Comentarios y adjuntos quedan en el duplicado; el texto de un team privado (o que un invitado no ve) no se copia. M B, M X y M R suman relaciones |
-| Formularios de pedidos a triage | falta | (2026-11-23) |
+| Formularios de pedidos a triage | parcial | (2026-11-23) Una plantilla de issue con campos (texto corto, largo, opciones, casilla; obligatorio, ayuda) es un formulario: página propia con link, índice en Track › Formularios de pedidos y desde el alta rápida. Crea el issue en triage con origen "form" (las reglas lo filtran), las respuestas en la descripción y las propiedades de la plantilla. Falta: Asks de Slack y entrada por email para gente de afuera |
 | Releases (pipelines, versiones, notas) | parcial | (T5, 2026-11-23) Releases por team: nombre, versión, fecha objetivo y estado (planeado, en curso, publicado); issues desde la página del release, la propiedad Release del issue, ⌘K y la selección, y solos al mergear un PR vinculado (al release en curso del team); avance, issues por estado y notas generadas con los títulos (novedades, mejoras, arreglos por label), editables. Release como propiedad, filtro y agrupado en listas y tableros; ⌘K los encuentra. Falta: pipelines de release y avisos de deploy desde el CI (Linear los usa para releases continuos) |
 
 ### Automatización
