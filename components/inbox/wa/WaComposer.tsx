@@ -19,7 +19,7 @@ import { useEmojiSuggest } from '@/components/groups/wa/useEmojiSuggest';
 import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
-import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle, aiChipShown } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -452,7 +452,7 @@ const WaComposer = forwardRef<
   const hasText = !!text.trim();
   return (
     // Con el chip de la AI ("Pulir", "Insertado · Deshacer") el composer se hace lugar arriba: nunca tapa la conversación.
-    <div className={`wa-composer ib-wa-composer${!editing && aiChipShown(ai) ? ' has-aic-chip' : ''}`} data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
+    <div className={`wa-composer ib-wa-composer`} data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       {above}
       {banner}
       {linkPv.card}
