@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { PeriskopeKind, PeriskopeResult } from '@/lib/groups-periskope';
 import type { PeriskopeApiResult } from '@/lib/groups-periskope-api';
+import type { HistoryStatusDto } from '@/lib/groups-periskope-history';
 import { api, useErrorText } from './ui';
 
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -30,6 +31,16 @@ export default function PeriskopeImport() {
             </h2>
           </div>
           <PeriskopeApiImport />
+        </div>
+      </section>
+      <section className="ui-section" aria-labelledby="psk-hist-h">
+        <div className="ui-section-body">
+          <div className="ui-section-head">
+            <h2 className="ui-section-title" id="psk-hist-h">
+              {t('migrate.history.title')}
+            </h2>
+          </div>
+          <PeriskopeHistory />
         </div>
       </section>
       <section className="ui-section" aria-labelledby="psk-csv-h">
@@ -285,6 +296,110 @@ function PeriskopeCsvImport() {
                 <li key={`${i.line}-${i.reason}`}>{t('migrate.issueLine', { line: i.line, reason: issueText(i.reason) })}</li>
               ))}
             </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Historial de mensajes: un trabajo en segundo plano y retomable. Con esta
+ * pantalla abierta empuja una tanda cada pocos segundos; cerrada, sigue el
+ * cron de cada minuto.
+ */
+function PeriskopeHistory() {
+  const t = useTranslations('groups');
+  const errText = useErrorText();
+  const [key, setKey] = useState('');
+  const [media, setMedia] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [st, setSt] = useState<HistoryStatusDto | null>(null);
+  const active = st?.status === 'queued' || st?.status === 'running';
+  const pushing = useRef(false);
+
+  const load = useCallback(async () => {
+    const res = await fetch('/api/groups/periskope').catch(() => null);
+    if (res?.ok) setSt(((await res.json()) as { history: HistoryStatusDto | null }).history);
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(async () => {
+      if (pushing.current) return;
+      pushing.current = true;
+      const res = await api<{ history: HistoryStatusDto | null }>('/api/groups/periskope', { body: { source: 'history', action: 'continue' } });
+      pushing.current = false;
+      if (res.data) setSt(res.data.history);
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  async function act(action: 'start' | 'cancel' | 'resume') {
+    setBusy(true);
+    setError('');
+    const res = await api<{ history: HistoryStatusDto | null }>('/api/groups/periskope', { body: { source: 'history', action, key, includeMedia: media } });
+    setBusy(false);
+    if (!res.data) return setError(errText(res.error));
+    setSt(res.data.history);
+    if (action === 'start') setKey('');
+  }
+
+  const pct = st && st.chatsTotal > 0 ? Math.min(100, Math.round((st.chatsDone / st.chatsTotal) * 100)) : 0;
+  return (
+    <div className="ui-fields" data-testid="periskope-history">
+      <p className="ui-help">{t('migrate.history.intro')}</p>
+      <ul className="ui-help gr-steps">
+        <li>{t('migrate.history.what')}</li>
+        <li>{t('migrate.history.private')}</li>
+        <li>{t('migrate.history.limits')}</li>
+      </ul>
+      {!active && (
+        <>
+          <label className="ui-field">
+            <span className="label">{t('migrate.api.key')}</span>
+            <input className="input" type="password" autoComplete="off" spellCheck={false} value={key} data-testid="periskope-history-key" onChange={(e) => setKey(e.target.value)} />
+            <span className="ui-help">{t('migrate.history.keyHelp')}</span>
+          </label>
+          <label className="ui-field" style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44 }}>
+            <input type="checkbox" checked={media} onChange={(e) => setMedia(e.target.checked)} data-testid="periskope-history-media" />
+            <span>{t('migrate.history.media')}</span>
+          </label>
+          <div className="gr-inline-form">
+            <button type="button" className="btn btn-primary" data-testid="periskope-history-start" disabled={!key.trim() || busy} onClick={() => void act('start')} aria-busy={busy || undefined}>
+              {t('migrate.history.start')}
+            </button>
+            {st?.status === 'error' && st.error !== 'periskope_auth' && (
+              <button type="button" className="btn btn-secondary" data-testid="periskope-history-resume" disabled={busy} onClick={() => void act('resume')}>
+                {t('migrate.history.resume')}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+      {error && (
+        <p className="ui-error" role="alert">
+          {error}
+        </p>
+      )}
+      {st && (
+        <div className={`gr-banner gr-import-result${st.status === 'done' ? ' is-ok' : st.status === 'error' ? ' is-warn' : ''}`} role="status" data-testid="periskope-history-status" data-status={st.status} data-messages={st.messages} data-chats-done={st.chatsDone}>
+          <strong>{t(`migrate.history.state.${st.status}`)}</strong>
+          {st.chatsTotal > 0 && <progress value={pct} max={100} aria-label={t('migrate.history.progress')} style={{ width: '100%' }} />}
+          <ul>
+            <li>{t('migrate.history.chats', { done: st.chatsDone, total: st.chatsTotal, skipped: st.chatsSkipped })}</li>
+            <li>{t('migrate.history.messages', { n: st.messages, dup: st.duplicates })}</li>
+            <li>{t('migrate.history.files', { saved: st.mediaSaved, failed: st.mediaFailed })}</li>
+            <li>{t('migrate.history.extras', { reactions: st.reactions, notes: st.notes })}</li>
+          </ul>
+          {st.error && st.status !== 'done' && <span>{t.has(`errors.${st.error}`) ? t(`errors.${st.error}`) : st.error}</span>}
+          {active && (
+            <button type="button" className="btn btn-secondary" data-testid="periskope-history-cancel" disabled={busy} onClick={() => void act('cancel')}>
+              {t('migrate.history.cancel')}
+            </button>
           )}
         </div>
       )}
