@@ -815,7 +815,16 @@
     "openInbox": "Abrir la bandeja",
     "manage": "Cambiar cómo te escribe Track",
     "whyDigest": "Una vez por día, con lo que sigue sin leer en tu bandeja de Track.",
-    "whyImmediate": "Te llega porque algo de tu bandeja de Track quedó sin leer un minuto."
+    "whyImmediate": "Te llega porque algo de tu bandeja de Track quedó sin leer un minuto.",
+    "planUpdate": "{actor} publicó un update de {name}",
+    "planUpdateHealth": "{actor} publicó un update de {name}: {health}",
+    "planComment": "{actor} comentó un update de {name}",
+    "planReminder": "Es hora de escribir el update de {name}",
+    "health": {
+      "on_track": "en camino",
+      "at_risk": "en riesgo",
+      "off_track": "desviado"
+    }
   },
   "notifySettings": {
     "title": "Avisos por email",

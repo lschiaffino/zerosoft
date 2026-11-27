@@ -8,6 +8,7 @@
   "keepArchivedHint": "Los mensajes nuevos, y los que mandás, no lo sacan de Archivados.",
   "keptArchived": "Se mantiene archivado",
   "unread": "{n, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
+  "unreadMention": "Te mencionaron o respondieron a un mensaje tuyo",
   "kind": {
     "image": "Foto",
     "video": "Video",

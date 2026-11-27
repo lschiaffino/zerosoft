@@ -145,6 +145,16 @@ export function describeItem(item: TrackMailItem, locale: TrackMailLocale): stri
   const a = ACTIVITY[locale];
   const m = MAIL[locale];
   const vars = { actor: String(meta.actorName || m.someone), identifier: String(meta.issueIdentifier ?? '') };
+  if (item.source_type === 'track_plan' || item.source_type === 'track_initiative') {
+    // Updates de projects e initiatives: el nombre viene en meta (el título está en inglés).
+    const name = String(meta.planName || meta.initiativeName || '');
+    if (!name) return item.title;
+    const health = meta.health && meta.health in m.health ? m.health[meta.health as keyof typeof m.health] : '';
+    if (meta.kind === 'comment') return fill(m.planComment, { actor: vars.actor, name });
+    if (meta.kind === 'reminder' || item.type === 'track_reminder') return fill(m.planReminder, { name });
+    if (meta.kind === 'update') return fill(health ? m.planUpdateHealth : m.planUpdate, { actor: vars.actor, name, health });
+    return item.title;
+  }
   if (meta.chatName) {
     // Groups: mención en una nota o chat asignado.
     const n = NOTIFICATION[locale];
@@ -228,7 +238,9 @@ export function buildTrackEmail(
 
 const ITEM_COLUMNS = 'n.id, n.type, n.source_type, n.source_id, n.title, n.body, n.href, n.meta, n.created_at';
 
-const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
+// Issues, chats de Groups y los updates de projects e initiatives (con sus
+// comentarios y el recordatorio de escribirlos), como el resumen de Pulse.
+const VISIBLE = `n.source_type IN ('track_issue', 'groups_chat', 'track_plan', 'track_initiative') AND n.read_at IS NULL AND (n.snoozed_until IS NULL OR n.snoozed_until <= ?)`;
 
 /** Avisos que se miran por email como mucho para descartar los que la persona ya no ve. */
 const MAIL_SCAN_LIMIT = 1000;

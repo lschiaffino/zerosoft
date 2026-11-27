@@ -815,7 +815,16 @@
     "openInbox": "Abrir a caixa de entrada",
     "manage": "Mudar como o Track envia emails",
     "whyDigest": "Uma vez por dia, com o que segue não lido na sua caixa do Track.",
-    "whyImmediate": "Você recebe isto porque algo na sua caixa do Track ficou sem ler por um minuto."
+    "whyImmediate": "Você recebe isto porque algo na sua caixa do Track ficou sem ler por um minuto.",
+    "planUpdate": "{actor} publicou um update de {name}",
+    "planUpdateHealth": "{actor} publicou um update de {name}: {health}",
+    "planComment": "{actor} comentou um update de {name}",
+    "planReminder": "Hora de escrever o update de {name}",
+    "health": {
+      "on_track": "no caminho",
+      "at_risk": "em risco",
+      "off_track": "fora do caminho"
+    }
   },
   "notifySettings": {
     "title": "Avisos por email",
