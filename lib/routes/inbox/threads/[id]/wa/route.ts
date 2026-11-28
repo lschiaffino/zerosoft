@@ -73,7 +73,8 @@ export async function GET(req: Request, ctx: Ctx) {
 
 /**
  * { action: 'summary' } pide un resumen nuevo a la IA; { action: 'insights', range, locale } arma la pestaña AI
- * (sin guardar nada); { action: 'block' |
+ * (sin guardar nada), { action: 'aiAsk', question } le pregunta sobre el chat y { action: 'aiTask', title, notes?,
+ * priority? } crea el seguimiento aprobado en CRM › Tareas; { action: 'block' |
  * 'unblock' } bloquea en WhatsApp; { action: 'presence', state } manda
  * "escribiendo", "grabando" o se suscribe a la presencia del chat ("paused");
  * { action: 'fetchMissing' } "Traer mensajes que faltan" ({ action: 'fetchMissingStatus' } dice cómo va);
@@ -185,8 +186,23 @@ export async function POST(req: Request, ctx: Ctx) {
       const range = parseInsightRange(body.range);
       if (!range) throw new InboxError('invalid_input', 400);
       const locale = body.locale === 'es' || body.locale === 'pt' ? body.locale : 'en';
-      const { inboxChatInsights } = await import('@/lib/inbox/insights');
-      return iJson({ insights: await inboxChatInsights(owner, id, range, locale) });
+      const { inboxChatInsights, inboxCanCreateTasks } = await import('@/lib/inbox/insights');
+      // canCreate: si la persona usa el CRM del workspace activo (los seguimientos propuestos van a CRM › Tareas).
+      return iJson({ insights: await inboxChatInsights(owner, id, range, locale), canCreate: await inboxCanCreateTasks() });
+    }
+    // Una pregunta sobre el chat ({ action: 'aiAsk', question, locale }) y crear un seguimiento propuesto que la
+    // persona aprobó ({ action: 'aiTask', title, notes?, priority? }, a CRM › Tareas a su nombre).
+    if (b?.action === 'aiAsk') {
+      const body = b as { question?: unknown; locale?: unknown };
+      const locale = body.locale === 'es' || body.locale === 'pt' ? body.locale : 'en';
+      const { inboxChatAsk } = await import('@/lib/inbox/insights');
+      return iJson(await inboxChatAsk(owner, id, typeof body.question === 'string' ? body.question : '', locale));
+    }
+    if (b?.action === 'aiTask') {
+      const limitedT = await limitWrites('inbox', owner);
+      if (limitedT) return limitedT;
+      const { createInsightTask } = await import('@/lib/inbox/insights');
+      return iJson({ task: await createInsightTask(owner, id, b as { title?: unknown; notes?: unknown; priority?: unknown }) }, 201);
     }
     if (b?.action === 'block' || b?.action === 'unblock') {
       await setBlocked(owner, id, b.action === 'block');

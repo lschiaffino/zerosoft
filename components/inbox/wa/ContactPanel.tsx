@@ -12,7 +12,9 @@ import type { SheetSharedItem } from '@/components/groups/wa/ContactSheet';
 import ThreadNotes from './ThreadNotes';
 import { ArchiveIcon, Ban, BriefcaseIcon, Close, ExitIcon, GroupIcon, InfoIcon, MuteIcon, Note, PhotoIcon, Sparkle } from '@/components/groups/wa/icons';
 import ChatAiTab from '@/components/groups/wa/ChatAiTab';
-import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
+import type { ChatInsights, ChatProposal, InsightRange } from '@/lib/wa-insights';
+import type { AskResult } from '@/components/groups/wa/ChatAiAsk';
+import type { CreateResult } from '@/components/groups/wa/ChatAiProposals';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
@@ -133,11 +135,29 @@ export default function ContactPanel({
 
   // La pestaña AI: las ideas del rango, solo con los mensajes de este chat (lib/inbox/insights.ts).
   const runInsights = useCallback(
-    async (range: InsightRange): Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }> => {
-      const r = await api<{ insights: ChatInsights }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'insights', range, locale } });
-      return r.ok ? { ok: true, insights: r.data.insights } : { ok: false, code: r.data.error ?? 'failed' };
+    async (range: InsightRange): Promise<{ ok: true; insights: ChatInsights; canCreate: boolean } | { ok: false; code: string }> => {
+      const r = await api<{ insights: ChatInsights; canCreate: boolean }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'insights', range, locale } });
+      return r.ok ? { ok: true, insights: r.data.insights, canCreate: r.data.canCreate } : { ok: false, code: r.data.error ?? 'failed' };
     },
     [thread.id, locale],
+  );
+  const askChat = useCallback(
+    async (question: string): Promise<AskResult> => {
+      const r = await api<{ answer: string; messages: number }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'aiAsk', question, locale } });
+      return r.ok ? { ok: true, answer: r.data } : { ok: false, code: r.data.error ?? 'failed' };
+    },
+    [thread.id, locale],
+  );
+  // Un seguimiento propuesto que la persona aprobó: a CRM › Tareas, a su nombre.
+  const createProposal = useCallback(
+    async (p: ChatProposal): Promise<CreateResult> => {
+      const r = await api<{ task: { id: string; title: string; href: string } }>(`/api/inbox/threads/${thread.id}/wa`, {
+        method: 'POST',
+        json: { action: 'aiTask', title: p.title, notes: p.notes, priority: p.priority },
+      });
+      return r.ok ? { ok: true, created: { kind: 'task', href: r.data.task.href, label: r.data.task.title } } : { ok: false, code: r.data.error ?? 'failed' };
+    },
+    [thread.id],
   );
 
   // El chat a la vista: una respuesta que llega tarde de otro chat no se muestra en este.
@@ -498,6 +518,10 @@ export default function ContactPanel({
                   sectionClass="ib-wa-card"
                   titleClass="ib-wa-card-title"
                   before={summaryCard}
+                  askChat={askChat}
+                  kinds={['task']}
+                  where={tdet('ai.whereInbox')}
+                  createProposal={createProposal}
                   // Hasta 1365px la info se apoya sobre la conversación (styles/inbox-wa.css) y tapa el campo y su
                   // Deshacer: se cierra para verlos. Con tres columnas queda abierta.
                   onInserted={() => window.matchMedia('(max-width: 1365px)').matches && onClose()}

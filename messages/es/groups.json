@@ -2235,7 +2235,46 @@
           "day": "últimas 24 horas",
           "week": "últimos 7 días",
           "month": "últimos 30 días"
-        }
+        },
+        "askTitle": "Preguntale a la IA",
+        "askLabel": "Pregunta sobre este chat",
+        "askPlaceholder": "¿Qué pidió el cliente?",
+        "ask": "Preguntar",
+        "asking": "Leyendo el chat…",
+        "suggestionsLabel": "Preguntas sugeridas",
+        "suggest": {
+          "summary": "Resumí este chat",
+          "asked": "¿Qué pidió el cliente?",
+          "pending": "¿Qué quedó pendiente?"
+        },
+        "askHint": "La IA lee solo los últimos mensajes de este chat que vos ves. Las respuestas quedan en esta pestaña; no se guarda nada ni se manda nada al chat.",
+        "askNoMessages": "Este chat todavía no tiene mensajes para leer.",
+        "proposalsTitle": "Seguimientos propuestos",
+        "noProposals": "No hay nada pendiente para seguir en este chat.",
+        "titleLabel": "Título",
+        "notesLabel": "Notas",
+        "notesPlaceholder": "Notas de la tarea (opcional)",
+        "createBusy": "Demasiados cambios seguidos. Esperá un momento y probá de nuevo.",
+        "kindLabel": "Crear como",
+        "kind": {
+          "task": "Tarea",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Prioridad",
+        "priority": {
+          "low": "Baja",
+          "medium": "Media",
+          "high": "Alta"
+        },
+        "create": "Crear",
+        "creating": "Creando…",
+        "dismiss": "Descartar",
+        "createdTask": "Tarea creada:",
+        "createdTicket": "Ticket creado:",
+        "createError": "No se pudo crear. Probá de nuevo.",
+        "whereLines": "No se crea nada hasta que tocás Crear. Las tareas van a la pestaña Tareas de este chat y a CRM › Tareas; los tickets, a Tickets.",
+        "whereInbox": "No se crea nada hasta que tocás Crear. Las tareas van a CRM › Tareas, a tu nombre; las ve quien pueda ver tus tareas del CRM.",
+        "crmOff": "La app CRM está apagada para vos: estas no se pueden crear como tareas acá."
       }
     },
     "contactSheet": {

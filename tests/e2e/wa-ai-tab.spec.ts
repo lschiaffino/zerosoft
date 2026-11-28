@@ -8,7 +8,9 @@ import { ensureDetailsTab } from './helpers/details-tab';
  * La pestaña AI del panel de un chat, en Lines y en Inbox, a 1280 y 390 (modelo falso de e2e): elegir el rango
  * (desde la última lectura o días), resumir, ver preguntas, compromisos, respuestas sugeridas y ánimo; Insertar pone
  * la respuesta en el campo con Deshacer y no manda nada. Con la IA apagada (cookie del modelo falso) lo dice y no
- * ofrece resumir. Sin desplazamiento lateral; a 390, lo que se toca mide 40px o más.
+ * ofrece resumir. Los seguimientos propuestos se crean solo con "Crear" (ticket o tarea en Lines, tarea del CRM en
+ * Inbox) y "Descartar" no crea nada; preguntar responde con lo que se ve. Sin desplazamiento lateral; a 390, lo que se
+ * toca mide 40px o más.
  * Con L2_SHOTS=<carpeta> guarda capturas en los cinco aspectos, claro y oscuro. Cuenta propia; textos inventados.
  */
 
@@ -71,6 +73,21 @@ async function inboxChat(request: APIRequestContext, tag: string): Promise<strin
     const res = await request.post(`/api/inbox/webhook/${String(acc.id)}/${String(acc.webhook_secret)}`, { data: { events: events(from, tag) } });
     expect(res.ok(), await res.text()).toBe(true);
     return String((await db.execute({ sql: 'SELECT id FROM inbox_threads WHERE account_id = ? AND external_id = ?', args: [String(acc.id), `${from}@s.whatsapp.net`] })).rows[0].id);
+  } finally {
+    db.close();
+  }
+}
+
+/** Los títulos de lo que se creó desde la pestaña en esta prueba: tickets y tareas del chat (Lines) o tareas del CRM (Inbox). */
+async function created(app: 'lines' | 'inbox', id: string, tag: string): Promise<string[]> {
+  const db = e2eDb();
+  try {
+    const sql =
+      app === 'lines'
+        ? `SELECT title FROM groups_tickets WHERE chat_id = ? UNION ALL SELECT a.subject AS title FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id WHERE t.chat_id = ?`
+        : `SELECT subject AS title FROM crm_activities WHERE type = 'task' AND subject LIKE ?`;
+    const args = app === 'lines' ? [id, id] : [`% ${tag}`];
+    return (await db.execute({ sql, args })).rows.map((r) => String(r.title));
   } finally {
     db.close();
   }
@@ -163,6 +180,95 @@ for (const app of ['lines', 'inbox'] as const) {
         await field.fill('');
       }
       // Nada salió a WhatsApp: el chat no tiene mensajes propios.
+      if (app === 'lines') {
+        const r = (await (await request.get(`/api/groups/chats/${id}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
+        expect(r.messages.filter((m) => m.direction === 'out')).toEqual([]);
+      } else {
+        const r = (await (await request.get(`/api/inbox/threads/${id}`)).json()) as { messages: Array<{ fromMe: boolean }> };
+        expect(r.messages.filter((m) => m.fromMe)).toEqual([]);
+      }
+      expect(errors).toEqual([]);
+    });
+  }
+
+  for (const width of [1280, 390]) {
+    test(`${app}: preguntar sobre el chat y crear un seguimiento solo al aprobarlo (${width})`, async ({ page, request }) => {
+      const errors = watchErrors(page);
+      await page.setViewportSize({ width, height: 844 });
+      const tag = uid();
+      const id = app === 'lines' ? await linesChat(request, tag) : await inboxChat(request, tag);
+      const tab = await openAiTab(page, app, id);
+      await tab.getByTestId('details-ai-range').locator('[data-range="7"]').click();
+      await tab.getByTestId('details-ai-run').click();
+      const proposals = tab.getByTestId('details-ai-proposals');
+      const rows = proposals.getByTestId('details-ai-proposal');
+      // Dos propuestas: lo que pidió el contacto y lo que quedó prometido.
+      await expect(rows).toHaveCount(2);
+      const first = rows.nth(0);
+      const second = rows.nth(1);
+      await expect(first.getByTestId('details-ai-proposal-title')).toHaveValue(/precio del plan anual/);
+      await expect(second.getByTestId('details-ai-proposal-title')).toHaveValue(/Mañana les confirmo/);
+      // En Lines se elige tarea o ticket (el pedido viene como ticket, sin notas); en Inbox es siempre una tarea del CRM.
+      if (app === 'lines') {
+        await expect(first.getByTestId('details-ai-proposal-kind')).toHaveValue('ticket');
+        await expect(first.getByTestId('details-ai-proposal-notes')).toHaveCount(0);
+        await expect(second.getByTestId('details-ai-proposal-kind')).toHaveValue('task');
+      } else {
+        await expect(first.getByTestId('details-ai-proposal-kind')).toHaveCount(0);
+        await expect(first.getByTestId('details-ai-proposal-notes')).toHaveValue(/precio del plan anual/);
+      }
+      await expect(second.getByTestId('details-ai-proposal-notes')).toBeVisible();
+      // Analizar no creó nada.
+      expect(await created(app, id, tag)).toEqual([]);
+      // Los campos de una línea del panel compacto de Lines miden 28px con el mouse y 40px con el dedo (ui.css): se
+      // miden los botones y el campo de notas.
+      if (width === 390) {
+        for (const b of [first.getByTestId('details-ai-create'), first.getByTestId('details-ai-dismiss'), second.getByTestId('details-ai-proposal-notes')]) {
+          expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+        }
+      }
+      // Se cambia el título y se aprueba (dos clics seguidos crean uno solo): queda el link.
+      await first.getByTestId('details-ai-proposal-title').fill(`Pasar el precio ${tag}`);
+      await first.getByTestId('details-ai-create').dblclick();
+      await expect(first.getByTestId('details-ai-created-link')).toContainText(`Pasar el precio ${tag}`);
+      await expect.poll(() => created(app, id, tag)).toEqual([`Pasar el precio ${tag}`]);
+      if (width === 390) expect((await first.getByTestId('details-ai-created-link').boundingBox())!.height).toBeGreaterThanOrEqual(40);
+      if (width === 1280) await shots(page, `${app}-ai-proposals-${width}`);
+      // Descartar la saca sin crear nada.
+      await second.getByTestId('details-ai-dismiss').click();
+      await expect(rows).toHaveCount(1);
+      expect(await created(app, id, tag)).toEqual([`Pasar el precio ${tag}`]);
+      // Otra pasada: lo creado se muestra creado (no se ofrece de nuevo) y lo descartado vuelve; se crea como tarea.
+      await tab.getByTestId('details-ai-run').click();
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0)).toHaveAttribute('data-state', 'created');
+      await expect(rows.nth(1)).toHaveAttribute('data-state', 'open');
+      await rows.nth(1).getByTestId('details-ai-proposal-title').fill(`Confirmar la dirección ${tag}`);
+      await rows.nth(1).getByTestId('details-ai-create').click();
+      await expect(rows.nth(1).getByTestId('details-ai-created-link')).toContainText(`Confirmar la dirección ${tag}`);
+      await expect.poll(async () => (await created(app, id, tag)).sort()).toEqual([`Confirmar la dirección ${tag}`, `Pasar el precio ${tag}`]);
+
+      // Preguntar: Enter pregunta; las sugeridas preguntan de una. El modelo falso dice cuántos mensajes leyó.
+      const ask = tab.getByTestId('details-ai-ask');
+      await ask.getByTestId('details-ai-question').fill('¿Qué pidió?');
+      await ask.getByTestId('details-ai-question').press('Enter');
+      await expect(ask.getByTestId('details-ai-answer')).toHaveCount(1);
+      await expect(ask.getByTestId('details-ai-answer').first()).toContainText('3 messages read');
+      await expect(ask.getByTestId('details-ai-answer').first()).toContainText('Question: ¿Qué pidió?');
+      await expect(ask.getByTestId('details-ai-question')).toHaveValue('');
+      await ask.getByTestId('details-ai-suggest-pending').click();
+      await expect(ask.getByTestId('details-ai-answer')).toHaveCount(2);
+      expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
+      if (width === 390) {
+        for (const b of [ask.getByTestId('details-ai-ask-go'), ask.getByTestId('details-ai-suggest-summary'), ask.getByTestId('details-ai-question')]) {
+          expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+        }
+      }
+      if (width === 1280) {
+        await ask.scrollIntoViewIfNeeded();
+        await shots(page, `${app}-ai-ask-${width}`);
+      }
+      // Nada salió a WhatsApp.
       if (app === 'lines') {
         const r = (await (await request.get(`/api/groups/chats/${id}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
         expect(r.messages.filter((m) => m.direction === 'out')).toEqual([]);
