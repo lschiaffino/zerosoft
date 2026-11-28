@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { parseDbUtc } from '@/lib/utils';
 import RecordShell from './RecordShell';
 import RecordQuickActions from './RecordQuickActions';
+import { RecordTopNav } from './RecordNav';
 import { recordInitials, type ComposeType, type LayoutTab } from './recordLayout';
 
 /**
@@ -52,12 +53,8 @@ export default function RecordColumns({
     <div className="ui-page record-page rec3-page">
       {before}
       <div className="rec-topbar">
-        <Link href={back.href} className="ui-page-back">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M15 6l-6 6 6 6" />
-          </svg>
-          {back.label}
-        </Link>
+        {/* Volver a la lista de donde vino (con sus filtros), ‹ › entre sus registros y la ficha en vivo. */}
+        <RecordTopNav base={base} back={back} />
         {actions && <div className="ui-page-actions rec-topbar-actions">{actions}</div>}
       </div>
       <RecordShell

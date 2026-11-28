@@ -12,17 +12,23 @@ import { runDueRecurring } from './groups-recurring';
 import { syncRemoteTickets } from './groups-integrations';
 import { markBreachedTickets } from './groups-tickets';
 import { fireTaskReminders } from './groups-tasks';
-import { normalizeSettings } from './groups-rules';
+import { MAX_UNANSWERED_MIN, normalizeSettings } from './groups-rules';
 
-/** Marca los chats que esperan respuesta hace más que el umbral del workspace. */
+/**
+ * Marca los chats que esperan respuesta hace más que el umbral del workspace. El SQL ya deja afuera los que todavía no
+ * vencen (con el umbral entero del workspace, que nunca es más que el que aplica normalizeSettings): así mil chats que
+ * esperan en un workspace con un umbral largo no tapan a uno vencido en otro. La cuenta de abajo sigue mandando.
+ */
 export async function flagUnansweredChats(now = new Date(), limit = 1000): Promise<number> {
   const db = getDb();
   const rows = (await db
     .prepare(
       `SELECT c.id, c.awaiting_since, s.data FROM groups_chats c LEFT JOIN groups_settings s ON s.user_id = c.user_id
-       WHERE c.awaiting_since IS NOT NULL AND c.flagged_at IS NULL AND c.status = 'open' ORDER BY c.awaiting_since LIMIT ?`,
+       WHERE c.awaiting_since IS NOT NULL AND c.flagged_at IS NULL AND c.status = 'open'
+         AND c.awaiting_since <= strftime('%Y-%m-%dT%H:%M:%fZ', ?, '-' || MIN(?, MAX(1, COALESCE(CAST(json_extract(s.data, '$.unansweredMin') AS INTEGER), 1))) || ' minutes')
+       ORDER BY c.awaiting_since LIMIT ?`,
     )
-    .all(limit)) as Array<{ id: string; awaiting_since: string; data: string | null }>;
+    .all(now.toISOString(), MAX_UNANSWERED_MIN, limit)) as Array<{ id: string; awaiting_since: string; data: string | null }>;
   let n = 0;
   for (const r of rows) {
     const settings = normalizeSettings(r.data ? JSON.parse(r.data) : {});
@@ -90,8 +96,11 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Importación de chats al conectar un número: una tanda por corrida (claim por fila; retoma donde quedó).
   const { runImports } = await import('./groups-import');
   const imports = await runImports({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
+  // Historial de mensajes de Periskope (lib/groups-periskope-history.ts): una tanda por workspace, retoma donde quedó.
+  const { runHistoryJobs } = await import('./groups-periskope-history');
+  const periskopeHistory = await runHistoryJobs({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
   // Repaso diario de cada número: contactos, nombres, info, asuntos, descripciones, miembros y fotos (despacio, retoma donde quedó).
   const { refreshLinesDaily } = await import('./wa-contacts-refresh');
   const daily = await refreshLinesDaily(new Date(), Date.now() + (opts.dailyBudgetMs ?? 10_000)).catch(() => null);
-  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, daily };
+  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, periskopeHistory, daily };
 }

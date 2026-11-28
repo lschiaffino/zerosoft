@@ -4,7 +4,7 @@ import { listChats, listPropertyDefs, propertyText, type PropertyFilter } from '
 import { listTickets, type TicketQuery } from '@/lib/groups-tickets';
 import { TICKET_STATUSES } from '@/lib/groups-rules';
 import { chatGuard, groupsError, groupsSession, sessionViewer } from '@/lib/groups-http';
-import { maskPhone, ticketsForViewer } from '@/lib/groups-access';
+import { maskPhone, maskPhoneText, ticketsForViewer } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 
 export const runtime = 'nodejs';
@@ -120,7 +120,8 @@ export async function GET(req: Request) {
       rows.map((r) => ({ numberId: r.direction === 'note' ? '' : String(r.number_id ?? ''), text: String(r.body ?? ''), mentions: storedMentions(r.meta as string | null) })),
       { mask: viewer.mask },
     );
-    rows.forEach((r, i) => (r.body = named[i]));
+    // Las notas internas (texto del equipo), con los teléfonos ocultos para quien se le ocultan, como en la conversación.
+    rows.forEach((r, i) => (r.body = viewer.mask && r.direction === 'note' ? maskPhoneText(named[i]) : named[i]));
     body = csv([
       ['created_at', 'direction', 'sender_name', 'sender_phone', 'author_id', 'body', 'media_type', 'status'],
       ...rows.map((r) => [r.created_at, r.direction, r.sender_name, viewer.mask && r.sender_phone ? maskPhone(String(r.sender_phone)) : r.sender_phone, r.author_id, r.body, r.media_type, r.status]),

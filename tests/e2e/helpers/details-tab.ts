@@ -2,9 +2,9 @@ import { expect, type Page } from '@playwright/test';
 
 /**
  * El panel de un chat de Lines o Inbox va en pestañas (components/groups/wa/DetailsTabs.tsx): Info, Miembros,
- * Archivos, Notas, Tareas y CRM. Abre la pestaña `id` del panel que está a la vista (sin tocar si ya está elegida).
+ * Archivos, Notas, Tareas, CRM y AI. Abre la pestaña `id` del panel que está a la vista (sin tocar si ya está elegida).
  */
-export async function detailsTab(page: Page, id: 'info' | 'members' | 'media' | 'notes' | 'tasks' | 'crm'): Promise<void> {
+export async function detailsTab(page: Page, id: 'info' | 'members' | 'media' | 'notes' | 'tasks' | 'crm' | 'ai'): Promise<void> {
   const tab = page.locator(`[role="tab"][data-details-tab="${id}"]:visible`).first();
   await tab.waitFor({ state: 'visible' });
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();

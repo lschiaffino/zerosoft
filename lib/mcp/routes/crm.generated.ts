@@ -167,23 +167,24 @@ import * as r164 from "@/lib/routes/crm/trash/[id]/restore/route";
 import * as r165 from "@/app/api/crm/videos/route";
 import * as r166 from "@/lib/routes/crm/videos/[id]/route";
 import * as r167 from "@/lib/routes/crm/videos/[id]/file/route";
-import * as r168 from "@/app/api/crm/views/route";
-import * as r169 from "@/lib/routes/crm/views/[id]/route";
-import * as r170 from "@/app/api/crm/views/tabs/route";
-import * as r171 from "@/app/api/crm/visibility/route";
-import * as r172 from "@/app/api/crm/voice/calls/route";
-import * as r173 from "@/lib/routes/crm/voice/calls/[id]/route";
-import * as r174 from "@/lib/routes/crm/voice/calls/[id]/end/route";
-import * as r175 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
-import * as r176 from "@/app/api/crm/voice/calls/[id]/summarize/route";
-import * as r177 from "@/app/api/crm/voice/fake/route";
-import * as r178 from "@/app/api/crm/voice/settings/route";
-import * as r179 from "@/app/api/crm/workflows/route";
-import * as r180 from "@/lib/routes/crm/workflows/[id]/route";
-import * as r181 from "@/lib/routes/crm/workflows/[id]/enroll-existing/route";
-import * as r182 from "@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route";
-import * as r183 from "@/lib/routes/crm/workflows/[id]/run/route";
-import * as r184 from "@/lib/routes/crm/workflows/[id]/toggle/route";
+import * as r168 from "@/app/api/crm/view-nav/route";
+import * as r169 from "@/app/api/crm/views/route";
+import * as r170 from "@/lib/routes/crm/views/[id]/route";
+import * as r171 from "@/app/api/crm/views/tabs/route";
+import * as r172 from "@/app/api/crm/visibility/route";
+import * as r173 from "@/app/api/crm/voice/calls/route";
+import * as r174 from "@/lib/routes/crm/voice/calls/[id]/route";
+import * as r175 from "@/lib/routes/crm/voice/calls/[id]/end/route";
+import * as r176 from "@/lib/routes/crm/voice/calls/[id]/recording/route";
+import * as r177 from "@/app/api/crm/voice/calls/[id]/summarize/route";
+import * as r178 from "@/app/api/crm/voice/fake/route";
+import * as r179 from "@/app/api/crm/voice/settings/route";
+import * as r180 from "@/app/api/crm/workflows/route";
+import * as r181 from "@/lib/routes/crm/workflows/[id]/route";
+import * as r182 from "@/lib/routes/crm/workflows/[id]/enroll-existing/route";
+import * as r183 from "@/lib/routes/crm/workflows/[id]/enrollments/[runId]/route";
+import * as r184 from "@/lib/routes/crm/workflows/[id]/run/route";
+import * as r185 from "@/lib/routes/crm/workflows/[id]/toggle/route";
 
 export const routes: Record<string, unknown> = {
   "/api/crm/activities": r0,
@@ -354,21 +355,22 @@ export const routes: Record<string, unknown> = {
   "/api/crm/videos": r165,
   "/api/crm/videos/[id]": r166,
   "/api/crm/videos/[id]/file": r167,
-  "/api/crm/views": r168,
-  "/api/crm/views/[id]": r169,
-  "/api/crm/views/tabs": r170,
-  "/api/crm/visibility": r171,
-  "/api/crm/voice/calls": r172,
-  "/api/crm/voice/calls/[id]": r173,
-  "/api/crm/voice/calls/[id]/end": r174,
-  "/api/crm/voice/calls/[id]/recording": r175,
-  "/api/crm/voice/calls/[id]/summarize": r176,
-  "/api/crm/voice/fake": r177,
-  "/api/crm/voice/settings": r178,
-  "/api/crm/workflows": r179,
-  "/api/crm/workflows/[id]": r180,
-  "/api/crm/workflows/[id]/enroll-existing": r181,
-  "/api/crm/workflows/[id]/enrollments/[runId]": r182,
-  "/api/crm/workflows/[id]/run": r183,
-  "/api/crm/workflows/[id]/toggle": r184,
+  "/api/crm/view-nav": r168,
+  "/api/crm/views": r169,
+  "/api/crm/views/[id]": r170,
+  "/api/crm/views/tabs": r171,
+  "/api/crm/visibility": r172,
+  "/api/crm/voice/calls": r173,
+  "/api/crm/voice/calls/[id]": r174,
+  "/api/crm/voice/calls/[id]/end": r175,
+  "/api/crm/voice/calls/[id]/recording": r176,
+  "/api/crm/voice/calls/[id]/summarize": r177,
+  "/api/crm/voice/fake": r178,
+  "/api/crm/voice/settings": r179,
+  "/api/crm/workflows": r180,
+  "/api/crm/workflows/[id]": r181,
+  "/api/crm/workflows/[id]/enroll-existing": r182,
+  "/api/crm/workflows/[id]/enrollments/[runId]": r183,
+  "/api/crm/workflows/[id]/run": r184,
+  "/api/crm/workflows/[id]/toggle": r185,
 };

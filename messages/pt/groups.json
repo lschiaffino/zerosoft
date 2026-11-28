@@ -926,6 +926,8 @@
     "periskope_auth": "O Periskope não aceitou a chave de API. Confira e tente de novo.",
     "periskope_rate_limited": "O Periskope está limitando as requisições. Espere um minuto e tente de novo.",
     "periskope_unavailable": "Não deu para falar com o Periskope. Tente de novo em instantes.",
+    "key_unavailable": "A chave não está mais guardada. Comece de novo.",
+    "invalid_action": "Ação inválida.",
     "too_many_stages": "Este quadro já tem o máximo de etapas (30).",
     "not_group_admin": "Só os admins do grupo podem fazer isso, e este número de WhatsApp não é admin do grupo.", "no_targets": "Escolha pelo menos uma pessoa.",
     "pageTitle": "Esta página não carregou",
@@ -2194,7 +2196,8 @@
         "media": "Arquivos",
         "notes": "Notas",
         "tasks": "Tarefas",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "IA"
       },
       "empty": {
         "media": "Ainda não há fotos nem vídeos nesta conversa",
@@ -2223,7 +2226,87 @@
       "crmTitle": "CRM",
       "contact": "Contato",
       "company": "Empresa",
-      "crmSearch": "Vincular uma empresa ou um contato do CRM"
+      "crmSearch": "Vincular uma empresa ou um contato do CRM",
+      "ai": {
+        "title": "Colocar em dia",
+        "rangeLabel": "Mensagens para ler",
+        "unread": "Desde a última leitura",
+        "unreadCount": "Desde a última leitura ({n})",
+        "unreadNone": "Não havia nada sem ler quando você abriu esta conversa: escolha um período.",
+        "day": "24 horas",
+        "week": "7 dias",
+        "month": "30 dias",
+        "run": "Resumir estas mensagens",
+        "again": "Resumir de novo",
+        "working": "Lendo a conversa…",
+        "privacy": "Usa só as mensagens que você vê nesta conversa. Nada é salvo nem compartilhado.",
+        "summary": "Resumo",
+        "basedOn": "Com {n, plural, one {# mensagem} other {# mensagens}}.",
+        "questions": "Perguntas sem resposta",
+        "commitments": "Compromissos pendentes",
+        "us": "Nós",
+        "them": "Contato",
+        "replies": "Respostas sugeridas",
+        "insert": "Inserir",
+        "insertedShort": "Inserida",
+        "insertHint": "Inserir coloca a resposta no campo para você revisar. Nada é enviado.",
+        "mood": "Ânimo",
+        "moods": {
+          "positive": "Positivo",
+          "neutral": "Neutro",
+          "negative": "Negativo",
+          "mixed": "Misto"
+        },
+        "none": "Nada.",
+        "noMessages": "Não há mensagens neste período. Escolha um mais longo.",
+        "basedOnRange": "Com {n, plural, one {# mensagem} other {# mensagens}} ({range}).",
+        "insertFailed": "Não foi possível colocar no campo da mensagem. Termine a mensagem ou a nota que está escrevendo, ou feche a edição, e tente de novo.",
+        "rangeNames": {
+          "unread": "desde a última leitura",
+          "day": "últimas 24 horas",
+          "week": "últimos 7 dias",
+          "month": "últimos 30 dias"
+        },
+        "askTitle": "Pergunte à IA",
+        "askLabel": "Pergunta sobre esta conversa",
+        "askPlaceholder": "O que o cliente pediu?",
+        "ask": "Perguntar",
+        "asking": "Lendo a conversa…",
+        "suggestionsLabel": "Perguntas sugeridas",
+        "suggest": {
+          "summary": "Resuma esta conversa",
+          "asked": "O que o cliente pediu?",
+          "pending": "O que ficou pendente?"
+        },
+        "askHint": "A IA lê só as últimas mensagens desta conversa que você vê. As respostas ficam nesta aba; nada é salvo nem enviado para a conversa.",
+        "askNoMessages": "Esta conversa ainda não tem mensagens para ler.",
+        "proposalsTitle": "Acompanhamentos propostos",
+        "noProposals": "Nada pendente para acompanhar nesta conversa.",
+        "titleLabel": "Título",
+        "notesLabel": "Notas",
+        "notesPlaceholder": "Notas da tarefa (opcional)",
+        "createBusy": "Muitas alterações seguidas. Espere um momento e tente de novo.",
+        "kindLabel": "Criar como",
+        "kind": {
+          "task": "Tarefa",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Prioridade",
+        "priority": {
+          "low": "Baixa",
+          "medium": "Média",
+          "high": "Alta"
+        },
+        "create": "Criar",
+        "creating": "Criando…",
+        "dismiss": "Descartar",
+        "createdTask": "Tarefa criada:",
+        "createdTicket": "Ticket criado:",
+        "createError": "Não foi possível criar. Tente de novo.",
+        "whereLines": "Nada é criado até você tocar em Criar. As tarefas vão para a aba Tarefas desta conversa e para CRM › Tarefas; os tickets, para Tickets.",
+        "whereInbox": "Nada é criado até você tocar em Criar. As tarefas vão para CRM › Tarefas, atribuídas a você; quem pode ver as suas tarefas do CRM também as vê.",
+        "crmOff": "O app CRM está desligado para você: estas não podem ser criadas como tarefas aqui."
+      }
     },
     "contactSheet": {
       "title": "Dados do contato",
@@ -3014,6 +3097,7 @@
   "migrate": {
     "intro": "Traga o seu trabalho do Periskope para o Lines. As mensagens vêm do WhatsApp ao conectar cada linha por QR; esta importação soma o que o Periskope guarda por cima delas.",
     "csvTitle": "Importar arquivos CSV",
+    "history": {"title": "Trazer o histórico de mensagens", "intro": "Traz todas as mensagens dos seus chats e grupos do Periskope, desde a primeira. Roda em segundo plano: você pode fechar esta tela e continua sozinho. Se parar, retoma de onde estava. O que já chegou pelo WhatsApp não é duplicado.", "what": "Traz texto, arquivos, fotos, áudios, respostas citadas, reações, quem escreveu e a data original, além das notas privadas de cada chat.", "private": "Os arquivos ficam no seu armazenamento privado do Lines. Nunca fica um link público. A chave é guardada criptografada e apagada ao terminar ou cancelar.", "limits": "Só entram os chats das linhas que você já conectou no Lines (o telefone da linha tem que ser o mesmo do Periskope). Mensagens apagadas para todos entram marcadas como apagadas. Se o Periskope mantém os arquivos privados e a chave não consegue baixá-los, a mensagem entra sem o arquivo.", "keyHelp": "Guardada criptografada só enquanto a importação roda.", "media": "Trazer também os arquivos (fotos, áudios, vídeos, documentos)", "start": "Trazer histórico", "resume": "Retomar", "cancel": "Cancelar", "progress": "Progresso do histórico", "state": {"queued": "Na fila", "running": "Importando histórico", "done": "Histórico importado", "error": "Parou", "cancelled": "Cancelado (o que foi importado fica)"}, "chats": "Chats: {done} de {total} ({skipped} sem linha no Lines)", "messages": "Mensagens: {n} novas, {dup} já estavam", "files": "Arquivos: {saved} salvos, {failed} sem arquivo", "extras": "Reações: {reactions}. Notas privadas: {notes}."},
     "api": {"title": "Importar com a API do Periskope", "step2": "No Periskope, abra Settings › Integrations › API e gere uma chave de API.", "step3": "Cole a chave aqui, confira a prévia e importe. Dá para importar de novo depois: o que já está aqui não se duplica.", "key": "Chave da API do Periskope", "keyHelp": "Usada só nesta importação. Não é salva.", "working": "Lendo a sua conta do Periskope. Pode levar até um minuto.", "previewTitle": "Isto é o que seria importado:", "doneTitle": "Importado:", "chats": "Chats: {applied} de {rows} com etiquetas, responsável ou propriedades", "contacts": "Contatos: {applied} de {rows} com etiquetas", "tickets": "Tickets: {applied} de {found} ({existing} já estavam aqui)", "notes": "Notas privadas: {applied} de {found} ({existing} já estavam aqui)", "created": "Etiquetas novas: {labels}. Propriedades novas: {properties}.", "truncated": "A sua conta tem mais do que cabe em uma rodada. Importe de novo para continuar.", "issue": "{n} × {reason}"},
     "step1": "Conecte as suas linhas por QR na aba Números e espere os chats serem importados.",
     "step2": "No Periskope, exporte a lista de chats ou um CSV de Analytics › Data Exports. Para etiquetas e respostas rápidas, use uma planilha com Nome e Cor, ou Comando e Mensagem.",

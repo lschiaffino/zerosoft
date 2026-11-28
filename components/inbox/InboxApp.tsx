@@ -471,6 +471,8 @@ export default function InboxApp(props: {
   // Chats ya abiertos: al volver a uno se ve al instante con lo último que se tenía, y se pone al día.
   const detailCache = useRef(new ListCache<Detail>(20)).current;
   const detailEtag = useRef({ id: '', etag: '' });
+  // Cuántos mensajes había sin leer al abrir el chat abierto (la pestaña AI: "desde la última lectura").
+  const [unreadAtOpen, setUnreadAtOpen] = useState<{ id: string; n: number; from?: string } | null>(null);
   const loadDetail = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setDetailErr('');
     const focus = !quiet && focusRef.current?.threadId === id ? focusRef.current.messageId : '';
@@ -478,11 +480,14 @@ export default function InboxApp(props: {
     // Lo que se consulta cada pocos segundos va con ETag: sin cambios no se vuelve a dibujar la conversación.
     const r = await fetchIfChanged<Detail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`, quiet && detailEtag.current.id === id ? detailEtag.current.etag : null);
     // Se abrió otro chat mientras llegaba la respuesta: no es para este.
-    if (openRef.current !== id || r.state === 'same' || r.state === 'aborted') return;
+    if (openRef.current !== id || r.state === 'aborted') return;
     if (r.state === 'error') {
       if (!quiet) setDetailErr(r.code);
       return;
     }
+    // Volvió a responder (también una relectura callada, con o sin cambios): el aviso de error de antes se va.
+    setDetailErr('');
+    if (r.state === 'same') return;
     const data = r.data;
     if (focus) {
       detailEtag.current = { id: '', etag: '' };
@@ -649,6 +654,8 @@ export default function InboxApp(props: {
     url.searchParams.set('t', openId);
     window.history.replaceState(window.history.state, '', url.toString());
     const th = threads.find((x) => x.id === openId);
+    // Lo que estaba sin leer al abrir (antes de marcarlo leído): la pestaña AI resume desde ahí.
+    setUnreadAtOpen({ id: openId, n: th?.unread ?? 0 });
     if (th && (th.unread > 0 || th.woke)) {
       void api(`/api/inbox/threads/${openId}`, { method: 'PATCH', json: { action: 'seen' } }).then(() => {
         setThreads((xs) => xs.map((x) => (x.id === openId ? { ...x, unread: 0, woke: '', wokeAt: null } : x)));
@@ -656,6 +663,15 @@ export default function InboxApp(props: {
       });
     }
   }, [openId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // El primer mensaje sin leer al abrir (una vez, con la primera página): la pestaña AI resume desde ahí aunque después
+  // lleguen más.
+  useEffect(() => {
+    if (!detail || !unreadAtOpen || unreadAtOpen.from !== undefined || unreadAtOpen.n <= 0 || detail.thread.id !== unreadAtOpen.id) return;
+    const incoming = detail.messages.filter((m) => !m.fromMe);
+    const first = incoming.length >= unreadAtOpen.n ? incoming[incoming.length - unreadAtOpen.n] : null;
+    setUnreadAtOpen({ ...unreadAtOpen, from: first?.id ?? '' });
+  }, [detail, unreadAtOpen]);
 
   // Al instante: un mensaje nuevo (también el que saca un chat de Archivados), archivar desde el teléfono, otra pestaña.
   // Una consulta por índice cada 3 s (lib/wa-live.ts) reemplaza releer la lista y el estado cada pocos segundos:
@@ -1036,6 +1052,9 @@ export default function InboxApp(props: {
           break;
         case 'Enter':
         case 'o':
+          // Enter sobre un botón, un link o una pestaña (el panel del chat, un rango, un menú) es de ese control: no
+          // abre el chat del cursor ni le saca el clic.
+          if (k === 'Enter' && document.activeElement?.closest('button, a[href], [role="button"], [role="tab"], summary, select')) break;
           if (current) {
             handled();
             setOpenId(current.id);
@@ -1775,6 +1794,8 @@ export default function InboxApp(props: {
           onToast={(text) => toast(text)}
           onChanged={() => void loadDetail(detail.thread.id, true)}
           me={props.me ?? ''}
+          aiUnread={unreadAtOpen?.id === detail.thread.id ? unreadAtOpen.n : 0}
+          aiUnreadFrom={unreadAtOpen?.id === detail.thread.id ? unreadAtOpen.from : undefined}
           starredKey={detail.messages.filter((m) => m.starred).map((m) => m.id).join(',')}
           onJumpToMessage={(id) => {
             // Un destacado: la conversación se abre alrededor de ese mensaje y lo marca. En el teléfono la info tapa el chat.

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import { useCrmLive } from './useCrmLive';
 
 export interface BoardLead {
   id: string;
@@ -35,6 +36,10 @@ export default function LeadsBoard({ columns: initial }: { columns: BoardColumn[
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => setColumns(initial), [initial]);
+
+  // En vivo: un compañero movió o cambió un lead que esta persona ve. Mientras arrastra, se espera.
+  const leadIds = useMemo(() => initial.flatMap((c) => c.leads.map((l) => l.id)), [initial]);
+  useCrmLive({ list: 'leads', ids: leadIds }, undefined, { enabled: !dragId });
 
   async function move(leadId: string, stageId: string) {
     const from = columns.find((c) => c.leads.some((l) => l.id === leadId));

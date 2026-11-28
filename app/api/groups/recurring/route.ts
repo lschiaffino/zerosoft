@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createRecurring, listRecurring } from '@/lib/groups-recurring';
+import { maskBroadcast } from '@/lib/groups-broadcasts';
 import { canSeeNumber, visibleChatIds } from '@/lib/groups-access';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
 import { mediaFromBody } from '@/lib/groups-media-input';
@@ -12,8 +13,9 @@ export async function GET(req: Request) {
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const chat = new URL(req.url).searchParams.get('chat') || undefined;
-  const visible = await visibleChatIds(await sessionViewer(s));
-  const list = await listRecurring(s.ws, { chatId: chat });
+  const viewer = await sessionViewer(s);
+  const visible = await visibleChatIds(viewer);
+  const list = (await listRecurring(s.ws, { chatId: chat })).map((r) => maskBroadcast(viewer.mask, r));
   return NextResponse.json({
     recurring: visible
       ? list.filter((r) => r.chatIds.some((id) => visible.has(id))).map((r) => ({ ...r, chatIds: r.chatIds.filter((id) => visible.has(id)) }))
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
       // Menciones de un recurrente a un grupo: [{ phone, label }] (se validan al guardar).
       mentions: b.mentions ?? null,
     });
-    return NextResponse.json(rec, { status: 201 });
+    return NextResponse.json(maskBroadcast(viewer.mask, rec), { status: 201 });
   } catch (err) {
     return handleGroupsError(err);
   }

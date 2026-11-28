@@ -9,6 +9,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { paramNames } from '@/lib/bi/builder';
 import type { BiResult, CardMapping, DashFilter, SchemaTable } from '@/lib/bi/types';
 import type { CardDto, DashboardDto, ListItem, QuestionDto } from '@/lib/bi/store';
+import DownloadButtons, { type ServerExport } from './DownloadButtons';
 import ResultView from './ResultView';
 import SharePanel from './SharePanel';
 import SubscriptionsPanel from './SubscriptionsPanel';
@@ -501,7 +502,16 @@ function QuestionCard({
         ) : (
           <span className="bi-card-title">{loading ? '' : t('dash.missingQuestion')}</span>
         )}
-        {result?.cached && <span className="bi-muted bi-card-meta">{t('editor.cached')}</span>}
+        <span className="bi-card-tools">
+          {result?.cached && <span className="bi-muted bi-card-meta">{t('editor.cached')}</span>}
+          {result && question && result.rows.length > 0 && !editing && (
+            <CardDownload
+              result={result}
+              name={question.name}
+              server={{ url: `/api/bi/questions/${question.id}/run`, body: saved ? { values, dashboardId, cardId: card.id } : { values: {} } }}
+            />
+          )}
+        </span>
       </header>
       {editing && filters.length > 0 && question && (
         <div className="bi-mapping">
@@ -547,5 +557,46 @@ function QuestionCard({
         ) : null}
       </div>
     </article>
+  );
+}
+
+/** Descargar el resultado de una tarjeta: botón chico en la cabecera que abre CSV, Excel y JSON. Esc o un clic afuera lo cierran. */
+function CardDownload({ result, name, server }: { result: BiResult; name: string; server: ServerExport }) {
+  const t = useTranslations('bi');
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) ref.current.open = false;
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [open]);
+
+  return (
+    <details
+      ref={ref}
+      className="bi-card-download"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || !e.currentTarget.open) return;
+        e.stopPropagation();
+        e.currentTarget.open = false;
+        e.currentTarget.querySelector('summary')?.focus();
+      }}
+    >
+      <summary className="btn btn-sm btn-ghost" aria-label={t('result.download')} title={t('result.download')} data-testid="bi-card-download">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" />
+        </svg>
+      </summary>
+      {open && (
+        <div className="bi-card-download-pop">
+          <DownloadButtons result={result} name={name} server={server} />
+        </div>
+      )}
+    </details>
   );
 }

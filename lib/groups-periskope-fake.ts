@@ -13,6 +13,7 @@
 import { getDb } from './db';
 import { GroupsError } from './groups';
 import type { PeriskopeFetch } from './groups-periskope-api';
+import type { PeriskopeMediaFetch } from './groups-periskope-history';
 
 export const FAKE_PERISKOPE_LABEL = 'Periskope VIP';
 export const FAKE_PERISKOPE_CONTACT_LABEL = 'Periskope client';
@@ -111,8 +112,46 @@ export function fakePeriskope(ws: string, key: string): PeriskopeFetch {
             })),
           ),
         };
-      default:
+      default: {
+        // Historial: mensajes de un chat (del más nuevo al más viejo), reacciones y notas del chat.
+        const m = /^\/chats\/([^/]+)\/(messages|notes)$/.exec(url.pathname);
+        if (m) {
+          const chatId = decodeURIComponent(m[1]);
+          const limit = Number(url.searchParams.get('limit') ?? 1000);
+          if (m[2] === 'notes') return { notes: [] };
+          // 5 mensajes por chat: texto, uno con archivo (el mismo del fake), una respuesta citada y uno ya recibido por WhatsApp.
+          const all = fakeHistory(tag, chatId);
+          return { count: all.slice(offset, offset + limit).length, messages: all.slice(offset, offset + limit) };
+        }
+        if (url.pathname === '/reactions') {
+          const chatId = url.searchParams.get('chat_id') ?? '';
+          return { reactions: offset > 0 ? [] : [{ reaction_id: `r-${tag}`, chat_id: chatId, unique_id: `FAKEWA${tag}1`, sender_id: '5491100000001@c.us', reaction: '👍', timestamp: '2025-03-01T10:05:00.000Z' }] };
+        }
         throw new GroupsError('periskope_unavailable', 502);
+      }
     }
+  };
+}
+
+/** Los mensajes simulados de un chat (ids con la clave: otra clave es otra cuenta). */
+export function fakeHistory(tag: string, chatId: string) {
+  const base = { chat_id: chatId, org_phone: null, performed_by: null, ack: '3' };
+  const id = (n: number) => `FAKEWA${tag}${n}`;
+  const mid = (n: number, fromMe: boolean) => `${fromMe}_${chatId}_${id(n)}`;
+  const grp = chatId.endsWith('@g.us');
+  return [
+    { ...base, message_id: mid(4, false), unique_id: id(4), from_me: false, sender_phone: grp ? '5491100000002@c.us' : chatId, author: grp ? '5491100000002@c.us' : null, body: 'Fake history reply', message_type: 'chat', timestamp: '2025-03-01T10:03:00.000Z', quoted_message_id: mid(1, false) },
+    { ...base, message_id: mid(3, true), unique_id: id(3), from_me: true, sender_phone: '', body: 'Fake history photo caption', message_type: 'image', timestamp: '2025-03-01T10:02:00.000Z', media: { path: `https://api.periskope.app/app/media/fake-${tag}`, mimetype: 'image/png', filename: 'fake.png', size: 70 } },
+    { ...base, message_id: mid(2, true), unique_id: id(2), from_me: true, sender_phone: '', body: 'Fake history answer', message_type: 'chat', timestamp: '2025-03-01T10:01:00.000Z' },
+    { ...base, message_id: mid(1, false), unique_id: id(1), from_me: false, sender_phone: grp ? '5491100000001@c.us' : chatId, author: grp ? '5491100000001@c.us' : null, body: 'Fake history first message', message_type: 'chat', timestamp: '2025-03-01T10:00:00.000Z' },
+  ];
+}
+
+/** El archivo simulado: un PNG de 1x1. */
+export function fakePeriskopeMedia(key: string): PeriskopeMediaFetch {
+  return async (url) => {
+    if (/invalid/i.test(key) || !/fake-/.test(url)) return null;
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    return { data: png, mimetype: 'image/png', filename: 'fake.png' };
   };
 }

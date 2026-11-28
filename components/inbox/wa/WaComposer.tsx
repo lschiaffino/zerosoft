@@ -20,6 +20,7 @@ import { MessageMenu, type MenuItem } from '@/components/groups/wa/Menu';
 import { ClockIcon, Close, Mic, Plus, SendIcon, Smiley } from '@/components/groups/wa/icons';
 import { api } from '../api';
 import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useComposeInsert } from '@/components/ai/compose-insert';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { INBOX_TRANSLATE_LANGS, inboxCompose } from '../ai-compose';
 import type { ComposerHandle } from '../Composer';
@@ -32,6 +33,7 @@ import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
 import { keepFocus } from '@/components/groups/wa/keyboard';
+import { phoneLabel } from './util';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -123,6 +125,13 @@ const WaComposer = forwardRef<
     [thread.id, tc],
   );
   const ai = useAiCompose({ adapter: aiAdapter, text, setText, focusComposer: () => area.current?.focus(), resetKey: thread.id });
+  // La respuesta sugerida de la pestaña AI del panel: al campo, con Deshacer (nunca se manda sola). Editando un
+  // mensaje no se pisa lo que se está editando.
+  useComposeInsert(thread.id, (draft) => {
+    if (editing || paused || disabled) return false;
+    ai.insertText(draft);
+    return true;
+  });
 
   // Editar: el texto del mensaje en el campo; al salir, vuelve lo que había.
   useEffect(() => {
@@ -478,15 +487,16 @@ const WaComposer = forwardRef<
               ) : (
                 <button
                   type="button"
-                  title={`+${p.id}`}
+                  title={phoneLabel(p.id)}
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
                   onClick={() => insertMention(p)}
                 >
                   <Avatar name={p.name || p.id} kind="dm" size={32} src={mentionPics.get(p.id) || undefined} seed={p.id} />
                   <span className="wa-mention-who">
-                    <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
-                    {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    {/* Sin nombre, el teléfono con formato de WhatsApp (+1 555 000 0000), como en la lista de miembros (y en Lines). */}
+                    <span className="wa-mention-name">{!p.name || p.name === p.id ? phoneLabel(p.id) : p.name}</span>
+                    {p.name && p.name !== p.id && <span className="wa-mention-phone">{phoneLabel(p.id)}</span>}
                   </span>
                 </button>
               )}

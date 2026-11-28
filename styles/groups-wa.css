@@ -2034,8 +2034,10 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
   position: sticky; top: 0; z-index: 4; display: flex; min-width: 0;
   background: var(--wa-panel); border-bottom: 1px solid var(--wa-border);
 }
+/* Ancho según el nombre (flex-basis auto), no siete partes iguales: a 390 px "Members" o "Miembros" no entraba en
+   su séptimo y quedaba "Membe…"; las palabras cortas (Info, IA) ceden el lugar. */
 .wa-dtab {
-  position: relative; display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  position: relative; display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-width: 0; min-height: 52px; padding: 6px 2px 5px; color: var(--wa-text-2); background: none; border: 0;
   border-bottom: 2px solid transparent; font: inherit; font-size: 0.6875rem; line-height: 1.2; cursor: pointer;
 }
@@ -2066,6 +2068,59 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .gr-deal-list li { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
 .gr-deal-list li[data-state='lost'] a { color: var(--wa-text-2); }
 .ib-wa-notes .textarea { width: 100%; min-height: 120px; }
+/* Pestaña AI (components/groups/wa/ChatAiTab.tsx, Lines e Inbox): rango, resumir, y lo que vuelve en secciones. */
+.wa-ai { display: flex; flex-direction: column; min-width: 0; }
+.ib-wa-details-body .wa-ai { gap: 10px; }
+.wa-ai-title { display: flex; align-items: center; gap: 6px; }
+/* Los cuatro rangos en dos columnas parejas (en una fila no entran en el ancho del panel). */
+.wa-ai-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.wa-ai-range-btn {
+  min-width: 0; min-height: 32px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; font-size: var(--wa-fs-small, 0.8125rem); color: var(--wa-text);
+  background: var(--wa-panel); border: 1px solid var(--wa-border); border-radius: var(--radius-1); cursor: pointer;
+}
+.wa-ai-range-btn:hover:not(:disabled) { background: var(--wa-row-hover); }
+.wa-ai-range-btn[aria-pressed='true'] { color: var(--wa-chip-on-ink); background: var(--wa-chip-on-bg); border-color: var(--wa-primary); font-weight: 500; }
+.wa-ai-range-btn:disabled { color: var(--wa-text-2); cursor: default; opacity: 0.7; }
+.wa-ai-range-btn:focus-visible { outline: 2px solid var(--wa-primary); outline-offset: 1px; }
+.wa-ai-run { display: flex; }
+.wa-ai .ui-help { margin: 0; }
+.wa-ai-text { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.45; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-ai-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-ai-who { font-weight: 500; color: var(--wa-text-2); }
+.wa-ai-replies { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wa-ai-reply { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: var(--wa-chip-bg); border-radius: var(--radius-1); }
+.wa-ai-reply p { flex: 1; min-width: 0; margin: 0; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-ai-reply .btn { flex: none; }
+.wa-ai-mood { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.wa-ai-mood::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--wa-text-2); }
+.wa-ai-mood[data-mood='positive']::before { background: var(--wa-primary); }
+.wa-ai-mood[data-mood='negative']::before { background: var(--wa-danger); }
+.wa-ai-mood[data-mood='mixed']::before { background: var(--wa-note-line); }
+/* Seguimientos propuestos (ChatAiProposals): uno por fila, con título editable; nada se crea sin "Crear". */
+.wa-ai-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wa-ai-proposal { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--wa-chip-bg); border-radius: var(--radius-1); min-width: 0; }
+.wa-ai-proposal .input { width: 100%; min-width: 0; }
+.wa-ai-prow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.wa-ai-kind { width: auto; min-width: 0; max-width: 100%; }
+.wa-ai-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.wa-ai-done { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-ai-done a { color: var(--wa-primary); }
+/* Preguntar (ChatAiAsk): campo y botón, preguntas sugeridas y las últimas respuestas. */
+.wa-ai-form { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wa-ai-input { width: 100%; min-width: 0; resize: vertical; font: inherit; font-size: var(--wa-fs-ui); }
+.wa-ai-suggest { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Las sugeridas, como los rangos (mismo botón), en filas que se acomodan al ancho. */
+.wa-ai-suggest .wa-ai-range-btn { flex: 0 1 auto; max-width: 100%; }
+.wa-ai-range-btn[aria-disabled='true'] { color: var(--wa-text-2); cursor: default; }
+.wa-ai-answers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wa-ai-answer { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-left: 2px solid var(--wa-border); min-width: 0; }
+.wa-ai-q { margin: 0; font-size: var(--wa-fs-ui); font-weight: 500; color: var(--wa-text-2); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .wa-ai-range-btn { min-height: 40px; padding: 0 12px; }
+  .wa-ai :is(.btn) { min-height: 40px; }
+  .wa-ai :is(.input, .select) { min-height: 40px; }
+  .wa-ai-done a { display: inline-flex; align-items: center; min-height: 40px; }
+}
 /* Teléfono: el panel de Lines ocupa la pantalla entera (Inbox ya lo hace), con las pestañas al alcance. */
 @media (max-width: 640px) {
   .gr-inbox .gr-details.is-open { left: 0; width: 100vw; border-left: 0; box-shadow: none; }

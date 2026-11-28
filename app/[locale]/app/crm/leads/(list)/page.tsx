@@ -14,6 +14,7 @@ import CrmPager from '@/components/crm/CrmPager';
 import ListToolbar from '@/components/crm/ListToolbar';
 import LeadCreate from '@/components/crm/LeadCreate';
 import LeadsBoard, { type BoardColumn } from '@/components/crm/LeadsBoard';
+import CrmLiveList from '@/components/crm/CrmLiveList';
 
 export const dynamic = 'force-dynamic';
 
@@ -140,6 +141,7 @@ export default async function LeadsPage(props: {
         )
       ) : (
         <>
+          <CrmLiveList list="leads" ids={rows.map((l) => l.id)} />
           <div className="table-wrap table-stack">
             <table className="table crm-table" data-testid="leads-table">
               <caption className="sr-only">{t('leads.title')}</caption>

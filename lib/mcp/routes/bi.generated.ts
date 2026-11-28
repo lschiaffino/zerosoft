@@ -14,11 +14,12 @@ import * as r11 from "@/app/api/bi/items/route";
 import * as r12 from "@/app/api/bi/query/route";
 import * as r13 from "@/app/api/bi/questions/route";
 import * as r14 from "@/lib/routes/bi/questions/[id]/route";
-import * as r15 from "@/lib/routes/bi/questions/[id]/run/route";
-import * as r16 from "@/app/api/bi/schema/route";
-import * as r17 from "@/app/api/bi/shares/route";
-import * as r18 from "@/lib/routes/bi/shares/[id]/route";
-import * as r19 from "@/lib/routes/bi/subscriptions/[id]/route";
+import * as r15 from "@/lib/routes/bi/questions/[id]/revisions/route";
+import * as r16 from "@/lib/routes/bi/questions/[id]/run/route";
+import * as r17 from "@/app/api/bi/schema/route";
+import * as r18 from "@/app/api/bi/shares/route";
+import * as r19 from "@/lib/routes/bi/shares/[id]/route";
+import * as r20 from "@/lib/routes/bi/subscriptions/[id]/route";
 
 export const routes: Record<string, unknown> = {
   "/api/bi/ask": r0,
@@ -36,9 +37,10 @@ export const routes: Record<string, unknown> = {
   "/api/bi/query": r12,
   "/api/bi/questions": r13,
   "/api/bi/questions/[id]": r14,
-  "/api/bi/questions/[id]/run": r15,
-  "/api/bi/schema": r16,
-  "/api/bi/shares": r17,
-  "/api/bi/shares/[id]": r18,
-  "/api/bi/subscriptions/[id]": r19,
+  "/api/bi/questions/[id]/revisions": r15,
+  "/api/bi/questions/[id]/run": r16,
+  "/api/bi/schema": r17,
+  "/api/bi/shares": r18,
+  "/api/bi/shares/[id]": r19,
+  "/api/bi/subscriptions/[id]": r20,
 };

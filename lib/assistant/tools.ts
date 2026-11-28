@@ -67,6 +67,7 @@ import { catalogTools } from './tools-catalog';
 import { attachmentTools } from './tools-attachments';
 import { folderTools } from './tools-folders';
 import { chatTools } from './tools-chats';
+import { chatActionTools } from './tools-chat-actions';
 import { requestTools } from './tools-requests';
 
 // ---------- Utilidades ----------
@@ -1208,7 +1209,7 @@ const social: AssistantTool[] = [
   }),
 ];
 
-export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools, ...sendTools, ...catalogTools, ...attachmentTools, ...folderTools, ...chatTools, ...requestTools];
+export const ALL_TOOLS: AssistantTool[] = [...platform, ...crm, ...track, ...content, ...automate, ...comms, ...shopTools, ...analytics, ...social, ...hiringTools, ...peopleTools, ...booksTools, ...signTools, ...formsTools, ...sendTools, ...catalogTools, ...attachmentTools, ...folderTools, ...chatTools, ...chatActionTools, ...requestTools];
 
 /** Herramientas que la sesión puede usar (rol y apps del workspace activo). */
 export function toolsFor(user: Pick<SessionUser, 'role' | 'apps'>): AssistantTool[] {

@@ -193,3 +193,44 @@ export async function redactChatTask<T extends { id: string; subject: string; bo
 export async function isChatHidden(ws: string, activityId: string, reader: ChatReader | null | undefined): Promise<boolean> {
   return (await hiddenChatTaskIds(ws, [activityId], reader)).has(activityId);
 }
+
+/** ¿Al lector se le ocultan los teléfonos en esta actividad? (es una tarea de un chat de Lines y tiene la máscara). */
+export async function masksChatTask(activityId: string, reader: ChatReader | null | undefined): Promise<boolean> {
+  if (!reader?.viewer?.mask) return false;
+  return (await chatTaskIds([activityId])).has(activityId);
+}
+
+/**
+ * Textos de una tarea de un chat de Lines (comentarios, avisos) como los lee alguien: con los teléfonos ocultos
+ * si a esa persona se le ocultan. Sin máscara, tal cual.
+ */
+export async function maskChatTaskTexts<T extends { body: string }>(activityId: string, reader: ChatReader | null | undefined, rows: T[]): Promise<T[]> {
+  if (!rows.length || !(await masksChatTask(activityId, reader))) return rows;
+  const { maskPhoneText } = await import('./groups-mask');
+  return rows.map((r) => ({ ...r, body: maskPhoneText(r.body) }));
+}
+
+/**
+ * Lo que manda a guardar un lector con los teléfonos ocultos sobre una tarea de un chat de Lines: el título y las
+ * notas le llegaron enmascarados, así que cada "+54 ••• 00" que sigue en el texto vuelve a su número guardado
+ * (lib/groups-mask.ts unmaskEdit). Sin máscara, o si no es una tarea de un chat, tal cual.
+ */
+export async function unmaskChatTaskEdit<T extends { subject?: string | null; body?: string | null }>(
+  ws: string,
+  activityId: string,
+  reader: ChatReader | null | undefined,
+  patch: T,
+): Promise<T> {
+  if (!reader?.viewer?.mask || (typeof patch.subject !== 'string' && typeof patch.body !== 'string')) return patch;
+  if (!(await chatTaskIds([activityId])).has(activityId)) return patch;
+  const row = (await getDb().prepare('SELECT subject, body FROM crm_activities WHERE id = ? AND user_id = ?').get(activityId, ws)) as
+    | { subject: string; body: string }
+    | undefined;
+  if (!row) return patch;
+  const { unmaskEdit } = await import('./groups-mask');
+  return {
+    ...patch,
+    ...(typeof patch.subject === 'string' ? { subject: unmaskEdit(row.subject, patch.subject) } : {}),
+    ...(typeof patch.body === 'string' ? { body: unmaskEdit(row.body, patch.body) } : {}),
+  } as T;
+}

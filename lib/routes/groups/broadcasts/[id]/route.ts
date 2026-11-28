@@ -1,5 +1,5 @@
 import { after, NextResponse } from 'next/server';
-import { canAccessBroadcast, cancelBroadcast, deleteBroadcast, getBroadcast, processBroadcasts, sendBroadcastNow, updateBroadcast } from '@/lib/groups-broadcasts';
+import { canAccessBroadcast, cancelBroadcast, deleteBroadcast, getBroadcast, maskBroadcast, processBroadcasts, sendBroadcastNow, updateBroadcast } from '@/lib/groups-broadcasts';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, type GroupsSession } from '@/lib/groups-http';
 import { visibleChatIds } from '@/lib/groups-access';
 
@@ -33,20 +33,26 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const denied = await broadcastGuard(s, id);
   if (denied) return denied;
   const b = await readJson(req);
+  const mask = (await sessionViewer(s)).mask;
   try {
-    if (b.action === 'cancel') return NextResponse.json(await cancelBroadcast(s.ws, id));
+    if (b.action === 'cancel') return NextResponse.json(maskBroadcast(mask, await cancelBroadcast(s.ws, id)));
     if (b.action === 'send_now') {
       const sent = await sendBroadcastNow(s.ws, id);
       after(() => processBroadcasts({ broadcastId: id, budgetMs: 25_000 }).catch(() => null));
-      return NextResponse.json(sent);
+      return NextResponse.json(maskBroadcast(mask, sent));
     }
     return NextResponse.json(
-      await updateBroadcast(s.ws, id, {
-        name: str(b.name, 120),
-        body: str(b.body),
-        scheduledAt: str(b.scheduledAt, 40),
-        perMinute: b.perMinute === undefined ? undefined : Number(b.perMinute),
-      }),
+      await updateBroadcast(
+        s.ws,
+        id,
+        {
+          name: str(b.name, 120),
+          body: str(b.body),
+          scheduledAt: str(b.scheduledAt, 40),
+          perMinute: b.perMinute === undefined ? undefined : Number(b.perMinute),
+        },
+        { mask },
+      ),
     );
   } catch (err) {
     return handleGroupsError(err);

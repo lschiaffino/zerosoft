@@ -16,6 +16,7 @@ import { NO_EDITS, SD_MAX_BYTES, SD_MAX_SIDE, hasBlur, hasEdits, needsRender, ou
 import { blurredPhoto, filteredPhoto } from './photo-sources';
 import '@/styles/wa-editor.css';
 import PdfThumb, { PDF_THUMB_MAX_BYTES } from './PdfThumb';
+import { phoneLabel } from '@/components/inbox/wa/util';
 
 /** Errores que no se arreglan reintentando la subida (tamaño o tipo). */
 const PERMANENT = new Set(['file_too_large', 'file_too_large_local', 'file_type_not_allowed', 'media_too_large', 'invalid_media']);
@@ -479,15 +480,15 @@ export default function AttachPreview({
                   ) : (
                     <button
                       type="button"
-                      title={`+${p.id}`}
+                      title={phoneLabel(p.id)}
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
                       onClick={() => pickMention(p)}
                     >
                       <Avatar name={p.name || p.id} kind="dm" size={32} src={pics.get(p.id) || undefined} seed={p.id} />
                       <span className="wa-mention-who">
-                        <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
-                        {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                        <span className="wa-mention-name">{!p.name || p.name === p.id ? phoneLabel(p.id) : p.name}</span>
+                        {p.name && p.name !== p.id && <span className="wa-mention-phone">{phoneLabel(p.id)}</span>}
                       </span>
                     </button>
                   )}

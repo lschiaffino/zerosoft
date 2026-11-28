@@ -29,6 +29,7 @@ import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from 
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
 import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useComposeInsert } from '@/components/ai/compose-insert';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -784,7 +785,8 @@ export default function ChatThread(props: ThreadProps) {
   const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
   // "@all" (o "@todos"): todo el grupo, solo si la línea lo puede mandar (lib/wa-mention-all.ts). Las notas internas no.
   const allWord = chat.kind === 'group' && props.caps.mentionAll && !props.sample ? mentionAllWord(locale) : null;
-  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
+  // La línea misma no se ofrece: en WhatsApp uno no se menciona a sí mismo (Inbox hace lo mismo).
+  const waPeople = useMemo(() => waMentionables(props.members.filter((m) => !m.me), pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
   const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
   const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
   const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
@@ -826,6 +828,19 @@ export default function ChatThread(props: ThreadProps) {
     resetKey: chat.id,
   });
   const aiAllowed = mode === 'reply' && !editing && !leaving;
+  // La respuesta sugerida de la pestaña AI del panel: va al campo (modo WhatsApp) con Deshacer; nunca se manda sola.
+  // Editando un mensaje o con una nota interna a medio escribir no se pisa nada (el panel avisa): una nota nunca pasa
+  // al campo de WhatsApp. Desde la solapa de nota vacía, Deshacer vuelve a ella. En el teléfono el panel tapa el
+  // chat: se cierra para ver el campo.
+  useComposeInsert(chat.id, (draft) => {
+    if (leaving || editing) return false;
+    const wasNote = mode === 'note';
+    if (wasNote && text.trim()) return false;
+    setMode('reply');
+    ai.insertText(draft, wasNote ? () => setMode('note') : undefined);
+    if (!side.wide) setDetailsOpen(false);
+    return true;
+  });
 
   // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
   // Con el menú abierto no se muestran las menciones ni los emojis de ":".
@@ -2837,15 +2852,16 @@ export default function ChatThread(props: ThreadProps) {
                   ) : (
                     <button
                       type="button"
-                      title={waMentions ? `+${p.id}` : p.email}
+                      title={waMentions ? phoneLabel(p.id) : p.email}
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
                       onClick={() => pickMention(i)}
                     >
                       <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
                       <span className="wa-mention-who">
-                        <span className="wa-mention-name">{p.name || p.email}</span>
-                        {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                        {/* Sin nombre, el teléfono con formato de WhatsApp (+1 555 000 0000), como en la lista de miembros. */}
+                        <span className="wa-mention-name">{waMentions && (!p.name || p.name === p.id) ? phoneLabel(p.id) : p.name || p.email}</span>
+                        {waMentions && p.name && p.name !== p.id && <span className="wa-mention-phone">{phoneLabel(p.id)}</span>}
                       </span>
                     </button>
                   )}
@@ -3088,6 +3104,8 @@ export default function ChatThread(props: ThreadProps) {
           compact
           starredKey={starredKey}
           notesKey={notesKey}
+          aiUnread={unreadMark?.n ?? 0}
+          aiUnreadFrom={unreadMark?.id}
           onJumpToMessage={(id) => {
             const m = messages.find((x) => x.id === id);
             if (!m) {

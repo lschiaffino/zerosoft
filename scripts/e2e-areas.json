@@ -75,7 +75,7 @@
     "analytics": {
       "names": ["analytics", "analytics-kit", "analyticsKit", "analyticsMore", "analyticsReplay", "pulse", "bi", "ingest"],
       "paths": ["app/[locale]/stats/**"],
-      "specs": ["analytics", "analytics-*", "bi"]
+      "specs": ["analytics", "analytics-*", "bi", "bi-*"]
     },
     "books": { "names": ["books"], "paths": ["app/[locale]/invoice/**", "app/[locale]/quote/**", "app/[locale]/statement/**"], "specs": ["books", "books-*"] },
     "shop": { "names": ["shop"], "paths": ["app/store/**", "styles/store.css"], "specs": ["shop", "shop-*"] },

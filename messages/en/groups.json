@@ -926,6 +926,8 @@
     "periskope_auth": "Periskope did not accept the API key. Check it and try again.",
     "periskope_rate_limited": "Periskope is limiting requests. Wait a minute and try again.",
     "periskope_unavailable": "Could not reach Periskope. Try again in a moment.",
+    "key_unavailable": "The key is no longer stored. Start again.",
+    "invalid_action": "Invalid action.",
     "too_many_stages": "This board already has the most stages it can have (30).",
     "not_group_admin": "Only group admins can do that, and this WhatsApp number is not an admin of the group.", "no_targets": "Pick at least one person.",
     "pageTitle": "This page did not load",
@@ -2194,7 +2196,8 @@
         "media": "Files",
         "notes": "Notes",
         "tasks": "Tasks",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "AI"
       },
       "empty": {
         "media": "No photos or videos in this chat yet",
@@ -2223,7 +2226,87 @@
       "crmTitle": "CRM",
       "contact": "Contact",
       "company": "Company",
-      "crmSearch": "Link a CRM company or contact"
+      "crmSearch": "Link a CRM company or contact",
+      "ai": {
+        "title": "Catch up",
+        "rangeLabel": "Messages to read",
+        "unread": "Since last read",
+        "unreadCount": "Since last read ({n})",
+        "unreadNone": "Nothing was unread when you opened this chat, so pick a period.",
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days",
+        "run": "Summarize these messages",
+        "again": "Summarize again",
+        "working": "Reading the chat…",
+        "privacy": "Uses only the messages you can see in this chat. Nothing is saved or shared.",
+        "summary": "Summary",
+        "basedOn": "Based on {n, plural, one {# message} other {# messages}}.",
+        "questions": "Open questions",
+        "commitments": "Pending commitments",
+        "us": "We",
+        "them": "Contact",
+        "replies": "Suggested replies",
+        "insert": "Insert",
+        "insertedShort": "Inserted",
+        "insertHint": "Insert puts the reply in the message field so you can review it. Nothing is sent.",
+        "mood": "Mood",
+        "moods": {
+          "positive": "Positive",
+          "neutral": "Neutral",
+          "negative": "Negative",
+          "mixed": "Mixed"
+        },
+        "none": "None found.",
+        "noMessages": "There are no messages in this period. Pick a longer one.",
+        "basedOnRange": "Based on {n, plural, one {# message} other {# messages}} ({range}).",
+        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again.",
+        "rangeNames": {
+          "unread": "since you last read it",
+          "day": "last 24 hours",
+          "week": "last 7 days",
+          "month": "last 30 days"
+        },
+        "askTitle": "Ask about this chat",
+        "askLabel": "Question about this chat",
+        "askPlaceholder": "What did the customer ask for?",
+        "ask": "Ask",
+        "asking": "Reading the chat…",
+        "suggestionsLabel": "Suggested questions",
+        "suggest": {
+          "summary": "Summarize this chat",
+          "asked": "What did the customer ask for?",
+          "pending": "What is still pending?"
+        },
+        "askHint": "The AI only reads the latest messages of this chat that you can see. Answers stay in this tab; nothing is saved or sent to the chat.",
+        "askNoMessages": "This chat has no messages to read yet.",
+        "proposalsTitle": "Proposed follow-ups",
+        "noProposals": "Nothing to follow up in this chat.",
+        "titleLabel": "Title",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Notes for the task (optional)",
+        "createBusy": "Too many changes in a row. Wait a moment and try again.",
+        "kindLabel": "Create as",
+        "kind": {
+          "task": "Task",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Priority",
+        "priority": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "create": "Create",
+        "creating": "Creating…",
+        "dismiss": "Dismiss",
+        "createdTask": "Task created:",
+        "createdTicket": "Ticket created:",
+        "createError": "Couldn't create it. Try again.",
+        "whereLines": "Nothing is created until you press Create. Tasks go to this chat's Tasks tab and to CRM › Tasks; tickets go to Tickets.",
+        "whereInbox": "Nothing is created until you press Create. Tasks go to CRM › Tasks, assigned to you; anyone who can see your CRM tasks will see them.",
+        "crmOff": "The CRM app is off for you, so these can't be created as tasks here."
+      }
     },
     "contactSheet": {
       "title": "Contact info",
@@ -3014,6 +3097,7 @@
   "migrate": {
     "intro": "Bring your work from Periskope into Lines. Messages come from WhatsApp when you connect each line by QR; this import adds what Periskope keeps on top of them.",
     "csvTitle": "Import CSV files",
+    "history": {"title": "Bring over the message history", "intro": "Brings every message from your Periskope chats and groups, starting with the first one. It runs in the background: you can close this screen and it keeps going. If it stops, it resumes where it left off. Messages that already arrived through WhatsApp are not duplicated.", "what": "It brings text, files, photos, audio, quoted replies, reactions, who wrote each message and the original date, plus each chat's private notes.", "private": "Files are saved in your private Lines storage. A public link is never created. The key is stored encrypted and deleted when it finishes or when you cancel.", "limits": "Only chats from lines you already connected in Lines come in (the line's phone must match the one in Periskope). Messages deleted for everyone come in marked as deleted. If Periskope keeps files private and the key cannot download them, the message comes in without the file.", "keyHelp": "Stored encrypted only while the import runs.", "media": "Also bring the files (photos, audio, videos, documents)", "start": "Bring over history", "resume": "Resume", "cancel": "Cancel", "progress": "History progress", "state": {"queued": "Queued", "running": "Importing history", "done": "History imported", "error": "Stopped", "cancelled": "Cancelled (what was imported stays)"}, "chats": "Chats: {done} of {total} ({skipped} without a line in Lines)", "messages": "Messages: {n} new, {dup} already there", "files": "Files: {saved} saved, {failed} without file", "extras": "Reactions: {reactions}. Private notes: {notes}."},
     "api": {"title": "Import with the Periskope API", "step2": "In Periskope, open Settings › Integrations › API and generate an API key.", "step3": "Paste the key here, check the preview and import. You can import again later: what is already here is not duplicated.", "key": "Periskope API key", "keyHelp": "Used only for this import. It is not saved.", "working": "Reading your Periskope account. This can take up to a minute.", "previewTitle": "This is what would be imported:", "doneTitle": "Imported:", "chats": "Chats: {applied} of {rows} with labels, assignee or properties", "contacts": "Contacts: {applied} of {rows} with labels", "tickets": "Tickets: {applied} of {found} ({existing} already here)", "notes": "Private notes: {applied} of {found} ({existing} already here)", "created": "New labels: {labels}. New properties: {properties}.", "truncated": "Your account has more than one run can bring. Import again to continue.", "issue": "{n} × {reason}"},
     "step1": "Connect your lines by QR in the Numbers tab and wait for the chats to import.",
     "step2": "In Periskope, export the chat list or a CSV from Analytics › Data Exports. For labels and quick replies, use a sheet with Name and Color, or Command and Message.",

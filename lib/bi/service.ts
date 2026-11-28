@@ -40,7 +40,7 @@ export function withDashFilters(
 export async function runSavedQuestion(
   viewer: BiViewer,
   id: string,
-  opts: { values?: Record<string, string>; fresh?: boolean; dashboard?: DashboardDto; cardId?: string } = {},
+  opts: { values?: Record<string, string>; fresh?: boolean; dashboard?: DashboardDto; cardId?: string; maxRows?: number } = {},
 ): Promise<{ question: QuestionDto; result: BiResult }> {
   const q = await getQuestion(viewer, id);
   if (!q) throw new RunError('not_found', undefined, 404);
@@ -53,7 +53,7 @@ export async function runSavedQuestion(
     query = applied.query;
     values = applied.values;
   }
-  const result = await runQuery(viewer, q.source, query, { values, fresh: opts.fresh });
+  const result = await runQuery(viewer, q.source, query, { values, fresh: opts.fresh, maxRows: opts.maxRows });
   return { question: q, result };
 }
 
