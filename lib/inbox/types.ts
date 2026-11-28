@@ -11,7 +11,7 @@ export type AccountStatus = 'disconnected' | 'pending' | 'qr' | 'connected' | 'e
  * Vistas fijas de la barra (como los splits de Superhuman). Las carpetas propias van aparte.
  * `nofolder` ("Sin carpeta") son los chats de la bandeja que no están en ninguna carpeta (ni a mano ni por regla).
  */
-export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
+export const INBOX_VIEWS = ['inbox', 'unread', 'reply', 'waiting', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'internal', 'pinned', 'snoozed', 'scheduled', 'done', 'archived', 'nofolder', 'removed'] as const;
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export function isInboxView(v: unknown): v is InboxView {
@@ -65,6 +65,8 @@ export interface ThreadDto {
   favorite?: boolean;
   /** La persona del chat (1:1 o correo) es VIP: entra en la división VIP. Solo si lo es. */
   vip?: boolean;
+  /** La persona del chat (1:1 o correo) es interna: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  internal?: boolean;
   done: boolean;
   /** Archivado (como WhatsApp): fuera de la bandeja, en "Archivados". */
   archived: boolean;
@@ -176,6 +178,8 @@ export interface ParticipantDto {
   threadId: string | null;
   avatar: string;
   me: boolean;
+  /** Es interna: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  internal?: boolean;
 }
 
 /** Info del contacto o del grupo (panel de la derecha y subtítulo de la cabecera). */

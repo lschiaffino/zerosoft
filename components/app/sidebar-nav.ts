@@ -148,6 +148,8 @@ export interface SidebarLabels {
     dashboards?: string;
     /** Pedidos de clientes (T3). */
     customers?: string;
+    /** Releases (lib/track-releases). */
+    releases?: string;
     /** Formularios de pedidos (form templates de Linear). */
     forms?: string;
     /** Secciones como en Linear: "Workspace" y "Your teams". */
@@ -286,7 +288,7 @@ export interface SidebarLabels {
   /** Send (DocSend): documentos con links y espacios. */
   send: { documents: string; spaces: string; newDocument: string; analytics: string };
   /** Inbox (personal): WhatsApp y Gmail. */
-  inbox: { inbox: string; reply: string; waiting: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
+  inbox: { inbox: string; reply: string; waiting: string; internal?: string; snoozed: string; scheduled: string; done: string; compose: string; analytics: string; contacts: string };
   /** Calls (Gong): biblioteca, próximas, deals, preguntas. */
   calls: { library: string; upcoming: string; deals: string; ask: string; newCall: string; analytics: string };
   /** Time (Harvest): hoja de horas, proyectos y reportes. */
@@ -757,6 +759,9 @@ export function buildNav(
             ...(labels.track.plans
               ? [{ href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const }]
               : []),
+            ...(labels.track.releases
+              ? [{ href: '/app/track/releases', label: labels.track.releases, active: at('/app/track/releases'), icon: 'deploy' as const }]
+              : []),
             ...(labels.track.roadmap
               ? [{ href: '/app/track/roadmap', label: labels.track.roadmap, active: at('/app/track/roadmap'), icon: 'roadmap' as const }]
               : []),
@@ -1108,6 +1113,8 @@ export function buildNav(
             { href: '/app/inbox', label: l.inbox, active: pathname === '/app/inbox' || at('/app/inbox/agents') || ['whatsapp', 'email', 'groups', 'unread', 'pinned'].some(view), icon: 'inbox', branch: true },
             { href: '/app/inbox/v/reply', label: l.reply, active: view('reply'), icon: 'chat' },
             { href: '/app/inbox/v/waiting', label: l.waiting, active: view('waiting'), icon: 'timeoff' },
+            // Los chats con contactos internos (lib/internal-contacts.ts): fuera de Por responder, en su vista.
+            ...(l.internal ? [{ href: '/app/inbox/v/internal', label: l.internal, active: view('internal'), icon: 'people' as const }] : []),
             { href: '/app/inbox/v/snoozed', label: l.snoozed, active: view('snoozed'), icon: 'clock' },
             { href: '/app/inbox/v/scheduled', label: l.scheduled, active: view('scheduled'), icon: 'send' },
             // Sacados de Inbox vive adentro de Archivados (components/inbox/RemovedList.tsx).

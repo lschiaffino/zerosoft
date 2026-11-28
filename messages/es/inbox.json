@@ -1,7 +1,7 @@
 {
   "panels": { "list": "Cambiar el ancho de la lista de chats", "details": "Cambiar el ancho de la info del contacto", "hint": "Arrastrá para cambiar el ancho. Doble clic para volver al original." },
   "rowMenu": { "label": "Opciones de {name}", "newWindow": "Abrir en otra ventana", "archive": "Archivar chat", "unarchive": "Desarchivar chat", "snooze": "Posponer…", "unsnooze": "Cancelar pospuesto", "pin": "Fijar chat", "unpin": "Dejar de fijar", "favorite": "Agregar a Favoritos", "unfavorite": "Quitar de Favoritos", "vip": "Marcar como VIP", "unvip": "Quitar de VIP", "mute": "Silenciar notificaciones", "unmute": "Activar notificaciones", "move": "Agregar a una carpeta", "contactInfo": "Info del contacto", "keepArchived": "Mantener archivado", "keepArchivedOff": "Dejar de mantener archivado", "groupInfo": "Info del grupo" },
-  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "removed": "Sacados de Inbox", "compose": "Mensaje nuevo", "analytics": "Analítica", "contacts": "Contactos" },
+  "nav": { "inbox": "Bandeja", "reply": "Por responder", "waiting": "Esperando", "internal": "Internos", "snoozed": "Pospuestos", "scheduled": "Programados", "done": "Archivados", "removed": "Sacados de Inbox", "compose": "Mensaje nuevo", "analytics": "Analítica", "contacts": "Contactos" },
   "views": {
     "inbox": "Bandeja",
     "unread": "No leídos",
@@ -12,6 +12,7 @@
     "groups": "Grupos",
     "favorites": "Favoritos",
     "vip": "VIP",
+    "internal": "Internos",
     "pinned": "Fijados",
     "snoozed": "Pospuestos",
     "scheduled": "Programados",
@@ -196,6 +197,7 @@
       "groups": "No hay grupos acá",
       "favorites": "Todavía no hay favoritos. Agregá un chat desde su menú o con clic derecho.",
       "vip": "Todavía no hay chats VIP. Marcá a una persona como VIP desde el menú del chat: sus chats de WhatsApp y sus correos aparecen acá.",
+      "internal": "No hay chats con contactos internos. Son las personas del equipo y los números o correos de la empresa que marcan los admins del workspace en Ajustes.",
       "pinned": "No hay nada fijado. Apretá P en un chat para fijarlo.",
       "snoozed": "No hay nada pospuesto. Apretá H en un chat para posponerlo.",
       "scheduled": "No hay nada programado. Usá Más tarde al lado de Enviar.",

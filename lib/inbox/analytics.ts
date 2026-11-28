@@ -30,6 +30,8 @@ import {
 } from '../analytics-kit/period';
 import { shortCache } from '../analytics-kit/cache';
 import { WAITING_AFTER_MS } from './types';
+import { internalHandleSql, type InternalSet } from '../internal-contacts';
+import { internalThreadSql } from './core';
 
 export { RESPONSE_BUCKETS };
 
@@ -112,8 +114,11 @@ const CHANNEL_SQL = `CASE WHEN t.channel = 'gmail' THEN 'email' WHEN t.kind = 'g
  * revisar el plan en los tests). Una sola lectura por rango con índice; cada
  * sección agrega algo distinto de la misma CTE.
  */
-export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8): { sql: string; args: Arg[] } {
+export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8, internal?: InternalSet): { sql: string; args: Arg[] } {
   const segments = rangeSegments(range);
+  // Métricas de clientes: sin los chats con alguien interno ni lo que escribe alguien interno en un grupo
+  // (lib/internal-contacts.ts).
+  const skip = internal && (internal.handles.size || internal.domains.length) ? { thread: internalThreadSql(internal), sender: internalHandleSql(internal, 'lower(m.sender_handle)') } : null;
   const day = dayIndexSql(segments, 'x.ts');
   const hour = hourSql(segments, 'x.ts');
   const sql = `WITH b AS MATERIALIZED (
@@ -122,7 +127,9 @@ export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8
                CASE WHEN m.sent_at >= ? THEN 1 ELSE 0 END AS cur, ${CHANNEL_SQL} AS ch
         FROM inbox_messages m
         JOIN inbox_threads t ON t.id = m.thread_id
-        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND m.media_type <> 'system' AND t.owner_id = m.owner_id AND t.removed_at IS NULL
+        WHERE m.owner_id = ? AND m.sent_at >= ? AND m.sent_at < ? AND m.hidden_at IS NULL AND m.media_type <> 'system' AND t.owner_id = m.owner_id AND t.removed_at IS NULL${
+          skip ? ` AND NOT ${skip.thread.sql} AND NOT (t.kind = 'group' AND m.from_me = 0 AND ${skip.sender.sql})` : ''
+        }
       ) x
     ),
     s AS (
@@ -145,12 +152,15 @@ export function inboxFactsSql(owner: string, range: AnalyticsRange, topLimit = 8
     UNION ALL
     SELECT * FROM (SELECT 'top', thread_id, NULL, NULL, SUM(from_me = 0), SUM(from_me = 1), COUNT(*) FROM b WHERE cur = 1
       GROUP BY thread_id ORDER BY COUNT(*) DESC, thread_id LIMIT ${Math.trunc(topLimit)})`;
-  return { sql, args: [range.since, owner, range.prevSince, range.until] };
+  return { sql, args: [range.since, owner, range.prevSince, range.until, ...(skip ? [...skip.thread.args, ...skip.sender.args] : [])] };
 }
 
 /** Lo que se cerró y archivó por día (los dos períodos) y lo que espera ahora. */
-async function threadFacts(owner: string, range: AnalyticsRange, now: Date): Promise<{ done: FactRow[]; archived: Kpi; toReply: number; waiting: number }> {
+async function threadFacts(owner: string, range: AnalyticsRange, now: Date, internal?: InternalSet): Promise<{ done: FactRow[]; archived: Kpi; toReply: number; waiting: number }> {
   const db = getDb();
+  // Lo que espera ahora es de clientes: sin los chats con alguien interno, como las vistas.
+  const skip = internal && (internal.handles.size || internal.domains.length) ? internalThreadSql(internal) : null;
+  const notInternal = skip ? ` AND NOT ${skip.sql}` : '';
   const segments = rangeSegments(range);
   const nowS = now.toISOString();
   const [doneRows, counts] = await Promise.all([
@@ -165,10 +175,10 @@ async function threadFacts(owner: string, range: AnalyticsRange, now: Date): Pro
         `SELECT
            (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND archived_at >= ? AND archived_at < ?) AS archived,
            (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND archived_at >= ? AND archived_at < ?) AS prev_archived,
-           (SELECT COUNT(*) FROM inbox_threads INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL
-              AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)) AS to_reply,
-           (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
-              AND last_from_me = 1 AND last_outbound_at < ?) AS waiting`,
+           (SELECT COUNT(*) FROM inbox_threads t INDEXED BY idx_inbox_threads_reply WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL
+              AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)${notInternal}) AS to_reply,
+           (SELECT COUNT(*) FROM inbox_threads t WHERE owner_id = ? AND removed_at IS NULL AND done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)
+              AND last_from_me = 1 AND last_outbound_at < ?${notInternal}) AS waiting`,
       )
       .get(
         owner,
@@ -179,9 +189,11 @@ async function threadFacts(owner: string, range: AnalyticsRange, now: Date): Pro
         range.since,
         owner,
         nowS,
+        ...(skip?.args ?? []),
         owner,
         nowS,
         new Date(now.getTime() - WAITING_AFTER_MS).toISOString(),
+        ...(skip?.args ?? []),
       ) as Promise<Record<string, unknown> | undefined>,
   ]);
   return {
@@ -198,11 +210,11 @@ const emptyDay = (): Omit<InboxDay, 'day'> => ({ received: 0, sent: 0, whatsapp:
  * La analítica del Inbox de una persona. `owner` es su id real (nunca el del
  * workspace): solo se leen sus filas.
  */
-export async function inboxAnalytics(owner: string, query: RangeInput = {}, opts: { now?: Date } = {}): Promise<InboxAnalytics> {
+export async function inboxAnalytics(owner: string, query: RangeInput = {}, opts: { now?: Date; internal?: InternalSet } = {}): Promise<InboxAnalytics> {
   const now = opts.now ?? new Date();
   const range = analyticsRange(query, now);
-  const { sql, args } = inboxFactsSql(owner, range);
-  const [rows, threads] = await Promise.all([getDb().prepare(sql).all(...args) as Promise<FactRow[]>, threadFacts(owner, range, now)]);
+  const { sql, args } = inboxFactsSql(owner, range, 8, opts.internal);
+  const [rows, threads] = await Promise.all([getDb().prepare(sql).all(...args) as Promise<FactRow[]>, threadFacts(owner, range, now, opts.internal)]);
 
   const byDay = new Map<string, Omit<InboxDay, 'day'>>();
   const at = (day: string) => {
@@ -296,10 +308,10 @@ export function isInboxAnalyticsEmpty(d: InboxAnalytics): boolean {
 const cache = shortCache<InboxAnalytics>();
 
 /** Igual que inboxAnalytics, con la caché corta del kit (por persona y rango). */
-export function cachedInboxAnalytics(owner: string, query: RangeInput = {}): Promise<InboxAnalytics> {
+export function cachedInboxAnalytics(owner: string, query: RangeInput = {}, internal?: { set: InternalSet; version: string }): Promise<InboxAnalytics> {
   const now = new Date();
   const r = analyticsRange(query, now);
-  return cache.get(JSON.stringify([owner, r.since, r.until, r.tz]), () => inboxAnalytics(owner, query, { now }));
+  return cache.get(JSON.stringify([owner, r.since, r.until, r.tz, internal?.version ?? '']), () => inboxAnalytics(owner, query, { now, internal: internal?.set }));
 }
 
 /** Para los tests. */

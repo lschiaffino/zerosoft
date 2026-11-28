@@ -57,6 +57,7 @@ interface IssuesBoardProps {
     noLabel?: string;
     noMilestone?: string;
     noProject?: string;
+    noRelease?: string;
   };
   /** Edición inline en las cards (checkbox, prioridad, asignado, fecha). */
   editing?: {
@@ -157,6 +158,7 @@ export default function IssuesBoard({
     if (groupBy === 'label') return labels.noLabel ?? '';
     if (groupBy === 'planMilestone') return labels.noMilestone ?? '';
     if (groupBy === 'plan') return labels.noProject ?? '';
+    if (groupBy === 'release') return labels.noRelease ?? '';
     return name;
   };
   const selected = (id: string) => Boolean(selection?.selected.has(id));
@@ -231,6 +233,7 @@ export default function IssuesBoard({
                   )}
                   {groupBy === 'planMilestone' && <span className="tp-ms-diamond" aria-hidden />}
                   {groupBy === 'plan' && <TrackIcon name="plans" size={13} />}
+                  {groupBy === 'release' && <TrackIcon name="release" size={13} />}
                   {title}
                 </span>
               )}

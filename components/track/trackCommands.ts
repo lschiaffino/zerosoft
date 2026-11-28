@@ -28,6 +28,8 @@ export interface CommandData {
   labels: Array<{ id: string; name: string; color: string; project_id?: string | null }>;
   cycles: Array<{ id: string; name: string; start_at?: string; end_at?: string }>;
   milestones: Array<{ id: string; name: string }>;
+  /** Releases (lib/track-releases): solo los del team de los issues aparecen en "Add to release…". */
+  releases?: Array<{ id: string; name: string; version: string; status: string; project_id: string }>;
   priorities: Array<{ value: string; label: string }>;
   meId: string;
   today: string;
@@ -543,6 +545,38 @@ export function buildIssueActions(
         ];
       },
     });
+  }
+  // Release (como Linear): los del team de los issues, los abiertos primero; "Sin release" al final.
+  const teamReleases = sameProject ? (data.releases ?? []).filter((r) => r.project_id === targets[0].project_id) : [];
+  if (teamReleases.length) {
+    const nameOf = (r: (typeof teamReleases)[number]) => [r.name, r.version].filter(Boolean).join(' ');
+    actions.push({
+      id: 'release',
+      label: t('release'),
+      keywords: 'release version versión versão ship publish lanzamiento',
+      placeholder: t('release'),
+      icon: { kind: 'glyph', name: 'release' },
+      children: () => [
+        ...teamReleases.map((r) => ({
+          id: `release:${r.id}`,
+          label: nameOf(r),
+          icon: { kind: 'glyph' as const, name: 'release' as const },
+          checked: Boolean(one && one.release_id === r.id),
+          run: () => apply({ releaseId: r.id }),
+        })),
+        { id: 'release:none', label: t('noRelease'), isNone: true, checked: Boolean(one && !one.release_id), run: () => apply({ releaseId: null }) },
+      ],
+    });
+    for (const r of teamReleases.filter((x) => x.status !== 'released')) {
+      flat.push({
+        id: `flat-release:${r.id}`,
+        label: t('addToRelease', { name: nameOf(r) }),
+        keywords: `release version ${r.name} ${r.version}`,
+        icon: { kind: 'glyph', name: 'release' },
+        searchOnly: true,
+        run: () => apply({ releaseId: r.id }),
+      });
+    }
   }
   if (sameProject) {
     for (const c of data.cycles) {
