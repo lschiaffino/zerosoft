@@ -12,6 +12,7 @@ import { listForViewer } from '@/lib/crm-list-access';
 import { sessionScope, setMemberVisibility } from '@/lib/crm-visibility';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { addMember } from '@/lib/teams';
+import { getDb } from '@/lib/db';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 import { makeUser } from './helpers';
 
@@ -42,7 +43,6 @@ async function runTargets(s: Setup, user: ReturnType<typeof asOwner>, listId: st
       input: { agent: 'enrich_contacts', listId },
       defaultName: 'Run',
     });
-    const { getDb } = await import('@/lib/db');
     const rows = (await getDb().prepare('SELECT entity_id FROM crm_ai_run_items WHERE run_id = ?').all(run.id)) as Array<{ entity_id: string }>;
     return rows.map((r) => r.entity_id).sort();
   } catch (err) {
@@ -64,6 +64,11 @@ describe('listas dinámicas con conteos de asociados: con lo que ve quien las us
     // Con un deal propio, el contacto sí entra.
     await createDeal(s.ws, { name: 'Own deal', pipelineId: s.p.id, stageId: s.stage.id, ownerId: s.w.member.id, contactIds: [s.plain.id] });
     for (const listId of s.lists) expect(await runTargets(s, member, listId)).toEqual([s.plain.id]);
+    // Un deal propio y uno oculto en el mismo contacto: "más de 1 deal" cuenta solo el que ve.
+    await createDeal(s.ws, { name: 'Own deal 2', pipelineId: s.p.id, stageId: s.stage.id, ownerId: s.w.member.id, contactIds: [s.withHidden.id] });
+    const moreThanOne = await createList(s.ws, { name: 'Two deals', entity: 'contacts', kind: 'dynamic', filter: { filters: [{ f: 'dealCount', o: 'gt', v: '1' }] } });
+    expect(await runTargets(s, member, moreThanOne.id)).toBe('no_targets');
+    expect(await runTargets(s, asOwner(s.w.owner), moreThanOne.id)).toEqual([s.withHidden.id]);
   });
 
   it('owner y admin ven todos los deals: el contacto con el deal entra', async () => {
