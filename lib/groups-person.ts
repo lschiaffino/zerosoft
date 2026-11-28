@@ -9,7 +9,7 @@
 import { getDb } from './db';
 import { phoneDigits } from './groups-provider';
 import { GroupsError, getMessageRow, type ChatRow, type NumberRow, type Reaction } from './groups';
-import { canSeeChat, maskPhone, type GroupsViewer } from './groups-access';
+import { canSeeChat, maskPhone, maskPhoneText, type GroupsViewer } from './groups-access';
 import { blockProvider } from './groups-block';
 import { displayName, lookupContacts, type ContactRow } from './wa-contacts';
 import type { PersonRole, WaPersonCard } from './wa-person';
@@ -164,7 +164,8 @@ export async function sharedContent(viewer: GroupsViewer, chatId: string, kind: 
       url: '',
       mime: '',
       name: '',
-      body: r.body.slice(0, 2000),
+      // Con los teléfonos ocultos, la nota tampoco los muestra (como en la conversación).
+      body: (viewer.mask ? maskPhoneText(r.body) : r.body).slice(0, 2000),
       sentAt: r.created_at,
       fromMe: false,
       senderName: '',

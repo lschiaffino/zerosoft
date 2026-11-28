@@ -13,7 +13,7 @@ import { getDb } from './db';
 import { deleteUploads } from './uploads';
 import { GroupsError, chatDisplayName, getNumberRow, sendMessage, type ChatRow } from './groups';
 import { PROVIDER_CAPS } from './groups-provider';
-import { maskPhoneText } from './groups-mask';
+import { maskPhoneText, unmaskEdit } from './groups-mask';
 import { normalizePoll, parsePoll, type PollInput } from './groups-polls';
 import { allowedSends, chatVariables, clampPerMinute, renderVariables, sendGapMs } from './groups-rules';
 import { applyWaMentionPicks, cleanWaMentionPicks } from './wa-compose-mentions';
@@ -106,6 +106,14 @@ export function toBroadcastDto(r: BroadcastRow): BroadcastDto {
     poll: parsePoll(r.poll),
     replyToId: r.reply_to_id ?? null,
   };
+}
+
+/**
+ * Un envío para quien tiene los teléfonos ocultos: el nombre y el texto sin números, como las tareas y los
+ * tickets de Lines (el número de un cliente escrito en un programado no se ve en la lista ni en el detalle).
+ */
+export function maskBroadcast<T extends { name: string; body: string }>(mask: boolean | null | undefined, b: T): T {
+  return mask ? { ...b, name: maskPhoneText(b.name), body: maskPhoneText(b.body) } : b;
 }
 
 export const MAX_RECIPIENTS = 2000;
@@ -318,11 +326,11 @@ export async function getBroadcast(ws: string, id: string, opts: { mask?: boolea
     kind: 'dm' | 'group';
   }>;
   return {
-    broadcast: toBroadcastDto(row),
+    broadcast: maskBroadcast(opts.mask, toBroadcastDto(row)),
     recipients: rec.map((r) => ({
       id: r.id,
       chatId: r.chat_id,
-      chatName: opts.mask && !r.name ? maskPhoneText(chatDisplayName(r)) : chatDisplayName(r),
+      chatName: opts.mask ? maskPhoneText(chatDisplayName(r)) : chatDisplayName(r),
       kind: r.kind,
       status: r.status,
       error: r.error,
@@ -335,10 +343,19 @@ export async function updateBroadcast(
   ws: string,
   id: string,
   patch: { name?: string; body?: string; scheduledAt?: string; perMinute?: number },
+  opts: { mask?: boolean } = {},
 ): Promise<BroadcastDto> {
   const row = await getBroadcastRow(ws, id);
   if (!row) throw new GroupsError('not_found', 404);
   if (row.status !== 'scheduled') throw new GroupsError('not_editable', 409);
+  // Con los teléfonos ocultos, el nombre y el texto llegaron enmascarados: los números guardados no se pierden.
+  if (opts.mask) {
+    patch = {
+      ...patch,
+      ...(patch.name !== undefined ? { name: unmaskEdit(row.name, patch.name) } : {}),
+      ...(patch.body !== undefined ? { body: unmaskEdit(row.body, patch.body) } : {}),
+    };
+  }
   const sets: string[] = [];
   const args: Array<string | number> = [];
   if (patch.name !== undefined) {
@@ -367,7 +384,7 @@ export async function updateBroadcast(
       .run(...args, id, ws);
     if (r.changes === 0) throw new GroupsError('not_editable', 409);
   }
-  return toBroadcastDto((await getBroadcastRow(ws, id)) as BroadcastRow);
+  return maskBroadcast(opts.mask, toBroadcastDto((await getBroadcastRow(ws, id)) as BroadcastRow));
 }
 
 /** Cancela lo que falta mandar (lo ya enviado queda). */

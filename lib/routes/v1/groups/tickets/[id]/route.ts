@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { apiError, requireApiUser, type ApiKeyAuth } from '@/lib/api-auth';
 import { getTicket, updateTicket, type TicketPatch } from '@/lib/groups-tickets';
 import type { TicketPriority, TicketStatus } from '@/lib/groups-rules';
-import { canSeeChat, maskTicket, ticketsForViewer } from '@/lib/groups-access';
+import { canSeeChat, maskTicket, ticketsForViewer, unmaskTicketPatch } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { ticketLinks } from '@/lib/groups-integrations';
 import { v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
@@ -44,7 +44,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (typeof b.priority === 'string') patch.priority = b.priority as TicketPriority;
   if (b.assigneeId === null || typeof b.assigneeId === 'string') patch.assigneeId = (b.assigneeId as string | null) || null;
   try {
-    const after = await updateTicket(auth.user.id, before.id, patch);
+    // Con los teléfonos ocultos, el título llegó enmascarado: los números guardados no se pierden.
+    const after = await updateTicket(auth.user.id, before.id, unmaskTicketPatch(await v1Viewer(auth), before, patch));
     await recordAudit(auth.user.id, { chatId: after.chatId, chatName: before.chatName, actorId: auth.personId, actorKind: 'api', action: 'ticket_updated', detail: { number: after.number, status: after.status } });
     return NextResponse.json({ data: maskTicket(await v1Viewer(auth), after) });
   } catch (err) {

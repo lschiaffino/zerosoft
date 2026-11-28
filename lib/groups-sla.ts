@@ -97,13 +97,19 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
   if (recipients.length === 0) return 0;
   const locale = settings.locale;
   const href = `/app/lines/tickets?open=${encodeURIComponent(ticket.id)}`;
-  const mail = buildSlaEmail(ticket, kind, locale, `${siteUrl()}/${locale}${href}`);
+  const link = `${siteUrl()}/${locale}${href}`;
   let sent = 0;
+  const { canSeeChat, groupsViewer, maskTicket } = await import('./groups-access');
+  const { workspaceRole } = await import('./api-auth');
   for (const r of recipients) {
-    // Una persona del workspace que no ve el chat del ticket no recibe ni el email ni el aviso.
-    const { personCanSeeChat } = await import('./groups-access');
-    const sees = !r.userId || !ticket.chatId || (await personCanSeeChat(ws, r.userId, ticket.chatId).catch(() => false));
+    // Una persona del workspace que no ve el chat del ticket no recibe ni el email ni el aviso; si se le ocultan
+    // los teléfonos, el email y el aviso tampoco los traen (el título y el chat, enmascarados).
+    const viewer = r.userId ? await groupsViewer(ws, r.userId, await workspaceRole(ws, r.userId)).catch(() => null) : null;
+    if (r.userId && !viewer) continue;
+    const sees = !viewer || !ticket.chatId || (await canSeeChat(viewer, ticket.chatId).catch(() => false));
     if (!sees) continue;
+    const shown = maskTicket(viewer, ticket);
+    const mail = buildSlaEmail(shown, kind, locale, link);
     const res = await sendEmail({ to: r.email, from: appSender(), ...mail }).catch(() => ({ ok: false }));
     if (res.ok) sent++;
     if (r.userId) {
@@ -111,7 +117,7 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
         userId: r.userId,
         type: 'groups_sla',
         title: mail.subject,
-        body: ticket.chatName || undefined,
+        body: shown.chatName || undefined,
         href,
         sourceType: 'groups_ticket',
         sourceId: ticket.id,

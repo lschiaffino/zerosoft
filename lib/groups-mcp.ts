@@ -278,12 +278,17 @@ const TOOLS: ToolDef[] = [
       const { getTicket, updateTicket } = await import('./groups-tickets');
       const before = await getTicket(ctx.ws, str(a.ticketId, 100) ?? '');
       if (!before || (before.chatId ? !(await canSeeChat(ctx.viewer, before.chatId)) : ctx.viewer.restricted || ctx.viewer.linesScoped)) throw new GroupsError('not_found', 404);
-      const after = await updateTicket(ctx.ws, before.id, {
-        ...(typeof a.status === 'string' ? { status: a.status as TicketStatus } : {}),
-        ...(typeof a.priority === 'string' ? { priority: a.priority as TicketPriority } : {}),
-        ...(a.assigneeId === null || typeof a.assigneeId === 'string' ? { assigneeId: (a.assigneeId as string | null) || null } : {}),
-        ...(typeof a.title === 'string' ? { title: a.title } : {}),
-      });
+      const { unmaskTicketPatch } = await import('./groups-access');
+      const after = await updateTicket(
+        ctx.ws,
+        before.id,
+        unmaskTicketPatch(ctx.viewer, before, {
+          ...(typeof a.status === 'string' ? { status: a.status as TicketStatus } : {}),
+          ...(typeof a.priority === 'string' ? { priority: a.priority as TicketPriority } : {}),
+          ...(a.assigneeId === null || typeof a.assigneeId === 'string' ? { assigneeId: (a.assigneeId as string | null) || null } : {}),
+          ...(typeof a.title === 'string' ? { title: a.title } : {}),
+        }),
+      );
       await recordAudit(ctx.ws, { chatId: after.chatId, chatName: before.chatName, actorId: ctx.personId, actorKind: 'mcp', action: 'ticket_updated', detail: { number: after.number, status: after.status } });
       return { id: after.id, number: after.number, status: after.status, priority: after.priority, assigneeId: after.assigneeId };
     },

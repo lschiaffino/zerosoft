@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { chatDisplayName, getNumberRow } from '@/lib/groups';
 import { getRecurring, recurringRuns } from '@/lib/groups-recurring';
+import { maskBroadcast } from '@/lib/groups-broadcasts';
 import { maskedChatName, visibleChatIds } from '@/lib/groups-access';
 import { pageViewer } from '@/lib/groups-page';
 import { PROVIDER_CAPS } from '@/lib/groups-provider';
@@ -22,7 +23,8 @@ export default async function RecurringPage(props: { params: Promise<{ locale: s
   const visible = await visibleChatIds(viewer);
   if (!found || (visible && !found.chatIds.some((c) => visible.has(c)))) notFound();
   // Solo los chats que la persona ve (los demás de la serie no se nombran).
-  const rec = visible ? { ...found, chatIds: found.chatIds.filter((c) => visible.has(c)) } : found;
+  // Con los teléfonos ocultos, el nombre y el texto de la serie tampoco los muestran.
+  const rec = maskBroadcast(viewer.mask, visible ? { ...found, chatIds: found.chatIds.filter((c) => visible.has(c)) } : found);
   const marks = rec.chatIds.map(() => '?').join(',') || "''";
   const chats = (await getDb()
     .prepare(`SELECT id, name, phone, provider_chat_id, kind FROM groups_chats WHERE user_id = ? AND id IN (${marks})`)

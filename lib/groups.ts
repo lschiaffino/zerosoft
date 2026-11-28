@@ -1315,7 +1315,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
         ...(r.kind === 'dm' && r.phone && isInternalHandle(internal, r.phone) ? { internal: true } : {}),
-        ...sameChatFields(r.kind, sameChat.get(chatKey(r))),
+        ...sameChatFields(r.kind, sameChat.get(chatKey(r)), query.viewer),
         ...(mentioned.has(r.id) ? { mentioned: true } : {}),
       });
     })),
@@ -1325,8 +1325,8 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
 }
 
 /** Lo que suma una fila de la bandeja que junta el mismo chat en varias líneas: sus líneas y los no leídos de todas. */
-function sameChatFields(kind: string, siblings: SiblingRow[] | undefined): Partial<Pick<ChatDto, 'lines' | 'unread' | 'markedUnread'>> {
-  const lines = lineRefs(siblings);
+function sameChatFields(kind: string, siblings: SiblingRow[] | undefined, viewer?: GroupsViewer | null): Partial<Pick<ChatDto, 'lines' | 'unread' | 'markedUnread'>> {
+  const lines = lineRefs(siblings, viewer);
   if (!lines.length) return {};
   return { lines, unread: mergedUnread(kind, lines), markedUnread: (siblings ?? []).some((s) => Boolean(s.marked_unread)) };
 }

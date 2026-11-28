@@ -19,10 +19,10 @@ import { memberRef } from './wa-group-members';
 import { getDb } from './db';
 import type { TeamRole } from './teams';
 import type { ChatDto, ChatRow, MemberDto, MessageDto } from './groups';
-import { maskPhone, maskPhoneText } from './groups-mask';
+import { maskPhone, maskPhoneText, unmaskEdit } from './groups-mask';
 import type { LiveRaw, LiveViewer } from './wa-live';
 
-export { maskPhone, maskPhoneText };
+export { maskPhone, maskPhoneText, unmaskEdit };
 
 export interface PlatformSettings {
   labelAccess: boolean;
@@ -340,7 +340,13 @@ export function linesLiveViewer(viewer: GroupsViewer): LiveViewer {
 const maskField = (phone: string) => maskPhone(phone).replace(/^\+/, '');
 
 export function maskChat<
-  T extends Pick<ChatDto, 'phone' | 'name'> & { match?: string; lastMessagePreview?: string; lastSender?: string | null; presence?: { name: string } | null },
+  T extends Pick<ChatDto, 'phone' | 'name'> & {
+    match?: string;
+    lastMessagePreview?: string;
+    lastSender?: string | null;
+    lastDirection?: string | null;
+    presence?: { name: string } | null;
+  },
 >(
   viewer: GroupsViewer | null | undefined,
   chat: T,
@@ -356,7 +362,15 @@ export function maskChat<
     // Quien mandó el último mensaje de un grupo, si solo se sabe su teléfono ("+<teléfono>").
     ...(chat.lastSender ? { lastSender: maskPhoneText(chat.lastSender) } : {}),
     // Una mención de la que solo se sabe el teléfono ("@+<teléfono>" en la vista previa): el teléfono va oculto.
-    ...(chat.lastMessagePreview ? { lastMessagePreview: chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`) } : {}),
+    ...(chat.lastMessagePreview
+      ? {
+          lastMessagePreview:
+            // Si lo último es una nota interna (texto del equipo), tampoco muestra los teléfonos que tenga.
+            chat.lastDirection === 'note'
+              ? maskPhoneText(chat.lastMessagePreview)
+              : chat.lastMessagePreview.replace(/@\+(\d{8,15})(?!\d)/g, (_, d: string) => `@${maskPhone(d)}`),
+        }
+      : {}),
     // Quien escribe en un grupo, si solo se sabe su teléfono ("+<teléfono>").
     ...(chat.presence?.name ? { presence: { ...chat.presence, name: maskPhoneText(chat.presence.name) } } : {}),
   };
@@ -421,6 +435,8 @@ export function maskMessage(viewer: GroupsViewer | null | undefined, m: MessageD
   const { mentions: _mentions, ...restMeta } = meta;
   return {
     ...m,
+    // Una nota interna es texto del equipo, como las notas de una tarea: sin los teléfonos que alguien escribió.
+    ...(m.direction === 'note' && m.body ? { body: maskPhoneText(m.body) } : {}),
     senderPhone: m.senderPhone ? maskField(m.senderPhone) : '',
     reactions: m.reactions.map((r) => ({ ...r, by: /^\d{6,}$/.test(r.by) ? maskPhone(r.by) : r.by })),
     // Tarjetas de contacto: los teléfonos también van ocultos ("Mensaje" usa el mensaje y la tarjeta, no el número).
@@ -468,14 +484,58 @@ export async function ticketsForViewer<T extends { chatId: string | null; chatNa
 /** Un nombre que es solo un teléfono ("+<dígitos>", el de un chat 1:1 sin nombre): enmascarado. */
 const maskPhoneName = (name: string) => (/^\+\d{6,}$/.test(name) ? maskPhone(name) : name);
 
+/** Los campos propios de texto con los teléfonos ocultos (los números y los archivos quedan como están). */
+function maskFieldValues<V>(fields: Record<string, V>): Record<string, V> {
+  return Object.fromEntries(
+    Object.entries(fields).map(([k, v]) => [
+      k,
+      (typeof v === 'string' ? maskPhoneText(v) : Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? maskPhoneText(x) : x)) : v) as V,
+    ]),
+  );
+}
+
 /**
  * Un ticket con la máscara de teléfonos de quien mira: el nombre del chat y
- * un título que es solo el teléfono (un ticket de un mensaje sin texto en un
- * 1:1 sin nombre). Para lo que ya se sabe que ve (el chat pasó el guard).
+ * todo texto libre (el título, el mensaje de origen y los campos propios de
+ * texto), como las tareas. Para lo que ya se sabe que ve (el chat pasó el guard).
  */
-export function maskTicket<T extends { chatName: string; title?: string }>(viewer: GroupsViewer | null | undefined, t: T): T {
+export function maskTicket<T extends { chatName: string; title?: string; messageBody?: string; fields?: Record<string, unknown> }>(
+  viewer: GroupsViewer | null | undefined,
+  t: T,
+): T {
   if (!viewer?.mask) return t;
-  return { ...t, chatName: maskPhoneText(t.chatName), ...(typeof t.title === 'string' ? { title: maskPhoneName(t.title) } : {}) };
+  return {
+    ...t,
+    chatName: maskPhoneText(t.chatName),
+    ...(typeof t.title === 'string' ? { title: maskPhoneText(maskPhoneName(t.title)) } : {}),
+    ...(typeof t.messageBody === 'string' ? { messageBody: maskPhoneText(t.messageBody) } : {}),
+    ...(t.fields && typeof t.fields === 'object' ? { fields: maskFieldValues(t.fields) } : {}),
+  } as T;
+}
+
+/**
+ * Lo que guarda en un ticket alguien con los teléfonos ocultos: el título y los campos de texto le llegaron
+ * enmascarados; cada teléfono enmascarado vuelve al número guardado (unmaskEdit).
+ */
+export function unmaskTicketPatch<P extends { title?: string; fields?: Record<string, unknown> }>(
+  viewer: GroupsViewer | null | undefined,
+  before: { title: string; fields: Record<string, unknown> },
+  patch: P,
+): P {
+  if (!viewer?.mask) return patch;
+  const out: { title?: string; fields?: Record<string, unknown> } = { ...patch };
+  if (typeof out.title === 'string') out.title = unmaskEdit(before.title, out.title);
+  if (out.fields) {
+    out.fields = Object.fromEntries(
+      Object.entries(out.fields).map(([k, v]) => {
+        const old = before.fields[k];
+        if (typeof v === 'string') return [k, unmaskEdit(typeof old === 'string' ? old : '', v)];
+        if (Array.isArray(v) && Array.isArray(old)) return [k, v.map((x, i) => (typeof x === 'string' && typeof old[i] === 'string' ? unmaskEdit(old[i] as string, x) : x))];
+        return [k, v];
+      }),
+    );
+  }
+  return out as P;
 }
 
 /** El nombre de un chat (reenviar, avisos) con la máscara de quien mira, como maskChat. */
