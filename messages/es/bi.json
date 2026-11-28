@@ -368,5 +368,26 @@
     },
     "apply": "Aplicar",
     "empty": "Este tablero está vacío."
+  },
+  "history": {
+    "button": "Historial",
+    "title": "Historial de versiones",
+    "empty": "Todavía no hay versiones. Cada guardado que cambia algo suma una.",
+    "created": "Creó esta pregunta",
+    "baseline": "Versión de antes del historial",
+    "reverted": "Volvió a una versión anterior",
+    "edited": "Guardó cambios",
+    "changed": "Cambió {fields}",
+    "someone": "Alguien",
+    "current": "Versión actual",
+    "restore": "Volver a esta versión",
+    "field": {
+      "name": "el nombre",
+      "description": "la descripción",
+      "source": "la fuente de datos",
+      "collection": "la colección",
+      "query": "la consulta",
+      "viz": "el gráfico"
+    }
   }
 }

@@ -9,9 +9,10 @@ import * as m3 from '@/lib/routes/bi/dashboards/[id]/subscriptions/route';
 import * as m4 from '@/lib/routes/bi/databases/[id]/route';
 import * as m5 from '@/lib/routes/bi/databases/[id]/sync/route';
 import * as m6 from '@/lib/routes/bi/questions/[id]/route';
-import * as m7 from '@/lib/routes/bi/questions/[id]/run/route';
-import * as m8 from '@/lib/routes/bi/shares/[id]/route';
-import * as m9 from '@/lib/routes/bi/subscriptions/[id]/route';
+import * as m7 from '@/lib/routes/bi/questions/[id]/revisions/route';
+import * as m8 from '@/lib/routes/bi/questions/[id]/run/route';
+import * as m9 from '@/lib/routes/bi/shares/[id]/route';
+import * as m10 from '@/lib/routes/bi/subscriptions/[id]/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,9 +25,10 @@ const d = createDispatcher('zsPath', [
   { pattern: 'databases/[id]', mod: m4 }, // lib/routes/bi/databases/[id]
   { pattern: 'databases/[id]/sync', mod: m5 }, // lib/routes/bi/databases/[id]/sync
   { pattern: 'questions/[id]', mod: m6 }, // lib/routes/bi/questions/[id]
-  { pattern: 'questions/[id]/run', mod: m7 }, // lib/routes/bi/questions/[id]/run
-  { pattern: 'shares/[id]', mod: m8 }, // lib/routes/bi/shares/[id]
-  { pattern: 'subscriptions/[id]', mod: m9 }, // lib/routes/bi/subscriptions/[id]
+  { pattern: 'questions/[id]/revisions', mod: m7 }, // lib/routes/bi/questions/[id]/revisions
+  { pattern: 'questions/[id]/run', mod: m8 }, // lib/routes/bi/questions/[id]/run
+  { pattern: 'shares/[id]', mod: m9 }, // lib/routes/bi/shares/[id]
+  { pattern: 'subscriptions/[id]', mod: m10 }, // lib/routes/bi/subscriptions/[id]
 ]);
 
 export const GET = d.GET;
