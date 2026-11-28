@@ -1,3 +1,4 @@
+import { cleanTimeZone } from '@/lib/assistant/registry';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { assistantState } from '@/lib/assistant/config';
@@ -21,6 +22,8 @@ const bodySchema = z.object({
     .object({ path: z.string().max(300).optional(), title: z.string().max(200).optional(), selection: z.string().max(4000).optional() })
     .nullish(),
   locale: z.string().max(5).optional(),
+  /** Zona horaria del navegador (IANA): las horas de las tarjetas (un mensaje programado) se leen y se muestran en ella. */
+  timeZone: z.string().max(64).optional(),
 });
 
 /**
@@ -48,6 +51,7 @@ export async function POST(req: NextRequest) {
     throw err;
   }
   const { page, locale: rawLocale } = parsed.data;
+  const timeZone = cleanTimeZone(parsed.data.timeZone);
   const atts = parsed.data.attachments?.length ? await getAttachments(who, parsed.data.attachments) : [];
   if (atts.length !== (parsed.data.attachments?.length ?? 0)) return NextResponse.json({ error: 'attachment_not_found' }, { status: 400 });
   if (!parsed.data.message && !atts.length) return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
@@ -71,7 +75,7 @@ export async function POST(req: NextRequest) {
       const send = (e: unknown) => controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
       if (created) send({ type: 'conversation', id: conv.id, title: conv.title });
       try {
-        for await (const e of runAssistantTurn({ user, conversationId: conv.id, message, page: page ?? null, locale: localeOf(rawLocale), abortSignal: req.signal })) {
+        for await (const e of runAssistantTurn({ user, conversationId: conv.id, message, page: page ?? null, locale: localeOf(rawLocale), timeZone, abortSignal: req.signal })) {
           send(e);
         }
       } catch (err) {

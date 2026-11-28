@@ -5,6 +5,7 @@ import { createTicket, listTickets, markBreachedTickets } from '@/lib/groups-tic
 import { createBroadcast, processBroadcasts } from '@/lib/groups-broadcasts';
 import { flagUnansweredChats } from '@/lib/groups-cron';
 import { searchApps } from '@/lib/app-search';
+import { getDb } from '@/lib/db';
 import { makeUser } from './helpers';
 
 beforeEach(() => {
@@ -42,14 +43,33 @@ describe('QA de Groups', () => {
     const chat = (await listChats(user.id, user.id)).rows[0];
     await createTicket(user.id, user.id, { chatId: chat.id, title: 'Export caído' });
     expect((await listChats(user.id, user.id, { filter: 'flagged' })).rows).toHaveLength(0);
-    // 20 min después vence el "sin responder"; a los 40, la primera respuesta del ticket.
-    await flagUnansweredChats(new Date(Date.now() + 20 * 60_000));
+    // 20 min después vence el "sin responder"; a los 40, la primera respuesta del ticket. La base de las pruebas es una
+    // sola para toda la corrida: sin tope de tanda, así los chats vencidos de otros archivos no dejan este afuera.
+    await flagUnansweredChats(new Date(Date.now() + 20 * 60_000), 1_000_000);
     expect((await listChats(user.id, user.id, { filter: 'flagged' })).rows.map((c) => c.id)).toEqual([chat.id]);
     await markBreachedTickets(new Date(Date.now() + 40 * 60_000));
     expect((await listTickets(user.id, { breached: true })).map((t) => t.title)).toEqual(['Export caído']);
     // Responder lo saca de Vencidos.
     await sendMessage(user.id, user.id, chat.id, { body: 'Lo vemos' });
     expect((await listChats(user.id, user.id, { filter: 'flagged' })).rows).toHaveLength(0);
+  });
+
+  it('los chats que todavía no vencen en otro workspace no tapan uno vencido (el cron lee de a tandas)', async () => {
+    const slow = await setup('qa-slow');
+    await updateSettings(slow.user.id, { unansweredMin: 60 * 24 });
+    await ingestEvents(slow.row, [inbound('120363000000066666@g.us', 'SL-1', 'Sin apuro')]);
+    const fast = await setup('qa-fast');
+    await updateSettings(fast.user.id, { unansweredMin: 15 });
+    await ingestEvents(fast.row, [inbound('120363000000055555@g.us', 'FA-1', 'Urgente')]);
+    const old = new Date(Date.now() - 60 * 60_000).toISOString();
+    const slowChat = (await listChats(slow.user.id, slow.user.id)).rows[0];
+    const fastChat = (await listChats(fast.user.id, fast.user.id)).rows[0];
+    // El que no vence esperaba desde antes: con tandas de uno, igual se marca el vencido.
+    await getDb().prepare('UPDATE groups_chats SET awaiting_since = ? WHERE id = ?').run(new Date(Date.parse(old) - 60_000).toISOString(), slowChat.id);
+    await getDb().prepare('UPDATE groups_chats SET awaiting_since = ? WHERE id = ?').run(old, fastChat.id);
+    await flagUnansweredChats(new Date(), 1);
+    expect((await listChats(fast.user.id, fast.user.id, { filter: 'flagged' })).rows.map((c) => c.id)).toEqual([fastChat.id]);
+    expect((await listChats(slow.user.id, slow.user.id, { filter: 'flagged' })).rows).toHaveLength(0);
   });
 
   it('un envío masivo no cuenta como respuesta; un programado a un chat sí', async () => {

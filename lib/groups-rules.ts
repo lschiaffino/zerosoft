@@ -101,6 +101,8 @@ export function parseEmails(raw: unknown, max = 10): string[] {
 }
 
 const MAX_MIN = 60 * 24 * 60; // 60 días
+/** El umbral más largo que acepta "sin responder" (el cron lo usa para no leer chats que todavía no vencen). */
+export const MAX_UNANSWERED_MIN = MAX_MIN;
 
 function clampMin(v: unknown, fallback: number): number {
   const n = Math.round(Number(v));

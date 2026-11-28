@@ -55,7 +55,8 @@
     "failed": "No funcionó: {error}",
     "open": "Abrir",
     "showAll": "los {count} caracteres",
-    "partial": "Hecho en parte"
+    "partial": "Hecho en parte",
+    "putDraft": "Poner el borrador en el chat"
   },
   "actionErrors": {
     "forbidden": "Ya no tenés acceso para hacer esto.",
@@ -419,7 +420,9 @@
       "followUp": "Recordarme ({count})",
       "archive": "Archivar ({count})",
       "done": "Marcar como hecho ({count})",
-      "folder": "Agregar a carpeta ({count})"
+      "folder": "Agregar a carpeta ({count})",
+      "note": "Notas del chat, solo las ves vos ({count})",
+      "schedule": "Mensajes programados, salen a esa hora ({count})"
     },
     "result": "Listo: {done} de {total}.",
     "resultFailed": "No se pudo: {list}.",
@@ -435,6 +438,43 @@
       },
       "grantedOnce": "El asistente puede leer tus chats de {app} en esta charla.",
       "grantedAlways": "El asistente puede leer tus chats de {app} hasta que lo apagues en Ajustes."
+    },
+    "sendsLabel": "Sale solo",
+    "sendsWarning": "Los mensajes programados se mandan a su hora sin volver a preguntar. Hasta entonces los podés cancelar desde el chat.",
+    "lines": {
+      "summary": "{count, plural, one {Aplicar # cambio en Lines} other {Aplicar # cambios en Lines}}",
+      "working": "Aplicando…",
+      "do": {
+        "draft": "Borrador de respuesta para {chat}, va al campo del mensaje y no se manda",
+        "note": "Nota interna en {chat}, solo la ve tu equipo",
+        "assign": "Asignar {chat}",
+        "label": "Sumar una etiqueta a {chat}",
+        "close": "Cerrar la conversación {chat}",
+        "archive": "Archivar {chat}",
+        "task": "Tarea en {chat}",
+        "ticket": "Ticket en {chat}",
+        "schedule": "Mensaje de WhatsApp a {chat} el {when}, desde {line}"
+      },
+      "statusOpen": "Abierta",
+      "statusClosed": "Cerrada, se reabre con el próximo mensaje",
+      "archived": "Archivado, vuelve con un mensaje nuevo",
+      "ticketTitleAuto": "Título tomado del chat",
+      "none": "Ninguna",
+      "due": "Vence {when}",
+      "owner": "Responsable: {who}",
+      "nobody": "Nadie",
+      "alsoLines": "También en {lines}",
+      "sendsLabel": "Sale por WhatsApp",
+      "sendsWarning": "Los mensajes programados se mandan por WhatsApp a su hora sin volver a preguntar. Hasta entonces los podés cancelar en la pestaña Tareas del chat.",
+      "result": "Listo: {done} de {total}.",
+      "resultFailed": "No se pudo: {list}.",
+      "draftsReady": "{count, plural, one {Abrí el chat para revisar el borrador en el campo del mensaje. No se mandó nada.} other {Abrí cada chat para revisar su borrador en el campo del mensaje. No se mandó nada.}}",
+      "group": "grupo"
+    },
+    "one": {
+      "draft": "Borrador de respuesta para {chat}, queda en el chat y no se manda",
+      "note": "Nota en {chat}, solo la ves vos",
+      "schedule": "Mensaje a {chat} el {when}"
     }
   },
   "consentCard": {

@@ -38,6 +38,8 @@ export function fakeAssistantStep(info: FakeCallInfo): FakeStep {
   if (DIG.test(asked)) return { tool: 'find_operations', input: { query: `folders ${info.toolResults.length}` } };
   // "Callado": el modelo termina sin texto después de una herramienta (el motor pide el cierre).
   if (done && /^(?:list|show) my inbox folders silently/i.test(asked)) return { text: '' };
+  const acts = chatActionsFlow(asked, done);
+  if (acts) return acts;
   const chats = chatsFlow(asked, done, info.userTexts);
   if (chats) return chats;
   if (done) {
@@ -310,6 +312,55 @@ function unwrap(v: unknown): unknown {
   } catch {
     return null;
   }
+}
+
+/**
+ * Lines e Inbox con tarjeta (lib/assistant/tools-chat-actions.ts): "find lines chat <nombre>", "lines note <chat>:
+ * <texto>", "lines assign <chat> to <persona>", "lines task <chat>: <título>", "lines draft <chat>: <texto>",
+ * "lines schedule <chat>: <texto>" (mañana a las 12 UTC), "lines label <chat>: <etiqueta>", "lines close <chat>",
+ * "lines archive <chat>", "lines ticket <chat>: <título>" y lo mismo con "inbox" (la tarea es un recordatorio).
+ */
+const CHAT_ACT = /^(lines|inbox) (note|schedule|assign|task|draft|label|close|archive|ticket) (.+?)(?::\s*(.+))?$/is;
+const FIND_CHAT = /^find (lines|inbox) chats? (.+)$/i;
+
+function chatActionsFlow(asked: string, done: FakeCallInfo['toolResults'][number] | undefined): FakeStep | null {
+  if (done?.tool === 'lines_find_chats' || done?.tool === 'inbox_find_chats') {
+    const rows = ((unwrap((done.output as { chats?: unknown } | null)?.chats) as Array<{ name: string }> | null) ?? []).map((c) => c.name);
+    return { text: rows.length ? `Found: ${rows.join(', ')}.` : 'No chat matches.' };
+  }
+  if (done) return null;
+  const find = FIND_CHAT.exec(asked.trim());
+  if (find) return { tool: find[1].toLowerCase() === 'lines' ? 'lines_find_chats' : 'inbox_find_chats', input: { query: find[2].trim() } };
+  const m = CHAT_ACT.exec(asked.trim());
+  if (!m) return null;
+  const app = m[1].toLowerCase();
+  const what = m[2].toLowerCase();
+  let chat = m[3].trim();
+  const text = m[4]?.trim();
+  const tomorrow = new Date(Date.now() + 86_400_000);
+  tomorrow.setUTCHours(12, 0, 0, 0);
+  if (app === 'lines') {
+    let to: string | undefined;
+    if (what === 'assign') {
+      const a = /^(.+?) to (.+)$/i.exec(chat);
+      if (a) [chat, to] = [a[1].trim(), a[2].trim()];
+    }
+    return {
+      tool: 'propose_lines_actions',
+      input: {
+        actions: [
+          { chat, do: what, ...(text ? (what === 'label' ? { label: text } : { text }) : {}), ...(to ? { to } : {}), ...(what === 'schedule' ? { at: tomorrow.toISOString() } : {}) },
+        ],
+      },
+    };
+  }
+  // Inbox: la tarea es un recordatorio, cerrar es "hecho" y etiquetar es sumar a una carpeta.
+  const inboxDo = ({ task: 'followUp', close: 'done', label: 'folder' } as Record<string, string>)[what] ?? what;
+  if (inboxDo === 'assign' || inboxDo === 'ticket') return { text: 'Inbox is personal: chats there are not assigned.' };
+  return {
+    tool: 'propose_inbox_actions',
+    input: { actions: [{ chat, do: inboxDo, ...(text ? (inboxDo === 'folder' ? { folder: text } : { text }) : {}), ...(inboxDo === 'schedule' || inboxDo === 'followUp' ? { until: tomorrow.toISOString() } : {}) }] },
+  };
 }
 
 function chatsFlow(asked: string, done: FakeCallInfo['toolResults'][number] | undefined, said: string[]): FakeStep | null {
