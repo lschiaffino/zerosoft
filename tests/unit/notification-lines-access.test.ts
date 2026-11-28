@@ -107,6 +107,20 @@ describe('avisos de chats de Lines: solo los de chats que hoy se ven', () => {
     expect(await after.text()).not.toContain(OPEN_CHAT);
   });
 
+  it('la campana guardada tampoco sobrevive a sacarle Lines en Miembros', async () => {
+    const s = await setup('nla-apps');
+    const { setMemberApps } = await import('@/lib/teams');
+    // La sesión del test no se vuelve a leer de la base: el acceso a Lines se mira en el aviso (personAppAccess).
+    session.user = asMember(s.w.owner, s.w.member);
+    const first = await GET(new NextRequest('http://localhost/api/notifications?limit=20'));
+    expect(await first.text()).toContain(OPEN_CHAT);
+    const etag = first.headers.get('etag')!;
+    await setMemberApps(s.w.team.id, s.w.member.id, ['crm', 'track']);
+    const after = await GET(new NextRequest('http://localhost/api/notifications?limit=20', { headers: { 'if-none-match': etag } }));
+    expect(after.status).toBe(200);
+    expect(await after.text()).not.toContain(OPEN_CHAT);
+  });
+
   it('a quien se le ocultan los teléfonos, el aviso de un chat 1:1 sin nombre no trae el número', async () => {
     const s = await setup('nla-mask');
     const { updatePlatformSettings } = await import('@/lib/groups-access');
