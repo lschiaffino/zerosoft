@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createActivity, createCompany, createContact, createCustomField, updateContact } from '@/lib/crm';
 import { createLead, updateLead } from '@/lib/crm-leads';
+import { associateContactCompany, removeContactCompany } from '@/lib/crm-assoc';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { navKey, neighbors, parseListNav, viewNavQuery } from '@/components/crm/recordNavModel';
@@ -175,6 +176,19 @@ describe('en vivo: acceso a /api/crm/live', () => {
     // Pasar de una empresa que no ve a otra que tampoco ve: igual para esta persona.
     expect(await sig(rec)).toBe(r0);
     await createActivity(s.ws, { type: 'note', subject: 'mine', body: 'x', contactId: s.mine.id, ownerId: s.w.member.id });
+    expect(await sig(rec)).not.toBe(r0);
+  });
+
+  it('cambiar una asociación visible por otra (como un import o el sync) cambia la ficha', async () => {
+    const s = await setup('c3-assoc-swap');
+    const [a, b, c] = await Promise.all(['A', 'B', 'C'].map((n) => createCompany(s.ws, { name: `Swap ${n}`, ownerId: s.w.member.id })));
+    await associateContactCompany(s.ws, s.mine.id, a.id);
+    await associateContactCompany(s.ws, s.mine.id, b.id);
+    session.user = asMember(s.w.owner, s.w.member);
+    const rec = { record: { kind: 'contact', id: s.mine.id } };
+    const r0 = await sig(rec);
+    await removeContactCompany(s.ws, s.mine.id, b.id);
+    await associateContactCompany(s.ws, s.mine.id, c.id);
     expect(await sig(rec)).not.toBe(r0);
   });
 

@@ -162,14 +162,18 @@ function maskCompany<T extends Record<string, unknown>>(row: T, unseen: Readonly
   return out as T;
 }
 
-/** Cuántos registros asociados ve la persona, por tipo (los que no ve no cuentan). */
-async function visibleAssociations(ws: string, kind: LiveKind, id: string, scope: OwnerScope, db: Db): Promise<number[]> {
+/**
+ * Los registros asociados que ve la persona, por tipo (los que no ve no
+ * cuentan). Van los ids y no solo la cantidad: cambiar una asociación por otra
+ * (un import o el sync de HubSpot) también cambia la firma.
+ */
+async function visibleAssociations(ws: string, kind: LiveKind, id: string, scope: OwnerScope, db: Db): Promise<string[]> {
   const count = async (sql: string, table: string, alias: string, args: string[]) => {
     const s = ownerScopeSql(alias, scope);
     const r = (await db
-      .prepare(`SELECT COUNT(*) AS n FROM ${table} ${alias} WHERE ${alias}.user_id = ? AND ${alias}.id IN (${sql})${s.sql ? ` AND ${s.sql}` : ''}`)
-      .get(ws, ...args, ...s.args)) as { n: number };
-    return Number(r.n);
+      .prepare(`SELECT ${alias}.id AS id FROM ${table} ${alias} WHERE ${alias}.user_id = ? AND ${alias}.id IN (${sql})${s.sql ? ` AND ${s.sql}` : ''} ORDER BY ${alias}.id`)
+      .all(ws, ...args, ...s.args)) as Array<{ id: string }>;
+    return r.map((x) => x.id).join(',');
   };
   if (kind === 'contact') {
     return [
