@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/rate-limit';
 import { can, canGiveApps } from '@/lib/permissions';
+import { inviteAppsOf } from '@/lib/capabilities';
 import { createInvite } from '@/lib/teams';
-import { parseApps } from '@/lib/workspace';
+import { parseApps, type AppAccess } from '@/lib/workspace';
 import { audit } from '@/lib/workspace-admin';
 import { inviteUrl } from '@/lib/workspace-invites';
 import { isResponse, publicBase, requestLocale, teamsCtx, teamsError } from '@/lib/teams-http';
@@ -38,17 +39,31 @@ const schema = z.object({
  * y trae el link para copiarlo.
  */
 export async function POST(req: NextRequest) {
-  const ctx = await teamsCtx('admin');
+  // Admins y owner por su rol. Un member, solo con "Puede invitar a <app>": como member, con acceso
+  // únicamente a esas apps, sin equipos y sin guests. El servidor decide, la pantalla solo lo refleja.
+  const ctx = await teamsCtx('member');
   if (isResponse(ctx)) return ctx;
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return teamsError('invalid_input');
   const role = parsed.data.role ?? 'member';
-  if (!can(ctx.user, 'members.invite', { nextRole: role })) return teamsError('forbidden', 403);
-  // Sin apps en el pedido (invitar desde una app): las de quien invita, nunca más.
-  const actorApps = ctx.user.apps ?? '*';
-  const apps = parsed.data.apps ?? actorApps;
-  const offered = role === 'guest' ? [] : parseApps(apps);
-  if (!canGiveApps(ctx.user, offered)) return teamsError('apps_not_yours', 403);
+  const isAdmin = ctx.role === 'owner' || ctx.role === 'admin';
+  let apps: AppAccess | z.infer<typeof schema>['apps'];
+  let offered: AppAccess;
+  if (isAdmin) {
+    if (!can(ctx.user, 'members.invite', { nextRole: role })) return teamsError('forbidden', 403);
+    // Sin apps en el pedido (invitar desde una app): las de quien invita, nunca más.
+    apps = parsed.data.apps ?? ctx.user.apps ?? '*';
+    offered = role === 'guest' ? [] : parseApps(apps);
+    if (!canGiveApps(ctx.user, offered)) return teamsError('apps_not_yours', 403);
+  } else {
+    const allowed = inviteAppsOf(ctx.user);
+    if (!allowed.length || role !== 'member') return teamsError('forbidden', 403);
+    const asked = parseApps(parsed.data.apps === undefined ? allowed : parsed.data.apps);
+    if (asked === '*' || !asked.length || asked.some((a) => !allowed.includes(a))) return teamsError('apps_not_yours', 403);
+    offered = asked;
+    apps = asked;
+    parsed.data.groupIds = [];
+  }
   const limit = await rateLimit(`teams:invite:${ctx.realId}`, 30, 3600);
   if (!limit.ok) return teamsError('rate_limited', 429);
   if (parsed.data.link) {

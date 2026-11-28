@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope, visibleIds } from '@/lib/crm-visibility';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { mergeCompanies } from '@/lib/crm-company-merge';
 import { contactMergeSchema } from '@/lib/crm-schema';
@@ -26,5 +27,7 @@ export async function POST(req: NextRequest) {
   const res = await mergeCompanies(user.id, keepId, dropId, user.actingUser?.email ?? user.email);
   if (!res.ok) return res.reason === 'same' ? crmError(400, 'invalid_input') : notFound();
   // La fusión junta los campos propios de las dos: sin los que la persona tiene ocultos.
-  return NextResponse.json(redactRow(res.company, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')));
+  // La empresa madre que queda puede ser una que la persona no ve: sale como privada.
+  const shown = (await maskPrivateRef(user.id, res.company, [PRIVATE_REFS.parent()], scope)) ?? res.company;
+  return NextResponse.json(redactRow(shown, await hiddenFieldsFor(sessionFieldViewer(user), 'companies')));
 }
