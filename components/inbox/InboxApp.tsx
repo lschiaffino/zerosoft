@@ -1046,6 +1046,9 @@ export default function InboxApp(props: {
           break;
         case 'Enter':
         case 'o':
+          // Enter sobre un botón, un link o una pestaña (el panel del chat, un rango, un menú) es de ese control: no
+          // abre el chat del cursor ni le saca el clic.
+          if (k === 'Enter' && document.activeElement?.closest('button, a[href], [role="button"], [role="tab"], summary, select')) break;
           if (current) {
             handled();
             setOpenId(current.id);

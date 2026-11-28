@@ -153,6 +153,8 @@ for (const app of ['lines', 'inbox'] as const) {
       if (app === 'lines' && width === 1280) {
         await page.locator('.wa-mode-note').click();
         await field.fill(`Nota a medio escribir ${tag}`);
+        // A 1280 el panel tapa la conversación y se cerró al insertar: se vuelve a abrir en la pestaña IA.
+        await ensureDetailsTab(page, 'ai', () => page.locator(apps.lines.head).first().click());
         await tab.getByTestId('details-ai-insert').first().click();
         await expect(tab.getByTestId('details-ai-insert-failed')).toBeVisible();
         await expect(field).toHaveValue(`Nota a medio escribir ${tag}`);
