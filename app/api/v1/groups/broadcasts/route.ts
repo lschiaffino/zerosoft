@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/api-auth';
-import { createBroadcast, listBroadcasts } from '@/lib/groups-broadcasts';
+import { createBroadcast, listBroadcasts, maskBroadcast } from '@/lib/groups-broadcasts';
 import { visibleChatIds } from '@/lib/groups-access';
 import { mediaFromBody } from '@/lib/groups-media-input';
 import { v1Error, v1Json, v1Viewer } from '@/lib/groups-v1';
@@ -12,7 +12,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const auth = await requireApiUser(req, 'groups:read');
   if ('res' in auth) return auth.res;
-  return NextResponse.json({ data: await listBroadcasts(auth.user.id, { visible: await visibleChatIds(await v1Viewer(auth)) }) });
+  const viewer = await v1Viewer(auth);
+  const list = await listBroadcasts(auth.user.id, { visible: await visibleChatIds(viewer) });
+  return NextResponse.json({ data: list.map((b) => maskBroadcast(viewer.mask, b)) });
 }
 
 /**
@@ -23,7 +25,8 @@ export async function POST(req: Request) {
   const auth = await requireApiUser(req, 'groups:write');
   if ('res' in auth) return auth.res;
   const b = await v1Json(req);
-  const visible = await visibleChatIds(await v1Viewer(auth));
+  const viewer = await v1Viewer(auth);
+  const visible = await visibleChatIds(viewer);
   const ids = Array.isArray(b.chatIds) ? b.chatIds.filter((x): x is string => typeof x === 'string').slice(0, 2000) : [];
   try {
     const res = await createBroadcast(auth.user.id, auth.personId, {
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
       perMinute: Number(b.perMinute) || undefined,
       kind: ids.length === 1 && typeof b.scheduledAt === 'string' ? 'scheduled' : 'broadcast',
     });
-    return NextResponse.json({ data: res }, { status: 201 });
+    return NextResponse.json({ data: maskBroadcast(viewer.mask, res) }, { status: 201 });
   } catch (err) {
     return v1Error(err);
   }

@@ -143,6 +143,17 @@ export async function personSeesActivity(workspaceId: string, activity: MentionA
   return !(await isChatHidden(workspaceId, activity.id, reader));
 }
 
+/** El extracto del aviso para esa persona: con los teléfonos ocultos si es de un chat de Lines y se le ocultan. */
+async function excerptForPerson(workspaceId: string | undefined, activityId: string, personId: string, excerpt: string, locale?: string): Promise<string> {
+  if (!workspaceId) return excerpt;
+  const { masksChatTask, personChatReader } = await import('./crm-chat-privacy');
+  const { maskPhoneText } = await import('./groups-mask');
+  // Si no se puede saber, va enmascarado.
+  const reader = await personChatReader(workspaceId, personId, locale).catch(() => undefined);
+  if (reader === undefined) return maskPhoneText(excerpt);
+  return (await masksChatTask(activityId, reader)) ? maskPhoneText(excerpt) : excerpt;
+}
+
 /**
  * Para la respuesta a quien escribe: los mencionados que no ven la actividad
  * (solo su id y nombre, que ya conoce del equipo). Vacío si no hay.
@@ -198,11 +209,13 @@ export async function notifyMentionsDetailed(opts: NotifyOpts): Promise<{ notifi
       continue;
     }
     notified.push(id);
+    // Una tarea de un chat de Lines: a quien se le ocultan los teléfonos, el aviso y el email tampoco los traen.
+    const excerptFor = await excerptForPerson(opts.workspaceId, activity.id, person.id, excerpt, opts.locale);
     await createNotification({
       userId: id,
       type: 'mention',
       title: fill(L.subject, { actor: actorName, kind }),
-      body: excerpt.slice(0, 280),
+      body: excerptFor.slice(0, 280),
       href,
       sourceType: 'crm_activity',
       sourceId: activity.id,
@@ -212,12 +225,12 @@ export async function notifyMentionsDetailed(opts: NotifyOpts): Promise<{ notifi
     await sendEmail({
       to: person.email,
       subject: fill(L.subject, { actor: actorName, kind }),
-      text: `${fill(L.line, { actor: actorName, kind, record }).replace(/<[^>]+>/g, '')}\n\n${excerpt}\n\n${L.open}: ${url}`,
+      text: `${fill(L.line, { actor: actorName, kind, record }).replace(/<[^>]+>/g, '')}\n\n${excerptFor}\n\n${L.open}: ${url}`,
       html: renderBrandedHtml({
         heading: L.heading,
         paragraphs: [
           fill(L.line, vars),
-          escapeHtml(excerpt).replace(/\n/g, '<br>'),
+          escapeHtml(excerptFor).replace(/\n/g, '<br>'),
           `<a href="${escapeHtml(url)}">${escapeHtml(L.open)}</a>`,
         ],
       }),
