@@ -247,7 +247,7 @@ const parity: ProductParity = {
       id: 'standard-property-options',
       area: 'properties',
       label: { en: 'Edit the options and labels of built-in properties', es: 'Editar las opciones y etiquetas de las propiedades de fábrica', pt: 'Editar as opções e os rótulos das propriedades de fábrica' },
-      detail: { en: 'Lifecycle stage and lead status options can be edited. Source, priority, deal type and the property labels themselves cannot', es: 'Se pueden editar las opciones de lifecycle stage y lead status. Origen, prioridad, tipo de deal y los nombres de las propiedades no', pt: 'Dá para editar as opções de lifecycle stage e lead status. Origem, prioridade, tipo de negócio e os nomes das propriedades não' },
+      detail: { en: 'Lifecycle stage, lead status and deal type options can be edited in Settings › Data (add, rename, reorder, archive), and the record, preview, create form, board cards, filters, bulk edit and CSV import use them. Source, priority and the property labels themselves cannot', es: 'Las opciones de lifecycle stage, lead status y tipo de deal se editan en Ajustes › Datos (agregar, renombrar, ordenar, archivar), y la ficha, la vista previa, el formulario de alta, las tarjetas del board, los filtros, la edición en masa y el import CSV las usan. Origen, prioridad y los nombres de las propiedades no', pt: 'As opções de lifecycle stage, lead status e tipo de negócio são editadas em Ajustes › Dados (adicionar, renomear, ordenar, arquivar), e o registro, a prévia, o formulário de criação, os cartões do quadro, os filtros, a edição em massa e a importação CSV as usam. Origem, prioridade e os nomes das propriedades não' },
       status: 'partial',
       competitorHas: true,
     },

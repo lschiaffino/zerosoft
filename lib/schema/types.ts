@@ -241,7 +241,7 @@ export interface CrmDealRow {
   source: string;
   description: string;
   lost_reason: string;
-  /** '' | 'newbusiness' | 'existingbusiness' (DEAL_TYPES). */
+  /** '' (sin tipo) o una opción de deal type del workspace: 'newbusiness', 'existingbusiness' (DEAL_TYPES) u opt_… */
   deal_type?: string;
   next_step?: string;
   won_reason?: string;

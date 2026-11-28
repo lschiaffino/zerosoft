@@ -57,6 +57,8 @@ export function buildDealCloneBody(
   stages: CloneStage[],
   links: { contactIds: string[]; companyId: string | null; companyIds: string[] },
   suffix: string,
+  /** Tipos de deal activos del workspace: uno archivado no viaja (un deal nuevo solo toma opciones activas). Sin la lista, viaja. */
+  activeDealTypes?: readonly string[],
 ): Record<string, unknown> | null {
   const stageId = cloneStageId(stages, deal.stage_id);
   if (!stageId) return null;
@@ -77,7 +79,7 @@ export function buildDealCloneBody(
   if (links.companyId) body.companyId = links.companyId;
   if (deal.owner_id) body.ownerId = deal.owner_id;
   // Tipo y próximo paso viajan; el motivo de ganado no (la copia nace abierta).
-  if (deal.deal_type) body.dealType = deal.deal_type;
+  if (deal.deal_type && (!activeDealTypes || activeDealTypes.includes(deal.deal_type))) body.dealType = deal.deal_type;
   if (deal.next_step) body.nextStep = deal.next_step;
   return body;
 }

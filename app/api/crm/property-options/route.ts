@@ -14,7 +14,7 @@ import { crmError, forbidden, invalidBody, unauthorized } from '@/lib/crm-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Opciones de Lifecycle stage y Lead status del workspace (cualquier persona del CRM las lee para elegir). */
+/** Opciones de Lifecycle stage, Lead status y Deal type del workspace (cualquier persona del CRM las lee para elegir). */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return unauthorized();

@@ -224,8 +224,8 @@ export default function CreateFormFields({ entity, fields, variant, idPrefix, ct
     if (!def) return null;
     switch (def.input) {
       case 'select': {
-        // Lifecycle y lead status: las opciones activas del workspace (Ajustes › Datos › Opciones).
-        const optionProp = def.enumKey === 'lifecycle' || def.enumKey === 'leadStatus' ? def.enumKey : null;
+        // Lifecycle, lead status y deal type: las opciones activas del workspace (Ajustes › Datos › Opciones).
+        const optionProp = def.enumKey === 'lifecycle' || def.enumKey === 'leadStatus' || def.enumKey === 'dealType' ? def.enumKey : null;
         return wrap(
           select(
             optionProp

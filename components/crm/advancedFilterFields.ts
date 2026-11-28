@@ -156,6 +156,8 @@ export function dealFilterFields(
     sources: AdvFilterOption[];
     currencies: AdvFilterOption[];
     forecastCategories: AdvFilterOption[];
+    /** Deal type: las opciones del workspace (archivadas incluidas, para filtrar); sin ellas, las de fábrica. */
+    dealTypes?: AdvFilterOption[];
   },
 ): AdvFilterField[] {
   const { t } = opts;
@@ -186,7 +188,7 @@ export function dealFilterFields(
       label: t('deals.form.dealType'),
       type: 'select',
       group,
-      options: DEAL_TYPES.map((v) => ({ value: v, label: t(`enums.dealType.${v}`) })),
+      options: opts.dealTypes ?? DEAL_TYPES.map((v) => ({ value: v, label: t(`enums.dealType.${v}`) })),
     },
     { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', group },
     { key: 'wonReason', label: t('deals.form.wonReason'), type: 'text', group },

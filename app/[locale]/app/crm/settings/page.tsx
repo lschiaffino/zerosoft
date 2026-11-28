@@ -209,14 +209,15 @@ export default async function CrmSettingsPage(props: {
     );
   } else if (tab === 'data') {
     const viewer = sessionFieldViewer(user);
-    const [optionSets, lifecycleUsage, leadStatusUsage, crmSettingsData] = await Promise.all([
+    const [optionSets, lifecycleUsage, leadStatusUsage, dealTypeUsage, crmSettingsData] = await Promise.all([
       listOptionSets(user.id),
       // Cuántos registros tiene cada opción cuenta todo el workspace: solo para quien lo ve todo (admins).
       admin ? optionUsage(user.id, 'lifecycle') : Promise.resolve({}),
       admin ? optionUsage(user.id, 'leadStatus') : Promise.resolve({}),
+      admin ? optionUsage(user.id, 'dealType') : Promise.resolve({}),
       getCrmSettings(user.id),
     ]);
-    const optionUsageMap = { lifecycle: lifecycleUsage, leadStatus: leadStatusUsage };
+    const optionUsageMap = { lifecycle: lifecycleUsage, leadStatus: leadStatusUsage, dealType: dealTypeUsage };
     const [customFields, tags, objects, permissions, salesTeams, assocLabels, contactForm, companyForm, dealForm] = await Promise.all([
       visibleFieldDefinitions(viewer),
       listTags(user.id, undefined, await sessionScope(user)),

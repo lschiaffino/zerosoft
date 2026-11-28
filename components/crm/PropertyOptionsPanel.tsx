@@ -26,7 +26,7 @@ export function PropertyOptionsPanel({ initial, usage: initialUsage, canEdit }: 
   const router = useRouter();
   const [sets, setSets] = useState(initial);
   const [usage, setUsage] = useState(initialUsage);
-  const [drafts, setDrafts] = useState<Record<OptionProperty, string>>({ lifecycle: '', leadStatus: '' });
+  const [drafts, setDrafts] = useState<Record<OptionProperty, string>>({ lifecycle: '', leadStatus: '', dealType: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

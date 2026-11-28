@@ -732,7 +732,7 @@ interface WriteCtx {
 }
 
 /** Lifecycle o lead status ajeno → el nuestro: el mapeo de fábrica y, si no, una opción propia del workspace con ese nombre. */
-function optionFor(ctx: WriteCtx, prop: OptionProperty, raw: string): string | null {
+function optionFor(ctx: WriteCtx, prop: Exclude<OptionProperty, 'dealType'>, raw: string): string | null {
   const field = prop === 'lifecycle' ? 'lifecycleStage' : 'leadStatus';
   const builtin = inEnum<string>(prop === 'lifecycle' ? LIFECYCLE_STAGES : LEAD_STATUSES, normalizeImportValue(field, raw));
   if (builtin) return builtin;

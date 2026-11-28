@@ -14,7 +14,7 @@ import { canSeeActivity, canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } 
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
-import { DEAL_TYPES } from '@/lib/crm-constants';
+import { listOptionSets, optionHelpersWith } from '@/lib/crm-property-options';
 import DangerDelete from '@/components/crm/DangerDelete';
 import CloneDeal from '@/components/crm/CloneDeal';
 import { buildDealCloneBody } from '@/lib/crm-deal-clone';
@@ -75,8 +75,13 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
+  // Deal type: las opciones del workspace (Ajustes › Datos); se piden junto con lo demás.
+  const optionSetsP = listOptionSets(user.id);
+  optionSetsP.catch(() => {});
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  // Una archivada que el deal ya tiene se conserva en su selector.
+  const crmOpts = optionHelpersWith(await optionSetsP, t);
 
   const rawDetail = await getDeal(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.deal.owner_id, user.id)) notFound();
@@ -189,7 +194,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const historyValues: Record<string, Record<string, string>> = {
     priority: Object.fromEntries(PRIORITIES.map((v) => [v, t(`enums.priority.${v}`)])),
     source: Object.fromEntries(SOURCES.map((v) => [v, t(`enums.source.${v}`)])),
-    deal_type: Object.fromEntries(DEAL_TYPES.map((v) => [v, t(`enums.dealType.${v}`)])),
+    deal_type: crmOpts.labelMap('dealType'),
     forecast_category: Object.fromEntries(
       ['pipeline', 'best_case', 'commit', 'omit'].map((v) => [v, t(`forecast.category.${v}`)]).concat([['', t('forecast.category.auto', { category: t('forecast.byStage') })]]),
     ),
@@ -209,6 +214,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       companyIds: dealCompanies.map((c) => c.id),
     },
     t('deals.detail.cloneSuffix'),
+    // Un tipo archivado no viaja a la copia.
+    crmOpts.choices('dealType').map((o) => o.value),
   );
 
   const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));
@@ -427,7 +434,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       type: 'select',
       value: deal.deal_type ?? '',
       // '' lo deja sin elegir (la API lo acepta).
-      options: [{ value: '', label: '—' }, ...DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) }))],
+      options: [{ value: '', label: '—' }, ...crmOpts.choices('dealType', deal.deal_type || null)],
     },
     { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', value: deal.next_step ?? '' },
     { key: 'wonReason', label: t('deals.form.wonReason'), type: 'text', value: deal.won_reason ?? '' },

@@ -41,7 +41,8 @@ import { listTags, tagsForRecords } from '@/lib/crm-tags';
 import { getCurrencyContext } from '@/lib/crm-currency';
 import { convertAmount, formatMoney } from '@/lib/crm-money';
 import { dbTimestamp, dealIdleDays } from '@/lib/crm-rotting';
-import { COMMON_CURRENCIES, DEAL_TYPES } from '@/lib/crm-constants';
+import { COMMON_CURRENCIES } from '@/lib/crm-constants';
+import { listOptionSets, optionHelpersWith } from '@/lib/crm-property-options';
 import { FORECAST_CATEGORIES } from '@/lib/crm-forecast';
 import type { BulkEditField } from '@/components/crm/BulkEditControls';
 import { customBulkFields } from '@/components/crm/bulkFields';
@@ -127,13 +128,16 @@ export default async function DealsPage(props: DealsPageProps) {
   const membersP = workspaceTeamId(user) ? listMembers(workspaceTeamId(user)!) : null;
   const fieldAccessP = fieldAccessFor(sessionFieldViewer(user), 'deals');
   const tagsCurrencyP = Promise.all([listTags(user.id), getCurrencyContext(user.id)]);
-  for (const p of [membersP, fieldAccessP, tagsCurrencyP]) p?.catch(() => {});
+  const optionSetsP = listOptionSets(user.id);
+  for (const p of [membersP, fieldAccessP, tagsCurrencyP, optionSetsP]) p?.catch(() => {});
   const [pendingApprovals, scope, pipelines] = await Promise.all([
     countPendingFor(user.id, realUserId(user)),
     sessionScope(user),
     listPipelinesWithStages(user.id),
   ]);
   const t = await getTranslations({ locale, namespace: 'crm' });
+  // Deal type: las opciones del workspace (Ajustes › Datos).
+  const crmOpts = optionHelpersWith(await optionSetsP, t);
 
   const pipelineParam = one(searchParams.pipeline);
   const pipeline = pipelines.find((p) => p.id === pipelineParam) ?? pipelines[0];
@@ -195,6 +199,7 @@ export default async function DealsPage(props: DealsPageProps) {
     sources,
     currencies: COMMON_CURRENCIES.map((c) => ({ value: c, label: c })),
     forecastCategories: FORECAST_CATEGORIES.map((c) => ({ value: c as string, label: t(`forecast.category.${c}`) })),
+    dealTypes: crmOpts.all('dealType'),
   });
 
   // ---------- Vista activa (pestaña): la usan la tabla y el board ----------
@@ -485,7 +490,7 @@ export default async function DealsPage(props: DealsPageProps) {
         key: 'dealType',
         label: t('deals.form.dealType'),
         type: 'select',
-        options: DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) })),
+        options: crmOpts.choices('dealType'),
         nullable: true,
       },
       { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', nullable: true },

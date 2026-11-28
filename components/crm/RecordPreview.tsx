@@ -16,7 +16,7 @@ import PropertiesPanel, { type PropField } from './PropertiesPanel';
 import DealStagePanel, { type StageOption } from './DealStagePanel';
 import { customFieldSections, customPropFields } from './customPropFields';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
-import { DEAL_TYPES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import { PRIORITIES, SOURCES } from '@/lib/crm-constants';
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
 
 export type PreviewType = 'contact' | 'company' | 'deal' | 'lead';
@@ -456,7 +456,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
         label: t('deals.form.dealType'),
         type: 'select',
         value: d.deal_type ?? '',
-        options: [{ value: '', label: '—' }, ...DEAL_TYPES.map((v) => ({ value: v as string, label: t(`enums.dealType.${v}`) }))],
+        options: [{ value: '', label: '—' }, ...crmOpts.choices('dealType', d.deal_type || null)],
       },
       { key: 'nextStep', label: t('deals.form.nextStep'), type: 'text', value: d.next_step ?? '' },
       {
