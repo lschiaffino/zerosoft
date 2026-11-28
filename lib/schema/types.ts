@@ -1336,6 +1336,8 @@ export interface TrackProjectRow {
   cycle_auto_day?: string | null;
   /** 'private' = solo lo ven los miembros del proyecto (track_project_access). */
   visibility?: 'workspace' | 'private';
+  /** JSON de lib/track-team-roles: por área, si la maneja cualquier miembro o solo los dueños. */
+  team_permissions?: string | null;
   created_at: string;
   updated_at: string;
 }

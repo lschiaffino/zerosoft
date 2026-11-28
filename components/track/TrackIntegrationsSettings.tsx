@@ -628,8 +628,12 @@ interface RuleRow {
 
 const RULE_KEYS = ['onDraft', 'onOpen', 'onReview', 'onMerge'] as const;
 
-/** Instalar la GitHub App y, por proyecto, a qué status mueve cada momento del PR y qué repo sincroniza. */
-export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
+/**
+ * Instalar la GitHub App y, por proyecto, a qué status mueve cada momento del
+ * PR y qué repo sincroniza. Con `projectId` (ajustes de un team) muestra solo
+ * las reglas de ese team, que pueden cambiar sus dueños.
+ */
+export function GithubExtras({ isAdmin, projectId: onlyProject }: { isAdmin: boolean; projectId?: string }) {
   const t = useTranslations('track');
   const [projects, setProjects] = useState<MetaProject[]>([]);
   const [rules, setRules] = useState<RuleRow[] | null>(null);
@@ -639,8 +643,17 @@ export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // En los ajustes de un team se pide solo ese team (la lista meta viene paginada).
+    const teamOnly = async (id: string): Promise<{ ok: boolean; data: { rows: MetaProject[] } }> => {
+      const [team, statuses] = await Promise.all([
+        send<{ id: string; name: string }>(`/api/track/projects/${encodeURIComponent(id)}`, 'GET'),
+        send<{ rows: MetaProject['statuses'] }>(`/api/track/projects/${encodeURIComponent(id)}/statuses`, 'GET'),
+      ]);
+      const ok = team.ok && statuses.ok;
+      return { ok, data: { rows: ok ? [{ id: team.data.id, name: team.data.name, statuses: statuses.data.rows }] : [] } };
+    };
     const [p, r, c] = await Promise.all([
-      send<{ rows: MetaProject[] }>('/api/track/projects?meta=1', 'GET').catch(() => null),
+      (onlyProject ? teamOnly(onlyProject) : send<{ rows: MetaProject[] }>('/api/track/projects?meta=1', 'GET')).catch(() => null),
       send<{ rows: RuleRow[]; appAvailable: boolean }>('/api/track/github/rules', 'GET').catch(() => null),
       send<{ config: { installationId: number | null; accountLogin: string | null } | null }>('/api/track/github', 'GET').catch(() => null),
     ]);
@@ -648,7 +661,7 @@ export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
     setRules(r?.ok ? r.data.rows : []);
     setAppAvailable(Boolean(r?.data.appAvailable));
     setInstall(c?.ok && c.data.config ? { id: c.data.config.installationId, login: c.data.config.accountLogin } : null);
-  }, []);
+  }, [onlyProject]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -668,7 +681,7 @@ export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <>
-      {appAvailable ? (
+      {appAvailable && !onlyProject ? (
         <FormSection
           title={t('github.appTitle')}
           description={t('github.appHelp')}
@@ -689,7 +702,7 @@ export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
           {null}
         </FormSection>
       ) : null}
-      <FormSection title={t('github.rulesTitle')} description={t('github.rulesHelp')}>
+      <FormSection title={onlyProject ? t('github.title') : t('github.rulesTitle')} description={onlyProject ? t('github.rulesHelpTeam') : t('github.rulesHelp')}>
         <div className="track-settings-block" data-testid="track-github-rules">
           {error ? (
             <p className="ui-error" role="alert">
@@ -784,6 +797,143 @@ export function GithubExtras({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </FormSection>
     </>
+  );
+}
+
+/**
+ * Avisos de Slack de un team (ajustes del team): a qué canales manda qué
+ * eventos. Los maneja el dueño del team; conectar Slack es del workspace.
+ */
+export function TeamSlackChannels({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
+  const t = useTranslations('track');
+  const [data, setData] = useState<{ connected: boolean; channels: Array<{ id: string; name: string }>; subs: SlackChannelSub[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [channel, setChannel] = useState('');
+  const [events, setEvents] = useState<string[]>(['issue_created', 'status_changed']);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!canEdit) return;
+    const r = await send<{ connected: boolean; channels: Array<{ id: string; name: string }>; subs: SlackChannelSub[] }>(
+      `/api/track/integrations/slack/channels?projectId=${encodeURIComponent(projectId)}`,
+      'GET',
+    ).catch(() => null);
+    if (!r?.ok) return setFailed(true);
+    setFailed(false);
+    setData(r.data);
+    setChannel((cur) => cur || r.data.channels[0]?.id || '');
+  }, [projectId, canEdit]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!canEdit) {
+    return (
+      <FormSection title="Slack" description={t('integrations.slack.teamHelp')}>
+        <p className="ui-help" data-testid="track-team-slack-locked">
+          {t('teamRoles.ownersOnly')}
+        </p>
+      </FormSection>
+    );
+  }
+  if (failed) {
+    return (
+      <FormSection title="Slack" description={t('integrations.slack.teamHelp')}>
+        <p className="ui-error" role="alert">
+          {t('integrations.loadError')}
+        </p>
+      </FormSection>
+    );
+  }
+  if (!data) {
+    return (
+      <FormSection title="Slack" description={t('integrations.slack.teamHelp')}>
+        <Skeleton />
+      </FormSection>
+    );
+  }
+  if (!data.connected) {
+    return (
+      <FormSection title="Slack" description={t('integrations.slack.teamHelp')}>
+        <p className="ui-help" data-testid="track-team-slack-off">
+          {t('integrations.slack.teamNotConnected')}
+        </p>
+      </FormSection>
+    );
+  }
+
+  const apply = (r: { ok: boolean; data: { subs?: SlackChannelSub[] } } | null) => {
+    if (!r?.ok) {
+      setError(t('integrations.error'));
+      return;
+    }
+    setError(null);
+    setData((d) => (d ? { ...d, subs: (r.data.subs ?? []).filter((s) => s.projectId === projectId) } : d));
+  };
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!channel || events.length === 0) return;
+    setBusy(true);
+    const name = data.channels.find((c) => c.id === channel)?.name ?? '';
+    apply(await send<{ subs: SlackChannelSub[] }>('/api/track/integrations/slack/channels', 'POST', { projectId, channelId: channel, channelName: name, events }).catch(() => null));
+    setBusy(false);
+  };
+  const remove = async (id: string) => {
+    apply(await send<{ subs: SlackChannelSub[] }>(`/api/track/integrations/slack/channels?id=${encodeURIComponent(id)}`, 'DELETE').catch(() => null));
+  };
+
+  return (
+    <FormSection title="Slack" description={t('integrations.slack.teamHelp')}>
+      <div className="track-settings-block" data-testid="track-team-slack">
+        {error ? (
+          <p className="ui-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {data.subs.length === 0 ? (
+          <p className="ui-help">{t('integrations.slack.noChannels')}</p>
+        ) : (
+          <ul className="track-status-list" data-testid="track-team-slack-subs">
+            {data.subs.map((s) => (
+              <li key={s.id} className="track-status-item track-int-row">
+                <span className="data">#{s.channelName || s.channelId}</span>
+                <span className="st-muted">{s.events.map((ev) => t(`integrations.slack.events.${ev}`)).join(', ')}</span>
+                <button type="button" className="btn btn-sm" onClick={() => void remove(s.id)} aria-label={t('integrations.slack.removeChannel', { channel: s.channelName })}>
+                  {t('integrations.remove')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form className="track-int-form" onSubmit={(e) => void add(e)} aria-label={t('integrations.slack.addChannel')}>
+          <div className="ui-field">
+            <label className="label" htmlFor={`team-slack-channel-${projectId}`}>
+              {t('integrations.slack.channel')}
+            </label>
+            <select id={`team-slack-channel-${projectId}`} className="select" value={channel} onChange={(e) => setChannel(e.target.value)} disabled={!data.channels.length}>
+              {data.channels.map((c) => (
+                <option key={c.id} value={c.id}>
+                  #{c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <fieldset className="track-int-events">
+            <legend className="label">{t('integrations.slack.eventsLabel')}</legend>
+            {SLACK_EVENTS.map((ev) => (
+              <label key={ev} className="ui-check">
+                <input type="checkbox" checked={events.includes(ev)} onChange={() => setEvents((prev) => (prev.includes(ev) ? prev.filter((x) => x !== ev) : [...prev, ev]))} />
+                <span>{t(`integrations.slack.events.${ev}`)}</span>
+              </label>
+            ))}
+          </fieldset>
+          <button type="submit" className="btn" disabled={busy || !channel || events.length === 0} data-testid="track-team-slack-add">
+            {t('integrations.slack.addChannel')}
+          </button>
+        </form>
+      </div>
+    </FormSection>
   );
 }
 
@@ -1123,6 +1273,8 @@ const ACTION_KEYS = [
   'project.visibility',
   'access.member_added',
   'access.member_removed',
+  'access.role_changed',
+  'project.permissions',
   'access.guest_set',
   'access.guest_removed',
   'integration.connected',

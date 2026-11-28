@@ -17,10 +17,12 @@ interface TemplatesPanelProps {
   statuses: TrackStatusRow[];
   members: ProjectMember[];
   onChanged: () => void | Promise<void>;
+  /** Crear, editar y borrar: según el permiso de plantillas del team (lib/track-team-roles). */
+  canEdit?: boolean;
 }
 
 /** Plantillas de issue del proyecto (drawer de ajustes): crear, editar y borrar. */
-export default function TemplatesPanel({ projectId, templates, statuses, members, onChanged }: TemplatesPanelProps) {
+export default function TemplatesPanel({ projectId, templates, statuses, members, onChanged, canEdit = true }: TemplatesPanelProps) {
   const t = useTranslations('track');
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
     <div className="track-templates" data-testid="track-templates">
       <div className="track-pane-head">
         <p className="ui-help">{t('templates.help')}</p>
-        {editing !== 'new' && templates.length > 0 && (
+        {canEdit && editing !== 'new' && templates.length > 0 && (
           <button type="button" className="btn btn-sm" onClick={() => setEditing('new')} data-testid="track-new-template">
             {t('templates.new')}
           </button>
@@ -77,6 +79,11 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
           {error}
         </p>
       )}
+      {!canEdit && (
+        <p className="ui-help" data-testid="track-templates-locked">
+          {t('teamSettings.ownersOnlyArea')}
+        </p>
+      )}
       {editing === 'new' && form(null)}
       {templates.length === 0 && editing !== 'new' ? (
         <EmptyState
@@ -84,9 +91,11 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
           title={t('templates.emptyTitle')}
           body={t('templates.emptyBody')}
           action={
-            <button type="button" className="btn btn-primary" onClick={() => setEditing('new')} data-testid="track-new-template">
-              {t('templates.new')}
-            </button>
+            canEdit ? (
+              <button type="button" className="btn btn-primary" onClick={() => setEditing('new')} data-testid="track-new-template">
+                {t('templates.new')}
+              </button>
+            ) : undefined
           }
         />
       ) : (
@@ -132,12 +141,16 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
                         </button>
                       </>
                     )}
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(tpl.id)}>
-                      {t('templates.edit')}
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(tpl.id)}>
-                      {t('templates.delete')}
-                    </button>
+                    {canEdit && (
+                      <>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(tpl.id)}>
+                          {t('templates.edit')}
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(tpl.id)}>
+                          {t('templates.delete')}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </li>

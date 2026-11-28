@@ -511,7 +511,8 @@
     "archivedEmpty": "No archived issues.",
     "restore": "Restore",
     "restoreAll": "Restore all",
-    "restored": "{count, plural, one {# issue restored} other {# issues restored}}"
+    "restored": "{count, plural, one {# issue restored} other {# issues restored}}",
+    "ownersOnly": "Only team owners and workspace admins can change these settings."
   },
   "pickers": {
     "today": "Today",

@@ -34,7 +34,7 @@ async function load(id: string) {
   if (!rule) return { res: notFound() } as const;
   const a = await projectAccess(rule.projectId);
   if (!a.ok) return { res: a.res } as const;
-  if (!a.admin) return { res: trackError(403, 'forbidden') } as const;
+  if (!a.teamOwner) return { res: trackError(403, 'forbidden') } as const;
   return { rule } as const;
 }
 

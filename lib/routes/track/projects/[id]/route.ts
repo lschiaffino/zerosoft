@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser, isWorkspaceAdmin, realUserId } from '@/lib/session';
+import { teamCapabilities } from '@/lib/track-team-roles';
 import { deleteProject, getProject, updateProject, canAccessTrackProject } from '@/lib/track-data';
 import { projectUpdateSchema } from '@/lib/track-schema';
 import { syncAutoCycles } from '@/lib/track-auto-cycles';
@@ -39,7 +40,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const parsed = projectUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
   // Slug (cambia los identificadores y rompe GitHub), archivar, triage y
-  // cycles automáticos son configuración compartida: solo owner/admin.
+  // cycles automáticos son configuración delicada: solo dueños del team o
+  // admins. Nombre, ícono y lo demás, según el permiso de ajustes del team.
   const { slug, status, triageEnabled, cycleAuto, cycleWeeks, cycleName, autoCloseParent, autoCloseChildren, estimateScale } = parsed.data;
   const adminOnly =
     (slug !== undefined && slug !== project.slug) ||
@@ -51,7 +53,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     (autoCloseParent !== undefined && autoCloseParent !== Boolean(project.auto_close_parent)) ||
     (autoCloseChildren !== undefined && autoCloseChildren !== Boolean(project.auto_close_children)) ||
     (estimateScale !== undefined && estimateScale !== (project.estimate_scale ?? 'fibonacci'));
-  if (adminOnly && !isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
+  const caps = await teamCapabilities(project, realUserId(user), isWorkspaceAdmin(user));
+  if (adminOnly ? !caps.owner : !caps.settings) return trackError(403, 'forbidden');
   // Identificador ocupado por otro team: se avisa en vez de inventar otro.
   if (slug !== undefined && slug !== project.slug) {
     const taken = (await getDb()
@@ -73,11 +76,10 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  // Borrar configuración compartida del workspace: solo owner/admin.
-  if (!isWorkspaceAdmin(user)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
+  // Borrar el team: solo sus dueños o los admins del workspace.
+  if (!(await teamCapabilities(project, realUserId(user), isWorkspaceAdmin(user))).owner) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   await deleteProject(params.id);
   return NextResponse.json({ ok: true });

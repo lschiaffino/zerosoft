@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-23',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -402,8 +402,8 @@ const parity: ProductParity = {
       id: 'private-projects-guests',
       area: 'admin',
       label: { en: 'Private teams, guests and per-team roles', es: 'Equipos privados, invitados y roles por equipo', pt: 'Equipes privadas, convidados e papéis por equipe' },
-      detail: { en: 'Private teams for their members and guests limited to chosen teams, also in the API, search and integrations; no owner role per team, workspace admins manage access', es: 'Equipos privados para sus miembros e invitados limitados a ciertos equipos, también en la API, la búsqueda y las integraciones; sin rol de dueño por equipo, el acceso lo manejan los admins del workspace', pt: 'Equipes privadas para os seus membros e convidados limitados a certos equipes, também na API, na busca e nas integrações; sem papel de dono por equipe, o acesso é gerido pelos admins do workspace' },
-      status: 'partial',
+      detail: { en: 'Private teams for their members and guests limited to chosen teams, also in the API, search and integrations; team owners manage their team’s members and settings (statuses, labels, templates, triage, automations, GitHub rules, Slack channels) without being workspace admins, and can open an area to any member', es: 'Equipos privados para sus miembros e invitados limitados a ciertos equipos, también en la API, la búsqueda y las integraciones; los dueños de un equipo manejan sus miembros y ajustes (estados, labels, plantillas, triage, automatizaciones, reglas de GitHub, canales de Slack) sin ser admins del workspace, y pueden abrir un área a cualquier miembro', pt: 'Equipes privadas para os seus membros e convidados limitados a certas equipes, também na API, na busca e nas integrações; os donos de uma equipe gerenciam os seus membros e ajustes (status, etiquetas, templates, triage, automações, regras do GitHub, canais do Slack) sem ser admins do workspace, e podem abrir uma área para qualquer membro' },
+      status: 'have',
       competitorHas: true,
       weight: 2,
     },

@@ -5,6 +5,7 @@ import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { deleteTemplate, getTemplate, updateTemplate } from '@/lib/track-templates';
 import { templateUpdateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { teamCan } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   if (!user) return unauthorized();
   const found = await accessible(id, user.team?.id ?? null, user.id);
   if (!found) return notFound();
+  if (!(await teamCan(user, found.project, 'templates'))) return trackError(403, 'forbidden');
   const parsed = templateUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const invalid = await validateIssueRefs(found.project, parsed.data, { ownerId: user.id });
@@ -36,6 +38,7 @@ export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: s
   if (!user) return unauthorized();
   const found = await accessible(id, user.team?.id ?? null, user.id);
   if (!found) return notFound();
+  if (!(await teamCan(user, found.project, 'templates'))) return trackError(403, 'forbidden');
   await deleteTemplate(found.project.id, id);
   return NextResponse.json({ ok: true });
 }

@@ -230,7 +230,7 @@
     "loadError": "Não foi possível carregar as configurações de triage.",
     "saved": "Salvo",
     "error": "Não foi possível salvar a mudança.",
-    "adminOnly": "Só um admin pode mudar estas configurações.",
+    "adminOnly": "Só os donos da equipe e os admins do workspace podem mudar estes ajustes.",
     "ownerTitle": "Responsável pelo triage",
     "ownerHelp": "Uma pessoa de plantão cuida da fila de triage, em rodízio diário ou semanal nesta ordem.",
     "ownerAction": "Quando chega um issue",

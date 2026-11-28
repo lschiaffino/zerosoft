@@ -207,6 +207,19 @@ const STEPS: Step[] = [
         .run(e.userId, e.ownerId),
   },
   {
+    // Track: roles de dueño de team del workspace.
+    name: 'track_team_roles',
+    run: async (e) => {
+      try {
+        await db()
+          .prepare('DELETE FROM track_team_roles WHERE user_id = ? AND project_id IN (SELECT id FROM track_projects WHERE owner_id = ?)')
+          .run(e.userId, e.ownerId);
+      } catch (err) {
+        if (!/no such table/i.test(String(err))) throw err;
+      }
+    },
+  },
+  {
     // Docs: teamspaces del workspace.
     name: 'docs_teamspaces',
     run: (e) =>

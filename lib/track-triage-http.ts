@@ -9,6 +9,7 @@ import { canAccessTrackProject, getIssue, getProject, type TrackIssueWithStatus 
 import type { TrackProjectRow } from './db';
 import { notFound, trackError, unauthorized } from './track-http';
 import { requestLocale } from './request-locale';
+import { teamCapabilities } from './track-team-roles';
 
 /** Idioma del request (cookie de next-intl o Accept-Language) para los textos de IA. */
 export function reqLocale(req: { cookies: { get(name: string): { value: string } | undefined }; headers: Headers }): string {
@@ -29,15 +30,18 @@ export async function issueAccess(id: string): Promise<IssueAccess> {
 }
 
 export type ProjectAccess =
-  | { ok: true; user: SessionUser; actorId: string; project: TrackProjectRow; admin: boolean }
+  | { ok: true; user: SessionUser; actorId: string; project: TrackProjectRow; admin: boolean; teamOwner: boolean }
   | { ok: false; res: NextResponse };
 
+/** `teamOwner`: dueño del team o admin del workspace (lib/track-team-roles). */
 export async function projectAccess(id: string): Promise<ProjectAccess> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, res: unauthorized() };
   const project = await getProject(id);
   if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return { ok: false, res: notFound() };
-  return { ok: true, user, actorId: realUserId(user), project, admin: isWorkspaceAdmin(user) };
+  const admin = isWorkspaceAdmin(user);
+  const caps = await teamCapabilities(project, realUserId(user), admin);
+  return { ok: true, user, actorId: realUserId(user), project, admin, teamOwner: caps.owner };
 }
 
 /** Errores de dominio (code + status) y de IA a JSON { error }. */

@@ -8,6 +8,7 @@ import { listTemplates } from '@/lib/track-templates';
 import { listRecurring } from '@/lib/track-recurring';
 import { listTriageIssues } from '@/lib/track-bulk';
 import ProjectPageClient from '@/components/track/ProjectPageClient';
+import { teamCapabilities } from '@/lib/track-team-roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,12 +51,16 @@ export default async function TeamPage(
     listTriageIssues(project.id, { snoozed: false }),
   ]);
 
+  // Roles del team (lib/track-team-roles): qué ajustes puede tocar quien mira.
+  const teamCan = await teamCapabilities(project, me, isWorkspaceAdmin(user));
+
   return (
     <ProjectPageClient
       project={project}
       teamKey={canonical}
       userId={me}
       isAdmin={isWorkspaceAdmin(user)}
+      teamCan={teamCan}
       initialStatuses={statuses}
       initialMembers={members}
       initialViews={views}

@@ -9,6 +9,7 @@ import type { TrackIssueTemplateRow, TrackProjectRow, TrackRecurringIssueRow, Tr
 import type { ProjectMember, TrackIssueWithStatus, TrackProjectMeta } from '@/lib/track-data';
 import type { TrackMilestoneWithProgress } from '@/lib/track-milestones';
 import type { TrackSavedView } from '@/lib/track-ux';
+import { adminOnlyCapabilities, type TeamCapabilities } from '@/lib/track-team-areas';
 import { upcomingMilestone } from '@/lib/track-milestone-utils';
 import { activeCycle, formatDay } from '@/lib/track-tasks';
 import { TEAMS_PATH, teamPath } from '@/lib/track-routes';
@@ -40,6 +41,8 @@ interface ProjectPageClientProps {
   userId: string;
   /** Owner/admin del workspace: puede borrar en masa. */
   isAdmin?: boolean;
+  /** Roles del team (lib/track-team-roles): sin esto, lo que permite ser admin. */
+  teamCan?: TeamCapabilities;
   initialStatuses: TrackStatusRow[];
   initialMembers: ProjectMember[];
   initialViews: TrackSavedView[];
@@ -77,6 +80,7 @@ export default function ProjectPageClient({
   teamKey,
   userId,
   isAdmin = false,
+  teamCan: teamCanProp,
   initialStatuses,
   initialMembers,
   initialViews,
@@ -94,6 +98,7 @@ export default function ProjectPageClient({
   const ui = useMemo(() => buildTrackUiLabels((k) => t(k)), [t]);
   const projectId = initialProject.id;
   const href = teamPath(teamKey);
+  const teamCan: TeamCapabilities = teamCanProp ?? adminOnlyCapabilities(isAdmin);
 
   const [project, setProject] = useState<TrackProjectRow>(initialProject);
   const [statuses, setStatuses] = useState<TrackStatusRow[]>(initialStatuses);
@@ -316,14 +321,16 @@ export default function ProjectPageClient({
         <ProjectSettingsDrawer
           projectName={project.name}
           projectId={projectId}
-          isAdmin={isAdmin}
+          isAdmin={teamCan.owner}
+          workspaceAdmin={isAdmin}
+          teamCan={teamCan}
           onClose={closeSettings}
           panels={{
             cycles: (
               <>
                 <AutoCyclesSettings
                   project={project}
-                  isAdmin={isAdmin}
+                  isAdmin={teamCan.owner}
                   onSaved={async (updated) => {
                     setProject(updated);
                     await reloadCycles();
@@ -352,13 +359,14 @@ export default function ProjectPageClient({
                 }}
               />
             ),
-            templates: <TemplatesPanel projectId={projectId} templates={templates} statuses={statuses} members={members} onChanged={reloadTemplates} />,
+            templates: <TemplatesPanel projectId={projectId} templates={templates} statuses={statuses} members={members} onChanged={reloadTemplates} canEdit={teamCan.templates} />,
             recurring: <RecurringPanel projectId={projectId} rules={recurring} statuses={statuses} members={members} today={today} onChanged={reloadRecurring} />,
             statuses: (
               <StatusesSettings
                 projectId={projectId}
                 statuses={statuses}
-                canDelete={isAdmin}
+                canDelete={teamCan.owner}
+                canEdit={teamCan.settings}
                 onChange={(next, opts) => {
                   setStatuses(next);
                   if (opts?.reloadIssues) changed();
@@ -372,7 +380,7 @@ export default function ProjectPageClient({
                     type="checkbox"
                     role="switch"
                     checked={Boolean(project.triage_enabled)}
-                    disabled={!isAdmin}
+                    disabled={!teamCan.owner}
                     onChange={(e) => void toggleTriage(e.target.checked)}
                     aria-describedby="track-triage-help"
                     data-testid="track-triage-toggle"
@@ -382,8 +390,8 @@ export default function ProjectPageClient({
                 <p className="ui-help" id="track-triage-help">
                   {t('triage.enableHelp')}
                 </p>
-                {!isAdmin && <p className="ui-help">{t('triage.adminOnly')}</p>}
-                <TriageSettingsPanel projectId={projectId} isAdmin={isAdmin} members={members} statuses={statuses} />
+                {!teamCan.owner && <p className="ui-help">{t('triage.adminOnly')}</p>}
+                <TriageSettingsPanel projectId={projectId} isAdmin={teamCan.owner} members={members} statuses={statuses} />
               </div>
             ),
           }}

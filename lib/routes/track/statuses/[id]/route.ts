@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isWorkspaceAdmin } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
+import { teamCan } from '@/lib/track-team-guard';
 import {
   canAccessTrackProject,
   deleteStatusWithReassign,
@@ -19,7 +20,7 @@ async function accessibleStatus(id: string, teamId: string | null, ownerId: stri
   if (!status) return null;
   const project = await getProject(status.project_id);
   if (!project || !(await canAccessTrackProject(project, teamId, ownerId))) return null;
-  return status;
+  return Object.assign(status, { project });
 }
 
 /** PATCH /api/track/statuses/:id — renombrar, color, categoría. */
@@ -30,6 +31,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   const status = await accessibleStatus(params.id, user.team?.id ?? null, user.id);
   if (!status) return notFound();
+  // Estados del workflow: ajustes del team (lib/track-team-roles).
+  if (!(await teamCan(user, status.project, 'settings'))) return trackError(403, 'forbidden');
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = statusUpdateSchema.safeParse(body);
@@ -46,11 +49,10 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  // Configuración compartida del proyecto: solo owner/admin.
-  if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
-
   const status = await accessibleStatus(params.id, user.team?.id ?? null, user.id);
   if (!status) return notFound();
+  // Borrar un estado mueve issues: solo dueños del team o admins.
+  if (!(await teamCan(user, status.project, 'owner'))) return trackError(403, 'forbidden');
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = statusDeleteSchema.safeParse(body);

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { getProject, reorderStatuses, canAccessTrackProject } from '@/lib/track-data';
 import { statusesReorderSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { teamCan } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
+
+  if (!(await teamCan(user, project, 'settings'))) return trackError(403, 'forbidden');
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = statusesReorderSchema.safeParse(body);

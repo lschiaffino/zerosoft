@@ -9,7 +9,7 @@
     "inbox": "Bandeja",
     "customers": "Clientes",
     "forms": "Formularios de pedidos",
-    "workspace":"Workspace",
+    "workspace": "Workspace",
     "yourTeams": "Tus equipos",
     "more": "Más",
     "newIssue": "Nuevo issue",
@@ -562,7 +562,7 @@
     "moveDown": "Bajar",
     "delete": "Borrar",
     "reassignTo": "Pasar sus issues a",
-    "adminOnly": "Solo un admin puede borrar estados.",
+    "adminOnly": "Solo los dueños del equipo y los admins del workspace pueden borrar estados.",
     "confirmDelete": "Borrar estado",
     "newPlaceholder": "Nuevo estado",
     "add": "Agregar",
@@ -595,7 +595,8 @@
     "helpTeam": "Los labels que crees acá son de este equipo. Los del workspace están en todos los equipos.",
     "teamSection": "Labels del equipo",
     "workspaceSection": "Labels del workspace",
-    "teamEmpty": "Este equipo todavía no tiene labels propios."
+    "teamEmpty": "Este equipo todavía no tiene labels propios.",
+    "teamOwnerNote": "Podés editar y borrar los labels de este equipo. Los del workspace son de los admins."
   },
   "github": {
     "title": "GitHub",
@@ -669,6 +670,7 @@
     "appReinstall": "Cambiar repos",
     "rulesTitle": "Automatizaciones por equipo",
     "rulesHelp": "Elegí a qué status pasa cada equipo cuando un pull request está en draft, se abre, pide review o se mergea. Sin reglas propias, el equipo usa las del workspace.",
+    "rulesHelpTeam": "Elegí a qué status pasa este equipo cuando un pull request está en draft, se abre, pide review o se mergea. Sin reglas propias, usa las del workspace en Ajustes de Track, GitHub.",
     "rulesNoProjects": "Creá un equipo para configurar sus automatizaciones.",
     "customRules": "Reglas propias",
     "saved": "Guardado",
@@ -709,7 +711,7 @@
     "enable": "Triage para issues externos",
     "enableHelp": "Los issues creados por API, Chat, Flow o GitHub esperan acá hasta que alguien los acepte.",
     "toggleError": "No se pudo cambiar el triage.",
-    "adminOnly": "Solo un admin puede activar o apagar el triage.",
+    "adminOnly": "Solo los dueños del equipo y los admins del workspace pueden activar o apagar el triage.",
     "empty": "No hay issues esperando triage.",
     "accept": "Aceptar",
     "acceptAs": "Aceptar en",
@@ -857,7 +859,7 @@
     "save": "Guardar",
     "saved": "Guardado",
     "error": "No se pudo guardar. Probá de nuevo.",
-    "adminOnly": "Solo owners y admins del workspace pueden cambiar esto."
+    "adminOnly": "Solo los dueños del equipo y los admins del workspace cambian los cycles automáticos."
   },
   "templates": {
     "default": "Por defecto",
@@ -1243,6 +1245,8 @@
     "logEmpty": "Todavía nada.",
     "slack": {
       "help": "Creá issues desde mensajes de Slack y con /track, recibí avisos de equipos en canales, sincronizá hilos de comentarios y mirá la vista previa de los links de issues.",
+      "teamHelp": "Canales de Slack que reciben los avisos de este equipo.",
+      "teamNotConnected": "Slack no está conectado a este workspace. Lo conecta un admin del workspace en Ajustes de Track, Integraciones.",
       "notConfigured": "Slack todavía no está configurado en este servidor (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET y SLACK_SIGNING_SECRET).",
       "connect": "Conectar Slack",
       "connectedTo": "Conectado a {team}.",
@@ -2014,7 +2018,7 @@
     "autoCloseParent": "Cerrar el padre cuando terminan todos sus sub-issues",
     "autoCloseChildren": "Cerrar los sub-issues abiertos cuando el padre se termina o se cancela",
     "housekeeping": "Auto-cierre y auto-archivo",
-    "integrationsHelp": "GitHub, Slack, Sentry y la API se configuran para todo el workspace.",
+    "integrationsHelp": "La GitHub App, Slack, Sentry y la API se configuran para todo el workspace.",
     "estimatesHelp": "Elegí la escala de las estimaciones del equipo. ⇧E ofrece esos valores.",
     "scales": {
       "fibonacci": "Fibonacci",
@@ -2022,7 +2026,8 @@
       "exponential": "Exponencial",
       "tshirt": "Talles de remera",
       "none": "Sin estimaciones"
-    }
+    },
+    "ownersOnlyArea": "En este equipo, solo sus dueños pueden cambiar esto."
   },
   "dnd": {
     "count": "{count, plural, one {# issue} other {# issues}}",
@@ -2143,5 +2148,28 @@
     "placeholder": "Dejá un comentario…",
     "empty": "Todavía no hay comentarios.",
     "loadError": "No se pudieron cargar los comentarios."
+  },
+  "teamRoles": {
+    "help": "Los dueños del equipo manejan sus miembros y ajustes; los admins del workspace también.",
+    "owner": "Dueño",
+    "member": "Miembro",
+    "admin": "Admin del workspace",
+    "guest": "Invitado",
+    "roleOf": "Rol de {name}",
+    "leave": "Salir del equipo",
+    "removeFrom": "Sacar a {name} del equipo",
+    "remove": "Sacar",
+    "ownersOnly": "Solo los dueños del equipo y los admins del workspace pueden cambiar esto.",
+    "guestCannotOwn": "Un invitado no puede ser dueño del equipo.",
+    "permissionsTitle": "Permisos",
+    "private": "Equipo privado: solo lo ven sus miembros",
+    "anyMember": "Cualquier miembro del equipo",
+    "ownersOnlyOption": "Solo los dueños del equipo",
+    "areas": {
+      "settings": "Quién cambia el nombre, el ícono y los estados del workflow",
+      "labels": "Quién crea y edita labels del equipo",
+      "templates": "Quién crea y edita plantillas y formularios de pedidos",
+      "members": "Quién suma miembros a un equipo privado"
+    }
   }
 }

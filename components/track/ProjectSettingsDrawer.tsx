@@ -11,6 +11,8 @@ import WorkspaceInviteForm from './WorkspaceInviteForm';
 import { LabelsSettings } from './TrackSettingsClient';
 import { TeamAutomation } from './planning/AutomationSettings';
 import { ESTIMATE_SCALES, estimateOptions, isEstimateScale, type EstimateScale } from '@/lib/track-estimates';
+import { TEAM_AREAS, adminOnlyCapabilities, type TeamCapabilities, type TeamPermissions } from '@/lib/track-team-areas';
+import { GithubExtras, TeamSlackChannels } from './TrackIntegrationsSettings';
 
 /** Pestañas que arma la página del team (ProjectPageClient). */
 export type ProjectSettingsTab = 'cycles' | 'statuses' | 'milestones' | 'templates' | 'recurring' | 'triage';
@@ -23,7 +25,12 @@ interface ProjectSettingsDrawerProps {
   projectName: string;
   /** Si no llega, se toma del team de la página (data-track-project-id). */
   projectId?: string;
+  /** Dueño del team o admin del workspace: lo que es solo de dueños (lib/track-team-roles). */
   isAdmin?: boolean;
+  /** Admin del workspace: invitar gente y el acceso de todo el workspace. */
+  workspaceAdmin?: boolean;
+  /** Qué áreas del team puede tocar quien mira; sin esto, todas menos lo de dueños. */
+  teamCan?: TeamCapabilities;
   initialTab?: DrawerTab;
   onClose: () => void;
   /** Contenido de cada pestaña de la página (se monta solo la activa). */
@@ -41,7 +48,7 @@ async function send<T>(url: string, method = 'GET', body?: unknown): Promise<{ o
 }
 
 /** General: nombre, identificador (prefijo de los IDs) e ícono. */
-function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
+function GeneralPanel({ projectId, isAdmin, canEdit }: { projectId: string; isAdmin: boolean; canEdit: boolean }) {
   const t = useTranslations('track');
   const router = useRouter();
   const [project, setProject] = useState<TrackProjectRow | null>(null);
@@ -64,7 +71,7 @@ function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
     const r = await send<TrackProjectRow & { error?: string }>(`/api/track/projects/${projectId}`, 'PATCH', body);
     if (!r.ok) {
       const code = r.data.error;
-      setError(code === 'slug_taken' ? t('errors.slug_taken') : r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+      setError(code === 'slug_taken' ? t('errors.slug_taken') : r.status === 403 ? t('teamRoles.ownersOnly') : t('errors.generic'));
       if (project) setKey(project.slug.toUpperCase());
       return;
     }
@@ -99,6 +106,8 @@ function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
           className="input"
           defaultValue={project.name}
           maxLength={200}
+          disabled={!canEdit}
+          data-testid="track-team-name-edit"
           onBlur={(e) => {
             const v = e.target.value.trim();
             if (v && v !== project.name) void save({ name: v });
@@ -146,6 +155,7 @@ function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
           className="input track-icon-input"
           defaultValue={project.icon ?? ''}
           maxLength={8}
+          disabled={!canEdit}
           onBlur={(e) => {
             const v = e.target.value.trim();
             if (v !== (project.icon ?? '')) void save({ icon: v });
@@ -153,63 +163,142 @@ function GeneralPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
         />
         <p className="ui-help">{t('projects.form.iconHelp')}</p>
       </div>
+      {!canEdit ? (
+        <p className="ui-help" data-testid="track-team-general-locked">
+          {t('teamRoles.ownersOnly')}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-type TeamAccess = {
-  projects?: Array<{ id: string; visibility: 'workspace' | 'private'; members: Array<{ userId: string }> }>;
-  people?: Array<{ id: string; name: string | null; email: string }>;
+type TeamAccessView = {
+  personal: boolean;
+  me: string;
+  visibility: 'workspace' | 'private';
+  permissions: TeamPermissions;
+  can: TeamCapabilities;
+  members: Array<{ id: string; name: string | null; email: string; teamRole: 'owner' | 'member'; workspaceAdmin: boolean; guest: boolean }>;
+  candidates: Array<{ id: string; name: string | null; email: string }>;
 };
 
-/** Members: quién ve y trabaja en el team. Un admin suma gente desde acá; el resto del acceso, en Ajustes › Acceso. */
-function MembersPanel({ projectId, isAdmin }: { projectId: string; isAdmin: boolean }) {
+/**
+ * Members: quién ve y trabaja en el team, con su rol (dueño o miembro, como
+ * en Linear). Los dueños dan o sacan el rol, deciden si el team es privado y
+ * qué áreas de los ajustes maneja cualquier miembro (lib/track-team-roles).
+ */
+function MembersPanel({ projectId, workspaceAdmin }: { projectId: string; workspaceAdmin: boolean }) {
   const t = useTranslations('track');
-  const [rows, setRows] = useState<Array<{ id: string; name: string | null; email: string }> | null>(null);
-  const [access, setAccess] = useState<TeamAccess | null>(null);
+  const router = useRouter();
+  const [view, setView] = useState<TeamAccessView | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [addId, setAddId] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    void send<{ rows: Array<{ id: string; name: string | null; email: string }> }>(`/api/track/projects/${projectId}/members`).then((r) =>
-      setRows(r.ok ? r.data.rows : []),
-    );
-    if (isAdmin) void send<TeamAccess>('/api/track/access').then((r) => r.ok && setAccess(r.data));
-  }, [projectId, isAdmin]);
+    void send<TeamAccessView>(`/api/track/projects/${projectId}/access`).then((r) => {
+      if (r.ok) setView(r.data);
+      else setLoadFailed(true);
+    });
+  }, [projectId]);
   useEffect(() => load(), [load]);
 
-  const team = access?.projects?.find((p) => p.id === projectId);
-  const candidates = team?.visibility === 'private' ? (access?.people ?? []).filter((c) => !team.members.some((m) => m.userId === c.id)) : [];
-  const selected = candidates.some((c) => c.id === addId) ? addId : (candidates[0]?.id ?? '');
-
-  const add = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-    setError(false);
-    const res = await send('/api/track/access', 'POST', { action: 'addMember', projectId, userId: selected });
-    if (!res.ok) setError(true);
-    load();
+  const act = async (body: Record<string, unknown>) => {
+    setError(null);
+    setNotice(null);
+    const r = await send<TeamAccessView & { left?: boolean; error?: string }>(`/api/track/projects/${projectId}/access`, 'POST', body);
+    if (!r.ok) {
+      setError(r.status === 403 ? t('teamRoles.ownersOnly') : r.data.error === 'guest_cannot_be_owner' ? t('teamRoles.guestCannotOwn') : t('access.error'));
+      load();
+      return;
+    }
+    if (r.data.left) {
+      // Se fue de un team privado: ya no lo ve.
+      router.push('/app/track');
+      return;
+    }
+    setView(r.data);
+    setNotice(t('teamSettings.saved'));
+    // Los permisos cambian lo que se puede tocar en las otras pestañas.
+    router.refresh();
   };
 
-  if (!rows) return <p className="ui-help">{t('common.loading')}</p>;
+  if (loadFailed) {
+    return (
+      <p className="ui-error" role="alert">
+        {t('errors.generic')}
+      </p>
+    );
+  }
+  if (!view) return <p className="ui-help">{t('common.loading')}</p>;
+  const { can, members, candidates } = view;
+  const isPrivate = view.visibility === 'private';
+  const selected = candidates.some((c) => c.id === addId) ? addId : (candidates[0]?.id ?? '');
+  const add = (e: FormEvent) => {
+    e.preventDefault();
+    if (selected) void act({ action: 'addMember', userId: selected });
+  };
+
   return (
-    <div data-testid="track-team-members">
-      <p className="ui-help">{t('teamSettings.membersHelp', { count: rows.length })}</p>
-      <ul className="track-team-members" role="list">
-        {rows.map((m) => (
-          <li key={m.id} className="track-team-member">
-            <span className="track-avatar">{(m.name || m.email)[0]?.toUpperCase()}</span>
-            <span className="track-team-member-name">{m.name || m.email}</span>
-            {m.name && <span className="track-team-member-email">{m.email}</span>}
-          </li>
-        ))}
-      </ul>
-      {isAdmin && team?.visibility === 'workspace' ? <p className="ui-help">{t('access.everyoneIn')}</p> : null}
+    <div className="track-team-roles" data-testid="track-team-members">
       {error ? (
         <p className="ui-error" role="alert">
-          {t('access.error')}
+          {error}
         </p>
       ) : null}
+      {notice ? (
+        <p className="ui-help" role="status">
+          {notice}
+        </p>
+      ) : null}
+      <p className="ui-help">
+        {t('teamSettings.membersHelp', { count: members.length })} {t('teamRoles.help')}
+      </p>
+      <ul className="track-team-members" role="list">
+        {members.map((m) => {
+          const label = m.name || m.email;
+          return (
+            <li key={m.id} className="track-team-member" data-testid="track-team-member" data-user-id={m.id} data-team-role={m.teamRole}>
+              <span className="track-avatar">{label[0]?.toUpperCase()}</span>
+              <span className="track-team-member-who">
+                <span className="track-team-member-name">{label}</span>
+                {m.name && <span className="track-team-member-email">{m.email}</span>}
+              </span>
+              <span className="track-team-member-role">
+                {can.owner && !m.guest && !view.personal ? (
+                  <select
+                    className="select track-team-role-select"
+                    aria-label={t('teamRoles.roleOf', { name: label })}
+                    value={m.teamRole}
+                    onChange={(e) => void act({ action: 'setRole', userId: m.id, role: e.target.value })}
+                    data-testid="track-team-role-select"
+                  >
+                    <option value="owner">{t('teamRoles.owner')}</option>
+                    <option value="member">{t('teamRoles.member')}</option>
+                  </select>
+                ) : (
+                  <span className="track-team-member-role-text" data-testid="track-team-role">
+                    {m.guest ? t('teamRoles.guest') : m.teamRole === 'owner' ? t('teamRoles.owner') : m.workspaceAdmin ? t('teamRoles.admin') : t('teamRoles.member')}
+                  </span>
+                )}
+                {isPrivate && (m.id === view.me || can.owner) && !view.personal ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => void act({ action: 'removeMember', userId: m.id })}
+                    aria-label={m.id === view.me ? t('teamRoles.leave') : t('teamRoles.removeFrom', { name: label })}
+                    data-testid="track-team-member-remove"
+                  >
+                    {m.id === view.me ? t('teamRoles.leave') : t('teamRoles.remove')}
+                  </button>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {!isPrivate ? <p className="ui-help">{t('access.everyoneIn')}</p> : null}
       {candidates.length > 0 ? (
         <form className="track-int-row" onSubmit={(e) => void add(e)} data-testid="track-team-add">
           <select className="select" aria-label={t('access.addMember')} value={selected} onChange={(e) => setAddId(e.target.value)}>
@@ -224,15 +313,52 @@ function MembersPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bool
           </button>
         </form>
       ) : null}
-      {isAdmin ? (
+      {!view.personal ? (
+        <fieldset className="track-x-fieldset track-team-perms" data-testid="track-team-permissions">
+          <legend className="tp-card-title">{t('teamRoles.permissionsTitle')}</legend>
+          <label className="ui-check">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={isPrivate}
+              disabled={!can.owner}
+              onChange={(e) => void act({ action: 'visibility', visibility: e.target.checked ? 'private' : 'workspace' })}
+              data-testid="track-team-private"
+            />
+            <span>{t('teamRoles.private')}</span>
+          </label>
+          {TEAM_AREAS.map((area) => (
+            <div className="ui-field track-team-perm" key={area}>
+              <label className="label" htmlFor={`tp-perm-${area}-${projectId}`}>
+                {t(`teamRoles.areas.${area}`)}
+              </label>
+              <select
+                id={`tp-perm-${area}-${projectId}`}
+                className="select"
+                value={view.permissions[area]}
+                disabled={!can.owner}
+                onChange={(e) => void act({ action: 'permissions', permissions: { [area]: e.target.value } })}
+                data-testid={`track-team-perm-${area}`}
+              >
+                <option value="members">{t('teamRoles.anyMember')}</option>
+                <option value="owners">{t('teamRoles.ownersOnlyOption')}</option>
+              </select>
+            </div>
+          ))}
+          {!can.owner ? <p className="ui-help">{t('teamRoles.ownersOnly')}</p> : null}
+        </fieldset>
+      ) : null}
+      {workspaceAdmin ? (
         <div className="track-team-invite">
           <h4 className="ui-label">{t('access.inviteTitle')}</h4>
           <WorkspaceInviteForm onInvited={load} />
         </div>
       ) : null}
-      <Link href="/app/track/settings?tab=access" className="btn btn-sm">
-        {t('teamSettings.manageAccess')}
-      </Link>
+      {workspaceAdmin ? (
+        <Link href="/app/track/settings?tab=access" className="btn btn-sm">
+          {t('teamSettings.manageAccess')}
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -255,7 +381,7 @@ function SubIssueAutomation({ projectId, isAdmin }: { projectId: string; isAdmin
     if (r.ok) setProject(r.data);
     else {
       setProject(prev);
-      setError(r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+      setError(r.status === 403 ? t('teamRoles.ownersOnly') : t('errors.generic'));
     }
   };
   if (!project) return null;
@@ -309,7 +435,7 @@ function EstimatesPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bo
     const r = await send<TrackProjectRow>(`/api/track/projects/${projectId}`, 'PATCH', { estimateScale: next });
     if (!r.ok) {
       setScale(prev);
-      setError(r.status === 403 ? t('teamSettings.adminOnly') : t('errors.generic'));
+      setError(r.status === 403 ? t('teamRoles.ownersOnly') : t('errors.generic'));
     }
   };
   if (!scale) return <p className="ui-help">{t('common.loading')}</p>;
@@ -344,10 +470,13 @@ function EstimatesPanel({ projectId, isAdmin }: { projectId: string; isAdmin: bo
   );
 }
 
-function IntegrationsPanel() {
+function IntegrationsPanel({ projectId, isAdmin }: { projectId: string | null; isAdmin: boolean }) {
   const t = useTranslations('track');
   return (
     <div className="track-team-integrations">
+      {/* Las reglas de GitHub y los avisos de Slack de este team: los cambian sus dueños. */}
+      {projectId ? <GithubExtras isAdmin={isAdmin} projectId={projectId} /> : null}
+      {projectId ? <TeamSlackChannels projectId={projectId} canEdit={isAdmin} /> : null}
       <p className="ui-help">{t('teamSettings.integrationsHelp')}</p>
       <ul className="track-team-links" role="list">
         <li>
@@ -370,7 +499,17 @@ function IntegrationsPanel() {
  * Members, Labels, Workflow (estados, auto-cierre y auto-archivo), Triage,
  * Cycles, Templates, Recurring, Milestones e Integrations.
  */
-export default function ProjectSettingsDrawer({ projectName, projectId: idProp, isAdmin = true, initialTab = 'general', onClose, panels }: ProjectSettingsDrawerProps) {
+export default function ProjectSettingsDrawer({
+  projectName,
+  projectId: idProp,
+  isAdmin = true,
+  workspaceAdmin = isAdmin,
+  teamCan,
+  initialTab = 'general',
+  onClose,
+  panels,
+}: ProjectSettingsDrawerProps) {
+  const can: TeamCapabilities = teamCan ?? adminOnlyCapabilities(isAdmin);
   const t = useTranslations('track');
   const ref = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<DrawerTab>(initialTab);
@@ -406,24 +545,24 @@ export default function ProjectSettingsDrawer({ projectName, projectId: idProp, 
     if (!projectId && (tab === 'general' || tab === 'members' || tab === 'labels' || tab === 'estimates')) return null;
     switch (tab) {
       case 'general':
-        return <GeneralPanel projectId={projectId!} isAdmin={isAdmin} />;
+        return <GeneralPanel projectId={projectId!} isAdmin={can.owner} canEdit={can.settings} />;
       case 'members':
-        return <MembersPanel projectId={projectId!} isAdmin={isAdmin} />;
+        return <MembersPanel projectId={projectId!} workspaceAdmin={workspaceAdmin} />;
       case 'labels':
-        return <LabelsSettings isAdmin={isAdmin} projectId={projectId!} />;
+        return <LabelsSettings isAdmin={workspaceAdmin} teamOwner={can.labels} canCreate={can.labels} projectId={projectId!} />;
       case 'estimates':
-        return projectId ? <EstimatesPanel projectId={projectId} isAdmin={isAdmin} /> : null;
+        return projectId ? <EstimatesPanel projectId={projectId} isAdmin={can.owner} /> : null;
       case 'integrations':
-        return <IntegrationsPanel />;
+        return <IntegrationsPanel projectId={projectId} isAdmin={can.owner} />;
       case 'statuses':
         return (
           <>
             {panels.statuses}
             {projectId && (
               <>
-                <SubIssueAutomation projectId={projectId} isAdmin={isAdmin} />
+                <SubIssueAutomation projectId={projectId} isAdmin={can.owner} />
                 <h3 className="tp-card-title">{t('teamSettings.housekeeping')}</h3>
-                <TeamAutomation projectId={projectId} isAdmin={isAdmin} />
+                <TeamAutomation projectId={projectId} isAdmin={can.owner} />
               </>
             )}
           </>

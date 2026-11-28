@@ -32,6 +32,7 @@ import {
   type TrackIssueWithStatus,
 } from './track-data';
 import { createLabel, listLabels, projectWorkspaceId } from './track-labels';
+import { listTeamOwnerIds, makeCreatorOwner, teamCapabilities } from './track-team-roles';
 import { issueOrderBy, issueSearchClause, ISSUE_SORTS } from './track-views';
 import { linkSupportUrls } from './track-support';
 import { TRACK_MARKDOWN_MAX } from './track-markdown';
@@ -406,7 +407,7 @@ export async function apiListProjects(ctx: TrackApiCtx, opts: { includeArchived?
 export async function apiGetProject(ctx: TrackApiCtx, id: string) {
   return run(ctx, async () => {
     const project = await accessibleProject(ctx, id);
-    return { ...toApiProject(project), statuses: (await listStatuses(project.id)).map(toApiStatus) };
+    return { ...toApiProject(project), owners: await listTeamOwnerIds(project.id), statuses: (await listStatuses(project.id)).map(toApiStatus) };
   });
 }
 
@@ -441,6 +442,7 @@ export async function apiCreateProject(ctx: TrackApiCtx, input: z.infer<typeof a
       color: input.color,
       icon: input.icon,
     });
+    await makeCreatorOwner(project.id, ctx.auth.personId);
     return toApiProject(project);
   });
 }
@@ -448,9 +450,12 @@ export async function apiCreateProject(ctx: TrackApiCtx, input: z.infer<typeof a
 export async function apiUpdateProject(ctx: TrackApiCtx, id: string, input: z.infer<typeof apiProjectUpdateSchema>) {
   return run(ctx, async () => {
     const project = await accessibleProject(ctx, id);
-    if ((input.status !== undefined || input.triageEnabled !== undefined) && ctx.auth.role === 'member') {
-      throw new TrackApiError(403, 'forbidden', 'Only workspace admins can archive projects or change triage.');
+    // Roles del team (lib/track-team-roles): archivar y triage, dueños o admins; lo demás, según el permiso de ajustes.
+    const caps = await teamCapabilities(project, ctx.auth.personId, ctx.auth.role === 'owner' || ctx.auth.role === 'admin');
+    if ((input.status !== undefined || input.triageEnabled !== undefined) && !caps.owner) {
+      throw new TrackApiError(403, 'forbidden', 'Only team owners and workspace admins can archive projects or change triage.');
     }
+    if (!caps.settings) throw new TrackApiError(403, 'forbidden', 'Only team owners can change this team.');
     const updated = await updateProject(project.id, {
       name: input.name,
       description: input.description,
@@ -521,7 +526,16 @@ export async function apiListUsers(ctx: TrackApiCtx, projectId?: string) {
   return run(ctx, async () => {
     if (projectId) {
       const project = await accessibleProject(ctx, projectId);
-      return { data: (await listProjectMembers(project.id, project.owner_id ?? '')).map((m) => ({ id: m.id, name: m.name, email: m.email, role: m.role })) };
+      const owners = new Set(await listTeamOwnerIds(project.id));
+      return {
+        data: (await listProjectMembers(project.id, project.owner_id ?? '')).map((m) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          role: m.role,
+          teamRole: owners.has(m.id) && m.role !== 'guest' ? 'owner' : 'member',
+        })),
+      };
     }
     const seen = new Map<string, { id: string; name: string | null; email: string; role: string }>();
     const scope = scopeSql(ctx);
