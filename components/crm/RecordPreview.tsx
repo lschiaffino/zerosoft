@@ -281,7 +281,8 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
           const p = pipelines.rows.find((x) => x.id === (data as DealPayload).deal.pipeline_id);
           setStages(p?.stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost })) ?? []);
         } else if (pipelines && type === 'lead') {
-          setStages(pipelines.rows[0]?.stages.map((s) => ({ id: s.id, name: s.name })) ?? []);
+          // Las etapas de lead no ganan ni pierden: solo se usan como opciones del select.
+          setStages(pipelines.rows[0]?.stages.map((s) => ({ id: s.id, name: s.name, is_won: 0 as const, is_lost: 0 as const })) ?? []);
         }
         setError(!data);
         setLoading(false);
