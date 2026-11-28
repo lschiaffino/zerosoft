@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import ClientMessages from '@/components/i18n/ClientMessages';
 import UnsubscribeConfirm from '@/components/settings/UnsubscribeConfirm';
 import { parseUnsubscribeToken } from '@/lib/lifecycle/prefs';
+import { parseBriefUnsubscribeToken } from '@/lib/daily-brief-unsub';
 import '@/styles/email-unsubscribe.css';
 
 export const dynamic = 'force-dynamic';
@@ -16,18 +17,26 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return { title: t('metaTitle'), robots: { index: false } };
 }
 
-/** Baja de los emails de ciclo de vida (link del pie de cada email). Abrirla no cambia nada. */
+/**
+ * Baja de los emails de ciclo de vida (link del pie de cada email) y del email del resumen del día
+ * (lib/daily-brief-unsub.ts). Abrirla no cambia nada.
+ */
 export default async function EmailUnsubscribePage(props: Props) {
   const { locale } = await props.params;
   const { t: token } = await props.searchParams;
   setRequestLocale(locale);
   const parsed = parseUnsubscribeToken(token);
+  const brief = parsed ? null : parseBriefUnsubscribeToken(token);
   const t = await getTranslations({ locale, namespace: 'settings.emailPrefs.unsub' });
   return (
     <main className="eu-page">
       {parsed && token ? (
         <ClientMessages locale={locale} namespaces={['settings.emailPrefs']}>
           <UnsubscribeConfirm token={token} category={parsed.scope === 'all' ? null : parsed.scope} />
+        </ClientMessages>
+      ) : brief && token ? (
+        <ClientMessages locale={locale} namespaces={['settings.emailPrefs']}>
+          <UnsubscribeConfirm token={token} category="dailyBrief" endpoint="/api/daily-brief/unsubscribe" />
         </ClientMessages>
       ) : (
         <div className="eu-card" data-testid="email-unsubscribe-invalid">

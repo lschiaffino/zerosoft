@@ -207,3 +207,44 @@ test('Ajustes › Avisos: el email del resumen del día se prende y queda', asyn
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.getByTestId('daily-brief-email')).toBeChecked();
 });
+
+test('Email del resumen: la baja sin sesión (página que confirma y clic único del cliente de correo)', async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const me = await demo(request);
+  // El servidor de los e2e firma con este secreto (playwright.config.ts); el token sale de la misma función.
+  const before = process.env.NEXTAUTH_SECRET;
+  let token = '';
+  try {
+    process.env.NEXTAUTH_SECRET = 'e2e-secret';
+    const { briefUnsubscribeToken } = await import('../../lib/daily-brief-unsub');
+    token = briefUnsubscribeToken(me)!;
+  } finally {
+    if (before === undefined) delete process.env.NEXTAUTH_SECRET;
+    else process.env.NEXTAUTH_SECRET = before;
+  }
+  const emailOn = async () => Number((await sql('SELECT email FROM daily_brief_prefs WHERE user_id = ?', [me]))[0]?.email ?? 0);
+  await sql("INSERT INTO daily_brief_prefs (user_id, email, time_zone, updated_at) VALUES (?, 1, '', '2026-11-28') ON CONFLICT(user_id) DO UPDATE SET email = 1", [me]);
+
+  // Abrir el link no apaga nada (los escáneres de links abren todo); el botón confirma.
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
+    await page.goto(`/en/email/unsubscribe?t=${encodeURIComponent(token)}`, { waitUntil: 'networkidle' });
+    const card = page.getByTestId('email-unsubscribe');
+    await expect(card).toContainText('the daily brief email');
+    await noSideScroll(page);
+    const button = card.getByRole('button', { name: 'Unsubscribe' });
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+    await shot(page, `unsubscribe-brief-${width}`);
+  }
+  expect(await emailOn()).toBe(1);
+  await page.getByTestId('email-unsubscribe').getByRole('button', { name: 'Unsubscribe' }).click();
+  await expect(page.getByRole('status')).toContainText("You won't get the daily brief email anymore");
+  expect(await emailOn()).toBe(0);
+
+  // El POST de un clic (RFC 8058), como lo manda el cliente de correo; con la firma cambiada, nada.
+  await sql('UPDATE daily_brief_prefs SET email = 1 WHERE user_id = ?', [me]);
+  expect((await request.post(`/api/daily-brief/unsubscribe?t=${encodeURIComponent(`${token.slice(0, -2)}xx`)}`, { form: { 'List-Unsubscribe': 'One-Click' } })).status()).toBe(400);
+  expect(await emailOn()).toBe(1);
+  expect((await request.post(`/api/daily-brief/unsubscribe?t=${encodeURIComponent(token)}`, { form: { 'List-Unsubscribe': 'One-Click' } })).ok()).toBe(true);
+  expect(await emailOn()).toBe(0);
+});

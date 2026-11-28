@@ -2147,7 +2147,8 @@
         "heading": "Hoje",
         "intro": "Isto é o que espera por você.",
         "open": "Abrir {app}",
-        "footer": "Você recebe este e-mail porque ligou o resumo do dia. Mude em Ajustes › Avisos."
+        "footer": "Você recebe este e-mail porque ligou o resumo do dia. Mude em Ajustes › Avisos.",
+        "unsubscribe": "Cancelar este e-mail"
       }
     },
     "internal": {
