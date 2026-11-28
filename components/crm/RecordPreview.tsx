@@ -222,7 +222,8 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
     const data = res?.ok ? ((await res.json().catch(() => null)) as { items?: RecentItem[] } | null) : null;
     if (seq !== recentSeq.current) return;
     // Lo último que pasó: por fecha de creación (el timeline pone primero lo fijado y las tareas por vencimiento).
-    const items = [...(data?.items ?? [])].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+    // Los cambios de propiedades no son actividad: no van acá.
+    const items = [...(data?.items ?? [])].filter((i) => i.type !== 'change').sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
     setRecent(items.slice(0, 3));
     setRecentLoading(false);
   }, [type, id]);

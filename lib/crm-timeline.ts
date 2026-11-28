@@ -13,7 +13,7 @@
  * emails de una empresa o un deal salen solo de contactos que la persona ve.
  */
 import { getDb } from './db';
-import { activityScopeSql, canSeeRecord, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { activityScopeSql, canSeeOwner, canSeeRecord, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { redactChatTasks, type ChatReader } from './crm-chat-privacy';
 import type { ActivityListRow } from './crm';
 
@@ -237,6 +237,12 @@ export interface PropertyChange {
   reason: string;
   /** Quién lo cambió (nombre de alguien del workspace); '' si fue automático o no se sabe. */
   actor?: string;
+  /** Había un valor que la persona no puede ver nombrado (una empresa que no ve, alguien que ya no está). */
+  fromPrivate?: boolean;
+  toPrivate?: boolean;
+  /** Tipo de un campo propio (para mostrar sí/no, números, fechas y montos) y la moneda de uno de moneda. */
+  valueType?: string;
+  currency?: string;
 }
 
 /** Un cambio de propiedad en el timeline: una línea, sin acciones. */
@@ -312,8 +318,9 @@ function clipValue(v: string): string {
 /**
  * Los cambios de propiedades de un contacto, una empresa o un deal (los más nuevos, hasta `limit`), para
  * el timeline: los de personas y los automáticos, las etapas de un deal y los campos propios. Con lo que
- * la persona ve: un campo propio que tiene oculto no sale, una empresa vinculada que no ve queda sin
- * nombre y un owner sale por su nombre. Quien llama ya comprobó que la persona ve el registro.
+ * la persona ve: un campo propio que tiene oculto no sale (ni ocupa lugar en el tope), una empresa
+ * vinculada que no ve sale marcada como privada (sin nombre) y un owner sale por su nombre. Quien llama ya
+ * comprobó que la persona ve el registro.
  */
 export async function listPropertyChanges(
   user: import('./session').SessionUser,
@@ -323,26 +330,22 @@ export async function listPropertyChanges(
 ): Promise<ChangeTimelineItem[]> {
   const ws = user.id;
   const db = getDb();
+  const { fieldAccessFor, sessionFieldViewer } = await import('./crm-field-perms');
+  const { fieldCurrency } = await import('./crm-custom-fields');
+  const access = await fieldAccessFor(sessionFieldViewer(user), CUSTOM_ENTITY[rec.kind]);
+  const customDef = new Map(access.all.filter((d) => !access.hidden.has(d.name)).map((d) => [d.name, d]));
+  // El filtro va en la consulta: lo que la persona no ve no ocupa lugar en el tope.
+  const fields = [...CHANGE_FIELDS[rec.kind], ...[...customDef.keys()].map((n) => `custom.${n}`)];
   const rows = (await db
     .prepare(
       `SELECT id, field, old_value, new_value, actor_email, created_at FROM crm_property_events
-       WHERE user_id = ? AND entity = ? AND entity_id = ?
+       WHERE user_id = ? AND entity = ? AND entity_id = ? AND field IN (${fields.map(() => '?').join(', ')})
        ORDER BY created_at DESC, rowid DESC LIMIT ?`,
     )
-    .all(ws, rec.kind, rec.id, limit)) as Array<{ id: string; field: string; old_value: string | null; new_value: string | null; actor_email: string | null; created_at: string }>;
+    .all(ws, rec.kind, rec.id, ...fields, limit)) as Array<{ id: string; field: string; old_value: string | null; new_value: string | null; actor_email: string | null; created_at: string }>;
   if (!rows.length) return [];
 
-  const { fieldAccessFor, sessionFieldViewer } = await import('./crm-field-perms');
-  const access = rows.some((r) => r.field.startsWith('custom.')) ? await fieldAccessFor(sessionFieldViewer(user), CUSTOM_ENTITY[rec.kind]) : null;
-  const customLabel = new Map((access?.all ?? []).map((d) => [d.name, d.label || d.name]));
-  const shown = rows.filter((r) =>
-    r.field.startsWith('custom.')
-      ? customLabel.has(r.field.slice(7)) && !access!.hidden.has(r.field.slice(7))
-      : CHANGE_FIELDS[rec.kind].has(r.field),
-  );
-  if (!shown.length) return [];
-
-  // Personas del workspace (owner y quién cambió): las mismas que ofrece el selector de owner.
+  // Personas del workspace (owner, campos de persona y quién cambió): las mismas que ofrece el selector de owner.
   const { listMembers } = await import('./teams');
   const { workspaceTeamId } = await import('./workspace');
   const teamId = workspaceTeamId(user);
@@ -350,32 +353,41 @@ export async function listPropertyChanges(
   const personById = new Map(members.map((m) => [m.user_id, m.name || m.email]));
   const personByEmail = new Map(members.map((m) => [m.email.toLowerCase(), m.name || m.email]));
 
-  // Empresas vinculadas: por nombre, y solo las que la persona ve.
+  // Empresas vinculadas: por nombre, y solo las que la persona ve (una consulta para todas).
   const companyIds = new Set<string>();
-  for (const r of shown) {
+  for (const r of rows) {
     if (r.field !== 'company_id' && r.field !== 'parent_company_id') continue;
     if (r.old_value) companyIds.add(r.old_value);
     if (r.new_value) companyIds.add(r.new_value);
   }
   const companyName = new Map<string, string>();
-  for (const id of companyIds) {
-    if (!(await canSeeRecord(ws, 'crm_companies', id, scope))) continue;
-    const row = (await db.prepare('SELECT name FROM crm_companies WHERE id = ? AND user_id = ?').get(id, ws)) as { name: string } | undefined;
-    if (row) companyName.set(id, row.name || '');
+  if (companyIds.size) {
+    const ids = [...companyIds];
+    const found = (await db
+      .prepare(`SELECT id, name, owner_id FROM crm_companies WHERE user_id = ? AND id IN (${ids.map(() => '?').join(', ')})`)
+      .all(ws, ...ids)) as Array<{ id: string; name: string; owner_id: string | null }>;
+    for (const c of found) if (canSeeOwner(scope, c.owner_id, ws)) companyName.set(c.id, c.name || '');
   }
 
-  const value = (field: string, raw: string | null): string => {
+  /** El valor a mostrar; null = había algo que la persona no puede ver nombrado (empresa privada, persona que ya no está). */
+  const value = (field: string, raw: string | null): string | null => {
     const v = raw ?? '';
     if (!v) return '';
-    if (field === 'company_id' || field === 'parent_company_id') return companyName.get(v) ?? '';
-    if (field === 'owner_id') return personById.get(v) ?? '';
+    if (field === 'company_id' || field === 'parent_company_id') return companyName.has(v) ? companyName.get(v)! : null;
+    if (field === 'owner_id') return personById.get(v) ?? null;
+    if (field.startsWith('custom.') && customDef.get(field.slice(7))?.type === 'user') return personById.get(v) ?? null;
     return clipValue(v);
   };
-  return shown.map((r) => {
+  const out: ChangeTimelineItem[] = [];
+  for (const r of rows) {
+    const from = value(r.field, r.old_value);
+    const to = value(r.field, r.new_value);
+    // Nada que se pueda nombrar de ningún lado: la línea no dice nada.
+    if (from === null && to === null) continue;
     const actor = r.actor_email ?? '';
     const system = actor.startsWith('system:');
-    const custom = r.field.startsWith('custom.');
-    return {
+    const def = r.field.startsWith('custom.') ? customDef.get(r.field.slice(7)) : undefined;
+    out.push({
       id: `change-${r.id}`,
       type: 'change' as const,
       subject: '',
@@ -391,14 +403,17 @@ export async function listPropertyChanges(
       rollup: 0 as const,
       change: {
         field: r.field,
-        ...(custom ? { label: customLabel.get(r.field.slice(7)) } : {}),
-        from: value(r.field, r.old_value),
-        to: value(r.field, r.new_value),
+        ...(def ? { label: def.label || def.name, valueType: def.type, ...(def.type === 'currency' ? { currency: fieldCurrency(def) } : {}) } : {}),
+        from: from ?? '',
+        to: to ?? '',
+        ...(from === null ? { fromPrivate: true } : {}),
+        ...(to === null ? { toPrivate: true } : {}),
         reason: system ? actor.slice('system:'.length) : '',
         actor: system || !actor ? '' : (personByEmail.get(actor.toLowerCase()) ?? (actor.includes('@') ? actor : '')),
       },
-    };
-  });
+    });
+  }
+  return out;
 }
 
 /**

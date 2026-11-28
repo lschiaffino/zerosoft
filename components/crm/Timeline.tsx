@@ -36,6 +36,7 @@ import {
   type TimelineType,
 } from './timelineModel';
 import { parseDbUtc } from '@/lib/utils';
+import { formatMoney } from '@/lib/crm-money';
 
 /** Lo que suma la respuesta al guardar una nota o tarea con @menciones (lib/crm-mention-notify.ts). */
 interface MentionsReply {
@@ -95,7 +96,18 @@ export interface TimelineItem {
   /** Chat de Lines vinculado (lib/crm-timeline.ts listRecordChats). */
   wa?: { chatId: string; group: boolean; messages: Array<{ id: string; at: string; out: boolean; who: string; text: string }> };
   /** Cambio de una propiedad (lib/crm-timeline.ts listPropertyChanges): una línea, sin acciones. */
-  change?: { field: string; label?: string; from: string; to: string; reason: string; actor?: string };
+  change?: {
+    field: string;
+    label?: string;
+    from: string;
+    to: string;
+    reason: string;
+    actor?: string;
+    fromPrivate?: boolean;
+    toPrivate?: boolean;
+    valueType?: string;
+    currency?: string;
+  };
 }
 
 /** Nombres de las propiedades de fábrica y de sus valores, los mismos del panel Historial de la ficha. */
@@ -1183,27 +1195,34 @@ export default function Timeline({
     );
   }
 
-  /** Valor de un cambio, con el nombre de la opción, del enum o de la fecha; '' si quedó vacío. */
-  function changeValue(field: string, v: string): string {
+  /** Valor de un cambio, con el nombre de la opción, del enum, la fecha o el monto; '' si quedó vacío. */
+  function changeValue(c: NonNullable<TimelineItem['change']>, v: string): string {
+    const field = c.field;
+    // Primero el nombre de la ficha: también nombra el vacío ("Automática" en forecast).
+    const mapped = changeLabels?.values?.[field]?.[v];
+    if (mapped) return mapped;
     if (!v) return '';
     if (field === 'lifecycle_stage') return crmOpts.label('lifecycle', v);
     if (field === 'lead_status') return crmOpts.label('leadStatus', v);
-    const mapped = changeLabels?.values?.[field]?.[v];
-    if (mapped) return mapped;
-    if (field === 'close_date' && /^\d{4}-\d{2}-\d{2}/.test(v)) return formatDay(v.slice(0, 10), locale);
-    if ((field === 'amount' || field === 'employees') && v.trim() !== '' && Number.isFinite(Number(v))) return new Intl.NumberFormat(locale).format(Number(v));
+    const kind = c.valueType ?? (field === 'close_date' ? 'date' : field === 'amount' || field === 'employees' ? 'number' : '');
+    if (kind === 'date' && /^\d{4}-\d{2}-\d{2}/.test(v)) return formatDay(v.slice(0, 10), locale);
+    if (kind === 'boolean') return v === 'true' ? t('common.yes') : v === 'false' ? t('common.no') : v;
+    if ((kind === 'number' || kind === 'currency') && v.trim() !== '' && Number.isFinite(Number(v))) {
+      return kind === 'currency' ? formatMoney(Number(v), c.currency || 'USD', locale, true) : new Intl.NumberFormat(locale).format(Number(v));
+    }
     return v.length > 80 ? `${v.slice(0, 79)}…` : v;
   }
 
   /**
-   * Cambio de una propiedad: una línea ("Lead status: New → Connected · Ana"), como en HubSpot. El
-   * automático de lifecycle dice por qué (deal creado o ganado).
+   * Cambio de una propiedad: una línea ("Lead status changed from New to Connected · Ana"), como en
+   * HubSpot. El automático de lifecycle dice por qué (deal creado o ganado). Un valor que la persona no
+   * puede ver nombrado (una empresa que no ve) sale como "—", sin decir que quedó vacío.
    */
   function renderChange(item: TimelineItem & { change: NonNullable<TimelineItem['change']> }) {
     const c = item.change;
     const reason = c.reason && t.has(`propertyOptions.reasons.${c.reason}`) ? t(`propertyOptions.reasons.${c.reason}`) : '';
-    const from = changeValue(c.field, c.from);
-    const to = changeValue(c.field, c.to);
+    const from = c.fromPrivate ? '—' : changeValue(c, c.from);
+    const to = c.toPrivate ? '—' : changeValue(c, c.to);
     const field = changeFieldName(c) ?? c.field;
     const text =
       c.field === 'lifecycle_stage' && c.reason

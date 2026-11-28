@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { createCompany, createContact, createCustomField, createDeal, createPipeline, createStage, moveDeal, updateContact } from '@/lib/crm';
+import { createCompany, createContact, createCustomField, createDeal, createPipeline, createStage, moveDeal, updateContact, updateDeal } from '@/lib/crm';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { listPropertyChanges } from '@/lib/crm-timeline';
@@ -86,11 +86,21 @@ describe('timeline: cambios de propiedades', () => {
     expect(changes.some((c) => c.field.startsWith('custom.'))).toBe(false);
     expect(JSON.stringify(changes)).not.toContain('gold');
     expect(JSON.stringify(changes)).not.toContain('Internal tier');
-    const company = changes.find((c) => c.field === 'company_id')!;
+    // La empresa que no ve: sin nombre y marcada como privada (no "quedó vacía").
+    const company = changes.find((c) => c.field === 'company_id')! as Change & { toPrivate?: boolean };
     expect(company.from).toBe(s.visibleCo.name);
     expect(company.to).toBe('');
+    expect(company.toPrivate).toBe(true);
     expect(JSON.stringify(changes)).not.toContain(s.privateCo.name);
     expect(changes.find((c) => c.field === 'lead_status')).toMatchObject({ to: 'connected' });
+
+    // Un campo oculto no ocupa lugar en el tope: con el más nuevo oculto, el member igual recibe uno que ve.
+    await updateContact(s.w.owner.id, s.contact.id, { custom: { [s.secret.name]: 'platinum' } }, undefined, s.w.owner.email);
+    const top = await listPropertyChanges(s.member, { kind: 'contact', id: s.contact.id }, [s.w.member.id], 1);
+    expect(top).toHaveLength(1);
+    expect(top[0].change.field).toBe('owner_id');
+    const ownerTop = await listPropertyChanges(s.owner, { kind: 'contact', id: s.contact.id }, null, 1);
+    expect(ownerTop[0].change.field).toBe(`custom.${s.secret.name}`);
   });
 
   it('anónimo, otro workspace y member sin acceso al registro: nada', async () => {
@@ -112,9 +122,11 @@ describe('timeline: cambios de propiedades', () => {
     const res = await createDeal(s.w.owner.id, { pipelineId: p.id, stageId: first.id, name: `Deal ${uid()}`, amount: 1000 });
     if (!res.ok) throw new Error(res.reason);
     await moveDeal(s.w.owner.id, res.deal.id, second.id, null, undefined, s.w.owner.email);
+    await updateDeal(s.w.owner.id, res.deal.id, { amount: 2500 }, s.w.owner.email);
     session.user = s.owner;
     const changes = await changesOf(await getTimeline('deal', res.deal.id));
     expect(changes.find((c) => c.field === 'stage')).toMatchObject({ from: 'Intro', to: 'Proposal' });
+    expect(changes.find((c) => c.field === 'amount')).toMatchObject({ from: '1000', to: '2500' });
   });
 });
 

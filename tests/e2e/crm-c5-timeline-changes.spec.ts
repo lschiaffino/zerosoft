@@ -42,7 +42,7 @@ for (const [name, viewport] of [
       await expect(change(page, 'lead_status')).toContainText('Lead status changed from New to Connected');
       await expect(change(page, 'job_title')).toContainText(`Job title set to Analyst ${tag}`);
       // Un cambio no es actividad: la pestaña cuenta solo la nota.
-      await expect(panel(page).getByTestId('timeline-tab-all')).toContainText('1');
+      await expect(panel(page).getByTestId('timeline-tab-all').locator('.tl-count')).toHaveText('1');
       await noSideScroll(page);
 
       const filter = panel(page).getByTestId('timeline-filter');
