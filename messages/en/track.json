@@ -427,7 +427,11 @@
       "label": "Opened notification",
       "missing": "This issue can't be opened here. It may have been deleted, or it belongs to another workspace.",
       "retry": "Try again",
-      "openPage": "Open issue page"
+      "openPage": "Open issue page",
+      "openProject": "Open project page",
+      "openInitiative": "Open initiative page",
+      "missingProject": "This project can't be opened here. It may have been deleted, or you don't have access to it.",
+      "missingInitiative": "This initiative can't be opened here. It may have been deleted, or you don't have access to it."
     }
   },
   "notifications": {
