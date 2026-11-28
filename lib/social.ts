@@ -20,7 +20,7 @@ import { open, seal } from './secret-box';
 import { roleAtLeast, type TeamRole } from './teams';
 import { canUseApp } from './workspace';
 import { personAppAccess } from './api-auth';
-import { personCanUseApp } from './workspace-apps';
+import { blockedAppsFor, loadWorkspaceAppRules, personCanUseApp } from './workspace-apps';
 import { createNotification } from './notifications';
 import {
   isSocialNetwork,
@@ -109,11 +109,16 @@ export interface SocialPerson {
   accountIds: string[];
 }
 
-/** Personas del workspace que tienen Social, con su rol y sus cuentas. */
+/**
+ * Personas del workspace que tienen Social, con su rol y sus cuentas: las
+ * mismas capas que personHasSocial (Social en Miembros, Apps del workspace y
+ * dos pasos si el workspace los pide), así el selector no ofrece a quien
+ * después no puede tener la cuenta ni el ítem asignado.
+ */
 export async function listSocialPeople(actor: SocialActor): Promise<SocialPerson[]> {
   const rows = (await db()
     .prepare(
-      `SELECT u.id, u.name, u.email,
+      `SELECT u.id, u.name, u.email, u.mfa_enabled_at AS mfa,
          CASE WHEN u.id = ? THEN 'owner' ELSE (SELECT CASE WHEN SUM(m.role = 'admin') > 0 THEN 'admin' ELSE 'member' END
            FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = u.id AND m.role != 'guest') END AS role,
          (SELECT group_concat(m.apps, '|') FROM team_members m JOIN teams t ON t.id = m.team_id WHERE t.owner_id = ? AND m.user_id = u.id AND m.role != 'guest') AS apps
@@ -125,9 +130,13 @@ export async function listSocialPeople(actor: SocialActor): Promise<SocialPerson
     id: string;
     name: string | null;
     email: string;
+    mfa: string | null;
     role: TeamRole;
     apps: string | null;
   }>;
+  // Apps del workspace (hoy sin reglas para Social, que está en Próximamente) y dos pasos obligatorios: una lectura cada uno.
+  const rule = (await loadWorkspaceAppRules(actor.workspaceId)).social;
+  const mfaRequired = Boolean(await db().prepare('SELECT 1 AS x FROM teams WHERE owner_id = ? AND require_mfa = 1 LIMIT 1').get(actor.workspaceId));
   const roles = (await db().prepare('SELECT person_id, role FROM social_roles WHERE workspace_id = ?').all(actor.workspaceId)) as Array<{ person_id: string; role: string }>;
   const grants = (await db()
     .prepare('SELECT m.person_id, m.account_id FROM social_account_members m JOIN social_accounts a ON a.id = m.account_id WHERE a.workspace_id = ?')
@@ -137,6 +146,10 @@ export async function listSocialPeople(actor: SocialActor): Promise<SocialPerson
     // Owner, o alguna de sus membresías del workspace le da Social ('*' o la lista con social).
     const canUse = r.id === actor.workspaceId || (r.apps ?? '').split('|').some((a) => canUseApp({ role: r.role, apps: a || '*' }, 'social'));
     if (!canUse) continue;
+    if (r.id !== actor.workspaceId) {
+      if (mfaRequired && !r.mfa) continue;
+      if (rule && (await blockedAppsFor({ ownerId: actor.workspaceId, personId: r.id, role: r.role, email: null, staff: true })).includes('social')) continue;
+    }
     const admin = roleAtLeast(r.role, 'admin');
     out.push({
       id: r.id,
