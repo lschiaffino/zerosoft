@@ -307,6 +307,66 @@ describe('Lines: lo que la tarjeta no deja pasar', () => {
     const two = (await prepare(member, [{ chat: clara.id, do: 'draft', text: 'uno' }, { chat: clara.id, do: 'draft', text: 'dos' }])) as { details: unknown[] };
     expect(two.details).toHaveLength(1);
   });
+
+  it('etiquetar (suma a las que tiene), cerrar, archivar y ticket: nada cambia hasta Confirmar', async () => {
+    const { w, ws, clara } = await linesWorld('act-label');
+    const { createLabel, setChatLabels } = await import('@/lib/groups');
+    const vip = await createLabel(ws, { name: 'VIP demo', color: 'blue' });
+    const urgent = await createLabel(ws, { name: 'Urgente demo', color: 'red' });
+    await setChatLabels(ws, clara.id, [vip.id]);
+    const member = asMember(w.owner, w.member);
+    const labels = async () => ((await getDb().prepare('SELECT label_id FROM groups_chat_labels WHERE chat_id = ? ORDER BY label_id').all(clara.id)) as Array<{ label_id: string }>).map((r) => r.label_id);
+    const chatRow = async () => (await getDb().prepare('SELECT status, archived_at FROM groups_chats WHERE id = ?').get(clara.id)) as { status: string; archived_at: string | null };
+    const tickets = async () => ((await getDb().prepare('SELECT title, assignee_id FROM groups_tickets WHERE chat_id = ?').all(clara.id)) as Array<{ title: string; assignee_id: string | null }>);
+
+    // Etiqueta: la tarjeta dice las que tiene y la que suma; una que no existe no arma tarjeta; una que ya tiene, tampoco.
+    const label = await turn(member, `lines label ${clara.name}: urgente DEMO`);
+    expect(label.actions[0].details[0]).toMatchObject({ before: 'VIP demo', after: 'Urgente demo' });
+    expect(await labels()).toEqual([vip.id]);
+    await decide(member, label.actions[0].id, 'cancel');
+    expect(await labels()).toEqual([vip.id]);
+    const label2 = await turn(member, `lines label ${clara.name}: Urgente demo`);
+    await decide(member, label2.actions[0].id, 'confirm');
+    expect(await labels()).toEqual([vip.id, urgent.id].sort());
+    expect((await turn(member, `lines label ${clara.name}: No existe demo`)).actions).toEqual([]);
+    expect((await turn(member, `lines label ${clara.name}: VIP demo`)).actions).toEqual([]);
+
+    // Ticket con título y sin título (lo toma del chat), asignado a quien tiene el chat si no se dice.
+    expect(await tickets()).toEqual([]);
+    const ticket = await turn(member, `lines ticket ${clara.name}: Presupuesto sin respuesta`);
+    expect(ticket.actions[0].details[0].after).toContain('Presupuesto sin respuesta');
+    expect(await tickets()).toEqual([]);
+    await decide(member, ticket.actions[0].id, 'confirm');
+    expect((await tickets()).map((t) => t.title)).toEqual(['Presupuesto sin respuesta']);
+    const audit = (await getDb().prepare("SELECT actor_id FROM groups_audit WHERE chat_id = ? AND action = 'ticket_created'").all(clara.id)) as Array<{ actor_id: string }>;
+    expect(audit.map((a) => a.actor_id)).toEqual([w.member.id]);
+
+    // Cerrar y archivar.
+    const close = await turn(member, `lines close ${clara.name}`);
+    expect(close.actions[0].details[0]).toMatchObject({ before: 'Open' });
+    expect((await chatRow()).status).toBe('open');
+    await decide(member, close.actions[0].id, 'confirm');
+    expect((await chatRow()).status).toBe('closed');
+    expect((await turn(member, `lines close ${clara.name}`)).actions).toEqual([]);
+    const archive = await turn(member, `lines archive ${clara.name}`);
+    expect((await chatRow()).archived_at).toBeNull();
+    await decide(member, archive.actions[0].id, 'confirm');
+    expect((await chatRow()).archived_at).toBeTruthy();
+    expect(await outgoing(clara.id)).toBe(0);
+  });
+
+  it('etiquetar, cerrar, archivar o abrir un ticket en un chat que no ve: nada', async () => {
+    const { w, ws, hidden } = await linesWorld('act-label-hidden');
+    const { createLabel } = await import('@/lib/groups');
+    await createLabel(ws, { name: 'VIP oculto', color: 'blue' });
+    const member = asMember(w.owner, w.member);
+    for (const ask of [`lines label ${hidden.id}: VIP oculto`, `lines close ${hidden.id}`, `lines archive ${hidden.id}`, `lines ticket ${hidden.id}: algo`]) {
+      expect((await turn(member, ask)).actions).toEqual([]);
+    }
+    expect(await getDb().prepare('SELECT 1 FROM groups_chat_labels WHERE chat_id = ?').get(hidden.id)).toBeUndefined();
+    expect(await getDb().prepare('SELECT 1 FROM groups_tickets WHERE chat_id = ?').get(hidden.id)).toBeUndefined();
+    expect((await getDb().prepare('SELECT status, archived_at FROM groups_chats WHERE id = ?').get(hidden.id)) as object).toMatchObject({ status: 'open', archived_at: null });
+  });
 });
 
 describe('Inbox: nota y programado con tarjeta', () => {

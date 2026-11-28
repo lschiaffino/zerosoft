@@ -6,7 +6,7 @@
  *   acceso por línea, etiqueta y asignación de quien pide (y los teléfonos ocultos si no los ve); Inbox, solo los
  *   chats de la persona.
  * - propose_lines_actions: en una sola tarjeta, borrador de respuesta (va al campo del chat, no se manda), asignar,
- *   nota interna, tarea y mensaje programado. Cada fila dice qué, dónde y el texto. Un programado sale a WhatsApp a
+ *   etiquetar, cerrar, archivar, nota interna, tarea, ticket y mensaje programado. Cada fila dice qué, dónde y el texto. Un programado sale a WhatsApp a
  *   la hora elegida: la tarjeta lo dice y se confirma con el botón rojo; si la hora ya pasó al confirmar, no se
  *   programa (nunca sale en el acto).
  * - propose_inbox_actions (lib/assistant/tools-chats.ts) suma la nota del chat y el mensaje programado.
@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { createTranslator } from 'next-intl';
 import { getDb } from '../db';
 import { delegatedIdentity } from '../mcp/identity';
-import { GroupsError, getChatRow, getNumberRow, listPeople, sendMessage, type ChatRow } from '../groups';
+import { GroupsError, getChatRow, getNumberRow, listLabels, listPeople, sendMessage, type ChatRow } from '../groups';
 import { canSeeChat, chatAccessSql, groupsViewer, maskPhone, maskedChatName, type GroupsViewer } from '../groups-access';
 import { wrapUntrusted } from '../mcp/untrusted';
 import enMessages from '../../messages/en/assistant.json';
@@ -134,7 +134,7 @@ async function inboxFind(owner: string, query: string, limit: number) {
 // Lines: acciones con tarjeta
 // ---------------------------------------------------------------------------
 
-export const LINES_ACTIONS = ['draft', 'assign', 'note', 'task', 'schedule'] as const;
+export const LINES_ACTIONS = ['draft', 'assign', 'label', 'close', 'archive', 'note', 'task', 'ticket', 'schedule'] as const;
 type LinesDo = (typeof LINES_ACTIONS)[number];
 
 const linesInput = z.object({
@@ -145,9 +145,10 @@ const linesInput = z.object({
         do: z
           .enum(LINES_ACTIONS)
           .describe(
-            'draft: put a reply in the message field of the chat for the person to review (nothing is sent). assign: assign the chat to a person or team. note: internal note only the team sees. task: a task linked to the chat. schedule: a WhatsApp message sent at a future time.',
+            'draft: put a reply in the message field of the chat for the person to review (nothing is sent). assign: assign the chat to a person or team. label: add an existing label of the workspace (keeps the ones it has). close: close the conversation (it reopens with the next message). archive: archive the chat. note: internal note only the team sees. task: a task linked to the chat. ticket: open a support ticket on the chat. schedule: a WhatsApp message sent at a future time.',
           ),
-        text: z.string().max(4000).optional().describe('draft / note / schedule: the text, in the language of the chat. task: the task title.'),
+        text: z.string().max(4000).optional().describe('draft / note / schedule: the text, in the language of the chat. task / ticket: the title.'),
+        label: z.string().trim().min(1).max(40).optional().describe('label: the name of an existing label.'),
         to: z.string().trim().min(1).max(200).optional().describe('assign: "me", a teammate name or email, or a team name. task: who owns the task (default: me).'),
         at: z.string().max(40).optional().describe('schedule: ISO date-time in the future when the message goes out. task: due date (optional).'),
       }),
@@ -163,7 +164,9 @@ export interface LinesPlanned {
   where?: string;
   do: LinesDo;
   text?: string;
-  /** assign: persona o equipo. task: dueña. */
+  /** label: la etiqueta. */
+  labelId?: string;
+  /** assign: persona o equipo. task: dueña. ticket: a quién va (si no, quien tiene el chat). */
   personId?: string;
   teamId?: string;
   who?: string;
@@ -220,6 +223,14 @@ async function resolveAssignee(ctx: ToolCtx, ref: string): Promise<{ personId?: 
   return teams.length === 1 ? { teamId: teams[0].id, who: teams[0].name } : null;
 }
 
+/** Las etiquetas que tiene el chat ahora (ids y nombres). */
+async function chatLabelNames(chatId: string): Promise<{ ids: string[]; names: string[] }> {
+  const rows = (await getDb()
+    .prepare('SELECT l.id, l.name FROM groups_chat_labels cl JOIN groups_labels l ON l.id = cl.label_id WHERE cl.chat_id = ? ORDER BY l.name COLLATE NOCASE')
+    .all(chatId)) as Array<{ id: string; name: string }>;
+  return { ids: rows.map((r) => r.id), names: rows.map((r) => r.name) };
+}
+
 function futureAt(raw: string | undefined, now: number, minLead: number): string | null {
   const t = Date.parse(raw ?? '');
   if (!Number.isFinite(t) || t < now + minLead || t > now + 366 * 86_400_000) return null;
@@ -253,6 +264,40 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
         continue;
       }
       p.text = text.slice(0, a.do === 'task' ? 200 : 4000);
+    }
+    // El ticket sin título toma uno del chat (como en la app).
+    if (a.do === 'ticket' && text) p.text = text.slice(0, 200);
+    // Lo mismo dos veces en la misma tarjeta no suma nada.
+    if ((a.do === 'close' || a.do === 'archive') && planned.some((x) => x.do === a.do && x.chatId === chat.id)) continue;
+    if (a.do === 'label') {
+      const ref = (a.label ?? text ?? '').trim().toLowerCase();
+      const label = ref ? (await listLabels(ctx.workspaceId)).find((l) => l.name.toLowerCase() === ref) : undefined;
+      if (!label) {
+        problems.push(`${name}: label needs the name of an existing label (${a.label ?? ''})`);
+        continue;
+      }
+      const cur = await chatLabelNames(chat.id);
+      if (cur.ids.includes(label.id) || planned.some((x) => x.do === 'label' && x.chatId === chat.id && x.labelId === label.id)) continue;
+      p.labelId = label.id;
+      p.who = label.name;
+      before.set(`label:${chat.id}`, cur.names.join(', ') || t('none'));
+    }
+    if (a.do === 'close' && chat.status === 'closed') {
+      problems.push(`${name}: already closed`);
+      continue;
+    }
+    if (a.do === 'archive' && chat.archived_at) {
+      problems.push(`${name}: already archived`);
+      continue;
+    }
+    if (a.do === 'ticket' && a.to) {
+      const who = await resolveAssignee(ctx, a.to);
+      if (!who?.personId) {
+        problems.push(`${name}: ticket assignee not found (${a.to})`);
+        continue;
+      }
+      p.personId = who.personId;
+      p.who = who.who;
     }
     // Un solo borrador por chat en una tarjeta (el campo tiene uno).
     if (a.do === 'draft' && planned.some((x) => x.do === 'draft' && x.chatId === chat.id)) {
@@ -319,6 +364,14 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
         return { label: t('do.note', { chat: chatLabel(p) }), after: p.text!, full: true };
       case 'assign':
         return { label: t('do.assign', { chat: chatLabel(p) }), before: before.get(p.chatId) ?? null, after: p.who! };
+      case 'label':
+        return { label: t('do.label', { chat: chatLabel(p) }), before: before.get(`label:${p.chatId}`) ?? null, after: p.who! };
+      case 'close':
+        return { label: t('do.close', { chat: chatLabel(p) }), before: t('statusOpen'), after: t('statusClosed') };
+      case 'archive':
+        return { label: t('do.archive', { chat: chatLabel(p) }), after: t('archived') };
+      case 'ticket':
+        return { label: t('do.ticket', { chat: chatLabel(p) }), after: [p.text || t('ticketTitleAuto'), p.who ? t('owner', { who: p.who }) : ''].filter(Boolean).join('\n'), full: true };
       case 'task':
         return { label: t('do.task', { chat: chatLabel(p) }), after: [p.text!, p.at ? t('due', { when: cardTime(p.at, ctx) }) : '', p.who ? t('owner', { who: p.who }) : ''].filter(Boolean).join('\n'), full: true };
       case 'schedule':
@@ -360,6 +413,25 @@ async function executeLines(ctx: ToolCtx, raw: Record<string, unknown>) {
       else if (p.do === 'assign') {
         const { patchChatAs } = await import('../groups-chat-ops');
         await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, p.teamId ? { assignedTeamId: p.teamId } : { assignedTo: p.personId ?? null });
+      } else if (p.do === 'label') {
+        // Suma la etiqueta a las que tiene al confirmar (no las pisa).
+        const { patchChatAs } = await import('../groups-chat-ops');
+        const cur = await chatLabelNames(p.chatId);
+        await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, { labelIds: [...cur.ids, String(p.labelId ?? '')] });
+      } else if (p.do === 'close' || p.do === 'archive') {
+        // Como en la app: cerrar o archivar vale también para el mismo chat en otras líneas que la persona ve.
+        const { patchChatAs } = await import('../groups-chat-ops');
+        const { withSameChatIds } = await import('../groups-same-chat');
+        const patch = p.do === 'close' ? ({ status: 'closed' } as const) : { archived: true };
+        await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, patch);
+        for (const other of (await withSameChatIds(ctx.workspaceId, viewer, [p.chatId])).filter((x) => x !== p.chatId)) {
+          await patchChatAs(ctx.workspaceId, { id: ctx.personId }, other, patch).catch(() => null);
+        }
+      } else if (p.do === 'ticket') {
+        const { createTicket } = await import('../groups-tickets');
+        const { recordAudit } = await import('../groups-audit');
+        const res = await createTicket(ctx.workspaceId, ctx.personId, { chatId: p.chatId, title: p.text ?? '', assigneeId: p.personId ?? null, source: 'manual' });
+        if (res.created) await recordAudit(ctx.workspaceId, { chatId: res.ticket.chatId, chatName: res.ticket.chatName, actorId: ctx.personId, action: 'ticket_created', detail: { number: res.ticket.number } });
       } else if (p.do === 'task') {
         const { createGroupTask } = await import('../groups-tasks');
         await createGroupTask(ctx.workspaceId, ctx.personId, { chatId: p.chatId, title: String(p.text ?? ''), dueAt: p.at ?? null, ownerId: p.personId ?? null, locale: ctx.locale }, new Date(), viewer);
@@ -411,7 +483,7 @@ export const chatActionTools: AssistantTool[] = [
     name: 'propose_lines_actions',
     app: 'groups',
     description:
-      'Prepare changes to Lines chats the person can see, all in ONE card: a reply draft put in the message field (never sent), assign to a teammate or team, an internal note, a task, or a WhatsApp message scheduled for a future time. Each row shows what, where and the text. Nothing changes and nothing is sent until the person clicks Confirm; a scheduled message goes out on WhatsApp at its time, so say that when you propose it.',
+      'Prepare changes to Lines chats the person can see, all in ONE card: a reply draft put in the message field (never sent), assign to a teammate or team, add a label, close, archive, an internal note, a task, a ticket, or a WhatsApp message scheduled for a future time (for a broadcast, one schedule row per chat). Each row shows what, where and the text. Nothing changes and nothing is sent until the person clicks Confirm; a scheduled message goes out on WhatsApp at its time, so say that when you propose it.',
     input: linesInput,
     prepare: async (ctx, input: z.infer<typeof linesInput>) => prepareLines(ctx, input),
     execute: async (ctx, raw) => executeLines(ctx, raw),

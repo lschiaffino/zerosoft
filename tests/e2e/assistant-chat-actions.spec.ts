@@ -126,10 +126,12 @@ for (const width of [1280, 390]) {
     card = await lastCard(panel);
     await card.getByRole('button', { name: 'Confirm' }).click();
     await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
-    await page.keyboard.press('ControlOrMeta+j');
+    // El borrador deja el foco en el campo: ahí ⌘J es "Ayudame a escribir", así que el panel se cierra con su botón.
+    await panel.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.getByTestId('composer-input')).toHaveValue(`Hola Clara, sale hoy ${tag}`);
     await expect(page.getByTestId('ai-compose-undo')).toBeVisible();
     await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('composer-input')).toHaveValue('');
 
     // Con el chat cerrado: el borrador espera y entra al campo cuando se abre el chat.
     await page.goto('/en/app/lines/inbox', { waitUntil: 'networkidle' });
@@ -143,6 +145,86 @@ for (const width of [1280, 390]) {
     await expect(page.getByTestId('composer-input')).toHaveValue(`Borrador para después ${tag}`, { timeout: 30_000 });
     const msgs = (await (await request.get(`/api/groups/chats/${chat}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
     expect(msgs.messages.filter((m) => m.direction === 'out')).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test(`Lines: etiqueta, ticket y cerrar con tarjeta (${width})`, async ({ page, request }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width, height: 844 });
+    const tag = uid();
+    const name = `Bruno ${tag}`;
+    const chat = await linesChat(request, name, tag);
+    const label = (await (await request.post('/api/groups/labels', { data: { name: `Mayorista ${tag}`, color: 'green' } })).json()) as { id: string; name: string };
+    await page.goto(`/en/app/lines/inbox/${chat}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('.gr-msg').first()).toBeVisible({ timeout: 45_000 });
+    await page.keyboard.press('ControlOrMeta+j');
+    const panel = page.getByTestId('assistant-panel');
+    const detail = async () => ((await (await request.get(`/api/groups/chats/${chat}`)).json()) as { chat: { status: string; archived: boolean; labels: Array<{ id: string }> } }).chat;
+
+    // Etiqueta: Cancelar no la pone; Confirmar sí.
+    await ask(panel, `lines label ${name}: ${label.name}`);
+    let card = await lastCard(panel);
+    await expect(card).toContainText(name);
+    await expect(card).toContainText(label.name);
+    await card.getByRole('button', { name: 'Cancel' }).click();
+    await expect(card).toHaveAttribute('data-status', 'cancelled');
+    expect((await detail()).labels).toEqual([]);
+    await ask(panel, `lines label ${name}: ${label.name}`);
+    card = await lastCard(panel);
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    expect((await detail()).labels.map((l) => l.id)).toEqual([label.id]);
+
+    // Ticket con su título.
+    await ask(panel, `lines ticket ${name}: Presupuesto pendiente ${tag}`);
+    card = await lastCard(panel);
+    await expect(card).toContainText(`Presupuesto pendiente ${tag}`);
+    expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    const tickets = (await (await request.get(`/api/groups/tickets?chat=${chat}`)).json()) as { tickets: Array<{ title: string }> };
+    expect(tickets.tickets.map((x) => x.title)).toEqual([`Presupuesto pendiente ${tag}`]);
+
+    // Cerrar la conversación.
+    await ask(panel, `lines close ${name}`);
+    card = await lastCard(panel);
+    expect((await detail()).status).toBe('open');
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    expect((await detail()).status).toBe('closed');
+    const msgs = (await (await request.get(`/api/groups/chats/${chat}/messages?limit=60`)).json()) as { messages: Array<{ direction: string }> };
+    expect(msgs.messages.filter((m) => m.direction === 'out')).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test(`Inbox: carpeta y archivar con tarjeta (${width})`, async ({ page, request }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width, height: 844 });
+    const tag = uid();
+    const name = `Eva ${tag}`;
+    const thread = await inboxChat(request, name, tag);
+    const folder = ((await (await request.post('/api/inbox/folders', { data: { name: `Clientes ${tag}` } })).json()) as { folder: { id: string } }).folder;
+    await page.goto(`/en/app/inbox?t=${thread}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('.gr-msg').first()).toBeVisible({ timeout: 45_000 });
+    await page.keyboard.press('ControlOrMeta+j');
+    const panel = page.getByTestId('assistant-panel');
+    const detail = async () => ((await (await request.get(`/api/inbox/threads/${thread}`)).json()) as { thread: { archived: boolean; folderIds: string[] } }).thread;
+
+    await ask(panel, `inbox label ${name}: Clientes ${tag}`);
+    let card = await lastCard(panel);
+    await expect(card).toContainText(name);
+    await expect(card).toContainText(`Clientes ${tag}`);
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    expect((await detail()).folderIds).toContain(folder.id);
+
+    await ask(panel, `inbox archive ${name}`);
+    card = await lastCard(panel);
+    expect((await detail()).archived).toBe(false);
+    expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await expect(card).toHaveAttribute('data-status', 'done', { timeout: 30_000 });
+    expect((await detail()).archived).toBe(true);
     expect(errors).toEqual([]);
   });
 

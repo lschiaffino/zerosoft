@@ -317,9 +317,10 @@ function unwrap(v: unknown): unknown {
 /**
  * Lines e Inbox con tarjeta (lib/assistant/tools-chat-actions.ts): "find lines chat <nombre>", "lines note <chat>:
  * <texto>", "lines assign <chat> to <persona>", "lines task <chat>: <título>", "lines draft <chat>: <texto>",
- * "lines schedule <chat>: <texto>" (mañana a las 12 UTC) y lo mismo con "inbox" (la tarea es un recordatorio).
+ * "lines schedule <chat>: <texto>" (mañana a las 12 UTC), "lines label <chat>: <etiqueta>", "lines close <chat>",
+ * "lines archive <chat>", "lines ticket <chat>: <título>" y lo mismo con "inbox" (la tarea es un recordatorio).
  */
-const CHAT_ACT = /^(lines|inbox) (note|schedule|assign|task|draft) (.+?)(?::\s*(.+))?$/is;
+const CHAT_ACT = /^(lines|inbox) (note|schedule|assign|task|draft|label|close|archive|ticket) (.+?)(?::\s*(.+))?$/is;
 const FIND_CHAT = /^find (lines|inbox) chats? (.+)$/i;
 
 function chatActionsFlow(asked: string, done: FakeCallInfo['toolResults'][number] | undefined): FakeStep | null {
@@ -346,14 +347,19 @@ function chatActionsFlow(asked: string, done: FakeCallInfo['toolResults'][number
     }
     return {
       tool: 'propose_lines_actions',
-      input: { actions: [{ chat, do: what, ...(text ? { text } : {}), ...(to ? { to } : {}), ...(what === 'schedule' ? { at: tomorrow.toISOString() } : {}) }] },
+      input: {
+        actions: [
+          { chat, do: what, ...(text ? (what === 'label' ? { label: text } : { text }) : {}), ...(to ? { to } : {}), ...(what === 'schedule' ? { at: tomorrow.toISOString() } : {}) },
+        ],
+      },
     };
   }
-  const inboxDo = what === 'task' ? 'followUp' : what;
-  if (inboxDo === 'assign') return { text: 'Inbox is personal: chats there are not assigned.' };
+  // Inbox: la tarea es un recordatorio, cerrar es "hecho" y etiquetar es sumar a una carpeta.
+  const inboxDo = ({ task: 'followUp', close: 'done', label: 'folder' } as Record<string, string>)[what] ?? what;
+  if (inboxDo === 'assign' || inboxDo === 'ticket') return { text: 'Inbox is personal: chats there are not assigned.' };
   return {
     tool: 'propose_inbox_actions',
-    input: { actions: [{ chat, do: inboxDo, ...(text ? { text } : {}), ...(inboxDo === 'schedule' || inboxDo === 'followUp' ? { until: tomorrow.toISOString() } : {}) }] },
+    input: { actions: [{ chat, do: inboxDo, ...(text ? (inboxDo === 'folder' ? { folder: text } : { text }) : {}), ...(inboxDo === 'schedule' || inboxDo === 'followUp' ? { until: tomorrow.toISOString() } : {}) }] },
   };
 }
 
