@@ -5539,6 +5539,14 @@
     "clear": "Clear selection",
     "error": "Couldn't select them. Try again."
   },
+  "recordNav": {
+    "label": "Records in this list",
+    "previous": "Previous record",
+    "next": "Next record",
+    "position": "{n} of {total}",
+    "gone": "This record is no longer available. Someone deleted it or you no longer have access.",
+    "goneBack": "Back to the list"
+  },
   "propertyOptions": {
     "title": "Lifecycle stage and lead status options",
     "desc": "Add, rename, reorder and archive the options of these two properties. Records keep an archived option; it just stops being offered. A new name shows on every record.",

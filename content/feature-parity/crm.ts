@@ -502,6 +502,22 @@ const parity: ProductParity = {
       competitorHas: true,
     },
     {
+      id: 'record-prev-next',
+      area: 'record',
+      label: { en: 'Previous and next record from the list you came from', es: 'Registro anterior y siguiente de la lista de donde viniste', pt: 'Registro anterior e próximo da lista de onde você veio' },
+      detail: { en: 'The record page and the preview step through the rows of the table or the cards of the board they were opened from, in its order and with its filters, with ‹ › buttons, the position (3 of 25) and the J and K keys; Back returns to that list with its filters. From a table, the record page walks the whole view (up to 2,000 records); the preview walks the page on screen. Leads do not have it yet', es: 'La ficha y la vista previa recorren las filas de la tabla o las tarjetas del board de donde se abrieron, en su orden y con sus filtros, con los botones ‹ ›, la posición (3 de 25) y las teclas J y K; Volver regresa a esa lista con sus filtros. Desde una tabla, la ficha recorre la vista entera (hasta 2.000 registros); la vista previa recorre la página en pantalla. Los leads todavía no lo tienen', pt: 'O registro e a prévia percorrem as linhas da tabela ou os cartões do quadro de onde foram abertos, na sua ordem e com seus filtros, com os botões ‹ ›, a posição (3 de 25) e as teclas J e K; Voltar retorna a essa lista com seus filtros. A partir de uma tabela, o registro percorre a visualização inteira (até 2.000 registros); a prévia percorre a página na tela. Os leads ainda não têm' },
+      status: 'have',
+      competitorHas: true,
+    },
+    {
+      id: 'live-updates',
+      area: 'record',
+      label: { en: 'Lists, boards and records update live when a teammate changes something', es: 'Listas, boards y fichas que se actualizan solos cuando un compañero cambia algo', pt: 'Listas, quadros e registros que se atualizam sozinhos quando um colega muda algo' },
+      detail: { en: 'Contacts, companies, deals and leads tables, the deal and lead boards, the record page and the preview refresh within a few seconds while the tab is open (polling, not instant). Only what the viewer can see counts: a record outside their visibility or a hidden property never triggers a refresh. If someone deletes the open record, a notice offers the way back instead of a 404. The lead record page, custom objects, lists and tasks do not refresh on their own yet', es: 'Las tablas de contactos, empresas, deals y leads, los boards de deals y leads, la ficha y la vista previa se refrescan en unos segundos mientras la pestaña está abierta (por sondeo, no al instante). Solo cuenta lo que la persona ve: un registro fuera de su visibilidad o una propiedad oculta nunca dispara un refresco. Si alguien borra el registro abierto, un aviso ofrece la vuelta en vez de un 404. La ficha del lead, los objetos propios, las listas y las tareas todavía no se refrescan solos', pt: 'As tabelas de contatos, empresas, negócios e leads, os quadros de negócios e leads, o registro e a prévia se atualizam em poucos segundos enquanto a aba está aberta (por consulta periódica, não na hora). Só conta o que a pessoa vê: um registro fora da sua visibilidade ou uma propriedade oculta nunca dispara uma atualização. Se alguém excluir o registro aberto, um aviso oferece o caminho de volta em vez de um 404. O registro do lead, objetos personalizados, listas e tarefas ainda não se atualizam sozinhos' },
+      status: 'partial',
+      competitorHas: true,
+    },
+    {
       id: 'record-follow',
       area: 'record',
       label: { en: 'Follow a record to get its notifications', es: 'Seguir un registro para recibir sus avisos', pt: 'Seguir um registro para receber os avisos' },

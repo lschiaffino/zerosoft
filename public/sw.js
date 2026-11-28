@@ -170,6 +170,8 @@ const NEVER_QUEUE = [
   '/api/crm/voice',
   '/api/crm/calls',
   '/api/crm/hubspot-sync',
+  // Sondeo del CRM en vivo: una lectura, nunca un cambio para sincronizar después.
+  '/api/crm/live',
 ];
 
 // APIs que aceptan encolar cuando la página lo pide (header x-zs-offline).

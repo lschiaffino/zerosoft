@@ -1,4 +1,62 @@
-# Benchmark: Groups vs Periskope (WhatsApp para equipos, con foco en grupos)
+# Benchmark: Lines (antes Groups) vs Periskope (WhatsApp para equipos, con foco en grupos)
+
+Groups pasó a llamarse **Lines** el 2026-11-08 (`/app/lines`); el código sigue con el prefijo `groups`. Todo lo que pide un chat de WhatsApp se hace a la vez en Lines y en Inbox.
+
+## Estado al 2026-11-28
+
+Base: `main` en `1bec5fb`. La fuente fila por fila es `content/feature-parity/groups.ts` (la página de producto calcula el porcentaje con `computeParity`, `lib/feature-parity.ts`). Este resumen sale de ese archivo.
+
+- **Paridad global: 80%** sobre 102 filas que Periskope tiene: 66 completas o mejores, 36 parciales y ninguna marcada como faltante. Hay 7 filas más que Periskope no tiene (self-host, kanban, teclado, favoritos, VIP, lo respondido desde el teléfono cuenta, sin créditos de envío).
+- **Por qué tantas parciales:** casi todo lo que depende de WhatsApp se probó contra el proveedor falso (`GROUPS_FAKE`) o un Evolution simulado, no con WhatsApp real. Esas filas quedan en parcial hasta probarlas con un número real, aunque la pantalla esté completa.
+
+| Área | Paridad | Filas que cuentan | Completas | Parciales |
+|---|---|---|---|---|
+| Números y conexión | 65% | 7 | 2 | 5 |
+| Bandeja compartida | 77% | 33 | 19 | 14 |
+| Gestión de grupos | 53% | 11 | 1 | 10 |
+| Etiquetas, propiedades y contactos | 100% | 6 | 6 | 0 |
+| Tickets y SLA | 100% | 9 | 9 | 0 |
+| Envíos masivos y programados | 81% | 7 | 5 | 2 |
+| Automatización y AI | 92% | 7 | 6 | 1 |
+| Integraciones y API | 81% | 6 | 4 | 2 |
+| Permisos y privacidad | 100% | 7 | 7 | 0 |
+| Reportes y export | 100% | 7 | 7 | 0 |
+| Mobile y escritorio | 50% | 2 | 0 | 2 |
+
+### Lo que entró del 23 al 27/11 (bloques L1 a L3)
+
+- **L1, panel del chat en pestañas** (#732, #765): Info, Miembros, Archivos, Notas (de todas las líneas que ves), Tareas, CRM e IA en Lines; Info, Miembros, Archivos, Notas, CRM e IA en Inbox. Inbox se vincula al CRM de zerosoft como Lines. Fila `chat-details-tabs`.
+- **L2, pestaña IA** (#770, #790): ponerse al día, preguntas sobre el chat y tickets o tareas propuestos que se aprueban. Filas `ai-summary` y `ai-chat-tab` (parcial: probado con el modelo falso).
+- **L3, contactos internos y @todos** (#748, #740): filas `internal-contacts` y `wa-mention-all` (parcial: probado con el proveedor falso).
+- **Como WhatsApp:** subtítulo del grupo que termina en "Vos" (#763), "@" en la lista cuando un grupo te menciona o responde (#785), un contacto con id oculto y teléfono en un solo chat (#780). Filas `chats-and-groups` y `wa-mentions`.
+- **Permisos:** un member puede invitar a Lines con el permiso "Puede invitar a Lines" (#782). Fila `member-invite`, fuera del porcentaje porque no encontramos lo mismo en Periskope.
+- **HubSpot:** contactos y negocios vinculados al día desde el cron y grupos que siguen a la empresa ganadora en una fusión (#784). Fila `hubspot`, parcial (HubSpot simulado).
+
+**L4, resumen del día** (#751) todavía no está en `main`: su fila (`daily-brief`) entra con ese PR.
+
+### Correcciones de esta revisión
+
+- `mcp` pasa a **parcial**: el MCP de la suite llega a unas 160 operaciones de Lines y tiene 4 herramientas con nombre (Periskope lista 56), y 70 de las 108 operaciones de escritura de Lines tienen el esquema de entrada incompleto.
+- `calls` pasa a **peso 2**: para un equipo que viene de Periskope las llamadas son centrales, y nosotros solo tenemos el registro de llamadas de la Cloud API.
+
+### Lo que el benchmark de octubre listaba y todavía no es una fila
+
+Capacidades de Periskope que no tienen fila en `groups.ts`, así que no cuentan para el porcentaje. Falta revisarlas contra el código antes de marcarlas:
+
+- guía de calentamiento de números y buenas prácticas para no ser bloqueado;
+- verificar si un número tiene WhatsApp;
+- subir etiquetas y propiedades en masa;
+- propiedades de ticket obligatorias al cerrar;
+- reenviar los mensajes de contactos clave a una persona;
+- plantillas de mensaje y salida por "cualquier número" en los envíos masivos;
+- turnos por persona;
+- autoentrenamiento del agente con revisión de las respuestas aprendidas;
+- privacidad de la media;
+- SDK en TypeScript para la API.
+
+## Benchmark inicial (2026-10-22)
+
+Lo que sigue es la foto previa a construir y no se actualiza: los puntajes de cada área son de cuando Groups todavía no existía.
 
 Fecha: 2026-10-22. Base: `main` en `1689419`. Referencia: Periskope Starter (USD 25 por licencia al mes) y Pro (USD 35 por licencia al mes, precios mensuales desde el 1/9/2026).
 
