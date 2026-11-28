@@ -96,7 +96,7 @@ for (const width of [1280, 390]) {
     test.setTimeout(300_000);
     const errors = watchErrors(page);
     const me = await demo(request);
-    await sql("DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app = 'lines'", [me]);
+    await sql("DELETE FROM daily_brief_dismissals WHERE user_id = ? AND app LIKE 'lines%'", [me]);
     const n = await fakeLinesNumber(request);
     const tag = uid();
     const customer = phone();
