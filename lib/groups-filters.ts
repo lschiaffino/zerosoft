@@ -54,6 +54,8 @@ export interface LinesFilters {
   favorite?: Tri;
   /** La persona del chat 1:1 es VIP (división VIP). */
   vip?: Tri;
+  /** La persona del chat 1:1 es interna: del equipo o de la empresa (lib/internal-contacts.ts). */
+  internal?: Tri;
   muted?: Tri;
   /** Tiene un ticket abierto o en curso. */
   ticket?: Tri;
@@ -70,7 +72,7 @@ export interface LinesFilters {
   hsProps?: HubspotPropFilter[];
 }
 
-const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'favorite', 'vip', 'muted', 'ticket', 'agent', 'crm'] as const;
+const TRI_KEYS = ['unread', 'waiting', 'flagged', 'pinned', 'favorite', 'vip', 'internal', 'muted', 'ticket', 'agent', 'crm'] as const;
 type TriKey = (typeof TRI_KEYS)[number];
 const MAX_IDS = 50;
 const PROP_KEY = /^[a-z0-9_]{1,40}$/;
@@ -337,6 +339,8 @@ export interface LinesSqlContext {
   now?: Date;
   /** Minutos al este de UTC de quien mira (para "hoy", "esta semana"). */
   tzOffsetMin?: number;
+  /** Los teléfonos internos del workspace, JSON (internalPhonesJson): el filtro `internal`. Sin esto, ningún chat es interno. */
+  internalPhones?: string;
 }
 
 type Arg = string | number;
@@ -358,6 +362,9 @@ function anyOf(column: string, picked: string[], out: { where: string[]; args: A
 
 /** La persona del chat 1:1 es VIP del workspace (groups_vips, por teléfono: vale en todas las líneas). */
 const VIP_SQL = "(c.kind = 'dm' AND c.phone <> '' AND EXISTS (SELECT 1 FROM groups_vips v WHERE v.user_id = c.user_id AND v.phone = c.phone))";
+
+/** La persona del chat 1:1 es interna (el arg: los teléfonos internos en JSON). */
+const INTERNAL_SQL = "(c.kind = 'dm' AND c.phone <> '' AND c.phone IN (SELECT value FROM json_each(?)))";
 
 function triSql(v: Tri | undefined, yes: string, no: string, out: { where: string[] }): void {
   if (v === 'yes') out.where.push(yes);
@@ -408,6 +415,11 @@ export function linesFiltersSql(raw: LinesFilters, ctx: LinesSqlContext): { wher
   triSql(f.pinned, 'c.pinned_at IS NOT NULL', 'c.pinned_at IS NULL', out);
   triSql(f.favorite, 'c.favorite_at IS NOT NULL', 'c.favorite_at IS NULL', out);
   triSql(f.vip, VIP_SQL, `NOT ${VIP_SQL}`, out);
+  if (f.internal) {
+    // Un chat 1:1 con alguien interno (por teléfono, en cualquier línea). Los grupos no son una persona: nunca.
+    out.where.push(f.internal === 'yes' ? INTERNAL_SQL : `NOT ${INTERNAL_SQL}`);
+    out.args.push(ctx.internalPhones ?? '[]');
+  }
   if (f.muted) {
     out.where.push(f.muted === 'yes' ? '(c.muted_until IS NOT NULL AND c.muted_until > ?)' : '(c.muted_until IS NULL OR c.muted_until <= ?)');
     out.args.push(now.toISOString());

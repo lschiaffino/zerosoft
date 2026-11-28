@@ -32,6 +32,8 @@ export function useInboxPersonSheet(
     onStartChat?: (phone: string) => Promise<void>;
     onError: (code: string) => void;
     onToast: (text: string) => void;
+    /** Algo de la ficha cambió el chat (marcar a alguien como interno): se vuelve a leer la conversación. */
+    onChanged?: () => void;
   },
 ): { open: (phone: string, name: string, picture?: string) => void; sheet: ReactNode } {
   const t = useTranslations('groups.wa.contactSheet');
@@ -40,7 +42,8 @@ export function useInboxPersonSheet(
   const [card, setCard] = useState<WaPersonCard | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const { onOpenThread, onStartChat, onError, onToast } = opts;
+  const { onOpenThread, onStartChat, onError, onToast, onChanged } = opts;
+  const ti = useTranslations('groups.wa.internal');
 
   const load = useCallback(
     async (phone: string) => {
@@ -127,6 +130,18 @@ export function useInboxPersonSheet(
         else onToast(on ? w('blocked', { name: label }) : w('unblocked', { name: label }));
         void load(person.phone);
       }}
+      onInternal={
+        card?.canMarkInternal && card.phone
+          ? async (on) => {
+              // Interno o no (lib/internal-contacts.ts), en el workspace activo. Apagarlo es "no interno".
+              const r = await api('/api/inbox/internal', { method: 'POST', json: { handle: card.phone, internal: on } });
+              if (!r.ok) return onError(r.data.error ?? 'generic');
+              onToast(on ? ti('markedToast', { name: label }) : ti('unmarkedToast', { name: label }));
+              void load(person.phone);
+              onChanged?.();
+            }
+          : undefined
+      }
       loadShared={loadShared}
     />
   ) : null;
