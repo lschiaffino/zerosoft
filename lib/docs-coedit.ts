@@ -569,8 +569,13 @@ export async function currentAccess(viewer: CoeditViewer, pageId: string): Promi
   if (viewer.actor.actingUser) {
     const { personAppAccess } = await import('./api-auth');
     const { canUseApp } = await import('./workspace');
+    // Un error de la base sale como error (la conexión reintenta), no como acceso quitado.
     const a = await personAppAccess(viewer.ownerId, viewer.realId);
     if (!a || !canUseApp({ role: a.role, apps: a.apps === '*' ? '*' : JSON.stringify(a.apps) }, 'docs')) return null;
+    // Y Apps del workspace, como la sesión.
+    const { blockedAppsFor } = await import('./workspace-apps');
+    const email = (await getDb().prepare('SELECT email FROM users WHERE id = ?').get(viewer.realId)) as { email: string | null } | undefined;
+    if ((await blockedAppsFor({ ownerId: viewer.ownerId, personId: viewer.realId, role: a.role, email: email?.email ?? null })).includes('docs')) return null;
     viewer.actor = { ...viewer.actor, role: a.role };
   }
   const res = await resolveDocAccess(viewer.actor, pageId, DOC_INTERNAL_READ);

@@ -100,11 +100,14 @@ export async function notifyBreach(ws: string, ticket: TicketDto, kind: 'first_r
   const link = `${siteUrl()}/${locale}${href}`;
   let sent = 0;
   const { canSeeChat, groupsViewer, maskTicket } = await import('./groups-access');
-  const { workspaceRole } = await import('./api-auth');
+  const { personCanUseApp } = await import('./workspace-apps');
   for (const r of recipients) {
     // Una persona del workspace que no ve el chat del ticket no recibe ni el email ni el aviso; si se le ocultan
-    // los teléfonos, el email y el aviso tampoco los traen (el título y el chat, enmascarados).
-    const viewer = r.userId ? await groupsViewer(ws, r.userId, await workspaceRole(ws, r.userId)).catch(() => null) : null;
+    // los teléfonos, el email y el aviso tampoco los traen (el título y el chat, enmascarados). Quien dejó el
+    // workspace o no tiene Lines (Miembros o Apps del workspace), tampoco.
+    const access = r.userId ? await personCanUseApp(ws, r.userId, 'groups') : null;
+    if (r.userId && !access) continue;
+    const viewer = r.userId && access ? await groupsViewer(ws, r.userId, access.role).catch(() => null) : null;
     if (r.userId && !viewer) continue;
     const sees = !viewer || !ticket.chatId || (await canSeeChat(viewer, ticket.chatId).catch(() => false));
     if (!sees) continue;

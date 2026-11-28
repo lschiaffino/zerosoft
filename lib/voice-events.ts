@@ -9,7 +9,6 @@
  * la transcripción.
  */
 import { getDb } from './db';
-import { personAppAccess } from './api-auth';
 import { parseAttendees, type VoiceSessionRow } from './voice';
 import type { VoiceEnhanced } from './voice-types';
 
@@ -65,7 +64,7 @@ export async function voiceDeliveryAllowed(workspaceId: string, creatorId: strin
 /** ¿La persona sigue en el workspace y con la app Voice? (acceso por app, migración 128). */
 export async function personUsesVoice(workspaceId: string, personId: string | null): Promise<boolean> {
   if (!personId) return false;
-  const access = await personAppAccess(workspaceId, personId);
-  if (!access) return false;
-  return access.role === 'owner' || (access.role !== 'guest' && (access.apps === '*' || access.apps.includes('voice')));
+  // Miembros y Apps del workspace, como la sesión (lib/workspace-apps.ts); un invitado no la usa.
+  const { personCanUseApp } = await import('./workspace-apps');
+  return Boolean(await personCanUseApp(workspaceId, personId, 'voice'));
 }

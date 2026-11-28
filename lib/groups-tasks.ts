@@ -485,8 +485,10 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     const locale: Locale = r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en';
     const href = `/app/lines/inbox/${encodeURIComponent(r.chat_id)}`;
     // Sin ver la línea del chat no hay aviso: ni la notificación ni el email nombran el chat.
-    const { workspaceRole } = await import('./api-auth');
-    const pv = person ? await groupsViewer(r.user_id, person, await workspaceRole(r.user_id, person)).catch(() => null) : null;
+    // Quien dejó el workspace o no tiene Lines (Miembros o Apps del workspace), tampoco.
+    const { personCanUseApp } = await import('./workspace-apps');
+    const pa = person ? await personCanUseApp(r.user_id, person, 'groups') : null;
+    const pv = person && pa ? await groupsViewer(r.user_id, person, pa.role).catch(() => null) : null;
     if (person && !(pv && (await canSeeChat(pv, r.chat_id).catch(() => false)))) continue;
     // El aviso va solo a quien ve el chat: lleva el título que se ve en Lines, con los teléfonos ocultos si a esa
     // persona se le ocultan (también en el email).
