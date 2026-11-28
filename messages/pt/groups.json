@@ -2119,6 +2119,37 @@
         "film": "Filme"
       }
     },
+    "brief": {
+      "title": "Hoje",
+      "dismiss": "Ocultar até amanhã",
+      "hidden": "Oculto até amanhã",
+      "undo": "Desfazer",
+      "dismissError": "Não foi possível ocultar. Tente de novo.",
+      "restoreError": "Não foi possível mostrar de novo. Tente de novo.",
+      "unnamed": "Conversa",
+      "andMore": "{list} e mais {n}",
+      "kind": {
+        "waiting": "{n, plural, one {conversa espera sua resposta} other {conversas esperam sua resposta}}",
+        "sla": "{n, plural, one {ticket perto do SLA} other {tickets perto do SLA}}",
+        "groups": "{n, plural, one {grupo sem atribuição sem resposta} other {grupos sem atribuição sem resposta}}",
+        "tickets": "{n, plural, one {ticket novo} other {tickets novos}}",
+        "tasks": "{n, plural, one {tarefa para hoje} other {tarefas para hoje}}",
+        "mentions": "{n, plural, one {menção em uma nota} other {menções em notas}}",
+        "reply": "{n, plural, one {conversa para responder} other {conversas para responder}}",
+        "reminders": "{n, plural, one {lembrete vencido} other {lembretes vencidos}}",
+        "unreadGroups": "{n, plural, one {grupo com mensagens não lidas} other {grupos com mensagens não lidas}}",
+        "groupMentions": "{n, plural, one {menção em um grupo} other {menções em grupos}}"
+      },
+      "emailOn": "Chega por e-mail toda manhã. Mudar",
+      "emailOff": "Receber por e-mail toda manhã",
+      "email": {
+        "subject": "Seu dia no zerosoft",
+        "heading": "Hoje",
+        "intro": "Isto é o que espera por você.",
+        "open": "Abrir {app}",
+        "footer": "Você recebe este e-mail porque ligou o resumo do dia. Mude em Ajustes › Avisos."
+      }
+    },
     "internal": {
       "tag": "Interno",
       "title": "Contatos internos",

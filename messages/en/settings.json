@@ -1454,6 +1454,13 @@
     "originDevice": "Signed in with a device code",
     "emptyAction": "How to connect"
   },
+  "dailyBrief": {
+    "title": "Daily brief",
+    "desc": "A summary of what is waiting on you in Lines and Inbox: chats to reply, SLAs about to expire, unanswered groups, new tickets and tasks, and mentions. It also shows at the top of both apps.",
+    "label": "Email it to me every morning",
+    "help": "Around 8:00 in your time zone, only on days with something waiting.",
+    "saveError": "Could not save. Try again."
+  },
   "emailPrefs": {
     "title": "Emails from zerosoft",
     "desc": "What we send to help you get the most out of zerosoft. Account emails (sign-in codes, invites, bookings and app notifications) still arrive.",

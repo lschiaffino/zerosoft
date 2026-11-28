@@ -642,6 +642,14 @@ const parity: ProductParity = {
     }),
 
     // Reportes
+    row('daily-brief', 'reports', ['Daily brief for each person', 'Resumen del día de cada persona', 'Resumo do dia de cada pessoa'], 'have', {
+      competitorHas: false,
+      detail: [
+        'A card at the top of the inbox with what is waiting on you today: chats assigned to you waiting for a reply, unassigned groups without an answer, tickets close to their SLA, new tickets, your tasks for today and mentions in notes, only from chats you can see. Hide it until tomorrow, or get it by email every morning (Settings › Notifications). Counts and chat names only, never message text',
+        'Una tarjeta arriba de la bandeja con lo que te espera hoy: chats asignados a vos que esperan respuesta, grupos sin asignar sin respuesta, tickets cerca de su SLA, tickets nuevos, tus tareas de hoy y menciones en notas, solo de chats que ves. Se oculta hasta mañana, o te llega por email cada mañana (Ajustes › Avisos). Solo cuentas y nombres de chats, nunca el texto de un mensaje',
+        'Um cartão no topo da caixa com o que espera por você hoje: conversas atribuídas a você esperando resposta, grupos sem atribuição sem resposta, tickets perto do SLA, tickets novos, suas tarefas de hoje e menções em notas, só de conversas que você vê. Dá para ocultar até amanhã, ou receber por e-mail toda manhã (Ajustes › Avisos). Só contagens e nomes de conversas, nunca o texto de uma mensagem',
+      ],
+    }),
     row('response-metrics', 'reports', ['Messages, active chats and first response time', 'Mensajes, chats activos y tiempo de primera respuesta', 'Mensagens, chats ativos e tempo de primeira resposta'], 'have', {
       detail: [
         'Median and 9 out of 10, per day and by how fast the reply was; chats waiting now by how long; new chats; received by weekday and hour',

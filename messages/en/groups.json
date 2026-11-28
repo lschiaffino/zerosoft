@@ -2119,6 +2119,37 @@
         "film": "Film"
       }
     },
+    "brief": {
+      "title": "Today",
+      "dismiss": "Hide until tomorrow",
+      "hidden": "Hidden until tomorrow",
+      "undo": "Undo",
+      "dismissError": "Could not hide it. Try again.",
+      "restoreError": "Could not bring it back. Try again.",
+      "unnamed": "Chat",
+      "andMore": "{list} and {n} more",
+      "kind": {
+        "waiting": "{n, plural, one {chat waiting for your reply} other {chats waiting for your reply}}",
+        "sla": "{n, plural, one {ticket close to its SLA} other {tickets close to their SLA}}",
+        "groups": "{n, plural, one {unassigned group without an answer} other {unassigned groups without an answer}}",
+        "tickets": "{n, plural, one {new ticket} other {new tickets}}",
+        "tasks": "{n, plural, one {task for today} other {tasks for today}}",
+        "mentions": "{n, plural, one {mention in a note} other {mentions in notes}}",
+        "reply": "{n, plural, one {chat to reply} other {chats to reply}}",
+        "reminders": "{n, plural, one {reminder due} other {reminders due}}",
+        "unreadGroups": "{n, plural, one {group with unread messages} other {groups with unread messages}}",
+        "groupMentions": "{n, plural, one {mention in a group} other {mentions in groups}}"
+      },
+      "emailOn": "Emailed to you every morning. Change",
+      "emailOff": "Get this by email every morning",
+      "email": {
+        "subject": "Your day in zerosoft",
+        "heading": "Today",
+        "intro": "This is what is waiting on you.",
+        "open": "Open {app}",
+        "footer": "You get this email because you turned on the daily brief. Change it in Settings › Notifications."
+      }
+    },
     "internal": {
       "tag": "Internal",
       "title": "Internal contacts",

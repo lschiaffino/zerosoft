@@ -7,6 +7,8 @@ import { getEmailPrefs } from '@/lib/lifecycle/prefs';
 import { DEFAULT_PREFS } from '@/lib/lifecycle/types';
 import FormSection from '@/components/ui/FormSection';
 import EmailPreferences from '@/components/settings/EmailPreferences';
+import DailyBriefEmail from '@/components/settings/DailyBriefEmail';
+import { briefEmailOn } from '@/lib/daily-brief';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,9 +23,12 @@ export default async function NotificationsSettingsPage(props: { params: Promise
   const user = await requireUser(locale);
   const t = await getTranslations({ locale, namespace: 'settings.emailPrefs' });
   const prefs = await getEmailPrefs(realUserId(user)).catch(() => ({ ...DEFAULT_PREFS, optedOut: [] }));
+  const brief = await briefEmailOn(realUserId(user)).catch(() => false);
   return (
     <div className="st-stack">
       <EmailPreferences initial={prefs} />
+      {/* El resumen del día de Lines e Inbox por email (lib/daily-brief.ts). */}
+      <DailyBriefEmail initial={brief} />
       <FormSection setting="notifications-apps" title={t('appsTitle')} description={t('appsDesc')}>
         <ul className="st-links">
           <li>

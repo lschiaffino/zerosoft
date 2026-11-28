@@ -1454,6 +1454,13 @@
     "originDevice": "Entrou com um código de dispositivo",
     "emptyAction": "Como conectar"
   },
+  "dailyBrief": {
+    "title": "Resumo do dia",
+    "desc": "O que espera por você no Lines e no Inbox: conversas para responder, SLAs prestes a vencer, grupos sem resposta, tickets e tarefas novos, e menções. Também aparece no topo dos dois apps.",
+    "label": "Me enviar por e-mail toda manhã",
+    "help": "Por volta das 8:00 no seu fuso horário, só nos dias com algo pendente.",
+    "saveError": "Não foi possível salvar. Tente de novo."
+  },
   "emailPrefs": {
     "title": "Emails do zerosoft",
     "desc": "O que mandamos para ajudar você a usar o zerosoft. Os emails da sua conta (códigos de acesso, convites, reservas e avisos dos apps) continuam chegando.",

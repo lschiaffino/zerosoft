@@ -18,6 +18,7 @@ import { listMessages, listSessions, markRead } from '@/lib/fleet/sessions';
 import InboxContacts from '@/components/inbox/InboxContacts';
 import { loadInternalSet } from '@/lib/internal-contacts';
 import { roleAtLeast } from '@/lib/teams';
+import { inboxBriefPayload, serverLocalDay } from '@/lib/daily-brief';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,8 +95,12 @@ export default async function InboxPage(props: Props) {
     default:
       notFound();
   }
-  // La primera página; el resto se pide al bajar en la lista.
-  const first = await listThreadsPage(owner, { view, folderId: folder?.id, limit: 60, cursor: '', internal });
+  // La primera página; el resto se pide al bajar en la lista. En la bandeja, el resumen del día viene con ella:
+  // así la tarjeta ya está al pintar y no corre la lista cuando llega (lib/daily-brief.ts).
+  const [first, initialBrief] = await Promise.all([
+    listThreadsPage(owner, { view, folderId: folder?.id, limit: 60, cursor: '', internal }),
+    view === 'inbox' && !folder ? serverLocalDay(owner).then((day) => inboxBriefPayload(owner, day, new Date(), internal)) : Promise.resolve(null),
+  ]);
   const openId = typeof sp.t === 'string' && /^ibt_[a-f0-9]{20}$/.test(sp.t) ? sp.t : null;
   return (
     <InboxApp
@@ -105,6 +110,7 @@ export default async function InboxPage(props: Props) {
       initialNext={first.next}
       initialPinned={first.pinned}
       initialState={state}
+      initialBrief={initialBrief}
       initialOpenId={openId}
       initialFocusId={openId && typeof sp.m === 'string' && /^ibm_[a-f0-9]{8,40}$/.test(sp.m) ? sp.m : null}
       composeOnLoad={sp.new === '1'}

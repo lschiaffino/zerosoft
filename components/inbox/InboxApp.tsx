@@ -41,6 +41,8 @@ import WhenDialog, { type WhenKind } from './WhenDialog';
 import ScheduleDialog, { type ScheduleTarget } from './ScheduleDialog';
 import InboxNewChat from './InboxNewChat';
 import ImportBanner from './ImportBanner';
+import DailyBrief, { useDailyBrief } from '@/components/groups/DailyBrief';
+import type { BriefPayload } from '@/lib/daily-brief';
 import RemovedList from './RemovedList';
 import { ComposeDialog, FolderDialog, HelpDialog, MoreDialog, MoveDialog, type MoreAction } from './InboxDialogs';
 import { WhatsappQrDialog } from './InboxSettings';
@@ -150,6 +152,8 @@ export default function InboxApp(props: {
   view: InboxView;
   folder: FolderDto | null;
   initialThreads: ThreadDto[];
+  /** El resumen del día de la bandeja, armado con la página (null fuera de la bandeja). */
+  initialBrief?: BriefPayload | null;
   /** Cursor de la página que sigue a initialThreads (null si no hay más). */
   initialNext?: string | null;
   /** Cuántos de initialThreads son los fijados de adelante. */
@@ -195,6 +199,8 @@ export default function InboxApp(props: {
   const [detailErr, setDetailErr] = useState('');
   const [listErr, setListErr] = useState(false);
   const [q, setQ] = useState('');
+  // Resumen del día (lib/daily-brief.ts): se pide una vez; la tarjeta va donde esté la lista.
+  const brief = useDailyBrief('/api/inbox/brief', props.initialBrief);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<{ kind: WhenKind; ids: string[]; text?: string } | null>(null);
   const [moveIds, setMoveIds] = useState<string[] | null>(null);
@@ -1371,6 +1377,19 @@ export default function InboxApp(props: {
   const anyConnected = accounts.some((a) => a.status === 'connected');
   const showInfo = infoOpen && !!openId && detail?.thread.channel === 'whatsapp' && detail.thread.id === openId;
 
+  // En la bandeja, sin búsqueda ni carpeta; se cierra por hoy. En la lista, primer renglón; vacía, arriba.
+  const briefCard = (as: 'li' | 'div') =>
+    !q && !folder && view === 'inbox' ? (
+      <DailyBrief
+        brief={brief}
+        as={as}
+        onOpen={(kind, chats) => {
+          if (kind === 'reply') go({ view: 'reply', folderId: null });
+          else if (chats[0]) open(chats[0].id);
+        }}
+      />
+    ) : null;
+
   return (
     <div className={`ib-app gr-inbox${openId ? ' has-open' : ''}${showInfo ? ' has-details' : ''}`} data-chat-style={chatStyle}>
       <PanelSplitters
@@ -1561,6 +1580,7 @@ export default function InboxApp(props: {
           </div>
         ) : threads.length === 0 && !(q.trim() && msgHits.length) ? (
           <div className="ib-list-empty" data-tour={noAccounts && !q ? 'inbox-connect' : undefined}>
+            {!noAccounts && briefCard('div')}
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && <AgentsRow {...props.agentsRow} />}
             {noAccounts && !q ? (
               <EmptyState
@@ -1598,6 +1618,8 @@ export default function InboxApp(props: {
           </div>
         ) : (
           <ul className={`ib-list${switching ? ' is-stale' : ''}`} ref={listRef} aria-label={viewTitle} aria-busy={loading || undefined} data-list={shownKey} data-chat-list data-tour="inbox-chat-list">
+            {/* Resumen del día (lib/daily-brief.ts): en la bandeja; se cierra por hoy. */}
+            {briefCard('li')}
             {props.agentsRow && view === 'inbox' && !folder && !q.trim() && (
               <li>
                 <AgentsRow {...props.agentsRow} />
