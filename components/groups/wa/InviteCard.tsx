@@ -20,7 +20,7 @@ export interface InviteJoin {
 }
 
 /** Los errores que se explican; el resto es "no se pudo". */
-const KNOWN_ERRORS = new Set(['invite_invalid', 'invite_already_member', 'invite_approval_required', 'not_connected', 'groups_unsupported', 'rate_limited']);
+const KNOWN_ERRORS = new Set(['invite_invalid', 'invite_already_member', 'invite_approval_required', 'not_connected', 'groups_unsupported', 'rate_limited', 'join_no_access']);
 
 /**
  * Invitación a un grupo de WhatsApp, como la tarjeta de WhatsApp: la foto del
@@ -94,7 +94,7 @@ export default function InviteCard({ url, given, join }: { url: string; given?: 
         </p>
       )}
       <div className="wa-invite-actions">
-        {join && !done && error !== 'invite_already_member' && (
+        {join && !done && error !== 'invite_already_member' && error !== 'join_no_access' && (
           <button type="button" data-testid="wa-invite-join" onClick={() => setAsking(true)} disabled={busy} aria-busy={busy}>
             {busy ? t('joining') : t('join')}
           </button>
