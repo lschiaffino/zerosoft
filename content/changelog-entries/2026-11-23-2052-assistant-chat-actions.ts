@@ -21,5 +21,11 @@ export default {
       es: 'En Inbox el asistente también puede encontrar un chat, sumarle una nota y programar un mensaje, con la misma tarjeta y Confirmar.',
       pt: 'No Inbox o assistente também pode encontrar uma conversa, adicionar uma nota e agendar uma mensagem, com o mesmo cartão e Confirmar.',
     },
+    {
+      product: 'groups',
+      en: 'Fix: a chat waiting for a reply past your workspace\'s limit now always shows up as overdue, even when many chats in other workspaces are waiting under a longer limit.',
+      es: 'Arreglo: un chat que espera respuesta más que el límite de tu workspace ahora siempre aparece como vencido, aunque haya muchos chats esperando en otros workspaces con un límite más largo.',
+      pt: 'Correção: uma conversa esperando resposta além do limite do seu workspace agora sempre aparece como atrasada, mesmo quando muitas conversas de outros workspaces esperam com um limite maior.',
+    },
   ],
 } satisfies ChangelogEntry;
