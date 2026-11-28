@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ThreadDto, WaDetailsDto } from '@/lib/inbox/types';
 import Avatar from '@/components/groups/wa/Avatar';
@@ -11,6 +11,8 @@ import SharedMedia from '@/components/groups/wa/SharedMedia';
 import type { SheetSharedItem } from '@/components/groups/wa/ContactSheet';
 import ThreadNotes from './ThreadNotes';
 import { ArchiveIcon, Ban, BriefcaseIcon, Close, ExitIcon, GroupIcon, InfoIcon, MuteIcon, Note, PhotoIcon, Sparkle } from '@/components/groups/wa/icons';
+import ChatAiTab from '@/components/groups/wa/ChatAiTab';
+import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
 import { api, longWhen } from '../api';
 import { chatName, formatPhone } from './util';
 import PhoneCopy from '@/components/groups/wa/PhoneCopy';
@@ -66,9 +68,15 @@ export default function ContactPanel({
   onJumpToMessage,
   starredKey = '',
   me = '',
+  aiUnread = 0,
+  aiUnreadFrom,
 }: {
   /** La persona (la pestaña elegida queda guardada por persona). */
   me?: string;
+  /** Mensajes sin leer al abrir el chat: la pestaña AI ofrece resumir desde la última lectura. */
+  aiUnread?: number;
+  /** El primer mensaje sin leer al abrir (si se sabe). */
+  aiUnreadFrom?: string;
   /** Un destacado lleva a su mensaje en la conversación. */
   onJumpToMessage?: (id: string) => void;
   /** Cambia cuando cambian los destacados de la conversación: la lista se vuelve a leer. */
@@ -123,16 +131,35 @@ export default function ContactPanel({
     [thread.id],
   );
 
+  // La pestaña AI: las ideas del rango, solo con los mensajes de este chat (lib/inbox/insights.ts).
+  const runInsights = useCallback(
+    async (range: InsightRange): Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }> => {
+      const r = await api<{ insights: ChatInsights }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'insights', range, locale } });
+      return r.ok ? { ok: true, insights: r.data.insights } : { ok: false, code: r.data.error ?? 'failed' };
+    },
+    [thread.id, locale],
+  );
+
+  // El chat a la vista: una respuesta que llega tarde de otro chat no se muestra en este.
+  const shownThread = useRef(thread.id);
+  shownThread.current = thread.id;
   useEffect(() => {
+    let live = true;
     setSummary(null);
+    setSummaryBusy(false);
     setConfirmBlock(false);
     setConfirmExit(false);
-    void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => r.ok && setSummary(r.data.summary));
+    void api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa?part=summary`).then((r) => live && r.ok && setSummary(r.data.summary));
+    return () => {
+      live = false;
+    };
   }, [thread.id]);
 
   const summarize = async () => {
+    const asked = thread.id;
     setSummaryBusy(true);
-    const r = await api<{ summary: Summary }>(`/api/inbox/threads/${thread.id}/wa`, { method: 'POST', json: { action: 'summary' } });
+    const r = await api<{ summary: Summary }>(`/api/inbox/threads/${asked}/wa`, { method: 'POST', json: { action: 'summary' } });
+    if (shownThread.current !== asked) return;
     setSummaryBusy(false);
     if (!r.ok) onError(r.data.error ?? 'ai_failed');
     else setSummary(r.data.summary);
@@ -169,6 +196,35 @@ export default function ContactPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participantsKey]);
   const muted = !!thread.mutedUntil;
+  // El resumen de la relación (o de lo último del grupo), guardado en el chat: va arriba de la pestaña AI.
+  const summaryCard = (
+    <section className="ib-wa-card ib-wa-summary" aria-busy={summaryBusy || undefined}>
+      <h3 className="ib-wa-card-title">
+        <Sparkle size={16} /> {group ? w('summaryGroup') : w('summaryContact')}
+      </h3>
+      {summary?.text ? (
+        <>
+          <p className="ib-wa-summary-text" dir="auto">
+            {summary.text}
+          </p>
+          <p className="ib-wa-muted">
+            {summary.at && w('summaryAt', { when: longWhen(summary.at, locale) })}
+            {summary.stale && ` · ${w('summaryStale')}`}
+          </p>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void summarize()} disabled={summaryBusy}>
+            {summaryBusy ? w('summarizing') : w('summaryRefresh')}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="ib-wa-muted">{w('summaryHint')}</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void summarize()} disabled={summaryBusy}>
+            {summaryBusy ? w('summarizing') : w('summarize')}
+          </button>
+        </>
+      )}
+    </section>
+  );
 
   return (
     <aside className="ib-wa-details" aria-label={group ? w('groupInfo') : w('contactInfo')}>
@@ -227,32 +283,6 @@ export default function ContactPanel({
           </section>
         )}
 
-        <section className="ib-wa-card ib-wa-summary" aria-busy={summaryBusy || undefined}>
-          <h3 className="ib-wa-card-title">
-            <Sparkle size={16} /> {group ? w('summaryGroup') : w('summaryContact')}
-          </h3>
-          {summary?.text ? (
-            <>
-              <p className="ib-wa-summary-text" dir="auto">
-                {summary.text}
-              </p>
-              <p className="ib-wa-muted">
-                {summary.at && w('summaryAt', { when: longWhen(summary.at, locale) })}
-                {summary.stale && ` · ${w('summaryStale')}`}
-              </p>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void summarize()} disabled={summaryBusy}>
-                {summaryBusy ? w('summarizing') : w('summaryRefresh')}
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="ib-wa-muted">{w('summaryHint')}</p>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void summarize()} disabled={summaryBusy}>
-                {summaryBusy ? w('summarizing') : w('summarize')}
-              </button>
-            </>
-          )}
-        </section>
 
                   {!group && (
           (wa?.commonGroups?.length ?? 0) > 0 && (
@@ -453,6 +483,27 @@ export default function ContactPanel({
                   },
                 ]
               : []),
+            {
+              id: 'ai',
+              label: tdet('tabs.ai'),
+              icon: <Sparkle size={18} />,
+              content: (
+                <ChatAiTab
+                  key={thread.id}
+                  chatKey={thread.id}
+                  stateUrl={`/api/inbox/threads/${thread.id}/wa?part=ai`}
+                  run={runInsights}
+                  unread={aiUnread}
+                  unreadFrom={aiUnreadFrom || undefined}
+                  sectionClass="ib-wa-card"
+                  titleClass="ib-wa-card-title"
+                  before={summaryCard}
+                  // Hasta 1365px la info se apoya sobre la conversación (styles/inbox-wa.css) y tapa el campo y su
+                  // Deshacer: se cierra para verlos. Con tres columnas queda abierta.
+                  onInserted={() => window.matchMedia('(max-width: 1365px)').matches && onClose()}
+                />
+              ),
+            },
           ]}
         />
       </div>

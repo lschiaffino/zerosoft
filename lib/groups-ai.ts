@@ -77,7 +77,7 @@ export async function summarizeChat(
  * rate limit y ai_usage funcionan igual. La cookie groups_ai_fake=off hace
  * que el request se comporte como sin AI (para ver el error ai_disabled).
  */
-async function groupsAiFakeState(): Promise<'on' | 'off' | null> {
+export async function groupsAiFakeState(): Promise<'on' | 'off' | null> {
   if (process.env.GROUPS_AI_FAKE !== '1' || process.env.VERCEL_ENV === 'production') return null;
   try {
     const { cookies } = await import('next/headers');
@@ -98,7 +98,8 @@ async function groupsModel(ws: string, fake: (info: FakeCallInfo) => FakeStep): 
   return resolveAiModel();
 }
 
-async function groupsObject<T>(opts: {
+/** Una respuesta estructurada del modelo de Lines (o del falso de e2e), con cuota, rate limit y ai_usage. */
+export async function groupsObject<T>(opts: {
   ws: string;
   feature: string;
   instructions: string;

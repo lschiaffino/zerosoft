@@ -2165,7 +2165,8 @@
         "media": "Arquivos",
         "notes": "Notas",
         "tasks": "Tarefas",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "IA"
       },
       "empty": {
         "media": "Ainda não há fotos nem vídeos nesta conversa",
@@ -2194,7 +2195,48 @@
       "crmTitle": "CRM",
       "contact": "Contato",
       "company": "Empresa",
-      "crmSearch": "Vincular uma empresa ou um contato do CRM"
+      "crmSearch": "Vincular uma empresa ou um contato do CRM",
+      "ai": {
+        "title": "Colocar em dia",
+        "rangeLabel": "Mensagens para ler",
+        "unread": "Desde a última leitura",
+        "unreadCount": "Desde a última leitura ({n})",
+        "unreadNone": "Não havia nada sem ler quando você abriu esta conversa: escolha um período.",
+        "day": "24 horas",
+        "week": "7 dias",
+        "month": "30 dias",
+        "run": "Resumir estas mensagens",
+        "again": "Resumir de novo",
+        "working": "Lendo a conversa…",
+        "privacy": "Usa só as mensagens que você vê nesta conversa. Nada é salvo nem compartilhado.",
+        "summary": "Resumo",
+        "basedOn": "Com {n, plural, one {# mensagem} other {# mensagens}}.",
+        "questions": "Perguntas sem resposta",
+        "commitments": "Compromissos pendentes",
+        "us": "Nós",
+        "them": "Contato",
+        "replies": "Respostas sugeridas",
+        "insert": "Inserir",
+        "insertedShort": "Inserida",
+        "insertHint": "Inserir coloca a resposta no campo para você revisar. Nada é enviado.",
+        "mood": "Ânimo",
+        "moods": {
+          "positive": "Positivo",
+          "neutral": "Neutro",
+          "negative": "Negativo",
+          "mixed": "Misto"
+        },
+        "none": "Nada.",
+        "noMessages": "Não há mensagens neste período. Escolha um mais longo.",
+        "basedOnRange": "Com {n, plural, one {# mensagem} other {# mensagens}} ({range}).",
+        "insertFailed": "Não foi possível colocar no campo da mensagem. Termine a mensagem ou a nota que está escrevendo, ou feche a edição, e tente de novo.",
+        "rangeNames": {
+          "unread": "desde a última leitura",
+          "day": "últimas 24 horas",
+          "week": "últimos 7 dias",
+          "month": "últimos 30 dias"
+        }
+      }
     },
     "contactSheet": {
       "title": "Dados do contato",

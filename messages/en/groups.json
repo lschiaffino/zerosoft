@@ -2165,7 +2165,8 @@
         "media": "Files",
         "notes": "Notes",
         "tasks": "Tasks",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "AI"
       },
       "empty": {
         "media": "No photos or videos in this chat yet",
@@ -2194,7 +2195,48 @@
       "crmTitle": "CRM",
       "contact": "Contact",
       "company": "Company",
-      "crmSearch": "Link a CRM company or contact"
+      "crmSearch": "Link a CRM company or contact",
+      "ai": {
+        "title": "Catch up",
+        "rangeLabel": "Messages to read",
+        "unread": "Since last read",
+        "unreadCount": "Since last read ({n})",
+        "unreadNone": "Nothing was unread when you opened this chat, so pick a period.",
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days",
+        "run": "Summarize these messages",
+        "again": "Summarize again",
+        "working": "Reading the chat…",
+        "privacy": "Uses only the messages you can see in this chat. Nothing is saved or shared.",
+        "summary": "Summary",
+        "basedOn": "Based on {n, plural, one {# message} other {# messages}}.",
+        "questions": "Open questions",
+        "commitments": "Pending commitments",
+        "us": "We",
+        "them": "Contact",
+        "replies": "Suggested replies",
+        "insert": "Insert",
+        "insertedShort": "Inserted",
+        "insertHint": "Insert puts the reply in the message field so you can review it. Nothing is sent.",
+        "mood": "Mood",
+        "moods": {
+          "positive": "Positive",
+          "neutral": "Neutral",
+          "negative": "Negative",
+          "mixed": "Mixed"
+        },
+        "none": "None found.",
+        "noMessages": "There are no messages in this period. Pick a longer one.",
+        "basedOnRange": "Based on {n, plural, one {# message} other {# messages}} ({range}).",
+        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again.",
+        "rangeNames": {
+          "unread": "since you last read it",
+          "day": "last 24 hours",
+          "week": "last 7 days",
+          "month": "last 30 days"
+        }
+      }
     },
     "contactSheet": {
       "title": "Contact info",
