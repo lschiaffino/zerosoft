@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser, type SessionUser } from './session';
 import { sessionScope } from './crm-visibility';
-import { sessionChatReader } from './crm-chat-privacy';
+import { sessionChatReader, type ChatReader } from './crm-chat-privacy';
 import { requestLocale } from './request-locale';
 import { getDb, type CrmActivityRow } from './db';
 import { canUseThread, CommentError } from './crm-activity-comments';
@@ -23,13 +23,13 @@ export function localeOf(req: NextRequest): string {
 }
 
 /** La sesión y el permiso sobre el hilo de la actividad; si no, la respuesta de error (401 o 404). */
-export async function threadAccess(req: NextRequest, activityId: string): Promise<{ user: SessionUser } | NextResponse> {
+export async function threadAccess(req: NextRequest, activityId: string): Promise<{ user: SessionUser; reader: ChatReader | null } | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   const scope = await sessionScope(user);
   const reader = await sessionChatReader(user, localeOf(req));
   if (!(await canUseThread(user.id, activityId, scope, reader))) return notFound();
-  return { user };
+  return { user, reader };
 }
 
 export function commentErrorResponse(err: unknown): NextResponse {

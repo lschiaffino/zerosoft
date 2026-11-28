@@ -477,11 +477,14 @@ export default function InboxApp(props: {
     // Lo que se consulta cada pocos segundos va con ETag: sin cambios no se vuelve a dibujar la conversación.
     const r = await fetchIfChanged<Detail>(`/api/inbox/threads/${id}${focus ? `?around=${encodeURIComponent(focus)}` : ''}`, quiet && detailEtag.current.id === id ? detailEtag.current.etag : null);
     // Se abrió otro chat mientras llegaba la respuesta: no es para este.
-    if (openRef.current !== id || r.state === 'same' || r.state === 'aborted') return;
+    if (openRef.current !== id || r.state === 'aborted') return;
     if (r.state === 'error') {
       if (!quiet) setDetailErr(r.code);
       return;
     }
+    // Volvió a responder (también una relectura callada, con o sin cambios): el aviso de error de antes se va.
+    setDetailErr('');
+    if (r.state === 'same') return;
     const data = r.data;
     if (focus) {
       detailEtag.current = { id: '', etag: '' };

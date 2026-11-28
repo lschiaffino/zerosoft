@@ -623,5 +623,27 @@
     "emptyTitle": "No pasó nada en este período",
     "emptyBody": "Cuando alguien crea, edita o comenta una pizarra, los números aparecen acá.",
     "note": "Una edición es una hora en la que una persona cambió una pizarra. Colaboradores son las personas que editaron o comentaron. Elementos es lo que tienen las pizarras ahora. Quedan afuera las pizarras en la papelera y las restringidas a las que no te invitaron."
+  },
+  "shortcuts": {
+    "button": "Atajos de teclado",
+    "title": "Atajos de Board",
+    "more": "Las herramientas de Excalidraw conservan sus teclas: con ? en el lienzo ves la lista completa.",
+    "groups": {
+      "stickies": "Stickies",
+      "canvas": "Lienzo",
+      "present": "Presentación"
+    },
+    "items": {
+      "newSticky": "Sticky nuevo",
+      "nextRight": "Con un sticky seleccionado o escribiendo: sticky nuevo a la derecha",
+      "nextBelow": "Con un sticky seleccionado o escribiendo: sticky nuevo abajo",
+      "nextDirection": "Con un sticky seleccionado: sticky nuevo en esa dirección",
+      "minimap": "Mostrar u ocultar el minimapa",
+      "stopFollowing": "Dejar de seguir a alguien",
+      "nextSlide": "Diapositiva siguiente",
+      "prevSlide": "Diapositiva anterior",
+      "firstLast": "Primera o última diapositiva",
+      "exitPresent": "Salir"
+    }
   }
 }

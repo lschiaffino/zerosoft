@@ -155,13 +155,12 @@ async function homeGroupsTasks(user: HomeUser, limit: number): Promise<{ total: 
   if (!homeCanUse(user, 'groups')) return { total: 0, items: [] };
   const me = user.actingUser?.id ?? user.id;
   const { listGroupTasks } = await import('./groups-tasks');
-  const { visibleChatIds, maskPhoneText } = await import('./groups-access');
   const range = dayRangeUtc(await getUserTimeZone());
   const at = (sql: string) => Date.parse(`${sql.replace(' ', 'T')}Z`);
   const viewer = await groupsViewer(user.id, me, user.role);
-  const visible = await visibleChatIds(viewer);
-  const rows = (await listGroupTasks(user.id, me, { status: 'open', ownerId: 'me' })).filter(
-    (x) => x.dueAt && Date.parse(x.dueAt) <= at(range.end) && (!visible || visible.has(x.chatId)),
+  // Con quien mira: solo los chats que ve, y con los teléfonos ocultos si a esa persona se le ocultan (título incluido).
+  const rows = (await listGroupTasks(user.id, me, { status: 'open', ownerId: 'me', viewer })).filter(
+    (x) => x.dueAt && Date.parse(x.dueAt) <= at(range.end),
   );
   return {
     total: rows.length,
@@ -172,7 +171,7 @@ async function homeGroupsTasks(user: HomeUser, limit: number): Promise<{ total: 
       overdue: Date.parse(x.dueAt as string) < at(range.start),
       context: null,
       href: `/app/lines/tasks?open=${encodeURIComponent(x.id)}`,
-      source: { app: 'groups' as const, label: viewer.mask ? maskPhoneText(x.chatName) : x.chatName },
+      source: { app: 'groups' as const, label: x.chatName },
     })),
   };
 }

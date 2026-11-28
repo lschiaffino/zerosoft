@@ -623,5 +623,27 @@
     "emptyTitle": "Nada aconteceu neste período",
     "emptyBody": "Quando alguém cria, edita ou comenta um quadro, os números aparecem aqui.",
     "note": "Uma edição é uma hora em que uma pessoa mudou um quadro. Colaboradores são as pessoas que editaram ou comentaram. Elementos é o que os quadros têm agora. Ficam de fora os quadros na lixeira e os restritos aos quais você não foi convidado."
+  },
+  "shortcuts": {
+    "button": "Atalhos de teclado",
+    "title": "Atalhos do Board",
+    "more": "As ferramentas do Excalidraw mantêm suas teclas: com ? na tela você vê a lista completa.",
+    "groups": {
+      "stickies": "Stickies",
+      "canvas": "Tela",
+      "present": "Apresentação"
+    },
+    "items": {
+      "newSticky": "Sticky novo",
+      "nextRight": "Com um sticky selecionado ou digitando: sticky novo à direita",
+      "nextBelow": "Com um sticky selecionado ou digitando: sticky novo abaixo",
+      "nextDirection": "Com um sticky selecionado: sticky novo nessa direção",
+      "minimap": "Mostrar ou ocultar o minimapa",
+      "stopFollowing": "Parar de seguir alguém",
+      "nextSlide": "Próximo slide",
+      "prevSlide": "Slide anterior",
+      "firstLast": "Primeiro ou último slide",
+      "exitPresent": "Sair"
+    }
   }
 }

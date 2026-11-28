@@ -2925,7 +2925,9 @@
     "title": "Board: Add a keyboard shortcut sheet for the sticky, table and presentation tools",
     "description": "Miro opens a shortcut reference with F1 and lists every hotkey (https://help.miro.com/hc/en-us/sections/360003285093-Working-on-the-Board). Board relies on the stock Excalidraw help dialog, which does not mention our own tools: sticky notes, tables, reactions, voting, follow mode and present (components/board/BoardCanvasTools.tsx, BoardPresent.tsx). Shortcuts we add are invisible unless someone reads the changelog. First scope: a '?' dialog in the editor chrome that lists the Board-specific keys in en, es and pt and opens from Cmd+K.",
     "product": "board",
-    "kind": "idea"
+    "kind": "idea",
+    "status": "done",
+    "changelog": "2026-11-28-board-shortcuts"
   },
   {
     "title": "Board: Let an admin set a board to view-only for everyone",
@@ -3421,6 +3423,30 @@
     "title": "Time: Add a keyboard shortcuts help dialog to the timesheet",
     "description": "Harvest documents N for a new entry and Esc to close it in Day and Week views (https://support.getharvest.com/hc/en-us/articles/360048181892). Time now has N, the arrow keys and T in the day view (components/time/Timesheet.tsx) but nothing tells a person they exist beyond a tooltip. First scope: a ? key that opens a small dialog with the shortcut list in the app language, plus the week view row shortcut.",
     "product": "time",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Link to an element so a comment or doc can jump to it",
+    "description": "Excalidraw 0.18 added element links: copy a link to a selected element and opening it scrolls and zooms to it (https://github.com/excalidraw/excalidraw/releases). Board can deep link to a comment thread but not to an element or frame (components/board/CanvasComments.tsx, lib/board-urls.ts). Teams paste board links in Track issues and Docs and the reader lands on a full board with no hint where to look. First scope: a 'Copy link to selection' action that adds ?el=<id> to the board URL and scrolls to it on load, with a brief highlight.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Crop images on the canvas",
+    "description": "Excalidraw 0.18 can crop an image in place by double clicking it, without destroying the original (https://github.com/excalidraw/excalidraw/releases). Board stores pasted images as blobs (lib/board-files.ts) but no test or UI covers cropping, so we should confirm it works with our blob-backed files and with saved scenes. Screenshots pasted into a retro board usually need trimming. First scope: verify crop round trips through save and reload, fix whatever breaks, and add an e2e test.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Lock elements so a template or frame cannot be moved by accident",
+    "description": "Excalidraw has Lock (Cmd+Shift+L) for selected elements (https://github.com/excalidraw/excalidraw/releases). Board has locks only for private mode and read-only views (components/board/BoardEditor.tsx), and starter templates in lib/board-templates.ts are fully movable, so someone dragging a column header during a retro breaks the layout for everyone. First scope: surface the lock action in the context menu and shortcut sheet and lock the frames of the starter templates by default.",
+    "product": "board",
+    "kind": "idea"
+  },
+  {
+    "title": "Board: Export a board or a selection as SVG with the scene embedded",
+    "description": "Excalidraw exports PNG and SVG with the scene embedded so the file reopens as an editable board (release notes: https://github.com/excalidraw/excalidraw/releases). Board exports PDF of frames and has exportToSvg code in lib/boards.ts and components/board/ExcalidrawCanvas.tsx, but the editor menu does not offer SVG or an embedded-scene PNG, and import (lib/board-import.ts) reads .excalidraw files only. Designers on a small team want to drop a diagram in a doc and edit it later. First scope: add Export as SVG and PNG with scene to the board menu, and make the importer read the embedded scene.",
+    "product": "board",
     "kind": "idea"
   }
 ]

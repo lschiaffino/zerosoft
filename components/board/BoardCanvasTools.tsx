@@ -26,6 +26,7 @@ import { viewToScene } from '@/lib/board-view';
 import type { CanvasApi } from './ExcalidrawCanvas';
 import { authoredSkeleton, stickyColor, viewportCenter } from './BoardStickyTool';
 import BoardMinimap from './BoardMinimap';
+import BoardShortcuts from './BoardShortcuts';
 import NotesIcon from '@/components/notes/NotesIcon';
 
 const MINIMAP_KEY = 'board.minimap';
@@ -646,6 +647,7 @@ export default function BoardCanvasTools({
         >
           <NotesIcon name="map" size={16} />
         </button>
+        <BoardShortcuts />
       </div>
       {minimap && <BoardMinimap api={api} label={t('minimap')} />}
     </>

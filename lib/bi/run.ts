@@ -12,10 +12,12 @@ import { applyParams, buildSql, BuildError } from './builder';
 import { ExternalDbError, introspect, runExternal } from './external';
 import { cacheGet, cachePut, databaseConfig, databaseSchema, saveDatabaseSchema } from './store';
 import { ZS_GUARD, ZS_TABLE_NAMES, zsCtes, zsSchema } from './zs-tables';
+import { BI_EXPORT_MAX_ROWS } from './export';
 import { ZS_SOURCE, type BiQuery, type BiResult, type ColumnType, type SchemaTable } from './types';
 
 /** Filas que devuelve una pregunta como mucho (la tabla pagina en el cliente). */
 export const BI_MAX_ROWS = 2000;
+export { BI_EXPORT_MAX_ROWS };
 /** Segundos que vale un resultado en caché. */
 export const BI_CACHE_TTL = Number(process.env.ANALYTICS_CACHE_TTL) || 300;
 const CONCURRENCY = Number(process.env.ANALYTICS_QUERY_CONCURRENCY) || 8;
@@ -98,6 +100,8 @@ export interface RunOptions {
    * guardadas (por un admin) sí corren.
    */
   adhoc?: boolean;
+  /** Tope de filas distinto del de pantalla (descargas). Sin caché: ni la lee ni la escribe. */
+  maxRows?: number;
 }
 
 /** SQL final (sin CTEs) de una pregunta, con variables aplicadas. */
@@ -121,8 +125,10 @@ export async function compileQuery(viewer: BiViewer, source: string, query: BiQu
 
 export async function runQuery(viewer: BiViewer, source: string, query: BiQuery, opts: RunOptions = {}): Promise<BiResult> {
   const { sql, dialect } = await compileQuery(viewer, source, query, opts.values, opts.adhoc === true);
+  const max = opts.maxRows ?? BI_MAX_ROWS;
+  const useCache = opts.maxRows === undefined;
   const key = createHash('sha256').update(JSON.stringify([viewer.workspaceId, viewer.personId, viewer.role, source, sql])).digest('hex');
-  if (!opts.fresh) {
+  if (!opts.fresh && useCache) {
     const hit = await cacheGet(key);
     if (hit) return { ...(JSON.parse(hit) as BiResult), cached: true };
   }
@@ -138,21 +144,21 @@ export async function runQuery(viewer: BiViewer, source: string, query: BiQuery,
       if (!check.ok) throw new RunError(`sql_${check.error}`, check.detail);
       const used = ZS_TABLE_NAMES.filter((t) => new RegExp(`\\b${t}\\b`, 'i').test(check.sql));
       const ctes = await zsCtes(viewer, used);
-      const full = `${ctes.sql}\nSELECT * FROM (\n${check.sql}\n) LIMIT ${BI_MAX_ROWS + 1}`;
-      const res = await runReadOnly(full, ctes.args.map((a) => String(a)), BI_MAX_ROWS);
-      const rows = res.rows.slice(0, BI_MAX_ROWS).map((r) => r.map((v) => (typeof v === 'bigint' ? Number(v) : typeof v === 'string' && v.length > 2000 ? `${v.slice(0, 2000)}…` : v)));
+      const full = `${ctes.sql}\nSELECT * FROM (\n${check.sql}\n) LIMIT ${max + 1}`;
+      const res = await runReadOnly(full, ctes.args.map((a) => String(a)), max);
+      const rows = res.rows.slice(0, max).map((r) => r.map((v) => (typeof v === 'bigint' ? Number(v) : typeof v === 'string' && v.length > 2000 ? `${v.slice(0, 2000)}…` : v)));
       const hints = new Map<string, ColumnType>();
       for (const t of await zsSchema(viewer)) for (const c of t.columns) if (!hints.has(c.name)) hints.set(c.name, c.type);
       // Las fechas propias vienen como texto: el tipo sale del esquema solo para nombres que no son agregados.
       for (const k of [...hints.keys()]) if (hints.get(k) !== 'date') hints.delete(k);
-      result = { columns: inferTypes(res.columns, rows, hints), rows, truncated: res.rows.length > BI_MAX_ROWS, sql, cached: false, ms: Date.now() - started };
+      result = { columns: inferTypes(res.columns, rows, hints), rows, truncated: res.rows.length > max, sql, cached: false, ms: Date.now() - started };
     } else {
       const cfg = await databaseConfig(viewer.workspaceId, source);
       if (!cfg) throw new RunError('database_not_found', undefined, 404);
-      const res = await runExternal(cfg, sql, BI_MAX_ROWS);
+      const res = await runExternal(cfg, sql, max);
       result = { columns: res.columns, rows: res.rows, truncated: res.truncated, sql, cached: false, ms: Date.now() - started };
     }
-    await cachePut(viewer.workspaceId, key, JSON.stringify(result), BI_CACHE_TTL).catch(() => undefined);
+    if (useCache) await cachePut(viewer.workspaceId, key, JSON.stringify(result), BI_CACHE_TTL).catch(() => undefined);
     return result;
   } catch (err) {
     throw toRunError(err);

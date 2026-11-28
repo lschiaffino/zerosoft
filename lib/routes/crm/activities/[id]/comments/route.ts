@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { realUserId } from '@/lib/session';
 import { createComment, listComments } from '@/lib/crm-activity-comments';
+import { maskChatTaskTexts } from '@/lib/crm-chat-privacy';
 import { invalidBody } from '@/lib/crm-http';
 import { commentBodySchema, commentErrorResponse, localeOf, notifyCommentMentions, threadAccess } from '@/lib/crm-comments-http';
 
@@ -12,7 +13,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   const { id } = await props.params;
   const access = await threadAccess(req, id);
   if (access instanceof NextResponse) return access;
-  const comments = await listComments(access.user.id, id);
+  // Hilo de una tarea de un chat de Lines: con los teléfonos ocultos para quien se le ocultan.
+  const comments = await maskChatTaskTexts(id, access.reader, await listComments(access.user.id, id));
   return NextResponse.json({ comments, me: realUserId(access.user) });
 }
 
@@ -27,7 +29,8 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   try {
     const comment = await createComment(user.id, id, realUserId(user), parsed.data.body);
     const notice = await notifyCommentMentions(user, id, comment.body, localeOf(req));
-    return NextResponse.json({ ...comment, ...notice }, { status: 201 });
+    const [shown] = await maskChatTaskTexts(id, access.reader, [comment]);
+    return NextResponse.json({ ...shown, ...notice }, { status: 201 });
   } catch (err) {
     return commentErrorResponse(err);
   }

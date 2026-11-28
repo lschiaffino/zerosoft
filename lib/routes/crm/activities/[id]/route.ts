@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { canSeeActivity, canSeeActivityRefs, sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
-import { isChatHidden, redactChatTask, sessionChatReader } from '@/lib/crm-chat-privacy';
+import { isChatHidden, redactChatTask, sessionChatReader, unmaskChatTaskEdit } from '@/lib/crm-chat-privacy';
 import { deleteActivity, getActivity, updateActivity } from '@/lib/crm';
 import { unpinSiblings } from '@/lib/crm-timeline';
 import { mentionablePeople, mentionsNotNotified, notifyMentionsDetailed } from '@/lib/crm-mention-notify';
@@ -53,7 +53,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const before = await getActivity(user.id, params.id);
   // Una sola fijada por registro (como en HubSpot): fijar esta desfija las otras de sus registros.
   if (parsed.data.pinned === true) await unpinSiblings(user.id, params.id);
-  const updated = await catchRef(updateActivity(user.id, params.id, parsed.data));
+  // Con los teléfonos ocultos el texto llegó enmascarado: los números guardados no se pierden al editar.
+  const updated = await catchRef(updateActivity(user.id, params.id, await unmaskChatTaskEdit(user.id, params.id, reader, parsed.data)));
   if (updated instanceof CrmRefError) return crmError(400, updated.code);
   if (!updated) return notFound();
   const [activity] = await maskQueueRefs(sessionQueueViewer(user), [(await redactChatTask(user.id, updated, reader)) ?? updated]);

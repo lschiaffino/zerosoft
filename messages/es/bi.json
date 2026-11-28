@@ -122,7 +122,14 @@
     "prev": "Página anterior",
     "next": "Página siguiente",
     "page": "Página {n} de {total}",
-    "csv": "Descargar CSV"
+    "download": "Descargar",
+    "downloadAs": "Descargar en {format}",
+    "downloadMore": "El archivo trae hasta {n} filas",
+    "format": {
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "json": "JSON"
+    }
   },
   "sql": {
     "suggestions": "Sugerencias",

@@ -129,6 +129,10 @@ for (const width of [1280, 390]) {
       await expect(all).toContainText('Everyone (@all)');
       await expect(all).toContainText('Notifies all 2 members');
       await expect(all).toHaveAttribute('aria-selected', 'true');
+      // Todos y los dos miembros: la línea misma no se ofrece (en WhatsApp uno no se menciona a sí mismo).
+      // El grupo tiene 3 miembros contando la línea (la lista de miembros la muestra como "Vos").
+      await expect.poll(async () => Number((await sql('SELECT COUNT(*) AS n FROM groups_members m JOIN groups_chats c ON c.id = m.chat_id WHERE c.number_id = ?', [n.id]))[0].n)).toBe(3);
+      await expect(pop.getByRole('option')).toHaveCount(3);
       const box = (await all.getByTestId('mention-all').boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(40);
       const popBox = (await pop.boundingBox())!;
@@ -218,6 +222,7 @@ for (const width of [1280, 390]) {
       await expect(all.getByTestId('mention-all')).toBeVisible();
       await expect(all).toContainText('Todos (@todos)');
       await expect(all).toContainText('Avisa a los 2 miembros');
+      await expect(pop.getByRole('option')).toHaveCount(3);
       expect((await all.getByTestId('mention-all').boundingBox())!.height).toBeGreaterThanOrEqual(40);
       const popBox = (await pop.boundingBox())!;
       expect(popBox.x).toBeGreaterThanOrEqual(0);
