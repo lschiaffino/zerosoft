@@ -19,6 +19,7 @@ import { getDb } from './db';
 import { open, seal } from './secret-box';
 import { roleAtLeast, type TeamRole } from './teams';
 import { canUseApp } from './workspace';
+import { personAppAccess } from './api-auth';
 import { personCanUseApp } from './workspace-apps';
 import { createNotification } from './notifications';
 import {
@@ -154,6 +155,8 @@ export async function listSocialPeople(actor: SocialActor): Promise<SocialPerson
  * workspace, Social en Miembros y en Apps del workspace (lib/workspace-apps.ts).
  */
 async function personHasSocial(workspaceId: string, personId: string): Promise<{ role: TeamRole } | null> {
+  // Un error de la base sale como error (el cron reintenta), no como "no tiene Social".
+  if (!(await personAppAccess(workspaceId, personId))) return null;
   return personCanUseApp(workspaceId, personId, 'social', getDb(), { beforeLaunch: true });
 }
 
@@ -826,13 +829,12 @@ async function approvers(workspaceId: string): Promise<string[]> {
   return [workspaceId, ...rows.map((r) => r.id).filter((id) => id !== workspaceId)];
 }
 
-/** Los avisos de una publicación, solo a quien hoy tiene Social en el workspace (no a quien se fue o se la sacaron). */
-
 function snippet(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim();
   return one.length > 60 ? `${one.slice(0, 57)}...` : one || '(media)';
 }
 
+/** Los avisos de una publicación, solo a quien hoy tiene Social en el workspace (no a quien se fue o se la sacaron). */
 async function notifyPost(
   workspaceId: string,
   userId: string,
@@ -840,7 +842,7 @@ async function notifyPost(
   post: { id: string; text: string },
   meta: Record<string, unknown> = {},
 ) {
-  if (!(await personHasSocialApp(workspaceId, userId).catch(() => false))) return;
+  if (!(await personHasSocial(workspaceId, userId).catch(() => null))) return;
   await createNotification({
     userId,
     type,

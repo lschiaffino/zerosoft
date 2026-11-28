@@ -46,7 +46,7 @@ afterEach(() => {
   mail.sent = [];
 });
 
-const off = { mode: 'admins' as const, people: [], teams: [], denied: [] };
+const adminsOnly = { mode: 'admins' as const, people: [], teams: [], denied: [] };
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n', 'latin1');
 
 async function setup(label: string) {
@@ -86,7 +86,7 @@ describe('Hiring: avisos y eventos solo a quien hoy tiene la app', () => {
   it('con Hiring solo para admins en Apps del workspace (cuando salga): el miembro no recibe', async () => {
     const s = await setup('hs8-hire-rule');
     launch.on = true;
-    await saveWorkspaceAppRule(s.ws, 'hiring', off, s.ws);
+    await saveWorkspaceAppRule(s.ws, 'hiring', adminsOnly, s.ws);
     const src = `src-${crypto.randomUUID()}`;
     await notifyTeam(s.ws, [s.w.member.id, s.admin.id, s.ws], { title: 'x', href: '/app/hiring', sourceId: src });
     expect(await noticesFor(src)).toEqual([s.admin.id, s.ws].sort());
@@ -117,8 +117,13 @@ describe('Hiring: avisos y eventos solo a quien hoy tiene la app', () => {
       { name: 'Test Candidate', email: `cand-${crypto.randomUUID().slice(0, 8)}@example.com`, phone: '', linkedin: '', answers: {}, consent: true, keepConsent: false, utm: {}, referrer: '', source: null },
       { bytes: PDF, filename: 'cv.pdf' },
     );
+    const notices = async (userId: string) =>
+      Number(((await getDb().prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND type = 'hiring_activity' AND source_id = ?").get(userId, applicationId)) as { n: number }).n);
+    // Con Hiring, el equipo del puesto sí recibe: el recruiter al postularse y el interviewer al pasar a entrevista.
+    expect(await notices(s.admin.id)).toBeGreaterThan(0);
     const interview = (await listStages(detail.job.id)).find((st) => st.kind === 'interview')!;
     await moveApplication(owner, applicationId, interview.id);
+    expect(await notices(s.w.member.id)).toBeGreaterThan(0);
     await setMemberApps(s.w.team.id, s.w.friend.id, ['crm']);
     await sendFeedbackReminders(new Date(Date.now() + 2 * 86_400_000));
     const reminded = (await getDb().prepare("SELECT user_id FROM notifications WHERE source_id = ? AND body = 'scorecard'").all(applicationId)) as Array<{ user_id: string }>;
@@ -157,7 +162,7 @@ describe('Social: avisos de publicaciones solo a quien hoy tiene la app', () => 
     expect(await personHasSocialApp(s.ws, s.w.stranger.id)).toBe(false);
     expect(await personHasSocialApp(s.ws, s.w.member.id)).toBe(true);
     launch.on = true;
-    await saveWorkspaceAppRule(s.ws, 'social', off, s.ws);
+    await saveWorkspaceAppRule(s.ws, 'social', adminsOnly, s.ws);
     expect(await personHasSocialApp(s.ws, s.w.member.id)).toBe(false);
     expect(await personHasSocialApp(s.ws, s.admin.id)).toBe(true);
     expect(await personHasSocialApp(s.ws, s.ws)).toBe(true);
