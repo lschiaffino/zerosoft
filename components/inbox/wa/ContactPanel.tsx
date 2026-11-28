@@ -498,8 +498,9 @@ export default function ContactPanel({
                   sectionClass="ib-wa-card"
                   titleClass="ib-wa-card-title"
                   before={summaryCard}
-                  // En el teléfono y la tableta la info tapa la conversación: se cierra para ver el campo.
-                  onInserted={() => window.matchMedia('(max-width: 1023px)').matches && onClose()}
+                  // Hasta 1365px la info se apoya sobre la conversación (styles/inbox-wa.css) y tapa el campo y su
+                  // Deshacer: se cierra para verlos. Con tres columnas queda abierta.
+                  onInserted={() => window.matchMedia('(max-width: 1365px)').matches && onClose()}
                 />
               ),
             },
