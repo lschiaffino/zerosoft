@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import HeaderCell from './ColumnHeader';
@@ -11,6 +11,8 @@ import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { PreviewNav, useListNav } from './RecordNav';
+import { useCrmLive } from './useCrmLive';
 import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
@@ -107,8 +109,13 @@ export default function ContactsTable({
   const order = cols.order;
   const sized = sizedTable(cols);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
+  // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
+  const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  useListNav('contacts', navIds, { table: true });
+  useCrmLive({ list: 'contacts', ids: navIds });
   // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
-  const rowIdList = rows.map((r) => r.id);
+  const rowIdList = navIds;
   const expansion = useRowExpansion('contact', rowIdList);
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
 
@@ -426,7 +433,14 @@ export default function ContactsTable({
       )}
 
       {previewId && (
-        <RecordPreview type="contact" id={previewId} locale={locale} owners={owners} onClose={() => setPreviewId(null)} />
+        <RecordPreview
+          type="contact"
+          id={previewId}
+          locale={locale}
+          owners={owners}
+          onClose={() => setPreviewId(null)}
+          nav={<PreviewNav ids={navIds} id={previewId} onStep={setPreviewId} />}
+        />
       )}
     </>
   );
