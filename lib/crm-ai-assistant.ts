@@ -17,7 +17,9 @@ import { listTasks, searchAll } from './crm';
 import { buildRecordContext, crmModel, LOCALE_NAME, type AiRecordEntity } from './crm-ai';
 import { canSeeEntity, scopeAnd, type OwnerScope } from './crm-visibility';
 import type { FakeCallInfo, FakeStep } from './crm-ai-fake';
-import { LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES } from './crm-constants';
+import { PRIORITIES } from './crm-constants';
+import { aiOptionHelpers, builtinChoices, choicesForPrompt, matchChoice } from './crm-ai-options';
+import { optionPropertyOf, type LabeledOption, type OptionHelpers, type OptionProperty } from './crm-property-options';
 
 export const ASSISTANT_MAX_STEPS = 6;
 export const ASSISTANT_MAX_MESSAGES = 20;
@@ -70,8 +72,12 @@ const API_BASE: Record<AiRecordEntity, string> = {
   deal: '/api/crm/deals',
 };
 
-/** Campos que el asistente puede proponer cambiar (nombre de la API → tipo). */
-export const EDITABLE_FIELDS: Record<AiRecordEntity, Record<string, 'text' | 'number' | 'date' | readonly string[]>> = {
+/**
+ * Campos que el asistente puede proponer cambiar (nombre de la API → tipo).
+ * 'option': Lifecycle stage y Lead status, con las opciones activas del
+ * workspace (las propias y renombradas incluidas, las archivadas no).
+ */
+export const EDITABLE_FIELDS: Record<AiRecordEntity, Record<string, 'text' | 'number' | 'date' | 'option' | readonly string[]>> = {
   contact: {
     firstName: 'text',
     lastName: 'text',
@@ -80,8 +86,8 @@ export const EDITABLE_FIELDS: Record<AiRecordEntity, Record<string, 'text' | 'nu
     jobTitle: 'text',
     city: 'text',
     country: 'text',
-    lifecycleStage: LIFECYCLE_STAGES,
-    leadStatus: LEAD_STATUSES,
+    lifecycleStage: 'option',
+    leadStatus: 'option',
   },
   company: {
     name: 'text',
@@ -92,7 +98,7 @@ export const EDITABLE_FIELDS: Record<AiRecordEntity, Record<string, 'text' | 'nu
     website: 'text',
     city: 'text',
     country: 'text',
-    lifecycleStage: LIFECYCLE_STAGES,
+    lifecycleStage: 'option',
   },
   deal: {
     name: 'text',
@@ -103,10 +109,23 @@ export const EDITABLE_FIELDS: Record<AiRecordEntity, Record<string, 'text' | 'nu
   },
 };
 
-/** Valida y normaliza el valor de un campo editable. null = no válido. */
-export function coerceFieldValue(entity: AiRecordEntity, field: string, raw: unknown): string | number | null {
-  const kind = EDITABLE_FIELDS[entity][field];
+/**
+ * Valida y normaliza el valor de un campo editable. null = no válido.
+ * `choices` da las opciones del workspace (por clave o por nombre); sin él,
+ * las de fábrica.
+ */
+export function coerceFieldValue(
+  entity: AiRecordEntity,
+  field: string,
+  raw: unknown,
+  choices: (prop: OptionProperty) => readonly LabeledOption[] = builtinChoices,
+): string | number | null {
+  const kind = Object.hasOwn(EDITABLE_FIELDS[entity], field) ? EDITABLE_FIELDS[entity][field] : undefined;
   if (!kind) return null;
+  if (kind === 'option') {
+    const prop = optionPropertyOf(field);
+    return prop ? matchChoice(choices(prop), raw) : null;
+  }
   const value = String(raw ?? '').trim();
   if (kind === 'number') {
     const n = Number(value.replace(/[^\d.-]/g, ''));
@@ -136,6 +155,8 @@ interface ToolContext {
   proposals: AssistantProposal[];
   toolCalls: string[];
   locale: string;
+  /** Opciones de Lifecycle stage y Lead status del workspace, con nombres en el idioma del pedido. */
+  options: OptionHelpers;
 }
 
 type ProposalLocale = 'en' | 'es' | 'pt';
@@ -436,7 +457,13 @@ function buildTools(ctx: ToolContext): ToolSet {
       },
     }),
     propose_update_field: tool({
-      description: `Propose changing one property of a record. Editable fields: contact ${Object.keys(EDITABLE_FIELDS.contact).join(', ')}; company ${Object.keys(EDITABLE_FIELDS.company).join(', ')}; deal ${Object.keys(EDITABLE_FIELDS.deal).join(', ')}. Nothing changes until the user confirms.`,
+      description: [
+        `Propose changing one property of a record. Editable fields: contact ${Object.keys(EDITABLE_FIELDS.contact).join(', ')}; company ${Object.keys(EDITABLE_FIELDS.company).join(', ')}; deal ${Object.keys(EDITABLE_FIELDS.deal).join(', ')}.`,
+        `lifecycleStage (contact and company) must be one of: ${choicesForPrompt(ctx.options.choices('lifecycle'))}.`,
+        `leadStatus (contact) must be one of: ${choicesForPrompt(ctx.options.choices('leadStatus'))}.`,
+        `deal priority must be one of: ${PRIORITIES.join(', ')}.`,
+        'Pass the option name or the key in parentheses. Nothing changes until the user confirms.',
+      ].join(' '),
       inputSchema: z.object({
         recordType: entity,
         recordId: z.string().min(1).max(64),
@@ -447,12 +474,21 @@ function buildTools(ctx: ToolContext): ToolSet {
         note('propose_update_field');
         const ref = await recordRef(ctx, recordType, recordId);
         if (!ref) return { error: 'record_not_found' };
-        const coerced = coerceFieldValue(recordType, field, value);
-        if (coerced === null) return { error: 'invalid_field_or_value', editable: Object.keys(EDITABLE_FIELDS[recordType]) };
+        const coerced = coerceFieldValue(recordType, field, value, (prop) => ctx.options.choices(prop));
+        const prop = optionPropertyOf(field);
+        if (coerced === null) {
+          return {
+            error: 'invalid_field_or_value',
+            editable: Object.keys(EDITABLE_FIELDS[recordType]),
+            ...(prop && Object.hasOwn(EDITABLE_FIELDS[recordType], field) ? { allowed: ctx.options.choices(prop).map((c) => c.label) } : {}),
+          };
+        }
+        // Una opción se muestra con su nombre (la clave de una propia es opt_…).
+        const shown = prop && typeof coerced === 'string' ? ctx.options.label(prop, coerced) : String(coerced);
         const p: AssistantProposal = {
           id: crypto.randomUUID(),
           kind: 'update_field',
-          summary: proposalSummary(ctx.locale, { kind: 'update_field', field, record: ref.name, value: String(coerced) }),
+          summary: proposalSummary(ctx.locale, { kind: 'update_field', field, record: ref.name, value: shown }),
           request: { method: 'PATCH', url: `${API_BASE[recordType]}/${recordId}`, body: { [field]: coerced } },
           record: ref,
         };
@@ -506,6 +542,13 @@ function fakeAssistant(info: FakeCallInfo): FakeStep {
     return { text: 'Done looking that up.' };
   }
   if (move) return { tool: 'search_records', input: { query: move[1], type: 'deal' } };
+  const set = /^(?:set|cambiá|cambiar)\s+(lifecycle|lead status)\s+(?:to|a)\s+(.+)$/i.exec(last);
+  if (set && page) {
+    return {
+      tool: 'propose_update_field',
+      input: { recordType: page[1], recordId: page[2], field: /^lifecycle$/i.test(set[1]) ? 'lifecycleStage' : 'leadStatus', value: set[2] },
+    };
+  }
   const find = /^(?:find|search|busca|buscar|buscá|procure|procurar)\s+(.+)$/i.exec(last);
   if (find) return { tool: 'search_records', input: { query: find[1] } };
   const task = /^(?:create|add|crear|creá|crea|criar|crie)\s+(?:a\s+|una\s+|uma\s+)?(?:task|tarea|tarefa)\s*:?\s*(.+)$/i.exec(last);
@@ -535,6 +578,7 @@ export async function runAssistant(opts: {
     proposals: [],
     toolCalls: [],
     locale,
+    options: await aiOptionHelpers(opts.workspaceId, locale),
   };
   let page: { entity: AiRecordEntity; id: string; name: string } | null = null;
   if (opts.request.page) {

@@ -22,6 +22,7 @@ import { crmAiFakeActive, fakeModel, type FakeStep, type FakeCallInfo } from './
 import { getCompany, getContact, getDeal, listTimeline, type ActivityListRow } from './crm';
 import { canSeeActivity, canSeeEntity, getMemberVisibility, scopeCompanyDetail, scopeContactDetail, scopeDealDetail, type OwnerScope } from './crm-visibility';
 import { scopedCompanyDetail } from './crm-record-scope';
+import { listOptionSets, type OptionProperty } from './crm-property-options';
 
 export type AiRecordEntity = 'contact' | 'company' | 'deal';
 export type InsightKind = 'summary' | 'deal_score' | 'call_summary';
@@ -219,6 +220,15 @@ async function sharedContactScore(workspaceId: string, c: { score: number | null
 }
 
 /**
+ * Nombre de una opción de lifecycle o lead status para el modelo: el que le
+ * puso el workspace (las propias se guardan como opt_…) o la clave de fábrica.
+ */
+async function optionNamer(ws: string): Promise<(prop: OptionProperty, value: string) => string> {
+  const sets = await listOptionSets(ws);
+  return (prop, value) => sets[prop].find((o) => o.value === value)?.label || value;
+}
+
+/**
  * Lo que la IA sabe del registro: propiedades, asociaciones, timeline (notas,
  * tareas, llamadas, reuniones) y emails, filtrado por lo que el viewer puede
  * ver (scope). null si no existe o no se ve.
@@ -247,13 +257,14 @@ export async function buildRecordContext(
     lines.push(`Contact: ${title}`);
     // Lo lee cualquiera que ve el registro: el score sin los puntos de reglas sobre campos que alguien tiene ocultos.
     const score = await sharedContactScore(workspaceId, c);
+    const optName = await optionNamer(workspaceId);
     const facts = [
       c.email && `email ${c.email}`,
       c.job_title && `job title ${c.job_title}`,
       c.phone && `phone ${c.phone}`,
       [c.city, c.country].filter(Boolean).join(', '),
-      c.lifecycle_stage && `lifecycle ${c.lifecycle_stage}`,
-      c.lead_status && `lead status ${c.lead_status}`,
+      c.lifecycle_stage && `lifecycle ${optName('lifecycle', c.lifecycle_stage)}`,
+      c.lead_status && `lead status ${optName('leadStatus', c.lead_status)}`,
       c.source && `source ${c.source}`,
       score ? `lead score ${score}` : '',
       `created ${day(c.created_at)}`,
@@ -276,12 +287,13 @@ export async function buildRecordContext(
     contactIds = d.contacts.map((c) => c.id);
     filter.companyId = id;
     lines.push(`Company: ${title}`);
+    const optName = await optionNamer(workspaceId);
     const facts = [
       co.domain && `domain ${co.domain}`,
       co.industry && `industry ${co.industry}`,
       co.employees != null ? `${co.employees} employees` : '',
       [co.city, co.country].filter(Boolean).join(', '),
-      co.lifecycle_stage && `lifecycle ${co.lifecycle_stage}`,
+      co.lifecycle_stage && `lifecycle ${optName('lifecycle', co.lifecycle_stage)}`,
       `created ${day(co.created_at)}`,
     ].filter(Boolean);
     lines.push(`Properties: ${facts.join('; ')}`);
