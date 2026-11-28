@@ -567,10 +567,9 @@ export interface CoeditViewer {
 /** Acceso actual a la página, revalidado sin la sesión (membresía, apps del workspace y permisos de la página). */
 export async function currentAccess(viewer: CoeditViewer, pageId: string): Promise<DocsAccess | null> {
   if (viewer.actor.actingUser) {
-    const { personAppAccess } = await import('./api-auth');
-    const { canUseApp } = await import('./workspace');
-    const a = await personAppAccess(viewer.ownerId, viewer.realId);
-    if (!a || !canUseApp({ role: a.role, apps: a.apps === '*' ? '*' : JSON.stringify(a.apps) }, 'docs')) return null;
+    const { personCanUseApp } = await import('./workspace-apps');
+    const a = await personCanUseApp(viewer.ownerId, viewer.realId, 'docs');
+    if (!a) return null;
     viewer.actor = { ...viewer.actor, role: a.role };
   }
   const res = await resolveDocAccess(viewer.actor, pageId, DOC_INTERNAL_READ);

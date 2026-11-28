@@ -278,8 +278,11 @@ export async function canSeeChat(viewer: GroupsViewer | null | undefined, chatId
  * que se arman fuera de un request: nunca se avisa de un chat que no ve.
  */
 export async function personCanSeeChat(ws: string, personId: string, chatId: string): Promise<boolean> {
-  const { workspaceRole } = await import('./api-auth');
-  return canSeeChat(await groupsViewer(ws, personId, await workspaceRole(ws, personId)), chatId);
+  // Sigue en el workspace y con Lines abierta (Miembros y Apps del workspace); si no, no ve ningún chat.
+  const { personCanUseApp } = await import('./workspace-apps');
+  const access = await personCanUseApp(ws, personId, 'groups');
+  if (!access) return false;
+  return canSeeChat(await groupsViewer(ws, personId, access.role), chatId);
 }
 
 /** Ids de los chats visibles (para filtrar listas que no son de chats: tickets, reportes). null = todos. */

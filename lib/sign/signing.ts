@@ -17,7 +17,6 @@ import { getDb } from '../db';
 import { rateLimit } from '../rate-limit';
 import { cleanSignatureImage, sha256Hex } from '../esign';
 import { emitEventSoon } from '../events';
-import { personAppAccess } from '../api-auth';
 import { readSignFile, storeSignFile } from './files';
 import { appendCertificate, flattenFields, type PageBox } from './pdf';
 import { formatDate, signCopy, signLocale } from './i18n';
@@ -430,9 +429,10 @@ export async function emitSign(env: EnvelopeRow, type: 'sign.envelope.completed'
   await emitEventSoon(env.workspace_id, type, data, {
     audience: async (creatorId) => {
       if (!creatorId) return false;
-      const access = await personAppAccess(env.workspace_id, creatorId);
+      // Sign abierta para quien creó el flow (Miembros y Apps del workspace).
+      const { personCanUseApp } = await import('../workspace-apps');
+      const access = await personCanUseApp(env.workspace_id, creatorId, 'sign');
       if (!access) return false;
-      if (access.apps !== '*' && !access.apps.includes('sign')) return false;
       return access.role === 'owner' || access.role === 'admin' || creatorId === env.created_by;
     },
   }).catch(() => undefined);

@@ -12,6 +12,9 @@
  *   propio) y lo ve según lib/track-access (privado, invitado);
  * - project o iniciativa: la persona es del workspace y no es invitada (los
  *   invitados no ven projects ni iniciativas).
+ * - chat de Lines (o un ticket o una tarea de ese chat): la persona sigue en el
+ *   workspace del chat, con Lines abierta, y ve esa línea y ese chat (líneas,
+ *   etiquetas; lib/groups-access).
  * Un aviso de algo que ya no existe se deja como está.
  */
 import { getDb } from './db';
@@ -59,6 +62,23 @@ export function initiativeIdOf(n: Source): string | null {
   if (n.source_type === 'track_initiative' && n.source_id) return n.source_id;
   const m = /\/app\/track\/initiatives\/([A-Za-z0-9_-]+)/.exec(n.href ?? '');
   return m ? m[1] : null;
+}
+
+/** Id del chat de Lines que nombra el aviso (por su origen o por el link). */
+export function linesChatIdOf(n: Source): string | null {
+  if (n.source_type === 'groups_chat' && n.source_id) return n.source_id;
+  const m = /\/app\/lines\/inbox\/([A-Za-z0-9_%-]+)/.exec(n.href ?? '');
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}
+
+/** Id del ticket de Lines del aviso (el chat sale del ticket). */
+function linesTicketIdOf(n: Source): string | null {
+  return n.source_type === 'groups_ticket' && n.source_id ? n.source_id : null;
 }
 
 export function chunks<T>(items: T[], size: number): T[][] {
@@ -147,6 +167,56 @@ export async function issuesFor(userId: string, issueIds: string[]): Promise<{ v
   return { visible, hidden };
 }
 
+/**
+ * Chats de Lines (por id) que existen y la persona hoy no ve: dejó el
+ * workspace del chat, no tiene Lines (Miembros o Apps del workspace) o no ve
+ * esa línea o ese chat (etiquetas).
+ */
+async function hiddenChats(userId: string, chatIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (!chatIds.length) return out;
+  const db = getDb();
+  const byWs = new Map<string, string[]>();
+  for (const part of chunks([...new Set(chatIds)], 400)) {
+    const rows = (await db
+      .prepare(`SELECT id, user_id FROM groups_chats WHERE id IN (${part.map(() => '?').join(', ')})`)
+      .all(...part)) as Array<{ id: string; user_id: string }>;
+    for (const r of rows) byWs.set(r.user_id, [...(byWs.get(r.user_id) ?? []), r.id]);
+  }
+  if (!byWs.size) return out;
+  const { personCanUseApp } = await import('./workspace-apps');
+  const { chatAccessSql, groupsViewer } = await import('./groups-access');
+  for (const [ws, ids] of byWs) {
+    const access = await personCanUseApp(ws, userId, 'groups');
+    if (!access) {
+      for (const id of ids) out.add(id);
+      continue;
+    }
+    const sql = chatAccessSql(await groupsViewer(ws, userId, access.role), 'c');
+    if (!sql) continue;
+    for (const part of chunks(ids, 400)) {
+      const seen = (await db
+        .prepare(`SELECT c.id FROM groups_chats c WHERE c.user_id = ? AND c.id IN (${part.map(() => '?').join(', ')}) AND ${sql.sql}`)
+        .all(ws, ...part, ...sql.args)) as Array<{ id: string }>;
+      const visible = new Set(seen.map((r) => r.id));
+      for (const id of part) if (!visible.has(id)) out.add(id);
+    }
+  }
+  return out;
+}
+
+/** El chat de cada ticket de Lines (los que tienen chat). */
+async function ticketChats(ticketIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const part of chunks([...new Set(ticketIds)], 400)) {
+    const rows = (await getDb()
+      .prepare(`SELECT id, chat_id FROM groups_tickets WHERE id IN (${part.map(() => '?').join(', ')}) AND chat_id IS NOT NULL`)
+      .all(...part)) as Array<{ id: string; chat_id: string }>;
+    for (const r of rows) out.set(r.id, r.chat_id);
+  }
+  return out;
+}
+
 export interface NotificationAccess {
   /** Avisos que la persona hoy no puede ver. */
   hidden: Set<string>;
@@ -160,17 +230,28 @@ export async function notificationAccess(userId: string, rows: readonly AccessRo
   const planIds = rows.map((n, i) => (issueIds[i] ? null : planIdOf(n)));
   const initiativeIds = rows.map((n, i) => (issueIds[i] || planIds[i] ? null : initiativeIdOf(n)));
   const present = (xs: Array<string | null>) => xs.filter((v): v is string => Boolean(v));
-  const [issues, hiddenPlans, hiddenInitiatives] = await Promise.all([
+  const tracked = (i: number) => Boolean(issueIds[i] || planIds[i] || initiativeIds[i]);
+  const ticketIds = rows.map((n, i) => (tracked(i) ? null : linesTicketIdOf(n)));
+  const tickets = await ticketChats(present(ticketIds));
+  const chatIds = rows.map((n, i) => (tracked(i) ? null : ticketIds[i] ? (tickets.get(ticketIds[i]!) ?? null) : linesChatIdOf(n)));
+  const [issues, hiddenPlans, hiddenInitiatives, chatsHidden] = await Promise.all([
     issuesFor(userId, present(issueIds)),
     hiddenEntities(userId, 'track_plans', present(planIds)),
     hiddenEntities(userId, 'track_initiatives', present(initiativeIds)),
+    hiddenChats(userId, present(chatIds)),
   ]);
   const hidden = new Set<string>();
   rows.forEach((n, i) => {
     const issueId = issueIds[i];
     const planId = planIds[i];
     const initiativeId = initiativeIds[i];
-    if ((issueId && issues.hidden.has(issueId)) || (planId && hiddenPlans.has(planId)) || (initiativeId && hiddenInitiatives.has(initiativeId))) {
+    const chatId = chatIds[i];
+    if (
+      (issueId && issues.hidden.has(issueId)) ||
+      (planId && hiddenPlans.has(planId)) ||
+      (initiativeId && hiddenInitiatives.has(initiativeId)) ||
+      (chatId && chatsHidden.has(chatId))
+    ) {
       hidden.add(n.id);
     }
   });
@@ -184,8 +265,9 @@ export async function visibleNotifications<T extends AccessRow>(userId: string, 
   return rows.filter((n) => !hidden.has(n.id));
 }
 
-/** Avisos que pueden nombrar algo de Track (los únicos que se filtran por acceso). */
-const TRACK_ROWS_SQL = "(source_type LIKE 'track\\_%' ESCAPE '\\' OR href LIKE '%/app/track/%')";
+/** Avisos que pueden nombrar algo de Track o un chat de Lines (los únicos que se filtran por acceso). */
+const TRACK_ROWS_SQL =
+  "(source_type LIKE 'track\\_%' ESCAPE '\\' OR href LIKE '%/app/track/%' OR source_type LIKE 'groups\\_%' ESCAPE '\\' OR href LIKE '%/app/lines/%')";
 
 /** Tope de avisos que se miran para armar una página. */
 const LIST_SCAN_LIMIT = 2000;

@@ -12,9 +12,7 @@ import en from '@/messages/en/notes.json';
 import es from '@/messages/es/notes.json';
 import pt from '@/messages/pt/notes.json';
 import { getDb } from './db';
-import { personAppAccess } from './api-auth';
 import { inboundDomain, rejectReason, type InboundAttachment, type InboundAuth } from './chat-email';
-import { canUseApp } from './workspace';
 import { emitEventSoon } from './events';
 import { rateLimit } from './rate-limit';
 import { saveUpload, UploadError, MAX_UPLOAD_SIZE } from './uploads';
@@ -123,9 +121,9 @@ export async function processNotesInbound(token: string, email: NotesInboundEmai
   const db = getDb();
   const person = (await db.prepare('SELECT workspace_id, person_id FROM note_prefs WHERE email_token = ?').get(token)) as { workspace_id: string; person_id: string } | undefined;
   if (!person) return { status: 'skipped', reason: 'unknown_address' };
-  // Quien ya no está en el workspace o no tiene Notes: su dirección dejó de valer.
-  const access = await personAppAccess(person.workspace_id, person.person_id);
-  if (!access || !canUseApp({ role: access.role, apps: access.apps as never }, 'notes')) return { status: 'skipped', reason: 'no_access' };
+  // Quien ya no está en el workspace o no tiene Notes (Miembros o Apps del workspace): su dirección dejó de valer.
+  const { personCanUseApp } = await import('./workspace-apps');
+  if (!(await personCanUseApp(person.workspace_id, person.person_id, 'notes'))) return { status: 'skipped', reason: 'no_access' };
   const reject = rejectReason({ emailId: email.emailId, from: email.from, to: [], subject: email.subject, text: email.text, messageId: null, headers: email.headers, authentication: email.authentication });
   if (reject) return { status: 'skipped', reason: reject };
   const limited = await rateLimit(`notes-email:${token}`, NOTES_EMAIL_DAILY, 86_400);
