@@ -2,13 +2,15 @@
 
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useCrmLive } from './useCrmLive';
+import { searchAssociable } from './assocSearch';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
 import AssociationPanel, { type AssociationOption } from './AssociationPanel';
 import PreviewActions, { RecentActivity, type RecentItem } from './PreviewActions';
 import { useCrmAdmin, useCrmOptions } from './CrmViewer';
-import { customLayoutName, defaultPreviewLayout, type PreviewLayout } from '@/lib/crm-layouts-shared';
+import { customLayoutName, defaultPreviewLayout, type LayoutEntity, type PreviewLayout } from '@/lib/crm-layouts-shared';
+import { clearLeadCompany, clearLeadContact, setLeadCompany, setLeadContact } from './leadServerActions';
 import PhoneTouch from './PhoneTouch';
 import PropertiesPanel, { type PropField } from './PropertiesPanel';
 import DealStagePanel, { type StageOption } from './DealStagePanel';
@@ -17,7 +19,7 @@ import { formatPhoneDisplay } from '@/lib/crm-calls';
 import { DEAL_TYPES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
 
-export type PreviewType = 'contact' | 'company' | 'deal';
+export type PreviewType = 'contact' | 'company' | 'deal' | 'lead';
 
 interface PreviewContact {
   id: string;
@@ -93,7 +95,32 @@ interface DealPayload {
   companies?: PreviewCompany[];
 }
 
-type PreviewPayload = ContactPayload | CompanyPayload | DealPayload;
+/** El lead llega plano (GET /api/crm/leads/<id>): sus asociados vienen como columnas. */
+interface PreviewLead {
+  id: string;
+  name: string;
+  stage_id: string;
+  stage_name: string | null;
+  stage_kind: 'open' | 'qualified' | 'disqualified' | null;
+  source: string;
+  disqualify_reason: string;
+  owner_id: string | null;
+  user_id?: string;
+  contact_id: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_private?: boolean;
+  company_id: string | null;
+  company_name: string | null;
+  company_domain: string | null;
+  company_private?: boolean;
+  deal_id: string | null;
+  deal_name: string | null;
+  deal_private?: boolean;
+  custom: string;
+}
+
+type PreviewPayload = ContactPayload | CompanyPayload | DealPayload | PreviewLead;
 type FieldDef = CrmCustomFieldRow & { access?: 'edit' | 'read' | 'hidden' };
 
 interface RecordPreviewProps {
@@ -107,10 +134,11 @@ interface RecordPreviewProps {
   nav?: ReactNode;
 }
 
-const PLURAL: Record<PreviewType, 'contacts' | 'companies' | 'deals'> = {
+const PLURAL: Record<PreviewType, LayoutEntity> = {
   contact: 'contacts',
   company: 'companies',
   deal: 'deals',
+  lead: 'leads',
 };
 
 function parseCustom(json: string | undefined): Record<string, unknown> {
@@ -205,10 +233,11 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
 
   // En vivo: si un compañero cambia este registro (algo que esta persona ve), se vuelve a leer.
   // Si deja de estar (otra persona lo borró o ya no lo ve), se avisa en vez de mostrar datos viejos.
+  // El lead no tiene firma de ficha: se firma como una lista de uno (lib/crm-live.ts).
   const [gone, setGone] = useState(false);
   useEffect(() => setGone(false), [type, id]);
   useCrmLive(
-    { record: { kind: type, id } },
+    type === 'lead' ? { list: 'leads', ids: [id] } : { record: { kind: type, id } },
     () => {
       void reload();
       if (showRecent) void loadRecent();
@@ -230,7 +259,13 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
         ? fetch('/api/crm/pipelines')
             .then((r) => (r.ok ? (r.json() as Promise<{ rows: Array<{ id: string; stages: StageOption[] }> }>) : { rows: [] }))
             .catch(() => ({ rows: [] as Array<{ id: string; stages: StageOption[] }> }))
-        : Promise.resolve(null),
+        : type === 'lead'
+          ? // Las etapas de leads, como un solo "pipeline".
+            fetch('/api/crm/lead-stages')
+              .then((r) => (r.ok ? (r.json() as Promise<{ rows: StageOption[] }>) : { rows: [] as StageOption[] }))
+              .then((d) => ({ rows: [{ id: '', stages: d.rows }] }))
+              .catch(() => ({ rows: [] as Array<{ id: string; stages: StageOption[] }> }))
+          : Promise.resolve(null),
       // Qué muestra la vista previa (Ajustes › Datos), ya sin las propiedades que la persona tiene ocultas.
       fetch(`/api/crm/layouts?kind=preview&entity=${plural}`)
         .then((r) => (r.ok ? (r.json() as Promise<{ layout: PreviewLayout }>) : null))
@@ -245,6 +280,8 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
         if (data && pipelines && 'deal' in data) {
           const p = pipelines.rows.find((x) => x.id === (data as DealPayload).deal.pipeline_id);
           setStages(p?.stages.map((s) => ({ id: s.id, name: s.name, is_won: s.is_won, is_lost: s.is_lost })) ?? []);
+        } else if (pipelines && type === 'lead') {
+          setStages(pipelines.rows[0]?.stages.map((s) => ({ id: s.id, name: s.name })) ?? []);
         }
         setError(!data);
         setLoading(false);
@@ -306,7 +343,9 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
       ? (payload as ContactPayload).contact
       : type === 'company'
         ? (payload as CompanyPayload).company
-        : (payload as DealPayload).deal
+        : type === 'lead'
+          ? (payload as PreviewLead)
+          : (payload as DealPayload).deal
     : null;
   const customJson = record?.custom;
   const custom = useMemo(() => parseCustom(customJson), [customJson]);
@@ -355,6 +394,24 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
         { key: 'website', label: t('contacts.form.website'), type: 'text', value: c.website },
         { key: 'city', label: t('contacts.form.city'), type: 'text', value: c.city },
         { key: 'country', label: t('contacts.form.country'), type: 'text', value: c.country },
+      ];
+    }
+    if (type === 'lead') {
+      const l = payload as PreviewLead;
+      return [
+        { key: 'name', label: t('leads.form.name'), type: 'text', value: l.name },
+        ...(stages.length
+          ? [{ key: 'stageId', label: t('leads.form.stage'), type: 'select' as const, value: l.stage_id, options: stages.map((s) => ({ value: s.id, label: s.name })) }]
+          : []),
+        ...ownerField(l.owner_id, l.user_id, t('leads.form.owner')),
+        {
+          key: 'source',
+          label: t('leads.form.source'),
+          type: 'select',
+          value: l.source,
+          options: [{ value: '', label: '—' }, ...SOURCES.map((v) => ({ value: v as string, label: t(`enums.source.${v}`) }))],
+        },
+        { key: 'disqualifyReason', label: t('leads.disqualify.reason'), type: 'text', value: l.disqualify_reason ?? '' },
       ];
     }
     if (type === 'company') {
@@ -419,6 +476,10 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
     const c = (payload as ContactPayload).contact;
     prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
     prefillEmail = c.email || undefined;
+  } else if (payload && type === 'lead') {
+    const l = payload as PreviewLead;
+    prefillName = l.contact_name || undefined;
+    prefillEmail = l.contact_email || undefined;
   } else if (payload && type === 'deal' && (payload as DealPayload).contacts.length > 0) {
     const c = (payload as DealPayload).contacts[0];
     prefillName = `${c.first_name} ${c.last_name}`.trim() || undefined;
@@ -448,6 +509,22 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
             {formatPhoneDisplay(c.phone)} <PhoneTouch phone={c.phone} contactId={c.id} />
           </span>
         ),
+      ];
+    } else if (type === 'lead') {
+      const l = payload as PreviewLead;
+      title = l.name;
+      lines = [
+        l.contact_id && (
+          <span key="contact">{[l.contact_name, l.contact_email].filter(Boolean).join(' · ')}</span>
+        ),
+        l.company_name && <span key="company">{l.company_name}</span>,
+      ];
+      const stageName = stages.find((s) => s.id === l.stage_id)?.name ?? l.stage_name;
+      facts = [
+        ...(stageName ? [{ key: 'stage', label: t('leads.form.stage'), value: stageName }] : []),
+        ...(owners.length
+          ? [{ key: 'owner', label: t('leads.form.owner'), value: owners.find((o) => o.value === (l.owner_id ?? l.user_id))?.label ?? '—' }]
+          : []),
       ];
     } else if (type === 'company') {
       const c = (payload as CompanyPayload).company;
@@ -536,11 +613,9 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
       const data = res?.ok ? ((await res.json().catch(() => null)) as { rows?: Array<Record<string, unknown>> } | null) : null;
       return (data?.rows ?? []).map((r) => optionOf(plural, r));
     };
-    const find = (plural: 'contacts' | 'companies' | 'deals') => async (q: string): Promise<AssociationOption[]> => {
-      const res = await fetch(`/api/crm/search?q=${encodeURIComponent(q)}`).catch(() => null);
-      const data = res?.ok ? ((await res.json().catch(() => null)) as Record<string, Array<Record<string, unknown>>> | null) : null;
-      return (data?.[plural] ?? []).map((r) => optionOf(plural, r));
-    };
+    // El buscador de asociar (hasta 20 resultados, solo lo que la persona ve), no el de Cmd+K (5 por tipo).
+    const find = (plural: 'contacts' | 'companies' | 'deals') => (q: string): Promise<AssociationOption[]> =>
+      searchAssociable(plural, q).then((hits) => hits.map((h) => ({ id: h.id, value: h.meta ? `${h.name} · ${h.meta}` : h.name })));
     return {
       contacts: { load: list('contacts'), search: find('contacts') },
       companies: { load: list('companies'), search: find('companies') },
@@ -584,8 +659,49 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
     );
   }
 
+  /** Contacto o empresa del lead: uno solo, como en su ficha (las mismas server actions). */
+  function leadRefCard(sid: 'contacts' | 'companies', l: PreviewLead) {
+    const isContact = sid === 'contacts';
+    const refId = isContact ? l.contact_id : l.company_id;
+    const hidden = isContact ? l.contact_private : l.company_private;
+    const name = isContact ? (l.contact_name ?? l.contact_email ?? '') : (l.company_name ?? '');
+    const meta = isContact ? (l.contact_name ? l.contact_email ?? undefined : undefined) : (l.company_domain ?? undefined);
+    const records = refId ? [{ id: refId, name, meta, href: `/app/crm/${sid}/${refId}` }] : [];
+    return section(sid, t(isContact ? 'leads.summaryContact' : 'leads.summaryCompany'), records.length,
+      <AssociationPanel
+        records={records}
+        options={[]}
+        onAssociate={(otherId) => (isContact ? setLeadContact(id, otherId) : setLeadCompany(id, otherId))}
+        onRemove={() => (isContact ? clearLeadContact(id) : clearLeadCompany(id))}
+        addLabel={t(isContact ? 'previewActions.addContact' : 'previewActions.addCompany')}
+        emptyLabel={hidden ? t('common.privateRecord') : t('leads.none')}
+        // Un lead tiene un contacto y una empresa: con uno puesto (o uno privado), no se agrega otro.
+        search={refId || hidden ? undefined : loaders[sid].search}
+        loadOptions={refId || hidden ? undefined : loaders[sid].load}
+        onChanged={() => void reload()}
+        testId={`preview-assoc-${sid}`}
+      />,
+    );
+  }
+
   function renderAssociation(sid: string): React.ReactNode {
     if (!payload) return null;
+    if (type === 'lead') {
+      const l = payload as PreviewLead;
+      if (sid === 'contacts' || sid === 'companies') return leadRefCard(sid, l);
+      if (sid === 'deals') {
+        return section('deals', t('leads.summaryDeal'), undefined,
+          l.deal_id ? (
+            <p className="preview-lead-deal">
+              <Link href={`/app/crm/deals/${l.deal_id}`}>{l.deal_name}</Link>
+            </p>
+          ) : (
+            <p className="muted preview-empty">{l.deal_private ? t('common.privateRecord') : t('leads.none')}</p>
+          ),
+        );
+      }
+      return null;
+    }
     const contactItem = (c: PreviewContact) => ({ id: c.id, name: contactName(c), meta: c.email || undefined });
     const companyItem = (c: PreviewCompany) => ({ id: c.id, name: c.name, meta: c.domain || undefined });
     if (type === 'contact') {
@@ -625,7 +741,13 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
   }
 
   const aboutTitle =
-    type === 'contact' ? t('contacts.detail.aboutSection') : type === 'company' ? t('companies.detail.aboutSection') : t('deals.detail.aboutSection');
+    type === 'contact'
+      ? t('contacts.detail.aboutSection')
+      : type === 'company'
+        ? t('companies.detail.aboutSection')
+        : type === 'lead'
+          ? t('leads.aboutSection')
+          : t('deals.detail.aboutSection');
 
   function renderAbout() {
     if (!payload) return null;
@@ -685,6 +807,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
   if (payload && type === 'contact') emailTo = (payload as ContactPayload).contact.email || '';
   else if (payload && type === 'deal') emailTo = (payload as DealPayload).contacts.find((c) => c.email)?.email ?? '';
   else if (payload && type === 'company') emailTo = (payload as CompanyPayload).contacts.find((c) => c.email)?.email ?? '';
+  else if (payload && type === 'lead') emailTo = (payload as PreviewLead).contact_email ?? '';
 
   return (
     <div className="preview-overlay" onClick={onClose} role="presentation">

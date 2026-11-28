@@ -112,6 +112,26 @@ export async function resolveCardLayout(viewer: FieldViewer, pipelineId: string,
   return withoutHidden(layout, await hiddenFieldsFor(viewer, 'deals', db));
 }
 
+// ---------- Tarjetas del board de leads (una sola configuración por workspace) ----------
+
+export async function getLeadCardLayout(workspaceId: string, db: Db = getDb()): Promise<CardLayout> {
+  const raw = await readRow(workspaceId, 'card', 'leads', '', db);
+  if (!raw) return defaultCardLayout('leads');
+  return sanitizeCardLayout(raw, await customNames(workspaceId, 'leads', db), 'leads');
+}
+
+export async function setLeadCardLayout(workspaceId: string, input: { properties?: unknown }, db: Db = getDb()): Promise<CardLayout> {
+  const clean = sanitizeCardLayout(input, await customNames(workspaceId, 'leads', db), 'leads');
+  await writeRow(workspaceId, 'card', 'leads', '', clean, db);
+  return clean;
+}
+
+/** Las tarjetas de lead para esta persona: sin las personalizadas que tiene ocultas. */
+export async function resolveLeadCardLayout(viewer: FieldViewer, db: Db = getDb()): Promise<CardLayout> {
+  const layout = await getLeadCardLayout(viewer.workspaceId, db);
+  return withoutHidden(layout, await hiddenFieldsFor(viewer, 'leads', db));
+}
+
 /** Vuelve a lo de por defecto. */
 export async function resetLayout(workspaceId: string, kind: Kind, entity: LayoutEntity, scope: string, db: Db = getDb()): Promise<void> {
   await db

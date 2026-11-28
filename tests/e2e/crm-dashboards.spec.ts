@@ -287,6 +287,49 @@ test('encabezado en una fila, filtros de owner y equipo visibles, KPI con la com
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('reporte propio: ver como tabla y drill sobre el objeto asociado', async ({ page, request }) => {
+  const errors = watchErrors(page);
+  const tag = uid();
+  const p = await (await request.post('/api/crm/pipelines', { data: { name: `Assoc ${tag}` } })).json();
+  const stage = (await (await request.post(`/api/crm/pipelines/${p.id}/stages`, { data: { name: 'Demo', probability: 40 } })).json()) as { id: string };
+  const industry = `Ind${tag}`;
+  const company = (await (await request.post('/api/crm/companies', { data: { name: `Assoc Co ${tag}`, industry } })).json()) as { id: string };
+  const deal = await request.post('/api/crm/deals', { data: { pipelineId: p.id, stageId: stage.id, name: `Assoc deal ${tag}`, amount: 900, companyId: company.id } });
+  expect(deal.ok(), await deal.text()).toBe(true);
+  const rep = await request.post('/api/crm/custom-reports', {
+    data: { name: `By industry ${tag}`, config: { source: 'deals', dimensions: [{ field: 'company.industry' }], metric: { agg: 'count' }, viz: 'bar', filters: [{ f: 'deal.pipeline', o: 'is', v: p.id }] } },
+  });
+  expect(rep.ok(), await rep.text()).toBe(true);
+  const report = (await rep.json()) as { id: string };
+  const d = await dashboard(request, { template: 'blank' });
+  expect((await request.post(`/api/crm/dashboards/${d.id}/widgets`, { data: { type: 'custom_report', config: { reportId: report.id } } })).ok()).toBe(true);
+  await open(page, d.id);
+  const tile = page.getByTestId('cdb-tile').first();
+  await expect(tile.getByTestId('cdb-mark').first()).toBeVisible();
+
+  // Ver como tabla y volver al gráfico.
+  await tile.getByTestId('cdb-tile-menu').click();
+  await page.getByTestId('context-menu').locator('[data-key="table"]').click();
+  await expect(tile.getByTestId('rb-table')).toBeVisible();
+
+  // Drill desde la tabla: los deals, y el selector pasa a sus empresas.
+  await tile.getByTestId('rb-drill').first().click();
+  const drill = page.getByTestId('cdb-drill');
+  await expect(drill.getByRole('button', { name: `Assoc deal ${tag}` })).toBeVisible();
+  const objects = drill.getByTestId('cdb-drill-objects');
+  await expect(objects.getByTestId('cdb-drill-object-deal')).toHaveAttribute('aria-pressed', 'true');
+  await objects.getByTestId('cdb-drill-object-company').click();
+  await expect(drill.getByRole('button', { name: `Assoc Co ${tag}` })).toBeVisible();
+  await expect(objects.getByTestId('cdb-drill-object-company')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(drill).toBeHidden();
+
+  await tile.getByTestId('cdb-tile-menu').click();
+  await page.getByTestId('context-menu').locator('[data-key="table"]').click();
+  await expect(tile.getByTestId('rb-table')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('drill-down de un reporte propio desde su tile', async ({ page, request }) => {
   const errors = watchErrors(page);
   const dealName = `Custom drill ${uid()}`;

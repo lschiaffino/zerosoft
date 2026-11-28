@@ -11,7 +11,7 @@ import type { Mentionable } from '@/lib/crm-mentions';
 import { NOTE_MD_MAX, noteMarkdownToText } from '@/lib/crm-note-format';
 import NoteEditor from './RichNote';
 
-export type PreviewRecordType = 'contact' | 'company' | 'deal';
+export type PreviewRecordType = 'contact' | 'company' | 'deal' | 'lead';
 type ComposeKind = 'note' | 'email' | 'call' | 'task';
 
 const KINDS: ComposeKind[] = ['note', 'email', 'call', 'task'];
@@ -173,7 +173,8 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
   return (
     <div className="preview-quick-wrap">
       <div className="rec-quick preview-quick" role="group" aria-label={t('record.quickActions')}>
-        {KINDS.map((k) => (
+        {/* El email se registra en contactos, empresas y deals; el lead (como su timeline) anota, llama y agenda tareas. */}
+        {KINDS.filter((k) => !(type === 'lead' && k === 'email')).map((k) => (
           <button
             key={k}
             ref={(el) => {
@@ -278,7 +279,7 @@ export default function PreviewActions({ type, id, locale, emailTo = '', meeting
       {notice && (
         <p className="ui-help preview-notice" role="status">
           {notice}{' '}
-          <Link href={`/app/crm/${type === 'contact' ? 'contacts' : type === 'company' ? 'companies' : 'deals'}/${id}?tab=activity`}>
+          <Link href={`/app/crm/${type === 'contact' ? 'contacts' : type === 'company' ? 'companies' : type === 'lead' ? 'leads' : 'deals'}/${id}?tab=activity`}>
             {t('previewActions.viewActivity')}
           </Link>
         </p>

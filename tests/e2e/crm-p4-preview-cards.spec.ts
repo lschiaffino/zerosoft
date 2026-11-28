@@ -270,3 +270,55 @@ test('vista previa y ajustes a 390: sin scroll horizontal, acciones de 40px', as
     await noHorizontalScroll(page);
   }
 });
+
+test('leads: vista previa desde la tabla y el board, y tarjetas del board de leads', async ({ browser }) => {
+  const email = `p4-leads-${uid()}@crm-p4-e2e.test`;
+  const ctx = await personContext(browser, email);
+  try {
+    await ok(ctx.request.post('/api/onboarding', { data: { kind: 'full', mode: 'team', name: 'P4 leads', locale: 'en', apps: ['crm'] } }));
+    await ctx.request.post('/api/tours', { data: { kind: 'off', off: true } });
+    const tag = uid();
+    const a = await ok<{ id: string }>(ctx.request.post('/api/crm/leads', { data: { name: `LeadP ${tag} Alpha`, source: 'referral' } }));
+    await ok(ctx.request.post('/api/crm/leads', { data: { name: `LeadP ${tag} Bravo` } }));
+    const page = await ctx.newPage();
+
+    // Tabla: el nombre abre la vista previa, con anterior / siguiente entre los leads en pantalla.
+    await page.goto(`/en/app/crm/leads?q=LeadP%20${tag}&sort=name`, { waitUntil: 'networkidle' });
+    await page.getByTestId('leads-table').getByTestId('record-name').filter({ hasText: 'Alpha' }).click();
+    const preview = page.getByTestId('record-preview');
+    await expect(preview.getByRole('heading', { name: `LeadP ${tag} Alpha` })).toBeVisible();
+    await expect(preview.getByTestId('preview-nav-pos')).toBeVisible();
+    // El lead anota, llama y agenda tareas; el email va por su contacto.
+    await expect(preview.getByTestId('preview-quick-email')).toHaveCount(0);
+    await preview.getByTestId('preview-quick-note').click();
+    const composer = preview.getByTestId('preview-composer');
+    await composer.getByTestId('preview-composer-body').fill(`Lead note ${tag}`);
+    await composer.getByTestId('preview-composer-save').click();
+    await expect(composer).toBeHidden();
+    await expect.poll(async () => Number((await sql('SELECT COUNT(*) AS n FROM crm_activities WHERE lead_id = ?', [a.id]))[0]?.n)).toBe(1);
+    await expect(preview.getByTestId('preview-recent')).toContainText(`Lead note ${tag}`);
+    await page.keyboard.press('j');
+    await expect(preview.getByRole('heading', { name: `LeadP ${tag} Bravo` })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(preview).toHaveCount(0);
+
+    // Ajustes: el selector de tarjetas ofrece el board de leads.
+    await page.goto('/en/app/crm/settings?tab=sales&pipeline=leads', { waitUntil: 'networkidle' });
+    await expect(page.getByTestId('card-layout-panel').locator('#card-layout-pipeline')).toHaveValue('leads');
+    await ok(ctx.request.put('/api/crm/layouts', { data: { kind: 'card', entity: 'leads', properties: ['source', 'ownerId'] } }));
+
+    // Board: la card muestra el origen y un clic en la card (no en el nombre) abre la vista previa.
+    await page.goto(`/en/app/crm/leads?view=board&q=LeadP%20${tag}`, { waitUntil: 'networkidle' });
+    const card = page.getByTestId('lead-card').filter({ hasText: 'Alpha' });
+    await expect(card.locator('[data-card-prop="source"]')).toBeVisible();
+    const box = (await card.boundingBox())!;
+    await card.click({ position: { x: box.width - 8, y: 8 } });
+    await expect(page.getByTestId('record-preview').getByRole('heading', { name: `LeadP ${tag} Alpha` })).toBeVisible();
+
+    // A 390: sin scroll lateral con la vista previa abierta.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await noHorizontalScroll(page);
+  } finally {
+    await ctx.close();
+  }
+});

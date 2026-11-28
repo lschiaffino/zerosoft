@@ -55,6 +55,7 @@ type PreviewTarget = { type: 'contact' | 'company' | 'deal'; id: string };
 
 interface DrillState {
   widgetId: string;
+  segment: DrillSegment;
   title: string;
   subtitle: string | null;
   status: 'loading' | 'error' | 'ready';
@@ -483,11 +484,11 @@ export default function DashboardsView({
   // ---------- Drill-down ----------
 
   const drillReq = useRef(0);
-  async function openDrill(widgetId: string, segment: DrillSegment, title: string, subtitle: string | null) {
+  async function openDrill(widgetId: string, segment: DrillSegment, title: string, subtitle: string | null, keepFocus?: HTMLElement | null) {
     if (!active) return;
     const req = ++drillReq.current;
-    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setDrill({ widgetId, title, subtitle, status: 'loading', returnFocus });
+    const returnFocus = keepFocus !== undefined ? keepFocus : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDrill({ widgetId, segment, title, subtitle, status: 'loading', returnFocus });
     const res = await fetch('/api/crm/dashboards/drill', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -577,7 +578,10 @@ export default function DashboardsView({
     const data = tiles[w.id];
     const items: ContextMenuItem[] = [];
     if (active.canEdit) items.push({ key: 'edit', label: t('dash.tile.edit'), onSelect: () => setDialog({ edit: w.id }) });
-    if (data?.kind === 'chart') {
+    // Ver como tabla: los tiles listos y los reportes propios agregados que no son ya una tabla.
+    const tableable =
+      data?.kind === 'chart' || (data?.kind === 'custom' && data.report.result.kind === 'aggregate' && data.report.result.dimensions.length > 0 && data.report.config.viz !== 'table' && data.report.config.viz !== 'kpi');
+    if (tableable) {
       const on = asTable.has(w.id);
       items.push({
         key: 'table',
@@ -792,7 +796,7 @@ export default function DashboardsView({
         <div className="cdb-custom">
           <ReportChart
             result={data.report.result}
-            viz={data.report.config.viz}
+            viz={asTable.has(w.id) ? 'table' : data.report.config.viz}
             locale={locale}
             baseCurrency={baseCurrency}
             compact
@@ -1286,6 +1290,7 @@ export default function DashboardsView({
           fmtDate={fmtDate}
           statusLabel={statusLabel}
           onPreview={setPreview}
+          onObject={(object) => void openDrill(drill.widgetId, { ...drill.segment, object }, drill.title, drill.subtitle, drill.returnFocus)}
           onClose={() => {
             const back = drill.returnFocus;
             setDrill(null);
@@ -1838,10 +1843,13 @@ function DrillPanel({
   fmtDate,
   statusLabel,
   onPreview,
+  onObject,
   onClose,
 }: {
   t: T;
   drill: DrillState;
+  /** Reportes propios: ver los registros de un objeto asociado del mismo segmento. */
+  onObject: (object: 'deal' | 'contact' | 'company') => void;
   previewOpen: boolean;
   fmtValue: (n: number, f?: ValueFormat) => string;
   fmtDate: (iso: string | null) => string;
@@ -1879,6 +1887,13 @@ function DrillPanel({
     return () => window.removeEventListener('keydown', key);
   }, [onClose]);
   const res = drill.result;
+  // El selector queda mientras carga el objeto nuevo (el último resultado dice cuáles hay).
+  const [objects, setObjects] = useState<Array<'deal' | 'contact' | 'company'>>([]);
+  useEffect(() => {
+    // Un reporte de actividades no cambia de objeto (sus asociados no son una lista de registros del segmento).
+    if (res?.objects && !res.objects.includes('activity')) setObjects(res.objects.filter((o): o is 'deal' | 'contact' | 'company' => o !== 'activity'));
+  }, [res]);
+  const shownObject = drill.segment.object ?? res?.object;
   const statusHead =
     res?.object === 'deal' ? t('dash.drill.cols.stage') : res?.object === 'activity' ? t('dash.drill.cols.type') : res?.object === 'company' ? t('dash.drill.cols.lifecycle') : t('dash.drill.cols.status');
   return (
@@ -1904,6 +1919,25 @@ function DrillPanel({
             {t('dash.drill.close')}
           </button>
         </div>
+        {objects.length > 1 && (
+          <div className="btn-group cdb-drill-objects" role="group" aria-label={t('dash.drill.objectsLabel')} data-testid="cdb-drill-objects">
+            {objects.map((o) => (
+              <button
+                key={o}
+                type="button"
+                className="btn btn-secondary btn-sm"
+                aria-pressed={shownObject === o}
+                disabled={drill.status === 'loading'}
+                onClick={() => {
+                  if (shownObject !== o) onObject(o);
+                }}
+                data-testid={`cdb-drill-object-${o}`}
+              >
+                {t(`dash.drill.objects.${o}`)}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="cdb-drill-body">
           {drill.status === 'loading' && (
             <div className="cdb-skeleton" aria-busy="true" aria-label={t('dash.tile.loading')}>

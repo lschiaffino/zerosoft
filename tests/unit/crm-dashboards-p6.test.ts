@@ -8,7 +8,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/db';
-import { createCustomField, createDeal, createPipeline, createStage, moveDeal, updateStage } from '@/lib/crm';
+import { createCompany, createCustomField, createDeal, createPipeline, createStage, moveDeal, updateStage } from '@/lib/crm';
+import { associateDealCompany } from '@/lib/crm-assoc';
 import { MEMBER_SUBJECT, setFieldPermissions } from '@/lib/crm-field-perms';
 import { setMemberVisibility } from '@/lib/crm-visibility';
 import { createCustomReport } from '@/lib/crm-custom-reports';
@@ -193,6 +194,36 @@ describe('reportes propios: drill-down', () => {
     const month = new Date().toISOString().slice(0, 7);
     expect((await json<DrillResult>(await drill(owner(s), d.id, wid, [month]))).total).toBe(3);
     expect((await json<DrillResult>(await drill(owner(s), d.id, wid, [month], { range: 'custom', from: '2020-01-01', to: '2020-01-31' }))).total).toBe(0);
+  });
+
+  it('el drill muestra un objeto asociado que el reporte usa, solo con lo que la persona ve', async () => {
+    const s = await setup('p6-drill-assoc');
+    const acme = await createCompany(s.ws, { name: 'Acme hidden', industry: 'Retail', ownerId: s.ws });
+    const beta = await createCompany(s.ws, { name: 'Beta mine', industry: 'Retail', ownerId: s.w.member.id });
+    await associateDealCompany(s.ws, s.deals.ownerOpen.id, acme.id, { primary: true });
+    await associateDealCompany(s.ws, s.deals.memberOpen.id, beta.id, { primary: true });
+    const { d, wid } = await dashboardWith(s, { source: 'deals', dimensions: [{ field: 'company.industry' }], metric: { agg: 'count' }, viz: 'bar' });
+    session.user = owner(s);
+    const asCompanies = async (user: SessionUser) => {
+      session.user = user;
+      return json<DrillResult>(await drillRoute.POST(send('POST', { dashboardId: d.id, widgetId: wid, filters: { range: 'last_30' }, segment: { keys: ['Retail'], object: 'company' } })));
+    };
+    const deals = await json<DrillResult>(await drill(owner(s), d.id, wid, ['Retail']));
+    expect(deals.object).toBe('deal');
+    expect(deals.objects).toEqual(['deal', 'company']);
+    const o = await asCompanies(owner(s));
+    expect(o.object).toBe('company');
+    expect(o.rows.map((r) => r.name).sort()).toEqual(['Acme hidden', 'Beta mine']);
+    expect(o.rows[0].previewType).toBe('company');
+    const m = await asCompanies(member(s));
+    expect(m.rows.map((r) => r.name)).toEqual(['Beta mine']);
+    expect(JSON.stringify(m)).not.toContain('Acme');
+    // Un objeto que el reporte no usa: se queda en el principal.
+    session.user = owner(s);
+    const contact = await json<DrillResult>(
+      await drillRoute.POST(send('POST', { dashboardId: d.id, widgetId: wid, filters: { range: 'last_30' }, segment: { keys: ['Retail'], object: 'contact' } })),
+    );
+    expect(contact.object).toBe('deal');
   });
 
   it('un reporte sobre un campo oculto: member recibe 403 y ningún valor; owner lo abre', async () => {

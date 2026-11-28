@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { RemoveIcon } from './RowTools';
 import DealCardFields, { type CardCustomDef } from './DealCardFields';
+import LeadCardFields from './LeadCardFields';
 import {
   CARD_PROPERTIES,
+  LEAD_CARD_PROPERTIES,
   cardLabelKey,
   customLayoutName,
   LAYOUT_ENTITIES,
@@ -355,10 +357,13 @@ export function PreviewLayoutPanel({
   );
 }
 
+/** Valor del selector de board para el de leads (los demás son ids de pipeline). */
+export const LEAD_BOARD = 'leads';
+
 /**
  * Ajustes › Ventas › Tarjetas del board, como "Edit cards" de HubSpot: por
- * pipeline, hasta MAX_CARD_PROPERTIES propiedades debajo del nombre del deal,
- * con una tarjeta de muestra al lado.
+ * pipeline de deals y para el board de leads, hasta MAX_CARD_PROPERTIES
+ * propiedades debajo del nombre, con una tarjeta de muestra al lado.
  */
 export function CardLayoutPanel({
   pipelines,
@@ -369,10 +374,15 @@ export function CardLayoutPanel({
   baseCurrency,
   locale,
   me,
+  leadLayout,
+  leadCustomFields = [],
 }: {
   pipelines: Array<{ id: string; name: string }>;
   initial: Record<string, CardLayout>;
   customFields: CardCustomDef[];
+  /** Tarjetas del board de leads (sin él, el selector solo ofrece pipelines). */
+  leadLayout?: CardLayout;
+  leadCustomFields?: CardCustomDef[];
   canEdit: boolean;
   initialPipelineId?: string;
   baseCurrency: string;
@@ -382,17 +392,25 @@ export function CardLayoutPanel({
 }) {
   const t = useTranslations('crm');
   const [pipelineId, setPipelineId] = useState(
-    initialPipelineId && pipelines.some((p) => p.id === initialPipelineId) ? initialPipelineId : (pipelines[0]?.id ?? ''),
+    initialPipelineId && (pipelines.some((p) => p.id === initialPipelineId) || (leadLayout && initialPipelineId === LEAD_BOARD))
+      ? initialPipelineId
+      : (pipelines[0]?.id ?? (leadLayout ? LEAD_BOARD : '')),
   );
-  const [layouts, setLayouts] = useState(initial);
+  const [layouts, setLayouts] = useState<Record<string, CardLayout>>(() => (leadLayout ? { ...initial, [LEAD_BOARD]: leadLayout } : initial));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>(null);
 
-  if (!pipelines.length) return <p className="ui-help">{t('layouts.noPipelines')}</p>;
+  if (!pipelines.length && !leadLayout) return <p className="ui-help">{t('layouts.noPipelines')}</p>;
+  const isLeads = pipelineId === LEAD_BOARD;
+  const entity = isLeads ? 'leads' : 'deals';
+  const fieldsHere = isLeads ? leadCustomFields : customFields;
   const layout = layouts[pipelineId] ?? { properties: [] };
-  const customLabel = new Map(customFields.map((f) => [`custom.${f.name}`, f.label]));
-  const labelOf = (k: string) => customLabel.get(k) ?? (t.has(cardLabelKey(k)) ? t(cardLabelKey(k)) : k);
-  const available = [...CARD_PROPERTIES, ...customFields.map((f) => `custom.${f.name}`)].filter((k) => !layout.properties.includes(k));
+  const customLabel = new Map(fieldsHere.map((f) => [`custom.${f.name}`, f.label]));
+  const labelOf = (k: string) => customLabel.get(k) ?? (t.has(cardLabelKey(k, entity)) ? t(cardLabelKey(k, entity)) : k);
+  const builtins: readonly string[] = isLeads ? LEAD_CARD_PROPERTIES : CARD_PROPERTIES;
+  const available = [...builtins, ...fieldsHere.map((f) => `custom.${f.name}`)].filter((k) => !layout.properties.includes(k));
+  const target = isLeads ? { entity: 'leads' } : { pipelineId };
+  const targetQuery = isLeads ? 'entity=leads' : `pipelineId=${encodeURIComponent(pipelineId)}`;
 
   async function save(next: CardLayout) {
     const prev = layouts[pipelineId];
@@ -402,7 +420,7 @@ export function CardLayoutPanel({
     const res = await fetch('/api/crm/layouts', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind: 'card', pipelineId, ...next }),
+      body: JSON.stringify({ kind: 'card', ...target, ...next }),
     }).catch(() => null);
     setBusy(false);
     if (!res?.ok) {
@@ -418,9 +436,9 @@ export function CardLayoutPanel({
   async function reset() {
     setBusy(true);
     setStatus(null);
-    const res = await fetch(`/api/crm/layouts?kind=card&pipelineId=${encodeURIComponent(pipelineId)}`, { method: 'DELETE' }).catch(() => null);
+    const res = await fetch(`/api/crm/layouts?kind=card&${targetQuery}`, { method: 'DELETE' }).catch(() => null);
     const fresh = res?.ok
-      ? await fetch(`/api/crm/layouts?kind=card&pipelineId=${encodeURIComponent(pipelineId)}`)
+      ? await fetch(`/api/crm/layouts?kind=card&${targetQuery}`)
           .then((r) => (r.ok ? (r.json() as Promise<{ layout: CardLayout }>) : null))
           .catch(() => null)
       : null;
@@ -452,14 +470,23 @@ export function CardLayoutPanel({
     custom: JSON.stringify(Object.fromEntries(customFields.map((f) => [f.name, f.label]))),
   };
   // Las personalizadas de muestra muestran su nombre como valor (texto), sin inventar datos.
-  const sampleDefs = customFields.map((f) => ({ ...f, type: 'text', options: null }));
+  const sampleDefs = fieldsHere.map((f) => ({ ...f, type: 'text', options: null }));
+  const sampleLead = {
+    contact: t('layouts.sample.contact'),
+    company: t('layouts.sample.company'),
+    owner: me.name,
+    source: 'referral',
+    created_at: sample.created_at,
+    last_activity_at: sample.last_activity_at,
+    custom: JSON.stringify(Object.fromEntries(leadCustomFields.map((f) => [f.name, f.label]))),
+  };
 
   return (
     <div className="create-form layout-panel layout-cards" data-testid="card-layout-panel">
       <div className="layout-cards-edit">
         <div className="ui-field create-form-object">
           <label className="label" htmlFor="card-layout-pipeline">
-            {t('deals.pipelineLabel')}
+            {leadLayout ? t('layouts.boardLabel') : t('deals.pipelineLabel')}
           </label>
           <select
             id="card-layout-pipeline"
@@ -470,11 +497,26 @@ export function CardLayoutPanel({
               setStatus(null);
             }}
           >
-            {pipelines.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+            {leadLayout ? (
+              <>
+                {pipelines.length > 0 && (
+                  <optgroup label={t('layouts.dealBoards')}>
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <option value={LEAD_BOARD}>{t('layouts.leadBoard')}</option>
+              </>
+            ) : (
+              pipelines.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))
+            )}
           </select>
         </div>
         <KeyList
@@ -503,14 +545,23 @@ export function CardLayoutPanel({
       <figure className="layout-cards-sample" aria-label={t('layouts.sampleLabel')}>
         <figcaption className="ui-help">{t('layouts.sampleLabel')}</figcaption>
         <article className="kb-card layout-sample-card" data-testid="card-layout-sample">
-          <span className="kb-card-name">{t('layouts.sample.deal')}</span>
-          <DealCardFields
-            deal={sample}
-            keys={layout.properties}
-            customDefs={sampleDefs}
-            owners={new Map([[me.id, me.name]])}
-            locale={locale}
-          />
+          {isLeads ? (
+            <>
+              <span className="kb-card-name">{t('layouts.sample.lead')}</span>
+              <LeadCardFields lead={sampleLead} keys={layout.properties} customDefs={sampleDefs} locale={locale} />
+            </>
+          ) : (
+            <>
+              <span className="kb-card-name">{t('layouts.sample.deal')}</span>
+              <DealCardFields
+                deal={sample}
+                keys={layout.properties}
+                customDefs={sampleDefs}
+                owners={new Map([[me.id, me.name]])}
+                locale={locale}
+              />
+            </>
+          )}
         </article>
       </figure>
     </div>
