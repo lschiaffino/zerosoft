@@ -670,6 +670,7 @@
     "appReinstall": "Change repos",
     "rulesTitle": "Automations by team",
     "rulesHelp": "Pick the status each team moves to when a pull request is drafted, opened, sent to review or merged. Without custom rules, a team uses the workspace rules above.",
+    "rulesHelpTeam": "Pick the status this team moves to when a pull request is drafted, opened, sent to review or merged. Without custom rules, it uses the workspace rules in Track settings, GitHub.",
     "rulesNoProjects": "Create a team to set its automations.",
     "customRules": "Custom rules",
     "saved": "Saved",

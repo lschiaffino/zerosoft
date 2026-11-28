@@ -693,7 +693,7 @@ export function GithubExtras({ isAdmin, projectId: onlyProject }: { isAdmin: boo
           {null}
         </FormSection>
       ) : null}
-      <FormSection title={t('github.rulesTitle')} description={t('github.rulesHelp')}>
+      <FormSection title={onlyProject ? t('github.title') : t('github.rulesTitle')} description={onlyProject ? t('github.rulesHelpTeam') : t('github.rulesHelp')}>
         <div className="track-settings-block" data-testid="track-github-rules">
           {error ? (
             <p className="ui-error" role="alert">

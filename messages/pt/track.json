@@ -670,6 +670,7 @@
     "appReinstall": "Mudar repos",
     "rulesTitle": "Automações por equipe",
     "rulesHelp": "Escolha para qual status cada equipe vai quando um pull request está em draft, é aberto, pede review ou é mergeado. Sem regras próprias, a equipe usa as do workspace.",
+    "rulesHelpTeam": "Escolha para qual status esta equipe vai quando um pull request está em draft, é aberto, pede review ou é mergeado. Sem regras próprias, usa as do workspace em Ajustes do Track, GitHub.",
     "rulesNoProjects": "Crie uma equipe para configurar as automações.",
     "customRules": "Regras próprias",
     "saved": "Salvo",
