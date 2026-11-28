@@ -598,6 +598,7 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
         items={timeline}
         hasMore={timelinePage.hasMore}
         currentPersonId={user.actingUser?.id ?? user.id}
+        changeLabels={{ fields: historyFields, values: historyValues }}
         emptyLabel={t('deals.detail.emptyTimeline')}
         mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
         locale={locale}

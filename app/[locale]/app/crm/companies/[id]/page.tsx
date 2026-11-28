@@ -514,6 +514,7 @@ export default async function CompanyDetailPage(props: CompanyDetailPageProps) {
         items={timelineItems}
         hasMore={timelinePage.hasMore}
         currentPersonId={user.actingUser?.id ?? user.id}
+        changeLabels={{ fields: historyFields, values: historyValues }}
         emptyLabel={t('companies.detail.emptyTimeline')}
         mentionables={teamMembers.map((m) => ({ id: m.user_id, name: m.name, email: m.email }))}
         locale={locale}

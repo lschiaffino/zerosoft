@@ -36,6 +36,7 @@ import {
   type TimelineType,
 } from './timelineModel';
 import { parseDbUtc } from '@/lib/utils';
+import { formatMoney } from '@/lib/crm-money';
 
 /** Lo que suma la respuesta al guardar una nota o tarea con @menciones (lib/crm-mention-notify.ts). */
 interface MentionsReply {
@@ -94,8 +95,25 @@ export interface TimelineItem {
   author_name?: string | null;
   /** Chat de Lines vinculado (lib/crm-timeline.ts listRecordChats). */
   wa?: { chatId: string; group: boolean; messages: Array<{ id: string; at: string; out: boolean; who: string; text: string }> };
-  /** Cambio automático de lifecycle (lib/crm-timeline.ts listSystemChanges): una línea, sin acciones. */
-  change?: { field: 'lifecycle_stage'; from: string; to: string; reason: string };
+  /** Cambio de una propiedad (lib/crm-timeline.ts listPropertyChanges): una línea, sin acciones. */
+  change?: {
+    field: string;
+    label?: string;
+    from: string;
+    to: string;
+    reason: string;
+    actor?: string;
+    fromPrivate?: boolean;
+    toPrivate?: boolean;
+    valueType?: string;
+    currency?: string;
+  };
+}
+
+/** Nombres de las propiedades de fábrica y de sus valores, los mismos del panel Historial de la ficha. */
+export interface ChangeLabels {
+  fields: Record<string, string>;
+  values?: Record<string, Record<string, string>>;
 }
 
 /** Herramientas del composer de email: templates/snippets, IA y tracking. */
@@ -125,6 +143,8 @@ interface TimelineProps {
   currentPersonId?: string;
   /** Hay más actividad que la primera página (GET /api/crm/timeline). */
   hasMore?: boolean;
+  /** Nombres para los cambios de propiedades; sin ellos, solo se ven los de campos propios y el lifecycle automático. */
+  changeLabels?: ChangeLabels;
 }
 
 /** Tipos donde el texto acepta @menciones (y avisan). */
@@ -162,6 +182,7 @@ const TYPE_ICON: Record<string, CrmIconName> = {
 
 const STORE_TYPES = 'zs:crm:timeline:types';
 const STORE_ASSOC = 'zs:crm:timeline:associated';
+const STORE_CHANGES = 'zs:crm:timeline:changes';
 
 function readStore(key: string): string | null {
   try {
@@ -233,6 +254,7 @@ export default function Timeline({
   compose = null,
   currentPersonId,
   hasMore = false,
+  changeLabels,
 }: TimelineProps) {
   const t = useTranslations('crm');
   const tl = useTranslations('crm.timeline');
@@ -264,16 +286,22 @@ export default function Timeline({
     setMoreState({ hasMore, offset: 100 });
     router.refresh();
   }
+  /** Nombre de la propiedad de un cambio; null si la ficha no la nombra (no se muestra). */
+  const changeFieldName = (c: NonNullable<TimelineItem['change']>): string | null => {
+    if (c.field.startsWith('custom.')) return c.label || null;
+    return changeLabels?.fields[c.field] ?? (c.field === 'lifecycle_stage' && c.reason ? c.field : null);
+  };
   const all = useMemo(() => {
     const ids = new Set(items.map((i) => i.id));
-    return [...items, ...more.filter((i) => !ids.has(i.id))];
-  }, [items, more]);
+    return [...items, ...more.filter((i) => !ids.has(i.id))].filter((i) => i.type !== 'change' || (i.change && changeFieldName(i.change) !== null));
+  }, [items, more, changeLabels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [tab, setTab] = useState<TimelineTab>('all');
   const [types, setTypes] = useState<TimelineType[]>([...TIMELINE_TYPES]);
   const [users, setUsers] = useState<string[] | null>(null);
   const [query, setQuery] = useState('');
   const [associated, setAssociated] = useState(true);
+  const [showChanges, setShowChanges] = useState(true);
   useEffect(() => {
     const ty = readStore(STORE_TYPES);
     if (ty) {
@@ -281,6 +309,7 @@ export default function Timeline({
       if (list.length) setTypes(list);
     }
     if (readStore(STORE_ASSOC) === '0') setAssociated(false);
+    if (readStore(STORE_CHANGES) === '0') setShowChanges(false);
   }, []);
   function chooseTypes(next: TimelineType[]) {
     setTypes(next);
@@ -290,16 +319,23 @@ export default function Timeline({
     setAssociated(v);
     writeStore(STORE_ASSOC, v ? '1' : '0');
   }
+  function chooseChanges(v: boolean) {
+    setShowChanges(v);
+    writeStore(STORE_CHANGES, v ? '1' : '0');
+  }
 
   const showAssociated = hasAssociated ? associated : true;
   const counts = tabCounts(all, showAssociated);
   const hasWhatsapp = all.some((i) => i.type === 'whatsapp');
   const visibleTabs = hasWhatsapp ? [...tabs, 'whatsapp' as const] : tabs;
-  const filtered = applyFilters(all, { tab, types, users, query, associated: showAssociated });
+  const filtered = applyFilters(all, { tab, types, users, query, associated: showAssociated, changes: showChanges });
+  const hasChanges = all.some((i) => i.type === 'change');
   const authors = timelineAuthors(all.filter((i) => showAssociated || !i.rollup));
   const typeOptions = TIMELINE_TYPES.filter((v) => (v !== 'email' || canEmail) && (v !== 'whatsapp' || hasWhatsapp));
-  const allTypesOn = typeOptions.every((v) => types.includes(v));
+  // "Seleccionar todo" también prende los cambios de propiedades (si hay).
+  const allTypesOn = typeOptions.every((v) => types.includes(v)) && (!hasChanges || showChanges);
   const typesFiltered = tab === 'all' && !allTypesOn;
+  const typesOnCount = typeOptions.filter((v) => types.includes(v)).length + (hasChanges && showChanges ? 1 : 0);
   const anyFilter = query.trim() !== '' || users !== null || typesFiltered;
   const now = useMemo(() => new Date(), [all]); // eslint-disable-line react-hooks/exhaustive-deps
   const groups = mounted ? groupTimeline(filtered, now) : [{ key: 'all', kind: 'month' as const, items: filtered }];
@@ -325,6 +361,7 @@ export default function Timeline({
     setQuery('');
     setUsers(null);
     chooseTypes([...TIMELINE_TYPES]);
+    if (!showChanges) chooseChanges(true);
   }
 
   async function loadMore() {
@@ -1158,20 +1195,51 @@ export default function Timeline({
     );
   }
 
-  /** Cambio del sistema: una línea ("Lifecycle stage pasó a Opportunity automáticamente · deal creado"). */
+  /** Valor de un cambio, con el nombre de la opción, del enum, la fecha o el monto; '' si quedó vacío. */
+  function changeValue(c: NonNullable<TimelineItem['change']>, v: string): string {
+    const field = c.field;
+    // Primero el nombre de la ficha: también nombra el vacío ("Automática" en forecast).
+    const mapped = changeLabels?.values?.[field]?.[v];
+    if (mapped) return mapped;
+    if (!v) return '';
+    if (field === 'lifecycle_stage') return crmOpts.label('lifecycle', v);
+    if (field === 'lead_status') return crmOpts.label('leadStatus', v);
+    const kind = c.valueType ?? (field === 'close_date' ? 'date' : field === 'amount' || field === 'employees' ? 'number' : '');
+    if (kind === 'date' && /^\d{4}-\d{2}-\d{2}/.test(v)) return formatDay(v.slice(0, 10), locale);
+    if (kind === 'boolean') return v === 'true' ? t('common.yes') : v === 'false' ? t('common.no') : v;
+    if ((kind === 'number' || kind === 'currency') && v.trim() !== '' && Number.isFinite(Number(v))) {
+      return kind === 'currency' ? formatMoney(Number(v), c.currency || 'USD', locale, true) : new Intl.NumberFormat(locale).format(Number(v));
+    }
+    return v.length > 80 ? `${v.slice(0, 79)}…` : v;
+  }
+
+  /**
+   * Cambio de una propiedad: una línea ("Lead status changed from New to Connected · Ana"), como en
+   * HubSpot. El automático de lifecycle dice por qué (deal creado o ganado). Un valor que la persona no
+   * puede ver nombrado (una empresa que no ve) sale como "—", sin decir que quedó vacío.
+   */
   function renderChange(item: TimelineItem & { change: NonNullable<TimelineItem['change']> }) {
     const c = item.change;
-    const reason = t.has(`propertyOptions.reasons.${c.reason}`) ? t(`propertyOptions.reasons.${c.reason}`) : '';
+    const reason = c.reason && t.has(`propertyOptions.reasons.${c.reason}`) ? t(`propertyOptions.reasons.${c.reason}`) : '';
+    const from = c.fromPrivate ? '—' : changeValue(c, c.from);
+    const to = c.toPrivate ? '—' : changeValue(c, c.to);
+    const field = changeFieldName(c) ?? c.field;
+    const text =
+      c.field === 'lifecycle_stage' && c.reason
+        ? t('propertyOptions.changedTo', { from: from || '—', to: to || '—' })
+        : !from
+          ? tl('change.set', { field, to })
+          : !to
+            ? tl('change.cleared', { field, from })
+            : tl('change.changed', { field, from, to });
+    const by = reason || c.actor || '';
     return (
-      <article key={item.id} className="tl-item atl-change" data-testid="crm-timeline-change" data-type="change">
+      <article key={item.id} className="tl-item atl-change" data-testid="crm-timeline-change" data-type="change" data-field={c.field}>
         {/* Un punto, no una flecha: la línea no se despliega ni se toca. */}
         <span className="atl-icon" data-type="change" aria-hidden />
         <p className="atl-change-text">
-          {t('propertyOptions.changedTo', {
-            from: crmOpts.label('lifecycle', c.from) || '—',
-            to: crmOpts.label('lifecycle', c.to) || '—',
-          })}
-          {reason ? <span className="muted"> · {reason}</span> : null}
+          {text}
+          {by ? <span className="muted"> · {by}</span> : null}
         </p>
         <time className="tl-date atl-when" dateTime={item.created_at} title={mounted ? formatWhen(item.created_at, locale) : undefined}>
           <LocalText>{mounted ? relativeTime(parseDbUtc(item.created_at), now, locale) : formatWhen(item.created_at, locale)}</LocalText>
@@ -1318,7 +1386,7 @@ export default function Timeline({
             button={
               <>
                 <CrmIcon name="filter" />
-                <span>{typesFiltered ? tl('filterActive', { count: typeOptions.filter((v) => types.includes(v)).length }) : tl('filterActivity')}</span>
+                <span>{typesFiltered ? tl('filterActive', { count: typesOnCount }) : tl('filterActivity')}</span>
               </>
             }
             buttonClassName={`btn btn-secondary btn-sm atl-tool${typesFiltered || (hasAssociated && !associated) ? ' is-active' : ''}`}
@@ -1334,7 +1402,10 @@ export default function Timeline({
                       role="menuitemcheckbox"
                       aria-checked={allTypesOn}
                       className="atl-menu-item atl-check"
-                      onClick={() => chooseTypes(allTypesOn ? [] : [...TIMELINE_TYPES])}
+                      onClick={() => {
+                        chooseTypes(allTypesOn ? [] : [...TIMELINE_TYPES]);
+                        if (hasChanges) chooseChanges(!allTypesOn);
+                      }}
                     >
                       <Check on={allTypesOn} />
                       {tl('selectAll')}
@@ -1353,6 +1424,19 @@ export default function Timeline({
                         {tl(`tabs.${v}`)}
                       </button>
                     ))}
+                    {hasChanges && (
+                      <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={showChanges}
+                        className="atl-menu-item atl-check"
+                        data-testid="timeline-filter-changes"
+                        onClick={() => chooseChanges(!showChanges)}
+                      >
+                        <Check on={showChanges} />
+                        {tl('changes')}
+                      </button>
+                    )}
                   </>
                 )}
                 {hasAssociated && (

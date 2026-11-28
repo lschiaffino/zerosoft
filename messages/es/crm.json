@@ -4915,7 +4915,13 @@
       "canceled": "Cancelada"
     },
     "notePlaceholderSolo": "Escribí una nota",
-    "noteTooLong": "La nota es demasiado larga."
+    "noteTooLong": "La nota es demasiado larga.",
+    "changes": "Cambios de propiedades",
+    "change": {
+      "changed": "{field} cambió de {from} a {to}",
+      "set": "{field} pasó a {to}",
+      "cleared": "{field} quedó vacío (era {from})"
+    }
   },
   "assocLabels": {
     "title": "Labels de asociación",
