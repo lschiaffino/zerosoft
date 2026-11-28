@@ -2045,7 +2045,7 @@ export interface DealInput {
   source?: string;
   description?: string;
   lostReason?: string;
-  /** '' | DEAL_TYPES. */
+  /** '' (sin tipo) o una opción de deal type del workspace (DEAL_TYPES o propias). */
   dealType?: string;
   nextStep?: string;
   wonReason?: string;

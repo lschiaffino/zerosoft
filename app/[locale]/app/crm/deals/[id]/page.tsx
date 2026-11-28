@@ -14,7 +14,7 @@ import { canSeeActivity, canSeeOwner, scopeDealDetail, sessionScope, scopeAnd } 
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { getDb, type CrmStageRow } from '@/lib/db';
 import { getDeal, nextTaskFor, parseCustom, PRIORITIES, SOURCES } from '@/lib/crm';
-import { optionHelpersFor } from '@/lib/crm-property-options';
+import { listOptionSets, optionHelpersWith } from '@/lib/crm-property-options';
 import DangerDelete from '@/components/crm/DangerDelete';
 import CloneDeal from '@/components/crm/CloneDeal';
 import { buildDealCloneBody } from '@/lib/crm-deal-clone';
@@ -75,10 +75,13 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
   const compose = parseCompose(searchParams.compose);
 
   const user = await requireUser(locale);
+  // Deal type: las opciones del workspace (Ajustes › Datos); se piden junto con lo demás.
+  const optionSetsP = listOptionSets(user.id);
+  optionSetsP.catch(() => {});
   const scope = await sessionScope(user);
   const t = await getTranslations({ locale, namespace: 'crm' });
-  // Deal type: las opciones del workspace (Ajustes › Datos); una archivada que el deal ya tiene se conserva.
-  const crmOpts = await optionHelpersFor(user.id, t);
+  // Una archivada que el deal ya tiene se conserva en su selector.
+  const crmOpts = optionHelpersWith(await optionSetsP, t);
 
   const rawDetail = await getDeal(user.id, id);
   if (!rawDetail || !canSeeOwner(scope, rawDetail.deal.owner_id, user.id)) notFound();
@@ -211,6 +214,8 @@ export default async function DealDetailPage(props: DealDetailPageProps) {
       companyIds: dealCompanies.map((c) => c.id),
     },
     t('deals.detail.cloneSuffix'),
+    // Un tipo archivado no viaja a la copia.
+    crmOpts.choices('dealType').map((o) => o.value),
   );
 
   const activityTypeLabels = Object.fromEntries(COMPOSE_TYPES.map((v) => [v, t(`enums.activityType.${v}`)]));

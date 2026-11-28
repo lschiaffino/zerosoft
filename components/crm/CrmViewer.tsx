@@ -7,7 +7,7 @@ import { defaultOptionSets, optionHelpers, type OptionHelpers, type OptionSets }
 interface CrmViewerValue {
   isAdmin: boolean;
   personId: string;
-  /** Opciones de Lifecycle stage y Lead status del workspace (Ajustes › Datos). */
+  /** Opciones de Lifecycle stage, Lead status y Deal type del workspace (Ajustes › Datos). */
   options: OptionSets;
 }
 
@@ -41,7 +41,7 @@ export function useCrmPersonId(): string {
 }
 
 /**
- * Nombres y opciones de Lifecycle stage y Lead status del workspace: las
+ * Nombres y opciones de Lifecycle stage, Lead status y Deal type del workspace: las
  * renombradas con su nombre, las archivadas fuera de los selectores (salvo el
  * valor actual) y marcadas en los filtros. Fuera del CRM, las de fábrica.
  */

@@ -58,6 +58,13 @@ describe('crm-deal-clone', () => {
     expect(body).toMatchObject({ dealType: 'existingbusiness', nextStep: 'Call back' });
     expect(body).not.toHaveProperty('wonReason');
   });
+  it('an archived deal type stays out of the copy (C5)', () => {
+    const links = { contactIds: [], companyId: null, companyIds: [] };
+    const archived = buildDealCloneBody({ ...deal, deal_type: 'opt_old' }, stages, links, '(copy)', ['newbusiness', 'existingbusiness'])!;
+    expect(archived).not.toHaveProperty('dealType');
+    const active = buildDealCloneBody({ ...deal, deal_type: 'opt_new' }, stages, links, '(copy)', ['newbusiness', 'opt_new'])!;
+    expect(active).toMatchObject({ dealType: 'opt_new' });
+  });
   it('tolerates broken custom JSON and missing dates', () => {
     const body = buildDealCloneBody({ ...deal, custom: '{oops', close_date: null, owner_id: null }, stages, { contactIds: [], companyId: null, companyIds: [] }, '(copy)')!;
     expect(body.custom).toEqual({});

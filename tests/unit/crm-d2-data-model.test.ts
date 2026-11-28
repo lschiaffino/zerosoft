@@ -300,7 +300,10 @@ describe('propiedades de fábrica del deal: tipo, próximo paso y motivo de gana
   it('la API valida el tipo', () => {
     expect(dealUpdateSchema.safeParse({ dealType: 'newbusiness' }).success).toBe(true);
     expect(dealUpdateSchema.safeParse({ dealType: '' }).success).toBe(true);
-    expect(dealUpdateSchema.safeParse({ dealType: 'partnership' }).success).toBe(false);
+    // Una clave con forma de opción pasa el schema; que sea una opción activa del workspace lo chequea el guardado (C5).
+    expect(dealUpdateSchema.safeParse({ dealType: 'opt_abc123' }).success).toBe(true);
+    expect(dealUpdateSchema.safeParse({ dealType: 'not valid!' }).success).toBe(false);
+    expect(dealUpdateSchema.safeParse({ dealType: 'x'.repeat(41) }).success).toBe(false);
   });
 
   it('PATCH de la ficha guarda el tipo y el próximo paso', async () => {

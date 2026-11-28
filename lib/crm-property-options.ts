@@ -1,6 +1,6 @@
 /**
- * CRM: opciones editables de Lifecycle stage y Lead status del workspace
- * (Ajustes › Datos › Opciones de propiedades). Server-only.
+ * CRM: opciones editables de Lifecycle stage, Lead status y Deal type del
+ * workspace (Ajustes › Datos › Opciones de propiedades). Server-only.
  *
  * Sin filas para una propiedad, el workspace usa las de fábrica. La primera
  * edición las copia a crm_property_options y desde ahí manda la tabla. Las
@@ -215,7 +215,11 @@ export interface CrmT {
 
 /** optionHelpers con los nombres traducidos, para páginas del servidor. */
 export async function optionHelpersFor(ws: string, t: CrmT, db: Db = getDb()): Promise<OptionHelpers> {
-  const sets = await listOptionSets(ws, db);
+  return optionHelpersWith(await listOptionSets(ws, db), t);
+}
+
+/** Lo mismo con las opciones ya leídas (una página que las pide junto con el resto). */
+export function optionHelpersWith(sets: OptionSets, t: CrmT): OptionHelpers {
   return optionHelpers(
     sets,
     (prop, v) => (t.has(`enums.${prop}.${v}`) ? t(`enums.${prop}.${v}`) : v),

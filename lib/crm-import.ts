@@ -97,7 +97,7 @@ function rowDealType(sets: OptionSets, raw: string | undefined, rowNo: number, e
   if (!v) return undefined;
   const hit = matchOption(sets.dealType, v) ?? importDealType(v) ?? null;
   if (hit && isAllowedOption(sets.dealType, hit)) return hit;
-  errors.push(`Row ${rowNo}: deal type "${v.slice(0, 60)}" is not an active option, left empty`);
+  errors.push(`Row ${rowNo}: deal type "${v.slice(0, 60)}" is not an active option, left out`);
   return undefined;
 }
 
