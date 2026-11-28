@@ -22,7 +22,9 @@
 import { z } from 'zod';
 import { getDb } from './db';
 import type { CompanyInput, ContactInput, DealInput } from './crm';
-import { LIFECYCLE_STAGES, LEAD_STATUSES, PRIORITIES } from './crm-constants';
+import { PRIORITIES } from './crm-constants';
+import { aiOptionHelpers, matchChoice } from './crm-ai-options';
+import type { OptionHelpers } from './crm-property-options';
 import { coerceCustomFieldValue, fieldCurrency, fieldOptions } from './crm-custom-fields';
 import { fieldAccessFor, guardRecordCustomWrite, type FieldViewer } from './crm-field-perms';
 import { canSeeActivity, canSeeEntity, type OwnerScope } from './crm-visibility';
@@ -42,8 +44,13 @@ export interface FieldOption {
   label: string;
   type: FieldType;
   options: string[];
-  /** Enums fijos: clave de traducción (`enums.<enumKey>.<valor>`). */
+  /**
+   * Enums: clave de traducción (`enums.<enumKey>.<valor>`). lifecycle y
+   * leadStatus usan las opciones activas del workspace (useCrmOptions en la UI).
+   */
   enumKey?: 'lifecycle' | 'leadStatus' | 'priority';
+  /** lifecycle y leadStatus: valor → nombre en el idioma del pedido, archivadas incluidas (las propias son opt_…). */
+  optionLabels?: Record<string, string>;
   currency?: string;
   current: unknown;
 }
@@ -121,15 +128,15 @@ export const STANDARD_FIELDS: Record<AiRecordEntity, Record<string, StandardFiel
     phone: { type: 'phone', column: 'phone' },
     city: { type: 'text', column: 'city' },
     country: { type: 'text', column: 'country' },
-    lifecycleStage: { type: 'select', column: 'lifecycle_stage', options: LIFECYCLE_STAGES, enumKey: 'lifecycle' },
-    leadStatus: { type: 'select', column: 'lead_status', options: LEAD_STATUSES, enumKey: 'leadStatus' },
+    lifecycleStage: { type: 'select', column: 'lifecycle_stage', enumKey: 'lifecycle' },
+    leadStatus: { type: 'select', column: 'lead_status', enumKey: 'leadStatus' },
   },
   company: {
     industry: { type: 'text', column: 'industry' },
     employees: { type: 'number', column: 'employees' },
     city: { type: 'text', column: 'city' },
     country: { type: 'text', column: 'country' },
-    lifecycleStage: { type: 'select', column: 'lifecycle_stage', options: LIFECYCLE_STAGES, enumKey: 'lifecycle' },
+    lifecycleStage: { type: 'select', column: 'lifecycle_stage', enumKey: 'lifecycle' },
   },
   deal: {
     amount: { type: 'currency', column: 'amount' },
@@ -208,9 +215,14 @@ export async function fieldCatalog(
 ): Promise<FieldOption[]> {
   const out: FieldOption[] = [];
   const access = new Map<AiRecordEntity, Awaited<ReturnType<typeof fieldAccessFor>>>();
+  let options: OptionHelpers | null = null;
   for (const rec of records) {
     const name = recordName(rec.entity, rec.row);
     for (const [key, f] of Object.entries(STANDARD_FIELDS[rec.entity])) {
+      // Lifecycle y lead status: las opciones activas del workspace (una archivada no se propone).
+      const prop = f.enumKey === 'lifecycle' || f.enumKey === 'leadStatus' ? f.enumKey : null;
+      if (prop && !options) options = await aiOptionHelpers(viewer.workspaceId, locale);
+      const choices = prop && options ? options.choices(prop) : null;
       out.push({
         entity: rec.entity,
         recordId: rec.id,
@@ -218,8 +230,9 @@ export async function fieldCatalog(
         key,
         label: standardLabel(locale, key),
         type: f.type,
-        options: f.options ? [...f.options] : [],
+        options: choices ? choices.map((c) => c.value) : f.options ? [...f.options] : [],
         ...(f.enumKey ? { enumKey: f.enumKey } : {}),
+        ...(prop && options ? { optionLabels: options.labelMap(prop) } : {}),
         ...(key === 'amount' ? { currency: String(rec.row.currency ?? 'USD') } : {}),
         current: rec.row[f.column] ?? null,
       });
@@ -248,7 +261,10 @@ export async function fieldCatalog(
 }
 
 /** Valor normalizado al tipo de la propiedad; null si no es válido. */
-export function coerceProposalValue(opt: Pick<FieldOption, 'type' | 'options' | 'key'>, raw: unknown): string | number | boolean | null {
+export function coerceProposalValue(
+  opt: Pick<FieldOption, 'type' | 'options' | 'key' | 'optionLabels'>,
+  raw: unknown,
+): string | number | boolean | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === 'string' && !raw.trim()) return null;
   if (opt.key.startsWith('custom:')) {
@@ -265,7 +281,11 @@ export function coerceProposalValue(opt: Pick<FieldOption, 'type' | 'options' | 
     case 'date':
       return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) ? value : null;
     case 'select':
-      return opt.options.find((o) => o.toLowerCase() === value.toLowerCase()) ?? null;
+      // Por clave o, en lifecycle y lead status, también por nombre.
+      return matchChoice(
+        opt.options.map((o) => ({ value: o, label: opt.optionLabels?.[o] ?? o, archived: false })),
+        value,
+      );
     case 'longtext':
       return value.slice(0, 2000);
     default:
@@ -449,8 +469,20 @@ async function emailTarget(
   return { recordType: 'deal', recordId: deal.id, to: '', firstName: '' };
 }
 
-function describeValue(v: unknown): string {
-  return v === null || v === undefined || v === '' ? '(empty)' : clip(v, 120);
+function describeValue(v: unknown, o?: Pick<FieldOption, 'optionLabels'>): string {
+  if (v === null || v === undefined || v === '') return '(empty)';
+  const name = o?.optionLabels?.[String(v)];
+  return name && name !== v ? JSON.stringify({ name: clip(name, 120), key: String(v) }) : clip(v, 120);
+}
+
+/**
+ * Valores permitidos para el prompt: en lifecycle y lead status, JSON con
+ * nombre y clave (los nombres los pone un admin y pueden llevar comas, barras
+ * o paréntesis).
+ */
+function allowedValues(o: Pick<FieldOption, 'options' | 'optionLabels'>): string {
+  if (!o.optionLabels) return o.options.join(', ');
+  return JSON.stringify(o.options.map((v) => ({ name: o.optionLabels?.[v] ?? v, key: v })));
 }
 
 export function followupPrompt(opts: {
@@ -471,7 +503,7 @@ export function followupPrompt(opts: {
     ...opts.records.map((r) => `- ${r.entity} "${recordName(r.entity, r.row)}"`),
     '',
     'Editable properties (key | type | allowed values | current value):',
-    ...opts.catalog.map((o) => `- ${modelKey(o)} | ${o.label} | ${o.type}${o.options.length ? ` | ${o.options.join(', ')}` : ' |'} | ${describeValue(o.current)}`),
+    ...opts.catalog.map((o) => `- ${modelKey(o)} | ${o.label} | ${o.type}${o.options.length ? ` | ${allowedValues(o)}` : ' |'} | ${describeValue(o.current, o)}`),
   ];
   if (opts.stage) {
     lines.push('', `Deal "${opts.stage.dealName}" is in stage "${opts.stage.currentStageName}".`);
@@ -483,7 +515,7 @@ export function followupPrompt(opts: {
 }
 
 const INSTRUCTIONS = `You help a sales rep update the CRM right after a call or meeting. You propose changes; the rep reviews each one before anything is saved.
-- Property changes: only when the notes state or clearly imply the new value. Use only keys from the list and values valid for their type (dates as YYYY-MM-DD, numbers without currency symbols, one of the allowed values for selects). Skip anything uncertain.
+- Property changes: only when the notes state or clearly imply the new value. Use only keys from the list and values valid for their type (dates as YYYY-MM-DD, numbers without currency symbols, one of the allowed values for selects; when the allowed values are a JSON list of name and key, answer with the key). Skip anything uncertain.
 - Stage: only when the notes show the deal moved forward, and only to one of the later stages listed.
 - Email: a short, friendly follow-up from the rep that recaps what was agreed and the next steps. Plain text. Never invent prices, dates or commitments that are not in the notes.
 - Tasks: concrete things the rep owes after the call, at most 4.
