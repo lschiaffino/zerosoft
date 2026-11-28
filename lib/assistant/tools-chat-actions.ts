@@ -36,6 +36,8 @@ function translator(locale: string) {
 const MAX_ACTIONS = 20;
 /** Un programado tiene que quedar al menos este tiempo en el futuro al confirmar (nunca sale en el acto). */
 const SCHEDULE_MIN_LEAD_MS = 60_000;
+/** Las etiquetas que puede tener un chat (setChatLabels en lib/groups.ts guarda hasta 20). */
+const MAX_CHAT_LABELS = 20;
 
 function hoursSince(iso: string | null | undefined, now: number): number | null {
   if (!iso) return null;
@@ -149,7 +151,13 @@ const linesInput = z.object({
           ),
         text: z.string().max(4000).optional().describe('draft / note / schedule: the text, in the language of the chat. task / ticket: the title.'),
         label: z.string().trim().min(1).max(40).optional().describe('label: the name of an existing label.'),
-        to: z.string().trim().min(1).max(200).optional().describe('assign: "me", a teammate name or email, or a team name. task: who owns the task (default: me).'),
+        to: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('assign: "me", a teammate name or email, or a team name. task: who owns the task (default: me). ticket: who it goes to (default: whoever has the chat).'),
         at: z.string().max(40).optional().describe('schedule: ISO date-time in the future when the message goes out. task: due date (optional).'),
       }),
     )
@@ -172,6 +180,9 @@ export interface LinesPlanned {
   who?: string;
   at?: string;
   line?: string;
+  /** close / archive: el mismo chat en otras líneas que la persona ve (se muestran en la tarjeta y solo esos se tocan). */
+  alsoIds?: string[];
+  alsoLines?: string;
 }
 
 /**
@@ -245,6 +256,9 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
   const problems: string[] = [];
   const before = new Map<string, string>();
   const people = await listPeople(ctx.workspaceId);
+  // Las etiquetas del workspace, una vez (solo si hay que etiquetar); y lo que va quedando en cada chat en esta tarjeta.
+  const labels = input.actions.some((a) => a.do === 'label') ? (await listLabels(ctx.workspaceId)).map((l) => ({ id: l.id, name: l.name })) : [];
+  const labelsAfter = new Map<string, string[]>();
   for (const a of input.actions) {
     const found = await resolveLinesChat(ctx, viewer, a.chat);
     if ('problem' in found) {
@@ -270,17 +284,35 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
     // Lo mismo dos veces en la misma tarjeta no suma nada.
     if ((a.do === 'close' || a.do === 'archive') && planned.some((x) => x.do === a.do && x.chatId === chat.id)) continue;
     if (a.do === 'label') {
-      const ref = (a.label ?? text ?? '').trim().toLowerCase();
-      const label = ref ? (await listLabels(ctx.workspaceId)).find((l) => l.name.toLowerCase() === ref) : undefined;
+      const ref = (a.label ?? text ?? '').trim();
+      // El nombre exacto primero; si no, sin mayúsculas, y si eso da varias ("VIP" y "vip"), no elige.
+      const exact = labels.filter((l) => l.name === ref);
+      const loose = exact.length ? exact : labels.filter((l) => l.name.toLowerCase() === ref.toLowerCase());
+      if (loose.length > 1) {
+        problems.push(`${name}: several labels are called ${ref}; use the exact name (${loose.map((l) => l.name).join(', ')})`);
+        continue;
+      }
+      const label = ref ? loose[0] : undefined;
       if (!label) {
         problems.push(`${name}: label needs the name of an existing label (${a.label ?? ''})`);
         continue;
       }
       const cur = await chatLabelNames(chat.id);
-      if (cur.ids.includes(label.id) || planned.some((x) => x.do === 'label' && x.chatId === chat.id && x.labelId === label.id)) continue;
+      const so = labelsAfter.get(chat.id) ?? cur.names;
+      if (cur.ids.includes(label.id) || so.includes(label.name)) {
+        problems.push(`${name}: already has the label ${label.name}`);
+        continue;
+      }
+      if (so.length >= MAX_CHAT_LABELS) {
+        problems.push(`${name}: a chat can have at most ${MAX_CHAT_LABELS} labels`);
+        continue;
+      }
       p.labelId = label.id;
       p.who = label.name;
-      before.set(`label:${chat.id}`, cur.names.join(', ') || t('none'));
+      // La tarjeta muestra cómo quedan: las que tiene más la nueva (no se saca ninguna).
+      before.set(`label:${planned.length}`, so.join(', ') || t('none'));
+      labelsAfter.set(chat.id, [...so, label.name]);
+      before.set(`labelAfter:${planned.length}`, [...so, label.name].join(', '));
     }
     if (a.do === 'close' && chat.status === 'closed') {
       problems.push(`${name}: already closed`);
@@ -290,6 +322,23 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
       problems.push(`${name}: already archived`);
       continue;
     }
+    // Cerrar o archivar vale también para el mismo chat en otras líneas que la persona ve (como en la app): la tarjeta
+    // las nombra y al confirmar se tocan solo esas.
+    if (a.do === 'close' || a.do === 'archive') {
+      const { withSameChatIds } = await import('../groups-same-chat');
+      const others = (await withSameChatIds(ctx.workspaceId, viewer, [chat.id])).filter((x) => x !== chat.id);
+      const lines: string[] = [];
+      for (const id of others) {
+        const row = await getChatRow(ctx.workspaceId, id);
+        const n = row ? await getNumberRow(ctx.workspaceId, row.number_id) : null;
+        const ln = n ? n.name || (n.phone ? (viewer.mask ? maskPhone(n.phone) : `+${n.phone}`) : '') : '';
+        if (ln && !lines.includes(ln)) lines.push(ln);
+      }
+      if (others.length) {
+        p.alsoIds = others;
+        p.alsoLines = lines.join(', ');
+      }
+    }
     if (a.do === 'ticket' && a.to) {
       const who = await resolveAssignee(ctx, a.to);
       if (!who?.personId) {
@@ -298,6 +347,14 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
       }
       p.personId = who.personId;
       p.who = who.who;
+    } else if (a.do === 'ticket') {
+      // Sin "to" va a quien tiene el chat: la tarjeta lo dice y el ticket va a esa persona.
+      const cur = (await getDb().prepare('SELECT assigned_to FROM groups_chats WHERE id = ? AND user_id = ?').get(chat.id, ctx.workspaceId)) as { assigned_to: string | null } | undefined;
+      const owner = cur?.assigned_to ? people.find((x) => x.id === cur.assigned_to) : undefined;
+      if (owner) {
+        p.personId = owner.id;
+        p.who = owner.name || owner.email;
+      } else p.who = t('nobody');
     }
     // Un solo borrador por chat en una tarjeta (el campo tiene uno).
     if (a.do === 'draft' && planned.some((x) => x.do === 'draft' && x.chatId === chat.id)) {
@@ -356,7 +413,7 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
   }
   if (!planned.length) return { error: 'nothing_to_do', hint: problems };
   const chatLabel = (p: LinesPlanned) => (p.where ? `${p.name} (${p.where})` : p.name);
-  const details = planned.map((p) => {
+  const details = planned.map((p, i) => {
     switch (p.do) {
       case 'draft':
         return { label: t('do.draft', { chat: chatLabel(p) }), after: p.text!, full: true };
@@ -365,11 +422,11 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
       case 'assign':
         return { label: t('do.assign', { chat: chatLabel(p) }), before: before.get(p.chatId) ?? null, after: p.who! };
       case 'label':
-        return { label: t('do.label', { chat: chatLabel(p) }), before: before.get(`label:${p.chatId}`) ?? null, after: p.who! };
+        return { label: t('do.label', { chat: chatLabel(p) }), before: before.get(`label:${i}`) ?? null, after: before.get(`labelAfter:${i}`) ?? p.who! };
       case 'close':
-        return { label: t('do.close', { chat: chatLabel(p) }), before: t('statusOpen'), after: t('statusClosed') };
+        return { label: t('do.close', { chat: chatLabel(p) }), before: t('statusOpen'), after: [t('statusClosed'), p.alsoLines ? t('alsoLines', { lines: p.alsoLines }) : ''].filter(Boolean).join('\n') };
       case 'archive':
-        return { label: t('do.archive', { chat: chatLabel(p) }), after: t('archived') };
+        return { label: t('do.archive', { chat: chatLabel(p) }), after: [t('archived'), p.alsoLines ? t('alsoLines', { lines: p.alsoLines }) : ''].filter(Boolean).join('\n') };
       case 'ticket':
         return { label: t('do.ticket', { chat: chatLabel(p) }), after: [p.text || t('ticketTitleAuto'), p.who ? t('owner', { who: p.who }) : ''].filter(Boolean).join('\n'), full: true };
       case 'task':
@@ -386,7 +443,10 @@ async function prepareLines(ctx: ToolCtx, input: z.infer<typeof linesInput>) {
     working: t('working'),
     // Un programado sale a WhatsApp: botón rojo, sin tipear nada.
     ...(sends ? { destructive: true, confirmText: null } : {}),
-    forModel: { planned: planned.map((p) => ({ chatId: p.chatId, chat: p.name, do: p.do, ...(p.at ? { at: p.at } : {}), ...(p.who ? { to: p.who } : {}) })), ...(problems.length ? { skipped: problems } : {}) },
+    forModel: {
+      planned: planned.map((p) => ({ chatId: p.chatId, chat: p.name, do: p.do, ...(p.at ? { at: p.at } : {}), ...(p.who ? (p.do === 'label' ? { label: p.who } : { to: p.who }) : {}) })),
+      ...(problems.length ? { skipped: problems } : {}),
+    },
   };
 }
 
@@ -414,18 +474,23 @@ async function executeLines(ctx: ToolCtx, raw: Record<string, unknown>) {
         const { patchChatAs } = await import('../groups-chat-ops');
         await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, p.teamId ? { assignedTeamId: p.teamId } : { assignedTo: p.personId ?? null });
       } else if (p.do === 'label') {
-        // Suma la etiqueta a las que tiene al confirmar (no las pisa).
+        // Suma la etiqueta a las que tiene al confirmar (no las pisa). La etiqueta tiene que seguir existiendo y el chat
+        // no puede pasar del tope (si no, se perdería en silencio).
         const { patchChatAs } = await import('../groups-chat-ops');
+        const exists = await getDb().prepare('SELECT 1 FROM groups_labels WHERE id = ? AND user_id = ?').get(String(p.labelId ?? ''), ctx.workspaceId);
+        if (!exists) throw new GroupsError('label_not_found', 404);
         const cur = await chatLabelNames(p.chatId);
-        await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, { labelIds: [...cur.ids, String(p.labelId ?? '')] });
+        if (!cur.ids.includes(String(p.labelId))) {
+          if (cur.ids.length >= MAX_CHAT_LABELS) throw new GroupsError('too_many_labels');
+          await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, { labelIds: [...cur.ids, String(p.labelId)] });
+        }
       } else if (p.do === 'close' || p.do === 'archive') {
-        // Como en la app: cerrar o archivar vale también para el mismo chat en otras líneas que la persona ve.
+        // Como en la app, también el mismo chat en las otras líneas que mostró la tarjeta, si la persona las sigue viendo.
         const { patchChatAs } = await import('../groups-chat-ops');
-        const { withSameChatIds } = await import('../groups-same-chat');
         const patch = p.do === 'close' ? ({ status: 'closed' } as const) : { archived: true };
         await patchChatAs(ctx.workspaceId, { id: ctx.personId }, p.chatId, patch);
-        for (const other of (await withSameChatIds(ctx.workspaceId, viewer, [p.chatId])).filter((x) => x !== p.chatId)) {
-          await patchChatAs(ctx.workspaceId, { id: ctx.personId }, other, patch).catch(() => null);
+        for (const other of (p.alsoIds ?? []).filter((x) => x !== p.chatId).slice(0, 20)) {
+          if (await canSeeChat(viewer, other)) await patchChatAs(ctx.workspaceId, { id: ctx.personId }, other, patch).catch(() => null);
         }
       } else if (p.do === 'ticket') {
         const { createTicket } = await import('../groups-tickets');

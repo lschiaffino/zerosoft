@@ -463,6 +463,7 @@
       "due": "Due {when}",
       "owner": "Owner: {who}",
       "nobody": "Nobody",
+      "alsoLines": "Also on {lines}",
       "sendsLabel": "Goes out on WhatsApp",
       "sendsWarning": "Scheduled messages are sent on WhatsApp at their time without asking again. Until then you can cancel them in the Tasks tab of the chat.",
       "result": "Done: {done} of {total}.",

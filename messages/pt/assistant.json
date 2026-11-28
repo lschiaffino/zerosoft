@@ -463,6 +463,7 @@
       "due": "Vence {when}",
       "owner": "Responsável: {who}",
       "nobody": "Ninguém",
+      "alsoLines": "Também em {lines}",
       "sendsLabel": "Sai pelo WhatsApp",
       "sendsWarning": "As mensagens agendadas são enviadas pelo WhatsApp no horário sem perguntar de novo. Até lá você pode cancelá-las na aba Tarefas da conversa.",
       "result": "Pronto: {done} de {total}.",

@@ -319,9 +319,10 @@ describe('Lines: lo que la tarjeta no deja pasar', () => {
     const chatRow = async () => (await getDb().prepare('SELECT status, archived_at FROM groups_chats WHERE id = ?').get(clara.id)) as { status: string; archived_at: string | null };
     const tickets = async () => ((await getDb().prepare('SELECT title, assignee_id FROM groups_tickets WHERE chat_id = ?').all(clara.id)) as Array<{ title: string; assignee_id: string | null }>);
 
-    // Etiqueta: la tarjeta dice las que tiene y la que suma; una que no existe no arma tarjeta; una que ya tiene, tampoco.
+    // Etiqueta: la tarjeta dice las que tiene y cómo quedan (no se saca ninguna); una que no existe no arma tarjeta;
+    // una que ya tiene, tampoco (y se dice por qué).
     const label = await turn(member, `lines label ${clara.name}: urgente DEMO`);
-    expect(label.actions[0].details[0]).toMatchObject({ before: 'VIP demo', after: 'Urgente demo' });
+    expect(label.actions[0].details[0]).toMatchObject({ before: 'VIP demo', after: 'VIP demo, Urgente demo' });
     expect(await labels()).toEqual([vip.id]);
     await decide(member, label.actions[0].id, 'cancel');
     expect(await labels()).toEqual([vip.id]);
@@ -330,16 +331,37 @@ describe('Lines: lo que la tarjeta no deja pasar', () => {
     expect(await labels()).toEqual([vip.id, urgent.id].sort());
     expect((await turn(member, `lines label ${clara.name}: No existe demo`)).actions).toEqual([]);
     expect((await turn(member, `lines label ${clara.name}: VIP demo`)).actions).toEqual([]);
+    const has = (await prepare(member, [{ chat: clara.id, do: 'label', label: 'VIP demo' }])) as { error: string; hint: string[] };
+    expect(has.error).toBe('nothing_to_do');
+    expect(has.hint.join(' ')).toMatch(/already has the label/);
+    // Una etiqueta borrada entre la tarjeta y el clic: no se cuenta como hecha.
+    const gone = await createLabel(ws, { name: 'Se borra demo', color: 'red' });
+    const goneCard = (await prepare(member, [{ chat: clara.id, do: 'label', label: 'Se borra demo' }])) as { input: Record<string, unknown> };
+    await getDb().prepare('DELETE FROM groups_labels WHERE id = ?').run(gone.id);
+    const goneRes = (await linesTool.execute(toolCtx(member, 'en'), goneCard.input)) as { ok: boolean; message: string };
+    expect(goneRes.ok).toBe(false);
+    expect(goneRes.message).toMatch(/label_not_found/);
 
-    // Ticket con título y sin título (lo toma del chat), asignado a quien tiene el chat si no se dice.
+    // Ticket con título y sin título (lo toma del chat); sin "to" va a quien tiene el chat, y la tarjeta lo dice.
     expect(await tickets()).toEqual([]);
     const ticket = await turn(member, `lines ticket ${clara.name}: Presupuesto sin respuesta`);
     expect(ticket.actions[0].details[0].after).toContain('Presupuesto sin respuesta');
+    expect(ticket.actions[0].details[0].after).toContain('Owner: Nobody');
     expect(await tickets()).toEqual([]);
     await decide(member, ticket.actions[0].id, 'confirm');
     expect((await tickets()).map((t) => t.title)).toEqual(['Presupuesto sin respuesta']);
+    await getDb().prepare('UPDATE groups_chats SET assigned_to = ? WHERE id = ?').run(w.friend.id, clara.id);
+    const auto = (await prepare(member, [{ chat: clara.id, do: 'ticket' }])) as { details: Array<{ after: string }>; input: Record<string, unknown> };
+    expect(auto.details[0].after).toContain('Title taken from the chat');
+    expect(auto.details[0].after).toContain(`Owner: ${w.friend.name || w.friend.email}`);
+    await linesTool.execute(toolCtx(member, 'en'), auto.input);
+    const autoRow = (await tickets()).find((t) => t.title !== 'Presupuesto sin respuesta')!;
+    expect(autoRow.title).toBeTruthy();
+    expect(autoRow.assignee_id).toBe(w.friend.id);
+    await getDb().prepare('UPDATE groups_chats SET assigned_to = NULL WHERE id = ?').run(clara.id);
     const audit = (await getDb().prepare("SELECT actor_id FROM groups_audit WHERE chat_id = ? AND action = 'ticket_created'").all(clara.id)) as Array<{ actor_id: string }>;
-    expect(audit.map((a) => a.actor_id)).toEqual([w.member.id]);
+    // Los dos tickets (con título y el automático), a nombre de quien confirmó.
+    expect(audit.map((a) => a.actor_id)).toEqual([w.member.id, w.member.id]);
 
     // Cerrar y archivar.
     const close = await turn(member, `lines close ${clara.name}`);
@@ -353,6 +375,31 @@ describe('Lines: lo que la tarjeta no deja pasar', () => {
     await decide(member, archive.actions[0].id, 'confirm');
     expect((await chatRow()).archived_at).toBeTruthy();
     expect(await outgoing(clara.id)).toBe(0);
+  });
+
+  it('cerrar y archivar tocan el mismo chat en las otras líneas que ve (y la tarjeta las nombra), nunca en una que no ve', async () => {
+    const { w, ws, pub, priv } = await linesWorld('act-same-chat');
+    const other = await line(ws, 'Soporte demo');
+    const p = phone();
+    for (const n of [pub, other, priv]) await ingestEvents(n, [ev(`${p}@c.us`, 'Dora demo', 'Hola de nuevo')]);
+    const rows = (await getDb().prepare('SELECT id, number_id FROM groups_chats WHERE user_id = ? AND phone = ?').all(ws, p)) as Array<{ id: string; number_id: string }>;
+    const onPub = rows.find((r) => r.number_id === pub.id)!.id;
+    const onOther = rows.find((r) => r.number_id === other.id)!.id;
+    const onPriv = rows.find((r) => r.number_id === priv.id)!.id;
+    const member = asMember(w.owner, w.member);
+    const state = async (id: string) => (await getDb().prepare('SELECT status, archived_at FROM groups_chats WHERE id = ?').get(id)) as { status: string; archived_at: string | null };
+    const close = (await prepare(member, [{ chat: onPub, do: 'close' }])) as { details: Array<{ after: string }>; input: Record<string, unknown> };
+    expect(close.details[0].after).toContain('Also on Soporte demo');
+    expect(close.details[0].after).not.toContain('Privada demo');
+    await linesTool.execute(toolCtx(member, 'en'), close.input);
+    expect((await state(onPub)).status).toBe('closed');
+    expect((await state(onOther)).status).toBe('closed');
+    expect((await state(onPriv)).status).toBe('open');
+    const archive = (await prepare(member, [{ chat: onPub, do: 'archive' }])) as { input: Record<string, unknown> };
+    await linesTool.execute(toolCtx(member, 'en'), archive.input);
+    expect((await state(onPub)).archived_at).toBeTruthy();
+    expect((await state(onOther)).archived_at).toBeTruthy();
+    expect((await state(onPriv)).archived_at).toBeNull();
   });
 
   it('etiquetar, cerrar, archivar o abrir un ticket en un chat que no ve: nada', async () => {

@@ -463,6 +463,7 @@
       "due": "Vence {when}",
       "owner": "Responsable: {who}",
       "nobody": "Nadie",
+      "alsoLines": "También en {lines}",
       "sendsLabel": "Sale por WhatsApp",
       "sendsWarning": "Los mensajes programados se mandan por WhatsApp a su hora sin volver a preguntar. Hasta entonces los podés cancelar en la pestaña Tareas del chat.",
       "result": "Listo: {done} de {total}.",
