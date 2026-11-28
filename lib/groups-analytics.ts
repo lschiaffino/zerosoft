@@ -16,6 +16,7 @@
 import { getDb } from './db';
 import { idxDay, num, rangeInfo } from './analytics-kit/period';
 import { listPeople } from './groups';
+import { internalPhonesJson, internalVersion, loadInternalSet } from './internal-contacts';
 import { chatAccessSql, maskedChatName, numberAccessSql, visibleNumberIds, type GroupsViewer } from './groups-access';
 import {
   analyticsRange,
@@ -68,7 +69,14 @@ interface Ctx {
   range: AnalyticsRange;
   segments: TzSegment[];
   now: Date;
+  /**
+   * Teléfonos internos (JSON; lib/internal-contacts.ts): las métricas son de clientes, así que los chats 1:1 con
+   * alguien interno y lo que escribe alguien interno en un grupo no cuentan. '[]' o sin esto: nadie es interno.
+   */
+  internalPhones?: string;
 }
+
+const hasInternal = (ctx: Ctx) => !!ctx.internalPhones && ctx.internalPhones !== '[]';
 
 /** Recibos de envíos masivos: se leen los de los últimos envíos hasta esta cantidad de destinatarios. */
 export const BROADCAST_DETAIL_BUDGET = 5000;
@@ -135,6 +143,10 @@ function chatConds(ctx: Ctx, alias: string, opts: { number: boolean; kind?: 'dm'
   if (opts.kind) {
     sql.push(`${alias}.kind = ?`);
     args.push(opts.kind);
+  }
+  if (hasInternal(ctx)) {
+    sql.push(`NOT (${alias}.kind = 'dm' AND ${alias}.phone <> '' AND ${alias}.phone IN (SELECT value FROM json_each(?)))`);
+    args.push(ctx.internalPhones as string);
   }
   return { sql, args };
 }
@@ -205,6 +217,10 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
     where.push(scope.sql);
     args.push(...scope.args);
   }
+  // Lo que escribe alguien interno es del equipo (lib/internal-contacts.ts): en `b` va como 'team', así no cuenta
+  // como mensaje de cliente (ni como enviado) y la primera respuesta lo toma como respuesta del equipo.
+  const internal = hasInternal(ctx);
+  if (internal) args.unshift(ctx.internalPhones as string);
   const off = tzOffsetSql(ctx.segments, 'x.ts');
   const parts = sections.map((s) =>
     s === 'pc'
@@ -214,7 +230,9 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
   );
   const sql = `WITH b AS MATERIALIZED (
       SELECT x.*, (x.ts + ${off}) / 86400 AS day, ((x.ts + ${off}) % 86400) / 3600 AS hour FROM (
-        SELECT m.id, m.chat_id, m.number_id, m.direction, m.author_id, m.author_kind, m.created_at AS at,
+        SELECT m.id, m.chat_id, m.number_id,
+               ${internal ? "CASE WHEN m.direction = 'in' AND m.sender_phone IN (SELECT value FROM json_each(?)) THEN 'team' ELSE m.direction END" : 'm.direction'} AS direction,
+               m.author_id, m.author_kind, m.created_at AS at,
                CAST(strftime('%s', m.created_at) AS INTEGER) AS ts,
                CASE WHEN m.created_at >= ? THEN 1 ELSE 0 END AS cur${
                  events
@@ -230,9 +248,11 @@ export function messageFactsSql(ctx: Ctx, sections: MessageSection[], opts: { ki
       pairs
         ? `,
     t AS (
-      SELECT id, chat_id, direction, author_id, author_kind, at, ts, cur, day,
-             LAG(direction) OVER (PARTITION BY chat_id ORDER BY at, direction, id) AS prev
-      FROM b WHERE direction = 'in' OR (direction = 'out' AND author_kind != 'broadcast')
+      SELECT id, chat_id, dir AS direction, author_id, kind AS author_kind, at, ts, cur, day,
+             LAG(dir) OVER (PARTITION BY chat_id ORDER BY at, dir, id) AS prev
+      FROM (SELECT id, chat_id, author_id, at, ts, cur, day, CASE WHEN direction = 'team' THEN 'out' ELSE direction END AS dir,
+                   CASE WHEN direction = 'team' THEN 'internal' ELSE author_kind END AS kind FROM b)
+      WHERE dir = 'in' OR (dir = 'out' AND kind != 'broadcast')
     ),
     p AS MATERIALIZED (
       SELECT direction, cur, day, ts, LEAD(ts) OVER w AS rts, LEAD(author_id) OVER w AS rby, LEAD(author_kind) OVER w AS rkind
@@ -650,7 +670,9 @@ async function response(ctx: Ctx): Promise<ResponseData> {
 
 /** De quién es un mensaje enviado: una persona, el teléfono, un agente de IA o una automatización. Los envíos masivos no cuentan. */
 function sender(kind: unknown, id: unknown): { key: string; kind: SenderKind; id: string | null } | null {
-  if (kind === 'broadcast') return null;
+  // Envíos masivos, y lo que respondió alguien interno desde su teléfono (lib/internal-contacts.ts): cuentan en el
+  // tiempo de respuesta general, no como un remitente de la lista.
+  if (kind === 'broadcast' || kind === 'internal') return null;
   if ((kind === 'person' || kind === 'scheduled') && typeof id === 'string' && id) return { key: `p:${id}`, kind: 'person', id };
   if (kind === 'phone') return { key: 'phone', kind: 'phone', id: null };
   if (kind === 'agent') return { key: 'ai', kind: 'ai', id: null };
@@ -922,6 +944,7 @@ export async function linesAnalytics(
   opts: { now?: Date; options?: FilterOptions } = {},
 ): Promise<AnalyticsData> {
   const ctx = analyticsContext(ws, viewer, query, opts.now ?? new Date());
+  ctx.internalPhones = internalPhonesJson(await loadInternalSet(ws));
   const options = async () => opts.options ?? (await analyticsFilterOptions(ws, viewer));
   switch (tab) {
     case 'overview':
@@ -959,7 +982,9 @@ export async function cachedLinesAnalytics(ws: string, viewer: GroupsViewer, tab
   const lines = viewer.linesScoped ? [...((await visibleNumberIds(viewer)) ?? [])].sort().join(',') : '';
   const now = Date.now();
   const range = analyticsRange(query, new Date(now));
-  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, lines, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '']);
+  // Lo interno también (lib/internal-contacts.ts): marcar a alguien cambia las métricas ya.
+  const internal = await internalVersion(ws);
+  const key = JSON.stringify([ws, viewer.me, viewer.role, viewer.restricted, viewer.linesScoped, lines, viewer.mask, tab, range.since, range.until, range.tz, query.numberId ?? '', query.agentId ?? '', query.labelId ?? '', internal]);
   const hit = cache.get(key);
   if (hit && now - hit.at < CACHE_MS) return hit.data;
   if (cache.size >= CACHE_MAX) {

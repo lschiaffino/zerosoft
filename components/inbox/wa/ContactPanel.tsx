@@ -23,7 +23,7 @@ import type { ParticipantDto } from '@/lib/inbox/types';
 import type { MemberTargetResult } from '@/lib/wa-group-members';
 import type { NewChatEntry } from '@/lib/wa-new-chat';
 
-const toMember = (p: ParticipantDto): GroupMember => ({ phone: p.phone, name: p.name, role: p.role, picture: p.avatar, me: p.me });
+const toMember = (p: ParticipantDto): GroupMember => ({ phone: p.phone, name: p.name, role: p.role, picture: p.avatar, me: p.me, ...(p.internal ? { internal: true } : {}) });
 
 type SharedKind = 'media' | 'docs' | 'links' | 'starred';
 
@@ -100,7 +100,7 @@ export default function ContactPanel({
   const [exiting, setExiting] = useState(false);
   const [muteOpen, setMuteOpen] = useState(false);
   // Un participante abre su ficha (como en WhatsApp), con Mensaje para ir a su chat 1:1.
-  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast });
+  const personSheet = useInboxPersonSheet(thread.id, { onOpenThread, onStartChat: async (phone) => onStartChat(phone), onError, onToast, onChanged });
 
   // Lo compartido y los destacados, para la pestaña Archivos (components/groups/wa/SharedMedia.tsx).
   const loadShared = useCallback(

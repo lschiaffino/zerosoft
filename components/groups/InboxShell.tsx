@@ -1268,6 +1268,7 @@ export default function InboxShell({
       { id: 'pinned', type: 'bool', category: 'status', label: t('fp.pinned'), keywords: t('fp.kw.pinned') },
       { id: 'favorite', type: 'bool', category: 'status', label: t('fp.favorite'), keywords: t('fp.kw.favorite') },
       { id: 'vip', type: 'bool', category: 'status', label: t('fp.vip'), help: t('fp.help.vip'), keywords: t('fp.kw.vip') },
+      { id: 'internal', type: 'bool', category: 'status', label: t('fp.internal'), help: t('fp.help.internal'), keywords: t('fp.kw.internal') },
       { id: 'muted', type: 'bool', category: 'status', label: t('fp.muted'), keywords: t('fp.kw.muted') },
       {
         id: 'assignee',

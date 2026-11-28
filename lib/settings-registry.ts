@@ -100,8 +100,8 @@ const PLATFORM: SettingDef[] = [
 
 const LINES = '/app/lines/settings';
 const lines = (tab: string) => `${LINES}?tab=${tab}`;
-const LINES_ADMIN_TABS = new Set(['access', 'audit', 'integrations', 'migrate']);
-const LINES_TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
+const LINES_ADMIN_TABS = new Set(['access', 'internal', 'audit', 'integrations', 'migrate']);
+const LINES_TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'internal', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
 const linesTab = (tab: string): MsgRef => (tab === 'appearance' ? 'inboxWa:display.tab' : `groups:settings.tabs.${tab}`);
 
 const LINES_TAB_KW: Partial<Record<string, SettingDef['kw']>> = {
@@ -109,6 +109,7 @@ const LINES_TAB_KW: Partial<Record<string, SettingDef['kw']>> = {
   quick: { en: 'canned responses, templates, snippets', es: 'respuestas rápidas, plantillas', pt: 'respostas rápidas, modelos' },
   integrations: { en: 'hubspot, slack, webhooks, MCP', es: 'hubspot, slack, webhooks, MCP', pt: 'hubspot, slack, webhooks, MCP' },
   migrate: { en: 'periskope, import', es: 'periskope, importar, migrar', pt: 'periskope, importar, migrar' },
+  internal: { en: 'internal, team numbers, teammates, company domain, org members', es: 'internos, números del equipo, compañeros, dominio de la empresa', pt: 'internos, números da equipe, colegas, domínio da empresa' },
   apps: { en: 'mobile app, push notifications', es: 'app móvil, notificaciones push', pt: 'app móvel, notificações push' },
 };
 
@@ -152,6 +153,7 @@ const INBOX_DEFS: SettingDef[] = [
   { id: 'inbox-folders', area: 'inbox', href: INBOX, title: 'inbox:folders.title', kw: { en: 'labels, organize', es: 'carpetas, etiquetas, organizar', pt: 'pastas, etiquetas, organizar' } },
   { id: 'inbox-snippets', area: 'inbox', href: INBOX, title: 'inbox:settings.snippets.title', kw: { en: 'quick replies, canned responses, templates', es: 'respuestas rápidas, plantillas', pt: 'respostas rápidas, modelos' } },
   { id: 'inbox-import', area: 'inbox', href: INBOX, title: 'inbox:settings.import.title', kw: { en: 'history, old chats, import', es: 'historial, chats viejos, importar', pt: 'histórico, conversas antigas, importar' } },
+  { id: 'inbox-internal', area: 'inbox', href: INBOX, title: 'groups:wa.internal.title', kw: { en: 'internal, team numbers, teammates, company domain', es: 'internos, números del equipo, compañeros, dominio de la empresa', pt: 'internos, números da equipe, colegas, domínio da empresa' } },
   { id: 'inbox-shortcuts', area: 'inbox', href: INBOX, title: 'inbox:help.title', kw: { en: 'hotkeys, keyboard', es: 'atajos de teclado, teclas', pt: 'atalhos de teclado, teclas' } },
 ];
 

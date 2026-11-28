@@ -1660,6 +1660,8 @@ dialog.ui-modal.wa-contact-sheet:not([open]) { display: none; }
 .wa-sheet-row > svg { flex: none; color: var(--wa-icon); }
 .wa-sheet-row.is-danger, .wa-sheet-row.is-danger > svg { color: var(--wa-danger); }
 .wa-sheet-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* Segundo renglón de una fila de la ficha (contacto interno: qué quiere decir). */
+.wa-sheet-row-sub { font-size: var(--wa-fs-preview, 0.8125rem); line-height: 1.35; color: var(--wa-text-2, var(--ink-2)); }
 .wa-sheet-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-sheet-link { color: var(--wa-link); }
 .wa-sheet-count { color: var(--wa-text-2); font-size: 0.875rem; }
@@ -1965,6 +1967,13 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .wa-gm-badge {
   flex: none; padding: 1px 6px; font-size: 0.6875rem; font-weight: 500; white-space: nowrap;
   color: var(--wa-primary-ink, var(--ink)); background: var(--wa-chip-on-bg, var(--bg-soft)); border-radius: var(--radius-1);
+}
+/* Interno (lib/internal-contacts.ts): del equipo, no un cliente. Sin relleno de color, para no confundirse con "Admin del grupo". */
+.wa-gm-badge.is-internal { color: var(--wa-text-2, var(--ink-2)); background: transparent; box-shadow: inset 0 0 0 1px var(--wa-border, var(--line)); }
+/* Al lado del nombre de quien escribió, en un grupo: el mismo rótulo, más chico. */
+.wa-internal-tag {
+  flex: none; align-self: center; padding: 0 5px; font-size: 0.6875rem; line-height: 16px; font-weight: 500; white-space: nowrap;
+  color: var(--wa-text-2, var(--ink-2)); border-radius: var(--radius-1); box-shadow: inset 0 0 0 1px var(--wa-border, var(--line));
 }
 .wa-gm .wa-gm-more { width: 36px; height: 36px; font-size: 1.125rem; color: var(--wa-icon, var(--ink-2)); }
 .wa-gm .wa-gm-more:hover { background: var(--wa-row-hover, var(--ui-hover)); }
