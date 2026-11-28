@@ -369,7 +369,7 @@ function PeriskopeHistory() {
             <span>{t('migrate.history.media')}</span>
           </label>
           <div className="gr-inline-form">
-            <button type="button" className="btn btn-primary" data-testid="periskope-history-start" disabled={!key.trim() || busy} onClick={() => void act('start')} aria-busy={busy || undefined}>
+            <button type="button" className="btn btn-primary gr-pk-start" data-testid="periskope-history-start" disabled={!key.trim() || busy} onClick={() => void act('start')} aria-busy={busy || undefined}>
               {t('migrate.history.start')}
             </button>
             {st?.status === 'error' && st.error !== 'periskope_auth' && (

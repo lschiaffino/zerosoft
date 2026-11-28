@@ -1035,3 +1035,8 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 /* El título a la izquierda; la línea, la disponibilidad y el "+" juntos a la derecha. */
 .gr-list-titlebar:has(.gr-newchat-open) .gr-list-title { margin-right: auto; }
 .gr-list-titlebar .gr-newchat-open { width: 32px; height: 32px; border-radius: var(--radius-1); color: var(--ink); }
+
+/* Importar historial de Periskope: botón tocable en el teléfono. */
+@media (max-width: 720px) {
+  .gr-pk-start { --btn-h: 40px; min-height: 40px; }
+}
