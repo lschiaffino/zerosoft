@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { requireUser } from '@/lib/session';
-import { inboxEntityFor } from '@/lib/track-inbox-panel';
+import { inboxEntityFor } from '@/lib/track-inbox-panel-server';
 import PlanPage from '@/components/track/planning/PlanPage';
 import InboxEntityPane from '@/components/track/InboxEntityPane';
 import InboxPaneMissing from '@/components/track/InboxPaneMissing';
@@ -8,8 +8,13 @@ import InboxPaneMissing from '@/components/track/InboxPaneMissing';
 export const dynamic = 'force-dynamic';
 
 /** El project de un aviso (updates, recordatorios, comentarios), en el panel de la bandeja. */
-export default async function TrackInboxProjectPage(props: { params: Promise<{ locale: string; planId: string }> }) {
+export default async function TrackInboxProjectPage(props: {
+  params: Promise<{ locale: string; planId: string }>;
+  searchParams: Promise<{ n?: string }>;
+}) {
   const { locale, planId } = await props.params;
+  // Cada aviso monta el project de nuevo: J/K entre dos avisos del mismo project cambian la pestaña.
+  const { n } = await props.searchParams;
   const user = await requireUser(locale);
   // Mismo alcance que la página del project: uno de otro workspace o que no se ve responde como borrado.
   const plan = await inboxEntityFor('project', planId, user);
@@ -18,7 +23,7 @@ export default async function TrackInboxProjectPage(props: { params: Promise<{ l
     <InboxEntityPane kind="project" id={plan.id}>
       <div className="track-page ui-page tp-page track-inbox-entity-page">
         <Suspense fallback={null}>
-          <PlanPage planId={plan.id} panel />
+          <PlanPage key={n ?? ''} planId={plan.id} panel />
         </Suspense>
       </div>
     </InboxEntityPane>

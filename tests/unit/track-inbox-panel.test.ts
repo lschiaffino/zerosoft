@@ -5,7 +5,8 @@ import { createInitiative } from '@/lib/track-initiatives';
 import { initiativeCreateSchema, planCreateSchema } from '@/lib/track-planning-schema';
 import { createProject } from '@/lib/track-data';
 import { setGuest } from '@/lib/track-access';
-import { inboxEntityFor, inboxListHref, inboxPanelHref, inboxPanelOpen, inboxPanelTarget } from '@/lib/track-inbox-panel';
+import { inboxListHref, inboxPanelHref, inboxPanelOpen, inboxPanelTarget } from '@/lib/track-inbox-panel';
+import { inboxEntityFor } from '@/lib/track-inbox-panel-server';
 import { runAsTrackViewer } from '@/lib/track-access';
 import { makeUser } from './helpers';
 
@@ -20,8 +21,14 @@ describe('Track: qué abre un aviso en el panel de la bandeja', () => {
     expect(inboxPanelTarget({ href: '/app/track/projects/new' })).toBeNull();
     expect(inboxPanelTarget({ href: '/app/track/triage?team=WEB' })).toBeNull();
     expect(inboxPanelTarget({ href: null })).toBeNull();
-    // Un link afuera de la app nunca se toma como project.
+    // Solo cuenta la ruta: un href con otro host abre igual el panel interno (nunca navega afuera).
     expect(inboxPanelTarget({ href: 'https://evil.example/app/track/projects/p1' })).toEqual({ kind: 'project', id: 'p1', tab: null, hash: undefined });
+    // El recordatorio de update pide el composer; un tramo de más (link viejo de un team) va a su página.
+    expect(inboxPanelTarget({ href: '/app/track/projects/p1?tab=updates&new=1' })).toEqual({ kind: 'project', id: 'p1', tab: 'updates', compose: true, hash: undefined });
+    expect(inboxPanelTarget({ href: '/app/track/projects/team1/settings' })).toBeNull();
+    // Un link roto no rompe la lista.
+    expect(inboxPanelTarget({ href: '/app/track/projects/%E0%A4%A' })).toBeNull();
+    expect(inboxPanelOpen('/app/track/inbox/%E0%A4%A')).toEqual({ kind: 'issue', id: '' });
   });
 
   it('rutas del panel, la ruta abierta y la vuelta a la lista', () => {
@@ -30,12 +37,15 @@ describe('Track: qué abre un aviso en el panel de la bandeja', () => {
     expect(inboxPanelHref({ kind: 'project', id: 'p1', tab: 'updates', hash: '#comments' }, sp)).toBe(
       '/app/track/inbox/project/p1?tab=other&n=note1&ptab=updates#comments',
     );
-    expect(inboxPanelHref({ kind: 'initiative', id: 'n1' }, new URLSearchParams())).toBe('/app/track/inbox/initiative/n1?');
+    expect(inboxPanelHref({ kind: 'initiative', id: 'n1' }, new URLSearchParams())).toBe('/app/track/inbox/initiative/n1');
+    expect(inboxPanelHref({ kind: 'project', id: 'p1', tab: 'updates', compose: true }, new URLSearchParams({ n: 'x' }))).toBe(
+      '/app/track/inbox/project/p1?n=x&ptab=updates&pnew=1',
+    );
     expect(inboxPanelOpen('/en/app/track/inbox/project/p1')).toEqual({ kind: 'project', id: 'p1' });
     expect(inboxPanelOpen('/app/track/inbox/initiative/n1')).toEqual({ kind: 'initiative', id: 'n1' });
     expect(inboxPanelOpen('/app/track/inbox/abc')).toEqual({ kind: 'issue', id: 'abc' });
     expect(inboxPanelOpen('/app/track/inbox')).toBeNull();
-    expect(inboxListHref('?tab=other&n=x&ptab=updates&kind=mention')).toBe('/app/track/inbox?tab=other&kind=mention');
+    expect(inboxListHref('?tab=other&n=x&ptab=updates&pnew=1&kind=mention')).toBe('/app/track/inbox?tab=other&kind=mention');
     expect(inboxListHref('')).toBe('/app/track/inbox');
   });
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
-import { inboxListHref } from '@/lib/track-inbox-panel';
+import { inboxListHref, TRACK_ENTITY_DELETED } from '@/lib/track-inbox-panel';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -172,8 +172,15 @@ export default function PlanPage({ planId, panel = false }: { planId: string; pa
   const remove = async () => {
     const res = await api(`/api/track/plans/${planId}`, 'DELETE');
     setConfirmDelete(false);
-    if (res.ok) router.push(panel ? inboxListHref(window.location.search) : '/app/track/projects');
-    else setError(t('common.saveError'));
+    if (!res.ok) {
+      setError(t('common.saveError'));
+      return;
+    }
+    if (panel) {
+      // Desde el panel: sus avisos salen de la lista y se vuelve a la bandeja sin sumar historial.
+      window.dispatchEvent(new CustomEvent(TRACK_ENTITY_DELETED, { detail: { id: planId } }));
+      router.replace(inboxListHref(window.location.search), { scroll: false });
+    } else router.push('/app/track/projects');
   };
 
   // Archivar como Linear: al instante, con Deshacer en el toast (y ⌘Z); se desarchiva desde el ⋯ o el aviso.
@@ -253,7 +260,10 @@ export default function PlanPage({ planId, panel = false }: { planId: string; pa
             onSelect={(v) => {
               if (v === 'follow') void follow(!data.following);
               else if (v === 'update') writeUpdate();
-              else if (v === 'copy') void copyText(window.location.href.split('?')[0]).then((ok) => setNotice(ok ? t('common.linkCopied') : null));
+              else if (v === 'copy')
+                void copyText(panel ? `${window.location.origin}/${locale}/app/track/projects/${planId}` : window.location.href.split('?')[0]).then((ok) =>
+                  setNotice(ok ? t('common.linkCopied') : null),
+                );
               else if (v === 'template') setSavingTemplate(true);
               else if (v === 'archive' || v === 'unarchive') void archive(v === 'archive');
               else if (v === 'delete') setConfirmDelete(true);
@@ -333,7 +343,7 @@ export default function PlanPage({ planId, panel = false }: { planId: string; pa
             testId="tp-plan-issues"
           />
         )}
-        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={focusCompose || (!panel && sp.get('new') === '1')} onPosted={load} />}
+        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={focusCompose || sp.get(panel ? 'pnew' : 'new') === '1'} onPosted={load} />}
       </div>
 
       {tab !== 'issues' && (

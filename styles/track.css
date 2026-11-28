@@ -1255,6 +1255,8 @@ dialog.ui-drawer.track-drawer {
   .track-inbox-pane .track-issue-page .track-detail-grid {
     display: flex;
     flex-direction: column;
+    max-width: 820px;
+    padding-bottom: 24px;
   }
 
   .track-inbox-pane .track-issue-page .track-detail-main {
@@ -1285,6 +1287,12 @@ dialog.ui-drawer.track-drawer {
   /* Project o iniciativa en el panel angosto: sus propiedades también van en una sola columna. */
   .track-inbox-pane .tp-plan {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .track-inbox-pane .tp-plan-side {
+    position: static;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
   }
 
   .track-inbox-pane .track-issue-page .track-side {

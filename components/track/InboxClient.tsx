@@ -30,7 +30,7 @@ import { useShortDuration } from './IssueRowProps';
 import { isTextEntry } from './IssueFilters';
 import { announceSubscription, TRACK_SUBSCRIPTION_EVENT } from './IssueSubscription';
 import { pushNotice } from './trackUndo';
-import { inboxPanelHref, inboxPanelOpen, inboxPanelTarget } from '@/lib/track-inbox-panel';
+import { inboxPanelHref, inboxPanelOpen, inboxPanelTarget, TRACK_ENTITY_DELETED } from '@/lib/track-inbox-panel';
 
 interface Notification {
   id: string;
@@ -571,8 +571,17 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
       const issueId = (e as CustomEvent<{ issueId: string }>).detail?.issueId;
       if (issueId) setRows((prev) => prev.filter((x) => x.issue?.id !== issueId));
     };
+    // Un project o una iniciativa borrados desde el panel: lo mismo con sus avisos.
+    const onEntityDeleted = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (id) setRows((prev) => prev.filter((x) => inboxPanelTarget(x)?.id !== id));
+    };
     window.addEventListener('zs:track-issue-deleted', onDeleted);
-    return () => window.removeEventListener('zs:track-issue-deleted', onDeleted);
+    window.addEventListener(TRACK_ENTITY_DELETED, onEntityDeleted);
+    return () => {
+      window.removeEventListener('zs:track-issue-deleted', onDeleted);
+      window.removeEventListener(TRACK_ENTITY_DELETED, onEntityDeleted);
+    };
   }, []);
 
   // Darse de baja del issue desde la fila (y volver a seguirlo), como Linear.

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { requireUser } from '@/lib/session';
-import { inboxEntityFor } from '@/lib/track-inbox-panel';
+import { inboxEntityFor } from '@/lib/track-inbox-panel-server';
 import { InitiativePage } from '@/components/track/planning/Initiatives';
 import InboxEntityPane from '@/components/track/InboxEntityPane';
 import InboxPaneMissing from '@/components/track/InboxPaneMissing';

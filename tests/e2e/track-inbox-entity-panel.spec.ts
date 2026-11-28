@@ -29,7 +29,7 @@ interface Seeded {
   plan: { id: string; name: string };
   initiative: { id: string; name: string };
   issue: { id: string; identifier: string };
-  notes: { plan: string; initiative: string; issue: string };
+  notes: { plan: string; update: string; initiative: string; issue: string };
 }
 
 /** Un aviso de un issue, uno de un project y uno de una iniciativa, de la misma persona (filtro "De"). */
@@ -43,7 +43,7 @@ async function seed(request: APIRequestContext): Promise<Seeded> {
   const planRow = { id: (plan.plan?.id ?? plan.id)!, name: (plan.plan?.name ?? plan.name)! };
   const initiative = await ok<{ id: string; name: string }>(request.post('/api/track/initiatives', { data: { name: `Growth ${tag}` } }));
   const actor = `panel-actor-${tag}`;
-  const notes = { plan: crypto.randomUUID(), initiative: crypto.randomUUID(), issue: crypto.randomUUID() };
+  const notes = { plan: crypto.randomUUID(), update: crypto.randomUUID(), initiative: crypto.randomUUID(), issue: crypto.randomUUID() };
   const db = e2eDb();
   try {
     const insert = 'INSERT INTO notifications (id, user_id, type, title, body, href, read_at, source_type, source_id, meta, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
@@ -52,15 +52,68 @@ async function seed(request: APIRequestContext): Promise<Seeded> {
     // Menciones: van a Priority, junto con la asignación del issue.
     await db.execute({
       sql: insert,
-      args: [notes.plan, 'demo', 'mention', `Ana mentioned you in ${planRow.name}`, 'Qué buen avance', `/app/track/projects/${planRow.id}#comments`, null, 'track_plan', planRow.id, JSON.stringify({ planId: planRow.id, planName: planRow.name, ...who }), ago(1)],
+      args: [
+        notes.plan,
+        'demo',
+        'mention',
+        `Ana mentioned you in ${planRow.name}`,
+        'Qué buen avance',
+        `/app/track/projects/${planRow.id}#comments`,
+        null,
+        'track_plan',
+        planRow.id,
+        JSON.stringify({ planId: planRow.id, planName: planRow.name, ...who }),
+        ago(1),
+      ],
+    });
+    // Un update del mismo project (abre la pestaña Updates).
+    await db.execute({
+      sql: insert,
+      args: [
+        notes.update,
+        'demo',
+        'mention',
+        `Ana mentioned you in an update of ${planRow.name}`,
+        null,
+        `/app/track/projects/${planRow.id}?tab=updates`,
+        null,
+        'track_plan',
+        planRow.id,
+        JSON.stringify({ planId: planRow.id, planName: planRow.name, ...who, kind: 'update' }),
+        ago(1.5),
+      ],
     });
     await db.execute({
       sql: insert,
-      args: [notes.initiative, 'demo', 'mention', `Ana mentioned you in ${initiative.name}`, 'Sumemos esto', `/app/track/initiatives/${initiative.id}#comments`, null, 'track_initiative', initiative.id, JSON.stringify({ initiativeId: initiative.id, initiativeName: initiative.name, ...who }), ago(2)],
+      args: [
+        notes.initiative,
+        'demo',
+        'mention',
+        `Ana mentioned you in ${initiative.name}`,
+        'Sumemos esto',
+        `/app/track/initiatives/${initiative.id}#comments`,
+        null,
+        'track_initiative',
+        initiative.id,
+        JSON.stringify({ initiativeId: initiative.id, initiativeName: initiative.name, ...who }),
+        ago(2),
+      ],
     });
     await db.execute({
       sql: insert,
-      args: [notes.issue, 'demo', 'assigned', 'assigned', null, `/app/track/issues/${issue.id}`, null, 'track_issue', issue.id, JSON.stringify({ issueIdentifier: issue.identifier, projectName: team.name, actorId: actor, actorName: 'Ana Pérez' }), ago(3)],
+      args: [
+        notes.issue,
+        'demo',
+        'assigned',
+        'assigned',
+        null,
+        `/app/track/issues/${issue.id}`,
+        null,
+        'track_issue',
+        issue.id,
+        JSON.stringify({ issueIdentifier: issue.identifier, projectName: team.name, actorId: actor, actorName: 'Ana Pérez' }),
+        ago(3),
+      ],
     });
   } finally {
     db.close();
@@ -96,9 +149,14 @@ test('1280: el project y la iniciativa se abren al lado; Esc, la cruz y J/K', as
   await expect(pane(page).getByTestId('track-inbox-entity-open')).toHaveAttribute('href', new RegExp(`/app/track/projects/${s.plan.id}`));
   await shot(page, 'track-inbox-entity-project-1280');
 
-  // J: el panel sigue a la fila (la iniciativa).
+  await expect(pane(page).getByTestId('tp-tab-overview')).toHaveAttribute('aria-selected', 'true');
+
+  // J: el panel sigue a la fila. El update del mismo project abre su pestaña Updates.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await row(page, s.notes.plan).locator('.track-inbox-link').focus();
+  await page.keyboard.press('j');
+  await expect(page).toHaveURL(new RegExp(`/app/track/inbox/project/${s.plan.id}\\?.*ptab=updates`));
+  await expect(pane(page).getByTestId('tp-tab-updates')).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('j');
   await expect(page).toHaveURL(new RegExp(`/app/track/inbox/initiative/${s.initiative.id}`));
   await expect(pane(page).getByTestId('track-inbox-entity')).toHaveAttribute('data-kind', 'initiative');
@@ -112,8 +170,14 @@ test('1280: el project y la iniciativa se abren al lado; Esc, la cruz y J/K', as
   await expect(pane(page).getByTestId('track-inbox-entity')).toHaveCount(0);
   await expect(page).not.toHaveURL(/[?&]n=/);
 
-  // La cruz también.
+  // La cruz también. Con el menú "…" del project abierto, Esc cierra el menú y el panel queda.
   await row(page, s.notes.plan).locator('.track-inbox-link').click();
+  await expect(pane(page).getByTestId('track-inbox-entity')).toBeVisible();
+  await pane(page).getByTestId('tp-plan-more').click();
+  const picker = page.locator('.track-keypicker-list');
+  await expect(picker).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
   await expect(pane(page).getByTestId('track-inbox-entity')).toBeVisible();
   await pane(page).getByTestId('track-inbox-panel-close').click();
   await expect(pane(page).getByTestId('track-inbox-entity')).toHaveCount(0);
@@ -139,6 +203,7 @@ test('1366: el issue del panel muestra las propiedades arriba y "Clear" entra en
   const activity = pane(page).locator('.track-detail-activity');
   const title = pane(page).locator('.track-detail-title');
   await expect(side).toBeVisible();
+  await expect(activity).toBeVisible();
   const [sb, ab, tb] = [(await side.boundingBox())!, (await activity.boundingBox())!, (await title.boundingBox())!];
   // Debajo del título y antes de la actividad (no al final del panel).
   expect(sb.y).toBeGreaterThan(tb.y);
@@ -146,7 +211,7 @@ test('1366: el issue del panel muestra las propiedades arriba y "Clear" entra en
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'track-inbox-issue-pane-1366');
 
-  for (const scheme of ['light', 'dark'] as const) {
+  for (const scheme of SHOTS ? (['light', 'dark'] as const) : []) {
     await page.emulateMedia({ colorScheme: scheme });
     for (const look of LOOKS) {
       await page.evaluate((l) => document.documentElement.setAttribute('data-look', l), look);
@@ -160,7 +225,7 @@ test('1366: el issue del panel muestra las propiedades arriba y "Clear" entra en
   await row(page, s.notes.plan).locator('.track-inbox-link').click();
   await expect(pane(page).getByTestId('tp-plan-page')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  for (const scheme of ['light', 'dark'] as const) {
+  for (const scheme of SHOTS ? (['light', 'dark'] as const) : []) {
     await page.emulateMedia({ colorScheme: scheme });
     for (const look of LOOKS) {
       await page.evaluate((l) => document.documentElement.setAttribute('data-look', l), look);
@@ -173,33 +238,36 @@ test('1366: el issue del panel muestra las propiedades arriba y "Clear" entra en
 test('390: el project ocupa la página, la cruz de 40px vuelve a la lista, sin scroll lateral', async ({ browser, request, baseURL }) => {
   const s = await seed(request);
   const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true });
-  const page = await ctx.newPage();
-  await page.addInitScript(() => window.localStorage.removeItem('zs:track-inbox-view'));
-  await openInbox(page, s);
-  const clear = page.getByTestId('track-inbox-filter-clear');
-  const lines = await clear.evaluate((el) => {
-    const r = document.createRange();
-    r.selectNodeContents(el);
-    return new Set(Array.from(r.getClientRects()).map((x) => Math.round(x.top))).size;
-  });
-  expect(lines).toBe(1);
-  await row(page, s.notes.plan).locator('.track-inbox-link').click();
-  await expect(pane(page).getByTestId('tp-plan-page')).toBeVisible();
-  const close = pane(page).getByTestId('track-inbox-panel-close');
-  const box = (await close.boundingBox())!;
-  expect(box.height).toBeGreaterThanOrEqual(40);
-  expect(box.width).toBeGreaterThanOrEqual(40);
-  for (const scheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: scheme });
-    for (const look of LOOKS) {
-      await page.evaluate((l) => document.documentElement.setAttribute('data-look', l), look);
-      await settle(page);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await shot(page, `track-inbox-project-390-${look}-${scheme}`);
+  try {
+    const page = await ctx.newPage();
+    await page.addInitScript(() => window.localStorage.removeItem('zs:track-inbox-view'));
+    await openInbox(page, s);
+    const clear = page.getByTestId('track-inbox-filter-clear');
+    const lines = await clear.evaluate((el) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      return new Set(Array.from(r.getClientRects()).map((x) => Math.round(x.top))).size;
+    });
+    expect(lines).toBe(1);
+    await row(page, s.notes.plan).locator('.track-inbox-link').click();
+    await expect(pane(page).getByTestId('tp-plan-page')).toBeVisible();
+    const close = pane(page).getByTestId('track-inbox-panel-close');
+    const box = (await close.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(40);
+    expect(box.width).toBeGreaterThanOrEqual(40);
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      for (const look of LOOKS) {
+        await page.evaluate((l) => document.documentElement.setAttribute('data-look', l), look);
+        await settle(page);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await shot(page, `track-inbox-project-390-${look}-${scheme}`);
+      }
     }
+    await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
+    await close.tap();
+    await expect(row(page, s.notes.plan)).toBeVisible();
+  } finally {
+    await ctx.close();
   }
-  await page.evaluate(() => document.documentElement.removeAttribute('data-look'));
-  await close.tap();
-  await expect(row(page, s.notes.plan)).toBeVisible();
-  await ctx.close();
 });

@@ -12,12 +12,23 @@ export interface InboxPanelTarget {
   id: string;
   /** Pestaña del project que pedía el aviso (`?tab=updates`): en el panel va como `ptab`. */
   tab?: string | null;
+  /** El recordatorio de update abre el composer (`?new=1`): en el panel va como `pnew`. */
+  compose?: boolean;
   /** Ancla del aviso (#comments, #updates). */
   hash?: string;
 }
 
-const PLAN_RE = /^\/(?:[a-z]{2}\/)?app\/track\/projects\/([^/?#]+)/;
-const INITIATIVE_RE = /^\/(?:[a-z]{2}\/)?app\/track\/initiatives\/([^/?#]+)/;
+// El id tiene que ser el último tramo: /projects/<id>/algo (links viejos de un team) va a su página.
+const PLAN_RE = /^\/(?:[a-z]{2}\/)?app\/track\/projects\/([^/?#]+)\/?$/;
+const INITIATIVE_RE = /^\/(?:[a-z]{2}\/)?app\/track\/initiatives\/([^/?#]+)\/?$/;
+
+function decode(v: string): string {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return '';
+  }
+}
 
 /** Lo que abre un aviso en el panel, o null si va a su página (o a ningún lado). */
 export function inboxPanelTarget(n: { issue?: { id: string } | null; href?: string | null }): InboxPanelTarget | null {
@@ -31,13 +42,14 @@ export function inboxPanelTarget(n: { issue?: { id: string } | null; href?: stri
   }
   const plan = PLAN_RE.exec(url.pathname);
   const initiative = INITIATIVE_RE.exec(url.pathname);
-  const id = decodeURIComponent((plan ?? initiative)?.[1] ?? '');
+  const id = decode((plan ?? initiative)?.[1] ?? '');
   // "new" es la página de alta, no un project.
   if (!id || id === 'new') return null;
   return {
     kind: plan ? 'project' : 'initiative',
     id,
     tab: plan ? url.searchParams.get('tab') : null,
+    ...(plan && url.searchParams.get('new') === '1' ? { compose: true } : {}),
     hash: url.hash || undefined,
   };
 }
@@ -46,19 +58,21 @@ export function inboxPanelTarget(n: { issue?: { id: string } | null; href?: stri
 export function inboxPanelHref(target: InboxPanelTarget, params: URLSearchParams): string {
   const sp = new URLSearchParams(params);
   if (target.tab) sp.set('ptab', target.tab);
+  if (target.compose) sp.set('pnew', '1');
   const base =
     target.kind === 'issue'
       ? `/app/track/inbox/${encodeURIComponent(target.id)}`
       : `/app/track/inbox/${target.kind}/${encodeURIComponent(target.id)}`;
-  return `${base}?${sp.toString()}${target.hash ?? ''}`;
+  const qs = sp.toString();
+  return `${base}${qs ? `?${qs}` : ''}${target.hash ?? ''}`;
 }
 
 /** ¿Hay algo abierto en el panel? (/app/track/inbox/<issue>, /project/<id>, /initiative/<id>). */
 export function inboxPanelOpen(pathname: string | null): InboxPanelTarget | null {
   const m = /\/app\/track\/inbox\/([^/?#]+)(?:\/([^/?#]+))?/.exec(pathname ?? '');
   if (!m) return null;
-  if ((m[1] === 'project' || m[1] === 'initiative') && m[2]) return { kind: m[1], id: decodeURIComponent(m[2]) };
-  return { kind: 'issue', id: decodeURIComponent(m[1]) };
+  if ((m[1] === 'project' || m[1] === 'initiative') && m[2]) return { kind: m[1], id: decode(m[2]) };
+  return { kind: 'issue', id: decode(m[1]) };
 }
 
 /** La bandeja con los filtros y la pestaña que tenía (sin el aviso abierto ni la pestaña del project). */
@@ -66,25 +80,11 @@ export function inboxListHref(search: string): string {
   const sp = new URLSearchParams(search);
   sp.delete('n');
   sp.delete('ptab');
+  sp.delete('pnew');
   const qs = sp.toString();
   return `/app/track/inbox${qs ? `?${qs}` : ''}`;
 }
 
-/**
- * El project o la iniciativa de un aviso, si la persona los puede abrir hoy
- * (mismo alcance que sus páginas: workspace, y la planificación cerrada a los
- * invitados). Server only: lo usan las rutas del panel.
- */
-export async function inboxEntityFor(
-  kind: 'project' | 'initiative',
-  id: string,
-  user: { id: string; team?: { id: string } | null },
-): Promise<{ id: string } | undefined> {
-  const scope = { teamId: user.team?.id ?? null, ownerId: user.id };
-  if (kind === 'project') {
-    const { getAccessiblePlan } = await import('./track-plans');
-    return getAccessiblePlan(id, scope);
-  }
-  const { getAccessibleInitiative } = await import('./track-initiatives');
-  return getAccessibleInitiative(id, scope);
-}
+
+/** Evento: un project o una iniciativa se borraron desde el panel (sus avisos salen de la lista). */
+export const TRACK_ENTITY_DELETED = 'zs:track-entity-deleted';

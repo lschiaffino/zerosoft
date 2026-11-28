@@ -116,6 +116,8 @@ export default function TrackShortcuts() {
         return;
       }
       if (key === 'j' || key === 'k') {
+        // Con un aviso abierto en el panel de la bandeja, J/K son de la bandeja (InboxClient), no de las filas del panel.
+        if (document.querySelector('.track-inbox-split.has-open')) return;
         if (issueRows().length === 0) return;
         e.preventDefault();
         // El cursor va por id de issue (kbCursor): sigue a la fila aunque cambie de grupo.

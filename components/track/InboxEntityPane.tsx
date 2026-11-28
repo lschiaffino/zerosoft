@@ -20,12 +20,15 @@ export default function InboxEntityPane({ kind, id, children }: { kind: 'project
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
-      if (document.querySelector('[role="dialog"], dialog[open], .cmdk, [role="menu"], [role="listbox"]')) return;
+      // Primero se cierra lo que esté abierto encima (menú, diálogo, paleta) o se suelta la selección de issues.
+      if (document.querySelector('[role="dialog"], dialog[open], .cmdk, [role="menu"], [role="listbox"], .track-menu, .track-bulk-bar')) return;
+      if (document.querySelector('.track-inbox-pane [data-issue-id].is-selected, .track-inbox-pane input[type="checkbox"]:checked')) return;
       e.preventDefault();
+      e.stopPropagation();
       router.replace(inboxListHref(window.location.search), { scroll: false });
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [router]);
 
   const page = kind === 'project' ? `/app/track/projects/${id}` : `/app/track/initiatives/${id}`;
