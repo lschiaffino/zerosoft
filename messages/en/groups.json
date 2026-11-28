@@ -2235,7 +2235,46 @@
           "day": "last 24 hours",
           "week": "last 7 days",
           "month": "last 30 days"
-        }
+        },
+        "askTitle": "Ask about this chat",
+        "askLabel": "Question about this chat",
+        "askPlaceholder": "What did the customer ask for?",
+        "ask": "Ask",
+        "asking": "Reading the chat…",
+        "suggestionsLabel": "Suggested questions",
+        "suggest": {
+          "summary": "Summarize this chat",
+          "asked": "What did the customer ask for?",
+          "pending": "What is still pending?"
+        },
+        "askHint": "The AI only reads the latest messages of this chat that you can see. Answers stay in this tab; nothing is saved or sent to the chat.",
+        "askNoMessages": "This chat has no messages to read yet.",
+        "proposalsTitle": "Proposed follow-ups",
+        "noProposals": "Nothing to follow up in this chat.",
+        "titleLabel": "Title",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Notes for the task (optional)",
+        "createBusy": "Too many changes in a row. Wait a moment and try again.",
+        "kindLabel": "Create as",
+        "kind": {
+          "task": "Task",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Priority",
+        "priority": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "create": "Create",
+        "creating": "Creating…",
+        "dismiss": "Dismiss",
+        "createdTask": "Task created:",
+        "createdTicket": "Ticket created:",
+        "createError": "Couldn't create it. Try again.",
+        "whereLines": "Nothing is created until you press Create. Tasks go to this chat's Tasks tab and to CRM › Tasks; tickets go to Tickets.",
+        "whereInbox": "Nothing is created until you press Create. Tasks go to CRM › Tasks, assigned to you; anyone who can see your CRM tasks will see them.",
+        "crmOff": "The CRM app is off for you, so these can't be created as tasks here."
       }
     },
     "contactSheet": {

@@ -2068,9 +2068,30 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .wa-ai-mood[data-mood='positive']::before { background: var(--wa-primary); }
 .wa-ai-mood[data-mood='negative']::before { background: var(--wa-danger); }
 .wa-ai-mood[data-mood='mixed']::before { background: var(--wa-note-line); }
+/* Seguimientos propuestos (ChatAiProposals): uno por fila, con título editable; nada se crea sin "Crear". */
+.wa-ai-plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wa-ai-proposal { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--wa-chip-bg); border-radius: var(--radius-1); min-width: 0; }
+.wa-ai-proposal .input { width: 100%; min-width: 0; }
+.wa-ai-prow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.wa-ai-kind { width: auto; min-width: 0; max-width: 100%; }
+.wa-ai-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.wa-ai-done { margin: 0; font-size: var(--wa-fs-ui); line-height: 1.4; color: var(--wa-text); overflow-wrap: anywhere; }
+.wa-ai-done a { color: var(--wa-primary); }
+/* Preguntar (ChatAiAsk): campo y botón, preguntas sugeridas y las últimas respuestas. */
+.wa-ai-form { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wa-ai-input { width: 100%; min-width: 0; resize: vertical; font: inherit; font-size: var(--wa-fs-ui); }
+.wa-ai-suggest { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Las sugeridas, como los rangos (mismo botón), en filas que se acomodan al ancho. */
+.wa-ai-suggest .wa-ai-range-btn { flex: 0 1 auto; max-width: 100%; }
+.wa-ai-range-btn[aria-disabled='true'] { color: var(--wa-text-2); cursor: default; }
+.wa-ai-answers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wa-ai-answer { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-left: 2px solid var(--wa-border); min-width: 0; }
+.wa-ai-q { margin: 0; font-size: var(--wa-fs-ui); font-weight: 500; color: var(--wa-text-2); overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   .wa-ai-range-btn { min-height: 40px; padding: 0 12px; }
   .wa-ai :is(.btn) { min-height: 40px; }
+  .wa-ai :is(.input, .select) { min-height: 40px; }
+  .wa-ai-done a { display: inline-flex; align-items: center; min-height: 40px; }
 }
 /* Teléfono: el panel de Lines ocupa la pantalla entera (Inbox ya lo hace), con las pestañas al alcance. */
 @media (max-width: 640px) {

@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-27',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
@@ -410,6 +410,14 @@ const parity: ProductParity = {
         'In the AI tab of the info panel: the relationship and what is pending with a contact, or the recent activity of a group, made from that chat and your notes and saved until there are new messages. Below it, catch up since you last read the chat or over the last 24 hours, 7 or 30 days: a summary, open questions, pending commitments, suggested replies you insert into the message field (never sent) and the mood of the contact, only from that chat and not saved. Tested with the fake model',
         'En la pestaña IA del panel de info: la relación y lo pendiente con un contacto, o lo último de un grupo, hecho con ese chat y tus notas y guardado hasta que haya mensajes nuevos. Abajo, ponerte al día desde la última vez que lo leíste o con las últimas 24 horas, 7 o 30 días: un resumen, las preguntas sin responder, los compromisos pendientes, respuestas sugeridas que insertás en el campo (nunca se mandan) y el ánimo del contacto, solo con ese chat y sin guardar nada. Probado con el modelo falso',
         'Na aba IA do painel de dados: a relação e o que está pendente com um contato, ou o que rolou num grupo, feito com essa conversa e suas notas e salvo até chegarem mensagens novas. Abaixo, colocar em dia desde a última leitura ou com as últimas 24 horas, 7 ou 30 dias: um resumo, as perguntas sem resposta, os compromissos pendentes, respostas sugeridas que você insere no campo (nunca são enviadas) e o ânimo do contato, só com essa conversa e sem salvar nada. Testado com o modelo falso',
+      ],
+    }),
+    row('wa-ai-ask', 'whatsapp', ['AI tab in the chat: questions and proposed tasks', 'Pestaña IA del chat: preguntas y tareas propuestas', 'Aba IA da conversa: perguntas e tarefas propostas'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'In the AI tab of the info panel: ask about the chat (or tap a suggested question) using only its latest messages; answers stay in the tab and are not saved. Each summary also proposes follow-ups you edit and approve one by one into CRM › Tasks, assigned to you (when you use the CRM; if not, the tab says so). Nothing is created or sent on its own. Tested with the fake model',
+        'En la pestaña IA del panel de info: preguntá sobre el chat (o tocá una pregunta sugerida) solo con sus últimos mensajes; las respuestas quedan en la pestaña y no se guardan. Cada resumen también propone seguimientos que editás y aprobás de a uno, y van a CRM › Tareas a tu nombre (si usás el CRM; si no, la pestaña lo dice). No se crea ni se manda nada solo. Probado con el modelo falso',
+        'Na aba IA do painel de dados: pergunte sobre a conversa (ou toque numa pergunta sugerida) só com as últimas mensagens dela; as respostas ficam na aba e não são salvas. Cada resumo também propõe acompanhamentos que você edita e aprova um a um, e vão para CRM › Tarefas atribuídos a você (se você usa o CRM; se não, a aba avisa). Nada é criado nem enviado sozinho. Testado com o modelo falso',
       ],
     }),
     row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {

@@ -3,7 +3,9 @@
 import GroupMembers from './wa/GroupMembers';
 import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry, Sparkle } from './wa/icons';
 import ChatAiTab from './wa/ChatAiTab';
-import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
+import type { ChatInsights, ChatProposal, InsightRange } from '@/lib/wa-insights';
+import type { AskResult } from './wa/ChatAiAsk';
+import type { CreateResult } from './wa/ChatAiProposals';
 import DetailsTabs from './wa/DetailsTabs';
 import SharedMedia from './wa/SharedMedia';
 import { ChatNotes, CrmDeals } from './ChatDetailsParts';
@@ -22,7 +24,7 @@ import { useGroupsInbox } from './InboxShell';
 import GroupSettingsSection from './GroupSettingsSection';
 import HubspotSection from './HubspotSection';
 import PropertyInput from './PropertyInput';
-import { ChatTasksSection } from './TaskModal';
+import { ChatTasksSection, TASKS_CHANGED } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
 import AssignmentHistory from './AssignmentHistory';
@@ -167,6 +169,33 @@ export default function ChatDetails({
       return r.data ? { ok: true, insights: r.data.insights } : { ok: false, code: r.error ?? 'failed' };
     },
     [chat.id, locale],
+  );
+  const askChat = useCallback(
+    async (question: string): Promise<AskResult> => {
+      const r = await api<{ answer: string; messages: number }>(`/api/groups/chats/${chat.id}/summary`, { body: { kind: 'ask', question, locale } });
+      return r.data ? { ok: true, answer: r.data } : { ok: false, code: r.error ?? 'failed' };
+    },
+    [chat.id, locale],
+  );
+  // Un seguimiento propuesto que la persona aprobó: con las mismas acciones de la pestaña Tareas (tarea del chat, que
+  // va también a CRM › Tareas, o ticket).
+  const createProposal = useCallback(
+    async (p: ChatProposal): Promise<CreateResult> => {
+      if (p.kind === 'ticket') {
+        const r = await api<TicketLite>('/api/groups/tickets', { body: { chatId: chat.id, title: p.title, priority: p.priority } });
+        if (!r.data) return { ok: false, code: r.error ?? 'failed' };
+        const tk = r.data;
+        setTickets((list) => [tk, ...(list ?? []).filter((x) => x.id !== tk.id)]);
+        return { ok: true, created: { kind: 'ticket', href: `/app/lines/tickets?open=${tk.id}`, label: `#${tk.number} ${tk.title}` } };
+      }
+      const r = await api<{ id: string; title: string }>('/api/groups/tasks', {
+        body: { chatId: chat.id, title: p.title, notes: p.notes, priority: p.priority, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      });
+      if (!r.data) return { ok: false, code: r.error ?? 'failed' };
+      window.dispatchEvent(new Event(TASKS_CHANGED));
+      return { ok: true, created: { kind: 'task', href: `/app/lines/tasks?open=${r.data.id}`, label: r.data.title || p.title } };
+    },
+    [chat.id],
   );
 
   // Cada campo vuelve al valor del servidor solo si ese valor cambió (o si es otro chat). Cualquier guardado
@@ -685,6 +714,10 @@ export default function ChatDetails({
                   unreadFrom={aiUnreadFrom}
                   sectionClass="gr-detail-section"
                   titleClass="gr-detail-title"
+                  askChat={askChat}
+                  kinds={['task', 'ticket']}
+                  where={tdet('ai.whereLines')}
+                  createProposal={createProposal}
                 />
               ),
             },

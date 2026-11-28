@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-27',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -513,6 +513,13 @@ const parity: ProductParity = {
         "The AI tab of the chat panel catches you up since you last read the chat or over the last 24 hours, 7 or 30 days: a summary, open questions, pending commitments, suggested replies you insert into the message field (never sent) and the contact's mood. It uses only the messages you can see (your lines and labels, phones hidden if you don't see them, no internal notes) and saves nothing. With AI off in the workspace the tab says so. Tested with the fake model",
         'La pestaña IA del panel del chat te pone al día desde la última vez que lo leíste o con las últimas 24 horas, 7 o 30 días: un resumen, las preguntas sin responder, los compromisos pendientes, respuestas sugeridas que insertás en el campo (nunca se mandan) y el ánimo del contacto. Usa solo los mensajes que ves (tus líneas y etiquetas, teléfonos ocultos si no los ves, sin notas internas) y no guarda nada. Con la IA apagada en el workspace, la pestaña lo dice. Probado con el modelo falso',
         'A aba IA do painel da conversa coloca você em dia desde a última leitura ou com as últimas 24 horas, 7 ou 30 dias: um resumo, as perguntas sem resposta, os compromissos pendentes, respostas sugeridas que você insere no campo (nunca são enviadas) e o ânimo do contato. Usa só as mensagens que você vê (suas linhas e etiquetas, telefones ocultos se você não os vê, sem notas internas) e não salva nada. Com a IA desligada no workspace, a aba avisa. Testado com o modelo falso',
+      ],
+    }),
+    row('ai-chat-tab', 'automation', ['AI tab in the chat: questions and proposed tickets', 'Pestaña IA del chat: preguntas y tickets propuestos', 'Aba IA da conversa: perguntas e tickets propostos'], 'partial', {
+      detail: [
+        "In the AI tab of the chat panel: ask about the chat (or tap a suggested question) and the answer uses only the latest messages you can see, with hidden phones kept hidden; answers stay in the tab and are not saved. Each summary also proposes follow-ups as tasks or tickets: you edit the title, pick task or ticket and press Create, or dismiss it. Nothing is created until you approve it. On request, not automatic on every chat. Tested with the fake model",
+        'En la pestaña IA del panel del chat: preguntá sobre el chat (o tocá una pregunta sugerida) y la respuesta usa solo los últimos mensajes que ves, con los teléfonos ocultos si los ves ocultos; las respuestas quedan en la pestaña y no se guardan. Cada resumen también propone seguimientos como tareas o tickets: editás el título, elegís tarea o ticket y tocás Crear, o lo descartás. No se crea nada hasta que lo aprobás. A pedido, no automático en cada chat. Probado con el modelo falso',
+        'Na aba IA do painel da conversa: pergunte sobre a conversa (ou toque numa pergunta sugerida) e a resposta usa só as últimas mensagens que você vê, com os telefones ocultos se você os vê ocultos; as respostas ficam na aba e não são salvas. Cada resumo também propõe acompanhamentos como tarefas ou tickets: você edita o título, escolhe tarefa ou ticket e toca em Criar, ou descarta. Nada é criado até você aprovar. Sob demanda, não automático em cada conversa. Testado com o modelo falso',
       ],
     }),
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {

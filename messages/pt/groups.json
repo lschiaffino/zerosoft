@@ -2235,7 +2235,46 @@
           "day": "últimas 24 horas",
           "week": "últimos 7 dias",
           "month": "últimos 30 dias"
-        }
+        },
+        "askTitle": "Pergunte à IA",
+        "askLabel": "Pergunta sobre esta conversa",
+        "askPlaceholder": "O que o cliente pediu?",
+        "ask": "Perguntar",
+        "asking": "Lendo a conversa…",
+        "suggestionsLabel": "Perguntas sugeridas",
+        "suggest": {
+          "summary": "Resuma esta conversa",
+          "asked": "O que o cliente pediu?",
+          "pending": "O que ficou pendente?"
+        },
+        "askHint": "A IA lê só as últimas mensagens desta conversa que você vê. As respostas ficam nesta aba; nada é salvo nem enviado para a conversa.",
+        "askNoMessages": "Esta conversa ainda não tem mensagens para ler.",
+        "proposalsTitle": "Acompanhamentos propostos",
+        "noProposals": "Nada pendente para acompanhar nesta conversa.",
+        "titleLabel": "Título",
+        "notesLabel": "Notas",
+        "notesPlaceholder": "Notas da tarefa (opcional)",
+        "createBusy": "Muitas alterações seguidas. Espere um momento e tente de novo.",
+        "kindLabel": "Criar como",
+        "kind": {
+          "task": "Tarefa",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Prioridade",
+        "priority": {
+          "low": "Baixa",
+          "medium": "Média",
+          "high": "Alta"
+        },
+        "create": "Criar",
+        "creating": "Criando…",
+        "dismiss": "Descartar",
+        "createdTask": "Tarefa criada:",
+        "createdTicket": "Ticket criado:",
+        "createError": "Não foi possível criar. Tente de novo.",
+        "whereLines": "Nada é criado até você tocar em Criar. As tarefas vão para a aba Tarefas desta conversa e para CRM › Tarefas; os tickets, para Tickets.",
+        "whereInbox": "Nada é criado até você tocar em Criar. As tarefas vão para CRM › Tarefas, atribuídas a você; quem pode ver as suas tarefas do CRM também as vê.",
+        "crmOff": "O app CRM está desligado para você: estas não podem ser criadas como tarefas aqui."
       }
     },
     "contactSheet": {
