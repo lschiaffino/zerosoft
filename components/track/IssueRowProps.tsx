@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/utils';
 import TrackIcon from './TrackIcon';
 
 /** Propiedades compactas de una fila o tarjeta (Display properties de Linear que no tienen columna propia). */
-export const ROW_PROPS = ['milestone', 'estimate', 'links', 'status_time', 'updated'] as const;
+export const ROW_PROPS = ['milestone', 'release', 'estimate', 'links', 'status_time', 'updated'] as const;
 export type RowProp = (typeof ROW_PROPS)[number];
 
 /** "3d", "5h", "2w": cuánto tiempo, en una sola unidad (lib/track-status-time). */
@@ -43,6 +43,8 @@ export default function IssueRowProps({
   const since = parseStoredDate(issue.status_changed_at ?? issue.created_at);
   const items: Array<{ key: RowProp; icon: Parameters<typeof TrackIcon>[0]['name']; text: string; title: string; local?: boolean }> = [];
   if (show('milestone') && milestone) items.push({ key: 'milestone', icon: 'milestone', text: milestone, title: milestone });
+  const release = [issue.release_name, issue.release_version].filter(Boolean).join(' ');
+  if (show('release') && issue.release_id && release) items.push({ key: 'release', icon: 'release', text: release, title: release });
   if (show('estimate') && issue.estimate != null)
     items.push({ key: 'estimate', icon: 'estimate', text: String(issue.estimate), title: t('estimate', { count: issue.estimate }) });
   if (show('links') && links > 0) items.push({ key: 'links', icon: 'link', text: String(links), title: t('links', { count: links }) });
