@@ -139,7 +139,7 @@ for (const app of ['lines', 'inbox'] as const) {
       }
       if (width === 1280) await shots(page, `${app}-ai-tab-${width}`);
 
-      // Insertar: la respuesta va al campo (en el teléfono el panel se cierra), con Deshacer, y no sale nada.
+      // Insertar: la respuesta va al campo (si el panel tapa la conversación, se cierra), con Deshacer, y no sale nada.
       const reply = (await tab.getByTestId('details-ai-reply').first().locator('p').textContent())!.trim();
       await tab.getByTestId('details-ai-insert').first().click();
       const field = page.getByTestId('composer-input');
@@ -147,7 +147,8 @@ for (const app of ['lines', 'inbox'] as const) {
       await expect(field).toBeVisible();
       await expect(page.getByTestId('ai-compose-undo')).toBeVisible();
       if (process.env.L2_SHOTS) await page.screenshot({ path: `${process.env.L2_SHOTS}/${app}-ai-inserted-${width}.png` });
-      await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click();
+      // El clic falla si algo lo tapa (el panel, cuando se apoya sobre la conversación, se cerró al insertar).
+      await page.getByTestId('ai-compose-undo').getByRole('button', { name: 'Undo' }).click({ timeout: 10_000 });
       await expect(field).toHaveValue('');
       // Lines, con una nota interna a medio escribir: no se pisa ni pasa al campo de WhatsApp; el panel avisa.
       if (app === 'lines' && width === 1280) {
