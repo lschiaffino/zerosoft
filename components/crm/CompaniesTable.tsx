@@ -86,7 +86,7 @@ export default function CompaniesTable({ rows, sort, locale, allTags = [], bulkF
   // Ficha y vista previa caminan por estas filas (con sus filtros y su orden); un compañero que cambia una
   // de ellas (o crea una que esta persona ve) la refresca sola. La firma solo cuenta lo que ella ve.
   const navIds = useMemo(() => rows.map((r) => r.id), [rows]);
-  useListNav('companies', navIds);
+  useListNav('companies', navIds, { table: true });
   useCrmLive({ list: 'companies', ids: navIds });
   // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
   const rowIdList = navIds;

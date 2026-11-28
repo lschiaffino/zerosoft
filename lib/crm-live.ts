@@ -10,6 +10,7 @@
  * - Campos: cada fila pasa por redactRow con sus campos ocultos y sin
  *   updated_at, así un cambio en un campo oculto no cambia la firma (ni
  *   siquiera avisa que "algo cambió").
+ * - Leads: el contacto, la empresa y el deal que no ve valen todos lo mismo.
  * - Ficha: además del registro, sus actividades visibles (activityScopeSql),
  *   sus tags y las asociaciones a registros que ve.
  */
@@ -17,17 +18,21 @@ import { createHash } from 'node:crypto';
 import { getDb, type Db } from './db';
 import { activityScopeSql, canSeeRecord, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { hiddenFieldsFor, isUnrestricted, redactRow, type FieldViewer } from './crm-field-perms';
+import { maskPrivateRefs, PRIVATE_REFS } from './crm-record-scope';
 
-export const LIVE_ENTITIES = ['contacts', 'companies', 'deals'] as const;
+export const LIVE_ENTITIES = ['contacts', 'companies', 'deals', 'leads'] as const;
 export type LiveEntity = (typeof LIVE_ENTITIES)[number];
 export type LiveKind = 'contact' | 'company' | 'deal';
 
-const TABLE: Record<LiveEntity, 'crm_contacts' | 'crm_companies' | 'crm_deals'> = {
+const TABLE: Record<LiveEntity, 'crm_contacts' | 'crm_companies' | 'crm_deals' | 'crm_leads'> = {
   contacts: 'crm_contacts',
   companies: 'crm_companies',
   deals: 'crm_deals',
+  leads: 'crm_leads',
 };
-export const KIND_ENTITY: Record<LiveKind, LiveEntity> = { contact: 'contacts', company: 'companies', deal: 'deals' };
+/** Leads: el contacto, la empresa y el deal que la persona no ve quedan en null con su marca, todos iguales. */
+const LEAD_LIVE_REFS = [PRIVATE_REFS.contact([]), PRIVATE_REFS.company([]), PRIVATE_REFS.deal([])] as const;
+export const KIND_ENTITY: Record<LiveKind, Exclude<LiveEntity, 'leads'>> = { contact: 'contacts', company: 'companies', deal: 'deals' };
 
 /** Filas a la vista que se firman una por una (más que esto solo cuenta la cantidad y lo último creado). */
 export const MAX_LIVE_IDS = 500;
@@ -83,8 +88,13 @@ export async function listSignature(
     const found = (await db
       .prepare(`SELECT t.* FROM ${table} t WHERE ${where.join(' AND ')} AND t.id IN (${ids.map(() => '?').join(',')}) ORDER BY t.id`)
       .all(...args, ...ids)) as Array<Record<string, unknown> & { custom: string }>;
-    const hiddenCompanies = entity !== 'deals' ? await unseenCompanies(ws(viewer), scope, found, db) : new Set<string>();
-    rows = found.map((r) => rowPrint(maskCompany(redactRow(r, hidden), hiddenCompanies)));
+    if (entity === 'leads') {
+      const masked = await maskPrivateRefs(ws(viewer), found.map((r) => redactRow(r, hidden)), LEAD_LIVE_REFS, scope, db);
+      rows = masked.map((r) => rowPrint(r as Record<string, unknown>));
+    } else {
+      const hiddenCompanies = entity !== 'deals' ? await unseenCompanies(ws(viewer), scope, found, db) : new Set<string>();
+      rows = found.map((r) => rowPrint(maskCompany(redactRow(r, hidden), hiddenCompanies)));
+    }
   }
   return hash([Number(head.n), head.c, rows]);
 }

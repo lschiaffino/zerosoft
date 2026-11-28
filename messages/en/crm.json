@@ -5543,7 +5543,9 @@
     "label": "Records in this list",
     "previous": "Previous record",
     "next": "Next record",
-    "position": "{n} of {total}"
+    "position": "{n} of {total}",
+    "gone": "This record is no longer available. Someone deleted it or you no longer have access.",
+    "goneBack": "Back to the list"
   },
   "propertyOptions": {
     "title": "Lifecycle stage and lead status options",

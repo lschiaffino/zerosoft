@@ -4,21 +4,23 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
-import { navKey, neighbors, readListNav, saveListNav, type ListNav, type NavEntity } from './recordNavModel';
+import { navKey, neighbors, readListNav, saveListNav, viewNavQuery, type ListNav, type NavEntity } from './recordNavModel';
 import { useCrmLive } from './useCrmLive';
 
 /**
  * Tablas y board: guardan el orden de lo que hay en pantalla para que la ficha
- * camine con ‹ › (y j / k) por la misma lista, con sus filtros y su orden.
+ * camine con ‹ › (y j / k) por la misma lista, con sus filtros y su orden. Una
+ * tabla (`table`) deja que la ficha pida la vista entera, no solo la página.
  */
-export function useListNav(entity: NavEntity, ids: readonly string[]): void {
+export function useListNav(entity: NavEntity, ids: readonly string[], opts: { table?: boolean } = {}): void {
   const pathname = usePathname();
   const search = useSearchParams();
   const qs = search?.toString() ?? '';
   const joined = ids.join(',');
+  const table = !!opts.table;
   useEffect(() => {
-    saveListNav(entity, { ids: joined ? joined.split(',') : [], href: `${pathname}${qs ? `?${qs}` : ''}` });
-  }, [entity, joined, pathname, qs]);
+    saveListNav(entity, { ids: joined ? joined.split(',') : [], href: `${pathname}${qs ? `?${qs}` : ''}`, ...(table ? { table: true as const } : {}) });
+  }, [entity, joined, pathname, qs, table]);
 }
 
 function Chevron({ dir }: { dir: 'prev' | 'next' }) {
@@ -87,19 +89,43 @@ function NavButtons({
  * guardada (link directo) muestra solo el Volver de siempre.
  */
 export function RecordTopNav({ base, back }: { base: string; back: { href: string; label: string } }) {
+  const t = useTranslations('crm.recordNav');
   const router = useRouter();
+  const [gone, setGone] = useState(false);
   const search = useSearchParams();
   const match = /^\/app\/crm\/(contacts|companies|deals)\/([^/?#]+)/.exec(base);
   const entity = (match?.[1] ?? null) as NavEntity | null;
   const id = match?.[2] ?? '';
   const [nav, setNav] = useState<ListNav | null>(null);
   useEffect(() => {
-    setNav(entity ? readListNav(entity) : null);
+    const saved = entity ? readListNav(entity) : null;
+    setNav(saved);
+    setGone(false);
+    // Desde una tabla: la vista entera (hasta 2000, con su orden y filtros), no solo la página que se veía.
+    const qs = entity ? viewNavQuery(saved, entity, id) : null;
+    if (!entity || !saved || qs === null) return;
+    let cancelled = false;
+    fetch(`/api/crm/view-nav?entity=${entity}&q=${encodeURIComponent(qs)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? (r.json() as Promise<{ ids?: unknown }>) : null))
+      .then((d) => {
+        if (cancelled || !d || !Array.isArray(d.ids)) return;
+        const ids = d.ids.filter((x): x is string => typeof x === 'string');
+        // Si el registro ya no está en la vista (lo cambiaron), sigue con lo que se veía.
+        if (!ids.includes(id)) return;
+        const full: ListNav = { ids, href: saved.href, table: true, full: true };
+        saveListNav(entity, full);
+        setNav(full);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [entity, id]);
 
   // Cambios de un compañero en esta ficha: se vuelve a pedir la página (con el alcance de siempre).
   const kind = entity === 'contacts' ? 'contact' : entity === 'companies' ? 'company' : entity === 'deals' ? 'deal' : null;
-  useCrmLive(kind && id ? { record: { kind, id } } : null);
+  // Si deja de estar (otra persona la borró o ya no la ve), se avisa en vez de recargar a un 404.
+  useCrmLive(kind && id ? { record: { kind, id } } : null, undefined, { onGone: () => setGone(true) });
 
   const n = nav ? neighbors(nav.ids, id) : null;
   // La pestaña de la ficha se mantiene al pasar al siguiente.
@@ -133,6 +159,14 @@ export function RecordTopNav({ base, back }: { base: string; back: { href: strin
         {back.label}
       </Link>
       {n && n.index >= 0 && n.total > 1 && <NavButtons index={n.index} total={n.total} prevHref={prevHref} nextHref={nextHref} testId="record-nav" />}
+      {gone && (
+        <div className="rec-gone" role="alert" data-testid="record-gone">
+          <p>{t('gone')}</p>
+          <Link href={backHref} className="btn btn-secondary btn-sm" data-testid="record-gone-back">
+            {t('goneBack')}
+          </Link>
+        </div>
+      )}
     </>
   );
 }

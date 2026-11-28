@@ -204,10 +204,17 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
   }, [showRecent, loadRecent]);
 
   // En vivo: si un compañero cambia este registro (algo que esta persona ve), se vuelve a leer.
-  useCrmLive({ record: { kind: type, id } }, () => {
-    void reload();
-    if (showRecent) void loadRecent();
-  });
+  // Si deja de estar (otra persona lo borró o ya no lo ve), se avisa en vez de mostrar datos viejos.
+  const [gone, setGone] = useState(false);
+  useEffect(() => setGone(false), [type, id]);
+  useCrmLive(
+    { record: { kind: type, id } },
+    () => {
+      void reload();
+      if (showRecent) void loadRecent();
+    },
+    { onGone: () => setGone(true) },
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -718,7 +725,12 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
               <span className="preview-skel preview-skel-short" />
             </div>
           )}
-          {!loading && error && (
+          {gone && (
+            <div className="preview-error" role="alert" data-testid="preview-gone">
+              <p>{t('recordNav.gone')}</p>
+            </div>
+          )}
+          {!gone && !loading && error && (
             <div className="preview-error" role="alert">
               <p>{t('preview.loadError')}</p>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAttempt((n) => n + 1)}>
@@ -726,7 +738,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
               </button>
             </div>
           )}
-          {!loading && !error && payload && (
+          {!gone && !loading && !error && payload && (
             <>
               {renderHeader()}
               <PreviewActions

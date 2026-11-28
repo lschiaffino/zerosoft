@@ -5543,7 +5543,9 @@
     "label": "Registros desta lista",
     "previous": "Registro anterior",
     "next": "Próximo registro",
-    "position": "{n} de {total}"
+    "position": "{n} de {total}",
+    "gone": "Este registro não está mais disponível. Alguém o excluiu ou você não tem mais acesso.",
+    "goneBack": "Voltar para a lista"
   },
   "propertyOptions": {
     "title": "Opções de estágio do ciclo de vida e status do lead",

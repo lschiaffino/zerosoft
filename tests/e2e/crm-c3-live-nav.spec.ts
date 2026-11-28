@@ -78,6 +78,58 @@ test('lista y ficha en vivo, sin mostrar lo que el member no ve', async ({ brows
   }
 });
 
+test('la ficha recorre la vista entera, no solo la página en pantalla', async ({ browser }) => {
+  const { owner, member } = await teamWorkspace(browser);
+  try {
+    const tag = uid();
+    const ids: string[] = [];
+    // Una página y una fila más (la tabla muestra 25 por página).
+    for (let i = 1; i <= 26; i++) {
+      ids.push((await ok<{ id: string }>(owner.request.post('/api/crm/contacts', { data: { firstName: `Page${tag}`, lastName: `N${String(i).padStart(2, '0')}` } }))).id);
+    }
+    const page = await owner.newPage();
+    await page.goto(`/en/app/crm/contacts?q=Page${tag}&sort=name`, { waitUntil: 'networkidle' });
+    await page.getByTestId('record-name').filter({ hasText: `Page${tag} N25` }).click();
+    await page.getByTestId('record-preview').getByTestId('preview-open-record').click();
+    await expect(page).toHaveURL(new RegExp(`/app/crm/contacts/${ids[24]}`));
+    await expect(page.getByTestId('record-nav-pos')).toHaveText('25 of 26');
+    await page.getByTestId('record-nav-next').click();
+    await expect(page).toHaveURL(new RegExp(`/app/crm/contacts/${ids[25]}`));
+    await expect(page.getByTestId('record-nav-pos')).toHaveText('26 of 26');
+    await expect(page.getByTestId('record-nav-next')).toBeDisabled();
+  } finally {
+    await owner.close();
+    await member.close();
+  }
+});
+
+test('leads en vivo y aviso cuando otra persona borra la ficha abierta', async ({ browser }) => {
+  const { owner, member, memberId } = await teamWorkspace(browser);
+  try {
+    const tag = uid();
+    const lead = await ok<{ id: string }>(owner.request.post('/api/crm/leads', { data: { name: `Lead${tag} One`, ownerId: memberId } }));
+    const page = await member.newPage();
+    await page.goto(`/en/app/crm/leads?q=Lead${tag}`, { waitUntil: 'networkidle' });
+    const table = page.getByTestId('leads-table');
+    await expect(table.getByRole('link', { name: `Lead${tag} One` })).toBeVisible();
+    // El owner lo renombra: la tabla del member lo muestra sin recargar.
+    await ok(owner.request.patch(`/api/crm/leads/${lead.id}`, { data: { name: `Lead${tag} Renamed` } }));
+    await expect(table.getByRole('link', { name: `Lead${tag} Renamed` })).toBeVisible({ timeout: 20_000 });
+
+    // Ficha abierta de un contacto que el owner borra: aviso en lugar de un 404, con la vuelta a la lista.
+    const contact = await ok<{ id: string }>(owner.request.post('/api/crm/contacts', { data: { firstName: `Gone${tag}`, lastName: 'Soon', ownerId: memberId } }));
+    await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+    await page.waitForResponse((r) => r.url().includes('/api/crm/live') && r.ok());
+    const del = await owner.request.delete(`/api/crm/contacts/${contact.id}`);
+    expect(del.ok(), await del.text()).toBe(true);
+    await expect(page.getByTestId('record-gone')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('record-gone-back')).toBeVisible();
+  } finally {
+    await owner.close();
+    await member.close();
+  }
+});
+
 test('anterior y siguiente en la vista previa y la ficha, con los filtros de la lista', async ({ browser }) => {
   const { owner, member } = await teamWorkspace(browser);
   try {
