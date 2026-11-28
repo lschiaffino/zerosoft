@@ -284,7 +284,7 @@ function buildTools(ctx: ToolContext): ToolSet {
       inputSchema: z.object({ type: entity, id: z.string().min(1).max(64) }),
       execute: async ({ type, id }) => {
         note('get_record');
-        const rc = await buildRecordContext(ctx.workspaceId, type, id, ctx.scope);
+        const rc = await buildRecordContext(ctx.workspaceId, type, id, ctx.scope, (prop, v) => ctx.options.label(prop, v));
         if (!rc) return { error: 'not_found' };
         remember(ctx, { type, id, name: rc.title, href: HREF[type](id) });
         return { id, type, details: rc.lines.slice(0, 60).join('\n') };
@@ -462,7 +462,7 @@ function buildTools(ctx: ToolContext): ToolSet {
         `lifecycleStage (contact and company) must be one of: ${choicesForPrompt(ctx.options.choices('lifecycle'))}.`,
         `leadStatus (contact) must be one of: ${choicesForPrompt(ctx.options.choices('leadStatus'))}.`,
         `deal priority must be one of: ${PRIORITIES.join(', ')}.`,
-        'Pass the option name or the key in parentheses. Nothing changes until the user confirms.',
+        'Option lists are JSON data (name and key): pass the option key (or its exact name) as the value. Nothing changes until the user confirms.',
       ].join(' '),
       inputSchema: z.object({
         recordType: entity,

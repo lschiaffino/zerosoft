@@ -238,6 +238,8 @@ export async function buildRecordContext(
   entity: AiRecordEntity,
   id: string,
   scope: OwnerScope | undefined,
+  /** Nombre de una opción de lifecycle o lead status, si quien llama ya tiene las del workspace. */
+  optionName?: (prop: OptionProperty, value: string) => string,
 ): Promise<RecordContext | null> {
   if (scope && !(await canSeeEntity(workspaceId, entity, id, scope))) return null;
   const lines: string[] = [];
@@ -257,7 +259,7 @@ export async function buildRecordContext(
     lines.push(`Contact: ${title}`);
     // Lo lee cualquiera que ve el registro: el score sin los puntos de reglas sobre campos que alguien tiene ocultos.
     const score = await sharedContactScore(workspaceId, c);
-    const optName = await optionNamer(workspaceId);
+    const optName = optionName ?? (await optionNamer(workspaceId));
     const facts = [
       c.email && `email ${c.email}`,
       c.job_title && `job title ${c.job_title}`,
@@ -287,7 +289,7 @@ export async function buildRecordContext(
     contactIds = d.contacts.map((c) => c.id);
     filter.companyId = id;
     lines.push(`Company: ${title}`);
-    const optName = await optionNamer(workspaceId);
+    const optName = optionName ?? (await optionNamer(workspaceId));
     const facts = [
       co.domain && `domain ${co.domain}`,
       co.industry && `industry ${co.industry}`,

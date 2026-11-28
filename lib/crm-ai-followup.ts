@@ -472,13 +472,17 @@ async function emailTarget(
 function describeValue(v: unknown, o?: Pick<FieldOption, 'optionLabels'>): string {
   if (v === null || v === undefined || v === '') return '(empty)';
   const name = o?.optionLabels?.[String(v)];
-  return name && name !== v ? `${clip(name, 120)} (${String(v)})` : clip(v, 120);
+  return name && name !== v ? JSON.stringify({ name: clip(name, 120), key: String(v) }) : clip(v, 120);
 }
 
-/** Valores permitidos para el prompt: en lifecycle y lead status, "Nombre (clave)"; los nombres pueden llevar comas. */
+/**
+ * Valores permitidos para el prompt: en lifecycle y lead status, JSON con
+ * nombre y clave (los nombres los pone un admin y pueden llevar comas, barras
+ * o paréntesis).
+ */
 function allowedValues(o: Pick<FieldOption, 'options' | 'optionLabels'>): string {
   if (!o.optionLabels) return o.options.join(', ');
-  return o.options.map((v) => (o.optionLabels?.[v] && o.optionLabels[v] !== v ? `${o.optionLabels[v]} (${v})` : v)).join('; ');
+  return JSON.stringify(o.options.map((v) => ({ name: o.optionLabels?.[v] ?? v, key: v })));
 }
 
 export function followupPrompt(opts: {
@@ -511,7 +515,7 @@ export function followupPrompt(opts: {
 }
 
 const INSTRUCTIONS = `You help a sales rep update the CRM right after a call or meeting. You propose changes; the rep reviews each one before anything is saved.
-- Property changes: only when the notes state or clearly imply the new value. Use only keys from the list and values valid for their type (dates as YYYY-MM-DD, numbers without currency symbols, one of the allowed values for selects). Skip anything uncertain.
+- Property changes: only when the notes state or clearly imply the new value. Use only keys from the list and values valid for their type (dates as YYYY-MM-DD, numbers without currency symbols, one of the allowed values for selects; when the allowed values are a JSON list of name and key, answer with the key). Skip anything uncertain.
 - Stage: only when the notes show the deal moved forward, and only to one of the later stages listed.
 - Email: a short, friendly follow-up from the rep that recaps what was agreed and the next steps. Plain text. Never invent prices, dates or commitments that are not in the notes.
 - Tasks: concrete things the rep owes after the call, at most 4.

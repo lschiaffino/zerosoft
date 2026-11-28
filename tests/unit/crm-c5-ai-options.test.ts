@@ -66,6 +66,10 @@ describe('coerceFieldValue con las opciones del workspace', () => {
     expect(coerceFieldValue('company', 'lifecycleStage', 'Paying account', choices)).toBe('customer');
     expect(coerceFieldValue('contact', 'lifecycleStage', 'customer', choices)).toBe('customer');
     expect(coerceFieldValue('contact', 'leadStatus', 'nurturing', choices)).toBe(a.nurturing.value);
+    // El modelo copia la entrada entera ("Nombre (clave)") o solo "(clave)".
+    expect(coerceFieldValue('contact', 'lifecycleStage', `Trial user (${a.trial.value})`, choices)).toBe(a.trial.value);
+    expect(coerceFieldValue('contact', 'lifecycleStage', `(${a.trial.value})`, choices)).toBe(a.trial.value);
+    expect(coerceFieldValue('contact', 'lifecycleStage', 'Old (subscriber)', choices)).toBeNull();
     // Archivada: no se propone.
     expect(coerceFieldValue('contact', 'lifecycleStage', 'subscriber', choices)).toBeNull();
     expect(coerceFieldValue('contact', 'lifecycleStage', 'Subscriber', choices)).toBeNull();
@@ -100,9 +104,9 @@ describe('asistente: opciones del workspace', () => {
     });
 
     const description = toolDescription(model, 'propose_update_field');
-    expect(description).toContain(`Trial user (${a.trial.value})`);
-    expect(description).toContain(`Nurturing (${a.nurturing.value})`);
-    expect(description).toContain('Paying account (customer)');
+    expect(description).toContain(JSON.stringify({ name: 'Trial user', key: a.trial.value }));
+    expect(description).toContain(JSON.stringify({ name: 'Nurturing', key: a.nurturing.value }));
+    expect(description).toContain(JSON.stringify({ name: 'Paying account', key: 'customer' }));
     expect(description).not.toContain('Secret tier');
     expect(description).not.toContain('Subscriber');
 
@@ -194,16 +198,18 @@ describe('asistente: opciones del workspace', () => {
 });
 
 describe('propuestas tras una llamada: opciones del workspace', () => {
-  it('el prompt lista las activas con nombre; se acepta el nombre y se aplica la clave', async () => {
+  it('el prompt lista las activas con nombre y clave; una archivada se descarta; editar por nombre aplica la clave', async () => {
     const a = await workspace('c5-fu');
     const b = await makeUser('c5-fu-b');
     await addOption(b.id, 'lifecycle', 'Secret tier');
+    await updateOption(a.u.id, 'leadStatus', 'open', { archived: true });
     const call = await createActivity(a.u.id, { type: 'call', subject: 'Check-in', body: 'They started the trial.', contactId: a.contact.id });
     const model = mockModel(
       JSON.stringify({
         fields: [
-          { key: 'contact:lifecycleStage', value: 'Trial user', reason: 'Started the trial' },
-          { key: 'contact:leadStatus', value: 'subscriber', reason: 'archived is not an option here' },
+          { key: 'contact:lifecycleStage', value: 'subscriber', reason: 'archived: dropped' },
+          { key: 'contact:lifecycleStage', value: `Trial user (${a.trial.value})`, reason: 'Started the trial' },
+          { key: 'contact:leadStatus', value: 'Nurturing', reason: 'Keep in touch' },
         ],
         stage: null,
         email: null,
@@ -214,19 +220,30 @@ describe('propuestas tras una llamada: opciones del workspace', () => {
     const owner: FieldViewer = { workspaceId: a.u.id, personId: a.u.id, role: 'owner' };
     const items = await generateFollowups({ workspaceId: a.u.id, viewer: owner, activityId: call.id, scope: null, locale: 'en' });
 
+    // El prompt lleva las opciones como JSON (escapado dentro del texto del mensaje).
+    const inPrompt = (o: unknown) => JSON.stringify(JSON.stringify(o)).slice(1, -1);
     const prompt = JSON.stringify(model.doGenerateCalls[0].prompt);
-    expect(prompt).toContain(`Trial user (${a.trial.value})`);
-    expect(prompt).toContain(`Nurturing (${a.nurturing.value})`);
+    expect(prompt).toContain(inPrompt({ name: 'Trial user', key: a.trial.value }));
+    expect(prompt).toContain(inPrompt({ name: 'Nurturing', key: a.nurturing.value }));
     expect(prompt).not.toContain('Secret tier');
-    expect(prompt).not.toContain('Subscriber (subscriber)');
+    expect(prompt).not.toContain(inPrompt({ name: 'Subscriber', key: 'subscriber' }));
+    expect(prompt).not.toContain(inPrompt({ name: 'Open', key: 'open' }));
 
     const fields = items.filter((i) => i.kind === 'field');
-    expect(fields.map((i) => [i.field!.key, i.field!.value])).toEqual([['lifecycleStage', a.trial.value]]);
+    expect(fields.map((i) => [i.field!.key, i.field!.value])).toEqual([
+      ['lifecycleStage', a.trial.value],
+      ['leadStatus', a.nurturing.value],
+    ]);
     expect(fields[0].field!.options).not.toContain('subscriber');
     expect(fields[0].field!.options).toContain(a.trial.value);
 
-    await applyFieldFollowup({ workspaceId: a.u.id, viewer: owner, scope: null, id: fields[0].id, actorEmail: 'owner@example.test', locale: 'en' });
+    // Editada en la tarjeta por nombre: se guarda la clave.
+    await applyFieldFollowup({ workspaceId: a.u.id, viewer: owner, scope: null, id: fields[0].id, value: 'Paying account', actorEmail: 'owner@example.test', locale: 'en' });
     const row = (await getDb().prepare('SELECT lifecycle_stage FROM crm_contacts WHERE id = ?').get(a.contact.id)) as { lifecycle_stage: string };
-    expect(row.lifecycle_stage).toBe(a.trial.value);
+    expect(row.lifecycle_stage).toBe('customer');
+    // Una archivada, aunque venga como clave, no se aplica.
+    await expect(
+      applyFieldFollowup({ workspaceId: a.u.id, viewer: owner, scope: null, id: fields[1].id, value: 'open', actorEmail: 'owner@example.test', locale: 'en' }),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
   });
 });

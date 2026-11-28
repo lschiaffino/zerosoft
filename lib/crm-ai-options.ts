@@ -36,7 +36,7 @@ export async function aiOptionHelpers(ws: string, locale: string | null | undefi
   return optionHelpers(
     await listOptionSets(ws),
     (prop, v) => ENUMS[loc][prop]?.[v] ?? v,
-    (label) => ARCHIVED[loc].replace('{name}', label),
+    (label) => ARCHIVED[loc].replace('{name}', () => label),
   );
 }
 
@@ -47,19 +47,26 @@ export function builtinChoices(prop: OptionProperty): LabeledOption[] {
 
 /**
  * La opción activa que nombra un texto del modelo: por clave o por nombre, sin
- * mayúsculas ni espacios de más. null si no es ninguna (o es una archivada).
+ * mayúsculas ni espacios de más. También "Nombre (clave)" o "(clave)", por si
+ * el modelo copia la entrada entera de la lista. null si no es ninguna (o es
+ * una archivada).
  */
 export function matchChoice(choices: readonly LabeledOption[], raw: unknown): string | null {
   const v = String(raw ?? '').trim().toLowerCase();
   if (!v) return null;
   const active = choices.filter((c) => !c.archived);
-  return (active.find((c) => c.value.toLowerCase() === v) ?? active.find((c) => c.label.trim().toLowerCase() === v))?.value ?? null;
+  const byKey = (k: string) => active.find((c) => c.value.toLowerCase() === k);
+  const hit = byKey(v) ?? active.find((c) => c.label.trim().toLowerCase() === v);
+  if (hit) return hit.value;
+  const paren = /\(\s*([a-z0-9_]{1,40})\s*\)\s*$/.exec(v);
+  return paren ? (byKey(paren[1])?.value ?? null) : null;
 }
 
-/** "Nombre" de cada opción activa para un prompt, separados con "; " (los nombres pueden llevar comas). */
+/**
+ * Las opciones activas para un prompt, como JSON (`[{"name":…,"key":…}]`): los
+ * nombres los pone un admin y pueden llevar comas, barras o paréntesis; así no
+ * rompen la lista ni se leen como instrucciones.
+ */
 export function choicesForPrompt(choices: readonly LabeledOption[]): string {
-  return choices
-    .filter((c) => !c.archived)
-    .map((c) => (c.label && c.label !== c.value ? `${c.label} (${c.value})` : c.value))
-    .join('; ');
+  return JSON.stringify(choices.filter((c) => !c.archived).map((c) => ({ name: c.label, key: c.value })));
 }
