@@ -14,7 +14,7 @@ export interface InboxPanelTarget {
   tab?: string | null;
   /** El recordatorio de update abre el composer (`?new=1`): en el panel va como `pnew`. */
   compose?: boolean;
-  /** Ancla del aviso (#comments, #updates). */
+  /** Ancla del aviso (#comments, #updates). En el panel va como `pat` y la baja el panel (no la ventana). */
   hash?: string;
 }
 
@@ -59,12 +59,14 @@ export function inboxPanelHref(target: InboxPanelTarget, params: URLSearchParams
   const sp = new URLSearchParams(params);
   if (target.tab) sp.set('ptab', target.tab);
   if (target.compose) sp.set('pnew', '1');
+  // Sin #: el salto del navegador movería también la página detrás de la lista.
+  if (target.hash && target.kind !== 'issue') sp.set('pat', target.hash.replace(/^#/, ''));
   const base =
     target.kind === 'issue'
       ? `/app/track/inbox/${encodeURIComponent(target.id)}`
       : `/app/track/inbox/${target.kind}/${encodeURIComponent(target.id)}`;
   const qs = sp.toString();
-  return `${base}${qs ? `?${qs}` : ''}${target.hash ?? ''}`;
+  return `${base}${qs ? `?${qs}` : ''}${target.kind === 'issue' ? (target.hash ?? '') : ''}`;
 }
 
 /** ¿Hay algo abierto en el panel? (/app/track/inbox/<issue>, /project/<id>, /initiative/<id>). */
@@ -81,6 +83,7 @@ export function inboxListHref(search: string): string {
   sp.delete('n');
   sp.delete('ptab');
   sp.delete('pnew');
+  sp.delete('pat');
   const qs = sp.toString();
   return `/app/track/inbox${qs ? `?${qs}` : ''}`;
 }

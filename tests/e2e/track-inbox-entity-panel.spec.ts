@@ -145,6 +145,9 @@ test('1280: el project y la iniciativa se abren al lado; Esc, la cruz y J/K', as
   const entity = pane(page).getByTestId('track-inbox-entity');
   await expect(entity).toHaveAttribute('data-kind', 'project');
   await expect(pane(page).getByTestId('tp-plan-name')).toHaveValue(s.plan.name);
+  // El aviso era de un comentario: el panel baja hasta los comentarios y la página detrás no se mueve.
+  await expect(pane(page).getByTestId('track-entity-comments')).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect(row(page, s.notes.initiative)).toBeVisible();
   await expect(pane(page).getByTestId('track-inbox-entity-open')).toHaveAttribute('href', new RegExp(`/app/track/projects/${s.plan.id}`));
   await shot(page, 'track-inbox-entity-project-1280');

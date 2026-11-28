@@ -35,7 +35,7 @@ describe('Track: qué abre un aviso en el panel de la bandeja', () => {
     const sp = new URLSearchParams({ tab: 'other', n: 'note1' });
     expect(inboxPanelHref({ kind: 'issue', id: 'i 1' }, sp)).toBe('/app/track/inbox/i%201?tab=other&n=note1');
     expect(inboxPanelHref({ kind: 'project', id: 'p1', tab: 'updates', hash: '#comments' }, sp)).toBe(
-      '/app/track/inbox/project/p1?tab=other&n=note1&ptab=updates#comments',
+      '/app/track/inbox/project/p1?tab=other&n=note1&ptab=updates&pat=comments',
     );
     expect(inboxPanelHref({ kind: 'initiative', id: 'n1' }, new URLSearchParams())).toBe('/app/track/inbox/initiative/n1');
     expect(inboxPanelHref({ kind: 'project', id: 'p1', tab: 'updates', compose: true }, new URLSearchParams({ n: 'x' }))).toBe(
@@ -45,7 +45,7 @@ describe('Track: qué abre un aviso en el panel de la bandeja', () => {
     expect(inboxPanelOpen('/app/track/inbox/initiative/n1')).toEqual({ kind: 'initiative', id: 'n1' });
     expect(inboxPanelOpen('/app/track/inbox/abc')).toEqual({ kind: 'issue', id: 'abc' });
     expect(inboxPanelOpen('/app/track/inbox')).toBeNull();
-    expect(inboxListHref('?tab=other&n=x&ptab=updates&pnew=1&kind=mention')).toBe('/app/track/inbox?tab=other&kind=mention');
+    expect(inboxListHref('?tab=other&n=x&ptab=updates&pnew=1&pat=comments&kind=mention')).toBe('/app/track/inbox?tab=other&kind=mention');
     expect(inboxListHref('')).toBe('/app/track/inbox');
   });
 

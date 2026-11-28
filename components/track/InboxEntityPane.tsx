@@ -31,6 +31,29 @@ export default function InboxEntityPane({ kind, id, children }: { kind: 'project
     return () => window.removeEventListener('keydown', onKey, true);
   }, [router]);
 
+  // El ancla del aviso (?pat=comments): se baja el panel hasta ahí cuando el contenido llegó.
+  useEffect(() => {
+    const anchor = new URLSearchParams(window.location.search).get('pat');
+    if (!anchor || !/^[a-z-]{1,40}$/.test(anchor)) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      const pane = document.querySelector<HTMLElement>('.track-inbox-pane');
+      const el = pane?.querySelector<HTMLElement>(`#${anchor}`);
+      if (!el || !pane) {
+        if (++tries > 30) window.clearInterval(timer);
+        return;
+      }
+      window.clearInterval(timer);
+      // En la compu el panel scrollea solo; en el teléfono, la página.
+      if (pane.scrollHeight > pane.clientHeight + 1 && getComputedStyle(pane).overflowY !== 'visible') {
+        pane.scrollTop += el.getBoundingClientRect().top - pane.getBoundingClientRect().top - 12;
+      } else {
+        el.scrollIntoView({ block: 'start' });
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [id]);
+
   const page = kind === 'project' ? `/app/track/projects/${id}` : `/app/track/initiatives/${id}`;
   return (
     <div className="track-inbox-entity" data-testid="track-inbox-entity" data-kind={kind}>
