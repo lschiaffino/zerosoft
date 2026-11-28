@@ -5556,15 +5556,17 @@
     "goneBack": "Voltar para a lista"
   },
   "propertyOptions": {
-    "title": "Opções de estágio do ciclo de vida e status do lead",
-    "desc": "Adicione, renomeie, ordene e arquive as opções dessas duas propriedades. Os registros mantêm uma opção arquivada; ela só deixa de ser oferecida. Um nome novo aparece em todos os registros.",
+    "title": "Opções de estágio do ciclo de vida, status do lead e tipo de negócio",
+    "desc": "Adicione, renomeie, ordene e arquive as opções dessas propriedades. Os registros mantêm uma opção arquivada; ela só deixa de ser oferecida. Um nome novo aparece em todos os registros.",
     "properties": {
       "lifecycle": "Estágio do ciclo de vida",
-      "leadStatus": "Status do lead"
+      "leadStatus": "Status do lead",
+      "dealType": "Tipo de negócio"
     },
     "placeholders": {
       "lifecycle": "Novo estágio, por exemplo Parceiro",
-      "leadStatus": "Novo status, por exemplo Em nutrição"
+      "leadStatus": "Novo status, por exemplo Em nutrição",
+      "dealType": "Novo tipo, por exemplo Renovação"
     },
     "add": "Adicionar opção",
     "addLabel": "Nova opção de {property}",

@@ -1,6 +1,6 @@
 /**
- * CRM: opciones editables de Lifecycle stage y Lead status (como HubSpot), la
- * parte pura que usan el servidor y el cliente.
+ * CRM: opciones editables de Lifecycle stage, Lead status y Deal type (como
+ * HubSpot), la parte pura que usan el servidor y el cliente.
  *
  * Cada opción tiene una clave (`value`) que es lo que guardan los registros y
  * no cambia nunca, y un nombre (`label`). Las de fábrica tienen `label` null
@@ -8,15 +8,16 @@
  * ofrece para elegir, pero los registros que la tienen la siguen mostrando
  * con su nombre.
  */
-import { LEAD_STATUSES, LIFECYCLE_STAGES } from './crm-constants';
+import { DEAL_TYPES, LEAD_STATUSES, LIFECYCLE_STAGES } from './crm-constants';
 
-export const OPTION_PROPERTIES = ['lifecycle', 'leadStatus'] as const;
+export const OPTION_PROPERTIES = ['lifecycle', 'leadStatus', 'dealType'] as const;
 export type OptionProperty = (typeof OPTION_PROPERTIES)[number];
 
 /** Opciones de fábrica de cada propiedad, en su orden. */
 export const BUILTIN_OPTIONS: Record<OptionProperty, readonly string[]> = {
   lifecycle: LIFECYCLE_STAGES,
   leadStatus: LEAD_STATUSES,
+  dealType: DEAL_TYPES,
 };
 
 /** Clave de una opción: la de fábrica o `opt_` + letras y números. */
@@ -39,22 +40,23 @@ export function defaultOptions(prop: OptionProperty): PropertyOption[] {
 }
 
 export function defaultOptionSets(): OptionSets {
-  return { lifecycle: defaultOptions('lifecycle'), leadStatus: defaultOptions('leadStatus') };
+  return { lifecycle: defaultOptions('lifecycle'), leadStatus: defaultOptions('leadStatus'), dealType: defaultOptions('dealType') };
 }
 
 export function isOptionProperty(v: unknown): v is OptionProperty {
-  return v === 'lifecycle' || v === 'leadStatus';
+  return v === 'lifecycle' || v === 'leadStatus' || v === 'dealType';
 }
 
 /** La propiedad de las opciones de un campo de registro (`lifecycleStage`, `lifecycle_stage`, …). */
 export function optionPropertyOf(field: string): OptionProperty | null {
   if (field === 'lifecycleStage' || field === 'lifecycle_stage' || field === 'lifecycle') return 'lifecycle';
   if (field === 'leadStatus' || field === 'lead_status') return 'leadStatus';
+  if (field === 'dealType' || field === 'deal_type') return 'dealType';
   return null;
 }
 
 /** Valor por defecto de un alta: el de siempre si sigue activo; si no, la primera opción activa. */
-export function defaultOptionValue(options: PropertyOption[], prop: OptionProperty): string {
+export function defaultOptionValue(options: PropertyOption[], prop: 'lifecycle' | 'leadStatus'): string {
   const preferred = prop === 'lifecycle' ? 'lead' : 'new';
   const active = options.filter((o) => !o.archived);
   return active.find((o) => o.value === preferred)?.value ?? active[0]?.value ?? preferred;

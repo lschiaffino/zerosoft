@@ -5556,15 +5556,17 @@
     "goneBack": "Volver a la lista"
   },
   "propertyOptions": {
-    "title": "Opciones de etapa del ciclo de vida y estado del lead",
-    "desc": "Agregá, renombrá, ordená y archivá las opciones de estas dos propiedades. Los registros conservan una opción archivada; solo deja de ofrecerse. Un nombre nuevo aparece en todos los registros.",
+    "title": "Opciones de etapa del ciclo de vida, estado del lead y tipo de deal",
+    "desc": "Agregá, renombrá, ordená y archivá las opciones de estas propiedades. Los registros conservan una opción archivada; solo deja de ofrecerse. Un nombre nuevo aparece en todos los registros.",
     "properties": {
       "lifecycle": "Etapa del ciclo de vida",
-      "leadStatus": "Estado del lead"
+      "leadStatus": "Estado del lead",
+      "dealType": "Tipo de deal"
     },
     "placeholders": {
       "lifecycle": "Etapa nueva, por ejemplo Partner",
-      "leadStatus": "Estado nuevo, por ejemplo En seguimiento"
+      "leadStatus": "Estado nuevo, por ejemplo En seguimiento",
+      "dealType": "Tipo nuevo, por ejemplo Renovación"
     },
     "add": "Agregar opción",
     "addLabel": "Opción nueva de {property}",

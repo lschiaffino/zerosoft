@@ -161,7 +161,7 @@ export async function reorderOptions(ws: string, prop: OptionProperty, values: s
   return listOptions(ws, prop, db);
 }
 
-/** Cuántos registros del workspace tienen cada valor (contactos + empresas en lifecycle). */
+/** Cuántos registros del workspace tienen cada valor (contactos + empresas en lifecycle; deals en deal type). */
 export async function optionUsage(ws: string, prop: OptionProperty, db: Db = getDb()): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   const add = (rows: Array<{ v: string; n: number }>) => {
@@ -170,27 +170,31 @@ export async function optionUsage(ws: string, prop: OptionProperty, db: Db = get
   if (prop === 'lifecycle') {
     add((await db.prepare('SELECT lifecycle_stage AS v, COUNT(*) AS n FROM crm_contacts WHERE user_id = ? GROUP BY lifecycle_stage').all(ws)) as Array<{ v: string; n: number }>);
     add((await db.prepare('SELECT lifecycle_stage AS v, COUNT(*) AS n FROM crm_companies WHERE user_id = ? GROUP BY lifecycle_stage').all(ws)) as Array<{ v: string; n: number }>);
-  } else {
+  } else if (prop === 'leadStatus') {
     add((await db.prepare('SELECT lead_status AS v, COUNT(*) AS n FROM crm_contacts WHERE user_id = ? GROUP BY lead_status').all(ws)) as Array<{ v: string; n: number }>);
+  } else {
+    add((await db.prepare("SELECT deal_type AS v, COUNT(*) AS n FROM crm_deals WHERE user_id = ? AND deal_type <> '' GROUP BY deal_type").all(ws)) as Array<{ v: string; n: number }>);
   }
   return out;
 }
 
 /**
- * Chequeo de escritura: lifecycle y lead status tienen que ser una opción
- * activa del workspace, o el valor que el registro ya tenía. CrmRefError
- * ('invalid_option') si no (las rutas lo devuelven como 400).
+ * Chequeo de escritura: lifecycle, lead status y deal type tienen que ser una
+ * opción activa del workspace, o el valor que el registro ya tenía. Un deal
+ * type '' (sin elegir) siempre vale. CrmRefError ('invalid_option') si no (las
+ * rutas lo devuelven como 400).
  */
 export async function assertOptionValues(
   ws: string,
-  data: { lifecycleStage?: string | null; leadStatus?: string | null },
-  existing: { lifecycle_stage?: string | null; lead_status?: string | null } | null = null,
+  data: { lifecycleStage?: string | null; leadStatus?: string | null; dealType?: string | null },
+  existing: { lifecycle_stage?: string | null; lead_status?: string | null; deal_type?: string | null } | null = null,
   db: Db = getDb(),
   sets?: OptionSets,
 ): Promise<void> {
   const checks: Array<[OptionProperty, string, string | null | undefined]> = [];
   if (data.lifecycleStage !== undefined && data.lifecycleStage !== null) checks.push(['lifecycle', data.lifecycleStage, existing?.lifecycle_stage]);
   if (data.leadStatus !== undefined && data.leadStatus !== null) checks.push(['leadStatus', data.leadStatus, existing?.lead_status]);
+  if (data.dealType) checks.push(['dealType', data.dealType, existing?.deal_type]);
   if (!checks.length) return;
   const all = sets ?? (await listOptionSets(ws, db));
   for (const [prop, value, current] of checks) {

@@ -5,6 +5,7 @@ import { formatCustomFieldValue } from '@/lib/crm-custom-fields';
 import type { CrmCustomFieldType } from '@/lib/schema/types';
 import { cardLabelKey, customLayoutName } from '@/lib/crm-layouts-shared';
 import PrivateRecord from './PrivateRecord';
+import { useCrmOptions } from './CrmViewer';
 
 /** Lo que una tarjeta de deal necesita para mostrar sus propiedades. */
 export interface CardDeal {
@@ -96,6 +97,7 @@ function instant(value: string | null | undefined, locale: string): string {
  */
 export default function DealCardFields({ deal, keys, customDefs, owners, locale, footExtra }: DealCardFieldsProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const custom = parseCustom(deal.custom);
   const defs = new Map(customDefs.map((d) => [d.name, d]));
   const top: React.ReactNode[] = [];
@@ -147,7 +149,8 @@ export default function DealCardFields({ deal, keys, customDefs, owners, locale,
         break;
       }
       case 'dealType':
-        if (deal.deal_type) rows.push({ key: k, label: label(k), value: t.has(`enums.dealType.${deal.deal_type}`) ? t(`enums.dealType.${deal.deal_type}`) : deal.deal_type });
+        // El nombre que le puso el workspace (las propias no tienen traducción).
+        if (deal.deal_type) rows.push({ key: k, label: label(k), value: crmOpts.label('dealType', deal.deal_type) });
         break;
       case 'source':
         if (deal.source) rows.push({ key: k, label: label(k), value: t.has(`enums.source.${deal.source}`) ? t(`enums.source.${deal.source}`) : deal.source });

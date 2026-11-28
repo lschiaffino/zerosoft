@@ -76,13 +76,28 @@ async function catchUnique<T>(p: Promise<T>): Promise<T | CrmUniqueValueError> {
  * clave, por el mapeo de HubSpot o por nombre). Una desconocida o archivada se
  * deja afuera con un aviso: la fila se importa igual.
  */
-function rowOption(sets: OptionSets, prop: OptionProperty, raw: string | undefined, rowNo: number, errors: string[]): string | undefined {
+function rowOption(sets: OptionSets, prop: Exclude<OptionProperty, 'dealType'>, raw: string | undefined, rowNo: number, errors: string[]): string | undefined {
   const v = (raw ?? '').trim();
   if (!v) return undefined;
   const field = prop === 'lifecycle' ? 'lifecycleStage' : 'leadStatus';
   const hit = matchOption(sets[prop], normalizeImportValue(field, v)) ?? matchOption(sets[prop], v);
   if (hit && isAllowedOption(sets[prop], hit)) return hit;
   errors.push(`Row ${rowNo}: ${prop === 'lifecycle' ? 'lifecycle stage' : 'lead status'} "${v.slice(0, 60)}" is not an active option, left out`);
+  return undefined;
+}
+
+/**
+ * Deal type de una fila → una opción activa del workspace: por clave o nombre
+ * (las propias y renombradas) y, si no, el mapeo de otros CRMs ("New
+ * Business", "Negocio nuevo"…). Una desconocida o archivada queda vacía con un
+ * aviso: la fila se importa igual.
+ */
+function rowDealType(sets: OptionSets, raw: string | undefined, rowNo: number, errors: string[]): string | undefined {
+  const v = (raw ?? '').trim();
+  if (!v) return undefined;
+  const hit = matchOption(sets.dealType, v) ?? importDealType(v) ?? null;
+  if (hit && isAllowedOption(sets.dealType, hit)) return hit;
+  errors.push(`Row ${rowNo}: deal type "${v.slice(0, 60)}" is not an active option, left empty`);
   return undefined;
 }
 
@@ -710,6 +725,7 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
   const defs = await listCustomFields(userId, 'deals');
   const pipelines = await listPipelinesWithStages(userId);
   const { baseCurrency } = await getCrmSettings(userId, db);
+  const optionSets = await listOptionSets(userId, db);
 
   for (const [i, raw] of rows.entries()) {
     const rowNo = i + 1;
@@ -754,8 +770,7 @@ export async function importDeals(userId: string, rows: MappedDealRow[], mode: I
         ? raw.priority.toLowerCase()
         : undefined;
       const source = raw.source ? normalizeImportValue('source', raw.source) : undefined;
-      const dealType = importDealType(raw.dealType);
-      if (raw.dealType?.trim() && !dealType) result.errors.push(`Row ${rowNo}: unknown deal type "${raw.dealType}", left empty`);
+      const dealType = rowDealType(optionSets, raw.dealType, rowNo, result.errors);
       const ownerId = resolveOwner(people, raw.ownerEmail, rowNo, result.errors);
       const customVals = coerceCustom(defs, raw.custom, rowNo, result.errors);
 

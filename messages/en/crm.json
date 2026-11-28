@@ -5556,15 +5556,17 @@
     "goneBack": "Back to the list"
   },
   "propertyOptions": {
-    "title": "Lifecycle stage and lead status options",
-    "desc": "Add, rename, reorder and archive the options of these two properties. Records keep an archived option; it just stops being offered. A new name shows on every record.",
+    "title": "Lifecycle stage, lead status and deal type options",
+    "desc": "Add, rename, reorder and archive the options of these properties. Records keep an archived option; it just stops being offered. A new name shows on every record.",
     "properties": {
       "lifecycle": "Lifecycle stage",
-      "leadStatus": "Lead status"
+      "leadStatus": "Lead status",
+      "dealType": "Deal type"
     },
     "placeholders": {
       "lifecycle": "New stage, e.g. Partner",
-      "leadStatus": "New status, e.g. Nurturing"
+      "leadStatus": "New status, e.g. Nurturing",
+      "dealType": "New type, e.g. Renewal"
     },
     "add": "Add option",
     "addLabel": "New option for {property}",

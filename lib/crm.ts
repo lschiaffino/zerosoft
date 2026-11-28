@@ -2102,6 +2102,8 @@ export async function createDeal(userId: string, data: DealInput): Promise<Creat
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
   await assertUniqueCustom(userId, 'deals', null, data.custom, {}, db);
+  // Deal type: una opción activa del workspace ('' lo deja sin elegir).
+  await assertOptionValues(userId, { dealType: data.dealType }, null, db);
   const contactIds = await ownedContactIds(userId, data.contactIds ?? [], db);
   const currency = (data.currency || (await getCrmSettings(userId, db)).baseCurrency).toUpperCase();
   const id = crypto.randomUUID();
@@ -2191,6 +2193,7 @@ export async function updateDeal(
   await assertRefs(userId, { ownerId: data.ownerId, companyId: data.companyId }, db);
   for (const companyId of data.companyIds ?? []) await assertRefs(userId, { companyId }, db);
   await assertUniqueCustom(userId, 'deals', id, data.custom, parseCustom(existing.custom), db);
+  await assertOptionValues(userId, { dealType: data.dealType }, existing, db);
   const setIds = data.contactIds ? await ownedContactIds(userId, data.contactIds, db) : undefined;
   const addIds = await ownedContactIds(userId, data.addContactIds ?? [], db);
   const patch: Record<string, unknown> = { ...data };

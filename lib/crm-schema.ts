@@ -10,7 +10,6 @@ import { MAX_REQUIRED_FIELDS } from './crm-stage-rules';
 import { CALL_CHANNELS, MAX_CALL_OUTCOMES } from './crm-calls';
 import {
   ACTIVITY_TYPES,
-  DEAL_TYPES,
   PRIORITIES,
   RECURRING_INTERVALS,
   SOURCES,
@@ -77,8 +76,8 @@ const lifecycleStage = z.string().trim().toLowerCase().regex(OPTION_VALUE_RE);
 const leadStatus = z.string().trim().toLowerCase().regex(OPTION_VALUE_RE);
 const source = z.enum(SOURCES);
 const priority = z.enum(PRIORITIES);
-/** Tipo de deal: '' lo deja sin elegir. */
-const dealType = z.union([z.enum(DEAL_TYPES), z.literal('')]);
+/** Tipo de deal: una clave de opción (las de fábrica, DEAL_TYPES, o las propias del workspace); '' lo deja sin elegir. */
+const dealType = z.union([z.string().trim().toLowerCase().regex(OPTION_VALUE_RE), z.literal('')]);
 const activityType = z.enum(ACTIVITY_TYPES);
 const custom = z.record(z.unknown());
 
