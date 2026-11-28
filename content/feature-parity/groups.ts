@@ -372,6 +372,13 @@ const parity: ProductParity = {
     }),
 
     // Organización
+    row('internal-contacts', 'organize', ['Internal contacts (your team and company numbers)', 'Contactos internos (el equipo y los números de la empresa)', 'Contatos internos (a equipe e os números da empresa)'], 'have', {
+      detail: [
+        'Admins mark teammates and company numbers as internal in Settings or from a contact info, and the numbers connected in Lines count as internal unless that rule is off; a contact can also be marked as not internal. What an internal contact writes counts as a reply from the team (the chat stops waiting and an open ticket gets its first response), does not open keyword tickets and stays out of Reports. Internal shows next to their name in group messages and in the member list, and a filter separates one to one chats with them. The same list applies in Inbox',
+        'Los admins marcan a las personas del equipo y los números de la empresa como internos en Ajustes o desde la info de un contacto, y los números conectados en Lines cuentan como internos salvo que se apague esa regla; también se puede marcar a alguien como no interno. Lo que escribe un contacto interno cuenta como respuesta del equipo (el chat deja de esperar y un ticket abierto toma su primera respuesta), no abre tickets por palabra clave y queda fuera de Reportes. Interno se ve al lado de su nombre en los mensajes de un grupo y en la lista de miembros, y un filtro separa los chats 1:1 con ellos. La misma lista vale en Inbox',
+        'Os admins marcam as pessoas da equipe e os números da empresa como internos em Ajustes ou pelos dados de um contato, e os números conectados no Lines contam como internos a menos que essa regra seja desligada; também dá para marcar alguém como não interno. O que um contato interno escreve conta como resposta da equipe (a conversa deixa de esperar e um ticket aberto recebe a primeira resposta), não abre tickets por palavra-chave e fica fora dos Relatórios. Interno aparece ao lado do nome nas mensagens de um grupo e na lista de membros, e um filtro separa as conversas 1:1 com eles. A mesma lista vale no Inbox',
+      ],
+    }),
     row('labels', 'organize', ['Colored labels on chats', 'Etiquetas con color en chats', 'Etiquetas coloridas nos chats'], 'have'),
     row('custom-properties', 'organize', ['Custom properties on chats and groups', 'Propiedades propias en chats y grupos', 'Propriedades próprias em chats e grupos'], 'have', {
       detail: [

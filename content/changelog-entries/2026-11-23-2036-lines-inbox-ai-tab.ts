@@ -17,9 +17,9 @@ export default {
     },
     {
       product: 'inbox',
-      en: 'WhatsApp chats have the same AI tab, with your saved summary of the relationship at the top (it moved there from Info).',
-      es: 'Los chats de WhatsApp tienen la misma pestaña IA, con tu resumen guardado de la relación arriba (se mudó ahí desde Info).',
-      pt: 'As conversas do WhatsApp têm a mesma aba IA, com o seu resumo salvo da relação no topo (ele saiu de Info e foi para lá).',
+      en: 'WhatsApp chats have the same AI tab, with your saved summary of the relationship at the top (it moved there from Info). Enter on a focused button in Inbox now presses that button instead of opening the chat under the cursor.',
+      es: 'Los chats de WhatsApp tienen la misma pestaña IA, con tu resumen guardado de la relación arriba (se mudó ahí desde Info). En Inbox, Enter sobre un botón con el foco aprieta ese botón en vez de abrir el chat del cursor.',
+      pt: 'As conversas do WhatsApp têm a mesma aba IA, com o seu resumo salvo da relação no topo (ele saiu de Info e foi para lá). No Inbox, Enter num botão com foco aperta esse botão em vez de abrir a conversa do cursor.',
     },
   ],
 } satisfies ChangelogEntry;

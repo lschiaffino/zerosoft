@@ -53,7 +53,7 @@ async function accessible(
   return project ? { issue, project } : null;
 }
 
-export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent' | 'invalid_milestone' | 'invalid_plan';
+export type IssueRefError = 'invalid_status' | 'invalid_cycle' | 'invalid_assignee' | 'invalid_parent' | 'invalid_milestone' | 'invalid_plan' | 'invalid_release';
 
 /**
  * Valida las referencias de un payload de issue contra su proyecto: el status
@@ -72,6 +72,7 @@ export async function validateIssueRefs(
     parentId?: string | null;
     milestoneId?: string | null;
     planId?: string | null;
+    releaseId?: string | null;
   },
   opts: { ownerId: string; issueId?: string; members?: Map<string, Set<string>> },
 ): Promise<IssueRefError | null> {
@@ -94,6 +95,11 @@ export async function validateIssueRefs(
       .prepare('SELECT id FROM track_cycles WHERE id = ? AND project_id = ?')
       .get(refs.cycleId, project.id);
     if (!ok) return 'invalid_cycle';
+  }
+  if (refs.releaseId) {
+    // Un release es del team: el issue solo entra a uno de su propio team.
+    const ok = await db.prepare('SELECT id FROM track_releases WHERE id = ? AND project_id = ?').get(refs.releaseId, project.id);
+    if (!ok) return 'invalid_release';
   }
   if (refs.milestoneId) {
     const ok = await db
@@ -179,6 +185,7 @@ export async function bulkEditIssues(payload: BulkIssuesPayload, scope: Scope): 
     if (p.cycleId !== undefined) patch.cycleId = p.cycleId;
     if (p.assigneeId !== undefined) patch.assigneeId = p.assigneeId;
     if (p.priority !== undefined) patch.priority = p.priority;
+    if (p.releaseId !== undefined) patch.releaseId = p.releaseId;
     if (p.addLabelIds?.length || p.removeLabelIds?.length) {
       const ws = projectWorkspaceId(project);
       const add = ws ? await labelsByIds(ws, p.addLabelIds ?? []) : [];

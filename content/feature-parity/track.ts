@@ -626,7 +626,8 @@ const parity: ProductParity = {
       id: 'releases',
       area: 'planning',
       label: { en: 'Releases: pipelines, versions and generated notes', es: 'Releases: pipelines, versiones y notas generadas', pt: 'Releases: pipelines, versões e notas geradas' },
-      status: 'missing',
+      detail: { en: 'Per-team releases with name, version, target date and status; issues added from the release, the issue, ⌘K and bulk selection, or automatically when a linked GitHub pull request merges; progress, issues by status, notes generated from titles (editable); Release as property, filter and grouping. No release pipelines or deploy hooks from CI', es: 'Releases por team con nombre, versión, fecha objetivo y estado; issues desde el release, el issue, ⌘K y la selección, o solos al mergear un pull request vinculado de GitHub; avance, issues por estado, notas generadas con los títulos (editables); Release como propiedad, filtro y agrupado. Sin pipelines de release ni avisos de deploy desde el CI', pt: 'Releases por team com nome, versão, data prevista e status; issues pelo release, pelo issue, ⌘K e pela seleção, ou sozinhos ao mergear um pull request vinculado do GitHub; andamento, issues por status, notas geradas com os títulos (editáveis); Release como propriedade, filtro e agrupamento. Sem pipelines de release nem avisos de deploy do CI' },
+      status: 'partial',
       competitorHas: true,
     },
     {

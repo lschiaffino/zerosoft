@@ -1046,6 +1046,9 @@ export default function InboxApp(props: {
           break;
         case 'Enter':
         case 'o':
+          // Enter sobre un botón, un link o una pestaña (el panel del chat, un rango, un menú) es de ese control: no
+          // abre el chat del cursor ni le saca el clic.
+          if (k === 'Enter' && document.activeElement?.closest('button, a[href], [role="button"], [role="tab"], summary, select')) break;
           if (current) {
             handled();
             setOpenId(current.id);
@@ -1444,7 +1447,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'internal', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>
