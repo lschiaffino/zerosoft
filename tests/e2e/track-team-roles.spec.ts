@@ -42,10 +42,13 @@ async function cleanup(email: string) {
 }
 
 async function openSettings(page: Page, teamId: string, tab = 'general') {
-  await page.goto(`/en/app/track/team/${teamId}`);
-  await page.getByTestId('track-project-settings').click();
+  await page.goto(`/en/app/track/team/${teamId}`, { waitUntil: 'networkidle' });
   const drawer = page.getByTestId('track-project-drawer');
-  await expect(drawer).toBeVisible();
+  // Un clic antes de que la página hidrate se pierde: se repite hasta que el drawer abre.
+  await expect(async () => {
+    if (!(await drawer.isVisible())) await page.getByTestId('track-project-settings').click();
+    await expect(drawer).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
   await drawer.getByTestId(`track-settings-tab-${tab}`).click();
   return drawer;
 }
@@ -81,7 +84,11 @@ test('Track: un rol por prueba, miembro, dueño del equipo y admin del workspace
     await expect(devDrawer.getByTestId('track-team-key-edit')).toBeDisabled();
     await expect(devDrawer.getByTestId('track-team-general-locked')).toBeVisible();
     await devDrawer.getByTestId('track-settings-tab-statuses').click();
-    await expect(devDrawer.getByTestId('track-statuses-fieldset')).toBeDisabled();
+    // Playwright no cuenta un <fieldset> como deshabilitado: se mira lo que la persona toca adentro.
+    const devStatuses = devDrawer.getByTestId('track-statuses-fieldset');
+    await expect(devStatuses).toHaveAttribute('disabled', '');
+    await expect(devStatuses.getByRole('textbox').first()).toBeDisabled();
+    await expect(devStatuses.getByRole('combobox').first()).toBeDisabled();
     await devDrawer.getByTestId('track-settings-tab-labels').click();
     await expect(devDrawer.getByTestId('track-labels-locked')).toBeVisible();
     await devDrawer.getByTestId('track-settings-tab-templates').click();
@@ -108,7 +115,9 @@ test('Track: un rol por prueba, miembro, dueño del equipo y admin del workspace
     await name.press('Enter');
     expect((await saved).status()).toBe(200);
     await leaDrawer.getByTestId('track-settings-tab-statuses').click();
-    await expect(leaDrawer.getByTestId('track-statuses-fieldset')).toBeEnabled();
+    const leaStatuses = leaDrawer.getByTestId('track-statuses-fieldset');
+    await expect(leaStatuses).not.toHaveAttribute('disabled', '');
+    await expect(leaStatuses.getByRole('textbox').first()).toBeEnabled();
     await leaDrawer.getByTestId('track-settings-tab-members').click();
     await expect(leaDrawer.getByTestId('track-team-role-select').first()).toBeVisible();
     const permSet = leaPage.waitForResponse((r) => r.url().endsWith(`/api/track/projects/${team.id}/access`) && r.request().method() === 'POST');
