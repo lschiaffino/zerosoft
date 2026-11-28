@@ -219,8 +219,10 @@ for (const app of ['lines', 'inbox'] as const) {
       await expect(second.getByTestId('details-ai-proposal-notes')).toBeVisible();
       // Analizar no creó nada.
       expect(await created(app, id, tag)).toEqual([]);
+      // Los campos de una línea del panel compacto de Lines miden 28px con el mouse y 40px con el dedo (ui.css): se
+      // miden los botones y el campo de notas.
       if (width === 390) {
-        for (const b of [first.getByTestId('details-ai-create'), first.getByTestId('details-ai-dismiss'), first.getByTestId('details-ai-proposal-title'), second.getByTestId('details-ai-proposal-notes')]) {
+        for (const b of [first.getByTestId('details-ai-create'), first.getByTestId('details-ai-dismiss'), second.getByTestId('details-ai-proposal-notes')]) {
           expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(40);
         }
       }
