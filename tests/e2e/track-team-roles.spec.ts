@@ -62,6 +62,8 @@ test('Track: un rol por prueba, miembro, dueño del equipo y admin del workspace
     // Admin del workspace: nombra dueña a Lea desde Miembros.
     await page.setViewportSize({ width: 1280, height: 800 });
     const adminDrawer = await openSettings(page, team.id, 'members');
+    // La lista llega de /api/track/projects/:id/access (con next dev, la primera vez compila).
+    await expect(adminDrawer.getByTestId('track-team-members')).toBeVisible({ timeout: 90_000 });
     const leaRow = adminDrawer.locator(`[data-testid="track-team-member"][data-user-id="${lea.id}"]`);
     await expect(leaRow).toHaveAttribute('data-team-role', 'member');
     const roleSet = page.waitForResponse((r) => r.url().endsWith(`/api/track/projects/${team.id}/access`) && r.request().method() === 'POST');

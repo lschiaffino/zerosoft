@@ -643,12 +643,21 @@ export function GithubExtras({ isAdmin, projectId: onlyProject }: { isAdmin: boo
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // En los ajustes de un team se pide solo ese team (la lista meta viene paginada).
+    const teamOnly = async (id: string): Promise<{ ok: boolean; data: { rows: MetaProject[] } }> => {
+      const [team, statuses] = await Promise.all([
+        send<{ id: string; name: string }>(`/api/track/projects/${encodeURIComponent(id)}`, 'GET'),
+        send<{ rows: MetaProject['statuses'] }>(`/api/track/projects/${encodeURIComponent(id)}/statuses`, 'GET'),
+      ]);
+      const ok = team.ok && statuses.ok;
+      return { ok, data: { rows: ok ? [{ id: team.data.id, name: team.data.name, statuses: statuses.data.rows }] : [] } };
+    };
     const [p, r, c] = await Promise.all([
-      send<{ rows: MetaProject[] }>('/api/track/projects?meta=1', 'GET').catch(() => null),
+      (onlyProject ? teamOnly(onlyProject) : send<{ rows: MetaProject[] }>('/api/track/projects?meta=1', 'GET')).catch(() => null),
       send<{ rows: RuleRow[]; appAvailable: boolean }>('/api/track/github/rules', 'GET').catch(() => null),
       send<{ config: { installationId: number | null; accountLogin: string | null } | null }>('/api/track/github', 'GET').catch(() => null),
     ]);
-    if (p?.ok) setProjects(onlyProject ? p.data.rows.filter((row) => row.id === onlyProject) : p.data.rows);
+    if (p?.ok) setProjects(p.data.rows);
     setRules(r?.ok ? r.data.rows : []);
     setAppAvailable(Boolean(r?.data.appAvailable));
     setInstall(c?.ok && c.data.config ? { id: c.data.config.installationId, login: c.data.config.accountLogin } : null);
