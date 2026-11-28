@@ -126,7 +126,7 @@ async function briefsFor(c: Candidate, now: Date): Promise<DailyBrief[]> {
   // Inbox es personal, pero la app la habilita el workspace activo (como en la sesión).
   if ((access ? access.can('inbox') : true) && (await db.prepare('SELECT 1 AS x FROM inbox_accounts WHERE owner_id = ? LIMIT 1').get(user.id))) {
     // Lo interno del workspace activo (como la tarjeta); sin acceso a él, el de su propio workspace.
-    out.push(await inboxBrief(user.id, now, await loadInternalSet(access?.ws ?? user.id)));
+    out.push(await inboxBrief(user.id, now, await loadInternalSet(access?.ws ?? user.id, { inboxOwner: user.id })));
   }
   return out.filter((b) => !briefIsEmpty(b));
 }

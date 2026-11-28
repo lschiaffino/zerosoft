@@ -16,7 +16,7 @@ export default async function InboxAnalytics({ locale, owner, workspace, search 
   const [t, tk, tz] = await Promise.all([getTranslations({ locale, namespace: 'inbox' }), getTranslations({ locale, namespace: 'analyticsKit' }), viewerTz()]);
   const period = periodChoice(search);
   // Métricas de clientes: sin lo interno del workspace activo (lib/internal-contacts.ts).
-  const [internal, version] = await Promise.all([loadInternalSet(workspace), internalVersion(workspace)]);
+  const [internal, version] = await Promise.all([loadInternalSet(workspace, { inboxOwner: owner }), internalVersion(workspace)]);
   const data = await cachedInboxAnalytics(owner, { days: period.days, from: period.from, to: period.to, tz }, { set: internal, version });
   const f = analyticsFmt({ locale, tz: data.range.tz, t: (key, values) => t(key as never, values as never), k: (key, values) => tk(key as never, values as never) });
   const base = '/app/inbox/analytics';

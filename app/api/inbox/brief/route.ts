@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const day = cleanDay(new URL(req.url).searchParams.get('day'));
     if (!day) throw new InboxError('invalid_input', 400);
     // Lo interno del workspace activo no está por responder (lib/internal-contacts.ts), como en la vista.
-    return iJson(await inboxBriefPayload(owner, day, new Date(), await loadInternalSet(ws)));
+    return iJson(await inboxBriefPayload(owner, day, new Date(), await loadInternalSet(ws, { inboxOwner: owner })));
   });
 }
 

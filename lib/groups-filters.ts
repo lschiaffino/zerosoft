@@ -364,7 +364,8 @@ function anyOf(column: string, picked: string[], out: { where: string[]; args: A
 const VIP_SQL = "(c.kind = 'dm' AND c.phone <> '' AND EXISTS (SELECT 1 FROM groups_vips v WHERE v.user_id = c.user_id AND v.phone = c.phone))";
 
 /** La persona del chat 1:1 es interna (el arg: los teléfonos internos en JSON). */
-const INTERNAL_SQL = "(c.kind = 'dm' AND c.phone <> '' AND c.phone IN (SELECT value FROM json_each(?)))";
+// El teléfono del chat o, si todavía es un lid, su id ("<lid>@lid"): internalPhonesJson trae los dos.
+const INTERNAL_SQL = "(c.kind = 'dm' AND COALESCE(NULLIF(c.phone, ''), c.provider_chat_id) IN (SELECT value FROM json_each(?)))";
 
 function triSql(v: Tri | undefined, yes: string, no: string, out: { where: string[] }): void {
   if (v === 'yes') out.where.push(yes);

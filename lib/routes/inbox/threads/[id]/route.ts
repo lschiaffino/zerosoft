@@ -13,7 +13,6 @@ import {
 } from '@/lib/inbox/core';
 import { iJson, parseBody, withOwner, withOwnerWs } from '@/lib/inbox/http';
 import { internalVersion, isInternalHandle, loadInternalSet, type InternalSet } from '@/lib/internal-contacts';
-import { markInternalThread } from '@/lib/inbox/core';
 import { threadPatchSchema } from '@/lib/inbox/schemas';
 import { threadAction } from '@/lib/inbox/send';
 import { markChatReadOnWhatsapp } from '@/lib/inbox/wa-actions';
@@ -60,7 +59,7 @@ export async function GET(req: Request, ctx: Ctx) {
     // Quién es interno es del workspace (lib/internal-contacts.ts): su versión va primero; lo interno se lee solo si
     // hay que armar el chat.
     const iv = await internalVersion(ws);
-    return versioned(req, versionTag('t', rev ?? 0, `${iv},${id},${around ?? ''}${extraRev}`), async () => buildDetail(owner, id, around, await loadInternalSet(ws)));
+    return versioned(req, versionTag('t', rev ?? 0, `${iv},${id},${around ?? ''}${extraRev}`), async () => buildDetail(owner, id, around, await loadInternalSet(ws, { inboxOwner: owner })));
   });
 }
 
@@ -77,7 +76,7 @@ async function buildDetail(owner: string, id: string, around: string | undefined
     row = await getThreadRow(owner, id);
   }
   const lines = await inboxChatLines(owner, id);
-  const one = markInternalThread(await getThread(owner, id), internal);
+  const one = await getThread(owner, id, internal);
   const thread = lines.length ? { ...one, lines, unread: mergedUnread(one.kind, lines) } : one;
   const [page, scheduled] = await Promise.all([listMessages(owner, id, { around }), listScheduled(owner, id)]);
   const account = row.channel === 'whatsapp' ? await getAccount(owner, row.account_id) : null;
@@ -144,7 +143,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         }
       }
     }
-    return iJson({ thread: markInternalThread(await getThread(owner, id), await loadInternalSet(ws)) });
+    return iJson({ thread: await getThread(owner, id, await loadInternalSet(ws, { inboxOwner: owner })) });
   });
 }
 

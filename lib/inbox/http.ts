@@ -47,7 +47,7 @@ export async function inboxOwner(): Promise<{ owner: string } | { res: NextRespo
 export async function inboxInternal(): Promise<{ ws: string | null; set: InternalSet; admin: boolean }> {
   const user = await getCurrentUser();
   if (!user || delegatedIdentity()) return { ws: null, set: EMPTY_INTERNAL_SET, admin: false };
-  return { ws: user.id, set: await loadInternalSet(user.id), admin: roleAtLeast(user.role, 'admin') };
+  return { ws: user.id, set: await loadInternalSet(user.id, { inboxOwner: realUserId(user) }), admin: roleAtLeast(user.role, 'admin') };
 }
 
 /**

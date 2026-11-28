@@ -25,7 +25,8 @@ import { z } from 'zod';
 import { getDb } from '../db';
 import { delegatedIdentity } from '../mcp/identity';
 import { wrapUntrusted } from '../mcp/untrusted';
-import { applyThreadAction, createScheduled, futureIso, getThreadRow, listMessages as listInboxMessages, saveDraft, saveNotes, type ThreadAction } from '../inbox/core';
+import { applyThreadAction, createScheduled, futureIso, getThreadRow, internalThreadSql, listMessages as listInboxMessages, saveDraft, saveNotes, type ThreadAction } from '../inbox/core';
+import { loadInternalSet } from '../internal-contacts';
 import { canSeeChat, chatAccessSql, groupsViewer, maskChat, maskMessage, type GroupsViewer } from '../groups-access';
 import { LIMITS } from '../inbox/types';
 import { getChat, listChats, listMessages as listLineMessages } from '../groups';
@@ -115,16 +116,27 @@ async function resolveInboxChats(owner: string, refs: string[]): Promise<{ ids: 
   return { ids: [...new Set(ids)], missing };
 }
 
-/** Los chats que necesitan algo: esperando respuesta (los más viejos primero), seguimientos vencidos, pospuestos que volvieron y no leídos. */
-async function inboxAttention(owner: string, limit: number) {
+/**
+ * Los chats que necesitan algo: esperando respuesta (los más viejos primero), seguimientos vencidos, pospuestos que
+ * volvieron y no leídos. Lo de alguien interno del workspace activo (lib/internal-contacts.ts) no espera respuesta,
+ * como en la vista Por responder.
+ */
+async function inboxAttention(owner: string, limit: number, workspace: string) {
   const db = getDb();
   const nowD = new Date();
   const now = nowD.getTime();
   const nowS = nowD.toISOString();
   const live = 'done_at IS NULL AND archived_at IS NULL AND (snoozed_until IS NULL OR snoozed_until <= ?)';
+  const internal = await loadInternalSet(workspace, { inboxOwner: owner });
+  const skip = internal.handles.size || internal.domains.length || internal.lids.size ? internalThreadSql(internal) : null;
+  const notInternal = skip ? `AND NOT ${skip.sql}` : '';
+  const skipArgs = skip?.args ?? [];
   const waiting = (await db
-    .prepare(`SELECT ${INBOX_COLS} FROM inbox_threads WHERE owner_id = ? AND ${live} AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL ORDER BY last_message_at ASC LIMIT ?`)
-    .all(owner, nowS, limit)) as InboxRow[];
+    .prepare(
+      `SELECT ${INBOX_COLS} FROM inbox_threads t WHERE owner_id = ? AND ${live} AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL ${notInternal}
+       ORDER BY last_message_at ASC LIMIT ?`,
+    )
+    .all(owner, nowS, ...skipArgs, limit)) as InboxRow[];
   const followUps = (await db
     .prepare(`SELECT ${INBOX_COLS} FROM inbox_threads WHERE owner_id = ? AND done_at IS NULL AND follow_up_at IS NOT NULL AND follow_up_at <= ? ORDER BY follow_up_at ASC LIMIT ?`)
     .all(owner, nowS, limit)) as InboxRow[];
@@ -138,11 +150,11 @@ async function inboxAttention(owner: string, limit: number) {
     .all(owner, nowS, nowS, limit)) as InboxRow[];
   const counts = (await db
     .prepare(
-      `SELECT (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND ${live} AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL) AS waiting,
+      `SELECT (SELECT COUNT(*) FROM inbox_threads t WHERE owner_id = ? AND ${live} AND last_from_me = 0 AND kind <> 'group' AND last_message_at IS NOT NULL ${notInternal}) AS waiting,
               (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND ${live} AND unread > 0) AS unread,
               (SELECT COUNT(*) FROM inbox_threads WHERE owner_id = ? AND snoozed_until > ?) AS snoozed`,
     )
-    .get(owner, nowS, owner, nowS, owner, nowS)) as { waiting: number; unread: number; snoozed: number } | undefined;
+    .get(owner, nowS, ...skipArgs, owner, nowS, owner, nowS)) as { waiting: number; unread: number; snoozed: number } | undefined;
   return {
     totals: { waitingForReply: Number(counts?.waiting ?? 0), unread: Number(counts?.unread ?? 0), snoozed: Number(counts?.snoozed ?? 0) },
     waitingForReply: waiting.map((r) => inboxChat(r, now)),
@@ -295,7 +307,7 @@ export const chatTools: AssistantTool[] = [
     input: z.object({ limit: z.number().int().min(1).max(30).optional() }),
     run: async (ctx, { limit }) => {
       if (delegatedIdentity()) return { error: 'not_available_here' };
-      return inboxAttention(ctx.personId, limit ?? 12);
+      return inboxAttention(ctx.personId, limit ?? 12, ctx.workspaceId);
     },
   }),
   readTool({
@@ -312,7 +324,7 @@ export const chatTools: AssistantTool[] = [
       let ids: string[];
       let missing: string[] = [];
       if (input.chats?.length) ({ ids, missing } = await resolveInboxChats(owner, input.chats));
-      else ids = (await inboxAttention(owner, 10)).waitingForReply.map((c) => c.id);
+      else ids = (await inboxAttention(owner, 10, ctx.workspaceId)).waitingForReply.map((c) => c.id);
       const per = input.messages ?? 8;
       const now = Date.now();
       const chats = [];

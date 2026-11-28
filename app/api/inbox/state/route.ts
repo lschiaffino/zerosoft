@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     // "Por responder" sin lo interno del workspace (lib/internal-contacts.ts); un cambio ahí cambia la versión.
     const iv = await internalVersion(ws);
     return versioned(req, versionTag('s', await ownerRev(owner), iv), async () => {
-      const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner, new Date(), await loadInternalSet(ws)), listSnippets(owner)]);
+      const [accounts, folders, counts, snippets] = await Promise.all([listAccounts(owner), listFolders(owner), inboxCounts(owner, new Date(), await loadInternalSet(ws, { inboxOwner: owner })), listSnippets(owner)]);
       return {
         accounts: accounts.map(accountDto),
         folders,

@@ -75,7 +75,7 @@ import { DEFAULT_SETTINGS, matchKeyword, mediaKind, normalizeSettings, propertyT
 import { lineColor, type LineColor } from './line-colors';
 import type { NumberStats } from './groups-number-stats';
 import { routeSelfChat } from './wa-self-chat';
-import { EMPTY_INTERNAL_SET, internalPhoneSql, internalPhonesJson, isInternalHandle, loadInternalSet } from './internal-contacts';
+import { EMPTY_INTERNAL_SET, internalPhoneSql, internalPhonesJson, isInternalHandle, lidOf, loadInternalSet } from './internal-contacts';
 
 export { mediaKind, propertyText };
 
@@ -847,7 +847,7 @@ export async function getChat(ws: string, id: string, locale?: string): Promise<
     if (await isVipPhone(ws, row.phone)) row.vip_hit = 1;
   }
   const dto = toChatDto(row, (await labelsFor([row.id])).get(row.id) ?? [], unnamedGroup(row) ? locale || (await viewerLocale(ws)) : undefined);
-  if (row.kind === 'dm' && row.phone && isInternalHandle(await loadInternalSet(ws), row.phone)) dto.internal = true;
+  if (row.kind === 'dm' && isInternalHandle(await loadInternalSet(ws), row.phone || row.provider_chat_id)) dto.internal = true;
   // Chat 1:1 guardado por lid: el teléfono para la ficha, si la libreta ya lo conoce (si no, ninguno: nunca el lid).
   if (row.kind === 'dm' && !dto.phone && isLidJid(row.provider_chat_id)) {
     const { phoneForLid } = await import('./wa-contacts');
@@ -1287,7 +1287,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
     : [new Map<string, string>(), new Map<string, string>()];
   const locale = rows.some(unnamedGroup) ? query.locale || (await viewerLocale(me)) : undefined;
   // Chats 1:1 con alguien interno (lib/internal-contacts.ts): una lectura para la página.
-  const internal = rows.some((r) => r.kind === 'dm' && r.phone) ? await loadInternalSet(ws) : EMPTY_INTERNAL_SET;
+  const internal = rows.some((r) => r.kind === 'dm') ? await loadInternalSet(ws) : EMPTY_INTERNAL_SET;
   // El "@" de WhatsApp: grupos con un no leído que menciona a la línea o responde a uno de sus mensajes.
   const { unreadMentionChats } = await import('./wa-unread-mentions');
   const mentioned = await unreadMentionChats(
@@ -1314,7 +1314,7 @@ export async function listChats(ws: string, me: string, query: ChatQuery = {}): 
         ...(presences.has(r.id) ? { presence: presences.get(r.id) } : {}),
         ...(match ? { match: matchExcerpt(match, q) } : {}),
         ...(r.hubspot_name ? { hubspotName: r.hubspot_name } : {}),
-        ...(r.kind === 'dm' && r.phone && isInternalHandle(internal, r.phone) ? { internal: true } : {}),
+        ...(r.kind === 'dm' && isInternalHandle(internal, r.phone || r.provider_chat_id) ? { internal: true } : {}),
         ...sameChatFields(r.kind, sameChat.get(chatKey(r)), query.viewer),
         ...(mentioned.has(r.id) ? { mentioned: true } : {}),
       });
@@ -2190,6 +2190,8 @@ async function saveInbound(
   m: Omit<InsertMessage, 'chatId' | 'replyToId'> & { replyToProviderId?: string },
   preview: string,
   withSettings: boolean,
+  /** El lid (dígitos) de quien escribe, si vino con él: su teléfono sale de la libreta de la línea para saber si es interno. */
+  senderLid = '',
 ): Promise<{ chat: ChatRow; created: boolean; row: MessageRow | null; settings: GroupsSettings | null; internal: boolean }> {
   const id = newId();
   const v = messageValues(id, m);
@@ -2197,7 +2199,9 @@ async function saveInbound(
   // Quien escribe es interno (lib/internal-contacts.ts): se decide en la misma ida, sin leer nada antes. Lo de alguien
   // interno no hace esperar al chat, no lo reabre, no lo despierta del pospuesto ni lo saca de Archivados.
   const inbound = m.direction === 'in';
-  const internalSql = inbound ? internalPhoneSql(number.user_id, phoneDigits(m.senderPhone ?? '') || chat.phone || '') : null;
+  const internalSql = inbound
+    ? internalPhoneSql(number.user_id, phoneDigits(m.senderPhone ?? '') || chat.phone || '', senderLid ? { accountId: number.id, lid: senderLid } : undefined)
+    : null;
   const stmts: BatchStatement[] = [
     chatInsert(number, chat),
     {
@@ -3150,6 +3154,8 @@ export async function ingestEvents(number: NumberRow, events: InboundEvent[], op
           },
           previewOf(ev.body.slice(0, 8000), media?.type ?? '', (media?.name ?? '').slice(0, 200), meta ?? {}),
           settings === null,
+          // Quien escribe con su lid (en un grupo, o el chat 1:1 que llegó como "@lid").
+          ev.fromMe ? '' : isGroup ? (ev.senderLid ?? '') : (lidOf(ev.chatId) ?? ev.chatLid ?? ev.senderLid ?? ''),
         );
         const fromInternal = !ev.fromMe && stored.internal;
         saved = true;

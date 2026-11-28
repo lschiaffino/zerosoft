@@ -145,7 +145,7 @@ function chatConds(ctx: Ctx, alias: string, opts: { number: boolean; kind?: 'dm'
     args.push(opts.kind);
   }
   if (hasInternal(ctx)) {
-    sql.push(`NOT (${alias}.kind = 'dm' AND ${alias}.phone <> '' AND ${alias}.phone IN (SELECT value FROM json_each(?)))`);
+    sql.push(`NOT (${alias}.kind = 'dm' AND COALESCE(NULLIF(${alias}.phone, ''), ${alias}.provider_chat_id) IN (SELECT value FROM json_each(?)))`);
     args.push(ctx.internalPhones as string);
   }
   return { sql, args };
