@@ -15,17 +15,18 @@ export const dynamic = 'force-dynamic';
  * la tarjeta sigue en Lines e Inbox.
  */
 export async function POST(req: NextRequest) {
-  const limited = await limitByIp(req, 'daily-brief-unsub', 30, 600);
-  if (limited) return limited;
   let token: unknown = req.nextUrl.searchParams.get('t');
   if (!token) {
     const parsed = z.object({ token: z.string().max(400) }).safeParse(await req.json().catch(() => null));
     token = parsed.success ? parsed.data.token : null;
   }
+  // El límite cuenta solo los intentos con un token que no sirve: los clics únicos llegan desde servidores
+  // compartidos de los correos (muchas bajas buenas desde la misma IP) y uno válido se puede repetir sin daño.
+  const invalid = async () => (await limitByIp(req, 'daily-brief-unsub', 30, 600)) ?? NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   const parsed = parseBriefUnsubscribeToken(token);
-  if (!parsed) return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
+  if (!parsed) return invalid();
   const user = await getDb().prepare('SELECT id FROM users WHERE id = ?').get(parsed.userId);
-  if (!user) return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
+  if (!user) return invalid();
   await setBriefEmail(parsed.userId, false);
   return NextResponse.json({ ok: true });
 }

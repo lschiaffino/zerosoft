@@ -51,7 +51,11 @@ export function briefUnsubscribeLinks(userId: string, locale: string, origin: st
   return { pageUrl: `${origin}/${locale}/email/unsubscribe?t=${t}`, oneClickUrl: `${origin}/api/daily-brief/unsubscribe?t=${t}` };
 }
 
-/** Los encabezados de baja de un clic (RFC 8058) para el email, o ninguno si no hay link. */
+/**
+ * Los encabezados de baja de un clic (RFC 8058) para el email, o ninguno si no hay link. En producción solo con
+ * https (los correos ignoran un clic único que no lo es); en desarrollo y en los tests, con lo que haya.
+ */
 export function briefUnsubscribeHeaders(links: { oneClickUrl: string } | null): Record<string, string> {
-  return links ? { 'List-Unsubscribe': `<${links.oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } : {};
+  if (!links || (process.env.NODE_ENV === 'production' && !links.oneClickUrl.startsWith('https://'))) return {};
+  return { 'List-Unsubscribe': `<${links.oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
 }

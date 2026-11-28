@@ -338,6 +338,14 @@ describe('resumen del día: la baja del email sin sesión', () => {
     // Un token de los emails de ciclo de vida no sirve acá.
     expect(parseBriefUnsubscribeToken(unsubscribeToken('user-a', 'all'))).toBeNull();
     expect(briefUnsubscribeHeaders(null)).toEqual({});
+    // En producción, el clic único solo con https.
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      expect(briefUnsubscribeHeaders({ oneClickUrl: 'http://x/api/daily-brief/unsubscribe?t=1' })).toEqual({});
+      expect(briefUnsubscribeHeaders({ oneClickUrl: 'https://x/api/daily-brief/unsubscribe?t=1' })['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('el POST de un clic apaga solo el email de esa persona; sin token válido, 400', async () => {
@@ -352,6 +360,8 @@ describe('resumen del día: la baja del email sin sesión', () => {
     expect((await post('', { token: `${briefUnsubscribeToken(w.member.id)}x` })).status).toBe(400);
     expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken('no-existe')!)}`)).status).toBe(400);
     expect(await briefEmailOn(w.member.id)).toBe(true);
+    // Los buenos no cuentan para el límite por IP (los clics únicos llegan desde servidores compartidos).
+    for (let i = 0; i < 35; i++) expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken(w.owner.id)!)}`)).status).toBe(200);
     // El clic único del cliente de correo (token en la URL) y la página (token en el cuerpo).
     expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken(w.member.id)!)}`)).status).toBe(200);
     expect(await briefEmailOn(w.member.id)).toBe(false);

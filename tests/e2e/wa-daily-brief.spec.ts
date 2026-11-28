@@ -212,9 +212,16 @@ test('Email del resumen: la baja sin sesión (página que confirma y clic único
   test.setTimeout(180_000);
   const me = await demo(request);
   // El servidor de los e2e firma con este secreto (playwright.config.ts); el token sale de la misma función.
-  process.env.NEXTAUTH_SECRET = 'e2e-secret';
-  const { briefUnsubscribeToken } = await import('../../lib/daily-brief-unsub');
-  const token = briefUnsubscribeToken(me)!;
+  const before = process.env.NEXTAUTH_SECRET;
+  let token = '';
+  try {
+    process.env.NEXTAUTH_SECRET = 'e2e-secret';
+    const { briefUnsubscribeToken } = await import('../../lib/daily-brief-unsub');
+    token = briefUnsubscribeToken(me)!;
+  } finally {
+    if (before === undefined) delete process.env.NEXTAUTH_SECRET;
+    else process.env.NEXTAUTH_SECRET = before;
+  }
   const emailOn = async () => Number((await sql('SELECT email FROM daily_brief_prefs WHERE user_id = ?', [me]))[0]?.email ?? 0);
   await sql("INSERT INTO daily_brief_prefs (user_id, email, time_zone, updated_at) VALUES (?, 1, '', '2026-11-28') ON CONFLICT(user_id) DO UPDATE SET email = 1", [me]);
 
