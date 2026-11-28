@@ -1509,7 +1509,8 @@
         "tips": "feature tips",
         "team": "team reminders",
         "reengagement": "reminders",
-        "digest": "the weekly summary"
+        "digest": "the weekly summary",
+        "dailyBrief": "the daily brief email"
       }
     }
   },
