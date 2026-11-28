@@ -96,15 +96,18 @@ import * as r93 from "@/lib/routes/track/projects/[id]/triage-settings/route";
 import * as r94 from "@/lib/routes/track/projects/[id]/views/route";
 import * as r95 from "@/lib/routes/track/recurring/[id]/route";
 import * as r96 from "@/app/api/track/refs/route";
-import * as r97 from "@/lib/routes/track/statuses/[id]/route";
-import * as r98 from "@/lib/routes/track/templates/[id]/route";
-import * as r99 from "@/lib/routes/track/templates/[id]/submit/route";
-import * as r100 from "@/lib/routes/track/triage-rules/[id]/route";
-import * as r101 from "@/app/api/track/updates/route";
-import * as r102 from "@/lib/routes/track/views/[id]/route";
-import * as r103 from "@/lib/routes/track/views/[id]/default/route";
-import * as r104 from "@/lib/routes/track/views/[id]/favorite/route";
-import * as r105 from "@/app/api/track/views/favorites/route";
+import * as r97 from "@/app/api/track/releases/route";
+import * as r98 from "@/lib/routes/track/releases/[id]/route";
+import * as r99 from "@/lib/routes/track/releases/[id]/issues/route";
+import * as r100 from "@/lib/routes/track/statuses/[id]/route";
+import * as r101 from "@/lib/routes/track/templates/[id]/route";
+import * as r102 from "@/lib/routes/track/templates/[id]/submit/route";
+import * as r103 from "@/lib/routes/track/triage-rules/[id]/route";
+import * as r104 from "@/app/api/track/updates/route";
+import * as r105 from "@/lib/routes/track/views/[id]/route";
+import * as r106 from "@/lib/routes/track/views/[id]/default/route";
+import * as r107 from "@/lib/routes/track/views/[id]/favorite/route";
+import * as r108 from "@/app/api/track/views/favorites/route";
 
 export const routes: Record<string, unknown> = {
   "/api/track/access": r0,
@@ -204,13 +207,16 @@ export const routes: Record<string, unknown> = {
   "/api/track/projects/[id]/views": r94,
   "/api/track/recurring/[id]": r95,
   "/api/track/refs": r96,
-  "/api/track/statuses/[id]": r97,
-  "/api/track/templates/[id]": r98,
-  "/api/track/templates/[id]/submit": r99,
-  "/api/track/triage-rules/[id]": r100,
-  "/api/track/updates": r101,
-  "/api/track/views/[id]": r102,
-  "/api/track/views/[id]/default": r103,
-  "/api/track/views/[id]/favorite": r104,
-  "/api/track/views/favorites": r105,
+  "/api/track/releases": r97,
+  "/api/track/releases/[id]": r98,
+  "/api/track/releases/[id]/issues": r99,
+  "/api/track/statuses/[id]": r100,
+  "/api/track/templates/[id]": r101,
+  "/api/track/templates/[id]/submit": r102,
+  "/api/track/triage-rules/[id]": r103,
+  "/api/track/updates": r104,
+  "/api/track/views/[id]": r105,
+  "/api/track/views/[id]/default": r106,
+  "/api/track/views/[id]/favorite": r107,
+  "/api/track/views/favorites": r108,
 };

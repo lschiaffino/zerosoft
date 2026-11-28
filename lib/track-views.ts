@@ -21,6 +21,7 @@ export const DISPLAY_PROPS = [
   'due',
   'assignee',
   'project',
+  'release',
   'estimate',
   'links',
   'status_time',
@@ -198,18 +199,18 @@ export function labelIdLike(labelId: string): string {
 
 // ---------- Agrupado ----------
 
-export const ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'cycle', 'label', 'project'] as const;
+export const ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'cycle', 'label', 'project', 'release'] as const;
 /** Agrupados de la pestaña Issues de un project (track_plans): por milestone del project y por team. */
 export const PLAN_ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'planMilestone', 'label', 'project'] as const;
 /** Listas de varios teams (Issues, My issues): también por project (track_plans). */
-export const WORKSPACE_ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'plan', 'project', 'cycle', 'label'] as const;
+export const WORKSPACE_ISSUE_GROUPS = ['none', 'status', 'assignee', 'priority', 'plan', 'project', 'cycle', 'label', 'release'] as const;
 export type IssueGroupBy =
   | (typeof ISSUE_GROUPS)[number]
   | (typeof PLAN_ISSUE_GROUPS)[number]
   | (typeof WORKSPACE_ISSUE_GROUPS)[number];
 
 /** Agrupados disponibles en el tablero (las columnas): sin "ninguno". */
-export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project', 'plan', 'planMilestone'] as const;
+export const BOARD_GROUPS = ['status', 'assignee', 'priority', 'cycle', 'label', 'project', 'plan', 'planMilestone', 'release'] as const;
 export type BoardGroupBy = (typeof BOARD_GROUPS)[number];
 
 export function parseIssueGroup(value: unknown, allowed: readonly IssueGroupBy[] = ISSUE_GROUPS): IssueGroupBy {
@@ -246,6 +247,9 @@ type GroupableIssue = Pick<
   plan_milestone_name?: string | null;
   plan_id?: string | null;
   plan_name?: string | null;
+  release_id?: string | null;
+  release_name?: string | null;
+  release_version?: string | null;
 };
 
 export interface GroupContext {
@@ -344,6 +348,9 @@ export function groupIssues<T extends GroupableIssue>(
         break;
       case 'plan':
         add(issue.plan_id ?? '', { name: issue.plan_name ?? '' }, issue);
+        break;
+      case 'release':
+        add(issue.release_id ?? '', { name: [issue.release_name, issue.release_version].filter(Boolean).join(' ') }, issue);
         break;
       case 'label': {
         const list = parseLabelList(issue.labels);

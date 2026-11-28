@@ -36,6 +36,7 @@ export interface AppSearchItem {
     | 'issues'
     | 'trackViews'
     | 'trackCycles'
+    | 'trackReleases'
     | 'trackMilestones'
     | 'trackLabels'
     | 'eventTypes'
@@ -156,7 +157,15 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
   // Track como Linear: también vistas guardadas, cycles, milestones (del team y del project) y labels.
   const ws = teamId ?? user.id;
   const planWhere = teamId ? 'pl.team_id = ?' : '(pl.team_id IS NULL AND pl.owner_id = ?)';
-  const [views, cycles, milestones, planMilestones, labels] = await Promise.all([
+  const [releases, views, cycles, milestones, planMilestones, labels] = await Promise.all([
+    // Releases (lib/track-releases): de los teams que la persona ve, por nombre o versión.
+    all(
+      `SELECT r.id, TRIM(r.name || ' ' || r.version) AS label, '' AS meta FROM track_releases r JOIN track_projects p ON p.id = r.project_id
+       WHERE ${projectWhere} AND (r.name LIKE ? ESCAPE '\\' OR r.version LIKE ? ESCAPE '\\') ORDER BY r.created_at DESC LIMIT ?`,
+      ...projectArgs,
+      like,
+      like,
+    ),
     all(
       `SELECT v.id, v.name AS label, v.project_id AS meta FROM track_issue_views v JOIN track_projects p ON p.id = v.project_id
        WHERE ${projectWhere} AND (v.user_id = ? OR v.shared = 1) AND v.name LIKE ? ESCAPE '\\' ORDER BY v.name LIMIT ?`,
@@ -595,6 +604,7 @@ export async function searchApps(user: AppSearchScope, q: string, limit = LIMIT,
     ...map(projects, 'teams', (id) => `/app/track/team/${id}`),
     ...views.map((r) => ({ id: r.id, group: 'trackViews' as const, label: r.label, meta: '', href: `/app/track/team/${r.meta}?savedView=${r.id}` })),
     ...cycles.map((r) => ({ id: r.id, group: 'trackCycles' as const, label: r.label, meta: '', href: `/app/track/cycles?team=${encodeURIComponent(String(r.meta))}&cycle=${r.id}` })),
+    ...releases.map((r) => ({ id: r.id, group: 'trackReleases' as const, label: r.label, meta: '', href: `/app/track/releases/${r.id}` })),
     ...milestones.map((r) => ({
       id: r.id,
       group: 'trackMilestones' as const,

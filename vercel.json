@@ -34,5 +34,18 @@
     "app/api/inbox/live/route.ts": {
       "supportsCancellation": true
     }
-  }
+  },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.zerosoft.ai"
+        }
+      ],
+      "destination": "https://zerosoft.ai/:path*",
+      "permanent": true
+    }
+  ]
 }
