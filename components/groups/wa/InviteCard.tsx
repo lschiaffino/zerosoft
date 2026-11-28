@@ -20,7 +20,7 @@ export interface InviteJoin {
 }
 
 /** Los errores que se explican; el resto es "no se pudo". */
-const KNOWN_ERRORS = new Set(['invite_invalid', 'invite_already_member', 'invite_approval_required', 'not_connected', 'groups_unsupported', 'rate_limited']);
+const KNOWN_ERRORS = new Set(['invite_invalid', 'invite_already_member', 'invite_approval_required', 'not_connected', 'groups_unsupported', 'rate_limited', 'join_no_access']);
 
 /**
  * Invitación a un grupo de WhatsApp, como la tarjeta de WhatsApp: la foto del

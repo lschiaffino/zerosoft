@@ -1108,6 +1108,7 @@
     "own_number": "That is this line’s own number.",
     "not_on_whatsapp": "That number is not on WhatsApp. Check it, including the country code.",
     "chat_no_access": "This line already has a chat with that number and you don’t have access to it. Ask an admin.",
+    "join_no_access": "The line joined the group, but you don’t have access to that chat. Ask an admin.",
     "history_rate_limited": "You already asked for this chat’s messages a moment ago. Try again in a minute.",
     "history_failed": "Your phone did not answer. Check that it is online and try again.",
     "voice_too_short": "Record at least one second to schedule it."
@@ -2398,6 +2399,7 @@
         "not_connected": "This WhatsApp number is not connected.",
         "groups_unsupported": "This number can’t join groups (WhatsApp Cloud API).",
         "rate_limited": "Too many tries. Wait a moment and try again.",
+        "join_no_access": "The line joined the group, but you don’t have access to that chat. Ask an admin.",
         "failed": "Couldn’t join the group. Try again or open it in WhatsApp."
       }
     },
