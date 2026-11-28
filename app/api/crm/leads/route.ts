@@ -19,8 +19,15 @@ export async function GET(req: NextRequest) {
   const { page, pageSize } = pageParams(sp);
   const sort = sp.get('sort');
   const status = sp.get('status');
+  const scope = await sessionScope(user);
+  // Filtrar por un contacto o una empresa que la persona no ve no lista nada (no dice qué leads tiene).
+  const contactId = sp.get('contactId');
+  const companyId = sp.get('companyId');
+  if ((contactId && !(await canSeeEntity(user.id, 'contact', contactId, scope))) || (companyId && !(await canSeeEntity(user.id, 'company', companyId, scope)))) {
+    return NextResponse.json({ rows: [], total: 0, page, pageSize });
+  }
   const { rows, total } = await listLeads(user.id, {
-    ownerScope: await sessionScope(user),
+    ownerScope: scope,
     q: sp.get('q') ?? undefined,
     stageId: sp.get('stageId') ?? undefined,
     owner: sp.get('owner') ?? undefined,

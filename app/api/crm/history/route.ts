@@ -39,12 +39,16 @@ export async function GET(req: NextRequest) {
   );
   const companyName = async (id: string, name: string | null): Promise<string> =>
     name && (await canSeeEntity(user.id, 'company', id, scope)) ? name : '';
+  // La empresa madre se guarda por id: uno de una empresa que la persona no ve, vacío.
+  const parentId = async (id: string): Promise<string> => (id && (await canSeeEntity(user.id, 'company', id, scope)) ? id : '');
   const events = await Promise.all(
     rows.map(async (r) => ({
       id: r.id,
       field: r.field,
-      oldValue: r.field === 'company_id' ? await companyName(r.old_value, r.old_company_name) : r.old_value,
-      newValue: r.field === 'company_id' ? await companyName(r.new_value, r.new_company_name) : r.new_value,
+      oldValue:
+        r.field === 'company_id' ? await companyName(r.old_value, r.old_company_name) : r.field === 'parent_company_id' ? await parentId(r.old_value) : r.old_value,
+      newValue:
+        r.field === 'company_id' ? await companyName(r.new_value, r.new_company_name) : r.field === 'parent_company_id' ? await parentId(r.new_value) : r.new_value,
       actorEmail: r.actor_email,
       createdAt: r.created_at,
     })),
