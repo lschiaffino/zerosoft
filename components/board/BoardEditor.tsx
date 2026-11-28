@@ -18,6 +18,7 @@ import BoardAccessPanel from './BoardAccessPanel';
 import BoardOverlays from './BoardOverlays';
 import BoardStickyTool from './BoardStickyTool';
 import BoardTrackTool from './BoardTrackTool';
+import BoardShortcuts from './BoardShortcuts';
 import BoardWorkshop, { TimerChip } from './BoardWorkshop';
 import BoardCanvasTools from './BoardCanvasTools';
 import { usePoll, useTrackCards, useWorkshop } from './useBoardLive';
@@ -1195,6 +1196,7 @@ export default function BoardEditor({
           <NotesIcon name="play" size={14} />
           <span className="board-bar-label">{t('present.button')}</span>
         </button>
+        <BoardShortcuts className="board-bar-extra" />
         {!readOnly && <BoardStickyTool api={canvasApi} me={me} onMessage={showToast} privateMode={workshop.privateMode} />}
         {!guest && !readOnly && (
           <BoardTrackTool

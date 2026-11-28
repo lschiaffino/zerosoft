@@ -623,5 +623,27 @@
     "emptyTitle": "Nothing happened in this period",
     "emptyBody": "When someone creates, edits or comments on a board, the numbers show up here.",
     "note": "An edit is an hour in which a person changed a board. Collaborators are the people who edited or commented. Elements is the count on the boards right now. Boards in the trash and restricted boards you were not invited to are left out."
+  },
+  "shortcuts": {
+    "button": "Keyboard shortcuts",
+    "title": "Board shortcuts",
+    "more": "Excalidraw's own tools keep their keys: press ? on the canvas for the full list.",
+    "groups": {
+      "stickies": "Stickies",
+      "canvas": "Canvas",
+      "present": "Presenting"
+    },
+    "items": {
+      "newSticky": "New sticky",
+      "nextRight": "Sticky selected or typing: new sticky to the right",
+      "nextBelow": "Sticky selected or typing: new sticky below",
+      "nextDirection": "Sticky selected: new sticky in that direction",
+      "minimap": "Show or hide the minimap",
+      "stopFollowing": "Stop following someone",
+      "nextSlide": "Next slide",
+      "prevSlide": "Previous slide",
+      "firstLast": "First or last slide",
+      "exitPresent": "Exit"
+    }
   }
 }

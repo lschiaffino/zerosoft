@@ -1080,3 +1080,18 @@ section.board-templates { padding: 0; }
 
 .board-offline-label { font-size: 0.75rem; color: var(--bad-ink); white-space: nowrap; }
 .board-local-missing { padding: 48px 24px; }
+
+.board-shortcuts-pop { max-height: min(70vh, 560px); overflow-y: auto; }
+.board-shortcuts-list { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.board-shortcuts-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 0.8125rem; }
+.board-shortcuts-row dt { color: var(--ink); }
+.board-shortcuts-row dd { margin: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; }
+.board-shortcuts-combo { display: inline-flex; gap: 2px; }
+.board-shortcuts-pop kbd {
+  font: 500 0.6875rem/1 var(--font-mono, monospace);
+  padding: 3px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-1);
+  background: var(--bg);
+  color: var(--brand-gray-1);
+}
