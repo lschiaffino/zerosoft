@@ -6,6 +6,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import type { TrackIssueTemplateRow, TrackStatusRow } from '@/lib/db';
 import type { ProjectMember } from '@/lib/track-data';
 import IssuePresetFields, { presetLabels, savedLabelList, type IssuePreset } from './IssuePresetFields';
+import FormFieldsEditor, { fromDraftFields, toDraftFields, type DraftFormField } from './FormFieldsEditor';
+import { parseFormFields } from '@/lib/track-forms';
+import { Link } from '@/i18n/navigation';
+import { pushNotice } from './trackUndo';
 
 interface TemplatesPanelProps {
   projectId: string;
@@ -26,6 +30,16 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
     setEditing(null);
     await onChanged();
   };
+
+  async function copyLink(id: string) {
+    const url = `${window.location.origin}${window.location.pathname.replace(/\/app\/track\/.*$/, '')}/app/track/forms/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      pushNotice(t('forms.linkCopied'));
+    } catch {
+      setError(t('forms.copyError'));
+    }
+  }
 
   async function remove(id: string) {
     const res = await fetch(`/api/track/templates/${id}`, { method: 'DELETE' }).catch(() => null);
@@ -87,6 +101,11 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
                 <div className="track-cycle-head">
                   <span className="track-cycle-name">{tpl.name}</span>
                   {tpl.is_default === 1 && <span className="track-cycle-dates">{t('templates.default')}</span>}
+                  {parseFormFields(tpl.fields).length > 0 && (
+                    <span className="track-cycle-dates" data-testid="track-template-is-form">
+                      {t('forms.kind', { count: parseFormFields(tpl.fields).length })}
+                    </span>
+                  )}
                   {tpl.title && <span className="track-cycle-dates">{tpl.title}</span>}
                 </div>
                 {deleting === tpl.id ? (
@@ -103,6 +122,16 @@ export default function TemplatesPanel({ projectId, templates, statuses, members
                   </div>
                 ) : (
                   <div className="track-cycle-actions">
+                    {parseFormFields(tpl.fields).length > 0 && (
+                      <>
+                        <Link className="btn btn-ghost btn-sm" href={`/app/track/forms/${tpl.id}`} data-testid="track-template-open-form">
+                          {t('forms.open')}
+                        </Link>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void copyLink(tpl.id)} data-testid="track-template-copy-form">
+                          {t('forms.copyLink')}
+                        </button>
+                      </>
+                    )}
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(tpl.id)}>
                       {t('templates.edit')}
                     </button>
@@ -147,6 +176,8 @@ function TemplateForm({
     labels: presetLabels(template?.labels),
   });
   const [isDefault, setIsDefault] = useState(template?.is_default === 1);
+  const [formFields, setFormFields] = useState<DraftFormField[]>(() => toDraftFields(parseFormFields(template?.fields)));
+  const isForm = formFields.some((f) => f.label.trim());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const prefix = template ? `tpl-${template.id}` : 'tpl-new';
@@ -168,7 +199,8 @@ function TemplateForm({
         assigneeId: preset.assigneeId || null,
         estimate: estimate.trim() ? Number(estimate) : null,
         labels: preset.labels,
-        isDefault,
+        isDefault: isDefault && !isForm,
+        fields: fromDraftFields(formFields),
       }),
     }).catch(() => null);
     setBusy(false);
@@ -256,10 +288,13 @@ function TemplateForm({
           onChange={(e) => setEstimate(e.target.value)}
         />
       </div>
-      <label className="ui-check">
-        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} data-testid="track-template-default" />
-        <span>{t('templates.defaultLabel')}</span>
-      </label>
+      <FormFieldsEditor idPrefix={prefix} value={formFields} onChange={setFormFields} />
+      {!isForm && (
+        <label className="ui-check">
+          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} data-testid="track-template-default" />
+          <span>{t('templates.defaultLabel')}</span>
+        </label>
+      )}
       {error && (
         <p className="ui-error" role="alert">
           {t('templates.error')}

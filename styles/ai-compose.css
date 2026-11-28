@@ -124,12 +124,9 @@
 .aic-undo.aic-float { max-width: 100%; }
 .aic-float .aic-undo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .aic-float .aic-link { flex: none; }
-/* Nunca sobre la conversación ni sobre lo que va arriba del campo (la respuesta citada, la vista previa de un link,
-   "Responder desde"): mientras se ve el chip (components/ai/AiComposeBar.tsx aiChipShown), la fila del campo se hace
-   lugar arriba y el chip queda ahí. En Lines, con la fila de las solapas justo arriba del campo, el chip entra en ella
-   y no hace falta. La lista de mensajes se achica y sigue abajo de todo (components/ui/useScrollAnchor.ts). */
-.wa-composer.has-aic-chip > .wa-bar { padding-top: 32px; }
-.wa-composer.has-aic-chip > .wa-mode + .wa-bar { padding-top: 0; }
+/* El chip flota: el composer no cambia de alto cuando aparece o se va. Si roza el último mensaje, no pasa nada: lleva
+   el fondo y el borde del campo para que se lea pegado a él, no como texto suelto sobre las burbujas. */
+.aic-undo.aic-float { background: var(--wa-input, var(--bg)); border-color: var(--wa-border-strong, var(--line)); }
 
 /* El botón que abre la barra, con texto (composer de correo, mensaje nuevo). */
 .aic-open-label { gap: 6px; }
@@ -144,9 +141,7 @@
   .aic-link { min-height: 40px; padding: 0 6px; }
   .aic-actions .btn { --btn-h: 40px; min-height: 40px; }
   .aic-undo { gap: 4px; }
-  /* El chip flotante crece con el dedo: lo que se toca mide 40px (y el lugar que se hace el composer, también). */
+  /* El chip flotante crece con el dedo: lo que se toca mide 40px. */
   .aic-undo.aic-float { height: auto; padding: 0 4px; }
   .aic-float .aic-link, .aic-float.aic-polish .aic-link { min-height: 40px; height: auto; }
-  .wa-composer.has-aic-chip > .wa-bar { padding-top: 50px; }
-  .wa-composer.has-aic-chip > .wa-mode + .wa-bar { padding-top: 0; }
 }

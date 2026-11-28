@@ -30,12 +30,12 @@ import {
   type FormStatus,
   type FormSubmitBody,
 } from './crm-forms-schema';
-import { LIFECYCLE_STAGES } from './crm-constants';
+import { isAllowedOption, listOptionSets, optionRank, type OptionSets } from './crm-property-options';
 import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
-import { hiddenFieldSets, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { fieldAccessFor, hiddenFieldSets, isUnrestricted, type FieldViewer } from './crm-field-perms';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 
 export interface CrmForm {
@@ -440,6 +440,25 @@ export async function submissionFieldsFor<F extends Pick<FormField, 'id' | 'prop
 }
 
 /**
+ * ¿Algún campo guardaría en una propiedad propia que la persona no puede
+ * editar (oculta o de solo lectura)? Un envío escribe en el contacto o la
+ * empresa que coincida, la vea o no quien armó el form: ese destino lo pone
+ * owner o admin. `kept`: destinos que el form ya tenía (editar el resto de un
+ * form propio que ya los tenía sigue andando).
+ */
+export async function formWritesRestricted(
+  viewer: FieldViewer,
+  fields: Array<Pick<FormField, 'id' | 'property'>>,
+  kept: ReadonlySet<string> = new Set(),
+  db: Db = getDb(),
+): Promise<boolean> {
+  if (isUnrestricted(viewer) || !fields.length) return false;
+  const [contacts, companies] = await Promise.all([fieldAccessFor(viewer, 'contacts', db), fieldAccessFor(viewer, 'companies', db)]);
+  const added = fields.filter((f) => !kept.has(f.property ?? ''));
+  return formFieldIdsFor(added, { contacts: new Set(contacts.restricted.keys()), companies: new Set(companies.restricted.keys()) }).size > 0;
+}
+
+/**
  * El form como lo ve la persona: los campos que guardan en una propiedad que
  * tiene oculta salen sin destino (no la nombran). `hiddenTargets` dice si
  * había alguno: entonces no lo puede editar (perdería ese destino sin verlo).
@@ -517,8 +536,15 @@ export type SubmitResult =
     }
   | { ok: false; error: 'not_found' | 'paused' | 'invalid' | 'captcha'; fieldErrors?: Record<string, FieldError> };
 
-function lifecycleRank(stage: string): number {
-  return (LIFECYCLE_STAGES as readonly string[]).indexOf(stage);
+/**
+ * Lifecycle y lead status del formulario que siguen siendo opciones activas
+ * del workspace: una que se archivó después no rompe el envío, se ignora.
+ */
+function activeFormOptions(s: { lifecycleStage: string; leadStatus: string }, sets: OptionSets): { lifecycleStage: string; leadStatus: string } {
+  return {
+    lifecycleStage: s.lifecycleStage && isAllowedOption(sets.lifecycle, s.lifecycleStage) ? s.lifecycleStage : '',
+    leadStatus: s.leadStatus && isAllowedOption(sets.leadStatus, s.leadStatus) ? s.leadStatus : '',
+  };
 }
 
 function hashIp(ip: string): string {
@@ -558,6 +584,8 @@ export async function submitForm(
 
   const workspaceId = form.user_id;
   const mapped = mapSubmission(form.fields, values);
+  const optionSets = await listOptionSets(workspaceId, db);
+  const formOptions = activeFormOptions(s, optionSets);
   const email = (mapped.contact.email ?? '').trim().toLowerCase();
 
   const crm = await import('./crm');
@@ -643,8 +671,8 @@ export async function submitForm(
             website: mapped.contact.website,
             city: mapped.contact.city,
             country: mapped.contact.country,
-            lifecycleStage: s.lifecycleStage || undefined,
-            leadStatus: s.leadStatus || undefined,
+            lifecycleStage: formOptions.lifecycleStage || undefined,
+            leadStatus: formOptions.leadStatus || undefined,
             source: s.source || 'form',
             companyId,
             ownerId: ownerValid,
@@ -734,8 +762,10 @@ export async function submitForm(
     }
     if (companyId && !existing.company_id) patch.companyId = companyId;
     // Lifecycle solo avanza (nunca retrocede un customer a lead).
-    if (s.lifecycleStage && lifecycleRank(s.lifecycleStage) > lifecycleRank(existing.lifecycle_stage)) {
-      patch.lifecycleStage = s.lifecycleStage;
+    // El orden es el del workspace (Ajustes › Datos › Opciones).
+    const lc = formOptions.lifecycleStage;
+    if (lc && optionRank(optionSets.lifecycle, lc) > optionRank(optionSets.lifecycle, existing.lifecycle_stage)) {
+      patch.lifecycleStage = lc;
     }
     if (!existing.source && s.source) patch.source = s.source;
     contact = Object.keys(patch).length

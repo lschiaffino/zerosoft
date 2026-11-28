@@ -157,6 +157,17 @@
 .tp-update-actions { margin-left: auto; display: inline-flex; gap: 4px; }
 .tp-update-body { font-size: 0.875rem; }
 .tp-update-progress { margin: 0; }
+/* Updates (Pulse): feed de updates de projects e initiatives. */
+.tp-pulse { display: flex; flex-direction: column; gap: 12px; max-width: 760px; min-width: 0; }
+.tp-pulse-feed { margin-top: 4px; }
+.tp-pulse-item { min-width: 0; }
+.tp-pulse-parent { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.tp-pulse-parent-link { font-weight: 600; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; min-width: 0; }
+.tp-pulse-parent-link:hover { text-decoration: underline; }
+.tp-pulse-body { overflow-wrap: anywhere; }
+.tp-pulse-foot { margin: 0; }
+.tp-pulse-comments { color: inherit; }
+.tp-pulse-more { display: flex; justify-content: center; padding: 4px 0 12px; }
 /* Updates de una initiative: el composer y la lista dentro de la misma tarjeta, separados por reglas. */
 .tp-ini-composer { display: flex; flex-direction: column; gap: 10px; }
 .tp-ini-updates .tp-update-editor { padding: 8px 10px; border: 1px solid var(--ui-field); border-radius: var(--radius-1); }

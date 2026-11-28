@@ -82,7 +82,15 @@ function recordConditions(ws: string, rec: TimelineRecordRef): { own: string; ow
 export async function listRecordActivities(
   ws: string,
   rec: TimelineRecordRef,
-  opts: { ownerScope?: OwnerScope; chatReader?: ChatReader | null; offset?: number; limit?: number; includeAssociated?: boolean } = {},
+  opts: {
+    ownerScope?: OwnerScope;
+    chatReader?: ChatReader | null;
+    offset?: number;
+    limit?: number;
+    includeAssociated?: boolean;
+    /** 'created': la más nueva primero por fecha de creación (la última actividad de la fila desplegada). */
+    order?: 'timeline' | 'created';
+  } = {},
 ): Promise<{ rows: RecordActivityRow[]; hasMore: boolean }> {
   const limit = Math.min(Math.max(opts.limit ?? TIMELINE_PAGE, 1), 500);
   const offset = Math.max(opts.offset ?? 0, 0);
@@ -106,7 +114,7 @@ export async function listRecordActivities(
     .prepare(
       `${SELECT.replace('SELECT a.*,', `SELECT a.*, CASE WHEN ${cond.own} THEN 0 ELSE 1 END AS rollup, CASE WHEN ${cond.own} AND a.pinned = 1 THEN 1 ELSE 0 END AS pinned_here,`)}
        WHERE ${where.join(' AND ')}
-       ORDER BY pinned_here DESC, COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC, a.id DESC
+       ORDER BY ${opts.order === 'created' ? 'a.created_at DESC, a.rowid DESC' : 'pinned_here DESC, COALESCE(a.due_at, a.created_at) DESC, a.created_at DESC, a.id DESC'}
        LIMIT ? OFFSET ?`,
     )
     .all(...args, limit + 1, offset)) as Array<RecordActivityRow & { pinned_here: number }>;
@@ -217,6 +225,56 @@ export async function listRecordChats(
   });
 }
 
+/** Un cambio automático de una propiedad (lifecycle que avanzó solo con un deal), como "Lifecycle stage changed" de HubSpot. */
+export interface ChangeTimelineItem {
+  id: string;
+  type: 'change';
+  subject: string;
+  body: string;
+  due_at: null;
+  done: 0;
+  pinned: 0;
+  direction: string;
+  outcome: string;
+  duration_min: null;
+  created_at: string;
+  external: true;
+  rollup: 0;
+  change: { field: 'lifecycle_stage'; from: string; to: string; reason: string };
+}
+
+/**
+ * Los cambios de lifecycle hechos por el sistema (lib/crm-lifecycle-auto.ts) de un contacto o una
+ * empresa. Quien llama ya comprobó que la persona ve el registro. El motivo dice qué pasó (deal creado o
+ * ganado), sin nombrar el deal: puede ser uno que la persona no ve.
+ */
+export async function listSystemChanges(ws: string, rec: TimelineRecordRef, limit = 50): Promise<ChangeTimelineItem[]> {
+  if (rec.kind === 'deal') return [];
+  const rows = (await getDb()
+    .prepare(
+      `SELECT id, old_value, new_value, actor_email, created_at FROM crm_property_events
+       WHERE user_id = ? AND entity = ? AND entity_id = ? AND field = 'lifecycle_stage' AND actor_email LIKE 'system:%'
+       ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    )
+    .all(ws, rec.kind, rec.id, limit)) as Array<{ id: string; old_value: string; new_value: string; actor_email: string; created_at: string }>;
+  return rows.map((r) => ({
+    id: `change-${r.id}`,
+    type: 'change' as const,
+    subject: '',
+    body: '',
+    due_at: null,
+    done: 0 as const,
+    pinned: 0 as const,
+    direction: '',
+    outcome: '',
+    duration_min: null,
+    created_at: r.created_at,
+    external: true as const,
+    rollup: 0 as const,
+    change: { field: 'lifecycle_stage' as const, from: r.old_value, to: r.new_value, reason: r.actor_email.slice('system:'.length) },
+  }));
+}
+
 /**
  * Deja una sola actividad fijada en cada registro de esta actividad (contacto, empresa y deal), como en
  * HubSpot: desfija las otras de esos registros. Desfijar no muestra nada, así que no depende de la
@@ -266,7 +324,7 @@ export async function buildRecordTimeline(
   const { withCallSummaries } = await import('./crm-ai');
   const { withTaskSources } = await import('./tasks');
   const first = offset === 0;
-  const [acts, threads, chats] = await Promise.all([
+  const [acts, threads, chats, changes] = await Promise.all([
     listRecordActivities(user.id, rec, { ownerScope: opts.ownerScope, chatReader: opts.chatReader, offset }),
     // Los threads van en la primera página; en las siguientes solo se usan sus ids para no repetir como
     // tarjeta suelta un email que ya está dentro de un thread.
@@ -276,10 +334,12 @@ export async function buildRecordTimeline(
     first
       ? listRecordChats(user.id, rec, { personId: user.actingUser?.id ?? user.id, role: user.role }, opts.chatReader).catch(() => [])
       : Promise.resolve([] as WhatsappTimelineItem[]),
+    first ? listSystemChanges(user.id, rec).catch(() => []) : Promise.resolve([] as ChangeTimelineItem[]),
   ]);
   // Los emails de los contactos cuentan como propios de su empresa y su deal (HubSpot los asocia solo).
   const merged = mergeTimelineWithThreads(acts.rows, threads).map((i) => ('thread' in i && i.thread ? { ...i, rollup: 0 as const } : i));
-  const withChats = chats.length ? mergeTimelineWithThreads([...merged, ...chats], { threads: [], activityIds: [] }) : merged;
+  const extra = [...chats, ...changes];
+  const withChats = extra.length ? mergeTimelineWithThreads([...merged, ...extra], { threads: [], activityIds: [] }) : merged;
   const { withCommentCounts } = await import('./crm-activity-comments');
   const items = await withCommentCounts(
     user.id,

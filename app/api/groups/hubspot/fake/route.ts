@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fakeMode } from '@/lib/groups-integrations';
-import { editFakeCompany, fakeHubspot, mergeFakeCompanies } from '@/lib/groups-hubspot-fake';
+import { editFakeCompany, fakeHubspot, mergeFakeCompanies, resetFakeHubspot } from '@/lib/groups-hubspot-fake';
 import { groupsError, groupsSession, readJson, str } from '@/lib/groups-http';
 
 export const runtime = 'nodejs';
@@ -29,12 +29,15 @@ export async function GET(req: Request) {
  * { company, properties } edita una empresa; { create: { id, properties } }
  * agrega una; { remove: id } la borra; { merge: { from, into } } la fusiona;
  * { rateLimit: n } hace que las próximas n llamadas respondan 429.
+ * { reset: true } la vuelve a los datos de arranque (va primero): un spec que
+ * borra o edita registros no se los deja cambiados al siguiente.
  */
 export async function POST(req: Request) {
   if (!fakeMode()) return groupsError(404, 'not_found');
   const s = await groupsSession();
   if (s instanceof NextResponse) return s;
   const b = await readJson(req);
+  if (b.reset === true) resetFakeHubspot();
   const fake = fakeHubspot();
   try {
     const company = str(b.company, 30);

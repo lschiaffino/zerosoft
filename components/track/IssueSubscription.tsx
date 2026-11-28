@@ -17,6 +17,16 @@ interface IssueSubscriptionProps {
   };
 }
 
+/**
+ * Aviso entre vistas: la bandeja y el issue abierto a su lado muestran la
+ * misma suscripción (detail: { issueId, subscribed }).
+ */
+export const TRACK_SUBSCRIPTION_EVENT = 'zs:track-subscription';
+
+export function announceSubscription(issueId: string, subscribed: boolean) {
+  window.dispatchEvent(new CustomEvent(TRACK_SUBSCRIPTION_EVENT, { detail: { issueId, subscribed } }));
+}
+
 /** Suscribirse o darse de baja de los avisos del issue (bandeja de Track). */
 export default function IssueSubscription({
   issueId,
@@ -53,6 +63,15 @@ export default function IssueSubscription({
     };
   }, [issueId, refreshKey]);
 
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const d = (e as CustomEvent<{ issueId: string; subscribed: boolean }>).detail;
+      if (d?.issueId === issueId) setSubscribed(d.subscribed);
+    };
+    window.addEventListener(TRACK_SUBSCRIPTION_EVENT, onChange);
+    return () => window.removeEventListener(TRACK_SUBSCRIPTION_EVENT, onChange);
+  }, [issueId]);
+
   async function toggle() {
     const next = !subscribed;
     setBusy(true);
@@ -66,6 +85,7 @@ export default function IssueSubscription({
     if (res?.ok) {
       const data = (await res.json()) as { subscribed: boolean };
       setSubscribed(data.subscribed);
+      announceSubscription(issueId, data.subscribed);
     } else {
       setSubscribed(!next);
       setError(true);

@@ -8,6 +8,7 @@
     "settings": "Settings",
     "inbox": "Inbox",
     "customers": "Customers",
+    "forms": "Request forms",
     "workspace": "Workspace",
     "yourTeams": "Your teams",
     "more": "More",
@@ -394,7 +395,8 @@
       "move": "move",
       "read": "read or unread",
       "snooze": "snooze",
-      "delete": "delete"
+      "delete": "delete",
+      "open": "open"
     },
     "reason": {
       "assigned": "{actor} assigned this to you",
@@ -413,6 +415,18 @@
       "agent": "{agent} posted an update",
       "project": "{actor} posted a project update",
       "approval": "Waiting for your approval"
+    },
+    "unsubscribeIssue": "Unsubscribe from issue",
+    "subscribeIssue": "Subscribe to issue",
+    "unsubscribed": "Unsubscribed from {id}",
+    "resubscribed": "Subscribed to {id}",
+    "panel": {
+      "close": "Close",
+      "empty": "Select a notification to see it here",
+      "label": "Opened notification",
+      "missing": "This issue can't be opened here. It may have been deleted, or it belongs to another workspace.",
+      "retry": "Try again",
+      "openPage": "Open issue page"
     }
   },
   "notifications": {
@@ -717,7 +731,8 @@
       "sentry": "Sentry",
       "support": "support",
       "import": "import",
-      "recurring": "recurring issue"
+      "recurring": "recurring issue",
+      "form": "a request form"
     },
     "emptyBody": "Issues from the API, Chat, Flow or GitHub wait here until someone accepts them.",
     "createdInApp": "Created in app"
@@ -800,7 +815,16 @@
     "openInbox": "Open the inbox",
     "manage": "Change how Track emails you",
     "whyDigest": "Once a day, with what is still unread in your Track inbox.",
-    "whyImmediate": "You get this because something in your Track inbox stayed unread for a minute."
+    "whyImmediate": "You get this because something in your Track inbox stayed unread for a minute.",
+    "planUpdate": "{actor} posted an update on {name}",
+    "planUpdateHealth": "{actor} posted an update on {name}: {health}",
+    "planComment": "{actor} commented on an update of {name}",
+    "planReminder": "Time to post an update on {name}",
+    "health": {
+      "on_track": "on track",
+      "at_risk": "at risk",
+      "off_track": "off track"
+    }
   },
   "notifySettings": {
     "title": "Email notifications",
@@ -856,6 +880,53 @@
     "error": "Could not save the template. Try again.",
     "pick": "Template",
     "none": "No template"
+  },
+  "forms": {
+    "fieldsTitle": "Form fields",
+    "fieldsHelp": "Add fields to turn this template into a request form. Anyone who can see the team fills it in from its link or from quick create, and it creates an issue with the answers, in triage when the team uses it. The description shows at the top of the form.",
+    "fieldLabel": "Question",
+    "fieldLabelPlaceholder": "What happened?",
+    "fieldType": "Type",
+    "types": {
+      "text": "Short text",
+      "textarea": "Long text",
+      "select": "Options",
+      "checkbox": "Checkbox"
+    },
+    "fieldOptions": "Options, one per line",
+    "fieldOptionsPlaceholder": "Web\nDesktop\nMobile",
+    "fieldHelp": "Help text",
+    "fieldRequired": "Required",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "removeField": "Remove",
+    "addField": "Add field",
+    "kind": "{count, plural, one {Form, # field} other {Form, # fields}}",
+    "open": "Open form",
+    "copyLink": "Copy link",
+    "linkCopied": "Form link copied",
+    "copyError": "Could not copy the link.",
+    "indexTitle": "Request forms",
+    "indexDesc": "Forms of the teams you can see. Each one creates an issue for that team.",
+    "indexEmptyTitle": "No request forms yet",
+    "indexEmptyBody": "Add fields to an issue template in a team's settings, under Templates, and it shows up here.",
+    "pageDesc": "Creates an issue in {team}.",
+    "pageDescTriage": "Creates an issue in {team}. It waits in triage until someone accepts it.",
+    "titleLabel": "Title",
+    "choose": "Choose…",
+    "details": "More details",
+    "submit": "Send request",
+    "sendError": "Could not send the request. Try again.",
+    "errors": {
+      "required": "This is required.",
+      "invalid_option": "Pick one of the options.",
+      "too_long": "This answer is too long."
+    },
+    "sentTitle": "Request sent as {id}",
+    "sentTriage": "It is in {team}'s triage. You are subscribed and get notified when it changes.",
+    "sentList": "It is in {team}'s issues. You are subscribed and get notified when it changes.",
+    "sendAnother": "Send another",
+    "openIssue": "Open issue"
   },
   "recurring": {
     "help": "Issues that Track creates on a schedule, such as a weekly review or a monthly invoice check.",
@@ -1992,5 +2063,11 @@
       "w": "{n}w",
       "mo": "{n}mo"
     }
+  },
+  "entityComments": {
+    "title": "Comments",
+    "placeholder": "Leave a comment…",
+    "empty": "No comments yet.",
+    "loadError": "Couldn't load the comments."
   }
 }

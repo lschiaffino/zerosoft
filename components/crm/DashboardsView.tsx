@@ -8,10 +8,12 @@ import EmptyState from '@/components/ui/EmptyState';
 import MenuSelect from '@/components/ui/MenuSelect';
 import { ContextMenu, type ContextMenuAnchor, type ContextMenuItem } from '@/components/ui/ContextMenu';
 import RecordPreview from './RecordPreview';
+import CrmIcon from './CrmIcon';
 import ReportChart, { useReportFormat } from './ReportChart';
 import DashChart, { ChartTable, type ChartText } from './dash/DashChart';
 import { bucketLabel, bucketsSpanYears } from '@/lib/crm-buckets';
-import { LIFECYCLE_STAGES, SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { useCrmOptions } from './CrmViewer';
 import { toCsv, type ReportAggregateResult, type ReportViz } from '@/lib/crm-report-builder';
 import type { DashboardView } from '@/lib/crm-dashboards';
 import type { DashboardVisibility, DashboardAccess, TileData } from '@/lib/crm-dashboards-schema';
@@ -80,6 +82,12 @@ function tileKey(w: { type: string; config: string }): string | null {
   return legacyReportKey(w.type, c);
 }
 
+/** ¿El tile es un KPI? Se sabe antes de que llegue su dato: así, cargando, ya tiene el alto de un KPI (no el de un gráfico). */
+function isKpiTile(w: { type: string; config: string }): boolean {
+  const viz = cfgOf(w.config).viz ?? libraryReport(tileKey(w))?.viz;
+  return viz === 'kpi';
+}
+
 function sameFilters(a: DashboardFilters, b: DashboardFilters): boolean {
   const n = (f: DashboardFilters) =>
     JSON.stringify([f.range, f.range === 'custom' ? f.from ?? '' : '', f.range === 'custom' ? f.to ?? '' : '', f.ownerId ?? '', f.teamId ?? '', f.pipelineId ?? '']);
@@ -142,6 +150,7 @@ export default function DashboardsView({
   missingRates = [],
 }: Props) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const [boards, setBoards] = useState(dashboards);
   const boardsRef = useRef(boards);
   boardsRef.current = boards;
@@ -208,13 +217,13 @@ export default function DashboardsView({
     (kind: string | null, key: string, label: string | null, withYear = false): string => {
       if (kind === 'bucket') return bucketLabel(key, locale, withYear);
       if (kind === 'source') return (SOURCES as readonly string[]).includes(key) ? t(`enums.source.${key}`) : key;
-      if (kind === 'lifecycle') return (LIFECYCLE_STAGES as readonly string[]).includes(key) ? t(`enums.lifecycle.${key}`) : key;
+      if (kind === 'lifecycle') return crmOpts.label('lifecycle', key) || key;
       if (kind === 'forecastCategory') return ['closed_won', 'commit', 'best_case', 'pipeline'].includes(key) ? t(`dash.forecastCat.${key}`) : key;
       if (kind === 'activityType') return (ACTIVITY_TYPES as readonly string[]).includes(key) ? t(`enums.activityType.${key}`) : key;
       if (kind === 'outcome') return ['won', 'lost', 'call', 'email', 'meeting', 'task', 'value'].includes(key) ? t(`dash.series.${key}`) : key;
       return label ?? t('dash.tile.formerMember');
     },
-    [locale, t],
+    [locale, t, crmOpts],
   );
 
   const chartText = useCallback(
@@ -1157,6 +1166,7 @@ export default function DashboardsView({
                   key={w.id}
                   className={`cdb-tile cdb-tile-${kind}${dragging === w.id ? ' is-dragged' : ''}${drop}`}
                   data-size={sizeFromCols(w.w)}
+                  data-shape={(data && data.kind !== 'loading' ? data.kind === 'kpi' : isKpiTile(w)) ? 'kpi' : undefined}
                   data-tile-id={w.id}
                   data-testid="cdb-tile"
                   aria-label={title}
@@ -1430,7 +1440,12 @@ function SwitcherPanel({
               onClick={() => onPick(b.id)}
               onMouseEnter={() => setCursor(i)}
             >
-              <span className="cdb-switcher-item-name">{b.name}</span>
+              <span className="cdb-switcher-item-name">
+                <span className="cdb-switcher-check" aria-hidden="true">
+                  {b.id === activeId && <CrmIcon name="check" size={14} />}
+                </span>
+                <span className="cdb-switcher-item-label">{b.name}</span>
+              </span>
               <span className="cdb-switcher-item-meta">
                 {b.isDefault ? `${t('dash.switcher.default')} · ` : ''}
                 {visibilityLabel(b)}
@@ -1441,7 +1456,8 @@ function SwitcherPanel({
         {!list.length && <li className="cdb-muted cdb-switcher-none">{t('dash.switcher.noMatch')}</li>}
       </ul>
       <button type="button" className="cdb-switcher-create" onClick={onCreate}>
-        + {t('dash.switcher.create')}
+        <CrmIcon name="plus" size={14} />
+        {t('dash.switcher.create')}
       </button>
     </div>
   );

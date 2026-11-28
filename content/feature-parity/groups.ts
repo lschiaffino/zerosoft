@@ -24,7 +24,7 @@ function row(
 /** Groups contra Periskope. Fuente: docs/benchmark/groups.md, revisado contra el código de esta rama. */
 const parity: ProductParity = {
   competitor: 'Periskope',
-  lastReviewed: '2026-11-23',
+  lastReviewed: '2026-11-27',
   areas: [
     { id: 'numbers', label: loc(['Numbers and connection', 'Números y conexión', 'Números e conexão']) },
     { id: 'inbox', label: loc(['Shared inbox', 'Bandeja compartida', 'Caixa compartilhada']) },
@@ -130,9 +130,9 @@ const parity: ProductParity = {
     // Bandeja
     row('chats-and-groups', 'inbox', ['1:1 chats and groups in one list', 'Chats 1:1 y grupos en una lista', 'Chats 1:1 e grupos em uma lista'], 'partial', {
       detail: [
-        'A group that arrives without its subject asks WhatsApp for it right away, like Inbox, and shows "Group" until it comes; never the raw id. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Un grupo que llega sin asunto se lo pide a WhatsApp en el momento, como Inbox, y dice "Grupo" hasta que llega; nunca el id crudo. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Um grupo que chega sem assunto pede ao WhatsApp na hora, como no Inbox, e mostra "Grupo" até chegar; nunca o id cru. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'A group that arrives without its subject asks WhatsApp for it right away, like Inbox, and shows "Group" until it comes; never the raw id. Below the group name, its members like WhatsApp Web: names first, then numbers, and You last instead of the number of the line, like Inbox. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Un grupo que llega sin asunto se lo pide a WhatsApp en el momento, como Inbox, y dice "Grupo" hasta que llega; nunca el id crudo. Debajo del nombre del grupo, sus miembros como en WhatsApp Web: primero los nombres, después los números y Vos al final en lugar del número de la línea, como Inbox. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Um grupo que chega sem assunto pede ao WhatsApp na hora, como no Inbox, e mostra "Grupo" até chegar; nunca o id cru. Abaixo do nome do grupo, os membros como no WhatsApp Web: primeiro os nomes, depois os números e Você no final no lugar do número da linha, como no Inbox. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
       weight: 2,
     }),
@@ -224,9 +224,9 @@ const parity: ProductParity = {
     }),
     row('wa-mentions', 'inbox', ['@mentions in groups that notify on WhatsApp', '@menciones en grupos que avisan en WhatsApp', '@menções em grupos que avisam no WhatsApp'], 'partial', {
       detail: [
-        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Messages sent later and recurring messages to one group keep their mentions, and so do the captions of photos, videos and documents. Tested against a simulated gateway; not yet tried with real WhatsApp',
-        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Los mensajes programados y los recurrentes a un solo grupo mantienen sus menciones, y también el pie de fotos, videos y documentos. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
-        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções, e também a legenda de fotos, vídeos e documentos. Testado contra um gateway simulado; falta testar com WhatsApp real',
+        'Type @ to pick a group member, the mention shows in green in the field and goes out as a real WhatsApp mention. Clicking a received mention opens that contact info. Messages sent later and recurring messages to one group keep their mentions, and so do the captions of photos, videos and documents. In the chat list, a group with an unread message that mentions the line or replies to one of its messages shows @ next to the unread count, like WhatsApp. Tested against a simulated gateway; not yet tried with real WhatsApp',
+        'Con @ se elige a alguien del grupo, la mención se ve en verde en el campo y sale como mención real de WhatsApp. Una mención recibida abre la info del contacto. Los mensajes programados y los recurrentes a un solo grupo mantienen sus menciones, y también el pie de fotos, videos y documentos. En la lista de chats, un grupo con un no leído que menciona a la línea o responde a un mensaje suyo muestra @ junto a los no leídos, como WhatsApp. Probado contra un gateway simulado; falta probarlo con WhatsApp real',
+        'Com @ se escolhe alguém do grupo, a menção aparece em verde no campo e sai como menção real do WhatsApp. Uma menção recebida abre os dados do contato. As mensagens agendadas e as recorrentes para um só grupo mantêm as menções, e também a legenda de fotos, vídeos e documentos. Na lista de conversas, um grupo com uma mensagem não lida que menciona a linha ou responde a uma mensagem dela mostra @ ao lado das não lidas, como no WhatsApp. Testado contra um gateway simulado; falta testar com WhatsApp real',
       ],
     }),
     row('wa-mention-all', 'inbox', ['@all in groups: mention everyone', '@all en grupos: mencionar a todos', '@all em grupos: mencionar todos'], 'partial', {

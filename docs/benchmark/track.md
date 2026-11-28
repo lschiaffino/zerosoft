@@ -12,6 +12,16 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
 - Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
 
+### Tanda T3 (2026-11-23)
+
+- **Inbox vuelve a tener:** abrir un aviso muestra el issue al lado de la lista (la lista queda, J/K mueven el panel, Esc y la cruz lo cierran) y a página completa en el teléfono; dejar de seguir el issue desde la fila (ícono o menú "…") o desde el issue abierto, sincronizados. Falta: los avisos de projects e iniciativas abren su página, no el panel.
+
+Paridad calculada con la tanda T3 completa (Inbox, comentarios en línea e hilos en projects e iniciativas): **87 %**, con 75 filas contadas.
+
+### Hilos en projects e iniciativas (tanda T3, 2026-11-23)
+
+- **Hilos de comentarios en projects e iniciativas pasa a tiene:** sección Comentarios en el resumen del project y de la iniciativa, con el mismo componente que los issues (@menciones solo a quien puede verlo, respuestas, resolver, reacciones, editar y borrar lo propio). Avisa a lead, miembros y seguidores del project o al lead de la iniciativa. Los invitados de Track no lo ven.
+
 ### Comentarios en línea (tanda T3, 2026-11-23)
 
 - **Comentarios sobre el texto de la descripción pasa a tiene:** elegir texto y "Comentar" en la barra de la selección abre un composer con la cita; el texto queda resaltado (API de resaltados de CSS, sin tocar el Markdown) hasta resolver el hilo, y un clic en el resaltado lleva al hilo. Si el texto citado se borra, el hilo queda con la cita y sin resaltado (Linear hace lo mismo).
@@ -90,7 +100,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Comentarios con @menciones, editar y borrar | tiene | |
 | Suscribirse a un issue | tiene | |
-| Inbox con Priority, filtros, snooze y recordatorios | parcial | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, U, H, Backspace). Abrir un aviso va a la página del issue: Linear lo muestra al costado y deja desuscribirse desde la fila |
+| Inbox con Priority, filtros, snooze y recordatorios | tiene | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, Enter, U, H, Backspace). Abrir un aviso muestra el issue al lado de la lista (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. Los avisos de projects e iniciativas todavía abren su página, no el panel |
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |
@@ -98,7 +108,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Notificaciones a Slack / Teams | parcial | Slack: avisos por proyecto a canales (creado, cambio de estado, completado, comentario). Teams solo con Flow |
 | Comentarios sobre el texto de la descripción | falta | (2026-11-23) |
 | Hilos de comentarios en projects e iniciativas | falta | (2026-11-23) Solo en sus updates |
-| Pulse (feed y resumen diario de updates) | falta | (2026-11-23) |
+| Pulse (feed y resumen diario de updates) | parcial | (2026-11-23) Track › Updates: feed de updates de proyectos e iniciativas, Para mí (lead, miembro o seguidor; iniciativas que lidera o con sus proyectos) y Todos, paginado. Los updates avisan a seguidores en el Inbox, pero el resumen diario por email solo lleva avisos de issues (source_type track_issue): falta el email de resumen de updates y el audio |
 
 ### Planificación
 
@@ -111,7 +121,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | Reglas de triage, responsable de triage rotativo | tiene | (T3) Reglas en orden con condiciones (texto, origen, prioridad, label, cliente) y acciones (prioridad, asignado, labels, cycle, aceptar); rotación diaria o semanal que avisa o asigna. Sin mover de equipo ni PagerDuty |
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 | Estado Duplicado que pasa el contexto al original | tiene | (T4, 2026-11-23) Desde ⌘K, el menú del issue, M M o triage: estado Duplicate del team (tipo cancelado, se crea la primera vez), relación, suscriptos que ven el original y pedidos de clientes pasan a él, y el original recibe un resumen (título, extracto, comentarios y archivos). Aviso en el duplicado con link y Quitar; ⌘Z deshace todo. Comentarios y adjuntos quedan en el duplicado; el texto de un team privado (o que un invitado no ve) no se copia. M B, M X y M R suman relaciones |
-| Formularios de pedidos a triage | falta | (2026-11-23) |
+| Formularios de pedidos a triage | parcial | (2026-11-23) Una plantilla de issue con campos (texto corto, largo, opciones, casilla; obligatorio, ayuda) es un formulario: página propia con link, índice en Track › Formularios de pedidos y desde el alta rápida. Crea el issue en triage con origen "form" (las reglas lo filtran), las respuestas en la descripción y las propiedades de la plantilla. Falta: Asks de Slack y entrada por email para gente de afuera |
 | Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
 
 ### Automatización

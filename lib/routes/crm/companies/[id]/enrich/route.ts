@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { sessionScope } from '@/lib/crm-visibility';
+import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { crmError, guardRecord, limitAction, notFound, unauthorized } from '@/lib/crm-http';
 import { enrichCompany } from '@/lib/crm-enrich';
@@ -28,5 +29,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   });
   if (!res.ok) return res.reason === 'not_found' ? notFound() : crmError(400, 'no_domain');
   const hiddenFields = await hiddenFieldsFor(sessionFieldViewer(user), 'companies');
-  return NextResponse.json({ company: redactRow(res.company, hiddenFields), filled: res.filled, sources: res.sources });
+  // La empresa madre, si la persona no la ve, sale como privada (como en la ficha).
+  const company = (await maskPrivateRef(user.id, res.company, [PRIVATE_REFS.parent()], await sessionScope(user))) ?? res.company;
+  return NextResponse.json({ company: redactRow(company, hiddenFields), filled: res.filled, sources: res.sources });
 }

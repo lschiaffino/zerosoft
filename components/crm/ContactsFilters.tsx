@@ -4,6 +4,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { ColumnsSlot } from './ColumnToggle';
+import { useCrmOptions } from './CrmViewer';
 import DateRangeFilter from './DateRangeFilter';
 import QuickFilterPicker from './QuickFilterPicker';
 import ExportViewButton from './ExportViewButton';
@@ -54,8 +55,6 @@ interface ContactsFiltersProps {
   /** Query param `filters` crudo (advanced filter builder); se preserva al navegar. */
   advanced?: string;
   sort: ContactSort;
-  lifecycles: string[];
-  leadStatuses: string[];
   sources: string[];
   owners: Array<{ value: string; label: string }>;
   customFields: CustomFieldOption[];
@@ -90,8 +89,6 @@ export default function ContactsFilters({
   custom,
   advanced,
   sort,
-  lifecycles,
-  leadStatuses,
   sources,
   owners,
   customFields,
@@ -100,6 +97,7 @@ export default function ContactsFilters({
   children,
 }: ContactsFiltersProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -219,9 +217,9 @@ export default function ContactsFilters({
         data-testid="contacts-lead-status-filter"
       >
         <option value="">{t('contacts.filterLeadStatus')}</option>
-        {leadStatuses.map((v) => (
-          <option key={v} value={v}>
-            {t(`enums.leadStatus.${v}`)}
+        {crmOpts.all('leadStatus').map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -235,9 +233,9 @@ export default function ContactsFilters({
         data-testid="contacts-lifecycle-filter"
       >
         <option value="">{t('listBar.lifecycleStage')}</option>
-        {lifecycles.map((v) => (
-          <option key={v} value={v}>
-            {t(`enums.lifecycle.${v}`)}
+        {crmOpts.all('lifecycle').map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -351,8 +349,11 @@ export default function ContactsFilters({
           {t('common.moreFilters')}
           {moreActive > 0 && <span className="filter-count">{moreActive}</span>}
         </button>
-        {children}
-        <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        {/* Filtros avanzados y "Editar filtros rápidos" van juntos: el ícono no queda solo en una fila. */}
+        <div className="filter-quick-tail">
+          {children}
+          <QuickFilterPicker entity="contacts" shown={chosen} labels={quickLabels} onChange={(v) => go({ qf: v })} />
+        </div>
         {activeFilters > 0 && (
           <button
             type="button"

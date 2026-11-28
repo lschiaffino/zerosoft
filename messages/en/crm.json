@@ -1518,7 +1518,8 @@
     "too_many_labels": "You reached the limit of labels for this association.",
     "invalid_queue": "That queue does not exist or you cannot see it.",
     "too_many": "This workspace reached the limit.",
-    "too_many_tasks": "Create tasks for up to 200 records at a time. Narrow the view and try again."
+    "too_many_tasks": "Create tasks for up to 200 records at a time. Narrow the view and try again.",
+    "invalid_option": "That value is not an active option of this property. Reload the page to see the current options."
   },
   "filters": {
     "advanced": "Advanced filters",
@@ -2121,7 +2122,8 @@
       "invalid_sequence": "That sequence no longer exists.",
       "invalid_url": "The redirect URL must start with http:// or https://.",
       "invalid_input": "Some settings are not valid.",
-      "invalid_stage": "Pick a pipeline and a stage for the deal."
+      "invalid_stage": "Pick a pipeline and a stage for the deal.",
+      "field_readonly": "One of the fields saves to a property you can't edit."
     },
     "builder": {
       "fields": "Fields",
@@ -2894,6 +2896,44 @@
         "negative": "Negative"
       },
       "nextSteps": "Next steps"
+    },
+    "followup": {
+      "open": "Suggest updates with AI",
+      "title": "Suggested updates",
+      "loading": "Reading the call…",
+      "regenerate": "Suggest again",
+      "empty": "The call does not suggest any updates.",
+      "pending": "{count, plural, =0 {All reviewed} one {# to review} other {# to review}}",
+      "hint": "Nothing changes until you apply it.",
+      "kind": {
+        "field": "Property",
+        "stage": "Deal stage",
+        "email": "Follow-up email",
+        "task": "Task"
+      },
+      "apply": "Apply",
+      "send": "Send",
+      "addTask": "Add task",
+      "move": "Move deal",
+      "edit": "Edit",
+      "discard": "Discard",
+      "cancel": "Cancel",
+      "applied": "Applied",
+      "sent": "Sent",
+      "taskAdded": "Task added",
+      "moved": "Deal moved",
+      "emptyValue": "Empty",
+      "yes": "Yes",
+      "no": "No",
+      "toLabel": "To",
+      "subject": "Subject",
+      "body": "Message",
+      "taskTitle": "Task",
+      "due": "Due date",
+      "errors": {
+        "already_done": "This suggestion was already handled.",
+        "field_readonly": "You can't edit this property."
+      }
     },
     "board": {
       "scoreDeals": "Score deals with AI",
@@ -5499,6 +5539,42 @@
     "clear": "Clear selection",
     "error": "Couldn't select them. Try again."
   },
+  "propertyOptions": {
+    "title": "Lifecycle stage and lead status options",
+    "desc": "Add, rename, reorder and archive the options of these two properties. Records keep an archived option; it just stops being offered. A new name shows on every record.",
+    "properties": {
+      "lifecycle": "Lifecycle stage",
+      "leadStatus": "Lead status"
+    },
+    "placeholders": {
+      "lifecycle": "New stage, e.g. Partner",
+      "leadStatus": "New status, e.g. Nurturing"
+    },
+    "add": "Add option",
+    "addLabel": "New option for {property}",
+    "nameOf": "Option name: {name}",
+    "records": "{count, plural, =0 {No records} one {# record} other {# records}}",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archivedTitle": "Archived",
+    "archivedName": "{name} (archived)",
+    "errors": {
+      "option_not_found": "That option no longer exists. Reload the page.",
+      "option_limit": "This property already has the maximum number of options.",
+      "option_duplicate": "Another option already has that name.",
+      "option_last_active": "Keep at least one active option.",
+      "invalid_input": "Write a name for the option."
+    },
+    "autoTitle": "Automatic lifecycle stage",
+    "autoDesc": "Like HubSpot: when a deal is created, its contacts and companies move to Opportunity; when it is won, to Customer. Only forward, never back. Each change shows on the record timeline.",
+    "autoLabel": "Advance the lifecycle stage with deals",
+    "systemActor": "Automatic",
+    "reasons": {
+      "deal_created": "a deal was created",
+      "deal_won": "a deal was won"
+    },
+    "changedTo": "Lifecycle stage changed automatically from {from} to {to}"
+  },
   "comments": {
     "add": "Comment",
     "count": "{count, plural, one {# comment} other {# comments}}",
@@ -5519,5 +5595,43 @@
     "deleteError": "Couldn't delete the comment. Try again.",
     "tooMany": "This activity has reached the comment limit.",
     "tooLong": "The comment is too long."
+  },
+  "rowExpand": {
+    "expand": "Show associations and last activity: {name}",
+    "collapse": "Hide associations and last activity: {name}",
+    "region": "Associations and last activity of {name}",
+    "loading": "Loading…",
+    "error": "Could not load this record's associations.",
+    "retry": "Try again",
+    "contacts": "Contacts",
+    "deals": "Deals",
+    "openDeals": "Open deals",
+    "companies": "Companies",
+    "lastActivity": "Last activity",
+    "noContacts": "No contacts you can see.",
+    "noDeals": "No deals you can see.",
+    "noOpenDeals": "No open deals you can see.",
+    "noCompanies": "No companies you can see.",
+    "noActivity": "No activity yet.",
+    "unnamed": "No name",
+    "primary": "Primary",
+    "closes": "closes {date}",
+    "status": {
+      "won": "Won",
+      "lost": "Lost",
+      "open": "Open"
+    },
+    "allContacts": "See all {count} contacts",
+    "allDeals": "See all {count} deals",
+    "allCompanies": "See all {count} companies",
+    "openRecord": "Open record",
+    "types": {
+      "note": "Note",
+      "email": "Email",
+      "call": "Call",
+      "task": "Task",
+      "meeting": "Meeting",
+      "whatsapp": "WhatsApp"
+    }
   }
 }

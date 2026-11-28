@@ -11,6 +11,7 @@ import PrivateRecord from './PrivateRecord';
 import InlineEditCell from './InlineEditCell';
 import { IndexColGroup, sizedTable, useIndexColumns } from './EditColumns';
 import RecordPreview from './RecordPreview';
+import { ExpandToggle, RowExpansionRow, useRowExpansion } from './RowExpansion';
 import TagDots, { type TagDot } from './TagDots';
 import CrmIcon from './CrmIcon';
 import PhoneTouch from './PhoneTouch';
@@ -20,6 +21,7 @@ import BulkActionsBar from './BulkActionsBar';
 import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { OwnerCell } from './TableExtraColumns';
+import { useCrmOptions } from './CrmViewer';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export interface CompanyRow {
@@ -54,7 +56,6 @@ interface CompaniesTableProps {
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
   sort: string;
-  lifecycles: string[];
   locale: string;
   allTags?: Array<{ id: string; name: string }>;
   /** Propiedades editables en masa (owner, lifecycle, custom fields…). */
@@ -70,8 +71,9 @@ interface CompaniesTableProps {
 
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   // Orden, columna fija y anchos: los de la página (TableColumnsProvider), los mismos que "Editar columnas".
@@ -79,6 +81,9 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
   const order = cols.order;
   const sized = sizedTable(cols);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // Filas desplegadas (asociados y última actividad, como la vista previa de fila de HubSpot).
+  const rowIdList = rows.map((r) => r.id);
+  const expansion = useRowExpansion('company', rowIdList);
 
   // Otra página, filtro u orden: la selección se queda solo con las filas que siguen a la vista
   // (la barra masiva nunca actúa sobre registros que ya no se ven).
@@ -115,7 +120,6 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
     setBulkNotice(null);
   }
 
-  const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
@@ -150,7 +154,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
         return (
           <RecordNameCell
             href={`/app/crm/companies/${row.id}`}
-            name={row.name}
+            name={row.name} expand={<ExpandToggle id={row.id} name={row.name} expanded={expansion.open.has(row.id)} onToggle={() => expansion.toggle(row.id)} />}
             avatar={<CompanyLogo domain={row.domain} name={row.name} size={24} />}
             onPreview={() => setPreviewId(row.id)}
           />
@@ -204,7 +208,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
               field="lifecycleStage"
               value={row.lifecycle}
               type="select"
-              options={lifecycleOpts}
+              options={crmOpts.choices('lifecycle', row.lifecycle)}
               className={`dot-label stage-${row.lifecycle}`}
             />
           </td>
@@ -287,7 +291,8 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={selected.has(row.id) ? 'is-selected' : undefined}>
+              <Fragment key={row.id}>
+              <tr className={`${selected.has(row.id) ? 'is-selected' : ''}${expansion.open.has(row.id) ? ' is-expanded' : ''}`.trim() || undefined}>
                 <td className="cell-check" data-card="check">
                   <input
                     type="checkbox"
@@ -301,6 +306,18 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
                   <Fragment key={id}>{bodyCell(id, row)}</Fragment>
                 ))}
               </tr>
+              {expansion.open.has(row.id) && (
+                <RowExpansionRow
+                  kind="company"
+                  id={row.id}
+                  name={row.name}
+                  colSpan={order.length + 1}
+                  data={expansion.data[row.id]}
+                  onRetry={() => void expansion.retry(row.id)}
+                  onClose={() => expansion.toggle(row.id)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
