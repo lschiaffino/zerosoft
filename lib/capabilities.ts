@@ -27,6 +27,12 @@ export const CAPABILITIES = [
     /** Dar esta capacidad pide confirmación en la pantalla. */
     confirmGrant: true,
   },
+  {
+    /** Invitar personas al workspace con acceso solo a Lines, como member. Las demás apps suman su `<app>.invite` acá. */
+    key: 'lines.invite',
+    app: 'groups',
+    confirmGrant: true,
+  },
 ] as const satisfies ReadonlyArray<{ key: string; app: string; confirmGrant: boolean }>;
 
 export type Capability = (typeof CAPABILITIES)[number]['key'];
@@ -96,4 +102,18 @@ export function hasCapability(actor: CapabilityActor, key: Capability): boolean 
   if (role !== 'member') return false;
   if (!parseCapabilities(actor.caps).includes(key)) return false;
   return appAllowed(actor.apps, capabilityDef(key).app);
+}
+
+/**
+ * Apps a las que `actor` puede invitar gente por una capacidad `<app>.invite`
+ * (la app es la del registro). Owner y admin invitan por su rol, no por acá:
+ * devuelve [] para ellos. Un member solo con la capacidad y la app habilitada.
+ */
+export function inviteAppsOf(actor: CapabilityActor): string[] {
+  if (actor.role !== 'member') return [];
+  const out: string[] = [];
+  for (const c of CAPABILITIES) {
+    if (c.key.endsWith('.invite') && c.app && hasCapability(actor, c.key) && !out.includes(c.app)) out.push(c.app);
+  }
+  return out;
 }

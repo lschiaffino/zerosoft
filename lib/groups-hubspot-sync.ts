@@ -39,6 +39,7 @@ import {
   hubspotRecordUrl,
   markHubspotUsed,
   recheckHubspotScopes,
+  refreshLinkedObjects,
   requireHubspotConn,
   syncHubspotNotes,
   type HubspotConn,
@@ -542,8 +543,11 @@ async function markMissing(ws: string, companyId: string, reason: 'deleted' | 'm
   await db.prepare("UPDATE groups_hubspot_links SET missing = 1 WHERE user_id = ? AND object_type = 'company' AND object_id = ?").run(ws, companyId);
 }
 
-/** Si una empresa desapareció por una fusión, HubSpot guarda su id en hs_merged_object_ids de la que quedó. */
-async function findMergeWinner(conn: HubspotConn, oldId: string, opts: CallOpts): Promise<{ id: string; name: string } | null> {
+/**
+ * Si una empresa desapareció por una fusión, HubSpot guarda su id en hs_merged_object_ids de la que quedó.
+ * `unique`: una sola empresa lo dice (el ganador es seguro); con dos o más no se sabe cuál es.
+ */
+async function findMergeWinner(conn: HubspotConn, oldId: string, opts: CallOpts): Promise<{ id: string; name: string; unique: boolean } | null> {
   try {
     const r = (
       await call(
@@ -554,14 +558,30 @@ async function findMergeWinner(conn: HubspotConn, oldId: string, opts: CallOpts)
         opts,
       )
     ).json;
+    const found: Array<{ id: string; name: string }> = [];
     for (const raw of list(r.results)) {
       const p = (raw.properties ?? {}) as Record<string, unknown>;
-      if (hubspotMulti(text(p.hs_merged_object_ids, 4000)).includes(oldId) && /^\d{1,20}$/.test(text(raw.id))) return { id: text(raw.id), name: text(p.name) };
+      if (hubspotMulti(text(p.hs_merged_object_ids, 4000)).includes(oldId) && /^\d{1,20}$/.test(text(raw.id))) found.push({ id: text(raw.id), name: text(p.name) });
     }
+    if (found.length) return { ...found[0], unique: found.length === 1 };
   } catch (err) {
     if (!(err instanceof HubspotError)) throw err;
   }
   return null;
+}
+
+/**
+ * Una fusión sin dudas (un solo ganador que nombra a la empresa vieja): los
+ * grupos vinculados a la vieja pasan a la que quedó, en vez de quedar rotos.
+ * Con más de un candidato no se toca nada y sigue el aviso "vinculá la que quedó".
+ */
+async function relinkMerged(ws: string, oldId: string, winnerId: string, winnerName: string): Promise<void> {
+  if (!/^\d{1,20}$/.test(winnerId) || winnerId === oldId) return;
+  const db = getDb();
+  await db
+    .prepare("UPDATE groups_hubspot_links SET object_id = ?, name = ?, props = '{}', fetched_at = NULL, missing = 0 WHERE user_id = ? AND object_type = 'company' AND object_id = ?")
+    .run(winnerId, winnerName.slice(0, 300), ws, oldId);
+  await db.prepare("UPDATE groups_identities SET company_id = ?, updated_at = ? WHERE user_id = ? AND company_id = ?").run(winnerId, new Date().toISOString(), ws, oldId);
 }
 
 function normalizeProps(raw: unknown): Record<string, string> {
@@ -602,6 +622,8 @@ export async function importHubspotCompanies(ws: string, ids: string[], source: 
   for (const part of chunks(wanted, BATCH)) {
     const { json } = await call(conn, 'POST', '/crm/v3/objects/companies/batch/read', { properties, inputs: part.map((id) => ({ id })) }, opts);
     const seen = new Set<string>();
+    /** Empresa vieja pedida → ganadoras que la nombran en hs_merged_object_ids. */
+    const claims = new Map<string, Map<string, string>>();
     for (const raw of list(json.results)) {
       const id = text(raw.id, 30);
       const props = normalizeProps(raw.properties);
@@ -613,18 +635,31 @@ export async function importHubspotCompanies(ws: string, ids: string[], source: 
       }
       // Pedimos una empresa fusionada y HubSpot devolvió la que quedó.
       for (const old of hubspotMulti(props.hs_merged_object_ids ?? '')) {
-        if (!part.includes(old) || seen.has(old)) continue;
-        seen.add(old);
-        out.missing.push(old);
-        await markMissing(ws, old, 'merged', id, props.name ?? '');
+        if (!part.includes(old)) continue;
+        if (!claims.has(old)) claims.set(old, new Map());
+        claims.get(old)!.set(id, props.name ?? '');
       }
+    }
+    const relink: Array<{ old: string; id: string; name: string }> = [];
+    for (const [old, winners] of claims) {
+      if (seen.has(old)) continue;
+      seen.add(old);
+      out.missing.push(old);
+      const [id, name] = [...winners][0];
+      await markMissing(ws, old, 'merged', id, name);
+      if (winners.size === 1) relink.push({ old, id, name });
     }
     for (const id of part) {
       if (seen.has(id)) continue;
       out.missing.push(id);
       const winner = await findMergeWinner(conn, id, opts);
       await markMissing(ws, id, winner ? 'merged' : 'deleted', winner?.id ?? '', winner?.name ?? '');
+      if (winner?.unique) relink.push({ old: id, id: winner.id, name: winner.name });
     }
+    for (const r of relink) await relinkMerged(ws, r.old, r.id, r.name);
+    // La que quedó trae todas sus propiedades (y se lee aunque nadie la tuviera vinculada antes).
+    const winners = [...new Set(relink.map((r) => r.id))];
+    if (winners.length) await importHubspotCompanies(ws, winners, source, opts).catch((err) => (err instanceof HubspotError ? null : Promise.reject(err)));
   }
   await markHubspotUsed(ws).catch(() => null);
   return out;
@@ -925,6 +960,17 @@ interface Cursor {
   idx?: number;
   /** Lo mismo para la verificación completa (borradas y fusionadas). */
   vidx?: number;
+  /** Contactos y negocios vinculados: un cursor por tipo. */
+  obj?: Partial<Record<'contact' | 'deal', ObjectCursor>>;
+}
+
+interface ObjectCursor {
+  since?: string;
+  started?: string;
+  idx?: number;
+  /** Última verificación completa (encuentra los borrados). */
+  verifiedAt?: string;
+  vidx?: number;
 }
 
 function parseCursor(raw: string | null | undefined): Cursor {
@@ -962,10 +1008,19 @@ export interface SyncRunResult {
  */
 async function syncWorkspace(ws: string, deadline: number, now: Date, out: SyncRunResult): Promise<void> {
   const db = getDb();
-  const conn = await requireHubspotConn(ws);
   const state = await stateRow(ws);
   const opts: CallOpts = { retries: 3, maxWaitMs: 8_000 };
   if (!state?.schema_synced_at || Date.parse(state.schema_synced_at) < now.getTime() - SCHEMA_TTL_MS) await refreshHubspotSchema(ws, opts);
+  await syncCompanyPass(ws, deadline, now, out, state, opts);
+  // Contactos y negocios vinculados: nombre, dueño y etapa al día sin que nadie abra el chat.
+  if (Date.now() < deadline) await syncLinkedObjects(ws, deadline, now, out, opts);
+  // Sin empresas vinculadas la pasada de empresas no marca nada: se marca acá.
+  if ((await linkedCompanyIds(ws)).length === 0) await db.prepare('UPDATE groups_hubspot SET synced_at = ? WHERE user_id = ?').run(now.toISOString(), ws);
+}
+
+async function syncCompanyPass(ws: string, deadline: number, now: Date, out: SyncRunResult, state: StateRow | null, opts: CallOpts): Promise<void> {
+  const db = getDb();
+  const conn = await requireHubspotConn(ws);
   const ids = await linkedCompanyIds(ws);
   if (ids.length === 0) return;
   const apply = (r: ImportResult) => {
@@ -1072,7 +1127,7 @@ export async function syncHubspotCompanies(opts: { budgetMs?: number; now?: Date
     .prepare(
       `SELECT h.user_id, h.sync_fails FROM groups_hubspot h
        WHERE h.token != '' AND (h.sync_backoff_until IS NULL OR h.sync_backoff_until < ?) AND (h.sync_locked_until IS NULL OR h.sync_locked_until < ?)
-         AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.user_id = h.user_id AND l.object_type = 'company')
+         AND EXISTS (SELECT 1 FROM groups_hubspot_links l WHERE l.user_id = h.user_id AND l.object_type IN ('company', 'contact', 'deal'))
          AND (? = '' OR h.user_id = ?)
        ORDER BY (h.synced_at IS NOT NULL), h.synced_at LIMIT ?`,
     )
@@ -1106,6 +1161,113 @@ export async function syncHubspotCompanies(opts: { budgetMs?: number; now?: Date
   // El registro guarda 90 días.
   await db.prepare('DELETE FROM groups_hubspot_sync_log WHERE created_at < ?').run(new Date(now.getTime() - LOG_KEEP_DAYS * 86_400_000).toISOString());
   return out;
+}
+
+/** Cuántas tandas de 100 se leen por tipo en cada corrida del cron: el resto sigue en la próxima (el cursor retoma). */
+const OBJECT_BATCHES_PER_RUN = 2;
+/** La propiedad de última modificación de cada tipo en la búsqueda de HubSpot. */
+const MODIFIED_PROP = { contact: 'lastmodifieddate', deal: 'hs_lastmodifieddate' } as const;
+
+async function linkedObjects(ws: string, type: 'contact' | 'deal'): Promise<Array<{ id: string; fetched: number }>> {
+  const rows = (await getDb()
+    .prepare('SELECT object_id, MIN(COALESCE(fetched_at, \'\')) AS fetched FROM groups_hubspot_links WHERE user_id = ? AND object_type = ? GROUP BY object_id ORDER BY object_id')
+    .all(ws, type)) as Array<{ object_id: string; fetched: string }>;
+  return rows.map((r) => ({ id: r.object_id, fetched: r.fetched ? (Date.parse(r.fetched) || 0) : 0 }));
+}
+
+/**
+ * Contactos y negocios vinculados que cambiaron en HubSpot desde la última
+ * pasada (búsqueda por fecha de modificación sobre tandas de 100 ids, con
+ * cursor por tipo y un tope de tandas por corrida) y, una vez por hora, una
+ * lectura de todos para encontrar los borrados. Solo actualiza la copia del
+ * vínculo (nombre, dueño, etapa, monto): nada se manda de vuelta a HubSpot.
+ */
+async function syncLinkedObjects(ws: string, deadline: number, now: Date, out: SyncRunResult, opts: CallOpts): Promise<void> {
+  const conn = await requireHubspotConn(ws);
+  const db = getDb();
+  for (const type of ['contact', 'deal'] as const) {
+    const items = await linkedObjects(ws, type);
+    // El cursor se lee de nuevo: la pasada de empresas lo acaba de guardar.
+    const cursor = parseCursor((await stateRow(ws))?.sync_cursor);
+    const oc: ObjectCursor = (cursor.obj ??= {})[type] ?? {};
+    cursor.obj[type] = oc;
+    const save = () => db.prepare('UPDATE groups_hubspot SET sync_cursor = ? WHERE user_id = ?').run(JSON.stringify(cursor), ws);
+    if (items.length === 0) {
+      cursor.obj[type] = {};
+      await save();
+      continue;
+    }
+    if (!oc.since) oc.since = new Date(now.getTime() - SEARCH_OVERLAP_MS).toISOString();
+    if (!oc.started || (oc.idx ?? 0) >= items.length) {
+      oc.started = now.toISOString();
+      oc.idx = 0;
+    }
+    const sinceMs = hubspotTime(oc.since) ?? now.getTime() - SEARCH_OVERLAP_MS;
+    let batches = 0;
+    while ((oc.idx ?? 0) < items.length) {
+      if (Date.now() > deadline || batches >= OBJECT_BATCHES_PER_RUN) {
+        await save();
+        return;
+      }
+      batches++;
+      const part = items.slice(oc.idx ?? 0, (oc.idx ?? 0) + BATCH);
+      const { json } = await call(
+        conn,
+        'POST',
+        `/crm/v3/objects/${type === 'contact' ? 'contacts' : 'deals'}/search`,
+        {
+          filterGroups: [
+            {
+              filters: [
+                { propertyName: MODIFIED_PROP[type], operator: 'GTE', value: String(sinceMs) },
+                { propertyName: 'hs_object_id', operator: 'IN', values: part.map((p) => p.id) },
+              ],
+            },
+          ],
+          sorts: [{ propertyName: MODIFIED_PROP[type], direction: 'ASCENDING' }],
+          properties: [MODIFIED_PROP[type]],
+          limit: BATCH,
+        },
+        opts,
+      );
+      const fetched = new Map(part.map((p) => [p.id, p.fetched]));
+      const modified = list(json.results)
+        .map((r) => ({ id: text(r.id, 30), at: hubspotTime(text(((r.properties ?? {}) as Record<string, unknown>)[MODIFIED_PROP[type]])) ?? Number.MAX_SAFE_INTEGER }))
+        // La copia ya se leyó después de ese cambio: no hace falta volver a leerla.
+        .filter((r) => fetched.has(r.id) && r.at > (fetched.get(r.id) ?? 0))
+        .map((r) => r.id);
+      if (modified.length) {
+        const r = await refreshLinkedObjects(ws, type, modified);
+        out.imported += r.read;
+        out.changed += r.read;
+        out.missing += r.missing;
+      }
+      oc.idx = (oc.idx ?? 0) + part.length;
+      await save();
+    }
+    // Pasada completa: la próxima mira desde que empezó esta, con un margen.
+    oc.since = new Date((hubspotTime(oc.started) ?? now.getTime()) - SEARCH_OVERLAP_MS).toISOString();
+    oc.started = undefined;
+    oc.idx = 0;
+    // Una vez por hora se leen todos: la búsqueda por fecha no ve a los borrados.
+    if (!oc.verifiedAt) oc.verifiedAt = now.toISOString();
+    else if (Date.parse(oc.verifiedAt) <= now.getTime() - VERIFY_EVERY_MS) {
+      let vb = 0;
+      while ((oc.vidx ?? 0) < items.length) {
+        if (Date.now() > deadline || vb >= OBJECT_BATCHES_PER_RUN) {
+          await save();
+          return;
+        }
+        vb++;
+        const r = await refreshLinkedObjects(ws, type, items.slice(oc.vidx ?? 0, (oc.vidx ?? 0) + BATCH).map((p) => p.id));
+        out.missing += r.missing;
+        oc.vidx = (oc.vidx ?? 0) + BATCH;
+      }
+      oc.vidx = 0;
+      oc.verifiedAt = now.toISOString();
+    }
+    await save();
+  }
 }
 
 export interface ResyncResult {

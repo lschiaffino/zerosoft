@@ -490,15 +490,21 @@ export const CONTACT_ACTIVITY_FIELDS: Record<string, AdvancedFieldDef> = {
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
 
 /**
- * Los filtros por nombre de empresa con el alcance de la persona: una empresa
- * que no ve no matchea (si no, filtrar por su nombre delataría la asociación).
+ * Los filtros por empresa (nombre e id) con el alcance de la persona: una
+ * empresa que no ve no matchea (si no, filtrar por ella delataría la asociación).
  */
 function scopedCompanyNameFields(fields: Record<string, AdvancedFieldDef>, scope: OwnerScope | undefined): Record<string, AdvancedFieldDef> {
   if (!scope || !fields.companyName) return fields;
   const ids = scope.filter((id) => SAFE_ID.test(id));
-  const cond = ids.length ? `COALESCE(xco.owner_id, xco.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0';
-  const expr = fields.companyName.expr.replace(/\)\s*$/, ` AND ${cond})`);
-  return { ...fields, companyName: { ...fields.companyName, expr } };
+  const inScope = (alias: string) => (ids.length ? `COALESCE(${alias}.owner_id, ${alias}.user_id) IN (${ids.map((id) => `'${id}'`).join(',')})` : '0');
+  const expr = fields.companyName.expr.replace(/\)\s*$/, ` AND ${inScope('xco')})`);
+  const out: Record<string, AdvancedFieldDef> = { ...fields, companyName: { ...fields.companyName, expr } };
+  // Por id de empresa, igual: una que no ve cuenta como sin empresa (filtrar por su id no dice quién está ahí).
+  const company = fields.company;
+  if (company && /^[a-z]+\.company_id$/.test(company.expr)) {
+    out.company = { ...company, expr: `(SELECT xcv.id FROM crm_companies xcv WHERE xcv.id = ${company.expr} AND ${inScope('xcv')})` };
+  }
+  return out;
 }
 
 /**

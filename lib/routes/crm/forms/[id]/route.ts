@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isWorkspaceAdmin, realUserId, type SessionUser } from '@/lib/session';
-import { deleteForm, formForViewer, FormError, getForm, updateForm, type CrmForm } from '@/lib/crm-forms';
+import { deleteForm, formForViewer, FormError, formWritesRestricted, getForm, updateForm, type CrmForm } from '@/lib/crm-forms';
 import { sessionFieldViewer } from '@/lib/crm-field-perms';
 import { formUpdateSchema } from '@/lib/crm-forms-schema';
 import { crmError, forbidden, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -37,6 +37,10 @@ export async function PATCH(req: NextRequest, props: Ctx) {
   const body: unknown = await req.json().catch(() => null);
   const parsed = formUpdateSchema.safeParse(body);
   if (!parsed.success) return invalidBody(parsed.error);
+  // Ni sumar un campo que guarde en una propiedad que la persona no puede editar.
+  if (parsed.data.fields && (await formWritesRestricted(sessionFieldViewer(user), parsed.data.fields, new Set(form.fields.map((f) => f.property ?? ''))))) {
+    return crmError(403, 'field_readonly');
+  }
   try {
     return NextResponse.json(await updateForm(user.id, id, parsed.data, undefined, { person: realUserId(user), admin: isWorkspaceAdmin(user) }));
   } catch (e) {

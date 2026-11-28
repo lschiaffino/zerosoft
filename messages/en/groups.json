@@ -671,7 +671,32 @@
       "audit": "Audit log",
       "integrations": "Integrations",
       "apps": "Mobile and desktop",
+      "invite": "Invite",
       "migrate": "Move from Periskope"
+    }
+  },
+  "invite": {
+    "intro": "Invite people to this workspace with access to Lines only. They join as a member and don't see the other apps.",
+    "emails": "Emails",
+    "placeholder": "ana@company.com, leo@company.com",
+    "send": "Invite to Lines",
+    "link": "Create invite link",
+    "locked": "Ask an admin to invite the person for you, or to give you the \"Can invite to Lines\" permission in Settings › Members and permissions.",
+    "forbidden": "You don't have permission to invite. Ask an admin.",
+    "limited": "You sent a lot of invitations. Try again in a while.",
+    "invalidEmails": "Check the emails.",
+    "invalidList": "These emails are not valid: {list}",
+    "failed": "Couldn't invite. Try again.",
+    "linkLabel": "Invite link",
+    "copy": "Copy link",
+    "result": {
+      "sent": "Invitation sent",
+      "failed": "The email didn't go out: copy the link",
+      "skipped": "Invitation created",
+      "member": "Already part of the team",
+      "invalid": "Invalid email",
+      "limited": "Invitation limit reached",
+      "link": "Link ready. Works once and expires in 14 days."
     }
   },
   "numbers": {

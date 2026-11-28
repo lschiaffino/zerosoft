@@ -35,7 +35,7 @@ import { isWorkspacePerson } from './crm-refs';
 import { emitEvent } from './events';
 import { csvCell, looksLikeSpam } from './form-engine';
 import type { OwnerScope } from './crm-visibility';
-import { hiddenFieldSets, isUnrestricted, type FieldViewer } from './crm-field-perms';
+import { fieldAccessFor, hiddenFieldSets, isUnrestricted, type FieldViewer } from './crm-field-perms';
 import { catchEmailTaken, ContactEmailTakenError } from './crm-contact-email';
 
 export interface CrmForm {
@@ -437,6 +437,25 @@ export async function submissionFieldsFor<F extends Pick<FormField, 'id' | 'prop
   if (isUnrestricted(viewer)) return form.fields;
   const ids = formFieldIdsFor(form.fields, await hiddenFieldSets(viewer, ['contacts', 'companies'] as const, db));
   return ids.size ? form.fields.filter((f) => !ids.has(f.id)) : form.fields;
+}
+
+/**
+ * ¿Algún campo guardaría en una propiedad propia que la persona no puede
+ * editar (oculta o de solo lectura)? Un envío escribe en el contacto o la
+ * empresa que coincida, la vea o no quien armó el form: ese destino lo pone
+ * owner o admin. `kept`: destinos que el form ya tenía (editar el resto de un
+ * form propio que ya los tenía sigue andando).
+ */
+export async function formWritesRestricted(
+  viewer: FieldViewer,
+  fields: Array<Pick<FormField, 'id' | 'property'>>,
+  kept: ReadonlySet<string> = new Set(),
+  db: Db = getDb(),
+): Promise<boolean> {
+  if (isUnrestricted(viewer) || !fields.length) return false;
+  const [contacts, companies] = await Promise.all([fieldAccessFor(viewer, 'contacts', db), fieldAccessFor(viewer, 'companies', db)]);
+  const added = fields.filter((f) => !kept.has(f.property ?? ''));
+  return formFieldIdsFor(added, { contacts: new Set(contacts.restricted.keys()), companies: new Set(companies.restricted.keys()) }).size > 0;
 }
 
 /**

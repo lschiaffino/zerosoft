@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiError, requireApiUser } from '@/lib/api-auth';
-import { apiScope, canSeeEntity } from '@/lib/crm-visibility';
+import { apiScope, canSeeEntity, type OwnerScope } from '@/lib/crm-visibility';
 import { createLead, listLeads } from '@/lib/crm-leads';
 import { leadCreateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, pageParams, zodErrorCode } from '@/lib/crm-http';
@@ -11,14 +11,25 @@ export const dynamic = 'force-dynamic';
 
 const STATUSES = ['open', 'qualified', 'disqualified'] as const;
 
+async function refsVisible(ws: string, sp: URLSearchParams, scope: OwnerScope): Promise<boolean> {
+  const contactId = sp.get('contactId');
+  const companyId = sp.get('companyId');
+  if (contactId && !(await canSeeEntity(ws, 'contact', contactId, scope))) return false;
+  if (companyId && !(await canSeeEntity(ws, 'company', companyId, scope))) return false;
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireApiUser(req, 'crm:read');
   if ('res' in auth) return auth.res;
   const sp = req.nextUrl.searchParams;
   const { page, pageSize } = pageParams(sp);
   const status = sp.get('status');
+  const scope = await apiScope(auth);
+  // Filtrar por un contacto o una empresa que la key no ve no lista nada (no dice qué leads tiene).
+  if (!(await refsVisible(auth.user.id, sp, scope))) return NextResponse.json({ leads: [], total: 0, page, pageSize });
   const { rows, total } = await listLeads(auth.user.id, {
-    ownerScope: await apiScope(auth),
+    ownerScope: scope,
     q: sp.get('q') ?? undefined,
     stageId: sp.get('stageId') ?? undefined,
     contactId: sp.get('contactId') ?? undefined,
