@@ -90,8 +90,11 @@ export async function runGroupsCron(opts: { budgetMs?: number; importBudgetMs?: 
   // Importación de chats al conectar un número: una tanda por corrida (claim por fila; retoma donde quedó).
   const { runImports } = await import('./groups-import');
   const imports = await runImports({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
+  // Historial de mensajes de Periskope (lib/groups-periskope-history.ts): una tanda por workspace, retoma donde quedó.
+  const { runHistoryJobs } = await import('./groups-periskope-history');
+  const periskopeHistory = await runHistoryJobs({ budgetMs: opts.importBudgetMs ?? 20_000 }).catch(() => null);
   // Repaso diario de cada número: contactos, nombres, info, asuntos, descripciones, miembros y fotos (despacio, retoma donde quedó).
   const { refreshLinesDaily } = await import('./wa-contacts-refresh');
   const daily = await refreshLinesDaily(new Date(), Date.now() + (opts.dailyBudgetMs ?? 10_000)).catch(() => null);
-  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, daily };
+  return { woke, flagged, breached, reminders, recurring, broadcasts, remoteTickets, hubspotLinked, hubspotNotes, hubspotCreated, hubspotSync, assigned, imports, periskopeHistory, daily };
 }
