@@ -127,28 +127,39 @@ function e2eOpensComingSoon(email: string | null | undefined): boolean {
  * (canUseApp). Una sola lectura de la base; dos si hay una regla "algunos".
  */
 export async function blockedAppsFor(
-  subject: { ownerId: string; personId: string; role: string | null | undefined; email: string | null | undefined },
+  subject: { ownerId: string; personId: string; role: string | null | undefined; email: string | null | undefined; staff?: boolean },
   db: Db = getDb(),
 ): Promise<ProductKey[]> {
   const rules = await loadWorkspaceAppRules(subject.ownerId, db);
   const needsTeams = Object.values(rules).some((r) => r?.mode === 'some') && subject.role !== 'owner' && subject.role !== 'admin';
   const teamIds = needsTeams ? await personTeamIds(subject.ownerId, subject.personId, db) : [];
-  return blockedApps({ role: subject.role, personId: subject.personId, teamIds, staff: isStaff(subject.email) }, rules);
+  return blockedApps({ role: subject.role, personId: subject.personId, teamIds, staff: subject.staff ?? isStaff(subject.email) }, rules);
 }
 
 /**
  * ¿La persona puede usar la app en el workspace, fuera de un pedido (avisos y
  * emails del cron)? Las tres capas, como la sesión: sigue en el workspace,
  * sus apps de Miembros y Apps del workspace (blockedAppsFor).
+ *
+ * `beforeLaunch`: para los avisos de una app que todavía está en Próximamente
+ * (Hiring, Social) se miran igual el workspace, Miembros y Apps del workspace,
+ * pero no el corte de plataforma (ese lo cuida la sesión): así el día que la
+ * app sale ya están bien.
  */
-export async function personCanUseApp(ownerId: string, personId: string, app: ProductKey, db: Db = getDb()): Promise<{ role: TeamRole } | null> {
+export async function personCanUseApp(
+  ownerId: string,
+  personId: string,
+  app: ProductKey,
+  db: Db = getDb(),
+  opts: { beforeLaunch?: boolean } = {},
+): Promise<{ role: TeamRole } | null> {
   const { personAppAccess } = await import('./api-auth');
   const access = await personAppAccess(ownerId, personId).catch(() => null);
   if (!access) return null;
   const { canUseApp } = await import('./workspace');
   if (!canUseApp({ role: access.role, apps: access.apps as never }, app)) return null;
-  const email = (await db.prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined;
-  const blocked = await blockedAppsFor({ ownerId, personId, role: access.role, email: email?.email ?? null }, db);
+  const email = opts.beforeLaunch ? undefined : ((await db.prepare('SELECT email FROM users WHERE id = ?').get(personId)) as { email: string | null } | undefined);
+  const blocked = await blockedAppsFor({ ownerId, personId, role: access.role, email: email?.email ?? null, ...(opts.beforeLaunch ? { staff: true } : {}) }, db);
   return blocked.includes(app) ? null : { role: access.role };
 }
 

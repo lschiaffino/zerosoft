@@ -280,7 +280,7 @@ export async function processHiringInbound(appId: string, email: HiringInbound):
   const body = stripQuotedReply(email.text).slice(0, 10_000);
   await addEvent(app.workspace_id, app.candidate_id, app.id, 'email_in', null, { subject: email.subject.slice(0, 300), body, unverified });
   if (!unverified) {
-    await notifyTeam(await teamIds(app.job_id, ['recruiter', 'hiring_manager']), {
+    await notifyTeam(app.workspace_id, await teamIds(app.job_id, ['recruiter', 'hiring_manager']), {
       title: `${app.name} · ${app.title}`,
       body: body.slice(0, 200),
       href: `/app/hiring/candidates/${app.candidate_id}?app=${app.id}`,
