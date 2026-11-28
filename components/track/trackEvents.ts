@@ -8,3 +8,6 @@ export const TRACK_VIEWS_CHANGED = 'zs:track-views-changed';
 
 /** Issues movidos desde otro lado (arrastrar, menú contextual, import): listas y sidebar se ponen al día. */
 export const TRACK_ISSUES_CHANGED = 'zs:track-issues-changed';
+
+/** Releases creados, renombrados o borrados: selectores y listas de releases se recargan. */
+export const TRACK_RELEASES_CHANGED = 'zs:track-releases-changed';

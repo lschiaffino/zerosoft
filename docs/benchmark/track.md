@@ -10,7 +10,8 @@ Se volvió a mirar Linear en línea (docs y changelog de 2025 y 2026) contra `ma
 - **Bajaron a parcial:** Inbox (sin vista previa al costado ni desuscribirse desde la fila), Slack (sin DMs personales ni Asks) e Insights (tiempos en barras de mediana, sin scatter ni triage time).
 - **Filas nuevas que faltan:** comentarios sobre el texto de la descripción, hilos de comentarios en projects e iniciativas, estado Duplicado que pasa el contexto al original, reordenar grupos arrastrando, Releases, formularios de pedidos a triage, Pulse, y revisión de código (Diffs, fuera de alcance). Mermaid y callouts queda parcial: hay callouts, no Mermaid.
 - **Regla de Priority** (también en `lib/notification-inbox-filter.ts`): te asignaron algo o te mencionaron; algo espera tu acción (triage del que sos responsable, SLA en riesgo o vencido, aprobación, recordatorio tuyo); o cambió el estado o la prioridad de un issue que seguís. El resto va a Other.
-- Paridad calculada: **84 %** (antes 95 %), con 75 filas contadas.
+- **T4 y T5 (2026-11-23, más tarde):** estado Duplicado que pasa suscriptos, pedidos y un resumen al original (tiene), reordenar grupos y columnas arrastrando o con el teclado (tiene) y Releases por team con avance, notas generadas, propiedad, filtro y agrupado (parcial: sin pipelines de release ni avisos de deploy desde el CI).
+- Paridad calculada: **86 %** después de T4 y T5 (84 % al empezar la revisión, antes 95 %), con 75 filas contadas.
 
 ### Tanda T3 (2026-11-23)
 
@@ -122,7 +123,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 | SLAs por prioridad | tiene | (T3) Por proyecto, urgente 24 h y alta 1 semana por defecto, contador en issue, listas y triage, avisos de en riesgo y vencido (cron con claim). Horas corridas |
 | Estado Duplicado que pasa el contexto al original | tiene | (T4, 2026-11-23) Desde ⌘K, el menú del issue, M M o triage: estado Duplicate del team (tipo cancelado, se crea la primera vez), relación, suscriptos que ven el original y pedidos de clientes pasan a él, y el original recibe un resumen (título, extracto, comentarios y archivos). Aviso en el duplicado con link y Quitar; ⌘Z deshace todo. Comentarios y adjuntos quedan en el duplicado; el texto de un team privado (o que un invitado no ve) no se copia. M B, M X y M R suman relaciones |
 | Formularios de pedidos a triage | parcial | (2026-11-23) Una plantilla de issue con campos (texto corto, largo, opciones, casilla; obligatorio, ayuda) es un formulario: página propia con link, índice en Track › Formularios de pedidos y desde el alta rápida. Crea el issue en triage con origen "form" (las reglas lo filtran), las respuestas en la descripción y las propiedades de la plantilla. Falta: Asks de Slack y entrada por email para gente de afuera |
-| Releases (pipelines, versiones, notas) | falta | (2026-11-23) |
+| Releases (pipelines, versiones, notas) | parcial | (T5, 2026-11-23) Releases por team: nombre, versión, fecha objetivo y estado (planeado, en curso, publicado); issues desde la página del release, la propiedad Release del issue, ⌘K y la selección, y solos al mergear un PR vinculado (al release en curso del team); avance, issues por estado y notas generadas con los títulos (novedades, mejoras, arreglos por label), editables. Release como propiedad, filtro y agrupado en listas y tableros; ⌘K los encuentra. Falta: pipelines de release y avisos de deploy desde el CI (Linear los usa para releases continuos) |
 
 ### Automatización
 

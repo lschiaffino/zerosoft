@@ -55,7 +55,7 @@ export interface TrackUiLabels {
     loadError: string;
   };
   markdown: MarkdownLabels;
-  display: DisplayLabels & { noCycle: string; noLabel: string };
+  display: DisplayLabels & { noCycle: string; noLabel: string; noRelease: string };
 }
 
 type T = (key: string) => string;
@@ -132,6 +132,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
       sortBy: t('display.sortBy'),
       noCycle: t('display.noCycle'),
       noLabel: t('display.noLabel'),
+      noRelease: t('display.noRelease'),
       groups: {
         none: t('display.groups.none'),
         status: t('display.groups.status'),
@@ -142,6 +143,7 @@ export function buildTrackUiLabels(t: T): TrackUiLabels {
         project: t('display.groups.project'),
         planMilestone: t('display.groups.planMilestone'),
         plan: t('display.groups.plan'),
+        release: t('display.groups.release'),
       },
       sorts: {
         manual: t('display.sorts.manual'),

@@ -14,7 +14,8 @@
     "more": "More",
     "newIssue": "New issue",
     "newPlan": "New project",
-    "newTeam": "New team"
+    "newTeam": "New team",
+    "releases": "Releases"
   },
   "common": {
     "viewAll": "View all",
@@ -548,7 +549,9 @@
     "integrations": "Track: Slack, Sentry and other integrations",
     "apiMcp": "Track: API, webhooks and MCP",
     "access": "Track: private teams and guests",
-    "audit": "Track: audit log"
+    "audit": "Track: audit log",
+    "releases": "Releases",
+    "newRelease": "New release"
   },
   "statusSettings": {
     "title": "Workflow statuses",
@@ -781,7 +784,8 @@
       "label": "Label",
       "project": "Team",
       "planMilestone": "Milestone",
-      "plan": "Project"
+      "plan": "Project",
+      "release": "Release"
     },
     "sorts": {
       "manual": "Manual",
@@ -795,7 +799,8 @@
       "revenue": "Customer revenue",
       "estimate": "Estimate",
       "status_time": "Time in status"
-    }
+    },
+    "noRelease": "No release"
   },
   "subscription": {
     "subscribe": "Subscribe",
@@ -1611,7 +1616,10 @@
       "currentCycle": "Current",
       "upcomingCycle": "Upcoming",
       "addToCycle": "Add to cycle {name}",
-      "deleteNotAllowed": "You don’t have permission to delete issues. Ask a workspace admin."
+      "deleteNotAllowed": "You don’t have permission to delete issues. Ask a workspace admin.",
+      "release": "Add to release…",
+      "noRelease": "No release",
+      "addToRelease": "Add to release {name}"
     },
     "editor": {
       "todo": "Checklist",
@@ -1698,7 +1706,10 @@
       "dupAttachments": "{count, plural, one {# file} other {# files}}",
       "dupSubscribers": "{count, plural, one {# subscriber} other {# subscribers}} moved here",
       "dupRequests": "{count, plural, one {# customer request} other {# customer requests}} moved here",
-      "dupMergedHidden": "{user} marked an issue from another team as a duplicate of this issue"
+      "dupMergedHidden": "{user} marked an issue from another team as a duplicate of this issue",
+      "releaseAdded": "{user} added this issue to release {to}",
+      "releaseRemoved": "{user} removed this issue from release {from}",
+      "releaseChange": "{user} moved this issue from release {from} to {to}"
     },
     "sub": {
       "title": "Sub-issues",
@@ -1785,7 +1796,8 @@
         "hierarchy": "Sub-issues",
         "team": "Team",
         "project": "Project",
-        "status_age": "Time in status"
+        "status_age": "Time in status",
+        "release": "Release"
       },
       "noAssignee": "No assignee",
       "noCycle": "No cycle",
@@ -1854,7 +1866,8 @@
       "matchToggle": "Switch to {next}",
       "noProject": "No project",
       "days": "{count, plural, one {# day} other {# days}}",
-      "moreThan": "More than {value}"
+      "moreThan": "More than {value}",
+      "noRelease": "No release"
     },
     "peek": {
       "title": "Issue preview",
@@ -1894,7 +1907,8 @@
         "estimate": "Estimate",
         "links": "Links",
         "status_time": "Time in status",
-        "updated": "Updated"
+        "updated": "Updated",
+        "release": "Release"
       },
       "reset": "Reset to default",
       "collapse": "Collapse {name}",
@@ -1952,7 +1966,8 @@
       "setEstimate": "Set estimate",
       "setStart": "Set start date",
       "setDue": "Set due date",
-      "properties": "Properties"
+      "properties": "Properties",
+      "addRelease": "Add to release"
     },
     "rel": {
       "blocks": "Mark as blocking…",
@@ -2063,6 +2078,65 @@
       "w": "{n}w",
       "mo": "{n}mo"
     }
+  },
+  "releases": {
+    "title": "Releases",
+    "new": "New release",
+    "empty": "No releases yet",
+    "emptyHint": "A release groups the issues that ship together in a version: follow its progress and publish its notes.",
+    "name": "Name",
+    "version": "Version",
+    "team": "Team",
+    "targetDate": "Target date",
+    "status": "Status",
+    "progress": "Progress",
+    "issues": "Issues",
+    "statuses": {
+      "planned": "Planned",
+      "in_progress": "In progress",
+      "released": "Released"
+    },
+    "create": "Create release",
+    "cancel": "Cancel",
+    "save": "Save",
+    "error": "Couldn't save the release. Try again.",
+    "loadError": "Couldn't load the releases. Try again.",
+    "namePlaceholder": "Release name",
+    "versionPlaceholder": "1.4.0",
+    "rename": "Rename",
+    "delete": "Delete release",
+    "deleteTitle": "Delete release",
+    "deleteConfirm": "Delete {name}? Its issues stay, without a release.",
+    "deleted": "Release deleted",
+    "created": "Release created",
+    "more": "Release options",
+    "notes": "Release notes",
+    "notesGenerated": "Generated from the issue titles",
+    "notesEdited": "Edited by hand",
+    "editNotes": "Edit notes",
+    "resetNotes": "Generate again",
+    "copyNotes": "Copy",
+    "copied": "Notes copied",
+    "notesFeatures": "New",
+    "notesImprovements": "Improvements",
+    "notesFixes": "Fixes",
+    "notesEmpty": "No issues yet.",
+    "addIssues": "Add issues",
+    "addIssuesHint": "Search issues of {team}",
+    "removeIssue": "Remove {id} from the release",
+    "removed": "{id} removed from the release",
+    "added": "{count, plural, one {# issue added} other {# issues added}}",
+    "autoGithub": "Add issues when a linked pull request is merged",
+    "noDate": "No date",
+    "released": "Released {date}",
+    "target": "Target {date}",
+    "issueCount": "{count, plural, one {# issue} other {# issues}}",
+    "issuesEmpty": "No issues in this release yet. Add them here, from an issue (Release), or from a list with ⌘K. With GitHub connected, merged pull requests add their issues.",
+    "back": "Releases",
+    "teamFilter": "All teams",
+    "loading": "Loading releases…",
+    "property": "Release",
+    "moreOf": "{name} options"
   },
   "entityComments": {
     "title": "Comments",
