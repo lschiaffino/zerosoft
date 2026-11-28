@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useCrmLive } from './useCrmLive';
+import LeadCardFields, { type CardLead } from './LeadCardFields';
+import type { CardCustomDef } from './DealCardFields';
+import { DEFAULT_LEAD_CARD_PROPERTIES } from '@/lib/crm-layouts-shared';
+import { useLeadPreview } from './LeadsPreview';
 
-export interface BoardLead {
+export interface BoardLead extends CardLead {
   id: string;
   name: string;
-  contact: string;
-  company: string;
-  owner: string;
   converted: boolean;
 }
 
@@ -27,8 +28,20 @@ export interface BoardColumn {
  * etapa (la columna entera es zona de soltar); con teclado, el select
  * "Mover a" de cada card hace lo mismo.
  */
-export default function LeadsBoard({ columns: initial }: { columns: BoardColumn[] }) {
+export default function LeadsBoard({
+  columns: initial,
+  cardKeys = DEFAULT_LEAD_CARD_PROPERTIES,
+  cardCustomDefs = [],
+  locale,
+}: {
+  columns: BoardColumn[];
+  /** Propiedades de la tarjeta (Ajustes › Ventas › Tarjetas del board), ya sin las ocultas para quien mira. */
+  cardKeys?: readonly string[];
+  cardCustomDefs?: readonly CardCustomDef[];
+  locale: string;
+}) {
   const t = useTranslations('crm');
+  const openPreview = useLeadPreview();
   const router = useRouter();
   const [columns, setColumns] = useState(initial);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -123,28 +136,36 @@ export default function LeadsBoard({ columns: initial }: { columns: BoardColumn[
                       setOverId(null);
                     }}
                     data-testid="lead-card"
+                    onClick={(e) => {
+                      // El select "Mover a" y los links de la card hacen lo suyo.
+                      if (!openPreview || dragId || (e.target as HTMLElement).closest('a, select, button')) return;
+                      openPreview(l.id);
+                    }}
                   >
-                    <Link href={`/app/crm/leads/${l.id}`} className="kb-card-name">
+                    {/* Como el board de deals: el nombre va a la ficha y un clic en el resto de la card abre la vista previa. */}
+                    <Link href={`/app/crm/leads/${l.id}`} className="kb-card-name" data-testid="lead-card-name" onClick={(e) => e.stopPropagation()}>
                       {l.name}
                     </Link>
-                    {(l.contact || l.company) && (
-                      <span className="kb-card-meta">{[l.contact, l.company].filter(Boolean).join(' · ')}</span>
-                    )}
-                    <span className="kb-card-foot">
-                      <span className="kb-card-meta">{l.owner}</span>
-                      <select
-                        className="filter-select kb-move"
-                        aria-label={`${t('leads.moveTo')}: ${l.name}`}
-                        value={col.id}
-                        onChange={(e) => void move(l.id, e.target.value)}
-                      >
-                        {columns.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
+                    <LeadCardFields
+                      lead={l}
+                      keys={cardKeys}
+                      customDefs={cardCustomDefs}
+                      locale={locale}
+                      footExtra={
+                        <select
+                          className="filter-select kb-move"
+                          aria-label={`${t('leads.moveTo')}: ${l.name}`}
+                          value={col.id}
+                          onChange={(e) => void move(l.id, e.target.value)}
+                        >
+                          {columns.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      }
+                    />
                   </li>
                 ))}
               </ul>

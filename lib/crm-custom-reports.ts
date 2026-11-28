@@ -673,9 +673,9 @@ export async function drillReport(
   workspaceId: string,
   rawConfig: ReportConfig,
   keys: Array<string | null>,
-  opts: { scope?: OwnerScope; viewer: FieldViewer; range?: { from: string; to: string }; locale?: string },
+  opts: { scope?: OwnerScope; viewer: FieldViewer; range?: { from: string; to: string }; locale?: string; object?: ReportObject },
   db: Db = getDb(),
-): Promise<{ object: ReportObject; rows: ReportDrillRow[]; total: number; truncated: boolean }> {
+): Promise<{ object: ReportObject; objects: ReportObject[]; rows: ReportDrillRow[]; total: number; truncated: boolean }> {
   const config = reportConfigSchema.parse(rawConfig);
   if (!configObjectsValid(config)) throw new ReportError('invalid_input');
   const objects = usedObjects(config);
@@ -727,8 +727,13 @@ export async function drillReport(
       status: 'a.type',
     },
   };
-  const a = ALIAS[base];
-  const p = pick[base];
+  // Como en HubSpot, el drill puede mostrar un objeto asociado que el reporte usa (los deals de una barra
+  // agrupada por empresa, o esas empresas). El join ya trae solo los asociados que la persona ve.
+  const drillable = [base, ...objects.filter((o) => o !== base && o !== 'activity')];
+  const target = opts.object && drillable.includes(opts.object) ? opts.object : base;
+  const a = ALIAS[target];
+  const p = pick[target];
+  if (target !== base) where.push(`${a}.id IS NOT NULL`);
   const inner = `SELECT DISTINCT ${a}.id AS id, ${p.name} AS name, ${p.amount} AS amount, ${p.status} AS status,
       COALESCE(${a}.owner_id, ${a}.user_id) AS owner, ${a}.created_at AS dt
     FROM ${from.sql} WHERE ${where.join(' AND ')}`;
@@ -743,12 +748,13 @@ export async function drillReport(
     dt: string | null;
   }>;
   return {
-    object: base,
+    object: target,
+    objects: drillable,
     total,
     truncated: total > rows.length,
     rows: rows.map((r) => ({
       id: String(r.id),
-      object: base,
+      object: target,
       name: r.name ?? '',
       amount: r.amount === null || r.amount === undefined ? null : Math.round(Number(r.amount) * 100) / 100,
       status: r.status ?? null,

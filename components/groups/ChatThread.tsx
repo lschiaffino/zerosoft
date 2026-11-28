@@ -785,7 +785,8 @@ export default function ChatThread(props: ThreadProps) {
   const waMentions = mode === 'reply' && chat.kind === 'group' && !editing;
   // "@all" (o "@todos"): todo el grupo, solo si la línea lo puede mandar (lib/wa-mention-all.ts). Las notas internas no.
   const allWord = chat.kind === 'group' && props.caps.mentionAll && !props.sample ? mentionAllWord(locale) : null;
-  const waPeople = useMemo(() => waMentionables(props.members, pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
+  // La línea misma no se ofrece: en WhatsApp uno no se menciona a sí mismo (Inbox hace lo mismo).
+  const waPeople = useMemo(() => waMentionables(props.members.filter((m) => !m.me), pickedWa.current, allWord), [props.members, pickedVersion, allWord]); // eslint-disable-line react-hooks/exhaustive-deps
   const mentionPool = mode === 'note' && !editing ? mentionPeople : waMentions ? waPeople : null;
   const mentionHits = useMemo(() => (mentionPool ? findMentionHits(text, mentionPool) : []), [text, mentionPool]);
   const mentionQuery = mentionPool ? mentionQueryAt(text, caret) : null;
@@ -2851,15 +2852,16 @@ export default function ChatThread(props: ThreadProps) {
                   ) : (
                     <button
                       type="button"
-                      title={waMentions ? `+${p.id}` : p.email}
+                      title={waMentions ? phoneLabel(p.id) : p.email}
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => i !== mentionIndex && setMentionIndex(i)}
                       onClick={() => pickMention(i)}
                     >
                       <Avatar name={p.name || p.email} kind="dm" size={32} src={(waMentions && memberPics.get(p.id)) || undefined} seed={p.id} />
                       <span className="wa-mention-who">
-                        <span className="wa-mention-name">{p.name || p.email}</span>
-                        {waMentions && p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                        {/* Sin nombre, el teléfono con formato de WhatsApp (+1 555 000 0000), como en la lista de miembros. */}
+                        <span className="wa-mention-name">{waMentions && (!p.name || p.name === p.id) ? phoneLabel(p.id) : p.name || p.email}</span>
+                        {waMentions && p.name && p.name !== p.id && <span className="wa-mention-phone">{phoneLabel(p.id)}</span>}
                       </span>
                     </button>
                   )}

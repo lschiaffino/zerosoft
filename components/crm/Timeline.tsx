@@ -24,6 +24,7 @@ import CallSummaryBlock, { type CallSummaryState } from './CallSummaryBlock';
 import CallFollowupBlock from './CallFollowupBlock';
 import TimelineMenu from './TimelineMenu';
 import RecordCombobox, { type ComboOption } from './RecordCombobox';
+import { searchAssociable } from './assocSearch';
 import {
   applyFilters,
   groupTimeline,
@@ -717,13 +718,7 @@ export default function Timeline({
   }
 
   async function searchRecords(kind: 'contacts' | 'companies' | 'deals', q: string): Promise<ComboOption[]> {
-    const res = await fetch(`/api/crm/search?q=${encodeURIComponent(q)}`).catch(() => null);
-    if (!res?.ok) return [];
-    const data = (await res.json().catch(() => null)) as Record<string, Array<{ id: string; name?: string; first_name?: string; last_name?: string; email?: string }>> | null;
-    return (data?.[kind] ?? []).map((r) => ({
-      value: r.id,
-      label: kind === 'contacts' ? [r.first_name, r.last_name].filter(Boolean).join(' ') || r.email || r.id : r.name || r.id,
-    }));
+    return (await searchAssociable(kind, q)).map((h) => ({ value: h.id, label: h.name || h.id }));
   }
 
   // ---------- Textos ----------

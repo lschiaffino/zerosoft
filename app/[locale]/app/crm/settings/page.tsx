@@ -61,7 +61,7 @@ import HubspotSyncPanel from '@/components/crm/HubspotSyncPanel';
 import { listApps } from '@/lib/crm-apps';
 import { parseDbUtc } from '@/lib/utils';
 import { CardLayoutPanel, PreviewLayoutPanel } from '@/components/crm/LayoutSettings';
-import { resolveCardLayout, resolvePreviewLayout } from '@/lib/crm-layouts';
+import { resolveLeadCardLayout, resolveCardLayout, resolvePreviewLayout } from '@/lib/crm-layouts';
 import { isLayoutEntity, LAYOUT_ENTITIES } from '@/lib/crm-layouts-shared';
 
 export const dynamic = 'force-dynamic';
@@ -123,7 +123,7 @@ export default async function CrmSettingsPage(props: {
   } else if (tab === 'sales') {
     const people = await workspacePeople(user);
     const scope = await sessionScope(user);
-    const [pipelines, crmSettings, rates, missing, quotas, dealFields, leadStages, approvalRules] = await Promise.all([
+    const [pipelines, crmSettings, rates, missing, quotas, dealFields, leadStages, approvalRules, leadFields, leadCardLayout] = await Promise.all([
       listPipelinesWithStages(user.id),
       getCrmSettings(user.id),
       listExchangeRates(user.id),
@@ -138,6 +138,8 @@ export default async function CrmSettingsPage(props: {
         disqualified: t('leads.defaultStages.disqualified'),
       }),
       listApprovalRules(user.id),
+      fieldAccessFor(sessionFieldViewer(user), 'leads').then((a) => a.visible),
+      resolveLeadCardLayout(sessionFieldViewer(user)),
     ]);
     // Tarjetas del board por pipeline (sin las personalizadas ocultas para quien mira).
     const cardLayouts = Object.fromEntries(
@@ -162,6 +164,8 @@ export default async function CrmSettingsPage(props: {
             pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))}
             initial={cardLayouts}
             customFields={dealFields.map((f) => ({ name: f.name, label: f.label, type: f.type, options: f.options }))}
+            leadLayout={leadCardLayout}
+            leadCustomFields={leadFields.map((f) => ({ name: f.name, label: f.label, type: f.type, options: f.options }))}
             canEdit={admin}
             initialPipelineId={sp.pipeline}
             baseCurrency={crmSettings.baseCurrency}
@@ -224,7 +228,7 @@ export default async function CrmSettingsPage(props: {
       resolveCreateForm(viewer, 'companies'),
       resolveCreateForm(viewer, 'deals'),
     ]);
-    const [contactPreview, companyPreview, dealPreview] = await Promise.all(
+    const [contactPreview, companyPreview, dealPreview, leadPreview] = await Promise.all(
       LAYOUT_ENTITIES.map((e) => resolvePreviewLayout(viewer, e)),
     );
     const plain = (fields: Array<{ key: string; required: boolean }>) => fields.map(({ key, required }) => ({ key, required }));
@@ -253,7 +257,7 @@ export default async function CrmSettingsPage(props: {
         </FormSection>
         <FormSection id="preview-layout" setting="crm-preview-layout" title={t('layouts.previewSettingsTitle')} description={t('layouts.previewSettingsDesc')}>
           <PreviewLayoutPanel
-            initial={{ contacts: contactPreview, companies: companyPreview, deals: dealPreview }}
+            initial={{ contacts: contactPreview, companies: companyPreview, deals: dealPreview, leads: leadPreview }}
             customFields={customFields
               .filter((f) => isLayoutEntity(f.entity))
               .map((f) => ({ entity: f.entity, name: f.name, label: f.label, type: f.type }))}

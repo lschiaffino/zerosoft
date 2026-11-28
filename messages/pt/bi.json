@@ -122,7 +122,14 @@
     "prev": "Página anterior",
     "next": "Próxima página",
     "page": "Página {n} de {total}",
-    "csv": "Baixar CSV"
+    "download": "Baixar",
+    "downloadAs": "Baixar em {format}",
+    "downloadMore": "O arquivo traz até {n} linhas",
+    "format": {
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "json": "JSON"
+    }
   },
   "sql": {
     "suggestions": "Sugestões",
@@ -361,5 +368,26 @@
     },
     "apply": "Aplicar",
     "empty": "Este painel está vazio."
+  },
+  "history": {
+    "button": "Histórico",
+    "title": "Histórico de versões",
+    "empty": "Ainda não há versões. Cada salvamento que muda algo adiciona uma.",
+    "created": "Criou esta pergunta",
+    "baseline": "Versão de antes do histórico",
+    "reverted": "Voltou a uma versão anterior",
+    "edited": "Salvou mudanças",
+    "changed": "Mudou {fields}",
+    "someone": "Alguém",
+    "current": "Versão atual",
+    "restore": "Voltar a esta versão",
+    "field": {
+      "name": "o nome",
+      "description": "a descrição",
+      "source": "a fonte de dados",
+      "collection": "a coleção",
+      "query": "a consulta",
+      "viz": "o gráfico"
+    }
   }
 }

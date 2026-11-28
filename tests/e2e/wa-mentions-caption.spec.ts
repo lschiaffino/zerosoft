@@ -112,7 +112,7 @@ test('Lines: @ en el pie de una foto elige a la persona, se cierra con Esc y afu
     await expect(list).toBeVisible();
     await expect(list.getByRole('option')).toHaveCount(1);
     await expect(list.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
-    await expect(list).toContainText(`+${g.eze}`);
+    await expect(list).toContainText(`+54 9 11 ${g.eze.slice(5, 9)}-${g.eze.slice(9)}`);
 
     // Esc cierra la lista; la vista previa sigue abierta.
     await page.keyboard.press('Escape');

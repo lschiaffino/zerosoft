@@ -5098,7 +5098,8 @@
     "kind": {
       "contact": "Contato",
       "company": "Empresa",
-      "deal": "Negócio"
+      "deal": "Negócio",
+      "lead": "Lead"
     },
     "openRecord": "Abrir registro",
     "allProps": "Ver todas as propriedades",
@@ -5392,6 +5393,8 @@
       "pipeline": "Pipeline"
     },
     "drill": {
+      "objectsLabel": "Registros exibidos",
+      "objects": { "deal": "Negócios", "contact": "Contatos", "company": "Empresas" },
       "close": "Fechar",
       "empty": "Nenhum registro.",
       "truncated": "Mostrando os primeiros {count}. Refine os filtros para ver o resto.",
@@ -5419,13 +5422,17 @@
     "editCards": "Editar cartões",
     "customize": "Personalizar",
     "cardSettingsTitle": "Cartões do quadro",
-    "cardSettingsDesc": "Escolha quais propriedades cada cartão de negócio mostra no quadro, por pipeline. O nome do negócio fica sempre em cima.",
+    "cardSettingsDesc": "Escolha quais propriedades cada cartão mostra no quadro de negócios (por pipeline) e no quadro de leads. O nome fica sempre em cima.",
+    "boardLabel": "Quadro",
+    "dealBoards": "Pipelines de negócios",
+    "leadBoard": "Quadro de leads",
     "previewSettingsTitle": "Pré-visualização de registros",
-    "previewSettingsDesc": "Escolha o que o painel de pré-visualização mostra quando você abre um contato, uma empresa ou um negócio de uma lista ou do quadro: as propriedades de \"Sobre\" e os cartões abaixo, em ordem.",
+    "previewSettingsDesc": "Escolha o que o painel de pré-visualização mostra quando você abre um contato, uma empresa, um negócio ou um lead de uma lista ou do quadro: as propriedades de \"Sobre\" e os cartões abaixo, em ordem.",
     "about": {
       "contacts": "Sobre este contato",
       "companies": "Sobre esta empresa",
-      "deals": "Sobre este negócio"
+      "deals": "Sobre este negócio",
+      "leads": "Sobre este lead"
     },
     "aboutHelp": "Estas propriedades aparecem primeiro. O resto fica a um clique em \"Ver todas as propriedades\".",
     "cardsTitle": "Cartões da pré-visualização",
@@ -5444,6 +5451,7 @@
     "sampleLabel": "Cartão de exemplo",
     "sample": {
       "deal": "Negócio de exemplo",
+      "lead": "Lead de exemplo",
       "company": "Empresa",
       "contact": "Contato",
       "nextStep": "Enviar a proposta"

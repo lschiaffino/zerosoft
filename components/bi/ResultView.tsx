@@ -6,6 +6,7 @@ import Chart from '@/components/analytics/Chart';
 import { chartDateLabel, spansYears } from '@/lib/chart-dates';
 import { formatValue, pickViz } from '@/lib/bi/viz';
 import type { BiResult, Viz } from '@/lib/bi/types';
+import DownloadButtons, { type ServerExport } from './DownloadButtons';
 
 const PAGE = 50;
 
@@ -14,8 +15,25 @@ function toNumber(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Resultado de una pregunta: número, gráfico o tabla paginada (con CSV). */
-export default function ResultView({ result, viz, compact = false, title }: { result: BiResult; viz: Viz; compact?: boolean; title?: string }) {
+/** Resultado de una pregunta: número, gráfico o tabla paginada, con descarga en CSV, Excel o JSON. */
+export default function ResultView({ result, viz, compact = false, title, server }: { result: BiResult; viz: Viz; compact?: boolean; title?: string; server?: ServerExport }) {
+  const t = useTranslations('bi.result');
+  const view = <ResultBody result={result} viz={viz} compact={compact} title={title} server={server} />;
+  if (compact || !result.rows.length || pickViz(result.columns, result.rows.length, viz).type === 'table') return view;
+  // Número o gráfico: la descarga va abajo (en la tabla va en su pie).
+  const n = String(result.rows.length);
+  return (
+    <>
+      {view}
+      <div className="bi-table-foot bi-result-foot">
+        <span className="bi-muted">{result.truncated ? t('rowsTruncated', { n }) : t('rows', { n })}</span>
+        <DownloadButtons result={result} name={title} server={server} />
+      </div>
+    </>
+  );
+}
+
+function ResultBody({ result, viz, compact, title, server }: { result: BiResult; viz: Viz; compact: boolean; title?: string; server?: ServerExport }) {
   const t = useTranslations('bi.result');
   const locale = useLocale();
   const resolved = useMemo(() => pickViz(result.columns, result.rows.length, viz), [result, viz]);
@@ -56,7 +74,7 @@ export default function ResultView({ result, viz, compact = false, title }: { re
 
   if (resolved.type === 'pie') return <Pie columns={columns} rows={rows} x={resolved.x} y={resolved.ys[0]} />;
   if (resolved.type === 'funnel') return <Funnel columns={columns} rows={rows} x={resolved.x} y={resolved.ys[0]} />;
-  return <ResultTable result={result} compact={compact} />;
+  return <ResultTable result={result} compact={compact} title={title} server={server} />;
 }
 
 function Pie({ columns, rows, x, y }: { columns: BiResult['columns']; rows: unknown[][]; x: number; y: number }) {
@@ -123,29 +141,12 @@ function Funnel({ columns, rows, x, y }: { columns: BiResult['columns']; rows: u
   );
 }
 
-function csv(result: BiResult): string {
-  const esc = (v: unknown) => {
-    const s = v === null || v === undefined ? '' : String(v);
-    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-  };
-  return [result.columns.map((c) => esc(c.name)).join(','), ...result.rows.map((r) => r.map(esc).join(','))].join('\n');
-}
-
-export function ResultTable({ result, compact }: { result: BiResult; compact?: boolean }) {
+export function ResultTable({ result, compact, title, server }: { result: BiResult; compact?: boolean; title?: string; server?: ServerExport }) {
   const t = useTranslations('bi.result');
   const locale = useLocale();
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(result.rows.length / PAGE));
   const rows = result.rows.slice(page * PAGE, page * PAGE + PAGE);
-  const download = () => {
-    const blob = new Blob([csv(result)], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'results.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
   return (
     <div className="bi-table-block">
       <div className={`bi-table-wrap${compact ? ' compact' : ''}`} tabIndex={0} aria-label={t('tableLabel')}>
@@ -188,9 +189,7 @@ export function ResultTable({ result, compact }: { result: BiResult; compact?: b
               </button>
             </span>
           )}
-          <button type="button" className="btn btn-sm btn-ghost" onClick={download}>
-            {t('csv')}
-          </button>
+          <DownloadButtons result={result} name={title} server={server} />
         </div>
       )}
     </div>

@@ -8,9 +8,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createCustomField, createPipeline } from '@/lib/crm';
 import { MEMBER_SUBJECT, sessionFieldViewer, setFieldPermissions } from '@/lib/crm-field-perms';
-import { getCardLayout, getPreviewLayout, resolveCardLayout, resolvePreviewLayout } from '@/lib/crm-layouts';
+import { getCardLayout, getLeadCardLayout, getPreviewLayout, resolveCardLayout, resolveLeadCardLayout, resolvePreviewLayout } from '@/lib/crm-layouts';
 import {
   DEFAULT_CARD_PROPERTIES,
+  DEFAULT_LEAD_CARD_PROPERTIES,
   DEFAULT_PREVIEW_PROPERTIES,
   MAX_CARD_PROPERTIES,
   sanitizeCardLayout,
@@ -142,10 +143,51 @@ describe('crm layouts: acceso', () => {
     expect((await getCardLayout(s.ws, s.pipeline.id)).properties).toEqual([...DEFAULT_CARD_PROPERTIES]);
   });
 
+  it('leads: tarjetas del board y vista previa por workspace, sin las personalizadas ocultas', async () => {
+    const s = await setup('p4-leads');
+    const ws = s.ws;
+    const hidden = await createCustomField(ws, { entity: 'leads', name: 'budget', label: 'Budget', type: 'text' });
+    await setFieldPermissions(ws, hidden.id, [{ subject: MEMBER_SUBJECT, access: 'hidden' }]);
+    await createCustomField(ws, { entity: 'leads', name: 'channel', label: 'Channel', type: 'text' });
+    expect((await getLeadCardLayout(ws)).properties).toEqual([...DEFAULT_LEAD_CARD_PROPERTIES]);
+
+    // Member: lee, no cambia.
+    session.user = asMember(s.w.owner, s.w.member);
+    expect((await route.PUT(req('http://x/api/crm/layouts', 'PUT', { kind: 'card', entity: 'leads', properties: ['source'] }))).status).toBe(403);
+
+    // Owner: guarda (sin claves de deals ni personalizadas que no existen) y el member no ve la oculta.
+    session.user = asOwner(s.w.owner);
+    const put = await route.PUT(
+      req('http://x/api/crm/layouts', 'PUT', { kind: 'card', entity: 'leads', properties: ['source', 'amount', 'custom.budget', 'custom.channel', 'custom.gone'] }),
+    );
+    expect(put.status).toBe(200);
+    expect((await getLeadCardLayout(ws)).properties).toEqual(['source', 'custom.budget', 'custom.channel']);
+    await route.PUT(req('http://x/api/crm/layouts', 'PUT', { kind: 'preview', entity: 'leads', properties: ['stageId', 'custom.budget'], sections: ['contacts', 'activity'] }));
+
+    session.user = asMember(s.w.owner, s.w.member);
+    const card = await route.GET(req('http://x/api/crm/layouts?kind=card&entity=leads'));
+    const cardText = await card.text();
+    expect(cardText).not.toContain('budget');
+    expect((JSON.parse(cardText) as { layout: { properties: string[] } }).layout.properties).toEqual(['source', 'custom.channel']);
+    const preview = await route.GET(req('http://x/api/crm/layouts?kind=preview&entity=leads'));
+    expect(await preview.text()).not.toContain('budget');
+    expect((await resolveLeadCardLayout(sessionFieldViewer(session.user))).properties).not.toContain('custom.budget');
+
+    // Otro workspace no toca estas tarjetas; el reset vuelve a lo de por defecto.
+    session.user = asOwner(s.w.stranger);
+    await route.PUT(req('http://x/api/crm/layouts', 'PUT', { kind: 'card', entity: 'leads', properties: ['ownerId'] }));
+    expect((await getLeadCardLayout(ws)).properties).toEqual(['source', 'custom.budget', 'custom.channel']);
+    session.user = asOwner(s.w.owner);
+    expect((await route.DELETE(req('http://x/api/crm/layouts?kind=card&entity=leads', 'DELETE'))).status).toBe(200);
+    expect((await getLeadCardLayout(ws)).properties).toEqual([...DEFAULT_LEAD_CARD_PROPERTIES]);
+  });
+
   it('pedidos inválidos: 400', async () => {
     const s = await setup('p4-invalid');
     session.user = asOwner(s.w.owner);
-    expect((await route.GET(req('http://x/api/crm/layouts?kind=preview&entity=leads'))).status).toBe(400);
+    expect((await route.GET(req('http://x/api/crm/layouts?kind=preview&entity=tasks'))).status).toBe(400);
+    // Una tarjeta de deals sin pipeline.
+    expect((await route.PUT(req('http://x/api/crm/layouts', 'PUT', { kind: 'card', properties: ['amount'] }))).status).toBe(400);
     expect((await route.GET(req('http://x/api/crm/layouts?kind=other'))).status).toBe(400);
     expect((await route.PUT(req('http://x/api/crm/layouts', 'PUT', { kind: 'preview', entity: 'deals' }))).status).toBe(400);
   });

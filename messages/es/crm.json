@@ -5098,7 +5098,8 @@
     "kind": {
       "contact": "Contacto",
       "company": "Empresa",
-      "deal": "Deal"
+      "deal": "Deal",
+      "lead": "Lead"
     },
     "openRecord": "Abrir registro",
     "allProps": "Ver todas las propiedades",
@@ -5392,6 +5393,8 @@
       "pipeline": "Pipeline"
     },
     "drill": {
+      "objectsLabel": "Registros que se muestran",
+      "objects": { "deal": "Deals", "contact": "Contactos", "company": "Empresas" },
       "close": "Cerrar",
       "empty": "No hay registros.",
       "truncated": "Se muestran los primeros {count}. Acotá los filtros para ver el resto.",
@@ -5419,13 +5422,17 @@
     "editCards": "Editar tarjetas",
     "customize": "Personalizar",
     "cardSettingsTitle": "Tarjetas del board",
-    "cardSettingsDesc": "Elegí qué propiedades muestra cada tarjeta de deal en el board, por pipeline. El nombre del deal va siempre arriba.",
+    "cardSettingsDesc": "Elegí qué propiedades muestra cada tarjeta en el board de deals (por pipeline) y en el de leads. El nombre va siempre arriba.",
+    "boardLabel": "Board",
+    "dealBoards": "Pipelines de deals",
+    "leadBoard": "Board de leads",
     "previewSettingsTitle": "Vista previa de registros",
-    "previewSettingsDesc": "Elegí qué muestra el panel de vista previa cuando abrís un contacto, una empresa o un deal desde una lista o el board: las propiedades de \"Acerca de\" y las tarjetas de abajo, en orden.",
+    "previewSettingsDesc": "Elegí qué muestra el panel de vista previa cuando abrís un contacto, una empresa, un deal o un lead desde una lista o el board: las propiedades de \"Acerca de\" y las tarjetas de abajo, en orden.",
     "about": {
       "contacts": "Acerca de este contacto",
       "companies": "Acerca de esta empresa",
-      "deals": "Acerca de este deal"
+      "deals": "Acerca de este deal",
+      "leads": "Acerca de este lead"
     },
     "aboutHelp": "Estas propiedades se ven primero. El resto queda a un clic en \"Ver todas las propiedades\".",
     "cardsTitle": "Tarjetas de la vista previa",
@@ -5444,6 +5451,7 @@
     "sampleLabel": "Tarjeta de muestra",
     "sample": {
       "deal": "Deal de muestra",
+      "lead": "Lead de muestra",
       "company": "Empresa",
       "contact": "Contacto",
       "nextStep": "Mandar la propuesta"

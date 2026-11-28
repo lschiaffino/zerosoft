@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/session';
-import { canSeeActivity, canSeeRecord, sessionScope } from '@/lib/crm-visibility';
+import { canSeeActivity, canSeeOwnedRow, canSeeRecord, sessionScope } from '@/lib/crm-visibility';
+import { listTimeline } from '@/lib/crm';
 import { sessionChatReader } from '@/lib/crm-chat-privacy';
 import { buildRecordTimeline, pinOnRecord, type TimelineRecordKind } from '@/lib/crm-timeline';
 import { crmError, invalidBody, notFound, unauthorized } from '@/lib/crm-http';
@@ -21,6 +22,15 @@ export async function GET(req: NextRequest) {
   const kind = kindSchema.safeParse(sp.get('kind'));
   const id = sp.get('id') ?? '';
   const offset = Number(sp.get('offset') ?? '0');
+  // Lead (vista previa): sus últimas actividades propias, como el timeline de su ficha.
+  if (sp.get('kind') === 'lead') {
+    if (!id) return crmError(400, 'invalid_input');
+    const scope = await sessionScope(user);
+    if (!(await canSeeOwnedRow(user.id, 'crm_leads', id, scope))) return notFound();
+    const chatReader = await sessionChatReader(user, requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language')));
+    const items = await listTimeline(user.id, { leadId: id, limit: 20, chatReader, ownerScope: scope });
+    return NextResponse.json({ items, hasMore: false, nextOffset: items.length });
+  }
   if (!kind.success || !id || !Number.isInteger(offset) || offset < 0 || offset > 100_000) return crmError(400, 'invalid_input');
   const scope = await sessionScope(user);
   if (!(await canSeeRecord(user.id, TABLES[kind.data], id, scope))) return notFound();
