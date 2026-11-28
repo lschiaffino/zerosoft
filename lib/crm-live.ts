@@ -32,7 +32,9 @@ const TABLE: Record<LiveEntity, 'crm_contacts' | 'crm_companies' | 'crm_deals' |
 };
 /** Leads: el contacto, la empresa y el deal que la persona no ve quedan en null con su marca, todos iguales. */
 const LEAD_LIVE_REFS = [PRIVATE_REFS.contact([]), PRIVATE_REFS.company([]), PRIVATE_REFS.deal([])] as const;
-export const KIND_ENTITY: Record<LiveKind, Exclude<LiveEntity, 'leads'>> = { contact: 'contacts', company: 'companies', deal: 'deals' };
+/** Fichas con vivo (los leads tienen su lista en vivo, no ficha). */
+const RECORD_TABLE: Record<LiveKind, 'crm_contacts' | 'crm_companies' | 'crm_deals'> = { contact: 'crm_contacts', company: 'crm_companies', deal: 'crm_deals' };
+export const KIND_ENTITY:Record<LiveKind, Exclude<LiveEntity, 'leads'>> = { contact: 'contacts', company: 'companies', deal: 'deals' };
 
 /** Filas a la vista que se firman una por una (más que esto solo cuenta la cantidad y lo último creado). */
 export const MAX_LIVE_IDS = 500;
@@ -111,7 +113,7 @@ export async function recordSignature(
   db: Db = getDb(),
 ): Promise<string | null> {
   const entity = KIND_ENTITY[kind];
-  const table = TABLE[entity];
+  const table = RECORD_TABLE[kind];
   const ws = viewer.workspaceId;
   if (!(await canSeeRecord(ws, table, id, scope, db))) return null;
   const row = (await db.prepare(`SELECT * FROM ${table} WHERE id = ? AND user_id = ?`).get(id, ws)) as
