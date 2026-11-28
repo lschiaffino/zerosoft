@@ -66,7 +66,8 @@ export function scopeItems<T extends ModelItem>(items: T[], associated: boolean)
 export function applyFilters<T extends ModelItem>(items: T[], f: TimelineFilters): T[] {
   return scopeItems(items, f.associated).filter((i) => {
     if (f.tab !== 'all' && i.type !== f.tab) return false;
-    if (f.tab === 'all' && !f.types.includes(i.type as TimelineType)) return false;
+    // Los cambios del sistema (lifecycle automático) van en "Toda la actividad", fuera del filtro por tipo.
+    if (f.tab === 'all' && i.type !== 'change' && !f.types.includes(i.type as TimelineType)) return false;
     if (f.users && !(i.author_id && f.users.includes(i.author_id))) return false;
     return matchesQuery(i, f.query);
   });
@@ -75,6 +76,8 @@ export function applyFilters<T extends ModelItem>(items: T[], f: TimelineFilters
 export function tabCounts(items: ModelItem[], associated: boolean): Record<TimelineTab, number> {
   const out = { all: 0, note: 0, email: 0, call: 0, task: 0, meeting: 0, whatsapp: 0 } as Record<TimelineTab, number>;
   for (const i of scopeItems(items, associated)) {
+    // Un cambio del sistema no es actividad: no suma.
+    if (i.type === 'change') continue;
     out.all += 1;
     if (i.type in out) out[i.type as TimelineType] += 1;
   }

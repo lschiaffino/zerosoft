@@ -451,7 +451,8 @@ const WaComposer = forwardRef<
 
   const hasText = !!text.trim();
   return (
-    <div className="wa-composer ib-wa-composer" data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
+    // Con el chip de la AI ("Pulir", "Insertado · Deshacer") el composer se hace lugar arriba: nunca tapa la conversación.
+    <div className={`wa-composer ib-wa-composer`} data-tour="inbox-composer" aria-busy={busy !== '' || undefined}>
       {above}
       {banner}
       {linkPv.card}

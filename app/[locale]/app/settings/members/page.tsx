@@ -11,6 +11,7 @@ import { getTeamById, listGuestWorkspaces } from '@/lib/teams';
 import RequestWorkspaceNotice from '@/components/settings/RequestWorkspaceNotice';
 import GuestOfPanel from '@/components/settings/GuestOfPanel';
 import MembersPanel from '@/components/settings/MembersPanel';
+import { inviteAppsOf } from '@/lib/capabilities';
 import { emailLoginEnabled } from '@/lib/email-login';
 
 export const dynamic = 'force-dynamic';
@@ -69,7 +70,7 @@ export default async function MembersSettingsPage(props: { params: Promise<{ loc
     <>
       {other && <RequestWorkspaceNotice {...other} />}
       <GuestOfPanel workspaces={guestOf} />
-      <MembersPanel openPerson={openPerson} actorApps={user.apps ?? '*'} appOrder={appOrder} initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
+      <MembersPanel openPerson={openPerson} actorApps={user.apps ?? '*'} canInviteLines={inviteAppsOf(user).includes('groups')} appOrder={appOrder} initial={dir} me={realUserId(user)} role={user.role} legacyNotice={legacyNotice} peopleLinks={userCanUseApp(user, 'people')} emailLogin={emailLoginEnabled()} />
     </>
   );
 }

@@ -8,7 +8,8 @@
     "settings": "Configurações",
     "inbox": "Caixa de entrada",
     "customers": "Clientes",
-    "workspace": "Workspace",
+    "forms": "Formulários de pedidos",
+    "workspace":"Workspace",
     "yourTeams": "Suas equipes",
     "more": "Mais",
     "newIssue": "Novo issue",
@@ -394,7 +395,8 @@
       "move": "mover",
       "read": "lida ou não lida",
       "snooze": "adiar",
-      "delete": "excluir"
+      "delete": "excluir",
+      "open": "abrir"
     },
     "reason": {
       "assigned": "{actor} atribuiu a você",
@@ -413,6 +415,18 @@
       "agent": "{agent} publicou uma atualização",
       "project": "{actor} publicou uma atualização do projeto",
       "approval": "Aguarda sua aprovação"
+    },
+    "unsubscribeIssue": "Deixar de seguir o issue",
+    "subscribeIssue": "Seguir o issue",
+    "unsubscribed": "Você deixou de seguir {id}",
+    "resubscribed": "Seguindo {id}",
+    "panel": {
+      "close": "Fechar",
+      "empty": "Escolha um aviso para ver aqui",
+      "label": "Aviso aberto",
+      "missing": "Este issue não pode ser aberto aqui. Pode ter sido excluído ou ser de outro workspace.",
+      "retry": "Tentar de novo",
+      "openPage": "Abrir a página do issue"
     }
   },
   "notifications": {
@@ -717,7 +731,8 @@
       "sentry": "Sentry",
       "support": "suporte",
       "import": "importação",
-      "recurring": "issue recorrente"
+      "recurring": "issue recorrente",
+      "form": "um formulário de pedidos"
     },
     "emptyBody": "Os issues que chegam pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitá-los.",
     "createdInApp": "Criado no app"
@@ -800,7 +815,16 @@
     "openInbox": "Abrir a caixa de entrada",
     "manage": "Mudar como o Track envia emails",
     "whyDigest": "Uma vez por dia, com o que segue não lido na sua caixa do Track.",
-    "whyImmediate": "Você recebe isto porque algo na sua caixa do Track ficou sem ler por um minuto."
+    "whyImmediate": "Você recebe isto porque algo na sua caixa do Track ficou sem ler por um minuto.",
+    "planUpdate": "{actor} publicou um update de {name}",
+    "planUpdateHealth": "{actor} publicou um update de {name}: {health}",
+    "planComment": "{actor} comentou um update de {name}",
+    "planReminder": "Hora de escrever o update de {name}",
+    "health": {
+      "on_track": "no caminho",
+      "at_risk": "em risco",
+      "off_track": "fora do caminho"
+    }
   },
   "notifySettings": {
     "title": "Avisos por email",
@@ -856,6 +880,53 @@
     "error": "Não foi possível salvar o modelo. Tente de novo.",
     "pick": "Modelo",
     "none": "Sem modelo"
+  },
+  "forms": {
+    "fieldsTitle": "Campos do formulário",
+    "fieldsHelp": "Adicione campos para que este modelo vire um formulário de pedidos. Quem vê o team o preenche pelo link ou pela criação rápida, e é criado um issue com as respostas, na triagem se o team a usa. A descrição aparece no topo do formulário.",
+    "fieldLabel": "Pergunta",
+    "fieldLabelPlaceholder": "O que aconteceu?",
+    "fieldType": "Tipo",
+    "types": {
+      "text": "Texto curto",
+      "textarea": "Texto longo",
+      "select": "Opções",
+      "checkbox": "Caixa de seleção"
+    },
+    "fieldOptions": "Opções, uma por linha",
+    "fieldOptionsPlaceholder": "Web\nDesktop\nMobile",
+    "fieldHelp": "Texto de ajuda",
+    "fieldRequired": "Obrigatório",
+    "moveUp": "Subir {name}",
+    "moveDown": "Descer {name}",
+    "removeField": "Remover",
+    "addField": "Adicionar campo",
+    "kind": "{count, plural, one {Formulário, # campo} other {Formulário, # campos}}",
+    "open": "Abrir formulário",
+    "copyLink": "Copiar link",
+    "linkCopied": "Link do formulário copiado",
+    "copyError": "Não foi possível copiar o link.",
+    "indexTitle": "Formulários de pedidos",
+    "indexDesc": "Formulários dos teams que você vê. Cada um cria um issue para esse team.",
+    "indexEmptyTitle": "Ainda não há formulários",
+    "indexEmptyBody": "Adicione campos a um modelo de issue nas configurações de um team, em Modelos, e ele aparece aqui.",
+    "pageDesc": "Cria um issue em {team}.",
+    "pageDescTriage": "Cria um issue em {team}. Ele espera na triagem até alguém aceitá-lo.",
+    "titleLabel": "Título",
+    "choose": "Escolha…",
+    "details": "Mais detalhes",
+    "submit": "Enviar pedido",
+    "sendError": "Não foi possível enviar o pedido. Tente de novo.",
+    "errors": {
+      "required": "Este campo é obrigatório.",
+      "invalid_option": "Escolha uma das opções.",
+      "too_long": "A resposta é longa demais."
+    },
+    "sentTitle": "Pedido enviado como {id}",
+    "sentTriage": "Está na triagem de {team}. Você ficou inscrito e recebe aviso quando mudar.",
+    "sentList": "Está nos issues de {team}. Você ficou inscrito e recebe aviso quando mudar.",
+    "sendAnother": "Enviar outro",
+    "openIssue": "Abrir issue"
   },
   "recurring": {
     "help": "Issues que o Track cria segundo um calendário, como uma revisão semanal ou o controle mensal de faturas.",

@@ -452,11 +452,12 @@ describe('HubSpot: HubSpot → Lines', () => {
     expect((await valuesOf(w.owner.id, '9002')).city).toBe('Lima');
     const gone = await chatCompany(w.owner.id, w.acme.id, { refresh: 'none' });
     expect(gone.company?.broken).toEqual({ reason: 'deleted', mergedInto: '', mergedName: '' });
+    // Una fusión sin dudas (un solo ganador) pasa el grupo a la empresa que quedó.
     const merged = await chatCompany(w.owner.id, third.id, { refresh: 'none' });
-    expect(merged.company?.broken).toEqual({ reason: 'merged', mergedInto: '9002', mergedName: 'Globex Retail' });
+    expect(merged.company).toMatchObject({ id: '9002', broken: null });
     expect((await chatHubspot(w.owner.id, w.acme.id)).company?.broken?.reason).toBe('deleted');
     // Sus valores ya no entran en los filtros y no se puede editar.
-    expect((await listChats(w.owner.id, w.owner.id, { hsProps: [{ name: 'name', op: 'not_empty' }] })).rows.map((r) => r.id)).toEqual([w.globex.id]);
+    expect((await listChats(w.owner.id, w.owner.id, { hsProps: [{ name: 'name', op: 'not_empty' }] })).rows.map((r) => r.id).sort()).toEqual([w.globex.id, third.id].sort());
     expect((await listChats(w.owner.id, w.owner.id, { hsProps: [{ name: 'city', op: 'empty' }] })).total).toBe(0);
     await expect(updateHubspotCompanyProperty(w.owner.id, w.owner.id, w.acme.id, 'city', 'x')).rejects.toMatchObject({ code: 'hubspot_company_gone' });
     // El cron sigue andando con el vínculo roto.

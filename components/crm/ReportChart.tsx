@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import { useCrmOptions } from './CrmViewer';
 import { Link } from '@/i18n/navigation';
 import {
   type ReportAggregateResult,
@@ -15,6 +16,7 @@ const MAX_SERIES = 6;
 /** Formateo compartido por el constructor, la lista y los widgets de dashboard. */
 export function useReportFormat(locale: string, baseCurrency = 'USD') {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const fieldLabel = useCallback(
     (col: Pick<ReportColumn, 'key' | 'label'>) => {
       if (col.label) return col.label;
@@ -41,6 +43,8 @@ export function useReportFormat(locale: string, baseCurrency = 'USD') {
           return labels[`${col.enum}:${v}`] ?? (col.enum === 'owner' ? t('reportBuilder.unknownPerson') : v);
         case 'lifecycle':
         case 'leadStatus':
+          // Las opciones del workspace (renombradas y propias); un valor que ya no es opción, tal cual.
+          return crmOpts.label(col.enum, v) || v;
         case 'source':
         case 'priority':
         case 'activityType': {
@@ -57,7 +61,7 @@ export function useReportFormat(locale: string, baseCurrency = 'USD') {
       if (col.type === 'date') return dateLabel(v, locale);
       return v;
     },
-    [t, money, num, locale],
+    [t, money, num, locale, crmOpts],
   );
   return { fieldLabel, value, money, num, t };
 }

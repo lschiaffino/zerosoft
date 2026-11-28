@@ -23,6 +23,7 @@ import BulkActionsBar from './BulkActionsBar';
 import RecordNameCell from './RecordNameCell';
 import type { CustomCell, CustomColumn } from './customFieldViews';
 import { OwnerCell } from './TableExtraColumns';
+import { useCrmOptions } from './CrmViewer';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
 
 export interface CompanyRow {
@@ -57,7 +58,6 @@ interface CompaniesTableProps {
   /** Columnas de custom fields (ocultas por defecto). */
   customColumns?: CustomColumn[];
   sort: string;
-  lifecycles: string[];
   locale: string;
   allTags?: Array<{ id: string; name: string }>;
   /** Propiedades editables en masa (owner, lifecycle, custom fields…). */
@@ -73,8 +73,9 @@ interface CompaniesTableProps {
 
 
 /** Tabla de empresas con selección múltiple, bulk bar, selector de columnas, edición inline y preview. */
-export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
+export default function CompaniesTable({ rows, sort, locale, allTags = [], bulkFields = [], customColumns = [], owners = [], canDelete = false, canExport = false, total = 0 }: CompaniesTableProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   // Orden, columna fija y anchos: los de la página (TableColumnsProvider), los mismos que "Editar columnas".
@@ -126,7 +127,6 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
     setBulkNotice(null);
   }
 
-  const lifecycleOpts = lifecycles.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) }));
 
   // Encabezados con el menú de columna (ordenar, mover, quitar), como en HubSpot.
   const H = (id: string, label: string, opts: { asc?: string; desc?: string; className?: string; card?: string } = {}) => (
@@ -215,7 +215,7 @@ export default function CompaniesTable({ rows, sort, lifecycles, locale, allTags
               field="lifecycleStage"
               value={row.lifecycle}
               type="select"
-              options={lifecycleOpts}
+              options={crmOpts.choices('lifecycle', row.lifecycle)}
               className={`dot-label stage-${row.lifecycle}`}
             />
           </td>

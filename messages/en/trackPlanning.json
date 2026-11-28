@@ -3,6 +3,7 @@
     "planning": "Planning",
     "plans": "Projects",
     "initiatives": "Initiatives",
+    "updates": "Updates",
     "roadmap": "Roadmap",
     "cycles": "Cycles",
     "analytics": "Analytics",
@@ -13,6 +14,7 @@
     "newPlan": "New project",
     "newInitiative": "New initiative",
     "plans": "Projects",
+    "updates": "Project and initiative updates",
     "roadmap": "Roadmap",
     "cycles": "Cycles",
     "insights": "Insights",
@@ -62,6 +64,27 @@
     "high": "High",
     "medium": "Medium",
     "low": "Low"
+  },
+  "pulse": {
+    "title": "Updates",
+    "subtitle": "Project and initiative updates in one feed, newest first.",
+    "tabs": {
+      "for_me": "For me",
+      "all": "All"
+    },
+    "kind": {
+      "project": "Project",
+      "initiative": "Initiative"
+    },
+    "comments": "{count, plural, one {# comment} other {# comments}}",
+    "more": "Load more",
+    "error": "Could not load the updates.",
+    "emptyMine": "No updates for you yet",
+    "emptyMineBody": "Updates from projects you lead, are a member of or follow, and from initiatives you lead, show up here.",
+    "emptyAll": "No updates yet",
+    "emptyAllBody": "When someone posts a project or initiative update, it shows up here.",
+    "seeAll": "See all updates",
+    "goProjects": "Go to projects"
   },
   "health": {
     "on_track": "On track",
@@ -378,7 +401,8 @@
       "cycle_time": "Cycle time",
       "lead_time": "Lead time",
       "issue_age": "Issue age",
-      "time_in_status": "Time in status"
+      "time_in_status": "Time in status",
+      "triage_time": "Triage time"
     },
     "slices": {
       "status": "Status",

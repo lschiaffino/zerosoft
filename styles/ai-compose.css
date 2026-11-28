@@ -120,6 +120,13 @@
 .aic-float .aic-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 /* Teléfono: no hay micrófono de dictado; el chip se corre sobre la columna de Enviar para separarse de las solapas. */
 @media (max-width: 1023px) { .aic-undo.aic-float { right: calc(-4px - var(--wa-bar-btn, 40px)); } }
+/* Si no entra, el texto se corta con "…" y Deshacer queda. */
+.aic-undo.aic-float { max-width: 100%; }
+.aic-float .aic-undo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.aic-float .aic-link { flex: none; }
+/* El chip flota: el composer no cambia de alto cuando aparece o se va. Si roza el último mensaje, no pasa nada: lleva
+   el fondo y el borde del campo para que se lea pegado a él, no como texto suelto sobre las burbujas. */
+.aic-undo.aic-float { background: var(--wa-input, var(--bg)); border-color: var(--wa-border-strong, var(--line)); }
 
 /* El botón que abre la barra, con texto (composer de correo, mensaje nuevo). */
 .aic-open-label { gap: 6px; }

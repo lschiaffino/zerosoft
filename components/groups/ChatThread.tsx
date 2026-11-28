@@ -2721,7 +2721,11 @@ export default function ChatThread(props: ThreadProps) {
           <ChatSearchPanel chatKey={chat.id} chatName={chat.name} group={chat.kind === 'group'} search={searchChat} onPick={(h, covering) => void jumpToHit(h, covering)} onClose={() => setSearchOpen(false)} />
         )}
 
-        <div className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`} data-voice-off data-tour="lines-composer">
+        <div
+          className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`}
+          data-voice-off
+          data-tour="lines-composer"
+        >
           {/* A dónde va lo que se escribe: al chat de WhatsApp o a una nota que solo ve el equipo. Dos solapas;
               las flechas (y Inicio/Fin) pasan de una a otra, como en cualquier lista de pestañas. */}
           {!editing && (

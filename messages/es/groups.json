@@ -671,7 +671,32 @@
       "audit": "Auditoría",
       "integrations": "Integraciones",
       "apps": "Mobile y escritorio",
+      "invite": "Invitar",
       "migrate": "Migrar de Periskope"
+    }
+  },
+  "invite": {
+    "intro": "Invitá gente a este workspace con acceso solo a Lines. Entra como member y no ve las demás apps.",
+    "emails": "Emails",
+    "placeholder": "ana@empresa.com, leo@empresa.com",
+    "send": "Invitar a Lines",
+    "link": "Crear link de invitación",
+    "locked": "Pedile a un admin que invite a la persona por vos, o que te dé el permiso \"Puede invitar a Lines\" en Ajustes › Miembros y permisos.",
+    "forbidden": "No tenés permiso para invitar. Pedile a un admin.",
+    "limited": "Mandaste muchas invitaciones. Probá de nuevo en un rato.",
+    "invalidEmails": "Revisá los emails.",
+    "invalidList": "Estos emails no son válidos: {list}",
+    "failed": "No se pudo invitar. Probá de nuevo.",
+    "linkLabel": "Link de invitación",
+    "copy": "Copiar link",
+    "result": {
+      "sent": "Invitación enviada",
+      "failed": "No salió el email: copiá el link",
+      "skipped": "Invitación creada",
+      "member": "Ya es parte del equipo",
+      "invalid": "Email no válido",
+      "limited": "Límite de invitaciones alcanzado",
+      "link": "Link listo. Sirve una vez y vence en 14 días."
     }
   },
   "numbers": {
@@ -1064,6 +1089,7 @@
     "hubspot_missing_scopes_detail": "A la clave de HubSpot le faltan estos permisos: {detail}. Sumalos a la clave en HubSpot y probá de nuevo.",
     "hubspot_unreachable": "No se pudo llegar a HubSpot. Probá de nuevo en un minuto.",
     "hubspot_rate_limited": "HubSpot está limitando los pedidos. Probá de nuevo en un minuto.",
+    "hubspot_sync_busy": "HubSpot ya se está sincronizando. Probá de nuevo en un minuto.",
     "hubspot_error": "HubSpot devolvió un error. Probá de nuevo.",
     "hubspot_not_found": "Ese registro no está en esta cuenta de HubSpot.",
     "hubspot_not_linked": "Primero vinculá este chat a un registro de HubSpot.",
@@ -1904,6 +1930,7 @@
     "searchChats": "Chats",
     "searchMessages": "Mensajes",
     "markedUnread": "Marcado como no leído",
+    "unreadMention": "Te mencionaron o respondieron a un mensaje tuyo",
     "emojiCategories": "Categorías de emojis",
     "emojiSearch": "Buscar emoji",
     "emojiResults": "Resultados",
@@ -2114,7 +2141,16 @@
       "untitledDeal": "Negocio sin nombre",
       "crmOff": "La app CRM está apagada para vos. HubSpot aparece acá cuando tu workspace lo conecta.",
       "sharedLabel": "Compartido en este chat",
-      "noteAttachment": "Nota con un adjunto"
+      "noteAttachment": "Nota con un adjunto",
+      "noName": "Sin nombre",
+      "crmOffInbox": "La app CRM está apagada para vos.",
+      "crmSamePhone": "Contactos de tu CRM con este teléfono",
+      "crmLink": "Vincular",
+      "crmInboxHelp": "Este vínculo lo ves solo vos: tu Inbox es tuyo. Abajo aparecen los negocios del contacto y la empresa vinculados.",
+      "crmTitle": "CRM",
+      "contact": "Contacto",
+      "company": "Empresa",
+      "crmSearch": "Vincular una empresa o un contacto del CRM"
     },
     "contactSheet": {
       "title": "Info. del contacto",
@@ -2495,7 +2531,20 @@
       "webhookSecret": "Client secret del webhook (opcional)",
       "webhookHelp": "Solo con una private app heredada. Sin esto, Lines revisa HubSpot cada minuto. Para recibir los cambios en el momento, abrí Webhooks en la private app, pegá la URL de abajo como destino, suscribite a los cambios de propiedades, los borrados y las fusiones de empresas, y pegá acá el client secret de la app.",
       "webhookRemove": "Borrar el secreto guardado",
-      "bulkHint": "Grupos sin empresa:"
+      "bulkHint": "Grupos sin empresa:",
+      "syncedAt": "Última sincronización: {time}",
+      "neverSynced": "Todavía no se sincronizó",
+      "syncNow": "Sincronizar ahora",
+      "syncing": "Sincronizando…",
+      "syncDone": "Sincronizado: {companies} empresas leídas, {changed} cambios, {notes} notas enviadas.",
+      "syncPartial": "Quedan empresas pendientes: la próxima pasada automática sigue.",
+      "syncFailing": "La sincronización automática falló {n} veces seguidas. Próximo intento: {time}.",
+      "syncBroken": "{n} empresas vinculadas ya no están en HubSpot (borradas o fusionadas).",
+      "syncNotes": "{n} notas no se pudieron dejar en HubSpot en los últimos 7 días.",
+      "problemsTitle": "Qué hay que revisar",
+      "problemNote": "{name}: {error}",
+      "problemDeleted": "{name}: la empresa se borró en HubSpot",
+      "problemMerged": "{name}: la empresa se fusionó en HubSpot"
     },
     "brokenDeleted": "Esta empresa se borró en HubSpot. Vinculá este chat a otra empresa.",
     "brokenMerged": "Esta empresa se fusionó con {name} en HubSpot.",

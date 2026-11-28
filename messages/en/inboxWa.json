@@ -8,6 +8,7 @@
   "keepArchivedHint": "New messages, and the ones you send, don't take it out of Archived.",
   "keptArchived": "Kept archived",
   "unread": "{n, plural, one {# unread message} other {# unread messages}}",
+  "unreadMention": "You were mentioned or someone replied to you",
   "kind": {
     "image": "Photo",
     "video": "Video",
@@ -107,7 +108,9 @@
     "voice_too_short": "Record at least one second to schedule it.",
     "invalid_name": "The group needs a name.",
     "not_group_admin": "Only group admins can change this, and your number is not an admin of the group.",
-    "group_left": "You already left this group."
+    "group_left": "You already left this group.",
+    "invalid_contact": "That contact is not in your CRM.",
+    "invalid_company": "That company is not in your CRM."
   },
   "groupEdit": {
     "editName": "Edit group name",

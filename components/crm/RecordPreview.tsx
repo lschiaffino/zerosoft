@@ -7,14 +7,14 @@ import { Link } from '@/i18n/navigation';
 import CrmIcon from './CrmIcon';
 import AssociationPanel, { type AssociationOption } from './AssociationPanel';
 import PreviewActions, { RecentActivity, type RecentItem } from './PreviewActions';
-import { useCrmAdmin } from './CrmViewer';
+import { useCrmAdmin, useCrmOptions } from './CrmViewer';
 import { customLayoutName, defaultPreviewLayout, type PreviewLayout } from '@/lib/crm-layouts-shared';
 import PhoneTouch from './PhoneTouch';
 import PropertiesPanel, { type PropField } from './PropertiesPanel';
 import DealStagePanel, { type StageOption } from './DealStagePanel';
 import { customFieldSections, customPropFields } from './customPropFields';
 import { formatPhoneDisplay } from '@/lib/crm-calls';
-import { DEAL_TYPES, LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import { DEAL_TYPES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
 import type { CrmCustomFieldRow } from '@/lib/schema/types';
 
 export type PreviewType = 'contact' | 'company' | 'deal';
@@ -156,6 +156,7 @@ function initials(name: string): string {
  */
 export default function RecordPreview({ type, id, locale, onClose, owners = [], nav }: RecordPreviewProps) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const plural = PLURAL[type];
   const titleId = useId();
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
@@ -326,14 +327,14 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
           label: t('contacts.form.lifecycle'),
           type: 'select',
           value: c.lifecycle_stage,
-          options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+          options: crmOpts.choices('lifecycle', c.lifecycle_stage),
         },
         {
           key: 'leadStatus',
           label: t('contacts.form.leadStatus'),
           type: 'select',
           value: c.lead_status,
-          options: LEAD_STATUSES.map((v) => ({ value: v, label: t(`enums.leadStatus.${v}`) })),
+          options: crmOpts.choices('leadStatus', c.lead_status),
         },
         ...ownerField(c.owner_id, c.user_id, t('contacts.form.owner')),
         {
@@ -361,7 +362,7 @@ export default function RecordPreview({ type, id, locale, onClose, owners = [], 
           label: t('companies.form.lifecycle'),
           type: 'select',
           value: c.lifecycle_stage,
-          options: LIFECYCLE_STAGES.map((v) => ({ value: v, label: t(`enums.lifecycle.${v}`) })),
+          options: crmOpts.choices('lifecycle', c.lifecycle_stage),
         },
         ...ownerField(c.owner_id, c.user_id, t('companies.form.owner')),
         { key: 'city', label: t('companies.form.city'), type: 'text', value: c.city },

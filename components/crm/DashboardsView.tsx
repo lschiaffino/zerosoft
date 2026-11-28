@@ -12,7 +12,8 @@ import CrmIcon from './CrmIcon';
 import ReportChart, { useReportFormat } from './ReportChart';
 import DashChart, { ChartTable, type ChartText } from './dash/DashChart';
 import { bucketLabel, bucketsSpanYears } from '@/lib/crm-buckets';
-import { LIFECYCLE_STAGES, SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { SOURCES, ACTIVITY_TYPES } from '@/lib/crm-constants';
+import { useCrmOptions } from './CrmViewer';
 import { toCsv, type ReportAggregateResult, type ReportViz } from '@/lib/crm-report-builder';
 import type { DashboardView } from '@/lib/crm-dashboards';
 import type { DashboardVisibility, DashboardAccess, TileData } from '@/lib/crm-dashboards-schema';
@@ -149,6 +150,7 @@ export default function DashboardsView({
   missingRates = [],
 }: Props) {
   const t = useTranslations('crm');
+  const crmOpts = useCrmOptions();
   const [boards, setBoards] = useState(dashboards);
   const boardsRef = useRef(boards);
   boardsRef.current = boards;
@@ -215,13 +217,13 @@ export default function DashboardsView({
     (kind: string | null, key: string, label: string | null, withYear = false): string => {
       if (kind === 'bucket') return bucketLabel(key, locale, withYear);
       if (kind === 'source') return (SOURCES as readonly string[]).includes(key) ? t(`enums.source.${key}`) : key;
-      if (kind === 'lifecycle') return (LIFECYCLE_STAGES as readonly string[]).includes(key) ? t(`enums.lifecycle.${key}`) : key;
+      if (kind === 'lifecycle') return crmOpts.label('lifecycle', key) || key;
       if (kind === 'forecastCategory') return ['closed_won', 'commit', 'best_case', 'pipeline'].includes(key) ? t(`dash.forecastCat.${key}`) : key;
       if (kind === 'activityType') return (ACTIVITY_TYPES as readonly string[]).includes(key) ? t(`enums.activityType.${key}`) : key;
       if (kind === 'outcome') return ['won', 'lost', 'call', 'email', 'meeting', 'task', 'value'].includes(key) ? t(`dash.series.${key}`) : key;
       return label ?? t('dash.tile.formerMember');
     },
-    [locale, t],
+    [locale, t, crmOpts],
   );
 
   const chartText = useCallback(

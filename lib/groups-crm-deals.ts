@@ -20,14 +20,23 @@ export interface ChatCrmDeal {
 
 export async function chatCrmDeals(user: SessionUser, ws: string, chatId: string): Promise<ChatCrmDeal[]> {
   if (!userCanUseApp(user, 'crm')) return [];
-  const db = getDb();
-  const chat = (await db.prepare('SELECT crm_contact_id, crm_company_id FROM groups_chats WHERE id = ? AND user_id = ?').get(chatId, ws)) as
+  const chat = (await getDb().prepare('SELECT crm_contact_id, crm_company_id FROM groups_chats WHERE id = ? AND user_id = ?').get(chatId, ws)) as
     | { crm_contact_id: string | null; crm_company_id: string | null }
     | undefined;
   if (!chat) return [];
+  return crmDealsFor(user, ws, { contactId: chat.crm_contact_id, companyId: chat.crm_company_id });
+}
+
+/**
+ * Los negocios de un contacto y una empresa del CRM (los de un chat de Lines o de Inbox), con la visibilidad de
+ * quien mira: un contacto o una empresa que no ve no cuenta, y un negocio fuera de su alcance no aparece.
+ */
+export async function crmDealsFor(user: SessionUser, ws: string, refs: { contactId: string | null; companyId: string | null }): Promise<ChatCrmDeal[]> {
+  if (!userCanUseApp(user, 'crm')) return [];
+  const db = getDb();
   const scope = await sessionScope(user);
-  const contactId = chat.crm_contact_id && (await canSeeRecord(ws, 'crm_contacts', chat.crm_contact_id, scope)) ? chat.crm_contact_id : null;
-  const companyId = chat.crm_company_id && (await canSeeRecord(ws, 'crm_companies', chat.crm_company_id, scope)) ? chat.crm_company_id : null;
+  const contactId = refs.contactId && (await canSeeRecord(ws, 'crm_contacts', refs.contactId, scope)) ? refs.contactId : null;
+  const companyId = refs.companyId && (await canSeeRecord(ws, 'crm_companies', refs.companyId, scope)) ? refs.companyId : null;
   if (!contactId && !companyId) return [];
   const cond = scopeAnd('d', scope);
   const rows = (await db

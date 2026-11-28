@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
+import { inviteAppsOf } from '@/lib/capabilities';
+import LinesInvite from '@/components/groups/LinesInvite';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
 import { numberManager, withManage } from '@/lib/groups-number-perms';
@@ -14,7 +16,7 @@ import { aiEnabled } from '@/lib/ai';
 import { groupsAiFakeActive } from '@/lib/groups-flag';
 import { getPlatformSettings, listLabelAccess } from '@/lib/groups-access';
 import { listIntegrations } from '@/lib/groups-integrations';
-import { HUBSPOT_SCOPES, getHubspot } from '@/lib/groups-hubspot';
+import { HUBSPOT_SCOPES, getHubspot, getHubspotSyncStatus } from '@/lib/groups-hubspot';
 import { WEBHOOK_EVENTS } from '@/lib/webhooks-events';
 import PageHeader from '@/components/ui/PageHeader';
 import PlatformSettingsLink from '@/components/app/PlatformSettingsLink';
@@ -44,7 +46,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/hubspot/send',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
+const TABS = ['numbers', 'invite', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -65,6 +67,12 @@ const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   periskope: 'migrate',
   import: 'migrate',
 };
+
+/** La conexión con HubSpot y, si está conectado, cómo viene el sync (solo lo ve un admin). */
+async function hubspotWithStatus(ws: string) {
+  const dto = await getHubspot(ws);
+  return { ...dto, sync: dto.connected ? await getHubspotSyncStatus(ws) : null };
+}
 
 export default async function GroupsSettingsPage(props: { params: Promise<{ locale: string }>; searchParams: Promise<{ tab?: string; new?: string; reconnect?: string }> }) {
   const { locale } = await props.params;
@@ -96,6 +104,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       />
     );
   }
+  else if (tab === 'invite') body = <LinesInvite allowed={admin || inviteAppsOf(user).includes('groups')} locale={locale} />;
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id, await pageViewer(user))} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
@@ -146,7 +155,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
     body = admin ? (
       <IntegrationsPanel
         integrations={await listIntegrations(user.id)}
-        hubspot={await getHubspot(user.id)}
+        hubspot={await hubspotWithStatus(user.id)}
         hubspotScopes={HUBSPOT_SCOPES}
         events={WEBHOOK_EVENTS.filter((e) => e.startsWith('groups.'))}
         canEdit={admin}

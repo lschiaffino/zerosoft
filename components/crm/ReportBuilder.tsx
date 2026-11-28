@@ -21,7 +21,8 @@ import {
   type ReportResult,
   type ReportSource,
 } from '@/lib/crm-report-builder';
-import { ACTIVITY_TYPES, LEAD_STATUSES, LIFECYCLE_STAGES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import { ACTIVITY_TYPES, PRIORITIES, SOURCES } from '@/lib/crm-constants';
+import { useCrmOptions } from './CrmViewer';
 import ReportChart, { resultToCsvRows, useReportFormat } from './ReportChart';
 
 export interface BuilderField {
@@ -52,6 +53,7 @@ export default function ReportBuilder({ report, customFields, dashboards, people
   const router = useRouter();
   const fmt = useReportFormat(locale, baseCurrency);
   const { t } = fmt;
+  const crmOpts = useCrmOptions();
   const tb = (k: string, v?: Record<string, string | number>) => t(`reportBuilder.${k}`, v);
 
   const [id, setId] = useState(report?.id ?? null);
@@ -224,9 +226,9 @@ export default function ReportBuilder({ report, customFields, dashboards, people
     const fromList = (list: readonly string[], ns: string) => list.map((v) => ({ value: v, label: t(`enums.${ns}.${v}`) }));
     switch (f.enum) {
       case 'lifecycle':
-        return fromList(LIFECYCLE_STAGES, 'lifecycle');
+        return crmOpts.all('lifecycle');
       case 'leadStatus':
-        return fromList(LEAD_STATUSES, 'leadStatus');
+        return crmOpts.all('leadStatus');
       case 'source':
         return fromList(SOURCES, 'source');
       case 'priority':

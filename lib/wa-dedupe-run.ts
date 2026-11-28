@@ -8,7 +8,7 @@
  */
 import { dbBatch, getDb } from './db';
 import { rememberContacts, type ContactScope } from './wa-contacts';
-import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, runMerge, TEAM_FOLDERS_TABLE_SQL, twinPairs, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
+import { contactPairsInsert, explicitPairsInsert, inboxSharedPairsInsert, INBOX_CRM_LINKS_TABLE_SQL, runMerge, TEAM_FOLDERS_TABLE_SQL, twinPairs, uniqueLidPhones, type ChatPair, type MergeCounts, type MessageSighting, type WaApp } from './wa-dedupe';
 
 const EMPTY: MergeCounts = { merged: 0, renamed: 0, messages: 0 };
 
@@ -28,6 +28,19 @@ async function hasTeamFolders(): Promise<boolean> {
     }
   }
   return teamFoldersReady;
+}
+
+/** La tabla de vínculos de Inbox con el CRM: igual que la de carpetas del equipo, una vez que está, queda. */
+let crmLinksReady = false;
+export async function hasInboxCrmLinks(): Promise<boolean> {
+  if (!crmLinksReady) {
+    try {
+      crmLinksReady = Boolean(await getDb().prepare(INBOX_CRM_LINKS_TABLE_SQL).get());
+    } catch {
+      crmLinksReady = false;
+    }
+  }
+  return crmLinksReady;
 }
 
 export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: string[]; pairs?: ChatPair[]; all?: boolean } = {}): Promise<MergeCounts> {
@@ -53,7 +66,7 @@ export async function mergeLidChats(app: WaApp, scope: string, opts: { lids?: st
         ...explicitPairsInsert(app, run, scope, pairs),
       ],
       dbBatch,
-      { mediaFiles: true, agentLinks: true, chatFolders: true, teamFolders: await hasTeamFolders() },
+      { mediaFiles: true, agentLinks: true, chatFolders: true, teamFolders: await hasTeamFolders(), crmLinks: app === 'inbox' && (await hasInboxCrmLinks()) },
     );
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -221,4 +234,43 @@ export async function mergeAfterOwnSend(thread: { account_id: string; owner_id: 
   const account = { id: thread.account_id, owner_id: thread.owner_id };
   const pairs = await inboxTwinsFromMessages(account, [externalId]).catch(() => [] as ChatPair[]);
   return pairs.length ? mergeLidChats('inbox', account.id, { pairs }) : EMPTY;
+}
+
+/**
+ * La misma foto de perfil dice que un lid y un teléfono son la misma persona.
+ * Una fila de la libreta con solo el lid y otra con solo el teléfono, de la
+ * misma cuenta o número, con la misma foto de WhatsApp (misma URL, host y ruta, sin la
+ * firma que vence) son una persona: el archivo de una foto es de quien la
+ * subió. Solo cuenta si el lid tiene un chat 1:1 propio (si no, no hay nada que
+ * juntar) y si la foto no apunta a más de una persona (un lid con dos
+ * teléfonos, o un teléfono con dos lids, no se toca). Aprende el par en la
+ * libreta y junta los chats. Todo dentro de una cuenta o número: nunca cruza.
+ * `rowId`: solo las filas de esa persona (la que acaba de recibir foto).
+ */
+export async function linkPictureTwins(scope: ContactScope, opts: { rowId?: string } = {}): Promise<MergeCounts> {
+  try {
+    const t = scope.app === 'inbox' ? { chats: 'inbox_threads', scope: 'account_id', jid: 'external_id' } : { chats: 'groups_chats', scope: 'number_id', jid: 'provider_chat_id' };
+    const rows = (await getDb()
+      .prepare(
+        `SELECT l.lid AS lid, p.phone AS phone FROM wa_contacts l
+         JOIN wa_contacts p ON p.app = l.app AND p.account_id = l.account_id AND p.picture_src = l.picture_src AND p.phone <> '' AND p.lid = '' AND p.id <> l.id
+         WHERE l.app = ? AND l.account_id = ? AND l.phone = '' AND l.lid <> '' AND l.picture_src <> '' AND l.picture_src NOT LIKE 'data:%' AND l.picture_src LIKE '%/%'
+           ${opts.rowId ? 'AND (l.id = ? OR p.id = ?)' : ''}
+           AND EXISTS (SELECT 1 FROM ${t.chats} c WHERE c.${t.scope} = l.account_id AND c.kind = 'dm' AND c.${t.jid} = l.lid || '@lid')
+         LIMIT 200`,
+      )
+      .all(scope.app, scope.accountId, ...(opts.rowId ? [opts.rowId, opts.rowId] : []))) as Array<{ lid: string; phone: string }>;
+    if (!rows.length) return EMPTY;
+    // Uno a uno: un teléfono con dos lids candidatos tampoco se sabe de cuál es.
+    const perPhone = new Map<string, Set<string>>();
+    for (const r of rows) perPhone.set(r.phone, (perPhone.get(r.phone) ?? new Set()).add(r.lid));
+    const pairs = uniqueLidPhones(rows).filter((p) => perPhone.get(p.phone)?.size === 1);
+    if (!pairs.length) return EMPTY;
+    await rememberContacts(scope, pairs);
+    return await mergeLidChats(scope.app, scope.accountId, { lids: pairs.map((p) => p.lid) });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[wa-dedupe] picture twins failed', scope.app, (err as Error)?.message ?? 'error');
+    return EMPTY;
+  }
 }

@@ -39,6 +39,7 @@ import { parseCustom } from '../crm';
 import { HubspotApiError, hubspotStatusError, type HubspotClient } from '../hubspot/client';
 import { getSyncSettings, getSyncStatus, isBlockingConnectionError, markConnectionError, openSyncConnection, syncGate, syncHubspotClient } from './connection';
 import { LINK_OBJECT } from './fields';
+import { customOptionLabels } from '../crm-property-options';
 import { BACKOFF_MAX_MS, DAILY_WAIT_MS, LIVE_INTERVAL_MS, PLAN_TTL_MS, backoffMs } from './inbound';
 import { INBOUND_PROPS, emptyPlan, localCustom, localValues, mapCustom, mapRecord, same, type InboundPlan, type Values } from './inbound-map';
 import { UNKNOWN_REMOTE, changedHere, ownersOut, planPush, standardProps, toHubspot, type OutboundCtx, type PropDefs, type PushPlan } from './outbound-map';
@@ -400,6 +401,7 @@ interface StepCtx {
   counts: Counts;
   codes: Map<string, number>;
   clock: () => number;
+  optionLabels?: OutboundCtx['optionLabels'];
 }
 
 function note(ctx: StepCtx, object: string, code: string, n = 1): void {
@@ -412,7 +414,7 @@ function bump(ctx: StepCtx, object: SyncObject, k: keyof OutboundCounts, n = 1):
 }
 
 function ctxFor(ctx: StepCtx, object: SyncObject): OutboundCtx {
-  return { owners: ctx.owners, stages: ctx.stages, fields: ctx.plan.fields[object] ?? [], defs: ctx.defs[object] ?? {} };
+  return { owners: ctx.owners, stages: ctx.stages, fields: ctx.plan.fields[object] ?? [], defs: ctx.defs[object] ?? {}, optionLabels: ctx.optionLabels };
 }
 
 /** Saca un cambio de la cola, salvo que haya llegado uno más nuevo mientras tanto. */
@@ -962,7 +964,7 @@ export async function runOutboundStep(ws: string, opts: OutboundStepOptions = {}
   const counts = parseJson<Counts>(row.counts, {});
   let errors = parseJson<OutboundErrorEntry[]>(row.errors, []);
   const client = syncHubspotClient(conn.token, { portalId: conn.portalId, maxWaitMs: 3_000 });
-  const ctx: StepCtx = { db, ws, portalId: conn.portalId, client, plan, defs, owners: ownersOut(plan), stages: await stagesOut(ws, plan), toggled, counts, codes: new Map(), clock };
+  const ctx: StepCtx = { db, ws, portalId: conn.portalId, client, plan, defs, owners: ownersOut(plan), stages: await stagesOut(ws, plan), toggled, counts, codes: new Map(), clock, optionLabels: await customOptionLabels(ws, db) };
 
   const persist = async (extra: { success?: boolean } = {}) => {
     const now = iso(new Date(clock()));
