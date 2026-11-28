@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { deliverComposeDraft } from '@/components/ai/compose-insert';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ActionView } from '@/lib/assistant/engine';
@@ -32,8 +33,11 @@ function errorKey(code: string | undefined): string {
 }
 
 /** Valor de un campo de la tarjeta: completo; si es largo, se abre con un expansor (se ve todo lo que se va a escribir). */
-function DetailValue({ value }: { value: string }) {
+function DetailValue({ value, full = false }: { value: string; full?: boolean }) {
   const t = useTranslations('assistant');
+  // Un texto que se va a mandar o a dejar en un chat (un programado, un borrador, una nota): siempre entero, con sus
+  // saltos de línea, sin plegar nada.
+  if (full) return <span className="asst-detail-full asst-detail-text">{value}</span>;
   // Una lista (una carpeta o un chat por renglón): los primeros renglones y "Mostrar las N" (sin scroll propio).
   const lines = value.split('\n');
   if (lines.length > 1 && lines.length <= 2000 && lines.every((l) => l.length <= 300)) return <CollapsedRows rows={lines} />;
@@ -47,6 +51,15 @@ function DetailValue({ value }: { value: string }) {
       <pre>{value}</pre>
     </details>
   );
+}
+
+/** La zona horaria del navegador (las horas de las tarjetas se leen y se muestran en ella). */
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Tarjeta de confirmación: resumen, qué cambia y Confirmar / Cancelar (tipeado si es destructiva). */
@@ -85,6 +98,8 @@ function ActionCard({ action, onDecided, onGranted }: { action: ActionView; onDe
       return;
     }
     if (decision === 'confirm' && data?.action?.status === 'done') {
+      // Borradores de respuesta (Lines): al campo del chat si está abierto, o cuando se abra. Nunca se mandan.
+      for (const d of data.action.result?.drafts ?? []) deliverComposeDraft(d.chatId, d.text);
       window.dispatchEvent(new CustomEvent(ASSISTANT_APPLIED_EVENT, { detail: { tool: action.tool } }));
       router.refresh();
     }
@@ -114,7 +129,7 @@ function ActionCard({ action, onDecided, onGranted }: { action: ActionView; onDe
                     <span aria-hidden="true"> → </span>
                   </>
                 )}
-                <DetailValue value={d.after} />
+                <DetailValue value={d.after} full={d.full === true} />
               </dd>
             </div>
           ))}
@@ -187,6 +202,13 @@ function ActionCard({ action, onDecided, onGranted }: { action: ActionView; onDe
               <Link href={action.result.href}>{t('action.open')}</Link>
             </>
           )}
+          {/* Un borrador confirmado se puede volver a poner en el campo del chat (otra pestaña, o si no llegó). */}
+          {action.status === 'done' &&
+            (action.result?.drafts ?? []).map((d, i) => (
+              <button key={i} type="button" className="btn btn-ghost btn-sm asst-draft-again" data-testid="assistant-draft-again" onClick={() => deliverComposeDraft(d.chatId, d.text)}>
+                {t('action.putDraft')}
+              </button>
+            ))}
         </p>
       )}
       </div>
@@ -316,7 +338,7 @@ export default function AssistantChat({
       const res = await fetch('/api/assistant/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ conversationId, message: text, page, locale, ...(files.length ? { attachments: files.map((f) => f.id) } : {}) }),
+        body: JSON.stringify({ conversationId, message: text, page, locale, timeZone: browserTimeZone(), ...(files.length ? { attachments: files.map((f) => f.id) } : {}) }),
       }).catch(() => null);
       if (!res || !res.ok || !res.body) {
         // No llegó: el texto y los adjuntos vuelven al campo para reintentar. Sin red, sin respuesta del servidor o un error con código.

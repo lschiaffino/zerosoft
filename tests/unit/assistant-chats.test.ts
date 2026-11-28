@@ -196,7 +196,9 @@ describe('qué tengo atrasado (Inbox)', () => {
     expect(r.actions).toHaveLength(1);
     const card = r.actions[0];
     expect(card.summary).toBe('Aplicar 2 cambios en Inbox');
-    expect(card.details.map((d) => d.label)).toEqual(['Borradores de respuesta, sin enviar (1)', 'Posponer hasta (1)']);
+    // El borrador va en su propia fila, con el chat y dónde está (canal y número) y el texto entero.
+    expect(card.details.map((d) => d.label)).toEqual(['Borrador de respuesta para Ana (whatsapp · 5491155510001), queda en el chat y no se manda', 'Posponer hasta (1)']);
+    expect(card.details[0]).toMatchObject({ after: 'Sí, llega el martes.', full: true });
     const done = await decideAction({ user, locale: 'es', id: card.id, decision: 'confirm' });
     expect(done.action?.status).toBe('done');
     expect((await getThreadRow(w.u.id, w.ana.id)).draft).toBe('Sí, llega el martes.');

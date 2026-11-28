@@ -55,7 +55,8 @@
     "failed": "Não funcionou: {error}",
     "open": "Abrir",
     "showAll": "todos os {count} caracteres",
-    "partial": "Feito em parte"
+    "partial": "Feito em parte",
+    "putDraft": "Colocar o rascunho na conversa"
   },
   "actionErrors": {
     "forbidden": "Você não tem mais acesso para fazer isso.",
@@ -419,7 +420,9 @@
       "followUp": "Lembrar-me ({count})",
       "archive": "Arquivar ({count})",
       "done": "Marcar como feito ({count})",
-      "folder": "Adicionar à pasta ({count})"
+      "folder": "Adicionar à pasta ({count})",
+      "note": "Notas da conversa, só você vê ({count})",
+      "schedule": "Mensagens agendadas, saem nesse horário ({count})"
     },
     "result": "Pronto: {done} de {total}.",
     "resultFailed": "Não foi possível: {list}.",
@@ -435,6 +438,43 @@
       },
       "grantedOnce": "O assistente pode ler suas conversas do {app} nesta conversa.",
       "grantedAlways": "O assistente pode ler suas conversas do {app} até você desligar em Configurações."
+    },
+    "sendsLabel": "Sai sozinho",
+    "sendsWarning": "As mensagens agendadas são enviadas no horário sem perguntar de novo. Até lá você pode cancelá-las pela conversa.",
+    "lines": {
+      "summary": "{count, plural, one {Aplicar # mudança no Lines} other {Aplicar # mudanças no Lines}}",
+      "working": "Aplicando…",
+      "do": {
+        "draft": "Rascunho de resposta para {chat}, vai para o campo da mensagem e não é enviado",
+        "note": "Nota interna em {chat}, só a sua equipe vê",
+        "assign": "Atribuir {chat}",
+        "label": "Adicionar uma etiqueta a {chat}",
+        "close": "Fechar a conversa {chat}",
+        "archive": "Arquivar {chat}",
+        "task": "Tarefa em {chat}",
+        "ticket": "Ticket em {chat}",
+        "schedule": "Mensagem de WhatsApp para {chat} em {when}, pela linha {line}"
+      },
+      "statusOpen": "Aberta",
+      "statusClosed": "Fechada, reabre com a próxima mensagem",
+      "archived": "Arquivada, volta com uma mensagem nova",
+      "ticketTitleAuto": "Título tirado da conversa",
+      "none": "Nenhuma",
+      "due": "Vence {when}",
+      "owner": "Responsável: {who}",
+      "nobody": "Ninguém",
+      "alsoLines": "Também em {lines}",
+      "sendsLabel": "Sai pelo WhatsApp",
+      "sendsWarning": "As mensagens agendadas são enviadas pelo WhatsApp no horário sem perguntar de novo. Até lá você pode cancelá-las na aba Tarefas da conversa.",
+      "result": "Pronto: {done} de {total}.",
+      "resultFailed": "Não foi possível: {list}.",
+      "draftsReady": "{count, plural, one {Abra a conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.} other {Abra cada conversa para revisar o rascunho no campo da mensagem. Nada foi enviado.}}",
+      "group": "grupo"
+    },
+    "one": {
+      "draft": "Rascunho de resposta para {chat}, fica na conversa e não é enviado",
+      "note": "Nota em {chat}, só você vê",
+      "schedule": "Mensagem para {chat} em {when}"
     }
   },
   "consentCard": {

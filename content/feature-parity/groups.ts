@@ -526,6 +526,14 @@ const parity: ProductParity = {
     row('ai-agent', 'automation', ['AI agent that answers in chats and groups', 'Agente AI que responde en chats y grupos', 'Agente IA que responde em chats e grupos'], 'have', {
       detail: ['Any agent from Agents, with its knowledge, tools and handoff', 'Cualquier agente de Agents, con su conocimiento, herramientas y derivación', 'Qualquer agente do Agents, com seu conhecimento, ferramentas e transferência'],
     }),
+    row('assistant-actions', 'automation', ['The assistant acts on chats, with your approval', 'El asistente actúa sobre los chats, con tu aprobación', 'O assistente age nas conversas, com a sua aprovação'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'Ask the assistant (⌘J) to find a chat, summarize it, draft a reply, assign it, add a label, close or archive it, add an internal note, create a task or a ticket, or schedule a WhatsApp message (one per chat for a broadcast), only on chats you can see. Every change comes as one card with what, where and the text; nothing changes until you click Confirm, and access is checked again then. A draft goes to the message field of the chat (never sent); a scheduled message needs the red button and is never sent right away. Tested with the fake model',
+        'Pedile al asistente (⌘J) que encuentre un chat, lo resuma, escriba un borrador, lo asigne, le sume una etiqueta, lo cierre o lo archive, deje una nota interna, cree una tarea o un ticket, o programe un mensaje de WhatsApp (uno por chat para una difusión), solo en chats que ves. Cada cambio llega en una tarjeta con qué, dónde y el texto; nada cambia hasta que hacés clic en Confirmar, y ahí se vuelve a mirar el acceso. Un borrador va al campo del mensaje del chat (nunca se manda); un programado se confirma con el botón rojo y nunca sale en el acto. Probado con el modelo falso',
+        'Peça ao assistente (⌘J) para encontrar uma conversa, resumi-la, escrever um rascunho, atribuí-la, adicionar uma etiqueta, fechá-la ou arquivá-la, deixar uma nota interna, criar uma tarefa ou um ticket, ou agendar uma mensagem de WhatsApp (uma por conversa para uma transmissão), só em conversas que você vê. Cada mudança chega num cartão com o quê, onde e o texto; nada muda até você clicar em Confirmar, e aí o acesso é conferido de novo. Um rascunho vai para o campo da mensagem da conversa (nunca é enviado); uma agendada pede o botão vermelho e nunca sai na hora. Testado com o modelo falso',
+      ],
+    }),
     row('folders-json', 'automation', ['Folders from a JSON with the assistant', 'Carpetas desde un JSON con el asistente', 'Pastas a partir de um JSON com o assistente'], 'partial', {
       competitorHas: false,
       detail: [
