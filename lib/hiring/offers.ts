@@ -143,7 +143,7 @@ export async function createOffer(actor: HiringActor, appId: string, input: z.in
     }
     return withChain((await getOfferRow(actor.ws, id))!);
   }
-  await notifyTeam(await teamIds(job.id, ['hiring_manager'], actor.person), {
+  await notifyTeam(actor.ws, await teamIds(job.id, ['hiring_manager'], actor.person), {
     title: `${candidate.name} · ${title}`,
     body: 'offer',
     href: `/app/hiring/candidates/${candidate.id}?app=${app.id}`,
@@ -383,7 +383,7 @@ async function settleOffer(o: OfferRow, action: 'accept' | 'decline', who: { sig
   }
   const job = await getJobRow(o.workspace_id, app.job_id);
   if (job) {
-    await notifyTeam(await teamIds(job.id, ['recruiter', 'hiring_manager']), {
+    await notifyTeam(o.workspace_id, await teamIds(job.id, ['recruiter', 'hiring_manager']), {
       title: `${c.name} · ${o.title}`,
       body: action === 'accept' ? 'accepted' : 'declined',
       href: `/app/hiring/candidates/${c.id}?app=${app.id}`,

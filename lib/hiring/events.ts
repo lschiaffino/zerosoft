@@ -6,7 +6,7 @@ import { getDb } from '../db';
 import { createNotification } from '../notifications';
 import type { LocalizedText } from '../notification-copy';
 import { emitEventSoon } from '../events';
-import { personAppAccess } from '../api-auth';
+import { personCanUseApp } from '../workspace-apps';
 import { newId, nowIso, parseJson } from './core';
 
 export type EventKind =
@@ -69,9 +69,23 @@ export async function teamIds(jobId: string, roles: string[], except?: string | 
   return rows.map((r) => r.user_id).filter((id) => id !== except);
 }
 
-/** Aviso in-app. Solo a personas del equipo del puesto: el texto lleva datos del candidato. */
-export async function notifyTeam(userIds: string[], payload: { title: string; body?: string | LocalizedText; href: string; sourceId: string }): Promise<void> {
+/**
+ * ¿La persona puede usar Hiring en el workspace hoy? Sigue en el workspace,
+ * Hiring en Miembros y en Apps del workspace (lib/workspace-apps.ts). Para los
+ * avisos y eventos que salen fuera de un pedido.
+ */
+export async function personHasHiring(ws: string, personId: string): Promise<{ role: string } | null> {
+  return personCanUseApp(ws, personId, 'hiring', getDb(), { beforeLaunch: true }).catch(() => null);
+}
+
+/**
+ * Aviso in-app. Solo a personas del equipo del puesto: el texto lleva datos del
+ * candidato. Y solo a quien hoy tiene Hiring en el workspace (no a quien se fue
+ * o se la sacaron).
+ */
+export async function notifyTeam(ws: string, userIds: string[], payload: { title: string; body?: string | LocalizedText; href: string; sourceId: string }): Promise<void> {
   for (const userId of new Set(userIds)) {
+    if (!(await personHasHiring(ws, userId))) continue;
     await createNotification({ userId, type: 'hiring_activity', title: payload.title.slice(0, 200), body: typeof payload.body === 'string' ? payload.body.slice(0, 300) : payload.body, href: payload.href, sourceType: 'hiring', sourceId: payload.sourceId }).catch(() => null);
   }
 }
@@ -85,7 +99,7 @@ export function emitHiring(ws: string, type: 'hiring.candidate.applied' | 'hirin
   return emitEventSoon(ws, type, data, {
     audience: async (creatorId) => {
       if (!creatorId) return false;
-      const access = await personAppAccess(ws, creatorId);
+      const access = await personHasHiring(ws, creatorId);
       if (!access) return false;
       if (access.role === 'owner' || access.role === 'admin') return true;
       const row = (await getDb().prepare("SELECT 1 AS one FROM hiring_job_members WHERE job_id = ? AND user_id = ? AND role IN ('recruiter','hiring_manager')").get(jobId, creatorId)) as

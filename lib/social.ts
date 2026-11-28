@@ -19,7 +19,7 @@ import { getDb } from './db';
 import { open, seal } from './secret-box';
 import { roleAtLeast, type TeamRole } from './teams';
 import { canUseApp } from './workspace';
-import { personAppAccess } from './api-auth';
+import { personCanUseApp } from './workspace-apps';
 import { createNotification } from './notifications';
 import {
   isSocialNetwork,
@@ -149,11 +149,12 @@ export async function listSocialPeople(actor: SocialActor): Promise<SocialPerson
   return out;
 }
 
-/** ¿La persona (no la sesión) puede usar Social en el workspace? */
+/**
+ * ¿La persona (no la sesión) puede usar Social en el workspace? Sigue en el
+ * workspace, Social en Miembros y en Apps del workspace (lib/workspace-apps.ts).
+ */
 async function personHasSocial(workspaceId: string, personId: string): Promise<{ role: TeamRole } | null> {
-  const access = await personAppAccess(workspaceId, personId);
-  if (!access) return null;
-  return canUseApp({ role: access.role, apps: access.apps === '*' ? '*' : JSON.stringify(access.apps) }, 'social') ? { role: access.role } : null;
+  return personCanUseApp(workspaceId, personId, 'social', getDb(), { beforeLaunch: true });
 }
 
 /** ¿La persona sigue teniendo Social en el workspace? (owner siempre). */
@@ -825,12 +826,21 @@ async function approvers(workspaceId: string): Promise<string[]> {
   return [workspaceId, ...rows.map((r) => r.id).filter((id) => id !== workspaceId)];
 }
 
+/** Los avisos de una publicación, solo a quien hoy tiene Social en el workspace (no a quien se fue o se la sacaron). */
+
 function snippet(text: string): string {
   const one = text.replace(/\s+/g, ' ').trim();
   return one.length > 60 ? `${one.slice(0, 57)}...` : one || '(media)';
 }
 
-async function notifyPost(userId: string, type: 'social_approval' | 'social_approved' | 'social_rejected' | 'social_failed', post: { id: string; text: string }, meta: Record<string, unknown> = {}) {
+async function notifyPost(
+  workspaceId: string,
+  userId: string,
+  type: 'social_approval' | 'social_approved' | 'social_rejected' | 'social_failed',
+  post: { id: string; text: string },
+  meta: Record<string, unknown> = {},
+) {
+  if (!(await personHasSocialApp(workspaceId, userId).catch(() => false))) return;
   await createNotification({
     userId,
     type,
@@ -914,7 +924,7 @@ async function savePost(actor: SocialActor, input: PostInput, existing: PostRow 
   if (status === 'pending_approval') {
     await addEvent(id, actor.personId, 'submitted');
     for (const approver of await approvers(actor.workspaceId)) {
-      if (approver !== actor.personId) await notifyPost(approver, 'social_approval', { id, text });
+      if (approver !== actor.personId) await notifyPost(actor.workspaceId, approver, 'social_approval', { id, text });
     }
   } else if (status === 'scheduled') {
     await addEvent(id, actor.personId, input.action === 'now' ? 'publish_now' : 'scheduled', scheduledAt);
@@ -1045,7 +1055,7 @@ export async function approvePost(actor: SocialActor, id: string, comment?: stri
   if (res.changes !== 1) throw new SocialError(409, 'not_pending');
   await db().prepare("UPDATE social_post_targets SET status = 'pending', next_attempt_at = ?, updated_at = ? WHERE post_id = ?").run(due, t, id);
   await addEvent(id, actor.personId, 'approved', comment?.trim() || null);
-  if (row.created_by !== actor.personId) await notifyPost(row.created_by, 'social_approved', row, { comment: comment?.trim() || null });
+  if (row.created_by !== actor.personId) await notifyPost(row.workspace_id, row.created_by, 'social_approved', row, { comment: comment?.trim() || null });
   return getPost(actor, id);
 }
 
@@ -1061,7 +1071,7 @@ export async function rejectPost(actor: SocialActor, id: string, comment: string
     .run(actor.personId, t, text, t, id);
   if (res.changes !== 1) throw new SocialError(409, 'not_pending');
   await addEvent(id, actor.personId, 'rejected', text);
-  if (row.created_by !== actor.personId) await notifyPost(row.created_by, 'social_rejected', row, { comment: text });
+  if (row.created_by !== actor.personId) await notifyPost(row.workspace_id, row.created_by, 'social_rejected', row, { comment: text });
   return getPost(actor, id);
 }
 
@@ -1101,7 +1111,7 @@ export async function sendBackToApproval(postId: string, personId: string | null
   const post = (await db().prepare('SELECT id, text, workspace_id FROM social_posts WHERE id = ?').get(postId)) as { id: string; text: string; workspace_id: string };
   await addEvent(postId, personId, 'back_to_approval', reason);
   for (const approver of await approvers(post.workspace_id)) {
-    if (approver !== personId) await notifyPost(approver, 'social_approval', post, { reason });
+    if (approver !== personId) await notifyPost(post.workspace_id, approver, 'social_approval', post, { reason });
   }
   return true;
 }
@@ -1159,7 +1169,7 @@ export async function recomputePostStatus(postId: string): Promise<void> {
     await db().prepare('UPDATE social_posts SET status = ?, published_at = COALESCE(?, published_at), updated_at = ? WHERE id = ?').run(next, publishedAt, now(), postId);
     if ((next === 'failed' || next === 'partial') && post.status !== next) {
       await addEvent(postId, null, next === 'failed' ? 'failed' : 'partial');
-      await notifyPost(post.created_by, 'social_failed', { id: postId, text: post.text }, { partial: next === 'partial' });
+      await notifyPost(post.workspace_id, post.created_by, 'social_failed', { id: postId, text: post.text }, { partial: next === 'partial' });
     }
     if (next === 'published') await addEvent(postId, null, 'published');
   }

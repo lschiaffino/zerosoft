@@ -8,7 +8,7 @@ import { getDb } from '../db';
 import { sendEmail, appSender } from '../email';
 import { HiringError, OVERALL, RATING_MAX, RATING_MIN, type HiringActor } from './types';
 import { appBase, listStages, newId, nowIso, stageDto } from './core';
-import { addEvent, notifyTeam } from './events';
+import { addEvent, notifyTeam, personHasHiring } from './events';
 import { requireManageApp, requireVisibleApp } from './candidates';
 
 export const scorecardSchema = z.object({
@@ -76,7 +76,7 @@ export async function setEvaluators(actor: HiringActor, appId: string, input: z.
   for (const u of before) {
     if (!input.userIds.includes(u)) await db.prepare("DELETE FROM notifications WHERE user_id = ? AND source_type = 'hiring' AND source_id = ?").run(u, app.id);
   }
-  await notifyTeam(added, { title: `${candidate.name} · ${stage.name}`, body: job.title, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}`, sourceId: app.id });
+  await notifyTeam(actor.ws, added, { title: `${candidate.name} · ${stage.name}`, body: job.title, href: `/app/hiring/candidates/${candidate.id}?app=${app.id}`, sourceId: app.id });
 }
 
 export interface PendingEvaluation {
@@ -124,7 +124,7 @@ export async function sendFeedbackReminders(now = new Date(), limit = 100): Prom
   const cutoff = new Date(now.getTime() - REMINDER_AFTER_MS).toISOString();
   const rows = (await db
     .prepare(
-      `SELECT e.application_id, e.user_id, e.stage_id, a.candidate_id, c.name AS candidate_name, j.title AS job_title, u.email
+      `SELECT e.application_id, e.user_id, e.stage_id, a.workspace_id, a.candidate_id, c.name AS candidate_name, j.title AS job_title, u.email
        FROM hiring_evaluators e JOIN hiring_applications a ON a.id = e.application_id JOIN hiring_candidates c ON c.id = a.candidate_id
        JOIN hiring_jobs j ON j.id = a.job_id JOIN users u ON u.id = e.user_id
        WHERE e.reminded_at IS NULL AND a.status = 'active' AND e.requested_at < ?
@@ -137,8 +137,10 @@ export async function sendFeedbackReminders(now = new Date(), limit = 100): Prom
   for (const r of rows) {
     const claim = await db.prepare('UPDATE hiring_evaluators SET reminded_at = ? WHERE application_id = ? AND user_id = ? AND reminded_at IS NULL').run(now.toISOString(), r.application_id, r.user_id);
     if (!claim.changes) continue;
+    // Quien se fue del workspace o ya no tiene Hiring no recibe ni el aviso ni el email (queda reclamado: no se reintenta).
+    if (!(await personHasHiring(r.workspace_id, r.user_id))) continue;
     const href = `/app/hiring/candidates/${r.candidate_id}?app=${r.application_id}`;
-    await notifyTeam([r.user_id], { title: `${r.candidate_name} · ${r.job_title}`, body: 'scorecard', href, sourceId: r.application_id });
+    await notifyTeam(r.workspace_id, [r.user_id], { title: `${r.candidate_name} · ${r.job_title}`, body: 'scorecard', href, sourceId: r.application_id });
     await sendEmail({
       to: r.email,
       from: appSender(),
