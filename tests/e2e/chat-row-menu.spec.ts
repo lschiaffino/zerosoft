@@ -84,6 +84,9 @@ test('Inbox: clic derecho en un chat abre el menú de WhatsApp en el puntero, co
   const name = `Menú ${uid()}`;
   const other = `Otro ${uid()}`;
   await events(request, acc, [dm(phone(), other, 'hola'), dm(phone(), name, 'hola, ¿cómo va?')]);
+  // El resumen del día va arriba de la lista y baja las filas (el menú se daría vuelta para no salirse): cerrado por hoy.
+  const today = new Date().toLocaleDateString('en-CA');
+  expect((await request.post('/api/inbox/brief', { data: { action: 'dismiss', day: today } })).ok()).toBe(true);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/en/app/inbox', { waitUntil: 'networkidle' });
   const row = inboxRow(page, name);
