@@ -20,7 +20,7 @@ async function sql(statement: string, args: Array<string | number | null> = []) 
 }
 
 /** Invita a `email` al workspace del demo y devuelve su contexto ya adentro. */
-async function joinAs(request: APIRequestContext, browser: Browser, baseURL: string, email: string): Promise<{ ctx: BrowserContext; id: string }> {
+async function joinAs(request: APIRequestContext, browser: Browser, baseURL: string, email: string, teamId: string): Promise<{ ctx: BrowserContext; id: string }> {
   const invite = await request.post('/api/teams/invites', { data: { emails: [email], role: 'member' } });
   expect(invite.ok(), await invite.text()).toBe(true);
   const token = String((await sql("SELECT token FROM team_invites WHERE email = ? AND status = 'pending'", [email]))[0]?.token);
@@ -29,8 +29,11 @@ async function joinAs(request: APIRequestContext, browser: Browser, baseURL: str
   const accepted = await ctx.request.post('/api/teams/accept', { data: { token } });
   expect(accepted.ok(), await accepted.text()).toBe(true);
   await sql("UPDATE users SET onboarded_at = datetime('now') WHERE email = ?", [email]);
-  const id = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0]?.id);
-  return { ctx, id };
+  // Su id tal como lo ve Track (el del miembro en la lista del equipo).
+  const view = await ctx.request.get(`/api/track/projects/${teamId}/access`);
+  expect(view.ok(), await view.text()).toBe(true);
+  const { me } = (await view.json()) as { me: string };
+  return { ctx, id: me };
 }
 
 async function cleanup(email: string) {
@@ -53,8 +56,8 @@ test('Track: un rol por prueba, miembro, dueño del equipo y admin del workspace
   const devEmail = `dev-roles-${uid()}@darwin-e2e.io`;
   const team = (await (await request.post('/api/track/projects', { data: { name: `Roles ${uid()}` } })).json()) as { id: string };
   const other = (await (await request.post('/api/track/projects', { data: { name: `Other ${uid()}` } })).json()) as { id: string };
-  const lea = await joinAs(request, browser, baseURL!, leaEmail);
-  const dev = await joinAs(request, browser, baseURL!, devEmail);
+  const lea = await joinAs(request, browser, baseURL!, leaEmail, team.id);
+  const dev = await joinAs(request, browser, baseURL!, devEmail, team.id);
   try {
     // Admin del workspace: nombra dueña a Lea desde Miembros.
     await page.setViewportSize({ width: 1280, height: 800 });
