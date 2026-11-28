@@ -310,11 +310,12 @@ test('info del grupo y del contacto: foto, integrantes, lo compartido, resumen c
   await expect(panel.locator('.wa-sheet-grid .wa-sheet-thumb img')).toHaveCount(1);
   await panel.getByRole('button', { name: 'Docs', exact: true }).click();
   await expect(panel.locator('.wa-sheet-row', { hasText: 'Lista de compras.pdf' })).toBeVisible();
-  // Resumen con IA (modelo falso en e2e), en Info.
-  await detailsTab(page, 'info');
-  await panel.getByRole('button', { name: 'Summarize' }).click();
+  // Resumen con IA de la relación (modelo falso en e2e), arriba de la pestaña AI.
+  await detailsTab(page, 'ai');
+  await panel.locator('.ib-wa-summary').getByRole('button', { name: 'Summarize' }).click();
   await expect(panel.locator('.ib-wa-summary-text')).toContainText('mensajes');
   await shot(page, 'info-group-1440');
+  await detailsTab(page, 'info');
   // Silenciar desde el panel: la fila muestra el ícono.
   await panel.getByRole('button', { name: 'Mute notifications' }).click();
   await panel.getByRole('button', { name: 'For 8 hours' }).click();

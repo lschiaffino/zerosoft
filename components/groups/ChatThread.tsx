@@ -29,6 +29,7 @@ import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from 
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
 import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
+import { useComposeInsert } from '@/components/ai/compose-insert';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -826,6 +827,19 @@ export default function ChatThread(props: ThreadProps) {
     resetKey: chat.id,
   });
   const aiAllowed = mode === 'reply' && !editing && !leaving;
+  // La respuesta sugerida de la pestaña AI del panel: va al campo (modo WhatsApp) con Deshacer; nunca se manda sola.
+  // Editando un mensaje o con una nota interna a medio escribir no se pisa nada (el panel avisa): una nota nunca pasa
+  // al campo de WhatsApp. Desde la solapa de nota vacía, Deshacer vuelve a ella. En el teléfono el panel tapa el
+  // chat: se cierra para ver el campo.
+  useComposeInsert(chat.id, (draft) => {
+    if (leaving || editing) return false;
+    const wasNote = mode === 'note';
+    if (wasNote && text.trim()) return false;
+    setMode('reply');
+    ai.insertText(draft, wasNote ? () => setMode('note') : undefined);
+    if (!side.wide) setDetailsOpen(false);
+    return true;
+  });
 
   // Comandos con "/": las acciones de este hilo (los mismos handlers que sus botones), las respuestas rápidas y la AI.
   // Con el menú abierto no se muestran las menciones ni los emojis de ":".
@@ -3088,6 +3102,8 @@ export default function ChatThread(props: ThreadProps) {
           compact
           starredKey={starredKey}
           notesKey={notesKey}
+          aiUnread={unreadMark?.n ?? 0}
+          aiUnreadFrom={unreadMark?.id}
           onJumpToMessage={(id) => {
             const m = messages.find((x) => x.id === id);
             if (!m) {

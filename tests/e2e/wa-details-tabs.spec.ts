@@ -6,7 +6,7 @@ import { ensureDetailsTab } from './helpers/details-tab';
 
 /**
  * El panel de un chat en Lines y en Inbox con pestañas (components/groups/wa/DetailsTabs.tsx), como Periskope:
- * Info, Miembros (grupos), Archivos, Notas, Tareas y CRM (Lines) o CRM (Inbox). Se recorre con las
+ * Info, Miembros (grupos), Archivos, Notas, Tareas, CRM y AI (Lines) o CRM y AI (Inbox). Se recorre con las
  * flechas, Inicio y Fin; la pestaña elegida queda guardada por persona; Esc cierra el panel; a 390 es una hoja a
  * pantalla completa sin desplazamiento lateral y con pestañas de 40px o más.
  * Cuenta propia: las notas y los ajustes no tocan a la cuenta demo compartida.
@@ -159,8 +159,8 @@ for (const width of [1280, 390]) {
     const chats = await seedLines(request, tag);
     const urls = { group: `/en/app/lines/inbox/${chats.group}`, dm: `/en/app/lines/inbox/${chats.dm}` };
     await walk(page, 'lines', urls, width, {
-      group: ['info', 'members', 'media', 'notes', 'tasks', 'crm'],
-      dm: ['info', 'media', 'notes', 'tasks', 'crm'],
+      group: ['info', 'members', 'media', 'notes', 'tasks', 'crm', 'ai'],
+      dm: ['info', 'media', 'notes', 'tasks', 'crm', 'ai'],
     });
 
     // Notas internas: la que se escribe en el chat aparece en la pestaña, con su autor.
@@ -183,7 +183,7 @@ for (const width of [1280, 390]) {
     const tag = uid();
     const chats = await seedInbox(request, tag);
     const urls = { group: `/en/app/inbox?t=${chats.group}`, dm: `/en/app/inbox?t=${chats.dm}` };
-    await walk(page, 'inbox', urls, width, { group: ['info', 'members', 'media', 'notes', 'crm'], dm: ['info', 'media', 'notes', 'crm'] });
+    await walk(page, 'inbox', urls, width, { group: ['info', 'members', 'media', 'notes', 'crm', 'ai'], dm: ['info', 'media', 'notes', 'crm', 'ai'] });
 
     // Notas del chat (solo las ve quien es dueño de la bandeja): se guardan y vuelven.
     const panel = page.locator('.ib-wa-details');

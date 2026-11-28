@@ -2165,7 +2165,8 @@
         "media": "Files",
         "notes": "Notes",
         "tasks": "Tasks",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "AI"
       },
       "empty": {
         "media": "No photos or videos in this chat yet",
@@ -2194,7 +2195,87 @@
       "crmTitle": "CRM",
       "contact": "Contact",
       "company": "Company",
-      "crmSearch": "Link a CRM company or contact"
+      "crmSearch": "Link a CRM company or contact",
+      "ai": {
+        "title": "Catch up",
+        "rangeLabel": "Messages to read",
+        "unread": "Since last read",
+        "unreadCount": "Since last read ({n})",
+        "unreadNone": "Nothing was unread when you opened this chat, so pick a period.",
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days",
+        "run": "Summarize these messages",
+        "again": "Summarize again",
+        "working": "Reading the chat…",
+        "privacy": "Uses only the messages you can see in this chat. Nothing is saved or shared.",
+        "summary": "Summary",
+        "basedOn": "Based on {n, plural, one {# message} other {# messages}}.",
+        "questions": "Open questions",
+        "commitments": "Pending commitments",
+        "us": "We",
+        "them": "Contact",
+        "replies": "Suggested replies",
+        "insert": "Insert",
+        "insertedShort": "Inserted",
+        "insertHint": "Insert puts the reply in the message field so you can review it. Nothing is sent.",
+        "mood": "Mood",
+        "moods": {
+          "positive": "Positive",
+          "neutral": "Neutral",
+          "negative": "Negative",
+          "mixed": "Mixed"
+        },
+        "none": "None found.",
+        "noMessages": "There are no messages in this period. Pick a longer one.",
+        "basedOnRange": "Based on {n, plural, one {# message} other {# messages}} ({range}).",
+        "insertFailed": "Could not put it in the message field. Finish the message or note you are writing, or close the edit, and try again.",
+        "rangeNames": {
+          "unread": "since you last read it",
+          "day": "last 24 hours",
+          "week": "last 7 days",
+          "month": "last 30 days"
+        },
+        "askTitle": "Ask about this chat",
+        "askLabel": "Question about this chat",
+        "askPlaceholder": "What did the customer ask for?",
+        "ask": "Ask",
+        "asking": "Reading the chat…",
+        "suggestionsLabel": "Suggested questions",
+        "suggest": {
+          "summary": "Summarize this chat",
+          "asked": "What did the customer ask for?",
+          "pending": "What is still pending?"
+        },
+        "askHint": "The AI only reads the latest messages of this chat that you can see. Answers stay in this tab; nothing is saved or sent to the chat.",
+        "askNoMessages": "This chat has no messages to read yet.",
+        "proposalsTitle": "Proposed follow-ups",
+        "noProposals": "Nothing to follow up in this chat.",
+        "titleLabel": "Title",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Notes for the task (optional)",
+        "createBusy": "Too many changes in a row. Wait a moment and try again.",
+        "kindLabel": "Create as",
+        "kind": {
+          "task": "Task",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Priority",
+        "priority": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "create": "Create",
+        "creating": "Creating…",
+        "dismiss": "Dismiss",
+        "createdTask": "Task created:",
+        "createdTicket": "Ticket created:",
+        "createError": "Couldn't create it. Try again.",
+        "whereLines": "Nothing is created until you press Create. Tasks go to this chat's Tasks tab and to CRM › Tasks; tickets go to Tickets.",
+        "whereInbox": "Nothing is created until you press Create. Tasks go to CRM › Tasks, assigned to you; anyone who can see your CRM tasks will see them.",
+        "crmOff": "The CRM app is off for you, so these can't be created as tasks here."
+      }
     },
     "contactSheet": {
       "title": "Contact info",

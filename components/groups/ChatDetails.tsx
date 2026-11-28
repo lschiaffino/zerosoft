@@ -1,7 +1,11 @@
 'use client';
 
 import GroupMembers from './wa/GroupMembers';
-import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry } from './wa/icons';
+import { BriefcaseIcon, CheckCircle, GroupIcon, InfoIcon, Note, PhotoIcon, Retry, Sparkle } from './wa/icons';
+import ChatAiTab from './wa/ChatAiTab';
+import type { ChatInsights, ChatProposal, InsightRange } from '@/lib/wa-insights';
+import type { AskResult } from './wa/ChatAiAsk';
+import type { CreateResult } from './wa/ChatAiProposals';
 import DetailsTabs from './wa/DetailsTabs';
 import SharedMedia from './wa/SharedMedia';
 import { ChatNotes, CrmDeals } from './ChatDetailsParts';
@@ -20,7 +24,7 @@ import { useGroupsInbox } from './InboxShell';
 import GroupSettingsSection from './GroupSettingsSection';
 import HubspotSection from './HubspotSection';
 import PropertyInput from './PropertyInput';
-import { ChatTasksSection } from './TaskModal';
+import { ChatTasksSection, TASKS_CHANGED } from './TaskModal';
 import { LabelTag, api, useErrorText, useToast } from './ui';
 import { AuditLog } from './PlatformPanels';
 import AssignmentHistory from './AssignmentHistory';
@@ -82,6 +86,8 @@ export default function ChatDetails({
   compact = false,
   starredKey = '',
   notesKey = '',
+  aiUnread = 0,
+  aiUnreadFrom,
   onJumpToMessage,
 }: {
   chat: ChatDto;
@@ -103,6 +109,10 @@ export default function ChatDetails({
   starredKey?: string;
   /** Cambia cuando se escribe o se borra una nota interna en la conversación: la pestaña Notas se vuelve a leer. */
   notesKey?: string;
+  /** Mensajes sin leer al abrir el chat: la pestaña AI ofrece resumir desde la última lectura. */
+  aiUnread?: number;
+  /** El primer mensaje sin leer al abrir el chat. */
+  aiUnreadFrom?: string;
   /** Desde la conversación: un destacado lleva a su mensaje (sin esto no hay lista de destacados). */
   onJumpToMessage?: (id: string) => void;
 }) {
@@ -148,6 +158,42 @@ export default function ChatDetails({
         senderName: m.senderName,
         ...(m.urls ? { urls: m.urls } : {}),
       }));
+    },
+    [chat.id],
+  );
+
+  // La pestaña AI: las ideas del rango, solo con lo que quien mira ve (app/api/groups/chats/[id]/summary).
+  const runInsights = useCallback(
+    async (range: InsightRange): Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }> => {
+      const r = await api<{ insights: ChatInsights }>(`/api/groups/chats/${chat.id}/summary`, { body: { kind: 'insights', range, locale } });
+      return r.data ? { ok: true, insights: r.data.insights } : { ok: false, code: r.error ?? 'failed' };
+    },
+    [chat.id, locale],
+  );
+  const askChat = useCallback(
+    async (question: string): Promise<AskResult> => {
+      const r = await api<{ answer: string; messages: number }>(`/api/groups/chats/${chat.id}/summary`, { body: { kind: 'ask', question, locale } });
+      return r.data ? { ok: true, answer: r.data } : { ok: false, code: r.error ?? 'failed' };
+    },
+    [chat.id, locale],
+  );
+  // Un seguimiento propuesto que la persona aprobó: con las mismas acciones de la pestaña Tareas (tarea del chat, que
+  // va también a CRM › Tareas, o ticket).
+  const createProposal = useCallback(
+    async (p: ChatProposal): Promise<CreateResult> => {
+      if (p.kind === 'ticket') {
+        const r = await api<TicketLite>('/api/groups/tickets', { body: { chatId: chat.id, title: p.title, priority: p.priority } });
+        if (!r.data) return { ok: false, code: r.error ?? 'failed' };
+        const tk = r.data;
+        setTickets((list) => [tk, ...(list ?? []).filter((x) => x.id !== tk.id)]);
+        return { ok: true, created: { kind: 'ticket', href: `/app/lines/tickets?open=${tk.id}`, label: `#${tk.number} ${tk.title}` } };
+      }
+      const r = await api<{ id: string; title: string }>('/api/groups/tasks', {
+        body: { chatId: chat.id, title: p.title, notes: p.notes, priority: p.priority, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      });
+      if (!r.data) return { ok: false, code: r.error ?? 'failed' };
+      window.dispatchEvent(new Event(TASKS_CHANGED));
+      return { ok: true, created: { kind: 'task', href: `/app/lines/tasks?open=${r.data.id}`, label: r.data.title || p.title } };
     },
     [chat.id],
   );
@@ -654,6 +700,27 @@ export default function ChatDetails({
             { id: 'notes', label: tdet('tabs.notes'), icon: <Note size={18} />, content: <ChatNotes chatId={chat.id} people={people} me={me} version={notesKey} onJumpToMessage={onJumpToMessage} /> },
             { id: 'tasks', label: tdet('tabs.tasks'), icon: <CheckCircle size={18} />, content: tasksSection },
             { id: 'crm', label: tdet('tabs.crm'), icon: <BriefcaseIcon size={18} />, content: crmSection },
+            {
+              id: 'ai',
+              label: tdet('tabs.ai'),
+              icon: <Sparkle size={18} />,
+              content: (
+                <ChatAiTab
+                  key={chat.id}
+                  chatKey={chat.id}
+                  stateUrl={`/api/groups/chats/${chat.id}?part=ai`}
+                  run={runInsights}
+                  unread={aiUnread}
+                  unreadFrom={aiUnreadFrom}
+                  sectionClass="gr-detail-section"
+                  titleClass="gr-detail-title"
+                  askChat={askChat}
+                  kinds={['task', 'ticket']}
+                  where={tdet('ai.whereLines')}
+                  createProposal={createProposal}
+                />
+              ),
+            },
           ]}
         />
       ) : (

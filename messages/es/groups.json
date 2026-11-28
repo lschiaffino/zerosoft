@@ -2165,7 +2165,8 @@
         "media": "Archivos",
         "notes": "Notas",
         "tasks": "Tareas",
-        "crm": "CRM"
+        "crm": "CRM",
+        "ai": "IA"
       },
       "empty": {
         "media": "Todavía no hay fotos ni videos en este chat",
@@ -2194,7 +2195,87 @@
       "crmTitle": "CRM",
       "contact": "Contacto",
       "company": "Empresa",
-      "crmSearch": "Vincular una empresa o un contacto del CRM"
+      "crmSearch": "Vincular una empresa o un contacto del CRM",
+      "ai": {
+        "title": "Ponerse al día",
+        "rangeLabel": "Mensajes a leer",
+        "unread": "Desde la última lectura",
+        "unreadCount": "Desde la última lectura ({n})",
+        "unreadNone": "No había nada sin leer cuando abriste este chat: elegí un período.",
+        "day": "24 horas",
+        "week": "7 días",
+        "month": "30 días",
+        "run": "Resumir estos mensajes",
+        "again": "Resumir de nuevo",
+        "working": "Leyendo el chat…",
+        "privacy": "Usa solo los mensajes que ves en este chat. No se guarda ni se comparte nada.",
+        "summary": "Resumen",
+        "basedOn": "Con {n, plural, one {# mensaje} other {# mensajes}}.",
+        "questions": "Preguntas sin responder",
+        "commitments": "Compromisos pendientes",
+        "us": "Nosotros",
+        "them": "Contacto",
+        "replies": "Respuestas sugeridas",
+        "insert": "Insertar",
+        "insertedShort": "Insertada",
+        "insertHint": "Insertar pone la respuesta en el campo para que la revises. No se manda nada.",
+        "mood": "Ánimo",
+        "moods": {
+          "positive": "Positivo",
+          "neutral": "Neutral",
+          "negative": "Negativo",
+          "mixed": "Mixto"
+        },
+        "none": "No hay.",
+        "noMessages": "No hay mensajes en este período. Elegí uno más largo.",
+        "basedOnRange": "Con {n, plural, one {# mensaje} other {# mensajes}} ({range}).",
+        "insertFailed": "No se pudo poner en el campo del mensaje. Terminá el mensaje o la nota que estás escribiendo, o cerrá la edición, y probá de nuevo.",
+        "rangeNames": {
+          "unread": "desde la última lectura",
+          "day": "últimas 24 horas",
+          "week": "últimos 7 días",
+          "month": "últimos 30 días"
+        },
+        "askTitle": "Preguntale a la IA",
+        "askLabel": "Pregunta sobre este chat",
+        "askPlaceholder": "¿Qué pidió el cliente?",
+        "ask": "Preguntar",
+        "asking": "Leyendo el chat…",
+        "suggestionsLabel": "Preguntas sugeridas",
+        "suggest": {
+          "summary": "Resumí este chat",
+          "asked": "¿Qué pidió el cliente?",
+          "pending": "¿Qué quedó pendiente?"
+        },
+        "askHint": "La IA lee solo los últimos mensajes de este chat que vos ves. Las respuestas quedan en esta pestaña; no se guarda nada ni se manda nada al chat.",
+        "askNoMessages": "Este chat todavía no tiene mensajes para leer.",
+        "proposalsTitle": "Seguimientos propuestos",
+        "noProposals": "No hay nada pendiente para seguir en este chat.",
+        "titleLabel": "Título",
+        "notesLabel": "Notas",
+        "notesPlaceholder": "Notas de la tarea (opcional)",
+        "createBusy": "Demasiados cambios seguidos. Esperá un momento y probá de nuevo.",
+        "kindLabel": "Crear como",
+        "kind": {
+          "task": "Tarea",
+          "ticket": "Ticket"
+        },
+        "priorityLabel": "Prioridad",
+        "priority": {
+          "low": "Baja",
+          "medium": "Media",
+          "high": "Alta"
+        },
+        "create": "Crear",
+        "creating": "Creando…",
+        "dismiss": "Descartar",
+        "createdTask": "Tarea creada:",
+        "createdTicket": "Ticket creado:",
+        "createError": "No se pudo crear. Probá de nuevo.",
+        "whereLines": "No se crea nada hasta que tocás Crear. Las tareas van a la pestaña Tareas de este chat y a CRM › Tareas; los tickets, a Tickets.",
+        "whereInbox": "No se crea nada hasta que tocás Crear. Las tareas van a CRM › Tareas, a tu nombre; las ve quien pueda ver tus tareas del CRM.",
+        "crmOff": "La app CRM está apagada para vos: estas no se pueden crear como tareas acá."
+      }
     },
     "contactSheet": {
       "title": "Info. del contacto",
