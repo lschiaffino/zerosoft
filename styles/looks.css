@@ -344,6 +344,22 @@
   --btn-bd-hover: color-mix(in srgb, var(--ink) 22%, transparent);
   box-shadow: inset 0 1px 0 var(--glass-hi), 0 1px 2px rgb(0 0 0 / 0.06);
 }
+/* Liquid oscuro: el vidrio oscuro sobre el fondo oscuro casi no se veía (borde al 10 % de blanco). La
+   secundaria se aclara un poco y su borde sale de la tinta, así se lee como botón en cualquier panel. */
+:root[data-look='liquid'][data-theme='dark'] :where(.btn-secondary, .btn-outline, .btn:not(.btn-primary, .btn-solid, .btn-ghost, .btn-chrome, .btn-chrome-outline, .btn-invert, .btn-invert-solid, .btn-danger)):not([aria-pressed='true'], [aria-selected='true'], [aria-current='page'], [aria-current='true']) {
+  --btn-bg: color-mix(in srgb, var(--ink) 9%, var(--glass));
+  --btn-bd: color-mix(in srgb, var(--ink) 24%, transparent);
+  --btn-bg-hover: color-mix(in srgb, var(--ink) 15%, var(--glass));
+  --btn-bd-hover: color-mix(in srgb, var(--ink) 36%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-look='liquid']:not([data-theme='light']) :where(.btn-secondary, .btn-outline, .btn:not(.btn-primary, .btn-solid, .btn-ghost, .btn-chrome, .btn-chrome-outline, .btn-invert, .btn-invert-solid, .btn-danger)):not([aria-pressed='true'], [aria-selected='true'], [aria-current='page'], [aria-current='true']) {
+    --btn-bg: color-mix(in srgb, var(--ink) 9%, var(--glass));
+    --btn-bd: color-mix(in srgb, var(--ink) 24%, transparent);
+    --btn-bg-hover: color-mix(in srgb, var(--ink) 15%, var(--glass));
+    --btn-bd-hover: color-mix(in srgb, var(--ink) 36%, transparent);
+  }
+}
 
 /* ---------- Campos ---------- */
 

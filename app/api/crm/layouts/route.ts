@@ -7,8 +7,10 @@ import {
   pipelineInWorkspace,
   resetLayout,
   resolveCardLayout,
+  resolveLeadCardLayout,
   resolvePreviewLayout,
   setCardLayout,
+  setLeadCardLayout,
   setPreviewLayout,
 } from '@/lib/crm-layouts';
 import { isLayoutEntity, LAYOUT_ENTITIES, MAX_PREVIEW_PROPERTIES } from '@/lib/crm-layouts-shared';
@@ -26,14 +28,17 @@ const putSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('card'),
-    pipelineId: z.string().min(1).max(64),
+    // Deals: por pipeline. Leads: un solo board por workspace (sin pipelineId).
+    entity: z.enum(['deals', 'leads']).default('deals'),
+    pipelineId: z.string().min(1).max(64).optional(),
     properties: z.array(key).max(20),
   }),
 ]);
 
 /**
  * GET ?kind=preview&entity=contacts|companies|deals → la vista previa para
- * quien pregunta. GET ?kind=card&pipelineId= → las tarjetas de ese pipeline.
+ * quien pregunta. GET ?kind=card&pipelineId= → las tarjetas de ese pipeline;
+ * GET ?kind=card&entity=leads → las del board de leads.
  * Las propiedades personalizadas que la persona tiene ocultas no salen.
  * `canEdit`: owner/admin (el link "Personalizar").
  */
@@ -44,6 +49,9 @@ export async function GET(req: NextRequest) {
   const viewer = sessionFieldViewer(user);
   const canEdit = isWorkspaceAdmin(user);
   if (sp.get('kind') === 'card') {
+    if (sp.get('entity') === 'leads') {
+      return NextResponse.json({ kind: 'card', entity: 'leads', layout: await resolveLeadCardLayout(viewer), canEdit });
+    }
     const pipelineId = sp.get('pipelineId') ?? '';
     if (!pipelineId || !(await pipelineInWorkspace(user.id, pipelineId))) return notFound();
     return NextResponse.json({ kind: 'card', pipelineId, layout: await resolveCardLayout(viewer, pipelineId), canEdit });
@@ -65,18 +73,26 @@ export async function PUT(req: NextRequest) {
     const layout = await setPreviewLayout(user.id, body.entity, body);
     return NextResponse.json({ kind: 'preview', entity: body.entity, layout });
   }
+  if (body.entity === 'leads') {
+    return NextResponse.json({ kind: 'card', entity: 'leads', layout: await setLeadCardLayout(user.id, body) });
+  }
+  if (!body.pipelineId) return crmError(400, 'invalid_input');
   const layout = await setCardLayout(user.id, body.pipelineId, body);
   if (!layout) return notFound();
   return NextResponse.json({ kind: 'card', pipelineId: body.pipelineId, layout });
 }
 
-/** DELETE ?kind=preview&entity= | ?kind=card&pipelineId= → vuelve a lo de por defecto (owner/admin). */
+/** DELETE ?kind=preview&entity= | ?kind=card&pipelineId= | ?kind=card&entity=leads → vuelve a lo de por defecto (owner/admin). */
 export async function DELETE(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
   if (!isWorkspaceAdmin(user)) return forbidden();
   const sp = req.nextUrl.searchParams;
   if (sp.get('kind') === 'card') {
+    if (sp.get('entity') === 'leads') {
+      await resetLayout(user.id, 'card', 'leads', '');
+      return NextResponse.json({ ok: true });
+    }
     const pipelineId = sp.get('pipelineId') ?? '';
     if (!pipelineId || !(await pipelineInWorkspace(user.id, pipelineId))) return notFound();
     await resetLayout(user.id, 'card', 'deals', pipelineId);

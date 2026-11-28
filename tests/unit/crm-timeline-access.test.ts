@@ -3,7 +3,8 @@ import { NextRequest } from 'next/server';
 import type { SessionUser } from '@/lib/session';
 import { createActivity, createCompany, createContact } from '@/lib/crm';
 import { setMemberVisibility } from '@/lib/crm-visibility';
-import { asMember, roles, workspaceWithMember } from './access-helpers';
+import { createLead } from '@/lib/crm-leads';
+import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
 
 const session = vi.hoisted(() => ({ user: null as SessionUser | null }));
 vi.mock('@/lib/session', async (orig) => ({ ...((await orig()) as object), getCurrentUser: async () => session.user }));
@@ -43,8 +44,29 @@ describe('GET/POST /api/crm/timeline', () => {
     const res = await get(`kind=company&id=${company.id}&offset=0`);
     expect(res.status).toBe(404);
     expect(await res.text()).not.toContain('zq hidden note');
-    expect((await get(`kind=lead&id=${company.id}`)).status).toBe(400);
+    // Un id que no es un lead (o un lead que no ve): 404; un tipo desconocido: 400.
+    expect((await get(`kind=lead&id=${company.id}`)).status).toBe(404);
+    expect((await get(`kind=task&id=${company.id}`)).status).toBe(400);
     expect((await get(`kind=company&id=${company.id}&offset=-3`)).status).toBe(400);
     session.user = null;
+  });
+
+  it('lead: sus actividades para quien lo ve; 404 para un member que no lo ve y para otro workspace', async () => {
+    const w = await workspaceWithMember('tl-lead');
+    await setMemberVisibility(w.owner.id, 'mine');
+    const lead = await createLead(w.owner.id, { name: 'Lead tl' });
+    await createActivity(w.owner.id, { type: 'note', body: 'zq lead note', leadId: lead.id });
+    session.user = asOwner(w.owner);
+    const own = await get(`kind=lead&id=${lead.id}`);
+    expect(own.status).toBe(200);
+    expect(await own.text()).toContain('zq lead note');
+    session.user = asMember(w.owner, w.member);
+    const hidden = await get(`kind=lead&id=${lead.id}`);
+    expect(hidden.status).toBe(404);
+    expect(await hidden.text()).not.toContain('zq lead note');
+    session.user = asOwner(w.stranger);
+    expect((await get(`kind=lead&id=${lead.id}`)).status).toBe(404);
+    session.user = null;
+    expect((await get(`kind=lead&id=${lead.id}`)).status).toBe(401);
   });
 });

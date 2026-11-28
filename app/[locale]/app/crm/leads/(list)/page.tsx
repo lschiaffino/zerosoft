@@ -15,6 +15,9 @@ import ListToolbar from '@/components/crm/ListToolbar';
 import LeadCreate from '@/components/crm/LeadCreate';
 import LeadsBoard, { type BoardColumn } from '@/components/crm/LeadsBoard';
 import CrmLiveList from '@/components/crm/CrmLiveList';
+import { LeadNameLink, LeadsPreviewProvider } from '@/components/crm/LeadsPreview';
+import { resolveLeadCardLayout } from '@/lib/crm-layouts';
+import { fieldAccessFor, sessionFieldViewer } from '@/lib/crm-field-perms';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,8 +98,27 @@ export default async function LeadsPage(props: {
   };
 
   let body: React.ReactNode;
+  // Leads en pantalla, en orden: la vista previa los recorre con ‹ › y j / k.
+  let previewIds: string[] = [];
   if (view === 'board') {
     const board = await listLeadsForBoard(user.id, { q: q || undefined, owner: owner || undefined, ownerScope: scope });
+    // Tarjetas del board (Ajustes › Ventas › Tarjetas del board): solo las propiedades personalizadas que la
+    // tarjeta muestra y la persona ve viajan al navegador.
+    const viewer = sessionFieldViewer(user);
+    const [cardLayout, leadFields] = await Promise.all([resolveLeadCardLayout(viewer), fieldAccessFor(viewer, 'leads')]);
+    const cardCustomDefs = leadFields.visible
+      .filter((d) => cardLayout.properties.includes(`custom.${d.name}`))
+      .map((d) => ({ name: d.name, label: d.label, type: d.type, options: d.options }));
+    const cardCustom = (json: string): string => {
+      let all: Record<string, unknown> = {};
+      try {
+        const v: unknown = JSON.parse(json || '{}');
+        if (v && typeof v === 'object' && !Array.isArray(v)) all = v as Record<string, unknown>;
+      } catch {
+        /* sin personalizadas */
+      }
+      return JSON.stringify(Object.fromEntries(cardCustomDefs.filter((d) => d.name in all).map((d) => [d.name, all[d.name]])));
+    };
     const columns: BoardColumn[] = board.map((s) => ({
       id: s.id,
       name: s.name,
@@ -111,14 +133,19 @@ export default async function LeadsPage(props: {
           : (l.contact_name ?? l.contact_email ?? '') === l.name ? '' : (l.contact_name ?? l.contact_email ?? ''),
         company: l.company_private ? t('common.privateRecord') : l.company_name ?? '',
         owner: ownerName.get(l.owner_id ?? user.id) ?? '',
+        source: l.source,
+        created_at: l.created_at,
+        last_activity_at: l.last_activity_at,
+        custom: cardCustom(l.custom),
         converted: !!l.deal_id || !!l.deal_private,
       })),
     }));
+    previewIds = columns.flatMap((c) => c.leads.map((l) => l.id));
     const empty = board.every((s) => s.count === 0);
     body = empty && !hasFilters ? (
       <EmptyState title={t('leads.emptyTitle')} body={t('leads.emptyBody')} action={create('empty')} />
     ) : (
-      <LeadsBoard columns={columns} />
+      <LeadsBoard columns={columns} cardKeys={cardLayout.properties} cardCustomDefs={cardCustomDefs} locale={locale} />
     );
   } else {
     const { rows, total } = await listLeads(user.id, {
@@ -132,6 +159,7 @@ export default async function LeadsPage(props: {
       pageSize: PAGE_SIZE,
     });
     const pages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+    previewIds = rows.map((l) => l.id);
     body =
       rows.length === 0 ? (
         hasFilters ? (
@@ -170,9 +198,7 @@ export default async function LeadsPage(props: {
                 {rows.map((l) => (
                   <tr key={l.id}>
                     <td>
-                      <Link href={`/app/crm/leads/${l.id}`} className="cell-name">
-                        {l.name}
-                      </Link>
+                      <LeadNameLink id={l.id} name={l.name} />
                       {l.deal_name && <span className="muted cell-sub">{t('leads.columns.deal')}: {l.deal_name}</span>}
                       {l.deal_private && (
                         <span className="muted cell-sub">
@@ -259,7 +285,9 @@ export default async function LeadsPage(props: {
           ]}
         />
       </div>
-      {body}
+      <LeadsPreviewProvider owners={owners} locale={locale} ids={previewIds}>
+        {body}
+      </LeadsPreviewProvider>
     </div>
   );
 }

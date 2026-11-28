@@ -397,6 +397,8 @@ export interface DrillSegment {
   series?: string | null;
   /** Reportes propios: el valor de cada dimensión del segmento (null = sin valor). */
   keys?: Array<string | null>;
+  /** Reportes propios: mostrar un objeto asociado en vez del principal. */
+  object?: 'deal' | 'contact' | 'company' | null;
 }
 
 export interface TileCategory {
@@ -463,6 +465,8 @@ export interface DrillRow {
 
 export interface DrillResult {
   object: DrillObject;
+  /** Reportes propios: los objetos que el drill puede mostrar (el del reporte y los asociados que usa). */
+  objects?: DrillObject[];
   rows: DrillRow[];
   total: number;
   sum: number | null;
@@ -473,4 +477,5 @@ export const drillSegmentSchema = z.object({
   category: z.string().max(80).nullish(),
   series: z.string().max(80).nullish(),
   keys: z.array(z.string().max(500).nullable()).max(2).optional(),
+  object: z.enum(['deal', 'contact', 'company']).nullish(),
 });

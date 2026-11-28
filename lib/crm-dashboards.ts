@@ -651,7 +651,13 @@ async function drillCustomTile(
       tv.viewer.workspaceId,
       config,
       segment.keys ?? [],
-      { scope: narrowScope(tv.scope, ctx.ownerIds), viewer: tv.fieldViewer, range: { from: ctx.range.from, to: ctx.range.to }, locale: tv.locale },
+      {
+        scope: narrowScope(tv.scope, ctx.ownerIds),
+        viewer: tv.fieldViewer,
+        range: { from: ctx.range.from, to: ctx.range.to },
+        locale: tv.locale,
+        object: segment.object ?? undefined,
+      },
       db,
     );
   } catch (e) {
@@ -662,6 +668,7 @@ async function drillCustomTile(
   const object: DrillResult['object'] = res.object;
   return {
     object,
+    objects: res.objects,
     total: res.total,
     truncated: res.truncated,
     sum: null,
@@ -671,7 +678,7 @@ async function drillCustomTile(
         id: r.id,
         previewType: preview,
         previewId: preview ? r.id : null,
-        href: r.object === 'activity' ? (report.config.source === 'tasks' ? `/app/crm/tasks/${r.id}` : null) : `/app/crm/${r.object === 'company' ? 'companies' : `${r.object}s`}/${r.id}`,
+        href: r.object === 'activity' ? (res.object === 'activity' && report.config.source === 'tasks' ? `/app/crm/tasks/${r.id}` : null) : `/app/crm/${r.object === 'company' ? 'companies' : `${r.object}s`}/${r.id}`,
         name: r.name,
         amount: r.object === 'deal' ? r.amount : null,
         status: r.status,
