@@ -92,8 +92,11 @@ export function briefIsEmpty(b: DailyBrief): boolean {
 /** Un nombre para mostrar: sin saltos ni caracteres de control, corto, y con los teléfonos ocultos si corresponde. */
 export function briefName(raw: string, mask = false): string {
   // Sin controles ni marcas invisibles (dirección, ancho cero): ni texto dado vuelta ni un teléfono cortado que no se oculte.
+  // Los que unen (ZWJ/ZWNJ) y las etiquetas de banderas quedan, salvo pegados a un número: los emojis y la
+  // escritura de cada idioma siguen enteros.
   const clean = String(raw ?? '')
-    .replace(/\p{Cf}+/gu, '')
+    .replace(/[\u200c\u200d]+(?=\d)|(?<=\d)[\u200c\u200d]+/gu, '')
+    .replace(/(?![\u200c\u200d\u{e0020}-\u{e007f}])\p{Cf}+/gu, '')
     .replace(/[\p{Cc}\u2028\u2029]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();

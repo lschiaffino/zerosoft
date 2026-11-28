@@ -95,6 +95,10 @@ describe('resumen del día: lo puro', () => {
     expect(briefName('Grupo \u202edado vuelta\u2066')).toBe('Grupo dado vuelta');
     expect(briefName('Cliente +54 9 11 0000\u200b-0302', true)).not.toMatch(/0000.?-?0302/);
     expect(briefName('Cliente +54 9 11 0000\u061c-0303', true)).not.toMatch(/0000.?-?0303/);
+    expect(briefName('Cliente +54 9 11 0000\u200d-0304', true)).not.toMatch(/0000.?-?0304/);
+    // Los emojis compuestos y la escritura con ZWNJ siguen enteros.
+    expect(briefName('Familia \u{1f468}\u200d\u{1f469}\u200d\u{1f467}')).toBe('Familia \u{1f468}\u200d\u{1f469}\u200d\u{1f467}');
+    expect(briefName('\u0645\u06cc\u200c\u062e\u0648\u0627\u0645')).toBe('\u0645\u06cc\u200c\u062e\u0648\u0627\u0645');
   });
 
   it('el email sale entre las 8 y las 11 de la persona, una vez por día', () => {
