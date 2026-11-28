@@ -2122,7 +2122,8 @@
       "invalid_sequence": "Esa secuencia ya no existe.",
       "invalid_url": "La URL de redirección tiene que empezar con http:// o https://.",
       "invalid_input": "Hay ajustes que no son válidos.",
-      "invalid_stage": "Elegí un pipeline y una etapa para el deal."
+      "invalid_stage": "Elegí un pipeline y una etapa para el deal.",
+      "field_readonly": "Uno de los campos guarda en una propiedad que no podés editar."
     },
     "builder": {
       "fields": "Campos",

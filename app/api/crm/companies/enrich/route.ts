@@ -4,6 +4,7 @@ import { enrichDomain } from '@/lib/crm-enrich';
 import { rateLimit } from '@/lib/rate-limit';
 import { crmError, unauthorized } from '@/lib/crm-http';
 import { getDb } from '@/lib/db';
+import { scopeAnd, sessionScope } from '@/lib/crm-visibility';
 import { normalizeCompanyDomain } from '@/lib/crm-domain';
 
 export const runtime = 'nodejs';
@@ -27,12 +28,14 @@ export async function GET(req: NextRequest) {
   if (process.env.RATE_LIMIT_DISABLED !== 'true' && !(await rateLimit(bucket, checkOnly ? 600 : 60, 3600)).ok) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   }
+  // La empresa que ya tiene ese dominio, solo si quien pide la ve (no nombra ni da el id de una que no ve).
+  const vis = scopeAnd('crm_companies', await sessionScope(user));
   const existing = (await getDb()
     .prepare(
       `SELECT id, name FROM crm_companies WHERE user_id = ?
-         AND (lower(domain) = ? OR lower(domain) = ? OR lower(domain) LIKE ? OR lower(domain) LIKE ?) LIMIT 1`,
+         AND (lower(domain) = ? OR lower(domain) = ? OR lower(domain) LIKE ? OR lower(domain) LIKE ?)${vis.sql} LIMIT 1`,
     )
-    .get(user.id, domain, `www.${domain}`, `%//${domain}%`, `%//www.${domain}%`)) as { id: string; name: string } | undefined;
+    .get(user.id, domain, `www.${domain}`, `%//${domain}%`, `%//www.${domain}%`, ...vis.args)) as { id: string; name: string } | undefined;
   if (checkOnly) return NextResponse.json({ domain, existing: existing ?? null });
   const info = await enrichDomain(domain);
   return NextResponse.json({
