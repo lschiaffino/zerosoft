@@ -1169,9 +1169,8 @@ export default function Timeline({
     const reason = t.has(`propertyOptions.reasons.${c.reason}`) ? t(`propertyOptions.reasons.${c.reason}`) : '';
     return (
       <article key={item.id} className="tl-item atl-change" data-testid="crm-timeline-change" data-type="change">
-        <span className="atl-icon" data-type="change" aria-hidden>
-          <CrmIcon name="chevronRight" />
-        </span>
+        {/* Un punto, no una flecha: la línea no se despliega ni se toca. */}
+        <span className="atl-icon" data-type="change" aria-hidden />
         <p className="atl-change-text">
           {t('propertyOptions.changedTo', {
             from: crmOpts.label('lifecycle', c.from) || '—',

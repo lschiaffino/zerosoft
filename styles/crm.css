@@ -3799,12 +3799,12 @@ section.pb-body, section.pb-qs, section.pb-runs { padding: 0; }
 /* ============================================================
    QA del CRM (C4)
    ============================================================ */
-/* En el teléfono la pestaña de feedback tapaba filas, tarjetas de deals y KPI: en los listados y los dashboards del
-   CRM no flota (como en el chat de Lines e Inbox, styles/wa-mobile.css). Se manda desde el menú de la cuenta
+/* En el teléfono la pestaña de feedback tapaba filas, tarjetas de deals, KPI y la hora del timeline: en los listados,
+   los dashboards y las fichas del CRM no flota (como en el chat de Lines e Inbox, styles/wa-mobile.css). Se manda desde el menú de la cuenta
    ("Enviar feedback"), que abre el mismo panel; abierto, se ve. */
 @media (max-width: 640px) {
-  body:has(.crm-list-page, .cdb-grid) .fl-root:not(.is-open),
-  body:has(.crm-list-page, .cdb-grid) #zs-chat-btn { visibility: hidden; pointer-events: none; }
+  body:has(.crm-list-page, .cdb-grid, .rec-topbar) .fl-root:not(.is-open),
+  body:has(.crm-list-page, .cdb-grid, .rec-topbar) #zs-chat-btn { visibility: hidden; pointer-events: none; }
 }
 /* Pestañas de vistas en el teléfono: la activa se lee entera ("Todos los contactos"); la que sigue se corta. */
 @media (max-width: 640px) {

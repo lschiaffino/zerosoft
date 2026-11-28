@@ -177,3 +177,31 @@ test.describe('lists', () => {
     }
   });
 });
+
+test.describe('record page', () => {
+  test('390: no feedback tab over the record; the automatic lifecycle line has a dot, not an arrow', async ({ browser, baseURL, request }) => {
+    const tag = uid();
+    const contact = (await (await request.post('/api/crm/contacts', { data: { firstName: 'Auto', lastName: `Life ${tag}`, email: `auto-${tag}@x.example`, lifecycleStage: 'lead' } })).json()) as { id: string };
+    const { rows: pipelines } = (await (await request.get('/api/crm/pipelines')).json()) as { rows: Array<{ id: string; stages: Array<{ id: string; is_won: number; is_lost: number }> }> };
+    const p = pipelines[0];
+    const stage = p.stages.find((s) => !s.is_won && !s.is_lost)!;
+    const deal = await request.post('/api/crm/deals', { data: { name: `Auto deal ${tag}`, pipelineId: p.id, stageId: stage.id, amount: 100, contactIds: [contact.id] } });
+    expect(deal.ok(), await deal.text()).toBe(true);
+    const ctx = await browser.newContext({ baseURL, viewport: PHONE, hasTouch: true, isMobile: true, serviceWorkers: 'block' });
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`/en/app/crm/contacts/${contact.id}`, { waitUntil: 'networkidle' });
+      await expect(page.locator('.fl-root')).toBeHidden();
+      await page.getByTestId('record-tab-activity').click();
+      const line = page.getByTestId('crm-timeline-change').first();
+      await expect(line).toBeVisible();
+      await expect(line.locator('.atl-icon svg')).toHaveCount(0);
+      // La hora entra entera en la pantalla.
+      const when = (await line.locator('time').boundingBox())!;
+      expect(when.x + when.width).toBeLessThanOrEqual(PHONE.width);
+      await noSideScroll(page);
+    } finally {
+      await ctx.close();
+    }
+  });
+});
