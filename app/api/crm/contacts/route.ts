@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { maskPrivateRef, PRIVATE_REFS } from '@/lib/crm-record-scope';
 import { guardRecordCustomWrite, hiddenFieldsFor, redactRow, sessionFieldViewer } from '@/lib/crm-field-perms';
 import { getCurrentUser, realUserId } from '@/lib/session';
-import { sessionScope, assertVisibleRefs } from '@/lib/crm-visibility';
+import { sessionScope, assertVisibleRefs, canSeeEntity } from '@/lib/crm-visibility';
 import { requestFilter } from '@/lib/crm-filter-http';
 import { getUserTimeZone } from '@/lib/user-tz';
 import { createContact, listContacts } from '@/lib/crm';
@@ -25,8 +25,12 @@ export async function GET(req: NextRequest) {
   const { page, pageSize } = pageParams(sp);
   const filter = await requestFilter(sp, 'contacts', { viewer: sessionFieldViewer(user), viewerId: realUserId(user), timeZone: await getUserTimeZone() });
   if ('error' in filter) return crmError(400, 'invalid_filter');
+  const scope = await sessionScope(user);
+  // Los contactos de una empresa que la persona no ve: ninguno (no dice quién trabaja ahí).
+  const companyId = sp.get('companyId');
+  if (companyId && !(await canSeeEntity(user.id, 'company', companyId, scope))) return NextResponse.json({ rows: [], total: 0, page, pageSize });
   const { rows, total } = await listContacts(user.id, {
-    ownerScope: await sessionScope(user),
+    ownerScope: scope,
     ...filter,
     q: sp.get('q') ?? undefined,
     lifecycle: sp.get('lifecycle') ?? undefined,

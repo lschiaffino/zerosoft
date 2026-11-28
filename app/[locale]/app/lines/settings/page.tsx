@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { isWorkspaceAdmin } from '@/lib/session';
+import { inviteAppsOf } from '@/lib/capabilities';
+import LinesInvite from '@/components/groups/LinesInvite';
 import { availableProviders, getSettings, groupsBaseUrl, listLabels, listNumbers, listPeople, listPropertyDefs, listQuickReplies } from '@/lib/groups';
 import { pageViewer } from '@/lib/groups-page';
 import { numberManager, withManage } from '@/lib/groups-number-perms';
@@ -44,7 +46,7 @@ const API_ROUTES = [
   'POST /api/v1/groups/hubspot/send',
 ];
 
-const TABS = ['numbers', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
+const TABS = ['numbers', 'invite', 'labels', 'quick', 'properties', 'ticketFields', 'assignment', 'tickets', 'access', 'audit', 'integrations', 'migrate', 'api', 'apps', 'appearance'] as const;
 /** Nombres viejos o cercanos de pestañas que llevan a la que corresponde. */
 const TAB_ALIASES: Record<string, (typeof TABS)[number]> = {
   rules: 'tickets',
@@ -102,6 +104,7 @@ export default async function GroupsSettingsPage(props: { params: Promise<{ loca
       />
     );
   }
+  else if (tab === 'invite') body = <LinesInvite allowed={admin || inviteAppsOf(user).includes('groups')} locale={locale} />;
   else if (tab === 'labels') body = <LabelsPanel initial={await listLabels(user.id, await pageViewer(user))} />;
   else if (tab === 'quick') body = <QuickRepliesPanel initial={await listQuickReplies(user.id)} />;
   else if (tab === 'properties') body = <PropertiesPanel initial={await listPropertyDefs(user.id)} canEdit={admin} />;
