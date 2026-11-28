@@ -11,7 +11,9 @@ import { NextRequest } from 'next/server';
 import type { SessionUser } from '@/lib/session';
 import { createIssue, createProject } from '@/lib/track-data';
 import { createNotification } from '@/lib/notifications';
-import { addMember, setMemberApps } from '@/lib/teams';
+import { addMember, removeMember, setMemberApps } from '@/lib/teams';
+import { ensureWorkspace } from '@/lib/workspace';
+import { getDb } from '@/lib/db';
 import { saveWorkspaceAppRule } from '@/lib/workspace-apps';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 import { makeUser } from './helpers';
@@ -111,5 +113,50 @@ describe('avisos de Track: solo con Track hoy en ese workspace', () => {
     const toAdmin = mail.sent.filter((m) => m.to === s.admin.email);
     expect(toAdmin).toHaveLength(1);
     expect(toAdmin[0].text).toContain(ISSUE);
+  });
+
+  it('workspace nuevo (sin team en Track): el miembro los ve; quien se fue y quien perdió Track no', async () => {
+    const owner = await makeUser('nta-space-owner');
+    const team = await ensureWorkspace(owner.id);
+    const member = await makeUser('nta-space-member');
+    const other = await makeUser('nta-space-other');
+    const leaver = await makeUser('nta-space-leaver');
+    for (const u of [member, other, leaver]) await addMember(team.id, u.id, 'member');
+    const project = await createProject(owner.id, null, { name: 'Space' });
+    const issue = await createIssue(project.id, owner.id, { title: 'Issue', priority: 'low', description: [] });
+    const { createPlan } = await import('@/lib/track-plans');
+    const { planCreateSchema } = await import('@/lib/track-planning-schema');
+    const created = await createPlan({ teamId: null, ownerId: owner.id }, owner.id, planCreateSchema.parse({ name: 'Plan' }));
+    if (!created.ok) throw new Error(created.error);
+    for (const u of [member, other, leaver]) {
+      await createNotification({ userId: u.id, type: 'assigned', title: ISSUE, body: ISSUE, href: `/app/track/issues/${issue.id}`, sourceType: 'track_issue', sourceId: issue.id, meta: { issueIdentifier: ISSUE, actorName: 'A' } });
+      await createNotification({ userId: u.id, type: 'comment', title: THREAD, body: THREAD, href: `/app/track/projects/${created.plan.id}#comments`, sourceType: 'track_plan', sourceId: created.plan.id });
+    }
+    await removeMember(team.id, leaver.id);
+    await setMemberApps(team.id, other.id, ['crm']);
+    const seen = await bell(asMember(owner, member));
+    expect(seen.text).toContain(ISSUE);
+    expect(seen.text).toContain(THREAD);
+    expect(seen.unread).toBe(2);
+    for (const u of [asOwner(leaver), asMember(owner, other)]) {
+      const r = await bell(u);
+      expect(r.text).not.toContain(ISSUE);
+      expect(r.text).not.toContain(THREAD);
+      expect(r.unread).toBe(0);
+    }
+  });
+
+  it('una respuesta guardada de la campana no sobrevive a apagar los dos pasos en un workspace que los exige', async () => {
+    const s = await setup('nta-mfa');
+    await getDb().prepare('UPDATE users SET mfa_enabled_at = ? WHERE id = ?').run(new Date().toISOString(), s.w.member.id);
+    await getDb().prepare('UPDATE teams SET require_mfa = 1 WHERE id = ?').run(s.w.team.id);
+    session.user = asMember(s.w.owner, s.w.member);
+    const first = await GET(new NextRequest('http://localhost/api/notifications?limit=20'));
+    expect(await first.text()).toContain(ISSUE);
+    const etag = first.headers.get('etag')!;
+    await getDb().prepare('UPDATE users SET mfa_enabled_at = NULL WHERE id = ?').run(s.w.member.id);
+    const after = await GET(new NextRequest('http://localhost/api/notifications?limit=20', { headers: { 'if-none-match': etag } }));
+    expect(after.status).toBe(200);
+    expect(await after.text()).not.toContain(ISSUE);
   });
 });

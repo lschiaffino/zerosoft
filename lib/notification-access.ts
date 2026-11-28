@@ -22,6 +22,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 import { trackVisibleExpr } from './track-access';
+import { ownerSpaceSql } from './workspace';
 import { countUnreadNotifications, hidePathsSql, listNotifications, type NotificationListOptions } from './notifications';
 
 /** Lo que hace falta de un aviso para saber si se ve (source_* pueden faltar en filas viejas). */
@@ -91,20 +92,21 @@ export function chunks<T>(items: T[], size: number): T[][] {
 
 /**
  * Condición "la persona es del workspace de `alias`" (project o iniciativa):
- * dueña o miembro del team, o dueña si es personal, y no invitada (los
- * invitados de Track no ven projects ni iniciativas, lib/track-plans).
- * Usa los 4 argumentos de memberArgs.
+ * dueña o miembro del team, o, sin team, del espacio del owner (la dueña o
+ * una persona de un workspace nuevo, lib/workspace ownerSpaceSql), y no
+ * invitada (los invitados de Track no ven projects ni iniciativas,
+ * lib/track-plans). Usa los 5 argumentos de memberArgs.
  */
 export function memberSql(alias: string): string {
   return `((${alias}.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
       OR ${alias}.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-      OR (${alias}.team_id IS NULL AND ${alias}.owner_id = ?))
+      OR (${alias}.team_id IS NULL AND ${ownerSpaceSql(`${alias}.owner_id`, '?')}))
     AND NOT EXISTS (SELECT 1 FROM track_guests g WHERE g.workspace_id = COALESCE(${alias}.team_id, ${alias}.owner_id)
       AND g.email = (SELECT lower(u0.email) FROM users u0 WHERE u0.id = ?)))`;
 }
 
 export function memberArgs(userId: string): string[] {
-  return [userId, userId, userId, userId];
+  return [userId, userId, userId, userId, userId];
 }
 
 /** El workspace (id del dueño) de una fila de Track con team_id / owner_id (alias). */
@@ -152,7 +154,7 @@ export async function issuesFor(userId: string, issueIds: string[], cache: Lines
         `SELECT i.id, i.identifier, i.title, s.name AS status_name, s.color AS status_color, s.category AS status_category,
                 CASE WHEN (p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
                         OR p.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-                        OR (p.team_id IS NULL AND p.owner_id = ?))
+                        OR (p.team_id IS NULL AND ${ownerSpaceSql('p.owner_id', '?')}))
                       AND ${trackVisibleExpr('p', '?')} THEN 1 ELSE 0 END AS can_see,
                 ${trackWsSql('p')} AS ws
            FROM track_issues i
@@ -160,7 +162,7 @@ export async function issuesFor(userId: string, issueIds: string[], cache: Lines
            LEFT JOIN track_statuses s ON s.id = i.status_id
           WHERE i.id IN (${marks})`,
       )
-      .all(userId, userId, userId, userId, userId, userId, ...part)) as Array<{
+      .all(userId, userId, userId, userId, userId, userId, userId, ...part)) as Array<{
       id: string;
       identifier: string;
       title: string;
