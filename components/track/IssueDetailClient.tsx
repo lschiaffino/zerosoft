@@ -36,6 +36,7 @@ import { TRACK_VIEWS_CHANGED } from './trackEvents';
 import { dropUndo, pushNotice, pushUndo, scheduleDelete } from './trackUndo';
 import { fetchDuplicateMark, requestMarkDuplicate, requestUnmarkDuplicate, undoMarkDuplicate } from './duplicateApi';
 import type { DuplicateMarkView } from '@/lib/track-duplicates';
+import { inboxListHref } from '@/lib/track-inbox-panel';
 import { useTrackLive } from './useTrackLive';
 import { useReleases } from './useReleases';
 import type { TrackUiLabels } from './ui-labels';
@@ -206,10 +207,7 @@ interface IssueDetailClientProps {
 
 /** La bandeja con los filtros y la pestaña que tenía (sin el aviso abierto). */
 function inboxHref(): string {
-  const sp = new URLSearchParams(window.location.search);
-  sp.delete('n');
-  const qs = sp.toString();
-  return `/app/track/inbox${qs ? `?${qs}` : ''}`;
+  return inboxListHref(window.location.search);
 }
 
 function parseDescription(raw: string): string {

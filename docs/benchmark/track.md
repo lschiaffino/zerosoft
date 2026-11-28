@@ -101,7 +101,7 @@ Leyenda: **tiene** / **parcial** / **falta** / **mejor** (mejor que el incumbent
 |---|---|---|
 | Comentarios con @menciones, editar y borrar | tiene | |
 | Suscribirse a un issue | tiene | |
-| Inbox con Priority, filtros, snooze y recordatorios | tiene | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, Enter, U, H, Backspace). Abrir un aviso muestra el issue al lado de la lista (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. Los avisos de projects e iniciativas todavía abren su página, no el panel |
+| Inbox con Priority, filtros, snooze y recordatorios | tiene | (2026-11-23) Priority y Other con sin leer, avatar con la acción, línea con el por qué y teclado (J/K, Enter, U, H, Backspace). Abrir un aviso muestra el issue al lado de la lista (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. (2026-11-28) Los avisos de projects e iniciativas también se abren en el panel, con link a su página; entre 1024 y 1599 px el issue del panel muestra las propiedades debajo del título |
 | Mails inmediatos o digest diario | tiene | |
 | Actualización en tiempo real | falta | Probado: con la lista abierta, otro usuario renombra un issue y a los 15 s (y tras un evento de foco) la lista sigue mostrando el título viejo |
 | Reacciones, hilos en comentarios | falta | |

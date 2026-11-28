@@ -30,6 +30,7 @@ import { useShortDuration } from './IssueRowProps';
 import { isTextEntry } from './IssueFilters';
 import { announceSubscription, TRACK_SUBSCRIPTION_EVENT } from './IssueSubscription';
 import { pushNotice } from './trackUndo';
+import { inboxPanelHref, inboxPanelOpen, inboxPanelTarget } from '@/lib/track-inbox-panel';
 
 interface Notification {
   id: string;
@@ -90,11 +91,6 @@ function writeUrl(f: InboxFilter, tab: TabKey) {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-/** El issue abierto en el panel (/app/track/inbox/<id>, con o sin idioma delante). */
-function openIssueOf(pathname: string | null): string | null {
-  const m = /\/app\/track\/inbox\/([^/?#]+)/.exec(pathname ?? '');
-  return m ? decodeURIComponent(m[1]) : null;
-}
 
 interface InboxClientProps {
   /** El panel del aviso abierto (inbox/[issueId]), al lado de la lista. */
@@ -193,8 +189,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  // Panel abierto: el issue (de la ruta) y el aviso (?n=) que lo abrió.
-  const openIssue = openIssueOf(pathname);
+  // Panel abierto: el issue, project o iniciativa (de la ruta) y el aviso (?n=) que lo abrió.
+  const openIssue = inboxPanelOpen(pathname)?.id ?? null;
   const openNote = openIssue ? (searchParams?.get('n') ?? null) : null;
   const [tab, setTab] = useState<TabKey>(() => parseTab(searchParams?.get('tab')));
   const [actionError, setActionError] = useState<string | null>(null);
@@ -490,13 +486,14 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
     el?.scrollIntoView({ block: 'nearest' });
   };
 
-  /** Link de un aviso: los de un issue se abren en el panel de al lado; el resto, en su página. */
+  /** Link de un aviso: los de un issue, un project o una iniciativa se abren en el panel de al lado; el resto, en su página. */
   const rowHref = (n: Notification): string => {
-    if (!n.issue) return n.href ?? '/app/track';
+    const target = inboxPanelTarget(n);
+    if (!target) return n.href ?? '/app/track';
     const sp = inboxFilterParams(filter);
     if (tab !== 'priority') sp.set('tab', tab);
     sp.set('n', n.id);
-    return `/app/track/inbox/${encodeURIComponent(n.issue.id)}?${sp.toString()}`;
+    return inboxPanelHref(target, sp);
   };
 
   // Escritorio (lista y panel lado a lado) o teléfono (el issue ocupa la página).
@@ -521,7 +518,7 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
   const openRow = (n: Notification) => {
     if (!n.read_at) void setRead(n, true);
     const href = rowHref(n);
-    if (!n.issue) {
+    if (!inboxPanelTarget(n)) {
       router.push(href);
       return;
     }
@@ -639,8 +636,8 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
       const from = i >= 0 ? i : openNote ? ordered.findIndex((x) => x.id === openNote) : -1;
       const next = ordered[down ? Math.min(ordered.length - 1, from + 1) : Math.max(0, from - 1)];
       focusRow(next.id);
-      // Con un issue abierto al lado, el panel sigue a la fila (como Linear); los que no son de un issue no se abren solos.
-      if (openIssue && next.issue && next.id !== openNote) openSoon(next);
+      // Con el panel abierto, el panel sigue a la fila (como Linear); los que van a su página no se abren solos.
+      if (openIssue && inboxPanelTarget(next) && next.id !== openNote) openSoon(next);
     } else if (!cur) {
       return;
     } else if (k === 'Enter' || k === 'o') {
@@ -748,12 +745,12 @@ export default function InboxClient({ locale, labels, children }: InboxClientPro
         </span>
         <Link
           href={rowHref(n)}
-          scroll={n.issue && wide ? false : undefined}
-          replace={Boolean(n.issue && openIssue)}
+          scroll={inboxPanelTarget(n) && wide ? false : undefined}
+          replace={Boolean(inboxPanelTarget(n) && openIssue)}
           className="track-inbox-link"
           onFocus={() => setActive(n.id)}
           onClick={() => {
-            if (n.issue) rememberScroll();
+            if (inboxPanelTarget(n)) rememberScroll();
             if (unread) void setRead(n, true);
           }}
         >

@@ -1082,6 +1082,14 @@ dialog.ui-drawer.track-drawer {
   flex: none;
 }
 
+/* "Limpiar" entra entero en la lista angosta (baja con los chips si no hay lugar, nunca en dos renglones). */
+.track-inbox-filters .track-filter-clear,
+.track-inbox-filters .track-display-btn,
+.track-inbox-filters .track-filter-toggle {
+  flex: none;
+  white-space: nowrap;
+}
+
 /* Un chip con un nombre largo (project, persona) se achica con "…" dentro de su fila: nunca la desborda a 390. */
 .track-inbox-filters .track-filter-chip-wrap,
 .track-inbox-filters .track-filter-chip,
@@ -1242,18 +1250,41 @@ dialog.ui-drawer.track-drawer {
    las propiedades como en el teléfono. Media query y no container query: un contenedor de tamaño
    haría del panel el bloque de los menús fijos del issue y los cortaría. */
 @media (min-width: 1024px) and (max-width: 1599px) {
+  /* Las propiedades van debajo del título, antes de la descripción y la actividad (como a 390),
+     no al final de todo: una sola columna con el orden de la página del teléfono. */
   .track-inbox-pane .track-issue-page .track-detail-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
   }
 
   .track-inbox-pane .track-issue-page .track-detail-main {
-    padding: 8px 0 24px;
+    display: contents;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-main > * {
+    order: 4;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-main > .track-parent-row {
+    order: 1;
+  }
+
+  .track-inbox-pane .track-issue-page .track-detail-main > .track-detail-title {
+    order: 2;
   }
 
   .track-inbox-pane .track-issue-page .track-detail-side {
-    padding: 12px 0;
-    border-top: 1px solid var(--line);
+    order: 3;
+    margin: 4px 0 12px;
+    padding: 8px 0 12px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
     border-left: 0;
+  }
+
+  /* Project o iniciativa en el panel angosto: sus propiedades también van en una sola columna. */
+  .track-inbox-pane .tp-plan {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .track-inbox-pane .track-issue-page .track-side {
@@ -1269,6 +1300,27 @@ dialog.ui-drawer.track-drawer {
 
   .track-inbox-pane .track-issue-page .track-prop-group {
     padding: 0;
+  }
+}
+
+/* Project o iniciativa abiertos desde un aviso: arriba, el link a su página y la cruz. */
+.track-inbox-entity-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.track-inbox-pane .track-inbox-entity-page {
+  max-width: none;
+  margin: 0;
+  padding: 0 24px 24px 0;
+}
+
+@media (max-width: 1023px) {
+  .track-inbox-pane .track-inbox-entity-page {
+    padding-right: 0;
   }
 }
 

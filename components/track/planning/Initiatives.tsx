@@ -6,6 +6,7 @@ import EntityComments from '../EntityComments';
 import { PLAN_HEALTH, type PlanHealth } from '@/lib/track-planning-schema';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import { inboxListHref } from '@/lib/track-inbox-panel';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -261,7 +262,8 @@ function NewInitiativeModal({
 }
 
 /** Página de una initiative: propiedades, descripción, plans (sumar, sacar, crear) y sub-initiatives. */
-export function InitiativePage({ initiativeId }: { initiativeId: string }) {
+/** `panel`: dentro del panel de la bandeja; borrar vuelve a la bandeja. */
+export function InitiativePage({ initiativeId, panel = false }: { initiativeId: string; panel?: boolean }) {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
   const router = useRouter();
@@ -602,7 +604,7 @@ export function InitiativePage({ initiativeId }: { initiativeId: string }) {
         onConfirm={async () => {
           await api(`/api/track/initiatives/${ini.id}`, 'DELETE');
           setConfirm(false);
-          router.push('/app/track/initiatives');
+          router.push(panel ? inboxListHref(window.location.search) : '/app/track/initiatives');
         }}
         onCancel={() => setConfirm(false)}
       />
