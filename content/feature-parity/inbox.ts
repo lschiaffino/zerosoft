@@ -412,6 +412,14 @@ const parity: ProductParity = {
         'Na aba IA do painel de dados: a relação e o que está pendente com um contato, ou o que rolou num grupo, feito com essa conversa e suas notas e salvo até chegarem mensagens novas. Abaixo, colocar em dia desde a última leitura ou com as últimas 24 horas, 7 ou 30 dias: um resumo, as perguntas sem resposta, os compromissos pendentes, respostas sugeridas que você insere no campo (nunca são enviadas) e o ânimo do contato, só com essa conversa e sem salvar nada. Testado com o modelo falso',
       ],
     }),
+    row('wa-ai-ask', 'whatsapp', ['AI tab in the chat: questions and proposed tasks', 'Pestaña IA del chat: preguntas y tareas propuestas', 'Aba IA da conversa: perguntas e tarefas propostas'], 'partial', {
+      competitorHas: false,
+      detail: [
+        'In the AI tab of the info panel: ask about the chat (or tap a suggested question) using only its latest messages; answers stay in the tab and are not saved. Each summary also proposes follow-ups you edit and approve one by one into CRM › Tasks, assigned to you (when you use the CRM; if not, the tab says so). Nothing is created or sent on its own. Tested with the fake model',
+        'En la pestaña IA del panel de info: preguntá sobre el chat (o tocá una pregunta sugerida) solo con sus últimos mensajes; las respuestas quedan en la pestaña y no se guardan. Cada resumen también propone seguimientos que editás y aprobás de a uno, y van a CRM › Tareas a tu nombre (si usás el CRM; si no, la pestaña lo dice). No se crea ni se manda nada solo. Probado con el modelo falso',
+        'Na aba IA do painel de dados: pergunte sobre a conversa (ou toque numa pergunta sugerida) só com as últimas mensagens dela; as respostas ficam na aba e não são salvas. Cada resumo também propõe acompanhamentos que você edita e aprova um a um, e vão para CRM › Tarefas atribuídos a você (se você usa o CRM; se não, a aba avisa). Nada é criado nem enviado sozinho. Testado com o modelo falso',
+      ],
+    }),
     row('wa-mobile', 'whatsapp', ['Phone gestures', 'Gestos del teléfono', 'Gestos do celular'], 'partial', {
       detail: [
         'Swipe a message right to reply, swipe a chat right for read and pin or left for archive and more (also with the mouse), hold it to drop it on a folder. In the browser, not a native app',

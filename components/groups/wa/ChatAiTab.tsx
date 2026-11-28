@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { composeErrorKey } from '@/lib/ai-compose';
-import type { ChatInsights, InsightRange } from '@/lib/wa-insights';
+import type { ChatInsights, ChatProposal, InsightRange, ProposalKind } from '@/lib/wa-insights';
+import ChatAiAsk, { type AskResult } from './ChatAiAsk';
+import ChatAiProposals, { type CreateResult } from './ChatAiProposals';
 import { requestComposeInsert } from '@/components/ai/compose-insert';
 import { Sparkle } from './icons';
 
 type AiState = 'ready' | 'off' | 'not_configured';
 type RangeKey = 'unread' | '1' | '7' | '30';
-type Result = { key: RangeKey; insights: ChatInsights };
+type Result = { key: RangeKey; insights: ChatInsights; canCreate: boolean; seq: number };
+let resultSeq = 0;
 
 /**
  * El último resultado de cada chat, solo en la memoria de esta pestaña del navegador (no se guarda en ningún lado):
@@ -30,7 +33,8 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<{ ok: boolea
 /**
  * La pestaña AI del panel de un chat, en Lines y en Inbox (como el resumen de Periskope): un resumen desde la última
  * lectura o de los últimos días, las preguntas sin responder, los compromisos pendientes, respuestas sugeridas que se
- * insertan en el campo (nunca se mandan) y el ánimo del contacto. Se pide con un clic (no gasta IA al abrir la
+ * insertan en el campo (nunca se mandan), el ánimo del contacto y seguimientos propuestos que se crean solo al
+ * aprobarlos (ChatAiProposals). Abajo, preguntarle a la IA sobre el chat (ChatAiAsk). Se pide con un clic (no gasta IA al abrir la
  * pestaña); solo usa los mensajes que quien mira ve y no guarda nada. Sin IA en el workspace lo dice y no ofrece nada.
  *
  * `stateUrl` responde { ai }, `run` pide las ideas del rango. `unread`: cuántos mensajes había sin leer al abrir el
@@ -47,10 +51,23 @@ export default function ChatAiTab({
   titleClass,
   onInserted,
   before,
+  askChat,
+  kinds,
+  where,
+  createProposal,
 }: {
   chatKey: string;
   stateUrl: string;
-  run: (range: InsightRange) => Promise<{ ok: true; insights: ChatInsights } | { ok: false; code: string }>;
+  /** `canCreate` false: los seguimientos propuestos se ven pero no se ofrecen crear (Inbox sin el CRM). */
+  run: (range: InsightRange) => Promise<{ ok: true; insights: ChatInsights; canCreate?: boolean } | { ok: false; code: string }>;
+  /** Preguntarle a la IA sobre el chat. */
+  askChat: (question: string) => Promise<AskResult>;
+  /** Qué se puede crear de un seguimiento propuesto (tarea, y ticket en Lines). */
+  kinds: readonly ProposalKind[];
+  /** Dónde van los seguimientos que se crean (una línea de ayuda). */
+  where: string;
+  /** Crea un seguimiento que la persona aprobó (nada se crea sin esto). */
+  createProposal: (p: ChatProposal) => Promise<CreateResult>;
   unread: number;
   /** El primer mensaje sin leer al abrir el chat (si se sabe): lo que llega después no corre la ventana. */
   unreadFrom?: string;
@@ -95,7 +112,7 @@ export default function ChatAiTab({
     running.current = false;
     setBusy(false);
     if (res.ok) {
-      const r = { key, insights: res.insights };
+      const r = { key, insights: res.insights, canCreate: res.canCreate !== false, seq: ++resultSeq };
       lastResult.set(chatKey, r);
       setResult(r);
       return;
@@ -265,8 +282,22 @@ export default function ChatAiTab({
               {insights.sentimentNote ? <span dir="auto"> · {insights.sentimentNote}</span> : null}
             </p>
           </section>
+
+          <ChatAiProposals
+            key={result!.seq}
+            seq={result!.seq}
+            proposals={insights.proposals ?? []}
+            kinds={kinds}
+            canCreate={result!.canCreate}
+            where={where}
+            create={createProposal}
+            sectionClass={sectionClass}
+            titleClass={titleClass}
+          />
         </div>
       )}
+
+      {!off && <ChatAiAsk chatKey={chatKey} ask={askChat} sectionClass={sectionClass} titleClass={titleClass} />}
     </div>
   );
 }

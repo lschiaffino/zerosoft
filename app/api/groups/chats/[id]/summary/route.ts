@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { summarizeChat } from '@/lib/groups-ai';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson } from '@/lib/groups-http';
 import { parseInsightRange } from '@/lib/wa-insights';
-import { linesChatInsights } from '@/lib/groups-insights';
+import { linesChatAsk, linesChatInsights } from '@/lib/groups-insights';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,9 @@ export const maxDuration = 60;
 /**
  * Resumen AI de los últimos días. Con la AI apagada responde 503 ai_disabled.
  * { kind: 'insights', range: { kind: 'unread', unread } | { kind: 'days', days: 1 | 7 | 30 }, locale }: la pestaña AI
- * (resumen, preguntas sin responder, compromisos, respuestas sugeridas y ánimo), solo con lo que quien mira ve y sin
- * guardar nada (lib/groups-insights.ts).
+ * (resumen, preguntas sin responder, compromisos, respuestas sugeridas, ánimo y seguimientos propuestos, que se crean
+ * solo al aprobarlos con POST /api/groups/tasks o /api/groups/tickets), solo con lo que quien mira ve y sin guardar
+ * nada (lib/groups-insights.ts). { kind: 'ask', question, locale }: una pregunta sobre el chat.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const s = await groupsSession({ write: true });
@@ -22,6 +23,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (guard instanceof NextResponse) return guard;
   const b = await readJson(req);
   const locale = b.locale === 'es' || b.locale === 'pt' ? b.locale : 'en';
+  // { kind: 'ask', question, locale }: la pestaña IA, una pregunta sobre el chat (solo con lo que quien mira ve).
+  if (b.kind === 'ask') {
+    try {
+      return NextResponse.json(await linesChatAsk(guard.viewer, id, typeof b.question === 'string' ? b.question : '', locale));
+    } catch (err) {
+      return handleGroupsError(err);
+    }
+  }
   if (b.kind === 'insights') {
     const range = parseInsightRange(b.range);
     if (!range) return groupsError(400, 'invalid_input');

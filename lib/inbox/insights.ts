@@ -13,6 +13,14 @@ import { inboxAiModels, inboxAiState, logFailure, mapError } from './ai';
 import { InboxError } from './types';
 import {
   INSIGHT_MAX_MESSAGES,
+  answerSchema,
+  askInstructions,
+  askPrompt,
+  cleanAnswer,
+  cleanQuestion,
+  fakeAnswer,
+  type ChatAnswer,
+  type ProposalKind,
   cleanInsights,
   fakeInsights,
   fitMessages,
@@ -49,11 +57,15 @@ export async function inboxAiTabState(): Promise<InboxAiTabState> {
 const MENTION_RE = /(^|[^\w@])@(\d{5,20})(?!\d)/g;
 
 /** Los mensajes del rango, del más viejo al más nuevo, como los ve la persona. */
-export async function inboxInsightMessages(owner: string, threadId: string, range: InsightRange): Promise<{ name: string; group: boolean; messages: InsightMessage[] }> {
+/** En Inbox un seguimiento propuesto es siempre una tarea (CRM › Tareas, a nombre de la persona). */
+export const INBOX_PROPOSAL_KINDS: readonly ProposalKind[] = ['task'];
+
+/** `range` null: los últimos mensajes, sin rango (preguntarle a la IA sobre el chat). */
+export async function inboxInsightMessages(owner: string, threadId: string, range: InsightRange | null): Promise<{ name: string; group: boolean; messages: InsightMessage[] }> {
   const t = await getThreadRow(owner, threadId);
   if (t.channel !== 'whatsapp') throw new InboxError('unsupported', 400);
   const page = await listMessages(owner, threadId, { limit: INSIGHT_MAX_MESSAGES });
-  const since = rangeSince(range);
+  const since = range ? rangeSince(range) : null;
   const all = page.messages
     .filter((m) => !m.revoked && m.mediaType !== 'system' && (!since || m.sentAt >= since))
     .map((m): InsightMessage => {
@@ -70,7 +82,7 @@ export async function inboxInsightMessages(owner: string, threadId: string, rang
       };
     })
     .filter((m) => m.text);
-  return { name: t.title || t.handle, group: t.kind === 'group', messages: range.kind === 'unread' ? sliceUnread(all, range.unread, range.from) : all };
+  return { name: t.title || t.handle, group: t.kind === 'group', messages: range?.kind === 'unread' ? sliceUnread(all, range.unread, range.from) : all };
 }
 
 /** La pestaña AI de un chat de Inbox: resumen, preguntas, compromisos, respuestas sugeridas y ánimo. */
@@ -91,15 +103,72 @@ export async function inboxChatInsights(owner: string, threadId: string, range: 
     } catch (err) {
       throw mapError(err);
     }
-    out = fakeInsights(messages);
+    out = fakeInsights(messages, INBOX_PROPOSAL_KINDS);
   } else {
-    out = await askModels(owner, insightsInstructions(locale), insightsPrompt(name, group, messages, range));
+    out = await askModels(owner, 'inbox_insights', insightsInstructions(locale, INBOX_PROPOSAL_KINDS), insightsPrompt(name, group, messages, range), insightsSchema);
   }
-  return { ...cleanInsights(out), messages: messages.length, range };
+  return { ...cleanInsights(out, INBOX_PROPOSAL_KINDS), messages: messages.length, range };
+}
+
+/** Preguntarle a la IA sobre el chat: solo con los últimos mensajes de ese chat de la persona. */
+export async function inboxChatAsk(owner: string, threadId: string, question: string, locale = 'en'): Promise<ChatAnswer> {
+  const q = cleanQuestion(question);
+  if (!q) throw new InboxError('empty_question', 400);
+  const state = await inboxAiTabState();
+  if (state !== 'ready') await getThreadRow(owner, threadId);
+  if (state === 'off') throw new InboxError('ai_disabled', 503);
+  if (state === 'not_configured') throw new InboxError('ai_not_configured', 503);
+  const read = await inboxInsightMessages(owner, threadId, null);
+  const messages = fitMessages(read.messages);
+  if (!messages.length) throw new InboxError('no_messages', 400);
+  let out: { answer: string };
+  if (inboxFakeAllowed()) {
+    try {
+      await assertAiQuota(owner);
+    } catch (err) {
+      throw mapError(err);
+    }
+    out = fakeAnswer(messages, q);
+  } else {
+    out = await askModels(owner, 'inbox_chat_ask', askInstructions(locale), askPrompt(read.name, read.group, messages, q), answerSchema);
+  }
+  const answer = cleanAnswer(out.answer);
+  if (!answer) throw new InboxError('empty_result', 502);
+  return { answer, messages: messages.length };
+}
+
+/** ¿La persona puede crear tareas del CRM en su workspace activo? (sin el CRM, la pestaña lo dice y no ofrece crear). */
+export async function inboxCanCreateTasks(): Promise<boolean> {
+  const [{ getCurrentUser }, { inboxCrmOn }] = await Promise.all([import('../session'), import('./crm')]);
+  const user = await getCurrentUser();
+  return !!user && inboxCrmOn(user);
+}
+
+/**
+ * Crea en CRM › Tareas el seguimiento que la persona aprobó (título y notas como los dejó), a su nombre. El chat
+ * tiene que ser suyo; sin el CRM, `crm_off`. No se crea nada sin este pedido (el clic en "Crear").
+ */
+export async function createInsightTask(
+  owner: string,
+  threadId: string,
+  input: { title?: unknown; notes?: unknown; priority?: unknown },
+): Promise<{ id: string; title: string; href: string }> {
+  await getThreadRow(owner, threadId);
+  const title = typeof input.title === 'string' ? input.title.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+  if (!title) throw new InboxError('invalid_title', 400);
+  const notes = typeof input.notes === 'string' ? input.notes.trim().slice(0, 4000) : '';
+  const [{ getCurrentUser, realUserId }, { inboxCrmOn }] = await Promise.all([import('../session'), import('./crm')]);
+  const user = await getCurrentUser();
+  if (!user || realUserId(user) !== owner) throw new InboxError('unauthorized', 401);
+  if (!inboxCrmOn(user)) throw new InboxError('crm_off', 403);
+  const { cleanPriority } = await import('../tasks-shared');
+  const { createActivity } = await import('../crm');
+  const task = await createActivity(user.id, { type: 'task', subject: title, body: notes, ownerId: owner, priority: cleanPriority(input.priority) });
+  return { id: task.id, title: task.subject, href: `/app/crm/tasks/${task.id}` };
 }
 
 /** Prueba los modelos de Inbox en orden (si el primero falla, el siguiente). Cuota, rate limit y ai_usage como siempre. */
-async function askModels(owner: string, instructions: string, prompt: string): Promise<InsightsOutput> {
+async function askModels<T>(owner: string, feature: string, instructions: string, prompt: string, schema: import('zod').ZodType<T>): Promise<T> {
   const models = inboxAiModels();
   if (!models.length) throw new InboxError('ai_not_configured', 503);
   try {
@@ -110,9 +179,9 @@ async function askModels(owner: string, instructions: string, prompt: string): P
   let last: unknown = null;
   for (const m of models) {
     try {
-      const r = await generateText({ model: m.model, instructions, prompt, output: Output.object({ schema: insightsSchema }), maxOutputTokens: 1500, temperature: 0.2, timeout: 45_000, maxRetries: 1 });
-      await recordAiUsage({ workspaceId: owner, feature: 'inbox_insights', model: m.modelId, inputTokens: r.totalUsage?.inputTokens ?? 0, outputTokens: r.totalUsage?.outputTokens ?? 0 }).catch(() => {});
-      return r.output as InsightsOutput;
+      const r = await generateText({ model: m.model, instructions, prompt, output: Output.object({ schema }), maxOutputTokens: 1500, temperature: 0.2, timeout: 45_000, maxRetries: 1 });
+      await recordAiUsage({ workspaceId: owner, feature, model: m.modelId, inputTokens: r.totalUsage?.inputTokens ?? 0, outputTokens: r.totalUsage?.outputTokens ?? 0 }).catch(() => {});
+      return r.output as T;
     } catch (err) {
       // Solo el tipo de error y el estado: ni la conversación ni la respuesta van al log.
       logFailure(m.via, m.modelId, err);

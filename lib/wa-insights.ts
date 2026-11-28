@@ -30,6 +30,20 @@ const MAX_TRANSCRIPT = 40_000;
 export const SENTIMENTS = ['positive', 'neutral', 'negative', 'mixed'] as const;
 export type Sentiment = (typeof SENTIMENTS)[number];
 
+/** Un seguimiento propuesto: una tarea (CRM › Tareas, Lines e Inbox) o un ticket (Lines). Nada se crea sin "Crear". */
+export const PROPOSAL_KINDS = ['task', 'ticket'] as const;
+export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
+export const PROPOSAL_PRIORITIES = ['low', 'medium', 'high'] as const;
+export type ProposalPriority = (typeof PROPOSAL_PRIORITIES)[number];
+export const MAX_PROPOSALS = 5;
+
+export interface ChatProposal {
+  title: string;
+  notes: string;
+  kind: ProposalKind;
+  priority: ProposalPriority;
+}
+
 export const insightsSchema = z.object({
   summary: z.string().describe('What happened in this part of the chat and where it stands now. 2 to 5 short sentences.'),
   questions: z.array(z.string()).describe('Questions the other side asked that nobody answered yet. Up to 5, short.'),
@@ -39,6 +53,9 @@ export const insightsSchema = z.object({
   replies: z.array(z.string()).describe('1 to 3 short replies the user could send next, ready to send.'),
   sentiment: z.enum(SENTIMENTS).describe("The contact's current mood."),
   sentimentNote: z.string().describe('One short line that explains the mood.'),
+  proposals: z
+    .array(z.object({ title: z.string(), notes: z.string(), kind: z.enum(PROPOSAL_KINDS), priority: z.enum(PROPOSAL_PRIORITIES) }))
+    .describe('Follow-up work the conversation clearly asks for and that is still open. Up to 5; empty if none.'),
 });
 export type InsightsOutput = z.infer<typeof insightsSchema>;
 
@@ -130,7 +147,7 @@ export function transcript(messages: InsightMessage[]): string {
 
 const LOCALE_NAME: Record<string, string> = { en: 'English', es: 'Spanish', pt: 'Portuguese' };
 
-export function insightsInstructions(locale: string): string {
+export function insightsInstructions(locale: string, kinds: readonly ProposalKind[] = ['task']): string {
   const lang = LOCALE_NAME[locale] ?? 'English';
   return [
     'You help someone who handles a WhatsApp chat. In the transcript, lines marked [us] are the user or their team; lines marked [them] are the contact or other people in the chat, whatever name they use. Read the conversation and fill every field.',
@@ -138,6 +155,9 @@ export function insightsInstructions(locale: string): string {
     'Write the replies in the language the contact writes in, as short WhatsApp messages in the tone of the chat, ready to send. Plain text, no quotes around them.',
     'Only use what is in the conversation. Never invent facts, prices, dates, names or promises. If a reply needs a detail that is not there, leave a short placeholder in square brackets.',
     'questions: only questions from the contact that are still unanswered. commitments: only promises or next steps that are still pending. Empty lists are fine.',
+    `proposals: follow-up work the conversation clearly asks for and that is still open (a request, a promise from [us], a problem to fix), at most ${MAX_PROPOSALS}. Each one: title (an action in ${lang} starting with a verb, at most 80 characters), notes (one or two sentences in ${lang} with the needed context), priority (low, medium or high) and kind: ${
+      kinds.includes('ticket') ? '"ticket" for a customer problem or request the team must resolve, "task" for an internal to-do or a follow-up' : 'always "task"'
+    }. Do not propose anything already done in the conversation.`,
     'Do not use long dashes.',
     DATA_RULE,
   ].join('\n- ');
@@ -154,8 +174,28 @@ export function insightsPrompt(chatName: string, group: boolean, messages: Insig
   ].join('\n\n');
 }
 
+/** Las propuestas, recortadas, sin vacías ni repetidas; un tipo que la app no tiene pasa a tarea. */
+export function cleanProposals(raw: InsightsOutput['proposals'] | undefined, kinds: readonly ProposalKind[]): ChatProposal[] {
+  const one = (v: unknown, n: number) => String(v ?? '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim().slice(0, n);
+  const seen = new Set<string>();
+  const out: ChatProposal[] = [];
+  for (const p of raw ?? []) {
+    const title = one(p?.title, 120);
+    if (!title || seen.has(title.toLowerCase())) continue;
+    seen.add(title.toLowerCase());
+    out.push({
+      title,
+      notes: one(p.notes, 600),
+      kind: kinds.includes(p.kind) ? p.kind : 'task',
+      priority: (PROPOSAL_PRIORITIES as readonly string[]).includes(p.priority) ? p.priority : 'medium',
+    });
+    if (out.length >= MAX_PROPOSALS) break;
+  }
+  return out;
+}
+
 /** Limpia lo que devolvió el modelo: textos cortos, sin vacíos, con los topes de la pantalla. */
-export function cleanInsights(o: InsightsOutput): InsightsOutput {
+export function cleanInsights(o: InsightsOutput, kinds: readonly ProposalKind[] = ['task']): InsightsOutput {
   const s = (v: unknown, n: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
   return {
     summary: String(o.summary ?? '').trim().slice(0, 1500),
@@ -164,6 +204,7 @@ export function cleanInsights(o: InsightsOutput): InsightsOutput {
     replies: (o.replies ?? []).map((r) => String(r ?? '').trim().slice(0, 1000)).filter(Boolean).slice(0, 3),
     sentiment: (SENTIMENTS as readonly string[]).includes(o.sentiment) ? o.sentiment : 'neutral',
     sentimentNote: s(o.sentimentNote, 300),
+    proposals: cleanProposals(o.proposals, kinds),
   };
 }
 
@@ -171,7 +212,7 @@ export function cleanInsights(o: InsightsOutput): InsightsOutput {
  * La respuesta del modelo falso de e2e: se arma con la transcripción (nunca con nada de afuera), así un test puede
  * comprobar que solo se usó lo que quien mira ve.
  */
-export function fakeInsights(messages: InsightMessage[]): InsightsOutput {
+export function fakeInsights(messages: InsightMessage[], kinds: readonly ProposalKind[] = ['task']): InsightsOutput {
   const theirs = messages.filter((m) => !m.fromMe);
   const last = theirs[theirs.length - 1];
   const asked = theirs.filter((m) => m.text.includes('?')).map((m) => m.text.slice(0, 120));
@@ -184,5 +225,62 @@ export function fakeInsights(messages: InsightMessage[]): InsightsOutput {
     replies: [`Thanks for your message. ${last ? `About "${last.text.slice(0, 40)}": ` : ''}[detail]`, 'I will check and get back to you today.'],
     sentiment: angry ? 'negative' : 'neutral',
     sentimentNote: angry ? 'The contact sounds upset.' : 'Calm conversation.',
+    // Lo que el contacto pide (una pregunta o un pedido): un seguimiento por cada uno, el primero como ticket si se puede.
+    proposals: theirs
+      .filter((m) => /\?|\b(please|por favor|necesito|need|send|mandame|pasan|enviar)\b/i.test(m.text))
+      .slice(-2)
+      .map((m, i) => ({
+        title: `Follow up: ${m.text.slice(0, 60)}`,
+        notes: 'Proposed by the fake model.',
+        kind: i === 0 && kinds.includes('ticket') ? ('ticket' as const) : ('task' as const),
+        priority: angry ? ('high' as const) : ('medium' as const),
+      })),
   };
+}
+
+// ======================================================================
+// Preguntarle a la IA sobre el chat
+// ======================================================================
+
+export const MAX_QUESTION = 500;
+export const answerSchema = z.object({ answer: z.string() });
+
+/** La pregunta del pedido, limpia; '' si no hay. */
+export function cleanQuestion(v: unknown): string {
+  return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, MAX_QUESTION) : '';
+}
+
+export function askInstructions(locale: string): string {
+  return [
+    'You answer a question about one WhatsApp chat for the person who handles it. In the transcript, [us] is the user or their team and [them] is the contact or other people in the chat, whatever name they use.',
+    'Use only what is in <conversation>. If the answer is not there, say so in one short line. Never invent names, dates, amounts or commitments.',
+    `Answer in the language of the question in <request>; if it is unclear, in ${LOCALE_NAME[locale] ?? 'English'}.`,
+    'Plain text, short: at most 8 lines. Lists with "- " are fine. No headings, no long dashes, no emojis.',
+    DATA_RULE,
+  ].join('\n- ');
+}
+
+export function askPrompt(chatName: string, group: boolean, messages: InsightMessage[], question: string): string {
+  return [
+    `WhatsApp ${group ? 'group' : 'chat'} ${fence('recipient', chatName)}`,
+    'Its latest messages, oldest first:',
+    fence('conversation', transcript(messages)),
+    fence('request', question),
+  ].join('\n\n');
+}
+
+/** La respuesta: texto plano, sin rayas largas. */
+export function cleanAnswer(text: string): string {
+  return String(text ?? '').replace(/[–—]/g, '-').trim().slice(0, 4000);
+}
+
+/** El modelo falso de e2e: dice cuántos mensajes leyó y repite la pregunta. */
+export function fakeAnswer(messages: InsightMessage[], question: string): { answer: string } {
+  return { answer: `${messages.length} messages read. Question: ${question}` };
+}
+
+export interface ChatAnswer {
+  answer: string;
+  /** Cuántos mensajes leyó. */
+  messages: number;
 }
