@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { requireUser } from '@/lib/session';
 import { listNumbers } from '@/lib/groups';
-import { listBroadcasts } from '@/lib/groups-broadcasts';
+import { listBroadcasts, maskBroadcast } from '@/lib/groups-broadcasts';
 import { listRecurring } from '@/lib/groups-recurring';
 import { visibleChatIds } from '@/lib/groups-access';
 import { pageViewer } from '@/lib/groups-page';
@@ -20,10 +20,11 @@ export default async function GroupsBroadcastsPage(props: { params: Promise<{ lo
   const viewer = await pageViewer(user);
   const visible = await visibleChatIds(viewer);
   const [broadcasts, numbers, recurringAll] = await Promise.all([
-    // Solo los envíos que van a chats que la persona ve (acceso por etiqueta o por línea).
-    listBroadcasts(user.id, { visible }),
+    // Solo los envíos que van a chats que la persona ve (acceso por etiqueta o por línea), con los teléfonos ocultos
+    // en el nombre y el texto si a esa persona se le ocultan.
+    listBroadcasts(user.id, { visible }).then((list) => list.map((b) => maskBroadcast(viewer.mask, b))),
     listNumbers(user.id, viewer),
-    listRecurring(user.id),
+    listRecurring(user.id).then((list) => list.map((r) => maskBroadcast(viewer.mask, r))),
   ]);
   const recurring = visible
     ? recurringAll.filter((r) => r.chatIds.some((id) => visible.has(id))).map((r) => ({ ...r, chatIds: r.chatIds.filter((id) => visible.has(id)) }))

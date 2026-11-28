@@ -26,7 +26,7 @@ import { getDb } from '../db';
 import { delegatedIdentity } from '../mcp/identity';
 import { wrapUntrusted } from '../mcp/untrusted';
 import { applyThreadAction, createScheduled, futureIso, getThreadRow, listMessages as listInboxMessages, saveDraft, saveNotes, type ThreadAction } from '../inbox/core';
-import { canSeeChat, groupsViewer, maskChat, maskMessage } from '../groups-access';
+import { canSeeChat, chatAccessSql, groupsViewer, maskChat, maskMessage, type GroupsViewer } from '../groups-access';
 import { LIMITS } from '../inbox/types';
 import { getChat, listChats, listMessages as listLineMessages } from '../groups';
 import { createTranslator } from 'next-intl';
@@ -156,6 +156,29 @@ async function inboxAttention(owner: string, limit: number) {
 // ---------------------------------------------------------------------------
 // Lines
 // ---------------------------------------------------------------------------
+
+/**
+ * Un chat de Lines por su nombre, entre los que quien pide ve. Solo el nombre del chat (exacto primero, después
+ * que lo contenga), nunca el texto de los mensajes: pedir un "nombre" no puede encontrar chats por lo que dicen.
+ * El teléfono cuenta solo para quien ve los teléfonos (a quien se le ocultan, no le confirma de quién es un número).
+ */
+export async function resolveLineChatByName(ws: string, viewer: GroupsViewer, ref: string): Promise<string | null> {
+  const name = ref.trim().slice(0, 120);
+  if (!name) return null;
+  const access = chatAccessSql(viewer);
+  const like = `%${name.toLowerCase().replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  const num = name.replace(/\D/g, '');
+  const byPhone = !viewer.mask && num.length >= 6 && /^[+\d\s()-]+$/.test(name);
+  const row = (await getDb()
+    .prepare(
+      `SELECT c.id FROM groups_chats c
+       WHERE c.user_id = ? AND c.hidden_at IS NULL${access ? ` AND ${access.sql}` : ''}
+         AND (lower(c.name) LIKE ? ESCAPE '\\'${byPhone ? ' OR c.phone = ?' : ''})
+       ORDER BY CASE WHEN lower(c.name) = ? THEN 0 ELSE 1 END, c.last_message_at DESC LIMIT 1`,
+    )
+    .get(ws, ...(access?.args ?? []), like, ...(byPhone ? [num] : []), name.toLowerCase())) as { id: string } | undefined;
+  return row?.id ?? null;
+}
 
 async function linesAttention(ctx: ToolCtx, limit: number) {
   const viewer = await groupsViewer(ctx.workspaceId, ctx.personId, ctx.user.role);
@@ -335,8 +358,9 @@ export const chatTools: AssistantTool[] = [
             ids.push(ref);
             continue;
           }
-          const found = await listChats(ctx.workspaceId, ctx.personId, { q: ref, limit: 1, viewer, count: false } as Parameters<typeof listChats>[2]);
-          if (found.rows[0]) ids.push(found.rows[0].id);
+          // Por nombre, solo entre los chats que ve (sin buscar en el texto de los mensajes).
+          const found = await resolveLineChatByName(ctx.workspaceId, viewer, ref);
+          if (found) ids.push(found);
           else missing.push(ref);
         }
       } else ids = (await linesAttention(ctx, 10)).waitingForReply.map((c) => c.id);

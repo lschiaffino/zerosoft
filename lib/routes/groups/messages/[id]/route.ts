@@ -4,7 +4,7 @@ import { deleteMessage, editMessage, forwardMessage, pinMessage, reportMessage }
 import { createTicket } from '@/lib/groups-tickets';
 import type { TicketPriority } from '@/lib/groups-rules';
 import { chatGuard, groupsError, groupsSession, handleGroupsError, readJson, str, strArr } from '@/lib/groups-http';
-import { canSeeChat, maskChatName, maskMessage, maskTicket } from '@/lib/groups-access';
+import { canSeeChat, maskChatName, maskMessage, maskTicket, unmaskEdit } from '@/lib/groups-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,7 +49,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const { starMessage } = await import('@/lib/groups-inbox');
       return NextResponse.json(maskMessage(guard.viewer, await starMessage(s.ws, id, b.action === 'star')));
     }
-    if (b.action === 'edit') return NextResponse.json(maskMessage(guard.viewer, await editMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id, str(b.body) ?? '')));
+    if (b.action === 'edit') {
+      // Una nota que llegó con los teléfonos ocultos: cada uno enmascarado vuelve a su número guardado.
+      let text = str(b.body) ?? '';
+      if (guard.viewer.mask) {
+        const raw = await getMessageRow(s.ws, id);
+        if (raw?.direction === 'note') text = unmaskEdit(raw.body, text);
+      }
+      return NextResponse.json(maskMessage(guard.viewer, await editMessage(s.ws, { me: s.me, isAdmin: s.isAdmin }, id, text)));
+    }
     if (b.action === 'pin' || b.action === 'unpin') return NextResponse.json(mask(await pinMessage(s.ws, s.me, id, b.action === 'pin')));
     if (b.action === 'report') return NextResponse.json(mask(await reportMessage(s.ws, s.me, id, { block: b.block === true, leave: b.leave === true })));
     if (b.action === 'forward') {

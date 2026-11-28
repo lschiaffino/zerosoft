@@ -1,6 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { isFileUrlPath } from '@/lib/files/url';
-import { createBroadcast, listBroadcasts, listScheduledMessages, processBroadcasts } from '@/lib/groups-broadcasts';
+import { createBroadcast, listBroadcasts, listScheduledMessages, maskBroadcast, processBroadcasts } from '@/lib/groups-broadcasts';
 import { chatGuard, groupsSession, handleGroupsError, readJson, sessionViewer, str, strArr } from '@/lib/groups-http';
 import { maskChat, visibleChatIds } from '@/lib/groups-access';
 
@@ -30,10 +30,12 @@ export async function GET(req: Request) {
       visible: await visibleChatIds(viewer),
       mask: (c) => maskChat(viewer, c),
     });
-    return NextResponse.json({ scheduled });
+    return NextResponse.json({ scheduled: scheduled.map((x) => maskBroadcast(viewer.mask, x)) });
   }
   const kind = p.get('kind') === 'scheduled' || p.get('kind') === 'broadcast' ? (p.get('kind') as 'scheduled' | 'broadcast') : undefined;
-  return NextResponse.json({ broadcasts: await listBroadcasts(s.ws, { kind, chatId, visible: await visibleChatIds(await sessionViewer(s)) }) });
+  const viewer = await sessionViewer(s);
+  const broadcasts = await listBroadcasts(s.ws, { kind, chatId, visible: await visibleChatIds(viewer) });
+  return NextResponse.json({ broadcasts: broadcasts.map((x) => maskBroadcast(viewer.mask, x)) });
 }
 
 /**
@@ -47,7 +49,8 @@ export async function POST(req: Request) {
   const b = await readJson(req);
   const m = b.media && typeof b.media === 'object' ? (b.media as Record<string, unknown>) : null;
   // Acceso por etiqueta: solo a chats que la persona ve.
-  const visible = await visibleChatIds(await sessionViewer(s));
+  const viewer = await sessionViewer(s);
+  const visible = await visibleChatIds(viewer);
   try {
     const broadcast = await createBroadcast(s.ws, s.me, {
       numberId: str(b.numberId, 100),
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
     if (Date.parse(broadcast.scheduledAt) <= Date.now() + 1000) {
       after(() => processBroadcasts({ broadcastId: broadcast.id, budgetMs: 25_000 }).catch(() => null));
     }
-    return NextResponse.json(broadcast, { status: 201 });
+    return NextResponse.json(maskBroadcast(viewer.mask, broadcast), { status: 201 });
   } catch (err) {
     return handleGroupsError(err);
   }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { deleteTicket, getTicket, updateTicket, type TicketPatch } from '@/lib/groups-tickets';
 import type { TicketPriority, TicketStatus } from '@/lib/groups-rules';
 import { groupsError, groupsSession, handleGroupsError, readJson, sessionViewer, str, type GroupsSession } from '@/lib/groups-http';
-import { canSeeChat, maskTicket, ticketsForViewer } from '@/lib/groups-access';
+import { canSeeChat, maskTicket, ticketsForViewer, unmaskTicketPatch } from '@/lib/groups-access';
 import { recordAudit } from '@/lib/groups-audit';
 import { ticketLinks } from '@/lib/groups-integrations';
 
@@ -43,7 +43,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (b.assigneeId === null || typeof b.assigneeId === 'string') patch.assigneeId = str(b.assigneeId, 100) || null;
   if (b.fields && typeof b.fields === 'object' && !Array.isArray(b.fields)) patch.fields = b.fields as Record<string, unknown>;
   try {
-    const after = await updateTicket(s.ws, id, patch);
+    // Con los teléfonos ocultos, el título y los campos llegaron enmascarados: los números guardados no se pierden.
+    const after = await updateTicket(s.ws, id, unmaskTicketPatch(await sessionViewer(s), before, patch));
     const changed = (['status', 'priority', 'assigneeId', 'title'] as const).filter((k) => before[k] !== after[k]);
     if (changed.length) {
       await recordAudit(s.ws, {
