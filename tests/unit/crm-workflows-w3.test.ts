@@ -401,7 +401,8 @@ describe('W3: privacidad y permisos', () => {
       name: 'Log',
       triggers: [{ type: 'contact_created' }],
       actions: [
-        { type: 'update_field', config: { entity: 'contact', field: 'job_title', value: 'Secret title 999' } },
+        // Un valor que no puede salir por casualidad en un id (UUID en hex) ni en una fecha: si aparece, se filtró.
+        { type: 'update_field', config: { entity: 'contact', field: 'job_title', value: 'Secret title QZXW' } },
         { type: 'branch', config: { entity: 'contact', field: 'city', op: 'equals', value: 'Rosario' } },
         { type: 'create_task', config: { subject: 'Yes path', when: 'yes' } },
       ],
@@ -413,7 +414,8 @@ describe('W3: privacidad y permisos', () => {
       ['branch', 'ok', 'no'],
       ['create_task', 'skipped', null],
     ]);
-    expect(JSON.stringify(admin)).not.toContain('999');
+    expect(JSON.stringify(admin)).not.toContain('QZXW');
+    expect(JSON.stringify(admin)).not.toContain('Secret title');
     // Un miembro, aunque alguien pida el registro, no lo recibe.
     const memberViews = await listWorkflowRunViews(w.owner.id, wf.id, await sessionScope(asMember(w.owner, w.member)), 20, { log: true });
     expect(memberViews).toHaveLength(1);
