@@ -20,8 +20,12 @@ import {
   handleForRef,
   internalHandleSql,
   internalRef,
+  internalPhonesJson,
   isInternalHandle,
+  lidOf,
   listInternalContacts,
+  phoneTwin,
+  phoneVariants,
   loadInternalSet,
   normalizeHandle,
   setInternalContact,
@@ -97,7 +101,7 @@ describe('contactos internos: lo puro', () => {
   });
 
   it('las marcas ganan a la regla; el dominio vale para correos; "no interno" gana a todo', () => {
-    const set = { handles: new Set([TEAMMATE, 'ana@otra.com']), excluded: new Set(['jefe@empresa.com']), domains: ['empresa.com'] };
+    const set = { handles: new Set([TEAMMATE, 'ana@otra.com']), excluded: new Set(['jefe@empresa.com']), domains: ['empresa.com'], lids: new Set<string>() };
     expect(isInternalHandle(set, TEAMMATE)).toBe(true);
     expect(isInternalHandle(set, `+${TEAMMATE}`)).toBe(true);
     expect(isInternalHandle(set, CUSTOMER)).toBe(false);
@@ -107,6 +111,140 @@ describe('contactos internos: lo puro', () => {
     expect(isInternalHandle(set, '')).toBe(false);
     const sql = internalHandleSql(set, 'h');
     expect(sql.args).toHaveLength(3);
+  });
+});
+
+describe('contactos internos: el mismo número de otra forma y los lids', () => {
+  // Números inventados: Argentina con y sin el 9, México con y sin el 1.
+  const AR9 = '5491100000301';
+  const AR = '541100000301';
+  const MX1 = '5215500000302';
+  const MX = '525500000302';
+  const LID = '111111111111301';
+  const contact = (accountId: string, userId: string, phone: string, lid: string, app = 'lines') =>
+    getDb()
+      .prepare('INSERT INTO wa_contacts (id, app, account_id, user_id, phone, lid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(`wac-${++seq}-${Math.random().toString(36).slice(2)}`, app, accountId, userId, phone, lid, new Date().toISOString());
+
+  it('la otra forma de un celular: Argentina con o sin 9, México con o sin 1; nada más', () => {
+    expect(phoneTwin(AR9)).toBe(AR);
+    expect(phoneTwin(AR)).toBe(AR9);
+    expect(phoneTwin(MX1)).toBe(MX);
+    expect(phoneTwin(MX)).toBe(MX1);
+    expect(phoneTwin('14155550100')).toBeNull();
+    expect(phoneTwin('549110000030')).toBeNull();
+    expect(phoneTwin('5491100000301000')).toBeNull();
+    expect(phoneVariants('14155550100')).toEqual(['14155550100']);
+    expect(lidOf(`${LID}@lid`)).toBe(LID);
+    expect(lidOf(`${LID}:3@lid`)).toBe(LID);
+    expect(lidOf(`${AR9}@s.whatsapp.net`)).toBeNull();
+  });
+
+  it('marcado de una forma, cuenta de la otra; la última marca manda; los lids de la libreta de la línea', async () => {
+    const u = await makeUser('int-twin');
+    const n = await line(u.id, OTHER);
+    await setInternalContact(u.id, u.id, '+54 11 0000-0301', true);
+    await setInternalContact(u.id, u.id, '+52 55 0000 0302', true);
+    let set = await loadInternalSet(u.id);
+    expect(isInternalHandle(set, `${AR9}@s.whatsapp.net`)).toBe(true);
+    expect(isInternalHandle(set, MX1)).toBe(true);
+    // La libreta de la línea une el lid con el teléfono (en la forma de WhatsApp).
+    await contact(n.id, u.id, AR9, LID);
+    await contact(n.id, u.id, CUSTOMER, '111111111111399');
+    set = await loadInternalSet(u.id);
+    expect(isInternalHandle(set, `${LID}@lid`)).toBe(true);
+    expect(isInternalHandle(set, LID)).toBe(true);
+    expect(isInternalHandle(set, '111111111111399@lid')).toBe(false);
+    expect(JSON.parse(internalPhonesJson(set))).toEqual(expect.arrayContaining([AR, AR9, `${LID}@lid`]));
+    // Marcarlo "no interno" con la otra forma: queda una sola marca (la última) y ya no es interno, ni su lid.
+    await setInternalContact(u.id, u.id, AR9, false);
+    expect(await getDb().prepare("SELECT handle, internal FROM internal_contacts WHERE workspace_id = ? AND handle IN (?, ?)").all(u.id, AR, AR9)).toEqual([{ handle: AR9, internal: 0 }]);
+    set = await loadInternalSet(u.id);
+    expect(isInternalHandle(set, AR)).toBe(false);
+    expect(isInternalHandle(set, `${LID}@lid`)).toBe(false);
+    // Otro workspace no ve los lids de esta línea.
+    const other = await makeUser('int-twin-other');
+    await setInternalContact(other.id, other.id, MX, true);
+    expect((await loadInternalSet(other.id)).lids.size).toBe(0);
+  });
+
+  it('Lines: quien escribe solo con su lid es interno si la libreta lo une a un teléfono interno', async () => {
+    const u = await makeUser('int-lid');
+    const n = await line(u.id, OTHER);
+    await setInternalContact(u.id, u.id, AR, true);
+    await contact(n.id, u.id, AR9, LID);
+    const gid = '120363000000000411@g.us';
+    await ingestEvents(n, [msg(gid, CUSTOMER, 'hola, ¿me ayudan?', 1)]);
+    const group = (await listChats(u.id, u.id)).rows.find((c) => c.kind === 'group')!;
+    expect((await getChat(u.id, group.id))!.awaitingSince).not.toBeNull();
+    // Responde alguien del equipo que llegó solo con su lid: cuenta como respuesta.
+    await ingestEvents(n, [msg(gid, '', 'ya lo vemos', 2, { senderLid: LID, senderName: 'Persona Equipo' })]);
+    expect((await getChat(u.id, group.id))!.awaitingSince).toBeNull();
+    // Un lid que la libreta no une a nadie interno no cuenta: el chat espera.
+    await ingestEvents(n, [msg(gid, '', 'otra consulta', 3, { senderLid: '111111111111398' })]);
+    expect((await getChat(u.id, group.id))!.awaitingSince).not.toBeNull();
+    // Y en la otra forma del número (con el 9) también.
+    await ingestEvents(n, [msg(gid, AR9, 'listo', 4)]);
+    expect((await getChat(u.id, group.id))!.awaitingSince).toBeNull();
+  });
+
+  it('Lines: marcar deja de hacer esperar a los chats 1:1 con la otra forma del número o con su lid', async () => {
+    const u = await makeUser('int-twin-stop');
+    const n = await line(u.id, OTHER);
+    await ingestEvents(n, [msg(`${AR9}@s.whatsapp.net`, AR9, 'hola', 1), msg(`${LID}@lid`, '', 'hola', 2)]);
+    const dms = (await listChats(u.id, u.id)).rows.filter((c) => c.kind === 'dm');
+    expect(dms).toHaveLength(2);
+    for (const dm of dms) expect((await getChat(u.id, dm.id))!.awaitingSince).not.toBeNull();
+    // El lid del segundo chat es de otro número interno según la libreta.
+    await contact(n.id, u.id, MX1, LID);
+    await setInternalContact(u.id, u.id, AR, true);
+    await setInternalContact(u.id, u.id, MX, true);
+    for (const dm of dms) expect((await getChat(u.id, dm.id))!.awaitingSince).toBeNull();
+    // El filtro "internos" y la marca del chat los incluyen.
+    const rows = (await listChats(u.id, u.id, { filters: { internal: 'yes' } } as Parameters<typeof listChats>[2])).rows;
+    expect(rows.map((r) => r.id).sort()).toEqual(dms.map((d) => d.id).sort());
+    expect(rows.every((r) => r.internal)).toBe(true);
+  });
+
+  it('Inbox: un chat 1:1 que todavía es el lid (sin teléfono) sale de Por responder y se marca', async () => {
+    const w = await workspaceWithMember('int-lid-inbox');
+    const acc = await inboxAccount(w.member.id);
+    const thread = await upsertThread(acc, { externalId: `${LID}@lid`, kind: 'dm', handle: '' });
+    await addMessage(thread, { externalId: 'ib-lid-1', fromMe: false, body: 'hola', senderHandle: '', sentAt: at(1) });
+    await setInternalContact(w.owner.id, w.owner.id, AR, true);
+    await contact(acc.id, w.member.id, AR9, LID, 'inbox');
+    let internal = await loadInternalSet(w.owner.id, { inboxOwner: w.member.id });
+    expect((await listThreadsPage(w.member.id, { view: 'reply', internal })).threads.map((t) => t.id)).not.toContain(thread.id);
+    const listed = (await listThreadsPage(w.member.id, { view: 'internal', internal })).threads.find((t) => t.id === thread.id);
+    expect(listed?.internal).toBe(true);
+    // La libreta de otra persona no cuenta: para ella el chat espera respuesta.
+    internal = await loadInternalSet(w.owner.id, { inboxOwner: w.friend.id });
+    expect((await listThreadsPage(w.member.id, { view: 'reply', internal })).threads.map((t) => t.id)).toContain(thread.id);
+  });
+
+  it('al guardar un mensaje, lo interno se busca por índice también con el lid', async () => {
+    const { planOf } = await import('./read-probe');
+    const { internalPhoneSql } = await import('@/lib/internal-contacts');
+    const expr = internalPhoneSql('ws-x', AR9, { accountId: 'acc-x', lid: LID });
+    const plan = (await planOf(`SELECT ${expr.sql} AS x`, expr.args)).join('\n');
+    expect(plan).toMatch(/zix USING (COVERING )?INDEX [^\n]*handle=\?/);
+    expect(plan).toMatch(/zii USING (COVERING )?INDEX [^\n]*handle=\?/);
+    expect(plan).not.toMatch(/^SCAN (zix|zii|tw|tw2)\b/m);
+  });
+
+  it('Inbox: la otra forma y los lids de la libreta de la persona; no los de otra persona', async () => {
+    const w = await workspaceWithMember('int-twin-inbox');
+    const acc = await inboxAccount(w.member.id);
+    const thread = await upsertThread(acc, { externalId: `${AR9}@s.whatsapp.net`, kind: 'dm', handle: AR9 });
+    await addMessage(thread, { externalId: 'ib-twin-1', fromMe: false, body: 'hola', senderHandle: AR9, sentAt: at(1) });
+    await setInternalContact(w.owner.id, w.owner.id, AR, true);
+    const internal = await loadInternalSet(w.owner.id, { inboxOwner: w.member.id });
+    expect((await listThreadsPage(w.member.id, { view: 'reply', internal })).threads.map((t) => t.id)).not.toContain(thread.id);
+    await contact(acc.id, w.member.id, AR9, LID, 'inbox');
+    expect(isInternalHandle(await loadInternalSet(w.owner.id, { inboxOwner: w.member.id }), `${LID}@lid`)).toBe(true);
+    // Sin la persona del Inbox (u otra persona), sus lids no entran.
+    expect(isInternalHandle(await loadInternalSet(w.owner.id), `${LID}@lid`)).toBe(false);
+    expect(isInternalHandle(await loadInternalSet(w.owner.id, { inboxOwner: w.friend.id }), `${LID}@lid`)).toBe(false);
   });
 });
 
@@ -265,7 +403,7 @@ describe('Inbox: lo interno no está en "Por responder" ni en las métricas', ()
     const check = async (handle: string) =>
       Boolean(
         await getDb()
-          .prepare(`SELECT 1 AS x FROM (SELECT 'dm' AS kind, ? AS handle) t WHERE ${sql.sql}`)
+          .prepare(`SELECT 1 AS x FROM (SELECT 'dm' AS kind, ? AS handle, '' AS external_id) t WHERE ${sql.sql}`)
           .get(handle, ...sql.args),
       );
     expect(await check('ana@empresa.com')).toBe(true);

@@ -842,7 +842,7 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
   const internal = opts.internal;
   const dtoOf = (r: Row): ThreadDto => {
     const dto = rank ? { ...threadDto(r, now), nameHit: isNameHit(r.sort_key) } : threadDto(r, now);
-    if (internal && r.kind !== 'group' && isInternalHandle(internal, r.handle)) dto.internal = true;
+    if (internal && r.kind !== 'group' && isInternalHandle(internal, r.handle || r.external_id)) dto.internal = true;
     return dto;
   };
   const multi = [...sameChat.values()].filter((list) => list.length > 1);
@@ -901,8 +901,9 @@ export async function listThreadsPage(owner: string, opts: ListOptions = {}): Pr
  * del teléfono y el de un correo la dirección: se compara en minúsculas.
  */
 export function internalThreadSql(set: InternalSet): { sql: string; args: string[] } {
-  const h = internalHandleSql(set, 'lower(t.handle)');
-  return { sql: `(t.kind <> 'group' AND t.handle <> '' AND ${h.sql})`, args: h.args };
+  // Un chat 1:1 que todavía es el lid no tiene handle: va su id ("<lid>@lid"), que internalHandleSql también trae.
+  const h = internalHandleSql(set, "(CASE WHEN t.handle <> '' THEN lower(t.handle) ELSE t.external_id END)");
+  return { sql: `(t.kind <> 'group' AND ${h.sql})`, args: h.args };
 }
 
 /** La marca `internal` de un chat 1:1 o correo con alguien interno (lib/internal-contacts.ts). */
@@ -970,7 +971,8 @@ export function threadDto(
   return dto;
 }
 
-export async function getThread(owner: string, id: string): Promise<ThreadDto> {
+/** `internal`: marca el chat si es con alguien interno (también si todavía es el lid). */
+export async function getThread(owner: string, id: string, internal?: InternalSet): Promise<ThreadDto> {
   const r = (await getDb()
     .prepare(
       `SELECT t.*,
@@ -983,7 +985,9 @@ export async function getThread(owner: string, id: string): Promise<ThreadDto> {
     )
     .get(id, owner)) as (ThreadRow & { folder_ids: string | null; scheduled_count: number }) | undefined;
   if (!r) throw new InboxError('not_found', 404);
-  return (await withPreviewMentions(owner, [threadDto(r)]))[0];
+  const dto = (await withPreviewMentions(owner, [threadDto(r)]))[0];
+  if (internal && dto.kind !== 'group' && isInternalHandle(internal, r.handle || r.external_id)) dto.internal = true;
+  return dto;
 }
 
 /**

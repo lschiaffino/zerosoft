@@ -66,7 +66,7 @@ export default async function InboxPage(props: Props) {
     );
   }
   // Quién es interno lo marca el workspace activo (lib/internal-contacts.ts): fuera de "Por responder" y con su vista.
-  const internal = await loadInternalSet(user.id);
+  const internal = await loadInternalSet(user.id, { inboxOwner: owner });
   const [accounts, folders, counts, snippets, agents, tf] = await Promise.all([
     listAccounts(owner),
     listFolders(owner),

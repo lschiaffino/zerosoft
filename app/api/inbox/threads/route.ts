@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     // workspace (lib/internal-contacts.ts): su versión va primero (el resto se corta si es largo) y lo interno se lee
     // solo si hay que armar la lista.
     const iv = await internalVersion(ws);
-    return versioned(req, versionTag('l', await ownerRev(owner), `${iv}|${sp.toString()}`), async () => buildList(owner, sp, await loadInternalSet(ws)));
+    return versioned(req, versionTag('l', await ownerRev(owner), `${iv}|${sp.toString()}`), async () => buildList(owner, sp, await loadInternalSet(ws, { inboxOwner: owner })));
   });
 }
 

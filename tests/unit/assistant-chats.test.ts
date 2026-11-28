@@ -75,6 +75,18 @@ describe('qué tengo atrasado (Inbox)', () => {
     expect(r.text).toContain('Esto es lo que tenés atrasado');
   });
 
+  it('alguien interno del workspace (en cualquiera de las formas de su número) no cuenta como "esperando respuesta"', async () => {
+    const w = await inboxWorld('chats-internal');
+    // Beto es del equipo, marcado sin el 9: su chat llega con el 9 (como lo manda WhatsApp).
+    const { setInternalContact } = await import('@/lib/internal-contacts');
+    await setInternalContact(w.u.id, w.u.id, '541155510002', true);
+    setAssistantModelOverride(fakeModel(fakeAssistantStep));
+    const r = await turn(owner(w.u), '¿qué tengo atrasado?', { locale: 'en' });
+    const out = r.results.find((x) => x.tool === 'inbox_attention')!.output as { totals: { waitingForReply: number }; waitingForReply: Array<{ name: string }> };
+    expect(out.waitingForReply.map((c) => c.name)).toEqual(['Ana']);
+    expect(out.totals.waitingForReply).toBe(1);
+  });
+
   it('las instrucciones piden contestar en el idioma en que escribe la persona', async () => {
     const u = await makeUser('chats-lang');
     let system = '';

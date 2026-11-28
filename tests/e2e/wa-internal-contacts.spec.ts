@@ -23,6 +23,12 @@ async function sql(statement: string, args: Array<string | number> = []): Promis
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 const phone = () => `54900${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
+/**
+ * Un celular de Buenos Aires inventado (abonado 00…, que no se asigna), como lo manda WhatsApp (549…): se marca
+ * como interno escrito como lo escribe la gente, sin el 9 (lib/internal-contacts.ts phoneTwin).
+ */
+const mobileAR = () => `5491100${Math.floor(100_000 + Math.random() * 899_999)}`;
+const withoutNine = (wa: string) => `+54 ${wa.slice(3)}`;
 const groupId = () => `1203630${Math.floor(1e9 + Math.random() * 8e9)}@g.us`;
 
 function watchErrors(page: Page): string[] {
@@ -102,13 +108,13 @@ for (const width of [1280, 390]) {
     const errors = watchErrors(page);
     const n = await fakeLinesNumber(request);
     const tag = uid();
-    const teammate = phone();
+    const teammate = mobileAR();
     const customer = phone();
     const gid = groupId();
     const title = `Cliente ${tag}`;
     await n.post([{ type: 'fake_contacts', contacts: [{ phone: teammate, name: `Equipo ${tag}`, groups: [gid] }, { phone: customer, name: `Cliente ${tag}`, groups: [gid] }] }]);
     // El admin marca al del equipo (la misma ruta que Ajustes) antes de que escriba.
-    expect((await request.post('/api/groups/internal', { data: { handle: teammate, internal: true, name: `Equipo ${tag}` } })).ok()).toBe(true);
+    expect((await request.post('/api/groups/internal', { data: { handle: withoutNine(teammate), internal: true, name: `Equipo ${tag}` } })).ok()).toBe(true);
     await n.post([
       message(gid, { chatName: title, senderPhone: customer, senderName: `Cliente ${tag}`, body: `pregunta ${tag}`, timestamp: new Date(Date.now() - 120_000).toISOString() }),
       message(gid, { chatName: title, senderPhone: teammate, senderName: `Equipo ${tag}`, body: `respuesta ${tag}`, timestamp: new Date(Date.now() - 60_000).toISOString() }),
@@ -196,7 +202,7 @@ for (const width of [1280, 390]) {
     const [acc] = await sql("SELECT a.id, a.webhook_secret FROM inbox_accounts a JOIN users u ON u.id = a.owner_id WHERE a.kind = 'whatsapp' AND u.email = 'demo@zerosoft.ai'");
     const post = async (list: unknown[]) => expect((await request.post(`/api/inbox/webhook/${acc.id}/${acc.webhook_secret}`, { data: { events: list } })).ok()).toBe(true);
     const tag = uid();
-    const teammate = phone();
+    const teammate = mobileAR();
     const customer = phone();
     const gid = groupId();
     const title = `Obra ${tag}`;
@@ -208,7 +214,7 @@ for (const width of [1280, 390]) {
       message(`${customer}@s.whatsapp.net`, { senderPhone: customer, senderName: `Cliente ${tag}`, body: `consulta ${tag}` }),
     ]);
     // El admin lo marca (Ajustes de Inbox usa la misma ruta).
-    expect((await request.post('/api/inbox/internal', { data: { handle: teammate, internal: true, name: `Equipo ${tag}` } })).ok()).toBe(true);
+    expect((await request.post('/api/inbox/internal', { data: { handle: withoutNine(teammate), internal: true, name: `Equipo ${tag}` } })).ok()).toBe(true);
     await page.setViewportSize({ width, height: width > 500 ? 800 : 844 });
 
     // Por responder: el cliente sí, el del equipo no. La vista Internos: al revés.

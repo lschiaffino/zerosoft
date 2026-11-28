@@ -19,7 +19,7 @@
  * administran los admins (las rutas lo exigen). Server-only.
  */
 import { createHash, createHmac } from 'crypto';
-import { getDb } from './db';
+import { dbBatch, getDb } from './db';
 import { isPublicDomain } from './workspace';
 
 export interface InternalSettings {
@@ -79,6 +79,31 @@ export function normalizeHandle(raw: unknown): string | null {
   if (!/^[+\d\s().-]+$/.test(bare)) return null;
   const d = bare.replace(/\D/g, '').replace(/^00(?=\d{8})/, '');
   return PHONE.test(d) ? d : null;
+}
+
+/**
+ * El mismo celular escrito de la otra forma: Argentina con o sin el 9 después del 54 (WhatsApp usa 549…, la gente
+ * escribe 54 11…) y México con o sin el 1 después del 52. null si no es uno de esos.
+ */
+export function phoneTwin(d: string): string | null {
+  if (/^549\d{10}$/.test(d)) return `54${d.slice(3)}`;
+  if (/^521\d{10}$/.test(d)) return `52${d.slice(3)}`;
+  // Sin el 9 (Argentina: el código de área no empieza con 9) o sin el 1 (México: no empieza con 0 ni 1).
+  if (/^54[1-8]\d{9}$/.test(d)) return `549${d.slice(2)}`;
+  if (/^52[2-9]\d{9}$/.test(d)) return `521${d.slice(2)}`;
+  return null;
+}
+
+/** Un teléfono (dígitos) y, si tiene, su otra forma (phoneTwin). */
+export function phoneVariants(d: string): string[] {
+  const twin = phoneTwin(d);
+  return twin ? [d, twin] : [d];
+}
+
+/** Un lid de WhatsApp ("<dígitos>@lid", con o sin ":<dispositivo>"): sus dígitos, o null. */
+export function lidOf(raw: unknown): string | null {
+  const m = /^(\d{6,20})(?::\d+)?@lid$/i.exec(String(raw ?? '').trim());
+  return m ? m[1] : null;
 }
 
 export function handleKind(handle: string): 'phone' | 'email' {
@@ -159,28 +184,62 @@ export interface InternalSet {
   excluded: Set<string>;
   /** Dominios de la empresa (correos). */
   domains: string[];
+  /**
+   * Lids de WhatsApp de alguien interno: el par lid ↔ teléfono de la libreta (wa_contacts, lib/wa-dedupe.ts) de las
+   * líneas del workspace y, con `inboxOwner`, de las cuentas de Inbox de esa persona.
+   */
+  lids: Set<string>;
 }
 
-export const EMPTY_INTERNAL_SET: InternalSet = { handles: new Set(), excluded: new Set(), domains: [] };
+export const EMPTY_INTERNAL_SET: InternalSet = { handles: new Set(), excluded: new Set(), domains: [], lids: new Set() };
 
-export async function loadInternalSet(ws: string): Promise<InternalSet> {
+/** Agrega un teléfono con su otra forma (phoneTwin) o un correo. */
+function addHandle(set: Set<string>, handle: string): void {
+  for (const v of handleKind(handle) === 'phone' ? phoneVariants(handle) : [handle]) set.add(v);
+}
+
+/**
+ * Lo interno del workspace `ws`. Los teléfonos van con su otra forma (Argentina con o sin el 9, México con o sin
+ * el 1) y los lids de WhatsApp de esos teléfonos según la libreta. `inboxOwner`: la persona cuyo Inbox se mira
+ * (sus lids de Inbox); sin eso, solo los de las líneas del workspace.
+ */
+export async function loadInternalSet(ws: string, opts: { inboxOwner?: string } = {}): Promise<InternalSet> {
   const db = getDb();
-  const [settings, rows] = await Promise.all([
+  // Ajustes, marcas y las líneas del workspace (no las de ejemplo) en la misma vuelta.
+  const [settings, rows, lines] = await Promise.all([
     getInternalSettings(ws),
     db.prepare('SELECT handle, internal FROM internal_contacts WHERE workspace_id = ? LIMIT ?').all(ws, MAX_INTERNAL_CONTACTS) as Promise<Array<{ handle: string; internal: number }>>,
+    db.prepare("SELECT phone FROM groups_numbers WHERE user_id = ? AND phone <> '' AND provider <> 'sample'").all(ws) as Promise<Array<{ phone: string }>>,
   ]);
   const handles = new Set<string>();
   const excluded = new Set<string>();
-  for (const r of rows) (r.internal ? handles : excluded).add(r.handle);
+  for (const r of rows) addHandle(r.internal ? handles : excluded, r.handle);
+  // "No interno" gana: un número marcado y su otra forma marcada al revés quedan como no interno.
+  for (const h of excluded) handles.delete(h);
   if (settings.lines) {
-    // Las líneas del workspace (no las de ejemplo).
-    const lines = (await db.prepare("SELECT phone FROM groups_numbers WHERE user_id = ? AND phone <> '' AND provider <> 'sample'").all(ws)) as Array<{ phone: string }>;
     for (const l of lines) {
       const d = normalizeHandle(l.phone);
-      if (d && !excluded.has(d)) handles.add(d);
+      if (d) for (const v of phoneVariants(d)) if (!excluded.has(v)) handles.add(v);
     }
   }
-  return { handles, excluded, domains: settings.domains };
+  const phones = [...handles].filter((h) => handleKind(h) === 'phone');
+  const lids = new Set<string>();
+  if (phones.length) {
+    // La libreta, por sus índices (app, account_id, phone): las cuentas de las líneas del workspace y las de Inbox.
+    const json = JSON.stringify(phones);
+    const inbox = opts.inboxOwner
+      ? `UNION SELECT c.lid FROM wa_contacts c WHERE c.app = 'inbox' AND c.account_id IN (SELECT id FROM inbox_accounts WHERE owner_id = ?)
+           AND c.phone IN (SELECT value FROM json_each(?)) AND c.lid <> ''`
+      : '';
+    const found = (await db
+      .prepare(
+        `SELECT c.lid FROM wa_contacts c WHERE c.app = 'lines' AND c.account_id IN (SELECT id FROM groups_numbers WHERE user_id = ?)
+           AND c.phone IN (SELECT value FROM json_each(?)) AND c.lid <> '' ${inbox} LIMIT ?`,
+      )
+      .all(...(opts.inboxOwner ? [ws, json, opts.inboxOwner, json] : [ws, json]), MAX_INTERNAL_CONTACTS * 4)) as Array<{ lid: string }>;
+    for (const r of found) lids.add(r.lid);
+  }
+  return { handles, excluded, domains: settings.domains, lids };
 }
 
 /**
@@ -188,28 +247,58 @@ export async function loadInternalSet(ws: string): Promise<InternalSet> {
  * guarda un mensaje (lib/groups.ts, saveInbound): las mismas reglas que isInternalHandle para un teléfono.
  * `phone` ya en dígitos ('' nunca es interno).
  */
-export function internalPhoneSql(ws: string, phone: string): { sql: string; args: string[] } {
+export function internalPhoneSql(ws: string, phone: string, lid?: { accountId: string; lid: string }): { sql: string; args: string[] } {
+  // El teléfono en sus dos formas (phoneTwin) y, si quien escribe vino con su lid, el teléfono de ese lid en la
+  // libreta de la línea (wa_contacts), comparado también con la otra forma de lo guardado.
+  const variants = JSON.stringify(phone ? phoneVariants(phone) : []);
+  const twin = lid?.lid ? lid : null;
+  // Una sola lista de candidatos (así la columna usa su índice): los del teléfono, el del lid y la otra forma de ese.
+  const lidPhones = twin
+    ? ` UNION ALL SELECT tw.phone FROM wa_contacts tw WHERE tw.app = 'lines' AND tw.account_id = ? AND tw.lid = ? AND tw.phone <> ''
+        UNION ALL SELECT ${phoneTwinSql('tw2.phone')} FROM wa_contacts tw2 WHERE tw2.app = 'lines' AND tw2.account_id = ? AND tw2.lid = ? AND tw2.phone <> ''`
+    : '';
+  const match = (col: string) => ({
+    sql: `(${col} IN (SELECT value FROM json_each(?)${lidPhones}))`,
+    args: [variants, ...(twin ? [twin.accountId, twin.lid, twin.accountId, twin.lid] : [])],
+  });
+  const ex = match('zix.handle');
+  const inn = match('zii.handle');
+  const num = match('zin.phone');
   return {
-    sql: `(? <> '' AND NOT EXISTS (SELECT 1 FROM internal_contacts zix WHERE zix.workspace_id = ? AND zix.handle = ? AND zix.internal = 0)
-      AND (EXISTS (SELECT 1 FROM internal_contacts zii WHERE zii.workspace_id = ? AND zii.handle = ? AND zii.internal = 1)
+    sql: `(NOT EXISTS (SELECT 1 FROM internal_contacts zix WHERE zix.workspace_id = ? AND zix.internal = 0 AND ${ex.sql})
+      AND (EXISTS (SELECT 1 FROM internal_contacts zii WHERE zii.workspace_id = ? AND zii.internal = 1 AND ${inn.sql})
         OR (COALESCE((SELECT CASE WHEN json_valid(zis.data) THEN json_extract(zis.data, '$.lines') END FROM internal_contact_settings zis WHERE zis.workspace_id = ?), 1) <> 0
-          AND EXISTS (SELECT 1 FROM groups_numbers zin WHERE zin.user_id = ? AND zin.phone = ? AND zin.provider <> 'sample'))))`,
-    args: [phone, ws, phone, ws, phone, ws, ws, phone],
+          AND EXISTS (SELECT 1 FROM groups_numbers zin WHERE zin.user_id = ? AND zin.provider <> 'sample' AND zin.phone <> '' AND ${num.sql}))))`,
+    args: [ws, ...ex.args, ws, ...inn.args, ws, ws, ...num.args],
   };
 }
 
-/** ¿Es interno? Un teléfono (con o sin JID) o un correo. */
+/** La otra forma de un teléfono guardado en una columna (como phoneTwin), en SQL; NULL si no tiene. */
+function phoneTwinSql(col: string): string {
+  return `(CASE WHEN length(${col}) = 13 AND substr(${col}, 1, 3) IN ('549', '521') THEN substr(${col}, 1, 2) || substr(${col}, 4)
+    WHEN length(${col}) = 12 AND substr(${col}, 1, 2) = '54' AND substr(${col}, 3, 1) BETWEEN '1' AND '8' THEN '549' || substr(${col}, 3)
+    WHEN length(${col}) = 12 AND substr(${col}, 1, 2) = '52' AND substr(${col}, 3, 1) BETWEEN '2' AND '9' THEN '521' || substr(${col}, 3) END)`;
+}
+
+/** ¿Es interno? Un teléfono (con o sin JID, en cualquiera de sus dos formas), un lid de WhatsApp o un correo. */
 export function isInternalHandle(set: InternalSet, raw: string | null | undefined): boolean {
+  const lid = lidOf(raw);
+  if (lid) return set.lids.has(lid);
   const h = normalizeHandle(raw ?? '');
   if (!h || set.excluded.has(h)) return false;
   if (set.handles.has(h)) return true;
+  // Un lid que llegó como dígitos sueltos (sin "@lid").
+  if (set.lids.has(h)) return true;
   if (!set.domains.length || !h.includes('@')) return false;
   return set.domains.includes(h.slice(h.lastIndexOf('@') + 1));
 }
 
-/** Los teléfonos internos (dígitos), para las consultas (`IN (SELECT value FROM json_each(?))`). */
+/**
+ * Los teléfonos internos (dígitos, en sus dos formas) y sus lids (dígitos y "<lid>@lid"), para las consultas
+ * (`IN (SELECT value FROM json_each(?))`) sobre un teléfono o el id de un chat 1:1.
+ */
 export function internalPhonesJson(set: InternalSet): string {
-  return JSON.stringify([...set.handles].filter((h) => !h.includes('@')));
+  return JSON.stringify([...[...set.handles].filter((h) => !h.includes('@')), ...[...set.lids].flatMap((l) => [l, `${l}@lid`])]);
 }
 
 /**
@@ -218,7 +307,7 @@ export function internalPhonesJson(set: InternalSet): string {
  */
 export function internalHandleSql(set: InternalSet, column: string): { sql: string; args: string[] } {
   const parts = [`${column} IN (SELECT value FROM json_each(?))`];
-  const args = [JSON.stringify([...set.handles])];
+  const args = [JSON.stringify([...set.handles, ...[...set.lids].map((l) => `${l}@lid`)])];
   if (set.domains.length) {
     parts.push(
       `(instr(${column}, '@') > 0 AND substr(${column}, instr(${column}, '@') + 1) IN (SELECT value FROM json_each(?)) AND ${column} NOT IN (SELECT value FROM json_each(?)))`,
@@ -286,35 +375,54 @@ export async function setInternalContact(ws: string, actor: string | null, rawHa
   const handle = normalizeHandle(rawHandle);
   if (!handle) throw new InternalContactError('invalid_handle');
   const db = getDb();
+  // La otra forma del mismo número (Argentina con o sin 9, México con o sin 1) es la misma persona: la última marca
+  // manda, así que la de la otra forma se va.
+  const twin = handleKind(handle) === 'phone' ? phoneTwin(handle) : null;
+  const dropTwin = twin ? [{ sql: 'DELETE FROM internal_contacts WHERE workspace_id = ? AND handle = ?', args: [ws, twin] }] : [];
   if (internal === null) {
-    const gone = (await db.prepare('DELETE FROM internal_contacts WHERE workspace_id = ? AND handle = ?').run(ws, handle)).changes > 0;
+    const res = await dbBatch([...dropTwin, { sql: 'DELETE FROM internal_contacts WHERE workspace_id = ? AND handle = ?', args: [ws, handle] }]);
+    const gone = res.some((r) => r.changes > 0);
     if (gone) await touchInternal(ws, now);
     return gone;
   }
   const count = (await db.prepare('SELECT COUNT(*) AS n FROM internal_contacts WHERE workspace_id = ?').get(ws)) as { n: number };
   const exists = await db.prepare('SELECT 1 AS x FROM internal_contacts WHERE workspace_id = ? AND handle = ?').get(ws, handle);
   if (!exists && Number(count.n) >= MAX_INTERNAL_CONTACTS) throw new InternalContactError('too_many');
-  const res = await db
-    .prepare(
-      `INSERT INTO internal_contacts (workspace_id, handle, internal, name, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+  // La marca de la otra forma se va en la misma transacción que la nueva (nunca quedan las dos, ni ninguna).
+  const results = await dbBatch([
+    ...dropTwin,
+    {
+      sql: `INSERT INTO internal_contacts (workspace_id, handle, internal, name, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(workspace_id, handle) DO UPDATE SET internal = excluded.internal,
          name = CASE WHEN excluded.name <> '' THEN excluded.name ELSE internal_contacts.name END`,
-    )
-    .run(ws, handle, internal ? 1 : 0, name.replace(/\s+/g, ' ').trim().slice(0, 120), actor, now.toISOString());
-  if (res.changes > 0) await touchInternal(ws, now);
+      args: [ws, handle, internal ? 1 : 0, name.replace(/\s+/g, ' ').trim().slice(0, 120), actor, now.toISOString()],
+    },
+  ]);
+  const changed = results.some((r) => r.changes > 0);
+  if (changed) await touchInternal(ws, now);
   // Marcado como interno: sus chats 1:1 que esperaban respuesta dejan de esperar (no esperan al próximo mensaje).
   if (internal && handleKind(handle) === 'phone') await stopWaiting(ws, [handle]);
-  return res.changes > 0;
+  return changed;
 }
 
-/** Los chats 1:1 de Lines con esos teléfonos dejan de esperar respuesta (y de estar marcados como vencidos). */
+/**
+ * Los chats 1:1 de Lines con esos teléfonos (en sus dos formas, o con el lid que la libreta de la línea tiene para
+ * ellos) dejan de esperar respuesta (y de estar marcados como vencidos).
+ */
 export async function stopWaiting(ws: string, phones: string[]): Promise<void> {
-  const list = phones.filter((p) => PHONE.test(p)).slice(0, MAX_INTERNAL_CONTACTS);
+  const list = [...new Set(phones.filter((p) => PHONE.test(p)).flatMap(phoneVariants))].slice(0, MAX_INTERNAL_CONTACTS * 2);
   if (!list.length) return;
+  const json = JSON.stringify(list);
+  // Dos ramas por sus índices: los chats con el teléfono y los que todavía son el lid (por la libreta de cada línea).
   await getDb()
     .prepare(
       `UPDATE groups_chats SET awaiting_since = NULL, flagged_at = NULL
-       WHERE user_id = ? AND kind = 'dm' AND awaiting_since IS NOT NULL AND phone IN (SELECT value FROM json_each(?))`,
+       WHERE id IN (
+         SELECT id FROM groups_chats WHERE user_id = ? AND kind = 'dm' AND awaiting_since IS NOT NULL AND phone IN (SELECT value FROM json_each(?))
+         UNION ALL
+         SELECT gc.id FROM wa_contacts c JOIN groups_chats gc ON gc.number_id = c.account_id AND gc.provider_chat_id = c.lid || '@lid'
+         WHERE c.app = 'lines' AND c.account_id IN (SELECT id FROM groups_numbers WHERE user_id = ?) AND c.phone IN (SELECT value FROM json_each(?))
+           AND c.lid <> '' AND gc.kind = 'dm' AND gc.awaiting_since IS NOT NULL)`,
     )
-    .run(ws, JSON.stringify(list));
+    .run(ws, json, ws, json);
 }
