@@ -5,7 +5,7 @@ import { updateActivity } from '@/lib/crm';
 import { activityUpdateSchema } from '@/lib/crm-schema';
 import { catchRef, cleanRow, CrmRefError, zodErrorCode } from '@/lib/crm-http';
 import { apiScope, canSeeActivity, assertVisibleRefs } from '@/lib/crm-visibility';
-import { apiChatReader, isChatHidden, redactChatTask } from '@/lib/crm-chat-privacy';
+import { apiChatReader, isChatHidden, redactChatTask, unmaskChatTaskEdit } from '@/lib/crm-chat-privacy';
 import { apiQueueViewer, canChangeTaskQueue, getQueue, maskQueueRefs } from '@/lib/crm-task-queues';
 
 export const runtime = 'nodejs';
@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   // No se vincula un registro que la key no ve (mismo error que un id que no existe).
   const refsHidden = await catchRef(assertVisibleRefs(auth.user.id, parsed.data, await apiScope(auth)));
   if (refsHidden instanceof CrmRefError) return apiError(400, refsHidden.code, 'A referenced record does not exist.');
-  const task = await catchRef(updateActivity(auth.user.id, params.id, parsed.data));
+  const task = await catchRef(updateActivity(auth.user.id, params.id, await unmaskChatTaskEdit(auth.user.id, params.id, reader, parsed.data)));
   if (task instanceof CrmRefError) return apiError(400, task.code, 'A referenced record does not exist.');
   if (!task) return apiError(404, 'not_found', 'Task not found.');
   const [shown] = await maskQueueRefs(apiQueueViewer(auth), [(await redactChatTask(auth.user.id, task, reader)) ?? task]);

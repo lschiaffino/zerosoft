@@ -10,6 +10,7 @@
 import { getDb } from './db';
 import type { SearchRank } from './chat-search-rank';
 import { chatAccessSql, type GroupsViewer } from './groups-access';
+import { maskPhone, maskPhoneText } from './groups-mask';
 import { linesSortKey } from './schema/inbox-lines-perf-migration';
 import { lineColor } from './line-colors';
 import { mergedUnread, sameChatKey, type ChatLineRef } from './same-chat';
@@ -86,15 +87,21 @@ export async function siblingsByKey(ws: string, viewer: GroupsViewer | null | un
   return out;
 }
 
-/** Las líneas de un chat para la pantalla (la más reciente primero). Vacío si está en una sola. */
-export function lineRefs(siblings: SiblingRow[] | undefined): ChatLineRef[] {
+/**
+ * Las líneas de un chat para la pantalla (la más reciente primero). Vacío si está en una sola. Con los
+ * teléfonos ocultos, una línea sin nombre se muestra con su número enmascarado (y un nombre con un número, también).
+ */
+export function lineRefs(siblings: SiblingRow[] | undefined, viewer?: Pick<GroupsViewer, 'mask'> | null): ChatLineRef[] {
   if (!siblings || siblings.length < 2) return [];
+  const mask = viewer?.mask === true;
+  const lineName = (s: SiblingRow) =>
+    s.line_name ? (mask ? maskPhoneText(s.line_name) : s.line_name) : s.line_phone ? (mask ? maskPhone(s.line_phone) : `+${s.line_phone}`) : '';
   return [...siblings]
     .sort((a, b) => (b.sort_key ?? '').localeCompare(a.sort_key ?? '') || a.id.localeCompare(b.id))
     .map((s) => ({
       chatId: s.id,
       lineId: s.number_id,
-      name: s.line_name || (s.line_phone ? `+${s.line_phone}` : ''),
+      name: lineName(s),
       color: lineColor(s.line_color),
       unread: Number(s.unread_count) || 0,
       lastMessageAt: s.last_message_at,
@@ -121,7 +128,7 @@ export async function withSameChatLines<T extends { id: string; unread: number; 
 ): Promise<T> {
   const key = chatKey(row);
   if (!key) return dto;
-  const lines = lineRefs((await siblingsByKey(ws, viewer, [row])).get(key));
+  const lines = lineRefs((await siblingsByKey(ws, viewer, [row])).get(key), viewer);
   if (!lines.length) return dto;
   return { ...dto, lines, unread: mergedUnread(row.kind, lines) };
 }

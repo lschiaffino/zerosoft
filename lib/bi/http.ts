@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { ZodError } from 'zod';
 import { AiError } from '../ai';
 import { biActor, biError, isResponse, readJson, type BiViewer } from './access';
+import type { ExportFile } from './export';
 import { RunError } from './run';
 import { BiStoreError } from './store';
 
@@ -32,6 +33,7 @@ export async function withViewer(req: NextRequest | Request, need: 'read' | 'wri
   }
   try {
     const out = await fn(viewer, body);
+    if (out instanceof Response) return out;
     return NextResponse.json(out ?? { ok: true }, { status });
   } catch (err) {
     return toResponse(err);
@@ -52,4 +54,17 @@ export function values(v: unknown): Record<string, string> {
     }
   }
   return out;
+}
+
+/** Una descarga (CSV, Excel o JSON) como archivo adjunto. */
+export function fileResponse(file: ExportFile): Response {
+  const body = typeof file.body === 'string' ? file.body : new Uint8Array(file.body);
+  return new Response(body, {
+    headers: {
+      'content-type': file.mime,
+      'content-disposition': `attachment; filename="${file.filename}"`,
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    },
+  });
 }

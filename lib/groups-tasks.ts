@@ -23,8 +23,8 @@ import { createNotification } from './notifications';
 import { siteUrl } from './board-urls';
 import { safeTimezone } from './notes-reminders';
 import { GroupsError, chatDisplayName, getChatRow, getMessageRow } from './groups';
-import { canSeeChat, chatAccessSql, type GroupsViewer } from './groups-access';
-import { maskPhoneText } from './groups-mask';
+import { canSeeChat, chatAccessSql, groupsViewer, type GroupsViewer } from './groups-access';
+import { maskPhoneText, unmaskEdit } from './groups-mask';
 import en from '@/messages/en/groups.json';
 import es from '@/messages/es/groups.json';
 import pt from '@/messages/pt/groups.json';
@@ -211,8 +211,19 @@ async function toDtos(ws: string, rows: TaskJoin[], viewer?: GroupsViewer): Prom
   return rows.map((r) => forViewer(toDto(r), viewer));
 }
 
-function forViewer(t: GroupTaskDto, viewer?: GroupsViewer): GroupTaskDto {
-  return viewer?.mask ? { ...t, chatName: maskPhoneText(t.chatName) } : t;
+/**
+ * La tarea para quien mira: con los teléfonos ocultos, ningún texto libre los muestra (el nombre del chat, el
+ * título, las notas y el mensaje de origen), igual que la búsqueda y los resúmenes de Lines.
+ */
+export function forViewer(t: GroupTaskDto, viewer?: Pick<GroupsViewer, 'mask'> | null): GroupTaskDto {
+  if (!viewer?.mask) return t;
+  return {
+    ...t,
+    chatName: maskPhoneText(t.chatName),
+    title: maskPhoneText(t.title),
+    notes: maskPhoneText(t.notes),
+    messageBody: maskPhoneText(t.messageBody),
+  };
 }
 
 export interface CreateTaskInput {
@@ -368,8 +379,17 @@ export interface TaskPatch {
 }
 
 export async function updateGroupTask(ws: string, id: string, patch: TaskPatch, crm?: OwnerScope | false, viewer?: GroupsViewer): Promise<GroupTaskDto> {
-  const task = await getGroupTask(ws, id, crm, viewer);
+  // Con los teléfonos ocultos, lo que llega editado trae la máscara: se compara contra lo guardado (mismo acceso,
+  // sin máscara) para no pisar los números que esa persona no ve.
+  const task = await getGroupTask(ws, id, crm, viewer?.mask ? { ...viewer, mask: false } : viewer);
   if (!task) throw new GroupsError('not_found', 404);
+  if (viewer?.mask) {
+    const raw = (await getDb().prepare('SELECT subject, body FROM crm_activities WHERE id = ? AND user_id = ?').get(task.activityId, ws)) as
+      | { subject: string; body: string }
+      | undefined;
+    if (patch.title !== undefined) patch = { ...patch, title: unmaskEdit(`${raw?.subject ?? ''}\n${task.title}`, patch.title) };
+    if (patch.notes !== undefined) patch = { ...patch, notes: unmaskEdit(raw?.body ?? '', patch.notes) };
+  }
   const data: Parameters<typeof updateActivity>[2] = {};
   if (patch.title !== undefined) {
     const t = patch.title.trim().slice(0, 200);
@@ -463,14 +483,17 @@ export async function fireTaskReminders(opts: { now?: Date; limit?: number } = {
     fired++;
     const person = r.owner_id ?? r.created_by;
     const locale: Locale = r.locale === 'es' || r.locale === 'pt' ? r.locale : 'en';
-    const chatName = chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid });
     const href = `/app/lines/inbox/${encodeURIComponent(r.chat_id)}`;
-    // El aviso va solo a quien ve el chat (más abajo): puede llevar el título que se ve en Lines.
-    const title = titleFor(r);
-    const mail = buildTaskEmail({ title, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
-    const { personCanSeeChat } = await import('./groups-access');
     // Sin ver la línea del chat no hay aviso: ni la notificación ni el email nombran el chat.
-    if (person && !(await personCanSeeChat(r.user_id, person, r.chat_id).catch(() => false))) continue;
+    const { workspaceRole } = await import('./api-auth');
+    const pv = person ? await groupsViewer(r.user_id, person, await workspaceRole(r.user_id, person)).catch(() => null) : null;
+    if (person && !(pv && (await canSeeChat(pv, r.chat_id).catch(() => false)))) continue;
+    // El aviso va solo a quien ve el chat: lleva el título que se ve en Lines, con los teléfonos ocultos si a esa
+    // persona se le ocultan (también en el email).
+    const hide = (t: string) => (pv?.mask ? maskPhoneText(t) : t);
+    const chatName = hide(chatDisplayName({ name: r.chat_name, phone: r.chat_phone, provider_chat_id: r.chat_pid }));
+    const title = hide(titleFor(r));
+    const mail = buildTaskEmail({ title, chatName, dueAt: r.due_at, timezone: r.timezone }, locale, `${siteUrl()}/${locale}${href}`);
     if (person) {
       await createNotification({
         userId: person,

@@ -106,6 +106,9 @@ async function walk(page: Page, app: 'lines' | 'inbox', urls: { group: string; d
   // Tabs de 40px o más y, a 390, una hoja a pantalla completa.
   for (const box of await panel.getByRole('tab').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) expect(box).toBeGreaterThanOrEqual(40);
   if (width === 390) expect(Math.round((await panel.boundingBox())!.width)).toBe(390);
+  // Ningún nombre de pestaña cortado con "…" (a 390, "Members" quedaba "Membe…" con siete partes iguales).
+  const cut = await panel.getByRole('tab').evaluateAll((els) => els.filter((el) => Array.from(el.querySelectorAll('span')).some((s) => s.scrollWidth > s.clientWidth + 1)).map((el) => el.getAttribute('data-details-tab')));
+  expect(cut).toEqual([]);
   await noSideScroll(page);
 
   // Teclado: foco itinerante con flechas, Inicio y Fin; Enter no hace falta (la flecha ya elige).
