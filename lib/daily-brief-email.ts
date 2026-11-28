@@ -23,6 +23,7 @@ import { blockedAppsFor } from './workspace-apps';
 import { localDayIn, localHourIn } from './track-recurrence';
 import { briefIsEmpty, inboxBrief, linesBrief, type DailyBrief } from './daily-brief';
 import { loadInternalSet } from './internal-contacts';
+import { briefUnsubscribeHeaders, briefUnsubscribeLinks } from './daily-brief-unsub';
 import type { ProductKey } from './products';
 import en from '@/messages/en/groups.json';
 import es from '@/messages/es/groups.json';
@@ -75,7 +76,7 @@ export function dayEndIn(timeZone: string, now: Date): Date {
 }
 
 /** El email (texto y HTML) con lo que haya de cada app. Los nombres ya vienen limpios y cortos (briefName). */
-export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject: string; text: string; html: string } {
+export function buildBriefEmail(briefs: DailyBrief[], locale: Locale, unsubscribeUrl?: string | null): { subject: string; text: string; html: string } {
   const t = createTranslator({ locale, messages: MESSAGES[locale] as never, namespace: 'wa.brief' as never }) as unknown as (
     key: string,
     values?: Record<string, string | number>,
@@ -98,10 +99,17 @@ export function buildBriefEmail(briefs: DailyBrief[], locale: Locale): { subject
     htmlParts.push(`<strong>${appName[b.app]}</strong><br />${lines.map((l) => l.html).join('<br />')}<br /><a href="${escapeHtml(href[b.app])}">${escapeHtml(open)}</a>`);
   }
   const footer = t('email.footer');
+  // La baja de un clic (lib/daily-brief-unsub.ts): abre una confirmación, no apaga nada al abrirse.
+  const unsub = unsubscribeUrl ? t('email.unsubscribe') : '';
   return {
     subject: t('email.subject'),
-    text: `${textParts.join('\n\n')}\n\n${footer}`,
-    html: renderBrandedHtml({ heading: t('email.heading'), paragraphs: htmlParts, eyebrow: 'zerosoft · daily brief', note: escapeHtml(footer) }),
+    text: `${textParts.join('\n\n')}\n\n${footer}${unsub ? `\n${unsub}: ${unsubscribeUrl}` : ''}`,
+    html: renderBrandedHtml({
+      heading: t('email.heading'),
+      paragraphs: htmlParts,
+      eyebrow: 'zerosoft · daily brief',
+      note: `${escapeHtml(footer)}${unsub ? ` <a href="${escapeHtml(unsubscribeUrl!)}">${escapeHtml(unsub)}</a>` : ''}`,
+    }),
   };
 }
 
@@ -178,7 +186,14 @@ export async function sendDailyBriefEmails(opts: { now?: Date; limit?: number; b
           continue;
         }
         const locale: Locale = c.locale === 'es' || c.locale === 'pt' ? c.locale : 'en';
-        const res = await sendEmail({ to: user.email, from: appSender(), ...buildBriefEmail(briefs, locale) });
+        // Baja de un clic (RFC 8058) en los encabezados y un link en el pie, con un token firmado de la persona.
+        const links = briefUnsubscribeLinks(c.user_id, locale, siteUrl());
+        const res = await sendEmail({
+          to: user.email,
+          from: appSender(),
+          ...buildBriefEmail(briefs, locale, links?.pageUrl),
+          headers: briefUnsubscribeHeaders(links),
+        });
         ok = res.ok;
         if (res.ok) sent++;
       } catch (err) {

@@ -45,7 +45,8 @@ export default async function FormDetailPage(props: {
     const [contactAccess, companyAccess, lists, tags, sequences, pipelines] = await Promise.all([
       fieldAccessFor(sessionFieldViewer(user), 'contacts'),
       fieldAccessFor(sessionFieldViewer(user), 'companies'),
-      listLists(user.id),
+      // Solo se ofrecen las estáticas (nombre e id); con el alcance de quien mira, como en el resto.
+      sessionScope(user).then((scope) => listLists(user.id, scope)),
       listTags(user.id),
       listSequences(user.id),
       listPipelinesWithStages(user.id),

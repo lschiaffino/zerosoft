@@ -1509,7 +1509,8 @@
         "tips": "los consejos sobre funciones",
         "team": "los avisos sobre tu equipo",
         "reengagement": "los recordatorios",
-        "digest": "el resumen semanal"
+        "digest": "el resumen semanal",
+        "dailyBrief": "el email del resumen del día"
       }
     }
   },

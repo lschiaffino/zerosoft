@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import type { FollowupView } from '@/lib/crm-ai-followup';
 import { formatMoney } from '@/lib/crm-money';
 import { aiErrorKey, dayFromToday } from './aiShared';
-import { useCrmAdmin } from './CrmViewer';
+import { useCrmAdmin, useCrmOptions } from './CrmViewer';
 import ApprovalDialog, { readApproval, type ApprovalInfo } from './ApprovalDialog';
 import StageRequirementsDialog, { checkStageMove, readRequirements, type StageRequirements } from './StageRequirementsDialog';
 
@@ -133,11 +133,18 @@ interface Labels {
 function useLabels(): Labels {
   const t = useTranslations('crm.ai');
   const tc = useTranslations('crm');
+  const opts = useCrmOptions();
   return {
     empty: t('followup.emptyValue'),
     yes: t('followup.yes'),
     no: t('followup.no'),
-    enumLabel: (k, v) => (tc.has(`enums.${k}.${v}` as 'enums.priority.low') ? tc(`enums.${k}.${v}` as 'enums.priority.low') : v),
+    // Lifecycle y lead status: el nombre que les puso el workspace (las propias no tienen traducción).
+    enumLabel: (k, v) =>
+      k === 'lifecycle' || k === 'leadStatus'
+        ? opts.label(k, v)
+        : tc.has(`enums.${k}.${v}` as 'enums.priority.low')
+          ? tc(`enums.${k}.${v}` as 'enums.priority.low')
+          : v,
   };
 }
 
