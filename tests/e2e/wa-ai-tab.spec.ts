@@ -85,8 +85,8 @@ async function created(app: 'lines' | 'inbox', id: string, tag: string): Promise
     const sql =
       app === 'lines'
         ? `SELECT title FROM groups_tickets WHERE chat_id = ? UNION ALL SELECT a.subject AS title FROM groups_tasks t JOIN crm_activities a ON a.id = t.activity_id WHERE t.chat_id = ?`
-        : `SELECT subject AS title FROM crm_activities WHERE type = 'task' AND subject LIKE ? AND subject LIKE ?`;
-    const args = app === 'lines' ? [id, id] : ['%precio%', `%${tag}`];
+        : `SELECT subject AS title FROM crm_activities WHERE type = 'task' AND subject LIKE ?`;
+    const args = app === 'lines' ? [id, id] : [`% ${tag}`];
     return (await db.execute({ sql, args })).rows.map((r) => String(r.title));
   } finally {
     db.close();
@@ -200,48 +200,58 @@ for (const app of ['lines', 'inbox'] as const) {
       await tab.getByTestId('details-ai-range').locator('[data-range="7"]').click();
       await tab.getByTestId('details-ai-run').click();
       const proposals = tab.getByTestId('details-ai-proposals');
-      const first = proposals.getByTestId('details-ai-proposal').first();
-      await expect(first).toBeVisible();
+      const rows = proposals.getByTestId('details-ai-proposal');
+      // Dos propuestas: lo que pidió el contacto y lo que quedó prometido.
+      await expect(rows).toHaveCount(2);
+      const first = rows.nth(0);
+      const second = rows.nth(1);
       await expect(first.getByTestId('details-ai-proposal-title')).toHaveValue(/precio del plan anual/);
-      // En Lines se elige tarea o ticket (el primero viene como ticket); en Inbox es siempre una tarea del CRM.
-      if (app === 'lines') await expect(first.getByTestId('details-ai-proposal-kind')).toHaveValue('ticket');
-      else await expect(first.getByTestId('details-ai-proposal-kind')).toHaveCount(0);
+      await expect(second.getByTestId('details-ai-proposal-title')).toHaveValue(/Mañana les confirmo/);
+      // En Lines se elige tarea o ticket (el pedido viene como ticket, sin notas); en Inbox es siempre una tarea del CRM.
+      if (app === 'lines') {
+        await expect(first.getByTestId('details-ai-proposal-kind')).toHaveValue('ticket');
+        await expect(first.getByTestId('details-ai-proposal-notes')).toHaveCount(0);
+        await expect(second.getByTestId('details-ai-proposal-kind')).toHaveValue('task');
+      } else {
+        await expect(first.getByTestId('details-ai-proposal-kind')).toHaveCount(0);
+        await expect(first.getByTestId('details-ai-proposal-notes')).toHaveValue(/precio del plan anual/);
+      }
+      await expect(second.getByTestId('details-ai-proposal-notes')).toBeVisible();
       // Analizar no creó nada.
       expect(await created(app, id, tag)).toEqual([]);
       if (width === 390) {
-        for (const b of [first.getByTestId('details-ai-create'), first.getByTestId('details-ai-dismiss'), first.getByTestId('details-ai-proposal-title')]) {
+        for (const b of [first.getByTestId('details-ai-create'), first.getByTestId('details-ai-dismiss'), first.getByTestId('details-ai-proposal-title'), second.getByTestId('details-ai-proposal-notes')]) {
           expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(40);
         }
       }
-      // Se cambia el título y se aprueba: se crea uno, con ese título, y queda el link.
+      // Se cambia el título y se aprueba (dos clics seguidos crean uno solo): queda el link.
       await first.getByTestId('details-ai-proposal-title').fill(`Pasar el precio ${tag}`);
-      await first.getByTestId('details-ai-create').click();
+      await first.getByTestId('details-ai-create').dblclick();
       await expect(first.getByTestId('details-ai-created-link')).toContainText(`Pasar el precio ${tag}`);
       await expect.poll(() => created(app, id, tag)).toEqual([`Pasar el precio ${tag}`]);
+      if (width === 390) expect((await first.getByTestId('details-ai-created-link').boundingBox())!.height).toBeGreaterThanOrEqual(40);
       if (width === 1280) await shots(page, `${app}-ai-proposals-${width}`);
-      // Otra pasada: en Lines, como tarea; después, Descartar la saca sin crear nada.
+      // Descartar la saca sin crear nada.
+      await second.getByTestId('details-ai-dismiss').click();
+      await expect(rows).toHaveCount(1);
+      expect(await created(app, id, tag)).toEqual([`Pasar el precio ${tag}`]);
+      // Otra pasada: lo creado se muestra creado (no se ofrece de nuevo) y lo descartado vuelve; se crea como tarea.
       await tab.getByTestId('details-ai-run').click();
-      const again = proposals.getByTestId('details-ai-proposal').first();
-      await expect(again).toHaveAttribute('data-state', 'open');
-      if (app === 'lines') {
-        await again.getByTestId('details-ai-proposal-kind').selectOption('task');
-        await again.getByTestId('details-ai-proposal-title').fill(`Tarea del precio ${tag}`);
-        await again.getByTestId('details-ai-create').click();
-        await expect(again.getByTestId('details-ai-created-link')).toContainText(`Tarea del precio ${tag}`);
-        await expect.poll(async () => (await created(app, id, tag)).sort()).toEqual([`Pasar el precio ${tag}`, `Tarea del precio ${tag}`]);
-        await tab.getByTestId('details-ai-run').click();
-      }
-      const before = await created(app, id, tag);
-      await proposals.getByTestId('details-ai-proposal').first().getByTestId('details-ai-dismiss').click();
-      await expect(proposals.getByTestId('details-ai-proposal')).toHaveCount(0);
-      expect(await created(app, id, tag)).toEqual(before);
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0)).toHaveAttribute('data-state', 'created');
+      await expect(rows.nth(1)).toHaveAttribute('data-state', 'open');
+      await rows.nth(1).getByTestId('details-ai-proposal-title').fill(`Confirmar la dirección ${tag}`);
+      await rows.nth(1).getByTestId('details-ai-create').click();
+      await expect(rows.nth(1).getByTestId('details-ai-created-link')).toContainText(`Confirmar la dirección ${tag}`);
+      await expect.poll(async () => (await created(app, id, tag)).sort()).toEqual([`Confirmar la dirección ${tag}`, `Pasar el precio ${tag}`]);
 
       // Preguntar: Enter pregunta; las sugeridas preguntan de una. El modelo falso dice cuántos mensajes leyó.
       const ask = tab.getByTestId('details-ai-ask');
       await ask.getByTestId('details-ai-question').fill('¿Qué pidió?');
       await ask.getByTestId('details-ai-question').press('Enter');
       await expect(ask.getByTestId('details-ai-answer')).toHaveCount(1);
-      await expect(ask.getByTestId('details-ai-answer').first()).toContainText('3 messages read. Question: ¿Qué pidió?');
+      await expect(ask.getByTestId('details-ai-answer').first()).toContainText('3 messages read');
+      await expect(ask.getByTestId('details-ai-answer').first()).toContainText('Question: ¿Qué pidió?');
       await expect(ask.getByTestId('details-ai-question')).toHaveValue('');
       await ask.getByTestId('details-ai-suggest-pending').click();
       await expect(ask.getByTestId('details-ai-answer')).toHaveCount(2);

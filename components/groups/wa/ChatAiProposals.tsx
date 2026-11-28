@@ -16,23 +16,29 @@ export type CreateResult = { ok: true; created: CreatedRef } | { ok: false; code
 
 interface Row extends ChatProposal {
   key: string;
+  /** El título que propuso la IA (antes de editarlo): con eso se reconoce en otra pasada lo ya creado. */
+  origin: string;
   state: 'open' | 'busy' | 'created' | 'dismissed';
   created?: CreatedRef;
-  failed?: boolean;
+  failed?: string;
 }
 
 /**
- * Cómo quedó cada propuesta de un resultado (creada, descartada), en la memoria de esta pestaña del navegador: si el
- * panel se cierra y se vuelve a abrir, lo ya creado no se ofrece crear de nuevo. Nada se guarda en el servidor.
+ * En la memoria de esta pestaña del navegador (nada se guarda en el servidor): cómo quedó cada propuesta de un
+ * resultado, para que cerrar y abrir el panel no vuelva a ofrecer crear lo creado, y lo creado en cada chat, para que
+ * "Resumir de nuevo" lo muestre creado en vez de ofrecerlo otra vez.
  */
 const rowsBySeq = new Map<number, Row[]>();
+const createdByChat = new Map<string, Map<string, CreatedRef>>();
+const originKey = (title: string) => title.trim().toLowerCase();
 
 /**
- * Los seguimientos que propone la IA (pestaña IA, Lines e Inbox): cada uno con su título (se puede cambiar), su
- * prioridad y, en Lines, tarea o ticket. Nada se crea sin "Crear"; "Descartar" lo saca de la lista. En Inbox sin el
- * CRM (`canCreate` false) se ven pero no se ofrecen crear.
+ * Los seguimientos que propone la IA (pestaña IA, Lines e Inbox): cada uno con su título y, si es tarea, sus notas (se
+ * pueden cambiar o borrar antes de crear), su prioridad y, en Lines, tarea o ticket. Nada se crea sin "Crear";
+ * "Descartar" lo saca de la lista. En Inbox sin el CRM (`canCreate` false) se ven pero no se ofrecen crear.
  */
 export default function ChatAiProposals({
+  chatKey,
   seq,
   proposals,
   kinds,
@@ -42,6 +48,7 @@ export default function ChatAiProposals({
   sectionClass,
   titleClass,
 }: {
+  chatKey: string;
   /** El resultado del que vienen (cambia con cada "Resumir"). */
   seq: number;
   proposals: ChatProposal[];
@@ -53,8 +60,15 @@ export default function ChatAiProposals({
   titleClass: string;
 }) {
   const t = useTranslations('groups.wa.details.ai');
+  const te = useTranslations('common.aiCompose.errors');
   const [rows, setRows] = useState<Row[]>(() => {
-    const start = rowsBySeq.get(seq) ?? proposals.map((p, i): Row => ({ ...p, key: String(i), state: 'open' }));
+    const done = createdByChat.get(chatKey);
+    const start =
+      rowsBySeq.get(seq) ??
+      proposals.map((p, i): Row => {
+        const created = done?.get(originKey(p.title));
+        return { ...p, key: String(i), origin: p.title, state: created ? 'created' : 'open', created };
+      });
     rowsBySeq.set(seq, start);
     return start;
   });
@@ -65,14 +79,27 @@ export default function ChatAiProposals({
     setRows(next);
   };
 
+  const errorText = (code: string) => {
+    if (code === 'crm_off') return t('crmOff');
+    if (code === 'rate_limited') return t('createBusy');
+    if (code === 'not_found' || code === 'unauthorized') return te('gone');
+    if (code === 'network' || code === 'network_error') return te('offline');
+    return t('createError');
+  };
+
   const approve = async (r: Row) => {
     // Dos clics seguidos crean uno solo: el estado se mira en la memoria, que cambia antes de volver a pintar.
     const now = (rowsBySeq.get(seq) ?? rows).find((x) => x.key === r.key);
     if (!r.title.trim() || now?.state !== 'open') return;
-    patch(r.key, { state: 'busy', failed: false });
-    const res = await create({ title: r.title.trim(), notes: r.notes, kind: r.kind, priority: r.priority });
-    if (res.ok) patch(r.key, { state: 'created', created: res.created });
-    else patch(r.key, { state: 'open', failed: true });
+    patch(r.key, { state: 'busy', failed: undefined });
+    // Un ticket no lleva notas (no tiene dónde): solo el título y la prioridad.
+    const res = await create({ title: r.title.trim(), notes: r.kind === 'task' ? r.notes.trim() : '', kind: r.kind, priority: r.priority });
+    if (res.ok) {
+      const done = createdByChat.get(chatKey) ?? new Map<string, CreatedRef>();
+      done.set(originKey(r.origin), res.created);
+      createdByChat.set(chatKey, done);
+      patch(r.key, { state: 'created', created: res.created });
+    } else patch(r.key, { state: 'open', failed: res.code });
   };
 
   const visible = rows.filter((r) => r.state !== 'dismissed');
@@ -103,7 +130,20 @@ export default function ChatAiProposals({
                     disabled={r.state === 'busy' || !canCreate}
                     onChange={(e) => patch(r.key, { title: e.target.value })}
                   />
-                  {r.notes && (
+                  {r.kind === 'task' && canCreate && (
+                    <textarea
+                      className="input wa-ai-input"
+                      data-testid="details-ai-proposal-notes"
+                      rows={2}
+                      maxLength={4000}
+                      value={r.notes}
+                      placeholder={t('notesPlaceholder')}
+                      aria-label={t('notesLabel')}
+                      disabled={r.state === 'busy'}
+                      onChange={(e) => patch(r.key, { notes: e.target.value })}
+                    />
+                  )}
+                  {r.kind === 'task' && !canCreate && r.notes && (
                     <p className="ui-help" dir="auto">
                       {r.notes}
                     </p>
@@ -130,8 +170,8 @@ export default function ChatAiProposals({
                     )}
                   </div>
                   {r.failed && (
-                    <p className="ui-help wa-ai-error" role="alert">
-                      {t('createError')}
+                    <p className="ui-help wa-ai-error" role="alert" data-testid="details-ai-create-error">
+                      {errorText(r.failed)}
                     </p>
                   )}
                   <div className="wa-ai-actions">

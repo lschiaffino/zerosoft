@@ -56,11 +56,13 @@ export async function inboxAiTabState(): Promise<InboxAiTabState> {
 
 const MENTION_RE = /(^|[^\w@])@(\d{5,20})(?!\d)/g;
 
-/** Los mensajes del rango, del más viejo al más nuevo, como los ve la persona. */
 /** En Inbox un seguimiento propuesto es siempre una tarea (CRM › Tareas, a nombre de la persona). */
 export const INBOX_PROPOSAL_KINDS: readonly ProposalKind[] = ['task'];
 
-/** `range` null: los últimos mensajes, sin rango (preguntarle a la IA sobre el chat). */
+/**
+ * Los mensajes del rango, del más viejo al más nuevo, como los ve la persona. `range` null: los últimos mensajes, sin
+ * rango (preguntarle a la IA sobre el chat).
+ */
 export async function inboxInsightMessages(owner: string, threadId: string, range: InsightRange | null): Promise<{ name: string; group: boolean; messages: InsightMessage[] }> {
   const t = await getThreadRow(owner, threadId);
   if (t.channel !== 'whatsapp') throw new InboxError('unsupported', 400);

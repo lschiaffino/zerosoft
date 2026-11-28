@@ -2089,6 +2089,7 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
   .wa-ai-range-btn { min-height: 40px; padding: 0 12px; }
   .wa-ai :is(.btn) { min-height: 40px; }
   .wa-ai :is(.input, .select) { min-height: 40px; }
+  .wa-ai-done a { display: inline-flex; align-items: center; min-height: 40px; }
 }
 /* Teléfono: el panel de Lines ocupa la pantalla entera (Inbox ya lo hace), con las pestañas al alcance. */
 @media (max-width: 640px) {

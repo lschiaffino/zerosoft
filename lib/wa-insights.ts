@@ -10,6 +10,7 @@
  */
 import { z } from 'zod';
 import { DATA_RULE, defuse, fence } from './ai-compose';
+import { maskPhoneText } from './groups-mask';
 
 export const INSIGHT_DAYS = [1, 7, 30] as const;
 export type InsightDays = (typeof INSIGHT_DAYS)[number];
@@ -174,9 +175,12 @@ export function insightsPrompt(chatName: string, group: boolean, messages: Insig
   ].join('\n\n');
 }
 
-/** Las propuestas, recortadas, sin vacías ni repetidas; un tipo que la app no tiene pasa a tarea. */
+/**
+ * Las propuestas, recortadas, sin vacías ni repetidas; un tipo que la app no tiene pasa a tarea. Sin teléfonos, aunque
+ * quien mira los vea: lo que se aprueba queda en una tarea o un ticket que ven otros (CRM, la pestaña Tareas).
+ */
 export function cleanProposals(raw: InsightsOutput['proposals'] | undefined, kinds: readonly ProposalKind[]): ChatProposal[] {
-  const one = (v: unknown, n: number) => String(v ?? '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim().slice(0, n);
+  const one = (v: unknown, n: number) => maskPhoneText(String(v ?? '').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim()).slice(0, n);
   const seen = new Set<string>();
   const out: ChatProposal[] = [];
   for (const p of raw ?? []) {
@@ -225,16 +229,19 @@ export function fakeInsights(messages: InsightMessage[], kinds: readonly Proposa
     replies: [`Thanks for your message. ${last ? `About "${last.text.slice(0, 40)}": ` : ''}[detail]`, 'I will check and get back to you today.'],
     sentiment: angry ? 'negative' : 'neutral',
     sentimentNote: angry ? 'The contact sounds upset.' : 'Calm conversation.',
-    // Lo que el contacto pide (una pregunta o un pedido): un seguimiento por cada uno, el primero como ticket si se puede.
-    proposals: theirs
-      .filter((m) => /\?|\b(please|por favor|necesito|need|send|mandame|pasan|enviar)\b/i.test(m.text))
-      .slice(-2)
-      .map((m, i) => ({
-        title: `Follow up: ${m.text.slice(0, 60)}`,
-        notes: 'Proposed by the fake model.',
-        kind: i === 0 && kinds.includes('ticket') ? ('ticket' as const) : ('task' as const),
-        priority: angry ? ('high' as const) : ('medium' as const),
-      })),
+    // Lo que el contacto pide (una pregunta o un pedido, como ticket si se puede) y lo prometido (como tarea).
+    proposals: [
+      ...theirs
+        .filter((m) => /\?|\b(please|por favor|necesito|need|send|mandame|pasan|enviar)\b/i.test(m.text))
+        .slice(-2)
+        .map((m) => ({
+          title: `Follow up: ${m.text.slice(0, 60)}`,
+          notes: `Asked in the chat: ${m.text.slice(0, 120)}`,
+          kind: kinds.includes('ticket') ? ('ticket' as const) : ('task' as const),
+          priority: angry ? ('high' as const) : ('medium' as const),
+        })),
+      ...promised.slice(-1).map((c) => ({ title: `Check: ${c.text.slice(0, 60)}`, notes: 'A pending commitment in the chat.', kind: 'task' as const, priority: 'low' as const })),
+    ],
   };
 }
 
@@ -274,9 +281,12 @@ export function cleanAnswer(text: string): string {
   return String(text ?? '').replace(/[–—]/g, '-').trim().slice(0, 4000);
 }
 
-/** El modelo falso de e2e: dice cuántos mensajes leyó y repite la pregunta. */
+/**
+ * El modelo falso de e2e: dice cuántos mensajes leyó, los repite y repite la pregunta (así un test comprueba que solo
+ * leyó lo que quien mira ve).
+ */
 export function fakeAnswer(messages: InsightMessage[], question: string): { answer: string } {
-  return { answer: `${messages.length} messages read. Question: ${question}` };
+  return { answer: `${messages.length} messages read: ${messages.map((m) => m.text.slice(0, 60)).join(' | ')}. Question: ${question}` };
 }
 
 export interface ChatAnswer {

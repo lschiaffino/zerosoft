@@ -285,6 +285,7 @@ export default function ChatAiTab({
 
           <ChatAiProposals
             key={result!.seq}
+            chatKey={chatKey}
             seq={result!.seq}
             proposals={insights.proposals ?? []}
             kinds={kinds}
@@ -297,7 +298,9 @@ export default function ChatAiTab({
         </div>
       )}
 
-      {!off && <ChatAiAsk chatKey={chatKey} ask={askChat} sectionClass={sectionClass} titleClass={titleClass} />}
+      {ai === 'ready' && (
+        <ChatAiAsk chatKey={chatKey} ask={askChat} onAiOff={(code) => setAi(code === 'ai_disabled' ? 'off' : 'not_configured')} sectionClass={sectionClass} titleClass={titleClass} />
+      )}
     </div>
   );
 }

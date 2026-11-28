@@ -334,13 +334,17 @@ describe('Lines: preguntar y seguimientos propuestos', () => {
     const a = (await ok.json()) as Answer;
     // El modelo falso dice cuántos mensajes leyó: solo el de la línea que ve.
     expect(a.messages).toBe(1);
+    // El modelo falso repite lo que leyó: el mensaje de la línea que ve sí, el de la privada no.
+    expect(a.answer).toContain('presupuesto');
     expect(JSON.stringify(a)).not.toContain('Secreto');
     // Una pregunta vacía (o que no es texto) no llama a nada.
     expect((await linesRoute.POST(post(askBody('   ')), params(onPub))).status).toBe(400);
     expect((await linesRoute.POST(post(askBody({ q: 'x' })), params(onPub))).status).toBe(400);
     // El admin ve las dos líneas.
     session.user = asMember(w.owner, w.friend, 'admin');
-    expect(((await (await linesRoute.POST(post(askBody('¿Qué pidió?')), params(onPub))).json()) as Answer).messages).toBe(2);
+    const admin = (await (await linesRoute.POST(post(askBody('¿Qué pidió?')), params(onPub))).json()) as Answer;
+    expect(admin.messages).toBe(2);
+    expect(admin.answer).toContain('Secreto');
   });
 
   it('con los teléfonos ocultos, la respuesta y los seguimientos tampoco los traen', async () => {
@@ -356,6 +360,17 @@ describe('Lines: preguntar y seguimientos propuestos', () => {
     expect(ins).toContain('Follow up');
     expect(ins).not.toContain(p);
     expect(ins).not.toContain(p.slice(-8));
+  });
+
+  it('los seguimientos propuestos no traen teléfonos aunque quien mira los vea (quedan en tareas que ven otros)', async () => {
+    const { w, pub, onPub, p } = await setup('ask-lines-owner-phones');
+    await ingestEvents(pub, [ev(`${p}@c.us`, `¿Me llaman al +${p} por favor?`, { senderName: '' })]);
+    session.user = asOwner(w.owner);
+    const body = (await (await linesRoute.POST(post(insightsBody), params(onPub))).json()) as { insights: { summary: string; proposals: Array<{ title: string; notes: string }> } };
+    // El dueño ve los teléfonos en el resumen, pero no en lo que se puede aprobar.
+    expect(body.insights.summary).toContain(p);
+    expect(body.insights.proposals.length).toBeGreaterThan(0);
+    expect(JSON.stringify(body.insights.proposals)).not.toContain(p.slice(-8));
   });
 
   it('analizar propone tareas o tickets pero no crea nada', async () => {
@@ -395,6 +410,7 @@ describe('Inbox: preguntar y crear el seguimiento aprobado', () => {
   it('anónimo 401; el chat de otra persona 404 (también para el admin y el dueño del workspace); la dueña pregunta', async () => {
     const { w, thread: t } = await thread('ask-inbox');
     expect((await call(t.id, { action: 'aiAsk', question: 'resumen' })).status).toBe(401);
+    expect((await call(t.id, { action: 'aiTask', title: 'x' })).status).toBe(401);
     for (const u of [asOwner(w.owner), asMember(w.owner, w.friend, 'admin'), asOwner(w.stranger)]) {
       session.user = u;
       expect((await call(t.id, { action: 'aiAsk', question: 'resumen' })).status).toBe(404);
@@ -405,6 +421,7 @@ describe('Inbox: preguntar y crear el seguimiento aprobado', () => {
     expect(res.status).toBe(200);
     const a = (await res.json()) as { answer: string; messages: number };
     expect(a.messages).toBe(1);
+    expect(a.answer).toContain('presupuesto');
     expect(JSON.stringify(a)).not.toContain('secreto');
     expect((await call(t.id, { action: 'aiAsk', question: ' ' })).status).toBe(400);
   });

@@ -30,7 +30,7 @@ function row(
 const parity: ProductParity = {
   competitor: 'Superhuman',
   alsoCompared: ['WhatsApp Web', 'inbox-zero'],
-  lastReviewed: '2026-11-27',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'channels', label: loc(['Accounts', 'Cuentas', 'Contas']) },
     { id: 'triage', label: loc(['Triage', 'Ordenar', 'Triagem']) },
