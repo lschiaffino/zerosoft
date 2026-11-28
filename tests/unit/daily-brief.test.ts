@@ -14,6 +14,9 @@ import type { InboundEvent } from '@/lib/groups-provider';
 import { groupsViewer, updatePlatformSettings } from '@/lib/groups-access';
 import { briefDismissed, briefEmailOn, briefKey, briefName, cleanDay, cleanDayEnd, dismissBrief, inboxBrief, inboxBriefPayload, linesBrief, serverLocalDay, setBriefEmail, type DailyBrief } from '@/lib/daily-brief';
 import { briefEmailDue, buildBriefEmail, dayEndIn, sendDailyBriefEmails } from '@/lib/daily-brief-email';
+import { briefUnsubscribeHeaders, briefUnsubscribeToken, parseBriefUnsubscribeToken } from '@/lib/daily-brief-unsub';
+import { unsubscribeToken } from '@/lib/lifecycle/prefs';
+import { NextRequest } from 'next/server';
 import { createNotification } from '@/lib/notifications';
 import { addMessage, createAccount, upsertThread } from '@/lib/inbox/core';
 import { asMember, asOwner, roles, workspaceWithMember } from './access-helpers';
@@ -23,10 +26,10 @@ import { createGroupTask } from '@/lib/groups-tasks';
 
 const session = vi.hoisted(() => ({ user: null as SessionUser | null }));
 vi.mock('@/lib/session', async (orig) => ({ ...((await orig()) as object), getCurrentUser: async () => session.user }));
-const mail = vi.hoisted(() => ({ sent: [] as Array<{ to: string; subject: string; text: string; html?: string }> }));
+const mail = vi.hoisted(() => ({ sent: [] as Array<{ to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }> }));
 vi.mock('@/lib/email', async (orig) => ({
   ...((await orig()) as object),
-  sendEmail: async (o: { to: string; subject: string; text: string; html?: string }) => {
+  sendEmail: async (o: { to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }) => {
     mail.sent.push(o);
     return { ok: true };
   },
@@ -320,6 +323,54 @@ describe('resumen del día: rutas', () => {
   });
 });
 
+describe('resumen del día: la baja del email sin sesión', () => {
+  it('el token: firmado, de esta baja y de esa persona', () => {
+    const token = briefUnsubscribeToken('user-a')!;
+    expect(parseBriefUnsubscribeToken(token)).toEqual({ userId: 'user-a' });
+    const [prefix, body, sig] = token.split('.');
+    // Otra persona con la misma firma, firma cambiada, sin prefijo o con partes de más: no.
+    expect(parseBriefUnsubscribeToken(`${prefix}.${Buffer.from('user-b').toString('base64url')}.${sig}`)).toBeNull();
+    expect(parseBriefUnsubscribeToken(`${prefix}.${body}.${sig.slice(0, -1)}x`)).toBeNull();
+    expect(parseBriefUnsubscribeToken(`${body}.${sig}`)).toBeNull();
+    expect(parseBriefUnsubscribeToken(`${token}.x`)).toBeNull();
+    expect(parseBriefUnsubscribeToken(null)).toBeNull();
+    expect(parseBriefUnsubscribeToken('x'.repeat(500))).toBeNull();
+    // Un token de los emails de ciclo de vida no sirve acá.
+    expect(parseBriefUnsubscribeToken(unsubscribeToken('user-a', 'all'))).toBeNull();
+    expect(briefUnsubscribeHeaders(null)).toEqual({});
+    // En producción, el clic único solo con https.
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      expect(briefUnsubscribeHeaders({ oneClickUrl: 'http://x/api/daily-brief/unsubscribe?t=1' })).toEqual({});
+      expect(briefUnsubscribeHeaders({ oneClickUrl: 'https://x/api/daily-brief/unsubscribe?t=1' })['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('el POST de un clic apaga solo el email de esa persona; sin token válido, 400', async () => {
+    const w = await workspaceWithMember('brief-unsub');
+    await setBriefEmail(w.member.id, true);
+    await setBriefEmail(w.friend.id, true);
+    const route = await import('@/app/api/daily-brief/unsubscribe/route');
+    const post = (query: string, body?: unknown) =>
+      route.POST(new NextRequest(`http://x/api/daily-brief/unsubscribe${query}`, { method: 'POST', headers: { 'x-forwarded-for': '10.9.8.7' }, body: body === undefined ? 'List-Unsubscribe=One-Click' : JSON.stringify(body) }));
+    session.user = null;
+    expect((await post('?t=nada')).status).toBe(400);
+    expect((await post('', { token: `${briefUnsubscribeToken(w.member.id)}x` })).status).toBe(400);
+    expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken('no-existe')!)}`)).status).toBe(400);
+    expect(await briefEmailOn(w.member.id)).toBe(true);
+    // Los buenos no cuentan para el límite por IP (los clics únicos llegan desde servidores compartidos).
+    for (let i = 0; i < 35; i++) expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken(w.owner.id)!)}`)).status).toBe(200);
+    // El clic único del cliente de correo (token en la URL) y la página (token en el cuerpo).
+    expect((await post(`?t=${encodeURIComponent(briefUnsubscribeToken(w.member.id)!)}`)).status).toBe(200);
+    expect(await briefEmailOn(w.member.id)).toBe(false);
+    expect(await briefEmailOn(w.friend.id)).toBe(true);
+    expect((await post('', { token: briefUnsubscribeToken(w.friend.id) })).status).toBe(200);
+    expect(await briefEmailOn(w.friend.id)).toBe(false);
+  });
+});
+
 describe('resumen del día: el email', () => {
   /** Un workspace con un chat asignado a la integrante, que pidió el email (en UTC). */
   const mk = async (label: string) => {
@@ -351,6 +402,14 @@ describe('resumen del día: el email', () => {
     expect(mail.sent[0].text).toContain('1 chat waiting for your reply');
     expect(mail.sent[0].text).not.toContain(SECRET);
     expect(mail.sent[0].html).not.toContain(SECRET);
+    // Baja de un clic (RFC 8058): encabezados con el POST firmado y un link a la confirmación en el pie.
+    const headers = mail.sent[0].headers ?? {};
+    expect(headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    const oneClick = /^<(.+)>$/.exec(headers['List-Unsubscribe'] ?? '')?.[1] ?? '';
+    expect(oneClick).toMatch(/\/api\/daily-brief\/unsubscribe\?t=db1\./);
+    expect(parseBriefUnsubscribeToken(new URL(oneClick).searchParams.get('t'))).toEqual({ userId: w.member.id });
+    expect(mail.sent[0].text).toMatch(/Unsubscribe from this email: \S+\/en\/email\/unsubscribe\?t=db1\./);
+    expect(mail.sent[0].html).toContain('/en/email/unsubscribe?t=db1.');
     // El mismo día no sale otra vez; el que no tenía nada tampoco recibió.
     expect(await sendDailyBriefEmails({ now: new Date('2026-11-23T10:00:00Z') })).toBe(0);
     // Fuera de hora, nada; al otro día, sí.

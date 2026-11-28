@@ -2148,7 +2148,8 @@
         "heading": "Today",
         "intro": "This is what is waiting on you.",
         "open": "Open {app}",
-        "footer": "You get this email because you turned on the daily brief. Change it in Settings › Notifications."
+        "footer": "You get this email because you turned on the daily brief. Change it in Settings › Notifications.",
+        "unsubscribe": "Unsubscribe from this email"
       }
     },
     "internal": {

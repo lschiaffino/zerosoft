@@ -147,19 +147,33 @@ async function runNow(page: Page, id: string) {
   return run;
 }
 
-/** Member real del workspace demo, con la cookie de identidad de los e2e. */
-async function member(browser: Browser, baseURL: string) {
-  const team = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
-  const email = `robots-member-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@darwin-e2e.io`;
+/** Persona nueva con su propio workspace (sin equipo), con la cookie de identidad de los e2e. */
+async function freshUser(browser: Browser, baseURL: string, prefix = 'robots-solo') {
+  const email = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@darwin-e2e.io`;
   const ctx = await browser.newContext({ baseURL });
   await ctx.addCookies([{ name: 'zs_e2e_as', value: email, url: baseURL }]);
   const p = await ctx.newPage();
   await p.goto('/en/app', { waitUntil: 'networkidle' });
   const me = String((await sql('SELECT id FROM users WHERE email = ?', [email]))[0].id);
   await sql("UPDATE users SET onboarded_at = datetime('now') WHERE id = ?", [me]);
-  await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["robots"]')`, [team, me]);
-  await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [team, me]);
-  return { ctx, page: p, email };
+  return { ctx, page: p, email, id: me };
+}
+
+/**
+ * Workspace propio para los tests que esperan una corrida: el workspace demo
+ * corre de a una (concurrency 1), así que una corrida o un lote que dejó otro
+ * test (o un spec anterior de la misma parte) la dejaba en cola más que el
+ * timeout. Acá la cola es solo suya.
+ */
+const ownWorkspace = (browser: Browser, baseURL: string) => freshUser(browser, baseURL);
+
+/** Member real del workspace demo, con la cookie de identidad de los e2e. */
+async function member(browser: Browser, baseURL: string) {
+  const team = String((await sql("SELECT id FROM teams WHERE owner_id = 'demo' ORDER BY created_at, id LIMIT 1"))[0].id);
+  const m = await freshUser(browser, baseURL, 'robots-member');
+  await sql(`INSERT INTO team_members (team_id, user_id, role, apps) VALUES (?, ?, 'member', '["robots"]')`, [team, m.id]);
+  await sql('UPDATE users SET active_team_id = ? WHERE id = ?', [team, m.id]);
+  return m;
 }
 
 test('robots: reaprende selectores cuando el sitio cambia, lo guarda y lo muestra', async ({ page }) => {
@@ -307,12 +321,10 @@ test('robots: nunca cambia Guardar por Borrar cuenta; con el mismo nombre actúa
 
 test('robots: lote en pausa avisa una vez con link, y el panel lo muestra', async ({ page, browser, baseURL }) => {
   // Otro workspace: sin minutos no afecta a las demás pruebas. Se llega al límite por la base.
-  const owner = await member(browser, baseURL!);
+  const owner = await freshUser(browser, baseURL!);
   const req = owner.ctx.request;
-  await sql("DELETE FROM team_members WHERE user_id = (SELECT id FROM users WHERE email = ?)", [owner.email]);
-  await sql('UPDATE users SET active_team_id = NULL WHERE email = ?', [owner.email]);
   try {
-    const me = String((await sql('SELECT id FROM users WHERE email = ?', [owner.email]))[0].id);
+    const me = owner.id;
     const created = await req.post('/api/robots', { data: { name: 'Paused e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.q}}` }], inputs: [{ name: 'q', label: 'Q', kind: 'text' }] } });
     expect(created.status(), await created.text()).toBe(201);
     const { id } = (await created.json()) as { id: string };
@@ -436,35 +448,42 @@ test('robots: el grabador ignora eventos falsos y enmascara lo sensible', async 
   await site.close();
 });
 
-test('robots: lote con mapeo cambiado o fila mala no arranca nada a medias', async ({ page }) => {
-  const { id } = (await (
-    await page.request.post('/api/robots', {
-      data: { name: 'Mapping e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.email}}` }], inputs: [{ name: 'email', label: 'Email', kind: 'text', required: true }] },
-    })
-  ).json()) as { id: string };
-  await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Bulk run' }).click();
-  // Una fila vacía en la fila 1.200: nada se sube.
-  const rows = Array.from({ length: 1500 }, (_, i) => (i === 1199 ? `,b${i}@x.test` : `a${i}@x.test,b${i}@x.test`));
-  await page.locator('input[type=file]').setInputFiles({ name: 'm.csv', mimeType: 'text/csv', buffer: Buffer.from(`first,second\n${rows.join('\n')}`) });
-  const posts: string[] = [];
-  page.on('request', (r) => {
-    if (r.method() === 'POST' && r.url().endsWith('/bulk')) posts.push(r.postData() ?? '');
-  });
-  await page.getByRole('dialog').getByLabel('Email').selectOption('first');
-  await page.getByRole('button', { name: /Queue 1,?500 runs/ }).click();
-  await expect(page.getByText(/Row 1,?200/)).toBeVisible();
-  expect(posts.length).toBe(0);
-  // Otro mapeo: es otro lote y todas las filas salen de la misma columna.
-  await page.getByRole('dialog').getByLabel('Email').selectOption('second');
-  await page.getByRole('button', { name: /Queue 1,?500 runs/ }).click();
-  await expect(page.getByTestId('robots-batch')).toContainText('of 1,500 finished', { timeout: 30_000 });
-  const inputs = await sql('SELECT input FROM robot_runs WHERE robot_id = ?', [id]);
-  expect(inputs.length).toBe(1500);
-  expect(inputs.every((r) => String(r.input).includes('"b'))).toBe(true);
-  const b = await sql('SELECT COUNT(DISTINCT batch_id) AS n FROM robot_runs WHERE robot_id = ?', [id]);
-  expect(Number(b[0].n)).toBe(1);
-  await sql("UPDATE robot_runs SET status = 'failed', error = 'canceled' WHERE robot_id = ? AND status = 'queued'", [id]);
+test('robots: lote con mapeo cambiado o fila mala no arranca nada a medias', async ({ browser, baseURL }) => {
+  // Encola 1.500 corridas: en su propio workspace, así no ocupan la cola del demo.
+  const own = await ownWorkspace(browser, baseURL!);
+  const page = own.page;
+  try {
+    const { id } = (await (
+      await page.request.post('/api/robots', {
+        data: { name: 'Mapping e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.email}}` }], inputs: [{ name: 'email', label: 'Email', kind: 'text', required: true }] },
+      })
+    ).json()) as { id: string };
+    await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Bulk run' }).click();
+    // Una fila vacía en la fila 1.200: nada se sube.
+    const rows = Array.from({ length: 1500 }, (_, i) => (i === 1199 ? `,b${i}@x.test` : `a${i}@x.test,b${i}@x.test`));
+    await page.locator('input[type=file]').setInputFiles({ name: 'm.csv', mimeType: 'text/csv', buffer: Buffer.from(`first,second\n${rows.join('\n')}`) });
+    const posts: string[] = [];
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().endsWith('/bulk')) posts.push(r.postData() ?? '');
+    });
+    await page.getByRole('dialog').getByLabel('Email').selectOption('first');
+    await page.getByRole('button', { name: /Queue 1,?500 runs/ }).click();
+    await expect(page.getByText(/Row 1,?200/)).toBeVisible();
+    expect(posts.length).toBe(0);
+    // Otro mapeo: es otro lote y todas las filas salen de la misma columna.
+    await page.getByRole('dialog').getByLabel('Email').selectOption('second');
+    await page.getByRole('button', { name: /Queue 1,?500 runs/ }).click();
+    await expect(page.getByTestId('robots-batch')).toContainText('of 1,500 finished', { timeout: 30_000 });
+    const inputs = await sql('SELECT input FROM robot_runs WHERE robot_id = ?', [id]);
+    expect(inputs.length).toBe(1500);
+    expect(inputs.every((r) => String(r.input).includes('"b'))).toBe(true);
+    const b = await sql('SELECT COUNT(DISTINCT batch_id) AS n FROM robot_runs WHERE robot_id = ?', [id]);
+    expect(Number(b[0].n)).toBe(1);
+    await sql("UPDATE robot_runs SET status = 'failed', error = 'canceled' WHERE robot_id = ? AND status = 'queued'", [id]);
+  } finally {
+    await own.ctx.close();
+  }
 });
 
 test('robots: un member sin CRM no manda filas al CRM ni emails afuera, ni cancela lotes ajenos', async ({ page, browser, baseURL }) => {
@@ -489,15 +508,22 @@ test('robots: un member sin CRM no manda filas al CRM ni emails afuera, ni cance
   }
 });
 
-test('robots: con el autoaprendizaje apagado, el cambio de HTML hace fallar la corrida', async ({ page }) => {
-  const created = await page.request.post('/api/robots', {
-    data: { name: 'No heal e2e', steps: [{ type: 'goto', url: `${SITE}/shop` }, { type: 'extract', selector: '.title', name: 'heading', mode: 'text', timeoutMs: 1000 }] },
-  });
-  const { id } = (await created.json()) as { id: string };
-  await page.request.patch(`/api/robots/${id}`, { data: { settings: { selfHeal: false }, timeoutSec: 20 } });
-  expect((await runNow(page, id)).status).toBe('success');
-  layout = 'b';
-  expect((await runNow(page, id)).status).toBe('failed');
+test('robots: con el autoaprendizaje apagado, el cambio de HTML hace fallar la corrida', async ({ browser, baseURL }) => {
+  // Su propio workspace: una corrida que otro test dejó viva no la deja en cola.
+  const own = await ownWorkspace(browser, baseURL!);
+  const page = own.page;
+  try {
+    const created = await page.request.post('/api/robots', {
+      data: { name: 'No heal e2e', steps: [{ type: 'goto', url: `${SITE}/shop` }, { type: 'extract', selector: '.title', name: 'heading', mode: 'text', timeoutMs: 1000 }] },
+    });
+    const { id } = (await created.json()) as { id: string };
+    await page.request.patch(`/api/robots/${id}`, { data: { settings: { selfHeal: false }, timeoutSec: 20 } });
+    expect((await runNow(page, id)).status).toBe('success');
+    layout = 'b';
+    expect((await runNow(page, id)).status).toBe('failed');
+  } finally {
+    await own.ctx.close();
+  }
 });
 
 test('robots: graba en vivo desde el sitio y los pasos llegan al editor', async ({ page, context }) => {
@@ -607,34 +633,41 @@ test('robots: la extensión descargada graba entre páginas', async ({ page }, t
   }
 });
 
-test('robots: lote de 2.500 filas en partes, avance y cancelar con confirmación', async ({ page }) => {
-  const created = await page.request.post('/api/robots', {
-    data: { name: 'Big batch e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.q}}` }], inputs: [{ name: 'q', label: 'Q', kind: 'text' }] },
-  });
-  const { id } = (await created.json()) as { id: string };
-  const puts: number[] = [];
-  page.on('request', (r) => {
-    if (r.method() === 'POST' && r.url().endsWith(`/api/robots/${id}/bulk`)) puts.push(1);
-  });
-  await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Bulk run' }).click();
-  const csv = `q\n${Array.from({ length: 2500 }, (_, i) => `v${i}`).join('\n')}`;
-  await page.locator('input[type=file]').setInputFiles({ name: 'big.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
-  await expect(page.getByText(/2,500 rows found/)).toBeVisible();
-  await page.getByRole('button', { name: /Queue 2,?500 runs/ }).click();
-  await expect(page.getByTestId('robots-batch')).toContainText('of 2,500 finished', { timeout: 30_000 });
-  expect(puts.length).toBe(3);
-  await page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' }).click();
-  const confirm = page.getByRole('dialog');
-  await expect(confirm.getByText(/will not start/)).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(confirm).toHaveCount(0);
-  const rows = await sql("SELECT COUNT(*) AS n FROM robot_runs WHERE robot_id = ? AND status = 'queued'", [id]);
-  expect(Number(rows[0].n)).toBeGreaterThan(2000);
-  await page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel the rest' }).click();
-  await expect.poll(async () => Number((await sql("SELECT COUNT(*) AS n FROM robot_runs WHERE robot_id = ? AND status = 'queued'", [id]))[0].n)).toBe(0);
-  await expect(page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' })).toHaveCount(0);
+test('robots: lote de 2.500 filas en partes, avance y cancelar con confirmación', async ({ browser, baseURL }) => {
+  // Su propio workspace: el avance del lote no espera corridas de otros tests, y lo que quede no tapa la cola del demo.
+  const own = await ownWorkspace(browser, baseURL!);
+  const page = own.page;
+  try {
+    const created = await page.request.post('/api/robots', {
+      data: { name: 'Big batch e2e', steps: [{ type: 'goto', url: `${SITE}/shop?q={{inputs.q}}` }], inputs: [{ name: 'q', label: 'Q', kind: 'text' }] },
+    });
+    const { id } = (await created.json()) as { id: string };
+    const puts: number[] = [];
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().endsWith(`/api/robots/${id}/bulk`)) puts.push(1);
+    });
+    await page.goto(`/en/app/robots/${id}?tab=runs`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Bulk run' }).click();
+    const csv = `q\n${Array.from({ length: 2500 }, (_, i) => `v${i}`).join('\n')}`;
+    await page.locator('input[type=file]').setInputFiles({ name: 'big.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await expect(page.getByText(/2,500 rows found/)).toBeVisible();
+    await page.getByRole('button', { name: /Queue 2,?500 runs/ }).click();
+    await expect(page.getByTestId('robots-batch')).toContainText('of 2,500 finished', { timeout: 30_000 });
+    expect(puts.length).toBe(3);
+    await page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' }).click();
+    const confirm = page.getByRole('dialog');
+    await expect(confirm.getByText(/will not start/)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    const rows = await sql("SELECT COUNT(*) AS n FROM robot_runs WHERE robot_id = ? AND status = 'queued'", [id]);
+    expect(Number(rows[0].n)).toBeGreaterThan(2000);
+    await page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel the rest' }).click();
+    await expect.poll(async () => Number((await sql("SELECT COUNT(*) AS n FROM robot_runs WHERE robot_id = ? AND status = 'queued'", [id]))[0].n)).toBe(0);
+    await expect(page.getByTestId('robots-batch').getByRole('button', { name: 'Cancel the rest' })).toHaveCount(0);
+  } finally {
+    await own.ctx.close();
+  }
 });
 
 test('robots: ajustes del workspace y permisos de members (permitido y bloqueado)', async ({ page, browser, baseURL }) => {
@@ -697,49 +730,56 @@ test('robots: ajustes del workspace y permisos de members (permitido y bloqueado
   }
 });
 
-test('robots: envía las filas a un S3 compatible (servidor falso local) firmado, y avisa si falla', async ({ page }) => {
-  const credName = `s3-${Date.now()}`;
-  const cred = await page.request.post('/api/flow/credentials', {
-    data: { name: credName, type: 'basic', data: { username: 'AK-FAKE', password: 'secret-fake-value' } },
-  });
-  expect(cred.ok(), await cred.text()).toBe(true);
-  const created = await page.request.post('/api/robots', {
-    data: {
-      name: 'S3 e2e',
-      steps: [
-        { type: 'goto', url: `${SITE}/shop` },
-        { type: 'extract_list', selector: 'li.product', name: 'items', max: 10, fields: [{ name: 'title', selector: '.name', attribute: '' }] },
-      ],
-    },
-  });
-  const { id } = (await created.json()) as { id: string };
-  const save = await page.request.patch(`/api/robots/${id}`, {
-    data: {
-      settings: {
-        destinations: [{ id: 's3a', kind: 's3', credential: credName, endpoint: SITE, region: 'auto', bucket: 'bucket-e2e', prefix: 'exports', format: 'csv', variable: 'items' }],
+test('robots: envía las filas a un S3 compatible (servidor falso local) firmado, y avisa si falla', async ({ browser, baseURL }) => {
+  // Su propio workspace: una corrida que otro test dejó viva no la deja en cola.
+  const own = await ownWorkspace(browser, baseURL!);
+  const page = own.page;
+  try {
+    const credName = `s3-${Date.now()}`;
+    const cred = await page.request.post('/api/flow/credentials', {
+      data: { name: credName, type: 'basic', data: { username: 'AK-FAKE', password: 'secret-fake-value' } },
+    });
+    expect(cred.ok(), await cred.text()).toBe(true);
+    const created = await page.request.post('/api/robots', {
+      data: {
+        name: 'S3 e2e',
+        steps: [
+          { type: 'goto', url: `${SITE}/shop` },
+          { type: 'extract_list', selector: 'li.product', name: 'items', max: 10, fields: [{ name: 'title', selector: '.name', attribute: '' }] },
+        ],
       },
-    },
-  });
-  expect(save.ok(), await save.text()).toBe(true);
-  s3Puts.length = 0;
-  const run = await runNow(page, id);
-  expect(run.status).toBe('success');
-  expect(s3Puts.length).toBe(1);
-  expect(s3Puts[0].url).toContain(`/bucket-e2e/exports/S3-e2e/${run.id}.csv`);
-  expect(s3Puts[0].auth).toMatch(/^AWS4-HMAC-SHA256 Credential=AK-FAKE\//);
-  expect(s3Puts[0].auth).not.toContain('secret-fake-value');
-  expect(s3Puts[0].body).toContain('Product two');
+    });
+    const { id } = (await created.json()) as { id: string };
+    const save = await page.request.patch(`/api/robots/${id}`, {
+      data: {
+        settings: {
+          destinations: [{ id: 's3a', kind: 's3', credential: credName, endpoint: SITE, region: 'auto', bucket: 'bucket-e2e', prefix: 'exports', format: 'csv', variable: 'items' }],
+        },
+      },
+    });
+    expect(save.ok(), await save.text()).toBe(true);
+    s3Puts.length = 0;
+    const run = await runNow(page, id);
+    expect(run.status).toBe('success');
+    expect(s3Puts.length).toBe(1);
+    expect(s3Puts[0].url).toContain(`/bucket-e2e/exports/S3-e2e/${run.id}.csv`);
+    expect(s3Puts[0].auth).toMatch(/^AWS4-HMAC-SHA256 Credential=AK-FAKE\//);
+    expect(s3Puts[0].auth).not.toContain('secret-fake-value');
+    expect(s3Puts[0].body).toContain('Product two');
 
-  // Un bucket que rechaza: la corrida avisa, y el token no aparece en lo que ve la persona.
-  await page.request.patch(`/api/robots/${id}`, {
-    data: { settings: { destinations: [{ id: 's3a', kind: 's3', credential: credName, endpoint: SITE, region: 'auto', bucket: 'other-bucket', format: 'csv', variable: 'items' }] } },
-  });
-  const bad = await runNow(page, id);
-  expect(JSON.stringify(bad.exports)).toContain('s3_http_404');
-  expect(JSON.stringify(bad)).not.toContain('secret-fake-value');
+    // Un bucket que rechaza: la corrida avisa, y el token no aparece en lo que ve la persona.
+    await page.request.patch(`/api/robots/${id}`, {
+      data: { settings: { destinations: [{ id: 's3a', kind: 's3', credential: credName, endpoint: SITE, region: 'auto', bucket: 'other-bucket', format: 'csv', variable: 'items' }] } },
+    });
+    const bad = await runNow(page, id);
+    expect(JSON.stringify(bad.exports)).toContain('s3_http_404');
+    expect(JSON.stringify(bad)).not.toContain('secret-fake-value');
 
-  await page.goto(`/en/app/robots/${id}?tab=integrations`, { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: 'S3 or compatible' })).toBeVisible();
+    await page.goto(`/en/app/robots/${id}?tab=integrations`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('heading', { name: 'S3 or compatible' })).toBeVisible();
+  } finally {
+    await own.ctx.close();
+  }
 });
 
 for (const theme of ['light', 'dark'] as const) {

@@ -8,14 +8,23 @@ import { Link } from '@/i18n/navigation';
  * Baja desde el link de un email: abrir la página no cambia nada (los
  * escáneres de links de los correos abren todo); el botón la confirma.
  */
-export default function UnsubscribeConfirm({ token, category }: { token: string; category: string | null }) {
+export default function UnsubscribeConfirm({
+  token,
+  category,
+  endpoint = '/api/email/unsubscribe',
+}: {
+  token: string;
+  category: string | null;
+  /** A dónde va el POST: los de ciclo de vida o, para el resumen del día, /api/daily-brief/unsubscribe. */
+  endpoint?: '/api/email/unsubscribe' | '/api/daily-brief/unsubscribe';
+}) {
   const t = useTranslations('settings.emailPrefs.unsub');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const label = category ? t(`categories.${category}`) : '';
   const go = async () => {
     if (state === 'busy') return;
     setState('busy');
-    const res = await fetch('/api/email/unsubscribe', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ token }),

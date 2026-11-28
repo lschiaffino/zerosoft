@@ -35,6 +35,7 @@
   "app/api/cron/robots/route.ts": "cron: CRON_SECRET",
   "app/api/cron/send-render/route.ts": "cron: CRON_SECRET",
   "app/api/cron/tick/route.ts": "cron: CRON_SECRET",
+  "app/api/daily-brief/unsubscribe/route.ts": "share link: unguessable token",
   "app/api/desktop/download/route.ts": "public by design",
   "app/api/desktop/token/route.ts": "auth / OAuth endpoint",
   "app/api/desktop/update/latest-mac.yml/route.ts": "public by design",
