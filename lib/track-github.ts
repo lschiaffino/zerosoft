@@ -824,6 +824,8 @@ async function handlePullRequest(
     if (prevState === 'merged') continue;
     const via = { author: pr.user?.login ?? null, ref: `#${pr.number}` };
     if (await moveIssue(issue, kind, config, row.owner_id, via)) moved++;
+    // Merge: el issue entra al release en curso de su team (lib/track-releases), como Linear.
+    if (kind === 'pr_merged') await (await import('./track-releases')).attachMergedIssue(issue.id, row.owner_id).catch(() => null);
   }
   return { status: 200, body: { linked: issues.length, moved } };
 }

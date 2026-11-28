@@ -15,7 +15,7 @@ export type CommandIcon =
   | { kind: 'priority'; value: string }
   | { kind: 'avatar'; name: string | null; empty?: boolean }
   | { kind: 'swatch'; color: string }
-  | { kind: 'glyph'; name: 'plus' | 'tag' | 'project' | 'cycle' | 'estimate' | 'calendar' | 'parent' | 'team' | 'link' | 'copy' | 'archive' | 'trash' | 'open' | 'bell' | 'duplicate' | 'subissue' | 'user' | 'milestone' };
+  | { kind: 'glyph'; name: 'plus' | 'tag' | 'project' | 'cycle' | 'estimate' | 'calendar' | 'parent' | 'team' | 'link' | 'copy' | 'archive' | 'trash' | 'open' | 'bell' | 'duplicate' | 'subissue' | 'user' | 'milestone' | 'release' };
 
 /** Crear en línea desde una página (tipear un label nuevo + Enter lo crea). */
 export interface CommandCreate {
