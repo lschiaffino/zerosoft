@@ -93,10 +93,12 @@ type Who = keyof S['users'];
  * sale de la sesión (currentTrackViewer); acá se fija igual, para que los
  * teams privados se filtren como en producción.
  */
-async function status(s: S, who: Who, call: () => Promise<Response>): Promise<number> {
+async function status(s: S, who: Who, call: () => Promise<Response | undefined>): Promise<number> {
   const user = s.users[who];
   session.user = user;
-  return (await runAsTrackViewer(realUserId(user), call, 'app')).status;
+  const res = await runAsTrackViewer(realUserId(user), call, 'app');
+  if (!res) throw new Error('la ruta no respondió');
+  return res.status;
 }
 
 describe('capabilitiesFor y parseTeamPermissions', () => {
