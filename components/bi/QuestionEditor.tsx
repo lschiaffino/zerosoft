@@ -8,6 +8,7 @@ import { paramNames } from '@/lib/bi/builder';
 import { vizOptions } from '@/lib/bi/viz';
 import { AGG_FNS, BUCKETS, FILTER_OPS, ZS_SOURCE, type BiResult, type BuilderQuery, type QueryParam, type SchemaTable, type Viz, type VizType } from '@/lib/bi/types';
 import type { DatabaseDto, ListItem, QuestionDto } from '@/lib/bi/store';
+import type { ServerExport } from './DownloadButtons';
 import ResultView from './ResultView';
 import SqlEditor from './SqlEditor';
 import SharePanel from './SharePanel';
@@ -58,6 +59,8 @@ export default function QuestionEditor({
   const [values, setValues] = useState<Record<string, string>>({});
   const [viz, setViz] = useState<Viz>(question?.viz ?? { type: 'auto' });
   const [result, setResult] = useState<BiResult | null>(null);
+  /** Lo que corrió para el resultado a la vista: la descarga de más filas vuelve a correr eso mismo. */
+  const [ran, setRan] = useState<ServerExport | null>(null);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [compiled, setCompiled] = useState<string | null>(null);
@@ -107,6 +110,7 @@ export default function QuestionEditor({
       try {
         const d = await biApi<{ result: BiResult }>('/api/bi/query', { body: { source, query: q, values, fresh: opts.fresh === true }, signal: ctrl.signal });
         setResult(d.result);
+        setRan({ url: '/api/bi/query', body: { source, query: q, values } });
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
         setResult(null);
@@ -395,7 +399,7 @@ export default function QuestionEditor({
             <span className="ui-skeleton ui-skeleton-block" />
           </div>
         ) : result ? (
-          <ResultView result={result} viz={viz} title={name || undefined} />
+          <ResultView result={result} viz={viz} title={name || undefined} server={ran ?? undefined} />
         ) : (
           <p className="bi-muted bi-empty-result">{t('editor.emptyResult')}</p>
         )}

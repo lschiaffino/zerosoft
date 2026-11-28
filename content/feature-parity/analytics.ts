@@ -24,7 +24,7 @@ function row(id: string, area: string, label: L, status: ParityStatus, opts: { d
  */
 const parity: ProductParity = {
   competitor: 'Metabase',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'data', label: loc(['Data sources', 'Fuentes de datos', 'Fontes de dados']) },
     { id: 'questions', label: loc(['Questions', 'Preguntas', 'Perguntas']) },
@@ -93,8 +93,12 @@ const parity: ProductParity = {
     row('viz-settings', 'viz', ['Formatting and series settings', 'Formato y ajustes de series', 'Formato e ajustes de séries'], 'partial', {
       detail: ['Pick the chart, x and series; no per-column formatting, goal lines or colors', 'Elegir gráfico, eje x y series; sin formato por columna, líneas de meta ni colores', 'Escolher gráfico, eixo x e séries; sem formato por coluna, linhas de meta nem cores'],
     }),
-    row('export', 'viz', ['Download results', 'Descargar resultados', 'Baixar resultados'], 'partial', {
-      detail: ['CSV of the rows shown (up to 2,000); no XLSX or JSON', 'CSV de las filas que se muestran (hasta 2.000); sin XLSX ni JSON', 'CSV das linhas mostradas (até 2.000); sem XLSX nem JSON'],
+    row('export', 'viz', ['Download results', 'Descargar resultados', 'Baixar resultados'], 'have', {
+      detail: [
+        'CSV, Excel and JSON from questions and dashboard cards, up to 20,000 rows (Metabase goes to 1 million); no PNG of a chart',
+        'CSV, Excel y JSON desde preguntas y tarjetas del tablero, hasta 20.000 filas (Metabase llega a 1 millón); sin PNG del gráfico',
+        'CSV, Excel e JSON a partir de perguntas e cartões do painel, até 20.000 linhas (o Metabase chega a 1 milhão); sem PNG do gráfico',
+      ],
     }),
 
     // Tableros
