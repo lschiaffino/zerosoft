@@ -11,6 +11,7 @@ import { connectNumber, createLabel, createNumber, getNumberRowById, updateChat 
 import { joinGroup, leaveGroup } from '@/lib/groups-org';
 import { setLabelAccess, updatePlatformSettings } from '@/lib/groups-access';
 import { resetFakeProvider } from '@/lib/groups-provider-fake';
+import { getDb } from '@/lib/db';
 import { asMember, asOwner, workspaceWithMember } from './access-helpers';
 
 const session = vi.hoisted(() => ({ user: null as SessionUser | null }));
@@ -67,6 +68,9 @@ describe('entrar de nuevo a un grupo: los datos del chat solo para quien lo ve',
     expect(res.text).not.toContain(LABEL);
     expect(res.text).not.toContain(s.labelId);
     expect(res.text).not.toContain('Invited');
+    // La línea sí entró: el chat quedó abierto otra vez.
+    const row = (await getDb().prepare('SELECT left_at FROM groups_chats WHERE id = ?').get(s.chatId)) as { left_at: string | null };
+    expect(row.left_at).toBeNull();
   });
 
   it('miembro con la etiqueta y owner: el chat completo', async () => {
