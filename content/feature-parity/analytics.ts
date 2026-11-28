@@ -24,7 +24,7 @@ function row(id: string, area: string, label: L, status: ParityStatus, opts: { d
  */
 const parity: ProductParity = {
   competitor: 'Metabase',
-  lastReviewed: '2026-11-08',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'data', label: loc(['Data sources', 'Fuentes de datos', 'Fontes de dados']) },
     { id: 'questions', label: loc(['Questions', 'Preguntas', 'Perguntas']) },
@@ -81,7 +81,13 @@ const parity: ProductParity = {
     row('caching', 'questions', ['Result caching', 'Caché de resultados', 'Cache de resultados'], 'have', {
       detail: ['Per person and query, 5 minutes by default; no per-question policy', 'Por persona y consulta, 5 minutos por defecto; sin política por pregunta', 'Por pessoa e consulta, 5 minutos por padrão; sem política por pergunta'],
     }),
-    row('history', 'questions', ['Revision history', 'Historial de versiones', 'Histórico de versões'], 'missing'),
+    row('history', 'questions', ['Revision history', 'Historial de versiones', 'Histórico de versões'], 'partial', {
+      detail: [
+        'Questions: who changed what and when, last 50 versions, restore any of them (the restore is a new version). Dashboards have no history yet',
+        'Preguntas: quién cambió qué y cuándo, las últimas 50 versiones, volver a cualquiera (volver es una versión nueva). Los tableros todavía no tienen historial',
+        'Perguntas: quem mudou o quê e quando, as últimas 50 versões, voltar a qualquer uma (voltar é uma versão nova). Os painéis ainda não têm histórico',
+      ],
+    }),
 
     // Visualizaciones
     row('viz-basic', 'viz', ['Table, number, line, bar and area', 'Tabla, número, línea, barras y área', 'Tabela, número, linha, barras e área'], 'have', { weight: 2 }),

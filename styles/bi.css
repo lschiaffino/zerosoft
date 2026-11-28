@@ -181,6 +181,14 @@ a.bi-card-title:hover { text-decoration: underline; }
 .bi-share-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .bi-share-list li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .bi-sub-form { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+.bi-history { list-style: none; margin: 0; padding: 0; max-height: min(420px, 60vh); overflow-y: auto; }
+.bi-history-item { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bi-history-item:last-child { border-bottom: 0; }
+.bi-history-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bi-history-what { color: var(--ink); overflow-wrap: anywhere; }
+.bi-history-meta { font-size: 0.8125rem; }
+.bi-history-current { flex: none; font-size: 0.8125rem; }
+.bi-history-item > .btn { flex: none; }
 .bi-pick-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
 .bi-pick { width: 100%; justify-content: flex-start; text-align: left; overflow-wrap: anywhere; }
 

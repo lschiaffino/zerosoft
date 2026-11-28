@@ -11,6 +11,7 @@ import type { DatabaseDto, ListItem, QuestionDto } from '@/lib/bi/store';
 import ResultView from './ResultView';
 import SqlEditor from './SqlEditor';
 import SharePanel from './SharePanel';
+import HistoryPanel from './HistoryPanel';
 import BiDialog from './BiDialog';
 import { biApi, biErrorText, notifyBiChanged } from './client';
 
@@ -67,7 +68,7 @@ export default function QuestionEditor({
   const [ask, setAsk] = useState(initialAsk ?? '');
   const [asking, setAsking] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<'share' | 'delete' | 'dashboard' | null>(null);
+  const [dialog, setDialog] = useState<'share' | 'delete' | 'dashboard' | 'history' | null>(null);
   const [dashboards, setDashboards] = useState<ListItem[] | null>(null);
   const [dashError, setDashError] = useState<string | null>(null);
   const canEdit = question ? question.canEdit : true;
@@ -239,6 +240,9 @@ export default function QuestionEditor({
               </button>
               <button type="button" className="btn btn-sm" onClick={() => setDialog('share')}>
                 {t('share.button')}
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setDialog('history')} data-testid="bi-history-open">
+                {t('history.button')}
               </button>
               {canEdit && (
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => setDialog('delete')}>
@@ -421,6 +425,19 @@ export default function QuestionEditor({
       )}
 
       {id && <SharePanel open={dialog === 'share'} onClose={() => setDialog(null)} kind="question" targetId={id} isAdmin={isAdmin} />}
+      {id && (
+        <HistoryPanel
+          open={dialog === 'history'}
+          onClose={() => setDialog(null)}
+          questionId={id}
+          canEdit={canEdit}
+          onRestored={() => {
+            setDialog(null);
+            // La página remonta el editor con la versión restaurada (su key lleva updatedAt).
+            router.refresh();
+          }}
+        />
+      )}
       <BiDialog open={dialog === 'dashboard'} title={t('editor.addToDashboard')} onClose={() => setDialog(null)}>
         <div className="ui-modal-body">
           {dashboards === null ? (

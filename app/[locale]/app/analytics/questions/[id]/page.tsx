@@ -20,5 +20,5 @@ export default async function Page(props: { params: Promise<{ locale: string; id
   const question = await getQuestion(viewer, id);
   if (!question) notFound();
   const [databases, schema, ai] = await Promise.all([listDatabases(viewer), sourceSchema(viewer, question.source).catch(() => []), biAiAvailable()]);
-  return <QuestionEditor key={question.id} question={question} databases={databases} initialSchema={schema} isAdmin={isAdmin} aiAvailable={ai} initialMode="builder" initialAsk={null} collectionId={question.collectionId} />;
+  return <QuestionEditor key={`${question.id}:${question.updatedAt}`} question={question} databases={databases} initialSchema={schema} isAdmin={isAdmin} aiAvailable={ai} initialMode="builder" initialAsk={null} collectionId={question.collectionId} />;
 }

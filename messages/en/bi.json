@@ -361,5 +361,26 @@
     },
     "apply": "Apply",
     "empty": "This dashboard is empty."
+  },
+  "history": {
+    "button": "History",
+    "title": "Version history",
+    "empty": "No versions yet. Each save that changes something adds one.",
+    "created": "Created this question",
+    "baseline": "Version before history started",
+    "reverted": "Restored an earlier version",
+    "edited": "Saved changes",
+    "changed": "Changed {fields}",
+    "someone": "Someone",
+    "current": "Current version",
+    "restore": "Restore this version",
+    "field": {
+      "name": "the name",
+      "description": "the description",
+      "source": "the data source",
+      "collection": "the collection",
+      "query": "the query",
+      "viz": "the chart"
+    }
   }
 }

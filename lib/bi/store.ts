@@ -9,6 +9,7 @@ import { getDb } from '../db';
 import { open, seal } from '../secret-box';
 import { canEditItem, isBiAdmin, type BiViewer } from './access';
 import type { DbConfig } from './external';
+import { deleteRevisions, diffSnapshots, ensureBaseline, recordRevision, revisionSnapshot, revisionsOf, type QuestionSnapshot, type RevisionDto } from './revisions';
 import {
   cardMappingSchema,
   dashFilterSchema,
@@ -437,10 +438,16 @@ export async function createQuestion(viewer: BiViewer, raw: unknown): Promise<Qu
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(id, viewer.workspaceId, collectionId, input.name, input.description, input.source, input.query.kind, JSON.stringify(input.query), JSON.stringify(input.viz), viewer.personId, t, t);
-  return (await getQuestion(viewer, id))!;
+  const q = (await getQuestion(viewer, id))!;
+  await recordRevision(viewer.workspaceId, id, { kind: 'create', changes: [], snapshot: snapshotOf(q), authorId: viewer.personId, at: t });
+  return q;
 }
 
-export async function updateQuestion(viewer: BiViewer, id: string, raw: unknown): Promise<QuestionDto> {
+function snapshotOf(q: QuestionDto): QuestionSnapshot {
+  return { name: q.name, description: q.description, source: q.source, collectionId: q.collectionId, query: q.query, viz: q.viz };
+}
+
+export async function updateQuestion(viewer: BiViewer, id: string, raw: unknown, kind: 'edit' | 'revert' = 'edit'): Promise<QuestionDto> {
   const r = await questionRow(viewer, id);
   if (!r) throw new BiStoreError('not_found', 404);
   if (!canEditItem(viewer, r.created_by)) throw new BiStoreError('forbidden', 403);
@@ -453,7 +460,39 @@ export async function updateQuestion(viewer: BiViewer, id: string, raw: unknown)
   await db()
     .prepare('UPDATE bi_questions SET name = ?, description = ?, source = ?, collection_id = ?, mode = ?, query_json = ?, viz_json = ?, updated_at = ? WHERE id = ?')
     .run(input.name ?? cur.name, input.description ?? cur.description, source, collectionId, query.kind, JSON.stringify(query), JSON.stringify(input.viz ?? cur.viz), now(), id);
-  return (await getQuestion(viewer, id))!;
+  const next = (await getQuestion(viewer, id))!;
+  const changes = diffSnapshots(snapshotOf(cur), snapshotOf(next));
+  if (changes.length) {
+    await ensureBaseline(viewer.workspaceId, id, snapshotOf(cur), r.created_by, r.updated_at);
+    await recordRevision(viewer.workspaceId, id, { kind, changes, snapshot: snapshotOf(next), authorId: viewer.personId, at: next.updatedAt });
+  }
+  return next;
+}
+
+/** Versiones guardadas de una pregunta que quien mira puede ver (la más nueva primero). */
+export async function listQuestionRevisions(viewer: BiViewer, id: string): Promise<RevisionDto[]> {
+  const q = await getQuestion(viewer, id);
+  if (!q) throw new BiStoreError('not_found', 404);
+  return revisionsOf(viewer.workspaceId, id);
+}
+
+/**
+ * Volver a una versión vieja: se guarda como una versión nueva (se puede
+ * deshacer). Si la colección de entonces ya no existe, queda donde está.
+ */
+export async function revertQuestion(viewer: BiViewer, id: string, revisionId: string): Promise<QuestionDto> {
+  const r = await questionRow(viewer, id);
+  if (!r) throw new BiStoreError('not_found', 404);
+  if (!canEditItem(viewer, r.created_by)) throw new BiStoreError('forbidden', 403);
+  const snap = await revisionSnapshot(viewer.workspaceId, id, revisionId);
+  if (!snap) throw new BiStoreError('not_found', 404);
+  const collectionOk = snap.collectionId === null || (await collectionRow(viewer, snap.collectionId)) !== null;
+  return updateQuestion(
+    viewer,
+    id,
+    { name: snap.name, description: snap.description, source: snap.source, query: snap.query, viz: snap.viz, ...(collectionOk ? { collectionId: snap.collectionId } : {}) },
+    'revert',
+  );
 }
 
 export async function deleteQuestion(viewer: BiViewer, id: string): Promise<void> {
@@ -463,6 +502,7 @@ export async function deleteQuestion(viewer: BiViewer, id: string): Promise<void
   await db().prepare('DELETE FROM bi_cards WHERE question_id = ?').run(id);
   await db().prepare("DELETE FROM bi_shares WHERE kind = 'question' AND target_id = ?").run(id);
   await db().prepare('DELETE FROM bi_questions WHERE id = ?').run(id);
+  await deleteRevisions(viewer.workspaceId, id);
 }
 
 // ---------- Tableros ----------
