@@ -33,6 +33,7 @@ import { useInboxComposerCommands } from '../slash-commands';
 import { useFocusOnOpen } from '@/lib/ui/focus-on-open';
 import { notifyChatSent } from '@/lib/ui/chat-sent';
 import { keepFocus } from '@/components/groups/wa/keyboard';
+import { phoneLabel } from './util';
 
 /**
  * Campo de WhatsApp como en WhatsApp Web: emoji, el campo que crece, y
@@ -486,15 +487,16 @@ const WaComposer = forwardRef<
               ) : (
                 <button
                   type="button"
-                  title={`+${p.id}`}
+                  title={phoneLabel(p.id)}
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => i !== mentionIdx && setMentionIdx(i)}
                   onClick={() => insertMention(p)}
                 >
                   <Avatar name={p.name || p.id} kind="dm" size={32} src={mentionPics.get(p.id) || undefined} seed={p.id} />
                   <span className="wa-mention-who">
-                    <span className="wa-mention-name">{p.name || `+${p.id}`}</span>
-                    {p.name !== p.id && <span className="wa-mention-phone">+{p.id}</span>}
+                    {/* Sin nombre, el teléfono con formato de WhatsApp (+1 555 000 0000), como en la lista de miembros (y en Lines). */}
+                    <span className="wa-mention-name">{!p.name || p.name === p.id ? phoneLabel(p.id) : p.name}</span>
+                    {p.name && p.name !== p.id && <span className="wa-mention-phone">{phoneLabel(p.id)}</span>}
                   </span>
                 </button>
               )}
