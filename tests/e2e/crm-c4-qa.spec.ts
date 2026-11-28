@@ -181,9 +181,11 @@ test.describe('lists', () => {
 test.describe('record page', () => {
   test('390: no feedback tab over the record; the automatic lifecycle line has a dot, not an arrow', async ({ browser, baseURL, request }) => {
     const tag = uid();
-    const contact = (await (await request.post('/api/crm/contacts', { data: { firstName: 'Auto', lastName: `Life ${tag}`, email: `auto-${tag}@x.example`, lifecycleStage: 'lead' } })).json()) as { id: string };
+    const created = await request.post('/api/crm/contacts', { data: { firstName: 'Auto', lastName: `Life ${tag}`, lifecycleStage: 'lead' } });
+    expect(created.ok(), await created.text()).toBe(true);
+    const contact = (await created.json()) as { id: string };
     const { rows: pipelines } = (await (await request.get('/api/crm/pipelines')).json()) as { rows: Array<{ id: string; stages: Array<{ id: string; is_won: number; is_lost: number }> }> };
-    const p = pipelines[0];
+    const p = pipelines.find((x) => x.stages.some((s) => !s.is_won && !s.is_lost))!;
     const stage = p.stages.find((s) => !s.is_won && !s.is_lost)!;
     const deal = await request.post('/api/crm/deals', { data: { name: `Auto deal ${tag}`, pipelineId: p.id, stageId: stage.id, amount: 100, contactIds: [contact.id] } });
     expect(deal.ok(), await deal.text()).toBe(true);
@@ -196,6 +198,7 @@ test.describe('record page', () => {
       const line = page.getByTestId('crm-timeline-change').first();
       await expect(line).toBeVisible();
       await expect(line.locator('.atl-icon svg')).toHaveCount(0);
+      expect(await line.locator('.atl-icon').evaluate((el) => getComputedStyle(el, '::after').width)).toBe('6px');
       // La hora entra entera en la pantalla.
       const when = (await line.locator('time').boundingBox())!;
       expect(when.x + when.width).toBeLessThanOrEqual(PHONE.width);
