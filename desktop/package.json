@@ -17,8 +17,8 @@
     "icons": "tauri icon build/icon.png -o src-tauri/icons"
   },
   "devDependencies": {
-    "@tauri-apps/api": "^2.12.4",
-    "@tauri-apps/cli": "^2.9.0",
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/cli": "^2.12.6",
     "esbuild": "^0.28.1",
     "typescript": "~5.7.2"
   },
