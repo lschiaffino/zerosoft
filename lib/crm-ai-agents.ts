@@ -226,8 +226,9 @@ async function listTargets(
   scoreRules?: VisibleScoreRules,
 ): Promise<Array<{ id: string; label: string }>> {
   const { getList } = await import('./crm');
-  // Una lista dinámica por score: con el total que ve quien corre el agente (como la lista en pantalla).
-  const list = await getList(ws, listId, undefined, scoreRules);
+  // La lista como la ve quien corre el agente (como en pantalla): una dinámica se evalúa con su alcance (los
+  // recuentos de deals o contactos asociados cuentan solo los que ve) y, por score, con el total que ve.
+  const list = await getList(ws, listId, scope, scoreRules);
   if (!list) throw new AiRunError('not_found', 404);
   const members = list.members.filter((m) => !scope || scope.includes(m.owner_id ?? m.user_id));
   return members.slice(0, MAX_RUN_ITEMS).map((m) => ({ id: m.id, label: contactLabel(m) }));

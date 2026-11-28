@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
+import { inboxListHref, TRACK_ENTITY_DELETED } from '@/lib/track-inbox-panel';
 import { useSearchParams } from 'next/navigation';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -56,7 +57,12 @@ function localDay(): string {
  * resumen (propiedades, progreso, milestones, salud del último update). El
  * menú ⋯ tiene seguir, copiar link y borrar (con confirmación).
  */
-export default function PlanPage({ planId }: { planId: string }) {
+/**
+ * `panel`: dentro del panel de la bandeja (lib/track-inbox-panel). La pestaña
+ * va en `ptab` (`tab` es la de la bandeja), cambiarla no navega, y borrar
+ * vuelve a la bandeja.
+ */
+export default function PlanPage({ planId, panel = false }: { planId: string; panel?: boolean }) {
   const t = useTranslations('trackPlanning');
   const locale = useLocale();
   const router = useRouter();
@@ -65,8 +71,9 @@ export default function PlanPage({ planId }: { planId: string }) {
   const [meta, setMeta] = useState<PlansMeta | null>(null);
   const [userId, setUserId] = useState('');
   const [state, setState] = useState<'loading' | 'ok' | 'missing' | 'error'>('loading');
+  const tabParam = panel ? 'ptab' : 'tab';
   const [tab, setTab] = useState<Tab>(() => {
-    const v = sp.get('tab');
+    const v = sp.get(tabParam);
     return v === 'issues' || v === 'updates' ? v : 'overview';
   });
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +135,14 @@ export default function PlanPage({ planId }: { planId: string }) {
 
   const selectTab = (next: Tab) => {
     setTab(next);
+    if (panel) {
+      // En el panel la ruta es la de la bandeja: solo se anota la pestaña, sin navegar.
+      const url = new URL(window.location.href);
+      if (next === 'overview') url.searchParams.delete('ptab');
+      else url.searchParams.set('ptab', next);
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
+      return;
+    }
     const q = new URLSearchParams(sp.toString());
     if (next === 'overview') q.delete('tab');
     else q.set('tab', next);
@@ -157,8 +172,15 @@ export default function PlanPage({ planId }: { planId: string }) {
   const remove = async () => {
     const res = await api(`/api/track/plans/${planId}`, 'DELETE');
     setConfirmDelete(false);
-    if (res.ok) router.push('/app/track/projects');
-    else setError(t('common.saveError'));
+    if (!res.ok) {
+      setError(t('common.saveError'));
+      return;
+    }
+    if (panel) {
+      // Desde el panel: sus avisos salen de la lista y se vuelve a la bandeja sin sumar historial.
+      window.dispatchEvent(new CustomEvent(TRACK_ENTITY_DELETED, { detail: { id: planId } }));
+      router.replace(inboxListHref(window.location.search), { scroll: false });
+    } else router.push('/app/track/projects');
   };
 
   // Archivar como Linear: al instante, con Deshacer en el toast (y ⌘Z); se desarchiva desde el ⋯ o el aviso.
@@ -238,7 +260,10 @@ export default function PlanPage({ planId }: { planId: string }) {
             onSelect={(v) => {
               if (v === 'follow') void follow(!data.following);
               else if (v === 'update') writeUpdate();
-              else if (v === 'copy') void copyText(window.location.href.split('?')[0]).then((ok) => setNotice(ok ? t('common.linkCopied') : null));
+              else if (v === 'copy')
+                void copyText(panel ? `${window.location.origin}/${locale}/app/track/projects/${planId}` : window.location.href.split('?')[0]).then((ok) =>
+                  setNotice(ok ? t('common.linkCopied') : null),
+                );
               else if (v === 'template') setSavingTemplate(true);
               else if (v === 'archive' || v === 'unarchive') void archive(v === 'archive');
               else if (v === 'delete') setConfirmDelete(true);
@@ -318,7 +343,7 @@ export default function PlanPage({ planId }: { planId: string }) {
             testId="tp-plan-issues"
           />
         )}
-        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={focusCompose || sp.get('new') === '1'} onPosted={load} />}
+        {tab === 'updates' && <PlanUpdates plan={plan} meta={meta} composeOpen={focusCompose || sp.get(panel ? 'pnew' : 'new') === '1'} onPosted={load} />}
       </div>
 
       {tab !== 'issues' && (

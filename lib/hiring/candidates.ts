@@ -336,7 +336,7 @@ export async function createApplication(ws: string, input: ApplyCore): Promise<{
     .run(id, ws, input.job.id, input.candidate.id, stage.id, input.autoReject ? 'rejected' : 'active', input.autoReject ? 'knockout' : '', input.autoReject ? ts : null, input.source, JSON.stringify(input.utm), input.referrer.slice(0, 500), JSON.stringify(input.answers), input.knockouts.length ? 1 : 0, ts, input.createdBy, ts, ts);
   await addEvent(ws, input.candidate.id, id, 'applied', input.createdBy, { source: input.source, stage: stage.name, knockouts: input.knockouts, job: input.job.title });
   if (input.autoReject) await addEvent(ws, input.candidate.id, id, 'rejected', null, { reason: 'knockout', auto: true });
-  await notifyTeam(await teamIds(input.job.id, ['recruiter', 'hiring_manager'], input.createdBy), {
+  await notifyTeam(ws, await teamIds(input.job.id, ['recruiter', 'hiring_manager'], input.createdBy), {
     title: `${input.candidate.name} · ${input.job.title}`,
     body: input.knockouts.length ? 'knock-out' : undefined,
     href: `/app/hiring/candidates/${input.candidate.id}?app=${id}`,
@@ -800,10 +800,10 @@ async function requestEvaluations(ws: string, app: ApplicationRow, stage: StageD
     if (res.changes) fresh.push(userId);
   }
   await notifyTeam(
+    ws,
     fresh.filter((u) => u !== actorId),
     { title: `${candidateName} · ${stage.name}`, body: job.title, href: `/app/hiring/candidates/${app.candidate_id}?app=${app.id}`, sourceId: app.id },
   );
-  void ws;
 }
 
 /** Mueve la postulación de etapa. Entrar a "Contratados" la marca contratada y corre el gancho de contratación. */

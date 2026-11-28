@@ -9,7 +9,7 @@
     "inbox": "Bandeja",
     "customers": "Clientes",
     "forms": "Formularios de pedidos",
-    "workspace":"Workspace",
+    "workspace": "Workspace",
     "yourTeams": "Tus equipos",
     "more": "Más",
     "newIssue": "Nuevo issue",
@@ -427,7 +427,11 @@
       "label": "Aviso abierto",
       "missing": "Este issue no se puede abrir acá. Puede que se haya borrado o que sea de otro workspace.",
       "retry": "Reintentar",
-      "openPage": "Abrir la página del issue"
+      "openPage": "Abrir la página del issue",
+      "openProject": "Abrir la página del project",
+      "openInitiative": "Abrir la página de la iniciativa",
+      "missingProject": "Este project no se puede abrir acá. Puede que se haya borrado o que no tengas acceso.",
+      "missingInitiative": "Esta iniciativa no se puede abrir acá. Puede que se haya borrado o que no tengas acceso."
     }
   },
   "notifications": {

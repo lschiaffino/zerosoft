@@ -12,6 +12,8 @@
  *   propio) y lo ve según lib/track-access (privado, invitado);
  * - project o iniciativa: la persona es del workspace y no es invitada (los
  *   invitados no ven projects ni iniciativas).
+ * - y en los tres: la persona tiene Track en ese workspace hoy (Miembros, Apps
+ *   del workspace, dos pasos; lib/workspace-apps personCanUseApp).
  * - chat de Lines (o un ticket o una tarea de ese chat): la persona sigue en el
  *   workspace del chat, con Lines abierta, y ve esa línea y ese chat (líneas,
  *   etiquetas; lib/groups-access).
@@ -20,6 +22,7 @@
 import { getDb } from './db';
 import type { NotificationRow } from './db';
 import { trackVisibleExpr } from './track-access';
+import { ownerSpaceSql } from './workspace';
 import { countUnreadNotifications, hidePathsSql, listNotifications, type NotificationListOptions } from './notifications';
 
 /** Lo que hace falta de un aviso para saber si se ve (source_* pueden faltar en filas viejas). */
@@ -89,30 +92,48 @@ export function chunks<T>(items: T[], size: number): T[][] {
 
 /**
  * Condición "la persona es del workspace de `alias`" (project o iniciativa):
- * dueña o miembro del team, o dueña si es personal, y no invitada (los
- * invitados de Track no ven projects ni iniciativas, lib/track-plans).
- * Usa los 4 argumentos de memberArgs.
+ * dueña o miembro del team, o, sin team, del espacio del owner (la dueña o
+ * una persona de un workspace nuevo, lib/workspace ownerSpaceSql), y no
+ * invitada (los invitados de Track no ven projects ni iniciativas,
+ * lib/track-plans). Usa los 5 argumentos de memberArgs.
  */
 export function memberSql(alias: string): string {
   return `((${alias}.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
       OR ${alias}.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-      OR (${alias}.team_id IS NULL AND ${alias}.owner_id = ?))
+      OR (${alias}.team_id IS NULL AND ${ownerSpaceSql(`${alias}.owner_id`, '?')}))
     AND NOT EXISTS (SELECT 1 FROM track_guests g WHERE g.workspace_id = COALESCE(${alias}.team_id, ${alias}.owner_id)
       AND g.email = (SELECT lower(u0.email) FROM users u0 WHERE u0.id = ?)))`;
 }
 
 export function memberArgs(userId: string): string[] {
-  return [userId, userId, userId, userId];
+  return [userId, userId, userId, userId, userId];
 }
 
-/** Ids de `table` (track_plans o track_initiatives) que existen y la persona hoy no ve. */
-async function hiddenEntities(userId: string, table: 'track_plans' | 'track_initiatives', ids: string[]): Promise<Set<string>> {
+/** El workspace (id del dueño) de una fila de Track con team_id / owner_id (alias). */
+function trackWsSql(alias: string): string {
+  return `COALESCE((SELECT tw.owner_id FROM teams tw WHERE tw.id = ${alias}.team_id), ${alias}.owner_id)`;
+}
+
+/** ¿La persona tiene Track hoy en el workspace `ws`? Una vez por workspace (en el cache, con la clave `track:<ws>`). */
+async function trackAccessFor(userId: string, ws: string, cache: LinesAccessCache): Promise<boolean> {
+  const key = `track:${ws}`;
+  if (!cache.has(key)) {
+    const { personCanUseApp } = await import('./workspace-apps');
+    cache.set(key, (await personCanUseApp(ws, userId, 'track')) ? { sql: null } : null);
+  }
+  return cache.get(key) !== null;
+}
+
+/** Ids de `table` (track_plans o track_initiatives) que existen y la persona hoy no ve (o no tiene Track en su workspace). */
+async function hiddenEntities(userId: string, table: 'track_plans' | 'track_initiatives', ids: string[], cache: LinesAccessCache): Promise<Set<string>> {
   const out = new Set<string>();
   for (const part of chunks([...new Set(ids)], 400)) {
     const rows = (await getDb()
-      .prepare(`SELECT e.id FROM ${table} e WHERE e.id IN (${part.map(() => '?').join(', ')}) AND NOT ${memberSql('e')}`)
-      .all(...part, ...memberArgs(userId))) as Array<{ id: string }>;
-    for (const r of rows) out.add(r.id);
+      .prepare(`SELECT e.id, CASE WHEN ${memberSql('e')} THEN 1 ELSE 0 END AS can_see, ${trackWsSql('e')} AS ws FROM ${table} e WHERE e.id IN (${part.map(() => '?').join(', ')})`)
+      .all(...memberArgs(userId), ...part)) as Array<{ id: string; can_see: number; ws: string | null }>;
+    for (const r of rows) {
+      if (!r.can_see || !r.ws || !(await trackAccessFor(userId, r.ws, cache))) out.add(r.id);
+    }
   }
   return out;
 }
@@ -121,7 +142,7 @@ async function hiddenEntities(userId: string, table: 'track_plans' | 'track_init
  * Issues que nombran los avisos: los que la persona ve hoy (con título y
  * status) y el conjunto de los que existen pero no ve.
  */
-export async function issuesFor(userId: string, issueIds: string[]): Promise<{ visible: Map<string, VisibleIssue>; hidden: Set<string> }> {
+export async function issuesFor(userId: string, issueIds: string[], cache: LinesAccessCache = new Map()): Promise<{ visible: Map<string, VisibleIssue>; hidden: Set<string> }> {
   const visible = new Map<string, VisibleIssue>();
   const hidden = new Set<string>();
   if (!issueIds.length) return { visible, hidden };
@@ -133,14 +154,15 @@ export async function issuesFor(userId: string, issueIds: string[]): Promise<{ v
         `SELECT i.id, i.identifier, i.title, s.name AS status_name, s.color AS status_color, s.category AS status_category,
                 CASE WHEN (p.team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
                         OR p.team_id IN (SELECT id FROM teams WHERE owner_id = ?)
-                        OR (p.team_id IS NULL AND p.owner_id = ?))
-                      AND ${trackVisibleExpr('p', '?')} THEN 1 ELSE 0 END AS can_see
+                        OR (p.team_id IS NULL AND ${ownerSpaceSql('p.owner_id', '?')}))
+                      AND ${trackVisibleExpr('p', '?')} THEN 1 ELSE 0 END AS can_see,
+                ${trackWsSql('p')} AS ws
            FROM track_issues i
            JOIN track_projects p ON p.id = i.project_id
            LEFT JOIN track_statuses s ON s.id = i.status_id
           WHERE i.id IN (${marks})`,
       )
-      .all(userId, userId, userId, userId, userId, userId, ...part)) as Array<{
+      .all(userId, userId, userId, userId, userId, userId, userId, ...part)) as Array<{
       id: string;
       identifier: string;
       title: string;
@@ -148,9 +170,10 @@ export async function issuesFor(userId: string, issueIds: string[]): Promise<{ v
       status_color: string | null;
       status_category: string | null;
       can_see: number;
+      ws: string | null;
     }>;
     for (const r of rows) {
-      if (!r.can_see) {
+      if (!r.can_see || !r.ws || !(await trackAccessFor(userId, r.ws, cache))) {
         hidden.add(r.id);
         continue;
       }
@@ -168,9 +191,10 @@ export async function issuesFor(userId: string, issueIds: string[]): Promise<{ v
 }
 
 /**
- * Lo que se calcula una vez por workspace de Lines al mirar avisos (la
- * campana pide de a tandas): si la persona tiene Lines ahí y su filtro de
- * chats. null = sin Lines (no ve ningún chat); `sql` null = ve todos.
+ * Lo que se calcula una vez por workspace al mirar avisos (la campana pide de
+ * a tandas). Clave `<ws>`: si la persona tiene Lines ahí y su filtro de chats
+ * (null = sin Lines, no ve ningún chat; `sql` null = ve todos). Clave
+ * `track:<ws>`: si tiene Track ahí (null = no).
  */
 export type LinesAccessCache = Map<string, { sql: { sql: string; args: string[] } | null } | null>;
 
@@ -260,9 +284,9 @@ export async function notificationAccess(userId: string, rows: readonly AccessRo
   const tickets = await ticketChats(userId, present(ticketIds), cache);
   const chatIds = rows.map((n, i) => (tracked(i) ? null : ticketIds[i] ? (tickets.chats.get(ticketIds[i]!) ?? null) : linesChatIdOf(n)));
   const [issues, hiddenPlans, hiddenInitiatives, chatsHidden] = await Promise.all([
-    issuesFor(userId, present(issueIds)),
-    hiddenEntities(userId, 'track_plans', present(planIds)),
-    hiddenEntities(userId, 'track_initiatives', present(initiativeIds)),
+    issuesFor(userId, present(issueIds), cache),
+    hiddenEntities(userId, 'track_plans', present(planIds), cache),
+    hiddenEntities(userId, 'track_initiatives', present(initiativeIds), cache),
     hiddenChats(userId, present(chatIds), cache),
   ]);
   const hidden = new Set<string>();

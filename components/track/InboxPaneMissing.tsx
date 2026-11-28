@@ -9,13 +9,14 @@ import { Link } from '@/i18n/navigation';
  * borró, es de otro workspace o falló al cargar): un mensaje en el panel, sin
  * tapar la lista, con el link a la página del issue y a la bandeja.
  */
-export default function InboxPaneMissing({ retry }: { retry?: () => void }) {
+export default function InboxPaneMissing({ retry, kind = 'issue' }: { retry?: () => void; kind?: 'issue' | 'project' | 'initiative' }) {
   const ti = useTranslations('track.inbox.panel');
   const pathname = usePathname();
-  const id = /\/app\/track\/inbox\/([^/?#]+)/.exec(pathname ?? '')?.[1] ?? '';
+  // Un project o una iniciativa que no se ven: sin link a su página (respondería lo mismo).
+  const id = kind === 'issue' ? (/\/app\/track\/inbox\/([^/?#]+)/.exec(pathname ?? '')?.[1] ?? '') : '';
   return (
     <div className="track-inbox-pane-missing" role="status" data-testid="track-inbox-pane-missing">
-      <p className="ui-help">{ti('missing')}</p>
+      <p className="ui-help">{kind === 'project' ? ti('missingProject') : kind === 'initiative' ? ti('missingInitiative') : ti('missing')}</p>
       <div className="track-inbox-pane-actions">
         {retry && (
           <button type="button" className="btn btn-sm" onClick={retry}>

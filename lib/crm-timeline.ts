@@ -13,7 +13,7 @@
  * emails de una empresa o un deal salen solo de contactos que la persona ve.
  */
 import { getDb } from './db';
-import { activityScopeSql, canSeeRecord, ownerScopeSql, type OwnerScope } from './crm-visibility';
+import { activityScopeSql, canSeeOwner, canSeeRecord, ownerScopeSql, type OwnerScope } from './crm-visibility';
 import { redactChatTasks, type ChatReader } from './crm-chat-privacy';
 import type { ActivityListRow } from './crm';
 
@@ -225,7 +225,27 @@ export async function listRecordChats(
   });
 }
 
-/** Un cambio automático de una propiedad (lifecycle que avanzó solo con un deal), como "Lifecycle stage changed" de HubSpot. */
+/** Un cambio de una propiedad del registro, como "Lifecycle stage changed" de HubSpot. */
+export interface PropertyChange {
+  /** Columna (`lifecycle_stage`, `stage`, `owner_id`, …) o `custom.<nombre>` de un campo propio. */
+  field: string;
+  /** Nombre de un campo propio (los de fábrica los nombra la ficha). */
+  label?: string;
+  from: string;
+  to: string;
+  /** Motivo de un cambio automático (`deal_won`); '' si lo hizo una persona. */
+  reason: string;
+  /** Quién lo cambió (nombre de alguien del workspace); '' si fue automático o no se sabe. */
+  actor?: string;
+  /** Había un valor que la persona no puede ver nombrado (una empresa que no ve, alguien que ya no está). */
+  fromPrivate?: boolean;
+  toPrivate?: boolean;
+  /** Tipo de un campo propio (para mostrar sí/no, números, fechas y montos) y la moneda de uno de moneda. */
+  valueType?: string;
+  currency?: string;
+}
+
+/** Un cambio de propiedad en el timeline: una línea, sin acciones. */
 export interface ChangeTimelineItem {
   id: string;
   type: 'change';
@@ -240,7 +260,7 @@ export interface ChangeTimelineItem {
   created_at: string;
   external: true;
   rollup: 0;
-  change: { field: 'lifecycle_stage'; from: string; to: string; reason: string };
+  change: PropertyChange;
 }
 
 /**
@@ -271,8 +291,129 @@ export async function listSystemChanges(ws: string, rec: TimelineRecordRef, limi
     created_at: r.created_at,
     external: true as const,
     rollup: 0 as const,
-    change: { field: 'lifecycle_stage' as const, from: r.old_value, to: r.new_value, reason: r.actor_email.slice('system:'.length) },
+    change: { field: 'lifecycle_stage', from: r.old_value, to: r.new_value, reason: r.actor_email.slice('system:'.length) },
   }));
+}
+
+/** Propiedades de fábrica que el timeline muestra, por registro (columnas de crm_property_events). */
+const CHANGE_FIELDS: Record<TimelineRecordKind, ReadonlySet<string>> = {
+  contact: new Set(['first_name', 'last_name', 'email', 'phone', 'job_title', 'website', 'city', 'country', 'lifecycle_stage', 'lead_status', 'source', 'company_id', 'owner_id']),
+  company: new Set([
+    'name', 'domain', 'industry', 'employees', 'phone', 'website', 'city', 'country', 'lifecycle_stage', 'owner_id', 'parent_company_id',
+    'description', 'founded_year', 'linkedin_url', 'twitter_url', 'facebook_url', 'instagram_url',
+  ]),
+  deal: new Set([
+    'name', 'amount', 'currency', 'close_date', 'priority', 'source', 'description', 'lost_reason', 'deal_type', 'next_step', 'won_reason',
+    'stage', 'owner_id', 'splits', 'forecast_category',
+  ]),
+};
+
+const CUSTOM_ENTITY: Record<TimelineRecordKind, string> = { contact: 'contacts', company: 'companies', deal: 'deals' };
+const MAX_CHANGE_VALUE = 200;
+
+function clipValue(v: string): string {
+  return v.length > MAX_CHANGE_VALUE ? `${v.slice(0, MAX_CHANGE_VALUE - 1)}…` : v;
+}
+
+/**
+ * Los cambios de propiedades de un contacto, una empresa o un deal (los más nuevos, hasta `limit`), para
+ * el timeline: los de personas y los automáticos, las etapas de un deal y los campos propios. Con lo que
+ * la persona ve: un campo propio que tiene oculto no sale (ni ocupa lugar en el tope), una empresa
+ * vinculada que no ve sale marcada como privada (sin nombre) y un owner sale por su nombre. Quien llama ya
+ * comprobó que la persona ve el registro.
+ */
+export async function listPropertyChanges(
+  user: import('./session').SessionUser,
+  rec: TimelineRecordRef,
+  scope: OwnerScope,
+  limit = 100,
+): Promise<ChangeTimelineItem[]> {
+  const ws = user.id;
+  const db = getDb();
+  const { fieldAccessFor, sessionFieldViewer } = await import('./crm-field-perms');
+  const { fieldCurrency } = await import('./crm-custom-fields');
+  const access = await fieldAccessFor(sessionFieldViewer(user), CUSTOM_ENTITY[rec.kind]);
+  const customDef = new Map(access.all.filter((d) => !access.hidden.has(d.name)).map((d) => [d.name, d]));
+  // El filtro va en la consulta: lo que la persona no ve no ocupa lugar en el tope.
+  const fields = [...CHANGE_FIELDS[rec.kind], ...[...customDef.keys()].map((n) => `custom.${n}`)];
+  const rows = (await db
+    .prepare(
+      `SELECT id, field, old_value, new_value, actor_email, created_at FROM crm_property_events
+       WHERE user_id = ? AND entity = ? AND entity_id = ? AND field IN (${fields.map(() => '?').join(', ')})
+       ORDER BY created_at DESC, rowid DESC LIMIT ?`,
+    )
+    .all(ws, rec.kind, rec.id, ...fields, limit)) as Array<{ id: string; field: string; old_value: string | null; new_value: string | null; actor_email: string | null; created_at: string }>;
+  if (!rows.length) return [];
+
+  // Personas del workspace (owner, campos de persona y quién cambió): las mismas que ofrece el selector de owner.
+  const { listMembers } = await import('./teams');
+  const { workspaceTeamId } = await import('./workspace');
+  const teamId = workspaceTeamId(user);
+  const members = teamId ? await listMembers(teamId) : [{ user_id: user.id, email: user.email, name: user.name ?? null }];
+  const personById = new Map(members.map((m) => [m.user_id, m.name || m.email]));
+  const personByEmail = new Map(members.map((m) => [m.email.toLowerCase(), m.name || m.email]));
+
+  // Empresas vinculadas: por nombre, y solo las que la persona ve (una consulta para todas).
+  const companyIds = new Set<string>();
+  for (const r of rows) {
+    if (r.field !== 'company_id' && r.field !== 'parent_company_id') continue;
+    if (r.old_value) companyIds.add(r.old_value);
+    if (r.new_value) companyIds.add(r.new_value);
+  }
+  const companyName = new Map<string, string>();
+  if (companyIds.size) {
+    const ids = [...companyIds];
+    const found = (await db
+      .prepare(`SELECT id, name, owner_id FROM crm_companies WHERE user_id = ? AND id IN (${ids.map(() => '?').join(', ')})`)
+      .all(ws, ...ids)) as Array<{ id: string; name: string; owner_id: string | null }>;
+    for (const c of found) if (canSeeOwner(scope, c.owner_id, ws)) companyName.set(c.id, c.name || '');
+  }
+
+  /** El valor a mostrar; null = había algo que la persona no puede ver nombrado (empresa privada, persona que ya no está). */
+  const value = (field: string, raw: string | null): string | null => {
+    const v = raw ?? '';
+    if (!v) return '';
+    if (field === 'company_id' || field === 'parent_company_id') return companyName.has(v) ? companyName.get(v)! : null;
+    if (field === 'owner_id') return personById.get(v) ?? null;
+    if (field.startsWith('custom.') && customDef.get(field.slice(7))?.type === 'user') return personById.get(v) ?? null;
+    return clipValue(v);
+  };
+  const out: ChangeTimelineItem[] = [];
+  for (const r of rows) {
+    const from = value(r.field, r.old_value);
+    const to = value(r.field, r.new_value);
+    // Nada que se pueda nombrar de ningún lado: la línea no dice nada.
+    if (from === null && to === null) continue;
+    const actor = r.actor_email ?? '';
+    const system = actor.startsWith('system:');
+    const def = r.field.startsWith('custom.') ? customDef.get(r.field.slice(7)) : undefined;
+    out.push({
+      id: `change-${r.id}`,
+      type: 'change' as const,
+      subject: '',
+      body: '',
+      due_at: null,
+      done: 0 as const,
+      pinned: 0 as const,
+      direction: '',
+      outcome: '',
+      duration_min: null,
+      created_at: r.created_at,
+      external: true as const,
+      rollup: 0 as const,
+      change: {
+        field: r.field,
+        ...(def ? { label: def.label || def.name, valueType: def.type, ...(def.type === 'currency' ? { currency: fieldCurrency(def) } : {}) } : {}),
+        from: from ?? '',
+        to: to ?? '',
+        ...(from === null ? { fromPrivate: true } : {}),
+        ...(to === null ? { toPrivate: true } : {}),
+        reason: system ? actor.slice('system:'.length) : '',
+        actor: system || !actor ? '' : (personByEmail.get(actor.toLowerCase()) ?? (actor.includes('@') ? actor : '')),
+      },
+    });
+  }
+  return out;
 }
 
 /**
@@ -334,7 +475,7 @@ export async function buildRecordTimeline(
     first
       ? listRecordChats(user.id, rec, { personId: user.actingUser?.id ?? user.id, role: user.role }, opts.chatReader).catch(() => [])
       : Promise.resolve([] as WhatsappTimelineItem[]),
-    first ? listSystemChanges(user.id, rec).catch(() => []) : Promise.resolve([] as ChangeTimelineItem[]),
+    first ? listPropertyChanges(user, rec, opts.ownerScope).catch(() => []) : Promise.resolve([] as ChangeTimelineItem[]),
   ]);
   // Los emails de los contactos cuentan como propios de su empresa y su deal (HubSpot los asocia solo).
   const merged = mergeTimelineWithThreads(acts.rows, threads).map((i) => ('thread' in i && i.thread ? { ...i, rollup: 0 as const } : i));

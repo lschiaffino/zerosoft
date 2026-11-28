@@ -4,7 +4,7 @@ import type { ProductParity } from './types';
 const parity: ProductParity = {
   competitor: 'Linear',
   alsoCompared: ['Jira', 'GitHub Projects'],
-  lastReviewed: '2026-11-23',
+  lastReviewed: '2026-11-28',
   areas: [
     { id: 'issues', label: { en: 'Issues and data model', es: 'Issues y modelo de datos', pt: 'Issues e modelo de dados' } },
     { id: 'views', label: { en: 'Views and navigation', es: 'Vistas y navegación', pt: 'Visualizações e navegação' } },
@@ -222,9 +222,9 @@ const parity: ProductParity = {
       area: 'collaboration',
       label: { en: 'Priority inbox with filters, snooze and reminders', es: 'Inbox con Prioridad, filtros, snooze y recordatorios', pt: 'Inbox com Prioridade, filtros, adiar e lembretes' },
       detail: {
-        en: 'Priority and Other tabs with unread counts (Priority: assigned to you, mentions, triage and SLAs waiting on you, reminders, status or priority changes on issues you follow), avatar with the action, a gray line saying why it arrived, J/K, Enter, U, H and Backspace, filters, grouping and snooze. Opening a notification shows the issue next to the list on desktop (J/K move the panel, Esc closes it) and full page on a phone; unsubscribe from the issue on the row or in the opened issue. Project and initiative notifications open their page',
-        es: 'Pestañas Prioridad y Otras con sus sin leer (Prioridad: lo que te asignaron, menciones, triage y SLAs que esperan tu acción, recordatorios, cambios de estado o prioridad en issues que seguís), avatar con la acción, una línea gris con el por qué, J/K, Enter, U, H y Backspace, filtros, agrupado y snooze. Abrir un aviso muestra el issue al lado de la lista en la compu (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. Los avisos de projects e iniciativas abren su página',
-        pt: 'Abas Prioridade e Outras com as não lidas (Prioridade: o que foi atribuído a você, menções, triagem e SLAs que esperam sua ação, lembretes, mudanças de status ou prioridade em issues que você segue), avatar com a ação, uma linha cinza com o porquê, J/K, Enter, U, H e Backspace, filtros, agrupamento e adiar. Abrir um aviso mostra o issue ao lado da lista no computador (J/K movem o painel, Esc fecha) e em tela cheia no celular; deixar de seguir o issue pela linha ou pelo issue aberto. Os avisos de projetos e iniciativas abrem a página deles',
+        en: 'Priority and Other tabs with unread counts (Priority: assigned to you, mentions, triage and SLAs waiting on you, reminders, status or priority changes on issues you follow), avatar with the action, a gray line saying why it arrived, J/K, Enter, U, H and Backspace, filters, grouping and snooze. Opening a notification shows the issue next to the list on desktop (J/K move the panel, Esc closes it) and full page on a phone; unsubscribe from the issue on the row or in the opened issue. Project and initiative notifications open in the same panel, with a link to their page',
+        es: 'Pestañas Prioridad y Otras con sus sin leer (Prioridad: lo que te asignaron, menciones, triage y SLAs que esperan tu acción, recordatorios, cambios de estado o prioridad en issues que seguís), avatar con la acción, una línea gris con el por qué, J/K, Enter, U, H y Backspace, filtros, agrupado y snooze. Abrir un aviso muestra el issue al lado de la lista en la compu (J/K mueven el panel, Esc lo cierra) y a página completa en el teléfono; dejar de seguir el issue desde la fila o desde el issue abierto. Los avisos de projects e iniciativas se abren en el mismo panel, con link a su página',
+        pt: 'Abas Prioridade e Outras com as não lidas (Prioridade: o que foi atribuído a você, menções, triagem e SLAs que esperam sua ação, lembretes, mudanças de status ou prioridade em issues que você segue), avatar com a ação, uma linha cinza com o porquê, J/K, Enter, U, H e Backspace, filtros, agrupamento e adiar. Abrir um aviso mostra o issue ao lado da lista no computador (J/K movem o painel, Esc fecha) e em tela cheia no celular; deixar de seguir o issue pela linha ou pelo issue aberto. Os avisos de projetos e iniciativas abrem no mesmo painel, com link para a página deles',
       },
       status: 'have',
       competitorHas: true,

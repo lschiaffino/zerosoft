@@ -106,7 +106,7 @@ export async function startChain(
   await joinTeam(jobId, planned.map((st) => st.userId));
   const steps = await listChain(ws, subject, subjectId);
   const next = currentStep(steps);
-  if (next) await notifyTeam([next.userId], { title: notice.title, body: localized('hiringApprovalWaiting'), href: notice.href, sourceId: subjectId });
+  if (next) await notifyTeam(ws, [next.userId], { title: notice.title, body: localized('hiringApprovalWaiting'), href: notice.href, sourceId: subjectId });
   return steps;
 }
 
@@ -138,7 +138,7 @@ export async function reassignApprover(ws: string, userId: string): Promise<void
       if (r.requested_by) notified.add(r.requested_by);
     }
   }
-  if (notified.size) await notifyTeam([...notified], { title: 'Hiring', body: localized('hiringApprovalWaiting'), href: '/app/hiring', sourceId: userId });
+  if (notified.size) await notifyTeam(ws, [...notified], { title: 'Hiring', body: localized('hiringApprovalWaiting'), href: '/app/hiring', sourceId: userId });
   const s = await getSettings(ws);
   if (s) {
     const drop = (raw: string) => JSON.stringify(parseJson<string[]>(raw, []).filter((id) => id !== userId));
@@ -172,7 +172,7 @@ export async function decideStep(
   if (!res.changes) throw new HiringError('invalid_state', 409);
   const after = await listChain(actor.ws, subject, subjectId);
   const next = currentStep(after);
-  if (next) await notifyTeam([next.userId], { title: notice.title, body: localized('hiringApprovalWaiting'), href: notice.href, sourceId: subjectId });
+  if (next) await notifyTeam(actor.ws, [next.userId], { title: notice.title, body: localized('hiringApprovalWaiting'), href: notice.href, sourceId: subjectId });
   return chainState(after);
 }
 
@@ -198,7 +198,7 @@ export async function actOnJobApproval(actor: HiringActor, jobId: string, input:
   const state = await decideStep(actor, 'job', jobId, input.action, input.note, notice);
   await db.prepare('UPDATE hiring_jobs SET approval_status = ?, updated_at = ? WHERE id = ? AND workspace_id = ?').run(state, nowIso(), jobId, actor.ws);
   if (state !== 'pending' && job.created_by && job.created_by !== actor.person) {
-    await notifyTeam([job.created_by], { title: job.title, body: localized(state === 'approved' ? 'hiringApprovalDone' : 'hiringApprovalRejected'), href: notice.href, sourceId: jobId });
+    await notifyTeam(actor.ws, [job.created_by], { title: job.title, body: localized(state === 'approved' ? 'hiringApprovalDone' : 'hiringApprovalRejected'), href: notice.href, sourceId: jobId });
   }
   return { status: state, steps: await listChain(actor.ws, 'job', jobId) };
 }

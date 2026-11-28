@@ -4915,7 +4915,13 @@
       "canceled": "Canceled"
     },
     "notePlaceholderSolo": "Start typing to leave a note",
-    "noteTooLong": "The note is too long."
+    "noteTooLong": "The note is too long.",
+    "changes": "Property changes",
+    "change": {
+      "changed": "{field} changed from {from} to {to}",
+      "set": "{field} set to {to}",
+      "cleared": "{field} cleared (was {from})"
+    }
   },
   "assocLabels": {
     "title": "Association labels",
