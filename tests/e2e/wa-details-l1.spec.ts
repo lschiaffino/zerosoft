@@ -10,7 +10,7 @@ import { ensureDetailsTab } from './helpers/details-tab';
  * - Inbox, CRM: el CRM de zerosoft como en Lines. Sugiere el contacto con el mismo teléfono, lo vincula (link al
  *   contacto y sus negocios), busca y vincula una empresa (la lista se cierra con Esc y con un toque afuera) y
  *   desvincula.
- * - El chip de la AI ("Pulir", "Insertado · Deshacer") nunca tapa la conversación: queda afuera de la lista de
+ * - El chip de la AI ("Pulir", "Insertado · Deshacer") flota sobre el borde del campo, sin cambiarle el alto al composer: queda afuera de la lista de
  *   mensajes y el último mensaje se ve entero.
  * Con L1_SHOTS=<carpeta> guarda capturas para la pasada visual. Cuenta propia; nombres, números y textos inventados.
  */
@@ -113,18 +113,35 @@ async function openAiBar(page: Page, scope: string) {
   await expect(page.getByTestId('ai-compose')).toBeVisible();
 }
 
-/** El chip de la AI está afuera de la lista de mensajes y el último mensaje se ve entero. */
-async function chipClearOfMessages(page: Page, chip: Locator) {
+/** Alto del composer (la caja entera, con sus solapas). */
+async function composerHeight(page: Page) {
+  return Math.round((await page.locator('.wa-composer').first().boundingBox())!.height);
+}
+
+/** El chip flota: visible, clickeable, no cambia el alto del composer y no tapa Enviar ni el micrófono. */
+async function chipFloats(page: Page, chip: Locator) {
   await expect(chip).toBeVisible();
-  const box = await chip.boundingBox();
-  const geo = await page.evaluate(() => {
-    const pane = document.querySelector<HTMLElement>('.wa-messages')!.getBoundingClientRect();
-    const msgs = [...document.querySelectorAll<HTMLElement>('.wa-messages .gr-msg')];
-    const last = msgs[msgs.length - 1]?.getBoundingClientRect();
-    return { paneBottom: pane.bottom, lastBottom: last?.bottom ?? 0 };
-  });
-  expect(box!.y).toBeGreaterThanOrEqual(geo.paneBottom - 0.5);
-  expect(geo.lastBottom).toBeLessThanOrEqual(geo.paneBottom + 0.5);
+  // Alto con el chip y con el chip escondido: el mismo (flota, no ocupa lugar).
+  const withChip = await composerHeight(page);
+  const hide = await page.addStyleTag({ content: '[data-testid^="ai-compose-"].aic-float { display: none !important; }' });
+  const without = await composerHeight(page);
+  await hide.evaluate((n) => (n as Element).remove());
+  expect(withChip, 'el composer no cambia de alto con el chip').toBe(without);
+  const box = (await chip.boundingBox())!;
+  const vw = page.viewportSize()!.width;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vw);
+  for (const sel of ['.wa-send', '.vc-bar']) {
+    for (const el of await page.locator(`.wa-composer ${sel}`).all()) {
+      const b = await el.boundingBox();
+      if (!b) continue;
+      const apart = box.x >= b.x + b.width || box.x + box.width <= b.x || box.y >= b.y + b.height || box.y + box.height <= b.y;
+      expect(apart, `el chip no tapa ${sel}`).toBe(true);
+    }
+  }
+  // Clickeable: el centro del chip es del chip (nada encima).
+  const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('[data-testid^="ai-compose-"]')?.getAttribute('data-testid') ?? null, [box.x + box.width / 2, box.y + box.height / 2]);
+  expect(hit).toMatch(/^ai-compose-(polish|undo)$/);
 }
 
 for (const width of [1280, 390]) {
@@ -227,7 +244,7 @@ for (const width of [1280, 390]) {
     expect(errors).toEqual([]);
   });
 
-  test(`El chip de la AI no tapa la conversación, en Lines y en Inbox (${width})`, async ({ page, request }) => {
+  test(`El chip de la AI flota sin cambiar el alto del composer, en Lines y en Inbox (${width})`, async ({ page, request }) => {
     const errors = watchErrors(page);
     await page.setViewportSize({ width, height: 844 });
     const tag = uid();
@@ -237,7 +254,7 @@ for (const width of [1280, 390]) {
     const lines = await linesOnTwoLines(request, tag);
     await openChat(page, `/en/app/lines/inbox/${lines.onVentas}`);
     await page.getByTestId('composer-input').fill(long);
-    await chipClearOfMessages(page, page.getByTestId('ai-compose-polish'));
+    await chipFloats(page, page.getByTestId('ai-compose-polish'));
     await shot(page, `lines-chip-polish-${width}`);
     await page.getByTestId('composer-input').fill('');
     await openAiBar(page, '.gr-inbox');
@@ -245,7 +262,7 @@ for (const width of [1280, 390]) {
     await expect(page.getByTestId('ai-compose-draft')).not.toHaveAttribute('aria-busy', 'true');
     await page.getByTestId('ai-compose-insert').click();
     const linesUndo = page.getByTestId('ai-compose-undo');
-    await chipClearOfMessages(page, linesUndo);
+    await chipFloats(page, linesUndo);
     const chipBox = (await linesUndo.boundingBox())!;
     for (const tab of await page.locator('.wa-mode-tab').all()) {
       const b = (await tab.boundingBox())!;
@@ -259,7 +276,7 @@ for (const width of [1280, 390]) {
     await openChat(page, `/en/app/inbox?t=${chat.id}`);
     const field = page.getByTestId('composer-input');
     await field.fill(long);
-    await chipClearOfMessages(page, page.getByTestId('ai-compose-polish'));
+    await chipFloats(page, page.getByTestId('ai-compose-polish'));
     await shot(page, `inbox-chip-polish-${width}`);
     await field.fill('');
     await expect(page.getByTestId('ai-compose-polish')).toHaveCount(0);
@@ -269,7 +286,7 @@ for (const width of [1280, 390]) {
     await expect(bar.getByTestId('ai-compose-draft')).not.toHaveAttribute('aria-busy', 'true');
     await bar.getByTestId('ai-compose-insert').click();
     await expect(bar).toBeHidden();
-    await chipClearOfMessages(page, page.getByTestId('ai-compose-undo'));
+    await chipFloats(page, page.getByTestId('ai-compose-undo'));
     expect(await noSideScroll(page)).toBeLessThanOrEqual(1);
     await shot(page, `inbox-chip-undo-${width}`);
     // Nada salió: el borrador quedó en el campo.

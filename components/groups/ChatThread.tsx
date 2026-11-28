@@ -28,7 +28,7 @@ import { useDetailsHidden } from './details-hidden';
 import { ForwardModal, MessageMenu, PinnedBar, SystemLine, type MenuItem } from './ThreadParts';
 import ReplyFromSelect from './ReplyFromSelect';
 import { defaultReplyLine } from '@/lib/same-chat';
-import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle, aiChipShown } from '@/components/ai/AiComposeBar';
+import AiComposeBar, { AiComposeButton, AiComposeChip, PencilSparkle } from '@/components/ai/AiComposeBar';
 import { useAiCompose, type ComposeAdapter } from '@/components/ai/useAiCompose';
 import { linesCompose } from './ai-compose';
 import { useSlashMenu } from '@/components/ui/useSlashMenu';
@@ -2722,7 +2722,7 @@ export default function ChatThread(props: ThreadProps) {
         )}
 
         <div
-          className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}${aiAllowed && aiChipShown(ai) ? ' has-aic-chip' : ''}`}
+          className={`gr-composer wa-composer${editing ? '' : ' has-mode'}${mode === 'note' ? ' is-note' : ''}`}
           data-voice-off
           data-tour="lines-composer"
         >
