@@ -12,14 +12,17 @@ const uid = () => Math.random().toString(36).slice(2, 8);
 /** Una IP propia por test: los límites por IP no se pisan entre tests. */
 const newIp = () => `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
 
-/** Manda un código y lo lee del email "mandado" (sin Resend va a la consola). */
+/**
+ * Manda un código y lo lee del email "mandado" (sin Resend va a la consola): la línea que es solo el código. No el
+ * primer número de 6 cifras: el email (con uid() de solo cifras) o el asunto podrían tener uno antes.
+ */
 async function codeFor(email: string, ip: string, locale = 'en'): Promise<string> {
   const log = vi.spyOn(console, 'log').mockImplementation(() => {});
   try {
     const res = await sendLoginCode(email, locale, ip);
     expect(res).toEqual({ ok: true, sent: true });
     const text = log.mock.calls.map((c) => String(c[0])).join('\n');
-    return /\b(\d{6})\b/.exec(text)![1];
+    return /^(\d{6})$/m.exec(text)![1];
   } finally {
     log.mockRestore();
   }
