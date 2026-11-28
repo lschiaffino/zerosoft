@@ -50,8 +50,10 @@ export default async function FormDetailPage(props: {
       listSequences(user.id),
       listPipelinesWithStages(user.id),
     ]);
-    const contactFields = contactAccess.visible;
-    const companyFields = companyAccess.visible;
+    // Destinos que se ofrecen: los campos que la persona puede editar, más los que el form ya tenía.
+    const targeted = new Set(form.fields.map((f) => f.property ?? ''));
+    const contactFields = contactAccess.visible.filter((f) => f.access === 'edit' || targeted.has(`custom.${f.name}`));
+    const companyFields = companyAccess.visible.filter((f) => f.access === 'edit' || targeted.has(`company.custom.${f.name}`));
     // Un campo del form que guarda en una propiedad que la persona tiene oculta no la nombra, y el form
     // no se le deja guardar (perdería ese destino sin verlo).
     const { form: shown, hiddenTargets } = await formForViewer(sessionFieldViewer(user), form);

@@ -672,7 +672,32 @@
       "audit": "Auditoria",
       "integrations": "Integrações",
       "apps": "Mobile e desktop",
+      "invite": "Convidar",
       "migrate": "Migrar do Periskope"
+    }
+  },
+  "invite": {
+    "intro": "Convide pessoas para este workspace com acesso só ao Lines. Entram como member e não veem os outros apps.",
+    "emails": "Emails",
+    "placeholder": "ana@empresa.com, leo@empresa.com",
+    "send": "Convidar para o Lines",
+    "link": "Criar link de convite",
+    "locked": "Peça a um admin para convidar a pessoa por você, ou para te dar a permissão \"Pode convidar para o Lines\" em Ajustes › Membros e permissões.",
+    "forbidden": "Você não tem permissão para convidar. Peça a um admin.",
+    "limited": "Você enviou muitos convites. Tente de novo daqui a pouco.",
+    "invalidEmails": "Confira os emails.",
+    "invalidList": "Estes emails não são válidos: {list}",
+    "failed": "Não foi possível convidar. Tente de novo.",
+    "linkLabel": "Link de convite",
+    "copy": "Copiar link",
+    "result": {
+      "sent": "Convite enviado",
+      "failed": "O email não saiu: copie o link",
+      "skipped": "Convite criado",
+      "member": "Já faz parte da equipe",
+      "invalid": "Email inválido",
+      "limited": "Limite de convites atingido",
+      "link": "Link pronto. Vale uma vez e vence em 14 dias."
     }
   },
   "numbers": {
