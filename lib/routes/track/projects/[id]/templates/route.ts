@@ -5,6 +5,7 @@ import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { createTemplate, listTemplates } from '@/lib/track-templates';
 import { templateCreateSchema } from '@/lib/track-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { teamCan } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
   if (!user) return unauthorized();
   const project = await accessibleProject(id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
+  if (!(await teamCan(user, project, 'templates'))) return trackError(403, 'forbidden');
   const parsed = templateCreateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   const invalid = await validateIssueRefs(project, parsed.data, { ownerId: user.id });

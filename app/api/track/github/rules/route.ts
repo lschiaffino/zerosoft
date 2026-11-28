@@ -7,6 +7,7 @@ import { canAccessTrackProject, getProject } from '@/lib/track-data';
 import { recordAudit } from '@/lib/track-audit';
 import { githubAppConfigured } from '@/lib/track-github-app';
 import { trackError, unauthorized } from '@/lib/track-http';
+import { teamCan } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,11 +43,12 @@ const schema = z.object({
 export async function PUT(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return unauthorized();
-  if (!isWorkspaceAdmin(user)) return trackError(403, 'forbidden');
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return trackError(400, parsed.error.issues.some((i) => i.message === 'invalid_repo') ? 'invalid_repo' : 'invalid_input');
   const project = await getProject(parsed.data.projectId);
   if (!project || !(await canAccessTrackProject(project, user.team?.id ?? null, user.id))) return trackError(404, 'not_found');
+  // Las reglas de GitHub de un team: sus dueños o los admins (lib/track-team-roles).
+  if (!isWorkspaceAdmin(user) && !(await teamCan(user, project, 'owner'))) return trackError(403, 'forbidden');
   if (parsed.data.reset) {
     await deleteGithubRules(project.id);
   } else {

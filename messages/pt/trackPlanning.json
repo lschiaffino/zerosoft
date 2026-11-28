@@ -511,7 +511,8 @@
     "archivedEmpty": "Não há issues arquivados.",
     "restore": "Restaurar",
     "restoreAll": "Restaurar todos",
-    "restored": "{count, plural, one {# issue restaurado} other {# issues restaurados}}"
+    "restored": "{count, plural, one {# issue restaurado} other {# issues restaurados}}",
+    "ownersOnly": "Só os donos da equipe e os admins do workspace mudam estes ajustes."
   },
   "pickers": {
     "today": "Hoje",

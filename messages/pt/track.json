@@ -9,7 +9,7 @@
     "inbox": "Caixa de entrada",
     "customers": "Clientes",
     "forms": "Formulários de pedidos",
-    "workspace":"Workspace",
+    "workspace": "Workspace",
     "yourTeams": "Suas equipes",
     "more": "Mais",
     "newIssue": "Novo issue",
@@ -562,7 +562,7 @@
     "moveDown": "Descer",
     "delete": "Excluir",
     "reassignTo": "Mover os issues para",
-    "adminOnly": "Só um admin pode excluir status.",
+    "adminOnly": "Só os donos da equipe e os admins do workspace podem excluir status.",
     "confirmDelete": "Excluir status",
     "newPlaceholder": "Novo status",
     "add": "Adicionar",
@@ -595,7 +595,8 @@
     "helpTeam": "Os labels que você cria aqui são desta equipe. Os do workspace estão em todas as equipes.",
     "teamSection": "Labels da equipe",
     "workspaceSection": "Labels do workspace",
-    "teamEmpty": "Esta equipe ainda não tem labels próprios."
+    "teamEmpty": "Esta equipe ainda não tem labels próprios.",
+    "teamOwnerNote": "Você pode editar e excluir as etiquetas desta equipe. As do workspace são dos admins."
   },
   "github": {
     "title": "GitHub",
@@ -709,7 +710,7 @@
     "enable": "Triage para issues externos",
     "enableHelp": "Issues criados pela API, Chat, Flow ou GitHub esperam aqui até alguém aceitar.",
     "toggleError": "Não foi possível mudar o triage.",
-    "adminOnly": "Só um admin pode ligar ou desligar o triage.",
+    "adminOnly": "Só os donos da equipe e os admins do workspace podem ligar ou desligar o triage.",
     "empty": "Nenhum issue esperando triage.",
     "accept": "Aceitar",
     "acceptAs": "Aceitar em",
@@ -857,7 +858,7 @@
     "save": "Salvar",
     "saved": "Salvo",
     "error": "Não foi possível salvar. Tente de novo.",
-    "adminOnly": "Só owners e admins do workspace podem mudar isso."
+    "adminOnly": "Só os donos da equipe e os admins do workspace mudam os cycles automáticos."
   },
   "templates": {
     "default": "Padrão",
@@ -1243,6 +1244,8 @@
     "logEmpty": "Nada ainda.",
     "slack": {
       "help": "Crie issues a partir de mensagens do Slack e com /track, receba avisos de equipes em canais, sincronize threads de comentários e veja a prévia dos links de issues.",
+      "teamHelp": "Canais do Slack que recebem os avisos desta equipe.",
+      "teamNotConnected": "O Slack não está conectado a este workspace. Um admin do workspace o conecta em Ajustes do Track, Integrações.",
       "notConfigured": "O Slack ainda não está configurado neste servidor (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET e SLACK_SIGNING_SECRET).",
       "connect": "Conectar Slack",
       "connectedTo": "Conectado a {team}.",
@@ -2014,7 +2017,7 @@
     "autoCloseParent": "Fechar o pai quando todos os sub-issues terminarem",
     "autoCloseChildren": "Fechar os sub-issues abertos quando o pai for concluído ou cancelado",
     "housekeeping": "Fechamento e arquivamento automáticos",
-    "integrationsHelp": "GitHub, Slack, Sentry e a API são configurados para todo o workspace.",
+    "integrationsHelp": "O GitHub App, o Slack, o Sentry e a API são configurados para todo o workspace.",
     "estimatesHelp": "Escolha a escala das estimativas da equipe. ⇧E oferece esses valores.",
     "scales": {
       "fibonacci": "Fibonacci",
@@ -2022,7 +2025,8 @@
       "exponential": "Exponencial",
       "tshirt": "Tamanhos de camiseta",
       "none": "Sem estimativas"
-    }
+    },
+    "ownersOnlyArea": "Nesta equipe, só os donos podem mudar isto."
   },
   "dnd": {
     "count": "{count, plural, one {# issue} other {# issues}}",
@@ -2143,5 +2147,28 @@
     "placeholder": "Deixe um comentário…",
     "empty": "Ainda não há comentários.",
     "loadError": "Não foi possível carregar os comentários."
+  },
+  "teamRoles": {
+    "help": "Os donos da equipe gerenciam membros e ajustes; os admins do workspace também.",
+    "owner": "Dono",
+    "member": "Membro",
+    "admin": "Admin do workspace",
+    "guest": "Convidado",
+    "roleOf": "Papel de {name}",
+    "leave": "Sair da equipe",
+    "removeFrom": "Tirar {name} da equipe",
+    "remove": "Tirar",
+    "ownersOnly": "Só os donos da equipe e os admins do workspace podem mudar isto.",
+    "guestCannotOwn": "Um convidado não pode ser dono da equipe.",
+    "permissionsTitle": "Permissões",
+    "private": "Equipe privada: só os seus membros a veem",
+    "anyMember": "Qualquer membro da equipe",
+    "ownersOnlyOption": "Só os donos da equipe",
+    "areas": {
+      "settings": "Quem muda o nome, o ícone e os status do workflow",
+      "labels": "Quem cria e edita etiquetas da equipe",
+      "templates": "Quem cria e edita templates e formulários de pedidos",
+      "members": "Quem adiciona membros a uma equipe privada"
+    }
   }
 }

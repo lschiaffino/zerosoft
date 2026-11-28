@@ -562,7 +562,7 @@
     "moveDown": "Move down",
     "delete": "Delete",
     "reassignTo": "Move its issues to",
-    "adminOnly": "Only an admin can delete statuses.",
+    "adminOnly": "Only team owners and workspace admins can delete statuses.",
     "confirmDelete": "Delete status",
     "newPlaceholder": "New status",
     "add": "Add",
@@ -595,7 +595,8 @@
     "helpTeam": "Labels you create here belong to this team. Workspace labels are available in every team.",
     "teamSection": "Team labels",
     "workspaceSection": "Workspace labels",
-    "teamEmpty": "This team has no labels of its own yet."
+    "teamEmpty": "This team has no labels of its own yet.",
+    "teamOwnerNote": "You can edit and delete this team’s labels. Workspace labels belong to admins."
   },
   "github": {
     "title": "GitHub",
@@ -709,7 +710,7 @@
     "enable": "Triage for external issues",
     "enableHelp": "Issues created through the API, Chat, Flow or GitHub wait here until someone accepts them.",
     "toggleError": "Could not change triage.",
-    "adminOnly": "Only an admin can turn triage on or off.",
+    "adminOnly": "Only team owners and workspace admins can turn triage on or off.",
     "empty": "No issues waiting for triage.",
     "accept": "Accept",
     "acceptAs": "Accept into",
@@ -857,7 +858,7 @@
     "save": "Save",
     "saved": "Saved",
     "error": "Could not save. Try again.",
-    "adminOnly": "Only workspace owners and admins can change this."
+    "adminOnly": "Only team owners and workspace admins can change automatic cycles."
   },
   "templates": {
     "default": "Default",
@@ -1243,6 +1244,8 @@
     "logEmpty": "Nothing yet.",
     "slack": {
       "help": "Create issues from Slack messages and /track, get team updates in channels, sync comment threads and preview issue links.",
+      "teamHelp": "Slack channels that get this team’s updates.",
+      "teamNotConnected": "Slack isn’t connected to this workspace. A workspace admin connects it in Track settings, Integrations.",
       "notConfigured": "Slack is not set up on this server yet (SLACK_CLIENT_ID, SLACK_CLIENT_SECRET and SLACK_SIGNING_SECRET).",
       "connect": "Connect Slack",
       "connectedTo": "Connected to {team}.",
@@ -2014,7 +2017,7 @@
     "autoCloseParent": "Close the parent when all its sub-issues are done",
     "autoCloseChildren": "Close the open sub-issues when the parent is done or canceled",
     "housekeeping": "Auto-close and auto-archive",
-    "integrationsHelp": "GitHub, Slack, Sentry and the API are set up for the workspace.",
+    "integrationsHelp": "The GitHub App, Slack, Sentry and the API are set up for the whole workspace.",
     "estimatesHelp": "Pick the scale for estimates in this team. ⇧E offers these values.",
     "scales": {
       "fibonacci": "Fibonacci",
@@ -2022,7 +2025,8 @@
       "exponential": "Exponential",
       "tshirt": "T-shirt sizes",
       "none": "Not used"
-    }
+    },
+    "ownersOnlyArea": "Only team owners can change this in this team."
   },
   "dnd": {
     "count": "{count, plural, one {# issue} other {# issues}}",
@@ -2143,5 +2147,28 @@
     "placeholder": "Leave a comment…",
     "empty": "No comments yet.",
     "loadError": "Couldn't load the comments."
+  },
+  "teamRoles": {
+    "help": "Team owners manage members and settings; workspace admins can too.",
+    "owner": "Owner",
+    "member": "Member",
+    "admin": "Workspace admin",
+    "guest": "Guest",
+    "roleOf": "Role of {name}",
+    "leave": "Leave team",
+    "removeFrom": "Remove {name} from the team",
+    "remove": "Remove",
+    "ownersOnly": "Only team owners and workspace admins can change this.",
+    "guestCannotOwn": "A guest can’t be a team owner.",
+    "permissionsTitle": "Permissions",
+    "private": "Private team: only its members see it",
+    "anyMember": "Any team member",
+    "ownersOnlyOption": "Only team owners",
+    "areas": {
+      "settings": "Who can change the name, icon and workflow statuses",
+      "labels": "Who can create and edit team labels",
+      "templates": "Who can create and edit templates and request forms",
+      "members": "Who can add members to a private team"
+    }
   }
 }

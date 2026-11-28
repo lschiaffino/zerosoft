@@ -4,6 +4,7 @@ import { createLabel, listLabels, projectWorkspaceId, trackWorkspaceId } from '@
 import { getProject } from '@/lib/track-data';
 import { labelCreateSchema } from '@/lib/track-schema';
 import { invalidBody, trackError, unauthorized } from '@/lib/track-http';
+import { teamCan, teamLabelParentOk } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
   if (parsed.data.projectId) {
     const project = await getProject(parsed.data.projectId);
     if (!project || projectWorkspaceId(project) !== ws) return trackError(400, 'invalid_project');
+    // Labels del team: según el permiso del team (lib/track-team-roles).
+    if (!(await teamCan(user, project, 'labels'))) return trackError(403, 'forbidden');
+    if (parsed.data.parentId && !(await teamLabelParentOk(ws, parsed.data.parentId, project.id))) return trackError(400, 'invalid_parent');
   }
   const res = await createLabel(ws, parsed.data);
   if (!res.ok) return res.reason === 'not_found' ? trackError(400, 'invalid_parent') : trackError(409, 'duplicate_label');

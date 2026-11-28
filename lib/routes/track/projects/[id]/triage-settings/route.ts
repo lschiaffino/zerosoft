@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const a = await projectAccess((await props.params).id);
   if (!a.ok) return a.res;
-  if (!a.admin) return trackError(403, 'forbidden');
+  if (!a.teamOwner) return trackError(403, 'forbidden');
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return invalidBody(parsed.error);
   try {

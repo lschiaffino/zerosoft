@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { createStatus, getProject, listStatuses, canAccessTrackProject } from '@/lib/track-data';
 import { statusCreateSchema } from '@/lib/track-schema';
-import { invalidBody, notFound, unauthorized } from '@/lib/track-http';
+import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { teamCan } from '@/lib/track-team-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
   const project = await accessibleProject(params.id, user.team?.id ?? null, user.id);
   if (!project) return notFound();
+
+  // Estados del workflow: ajustes del team (lib/track-team-roles).
+  if (!(await teamCan(user, project, 'settings'))) return trackError(403, 'forbidden');
 
   const body: unknown = await req.json().catch(() => null);
   const parsed = statusCreateSchema.safeParse(body);

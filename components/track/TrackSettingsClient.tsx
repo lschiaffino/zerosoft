@@ -41,8 +41,21 @@ function SettingsSkeleton() {
  * cambiar color, agrupar (un label puede ser grupo de otros, como "Type ›
  * Bug" en Linear) y borrar (admin). Con `projectId` (ajustes del team), los
  * nuevos quedan como labels de ese team y se listan los del team y los generales.
+ * Un dueño del team (`teamOwner`) edita y borra los labels del team; `canCreate`
+ * sale del permiso de labels del team (lib/track-team-roles).
  */
-export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; projectId?: string }) {
+export function LabelsSettings({
+  isAdmin,
+  projectId,
+  teamOwner = false,
+  canCreate = true,
+}: {
+  isAdmin: boolean;
+  projectId?: string;
+  teamOwner?: boolean;
+  canCreate?: boolean;
+}) {
+  const editable = (l: TrackLabel) => isAdmin || (teamOwner && Boolean(projectId) && l.project_id === projectId);
   const t = useTranslations('track');
   const [labels, setLabels] = useState<TrackLabel[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -111,7 +124,11 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
     <FormSection
       title={t('labelsSettings.title')}
       description={projectId ? t('labelsSettings.helpTeam') : t('labelsSettings.help')}
-      footer={!isAdmin ? <span className="ui-section-note">{t('labelsSettings.adminOnly')}</span> : undefined}
+      footer={
+        isAdmin ? undefined : (
+          <span className="ui-section-note">{teamOwner ? t('labelsSettings.teamOwnerNote') : t('labelsSettings.adminOnly')}</span>
+        )
+      }
     >
       <div className="track-settings-block">
         {error && (
@@ -151,7 +168,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
                   type="color"
                   className="track-status-color"
                   defaultValue={/^#[0-9a-f]{6}$/i.test(l.color) ? l.color : '#666666'}
-                  disabled={!isAdmin}
+                  disabled={!editable(l)}
                   onBlur={(e) => {
                     const el = e.target;
                     if (el.value === l.color) return;
@@ -168,7 +185,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
                   defaultValue={l.name}
                   maxLength={50}
                   aria-label={t('labelsSettings.name')}
-                  disabled={!isAdmin}
+                  disabled={!editable(l)}
                   onBlur={(e) => {
                     const el = e.target;
                     const v = el.value.trim();
@@ -183,7 +200,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
                   }}
                 />
                 <span className="track-settings-count">{t('labelsSettings.issues', { count: l.issue_count ?? 0 })}</span>
-                {isAdmin && (
+                {editable(l) && (
                   <KeyPicker
                     ariaLabel={`${t('labelsSettings.group')}: ${l.name}`}
                     placeholder={t('labelsSettings.groupPlaceholder')}
@@ -204,7 +221,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
                     }
                   />
                 )}
-                {isAdmin && (
+                {editable(l) && (
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm btn-icon btn-danger"
@@ -235,6 +252,7 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
             </div>
           ))
         )}
+        {canCreate ? (
         <form className="track-status-add" onSubmit={add}>
           <input
             className="input"
@@ -264,6 +282,11 @@ export function LabelsSettings({ isAdmin, projectId }: { isAdmin: boolean; proje
             {t('labelsSettings.add')}
           </button>
         </form>
+        ) : (
+          <p className="ui-help" data-testid="track-labels-locked">
+            {t('teamSettings.ownersOnlyArea')}
+          </p>
+        )}
       </div>
     </FormSection>
     </div>

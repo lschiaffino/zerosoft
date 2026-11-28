@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/session';
+import { getCurrentUser, realUserId } from '@/lib/session';
+import { makeCreatorOwner } from '@/lib/track-team-roles';
 import { createProject, listProjectMetas, listProjects } from '@/lib/track-data';
 import { projectCreateSchema } from '@/lib/track-schema';
 import { invalidBody, pageParams, unauthorized } from '@/lib/track-http';
@@ -34,5 +35,7 @@ export async function POST(req: NextRequest) {
   // Los estados por defecto nacen en el idioma de la UI de quien crea el proyecto.
   const locale = requestLocale(req.cookies.get('NEXT_LOCALE')?.value, req.headers.get('accept-language'));
   const project = await createProject(user.id, user.team?.id ?? null, parsed.data, { locale });
+  // Quien crea el team queda como su dueño (lib/track-team-roles).
+  await makeCreatorOwner(project.id, realUserId(user));
   return NextResponse.json(project, { status: 201 });
 }

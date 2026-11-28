@@ -100,6 +100,8 @@ export const AUDIT_ACTIONS = [
   'project.visibility',
   'access.member_added',
   'access.member_removed',
+  'access.role_changed',
+  'project.permissions',
   'access.guest_set',
   'access.guest_removed',
   'integration.connected',

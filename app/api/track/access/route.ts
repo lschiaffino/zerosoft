@@ -13,42 +13,11 @@ import {
   setProjectVisibility,
 } from '@/lib/track-access';
 import { recordAudit } from '@/lib/track-audit';
-import { ensureWorkspace, listOwnerSpacePeople, ownerSpaceSql, workspaceModeOf } from '@/lib/workspace';
-
-type SessionUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
-
-/**
- * Alcance de Track del workspace activo: un equipo de antes de 128 (team_id)
- * o el espacio del owner (team_id NULL), compartido con su equipo.
- */
-async function accessScope(user: SessionUser) {
-  const teamId = user.team?.id ?? null;
-  const db = getDb();
-  const people = teamId
-    ? ((await db
-        .prepare(
-          `SELECT u.id, u.email, u.name, m.role FROM team_members m JOIN users u ON u.id = m.user_id
-           WHERE m.team_id = ? AND m.role != 'guest' ORDER BY m.role = 'owner' DESC, u.name, u.email`,
-        )
-        .all(teamId)) as Array<{ id: string; email: string; name: string | null; role: string }>)
-    : await listOwnerSpacePeople(user.id);
-  return {
-    teamId,
-    where: teamId ? 'team_id = ?' : '(team_id IS NULL AND owner_id = ?)',
-    arg: teamId ?? user.id,
-    // Personal solo si el workspace está en modo personal y nadie más es parte.
-    // Un workspace en modo equipo sin miembros todavía puede tener privados e
-    // invitados: es justo lo que hace quien lo acaba de crear (antes veía
-    // "creá un workspace compartido" con el workspace compartido ya creado).
-    personal: !teamId && people.length <= 1 && workspaceModeOf(user.workspace ?? (await ensureWorkspace(user.id))) === 'personal',
-    people,
-    isMember: async (userId: string) =>
-      teamId
-        ? Boolean(await db.prepare("SELECT 1 AS ok FROM team_members WHERE team_id = ? AND user_id = ? AND role != 'guest'").get(teamId, userId))
-        : Boolean(await db.prepare(`SELECT 1 AS ok WHERE ${ownerSpaceSql('?', '?')}`).get(userId, user.id, user.id, userId)),
-  };
-}
+import { trackAccessScope } from '@/lib/track-access-scope';
+import { removeFromPrivateTeam } from '@/lib/track-team-roles';
 import { trackError, unauthorized } from '@/lib/track-http';
+
+const accessScope = trackAccessScope;
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -128,6 +97,7 @@ export async function POST(req: NextRequest) {
     await recordAudit({ workspaceId: ws, actorId: actor, action: 'access.member_added', entityType: 'access', entityId: a.userId, entityLabel: project?.name, projectId: a.projectId });
   } else if (a.action === 'removeMember') {
     await removeProjectAccess(a.projectId, a.userId);
+    await removeFromPrivateTeam(a.projectId, a.userId);
     await recordAudit({ workspaceId: ws, actorId: actor, action: 'access.member_removed', entityType: 'access', entityId: a.userId, entityLabel: project?.name, projectId: a.projectId });
   } else if (a.action === 'setGuest') {
     // Un admin no puede quedar como invitado (se quitaría el acceso a sí mismo).

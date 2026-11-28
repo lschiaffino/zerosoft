@@ -4,6 +4,7 @@ import { canAccessTrackProject, getProject, listStatuses } from '@/lib/track-dat
 import { getAutomation, listArchivedIssues, setAutomation, staleIssueIds } from '@/lib/track-housekeeping';
 import { automationSchema } from '@/lib/track-planning-schema';
 import { invalidBody, notFound, trackError, unauthorized } from '@/lib/track-http';
+import { teamCapabilities } from '@/lib/track-team-roles';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,12 +42,12 @@ export async function GET(_req: NextRequest, props: Props) {
   return NextResponse.json(await view(id));
 }
 
-/** Solo admins cambian las automatizaciones (como los ajustes de team en Linear). */
+/** Solo dueños del team y admins cambian las automatizaciones (como los ajustes de team en Linear). */
 export async function PUT(req: NextRequest, props: Props) {
   const { id } = await props.params;
   const r = await load(id);
   if ('error' in r) return r.error;
-  if (!r.ctx.admin) return trackError(403, 'forbidden');
+  if (!(await teamCapabilities(r.project, r.ctx.actorId, r.ctx.admin)).owner) return trackError(403, 'forbidden');
   const parsed = automationSchema.safeParse(await readJson(req));
   if (!parsed.success) return invalidBody(parsed.error);
   const res = await setAutomation(id, parsed.data);

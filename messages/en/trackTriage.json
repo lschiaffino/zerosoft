@@ -230,7 +230,7 @@
     "loadError": "Could not load the triage settings.",
     "saved": "Saved",
     "error": "Could not save the change.",
-    "adminOnly": "Only an admin can change these settings.",
+    "adminOnly": "Only team owners and workspace admins can change these settings.",
     "ownerTitle": "Triage owner",
     "ownerHelp": "One person on duty takes the triage queue, rotating daily or weekly in this order.",
     "ownerAction": "When an issue arrives",

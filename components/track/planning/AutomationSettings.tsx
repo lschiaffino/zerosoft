@@ -79,7 +79,7 @@ export function TeamAutomation({ projectId, isAdmin }: { projectId: string; isAd
   const save = async (body: Record<string, unknown>) => {
     setError(null);
     const res = await api<Automation>(`/api/track/projects/${projectId}/automation`, 'PUT', body);
-    if (!res.ok) return setError(res.status === 403 ? t('automation.adminOnly') : t('common.saveError'));
+    if (!res.ok) return setError(res.status === 403 ? t('automation.ownersOnly') : t('common.saveError'));
     setData(res.data);
     setNotice(t('automation.saved'));
   };

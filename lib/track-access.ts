@@ -186,8 +186,8 @@ export async function removeProjectAccess(projectId: string, userId: string): Pr
 }
 
 /**
- * Cambia la visibilidad. Al pasar a privado quien lo hace queda como miembro
- * y, como en Linear, los que no son miembros dejan de estar suscriptos a sus
+ * Cambia la visibilidad. Al pasar a privado quien lo hace y los dueños del
+ * team quedan como miembros y, como en Linear, los que no son miembros dejan de estar suscriptos a sus
  * issues (y de recibir sus avisos).
  */
 export async function setProjectVisibility(
@@ -199,6 +199,11 @@ export async function setProjectVisibility(
   await db.prepare("UPDATE track_projects SET visibility = ?, updated_at = datetime('now') WHERE id = ?").run(visibility, projectId);
   if (visibility === 'private') {
     await addProjectAccess(projectId, actorId, actorId);
+    // Los dueños del team (lib/track-team-roles) siguen adentro.
+    await db
+      .prepare('INSERT OR IGNORE INTO track_project_access (project_id, user_id, added_by) SELECT project_id, user_id, ? FROM track_team_roles WHERE project_id = ?')
+      .run(actorId, projectId)
+      .catch(() => undefined);
     await db
       .prepare(
         `DELETE FROM track_issue_subscriptions

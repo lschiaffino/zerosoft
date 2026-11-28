@@ -24,6 +24,8 @@ interface StatusesSettingsProps {
   statuses: TrackStatusRow[];
   /** Borrar status es solo para owner/admin. */
   canDelete?: boolean;
+  /** Agregar, renombrar y reordenar: según el permiso de ajustes del team. */
+  canEdit?: boolean;
   /** Estado nuevo tras cada cambio (la vista recarga issues si hace falta). */
   onChange: (statuses: TrackStatusRow[], opts?: { reloadIssues?: boolean }) => void;
 }
@@ -32,7 +34,7 @@ interface StatusesSettingsProps {
  * Configuración de los status del workflow de un proyecto: agregar, renombrar,
  * color, categoría, reordenar (↑/↓) y borrar reasignando sus issues.
  */
-export default function StatusesSettings({ projectId, statuses, canDelete = true, onChange }: StatusesSettingsProps) {
+export default function StatusesSettings({ projectId, statuses, canDelete = true, canEdit = true, onChange }: StatusesSettingsProps) {
   const t = useTranslations('track');
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -123,6 +125,7 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
           {error}
         </p>
       )}
+      <fieldset className="track-x-fieldset" disabled={!canEdit} data-testid="track-statuses-fieldset">
       <ul className="track-status-list">
         {statuses.map((s, i) => (
           <li key={s.id} className="track-status-item" data-testid="track-status-item">
@@ -255,7 +258,8 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
           </li>
         ))}
       </ul>
-      {!canDelete && <p className="ui-help">{t('statusSettings.adminOnly')}</p>}
+      {!canEdit ? <p className="ui-help">{t('teamSettings.ownersOnlyArea')}</p> : !canDelete && <p className="ui-help">{t('statusSettings.adminOnly')}</p>}
+      {canEdit && (
       <form className="track-status-add" onSubmit={add}>
         <input
           className="input"
@@ -281,6 +285,8 @@ export default function StatusesSettings({ projectId, statuses, canDelete = true
           {t('statusSettings.add')}
         </button>
       </form>
+      )}
+      </fieldset>
     </div>
   );
 }

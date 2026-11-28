@@ -5,6 +5,7 @@ import { MIGRATIONS } from '@/lib/schema/migrations';
 import { bulkEditIssues, findWorkspaceIssueByIdentifier } from '@/lib/track-bulk';
 import { createCycle, createIssue, createProject, getIssue, listStatuses, updateProject } from '@/lib/track-data';
 import { createLabel, deleteLabel, findOrCreateLabel, listLabels, parseIssueLabels, updateLabel } from '@/lib/track-labels';
+import { setTeamPermissions, DEFAULT_TEAM_PERMISSIONS } from '@/lib/track-team-roles';
 import { makeUser } from './helpers';
 
 const session = vi.hoisted(() => ({ user: null as null | Record<string, unknown> }));
@@ -173,7 +174,11 @@ describe('Track gauntlet r3: permisos de configuración compartida', () => {
     expect((await projectRoute.PATCH(json('PATCH', { slug: `r3x-${uid()}` }), params(p.id))).status).toBe(403);
     expect((await projectRoute.PATCH(json('PATCH', { status: 'archived' }), params(p.id))).status).toBe(403);
     expect((await projectRoute.PATCH(json('PATCH', { triageEnabled: true }), params(p.id))).status).toBe(403);
-    // Lo que no es compartido (o no cambia) sigue abierto a miembros.
+    // El nombre es un ajuste del team: de sus dueños (lib/track-team-roles),
+    // salvo que abran el área de ajustes a cualquier miembro. Lo que no cambia
+    // (slug y estado iguales) no cuenta como delicado.
+    expect((await projectRoute.PATCH(json('PATCH', { name: 'Nuevo' }), params(p.id))).status).toBe(403);
+    await setTeamPermissions(p.id, { ...DEFAULT_TEAM_PERMISSIONS, settings: 'members' });
     const renamed = await projectRoute.PATCH(json('PATCH', { name: 'Nuevo', slug: p.slug, status: 'active' }), params(p.id));
     expect(renamed.status).toBe(200);
     expect(((await renamed.json()) as { name: string }).name).toBe('Nuevo');
