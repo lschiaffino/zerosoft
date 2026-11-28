@@ -127,7 +127,8 @@ test('Lines: @ en un grupo de WhatsApp elige a la persona, la pinta en verde y l
   await expect(pop).toBeVisible();
   await expect(pop.getByRole('option')).toHaveCount(1);
   await expect(pop.getByRole('option').first()).toHaveAttribute('aria-selected', 'true');
-  await expect(pop).toContainText(`+${eze}`);
+  // El teléfono con el formato de WhatsApp Web, como en la lista de miembros.
+  await expect(pop).toContainText(`+54 9 11 ${eze.slice(5, 9)}-${eze.slice(9)}`);
   await shot(page, 'lines-picker-1280');
   await page.keyboard.press('Enter');
   await expect(pop).toBeHidden();
