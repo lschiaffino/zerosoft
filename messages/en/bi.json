@@ -122,7 +122,14 @@
     "prev": "Previous page",
     "next": "Next page",
     "page": "Page {n} of {total}",
-    "csv": "Download CSV"
+    "download": "Download",
+    "downloadAs": "Download as {format}",
+    "downloadMore": "The file includes up to {n} rows",
+    "format": {
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "json": "JSON"
+    }
   },
   "sql": {
     "suggestions": "Suggestions",
