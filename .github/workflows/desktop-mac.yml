@@ -48,7 +48,7 @@ jobs:
       # sha256 of xcodegen.zip of that release (pinned: nothing downloaded is trusted as is).
       XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Toolchain
         run: |
           sw_vers
@@ -102,13 +102,13 @@ jobs:
       - name: Package
         if: ${{ matrix.lockdown == 'off' }}
         run: ditto -c -k --keepParent build/release/Build/Products/Release/zerosoft.app build/zerosoft-mac-adhoc.zip
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ matrix.lockdown == 'off' }}
         with:
           name: zerosoft-mac-adhoc
           path: desktop-mac/build/zerosoft-mac-adhoc.zip
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ failure() }}
         with:
           name: desktop-mac-test-results-lockdown-${{ matrix.lockdown }}
