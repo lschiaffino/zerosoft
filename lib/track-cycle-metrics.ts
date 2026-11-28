@@ -47,7 +47,8 @@ async function histories(cycle: TrackCycleRow, statuses: TrackStatusRow[]): Prom
        LEFT JOIN track_statuses s ON s.id = i.status_id
        WHERE i.project_id = ? AND i.triage = 0 AND (i.cycle_id = ? OR i.id IN (
          SELECT a.issue_id FROM track_issue_activities a
-         WHERE a.type = 'cycle_change' AND (json_extract(a.meta, '$.from') = ? OR json_extract(a.meta, '$.to') = ?)
+         WHERE a.type = 'cycle_change' AND json_extract(a.meta, '$.field') IS NULL
+           AND (json_extract(a.meta, '$.from') = ? OR json_extract(a.meta, '$.to') = ?)
        ))
        LIMIT 2000`,
     )
@@ -83,6 +84,8 @@ async function histories(cycle: TrackCycleRow, statuses: TrackStatusRow[]): Prom
         meta = {};
       }
       if (a.type === 'cycle_change') {
+        // Project, team, release, padre: van por cycle_change con `field`; no son movimientos de cycle.
+        if (meta.field) continue;
         if (meta.to === cycle.name && meta.from !== cycle.name) moves.push({ at: a.created_at, kind: 'join' });
         else if (meta.from === cycle.name && meta.to !== cycle.name) {
           moves.push({ at: a.created_at, kind: 'leave', rollover: meta.via === 'cycle_complete' });

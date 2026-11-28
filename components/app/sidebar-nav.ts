@@ -148,6 +148,8 @@ export interface SidebarLabels {
     dashboards?: string;
     /** Pedidos de clientes (T3). */
     customers?: string;
+    /** Releases (lib/track-releases). */
+    releases?: string;
     /** Formularios de pedidos (form templates de Linear). */
     forms?: string;
     /** Secciones como en Linear: "Workspace" y "Your teams". */
@@ -756,6 +758,9 @@ export function buildNav(
           items: [
             ...(labels.track.plans
               ? [{ href: '/app/track/cycles', label: labels.track.cycles, active: at('/app/track/cycles'), icon: 'cycles' as const }]
+              : []),
+            ...(labels.track.releases
+              ? [{ href: '/app/track/releases', label: labels.track.releases, active: at('/app/track/releases'), icon: 'deploy' as const }]
               : []),
             ...(labels.track.roadmap
               ? [{ href: '/app/track/roadmap', label: labels.track.roadmap, active: at('/app/track/roadmap'), icon: 'roadmap' as const }]

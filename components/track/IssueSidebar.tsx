@@ -22,6 +22,8 @@ interface IssueSidebarProps {
   /** Solo decide si se muestra el chip de Cycle. */
   cycles: Array<Pick<TrackCycleRow, 'id'>>;
   milestones: Array<{ id: string; name: string }>;
+  /** Releases del team: con alguno (o si el issue ya tiene uno) se muestra el chip de Release. */
+  releases?: Array<{ id: string }>;
   members?: ProjectMember[];
   locale: string;
   ui: Pick<TrackUiLabels, 'priorities'>;
@@ -115,7 +117,7 @@ function Glyph({ name }: { name: TrackIconName }) {
  * tipeado, flechas, Enter y crear en línea. Los cambios los aplica la página
  * (optimistas, con ⌘Z).
  */
-export default function IssueSidebar({ issue, cycles, milestones, locale, ui, today, labels, estimateScale }: IssueSidebarProps) {
+export default function IssueSidebar({ issue, cycles, milestones, releases = [], locale, ui, today, labels, estimateScale }: IssueSidebarProps) {
   const t = useTranslations('track');
   const tx = useTranslations('track.ux.side');
   const tp = useTranslations('track.ux.props');
@@ -228,6 +230,17 @@ export default function IssueSidebar({ issue, cycles, milestones, locale, ui, to
           empty={!(issue.plan_id ? issue.plan_milestone_id : issue.milestone_id)}
           icon={<Glyph name="milestone" />}
           testId="track-prop-milestone"
+        />
+      )}
+      {(releases.length > 0 || issue.release_id) && (
+        <Chip
+          page="release"
+          issueId={issue.id}
+          name={t('releases.property')}
+          value={issue.release_id ? [issue.release_name, issue.release_version].filter(Boolean).join(' ') || t('releases.property') : tp('addRelease')}
+          empty={!issue.release_id}
+          icon={<Glyph name="release" />}
+          testId="track-side-release"
         />
       )}
       {estimateScale !== 'none' && (

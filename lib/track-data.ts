@@ -82,6 +82,9 @@ export interface TrackIssueWithStatus extends TrackIssueRow {
   sla_risk_at?: string | null;
   /** Links del issue (PRs y commits de GitHub, y vínculos externos): la propiedad "Links" de las listas. */
   link_count?: number;
+  /** Release del issue (lib/track-releases): nombre y versión. */
+  release_name?: string | null;
+  release_version?: string | null;
 }
 
 export interface TrackProjectWithStats extends TrackProjectRow {
@@ -178,6 +181,7 @@ const GROUP_COLUMNS: Record<string, string> = {
   project: 'i.project_id',
   plan: 'i.plan_id',
   planMilestone: 'i.plan_milestone_id',
+  release: 'i.release_id',
 };
 
 export const COUNTABLE_GROUPS = [...Object.keys(GROUP_COLUMNS), 'label'] as const;
@@ -316,7 +320,7 @@ export async function canAccessTrackProject(
  * Alcance de los proyectos visibles (con alias): los del workspace y, en un
  * team, solo los que la persona que mira puede ver (privados e invitados).
  */
-async function projectScope(
+export async function projectScope(
   teamId: string | null,
   ownerId: string,
   alias = 'p',
@@ -983,6 +987,8 @@ export function issueSelect(extraWhere = ''): string {
       ms.name AS milestone_name,
       (SELECT tp.name FROM track_plans tp WHERE tp.id = i.plan_id) AS plan_name,
       (SELECT pm.name FROM track_plan_milestones pm WHERE pm.id = i.plan_milestone_id) AS plan_milestone_name,
+      (SELECT rl.name FROM track_releases rl WHERE rl.id = i.release_id AND rl.project_id = i.project_id) AS release_name,
+      (SELECT rl.version FROM track_releases rl WHERE rl.id = i.release_id AND rl.project_id = i.project_id) AS release_version,
       (SELECT COUNT(*) FROM track_issues child WHERE child.parent_id = i.id) AS child_count,
       (SELECT COUNT(*) FROM track_issues child JOIN track_statuses cs ON cs.id = child.status_id
         WHERE child.parent_id = i.id AND cs.category IN ('done', 'cancelled')) AS child_done,
@@ -1462,7 +1468,7 @@ export async function moveIssueToTeam(
       try {
         await db
           .prepare(
-            `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL,
+            `UPDATE track_issues SET project_id = ?, identifier = ?, status_id = ?, cycle_id = NULL, milestone_id = NULL, release_id = NULL,
                triage_resolved_at = CASE WHEN triage = 1 THEN ? ELSE triage_resolved_at END,
                triage = 0, labels = COALESCE(?, labels), updated_at = ? WHERE id = ?`,
           )
@@ -1734,6 +1740,25 @@ export async function updateIssue(
     args.push(payload.cycleId ?? null);
     const newCycle = payload.cycleId ? await getCycle(payload.cycleId) : null;
     activities.push({ type: 'cycle_change', meta: { from: existing.cycle_name ?? '', to: newCycle?.name ?? '' } });
+  }
+  // Release (lib/track-releases): solo uno del mismo team. Sin activity type propio en el CHECK:
+  // va como cambio con `field: 'release'`, como project y team.
+  const releaseId = (payload as { releaseId?: string | null }).releaseId;
+  if (releaseId !== undefined && (releaseId ?? null) !== (existing.release_id ?? null)) {
+    const next = releaseId
+      ? ((await db.prepare('SELECT name, version FROM track_releases WHERE id = ? AND project_id = ?').get(releaseId, existing.project_id)) as
+          | { name: string; version: string }
+          | undefined)
+      : null;
+    if (!releaseId || next) {
+      fields.push('release_id = ?');
+      args.push(releaseId ?? null);
+      const label = (n?: string | null, v?: string | null) => [n, v].filter(Boolean).join(' ');
+      activities.push({
+        type: 'cycle_change',
+        meta: { field: 'release', from: label(existing.release_name, existing.release_version), to: next ? label(next.name, next.version) : '' },
+      });
+    }
   }
   if (payload.estimate !== undefined && payload.estimate !== existing.estimate) {
     fields.push('estimate = ?');
