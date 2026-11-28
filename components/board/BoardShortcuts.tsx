@@ -5,15 +5,15 @@ import { usePopover } from '@/components/notes/usePopover';
 import { BOARD_SHORTCUTS } from '@/lib/board-shortcuts';
 
 /** Hoja con los atajos propios de Board (sticky, minimapa, presentar). */
-export default function BoardShortcuts({ className = '' }: { className?: string }) {
+export default function BoardShortcuts() {
   const t = useTranslations('board.shortcuts');
   const pop = usePopover();
   return (
-    <div className={`board-share-wrap board-tool-wrap ${className}`.trim()} ref={pop.wrapRef}>
+    <div className="board-shortcuts-wrap" ref={pop.wrapRef}>
       <button
         ref={pop.buttonRef}
         type="button"
-        className={`btn btn-sm${pop.open ? ' is-on' : ''}`}
+        className={`board-canvas-tool${pop.open ? ' is-on' : ''}`}
         onClick={pop.toggle}
         aria-expanded={pop.open}
         aria-haspopup="dialog"

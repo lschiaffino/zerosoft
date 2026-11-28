@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-/** Board: la hoja de atajos propios se abre desde la barra y se cierra con Esc. */
+/** Board: la hoja de atajos propios se abre desde las herramientas del lienzo y se cierra con Esc. */
 test('Board: la hoja de atajos lista los atajos de Board y se cierra con Esc', async ({ page }) => {
   const res = await page.request.post('/api/boards', { data: { name: 'Atajos' } });
   expect(res.ok()).toBe(true);

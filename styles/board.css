@@ -1081,7 +1081,8 @@ section.board-templates { padding: 0; }
 .board-offline-label { font-size: 0.75rem; color: var(--bad-ink); white-space: nowrap; }
 .board-local-missing { padding: 48px 24px; }
 
-.board-shortcuts-pop { max-height: min(70vh, 560px); overflow-y: auto; }
+.board-shortcuts-wrap { position: relative; display: inline-flex; }
+.board-shortcuts-pop { top: auto; bottom: calc(100% + 10px); max-height: min(70vh, 560px); overflow-y: auto; }
 .board-shortcuts-list { display: flex; flex-direction: column; gap: 6px; margin: 0; }
 .board-shortcuts-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 0.8125rem; }
 .board-shortcuts-row dt { color: var(--ink); }
