@@ -234,7 +234,8 @@ li.ib-item.is-unread .ib-row-when { color: var(--ib-ink); font-weight: 600; }
 /* ---------- Ajustes ---------- */
 
 .ib-settings { --accent: var(--c-inbox); max-width: 920px; }
-.ib-section { display: grid; gap: 10px; }
+/* Una columna que no crece con lo de adentro (un atajo con texto largo no saca la sección del ancho a 390). */
+.ib-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .ib-style-options { display: grid; gap: 8px; }
 .ib-style-options .ui-check { align-items: center; gap: 10px; }
 .ib-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

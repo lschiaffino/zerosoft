@@ -378,6 +378,20 @@ body:has(.gr-composer) #zs-chat-root { display: none !important; }
 .gr-toolbar .select { width: auto; }
 .gr-toolbar-spacer { flex: 1; }
 .gr-check-label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.875rem; cursor: pointer; }
+/* Ajustes › Contactos internos (components/groups/InternalContacts.tsx; también en Ajustes de Inbox). */
+.gr-internal-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.gr-internal-form .ui-field { flex: 1 1 200px; }
+.gr-internal-form .btn { min-height: 40px; }
+.gr-internal-list li { gap: 6px 12px; }
+.gr-internal-who { display: flex; flex-direction: column; gap: 2px; flex: 1 1 180px; min-width: 0; }
+.gr-internal-handle { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gr-internal select.gr-internal-state.select { width: auto; min-width: 140px; max-width: 100%; min-height: 40px; }
+/* En el teléfono nada se sale del ancho (la lista y los formularios bajan de renglón). */
+.gr-internal, .gr-internal > *, .gr-internal-form > * { min-width: 0; }
+.gr-internal .input { max-width: 100%; }
+.gr-internal-list .btn, .gr-internal .gr-mini-list .btn { min-height: 40px; }
+.gr-internal .gr-check-label { min-height: 40px; }
+.gr-internal-retry { min-height: 40px; }
 .gr-bulkbar {
   position: sticky;
   top: calc(var(--band-h) + 8px);

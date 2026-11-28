@@ -34,6 +34,7 @@ const query = (ref: PersonRef) => (ref.messageId ? `message=${encodeURIComponent
  */
 export function useLinesPersonSheet(groupId: string, onError: (code: string) => void, onToast?: (text: string) => void): { open: (ref: PersonRef, name: string, picture?: string) => void; sheet: ReactNode } {
   const t = useTranslations('groups.wa.contactSheet');
+  const ti = useTranslations('groups.wa.internal');
   const router = useRouter();
   const [person, setPerson] = useState<{ ref: PersonRef; name: string; picture?: string } | null>(null);
   const [card, setCard] = useState<(WaPersonCard & { masked?: boolean }) | null>(null);
@@ -123,6 +124,19 @@ export function useLinesPersonSheet(groupId: string, onError: (code: string) => 
         else onToast?.(on ? t('blockedToast', { name: label }) : t('unblockedToast', { name: label }));
         void load(person.ref);
       }}
+      onInternal={
+        card?.canMarkInternal && card.phone
+          ? async (on) => {
+              // Interno o no (lib/internal-contacts.ts). Apagarlo es "no interno": gana también a la regla de las líneas.
+              const r = await api('/api/groups/internal', { body: { handle: card.phone, internal: on } });
+              if (!r.data) return onError(r.error);
+              onToast?.(on ? ti('markedToast', { name: label }) : ti('unmarkedToast', { name: label }));
+              void load(person.ref);
+              // La lista de miembros y quién escribió cada mensaje vienen del servidor: se vuelven a leer.
+              router.refresh();
+            }
+          : undefined
+      }
       loadShared={loadShared}
     />
   ) : null;

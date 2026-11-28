@@ -29,6 +29,10 @@ export interface WaPersonCard {
   commonGroups: Array<{ id: string; name: string; picture: string }>;
   /** Se puede bloquear desde acá (hay chat 1:1 y el proveedor lo deja). */
   canBlock: boolean;
+  /** Es interna: del equipo o de la empresa (lib/internal-contacts.ts). Solo si lo es. */
+  internal?: boolean;
+  /** Quien mira la puede marcar como interna o no (admin del workspace que ve el número). */
+  canMarkInternal?: boolean;
 }
 
 /** Total de "Archivos, enlaces y documentos" (como lo cuenta WhatsApp). */

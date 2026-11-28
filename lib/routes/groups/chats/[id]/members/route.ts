@@ -57,7 +57,10 @@ export async function GET(req: Request, ctx: Ctx) {
         if (kind !== 'media' && kind !== 'docs' && kind !== 'links' && kind !== 'starred') return groupsError(400, 'invalid_input');
         return NextResponse.json({ items: person.dm ? await sharedContent(guard.viewer, person.dm.id, kind) : [] });
       }
-      return NextResponse.json({ person });
+      // Interno (lib/internal-contacts.ts): la ficha lo dice, y un admin que ve el número lo puede cambiar desde acá.
+      const { isInternalHandle, loadInternalSet } = await import('@/lib/internal-contacts');
+      const internal = !person.me && isInternalHandle(await loadInternalSet(s.ws), phone);
+      return NextResponse.json({ person: { ...person, ...(internal ? { internal: true } : {}), ...(s.isAdmin && !guard.viewer.mask && !person.me ? { canMarkInternal: true } : {}) } });
     } catch (err) {
       return handleGroupsError(err);
     }

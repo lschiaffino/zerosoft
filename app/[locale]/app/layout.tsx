@@ -768,6 +768,7 @@ export default async function AppLayout(
               inbox: tInbox('nav.inbox'),
               reply: tInbox('nav.reply'),
               waiting: tInbox('nav.waiting'),
+              internal: tInbox('nav.internal'),
               snoozed: tInbox('nav.snoozed'),
               scheduled: tInbox('nav.scheduled'),
               done: tInbox('nav.done'),

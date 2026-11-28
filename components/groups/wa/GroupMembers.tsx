@@ -32,6 +32,8 @@ export interface GroupMember {
   /** Teléfono oculto para quien mira: se actúa con `ref`. */
   masked?: boolean;
   ref?: string;
+  /** Del equipo o de la empresa (lib/internal-contacts.ts): "Interno" en la lista. */
+  internal?: boolean;
 }
 
 export interface MemberContact {
@@ -380,6 +382,11 @@ export default function GroupMembers({
                 </button>
               ) : (
                 <span className="wa-gm-open">{who}</span>
+              )}
+              {m.internal && !m.me && !isPending && (
+                <span className="wa-gm-badge is-internal" data-testid="group-internal-badge">
+                  {tw('internal.tag')}
+                </span>
               )}
               {m.role !== 'member' && !isPending && (
                 <span className="wa-gm-badge" data-testid="group-admin-badge">
