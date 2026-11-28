@@ -16,6 +16,8 @@ import { fleetActorOf } from '@/lib/fleet/api';
 import { feedCursor } from '@/lib/fleet/core';
 import { listMessages, listSessions, markRead } from '@/lib/fleet/sessions';
 import InboxContacts from '@/components/inbox/InboxContacts';
+import { loadInternalSet } from '@/lib/internal-contacts';
+import { roleAtLeast } from '@/lib/teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +47,7 @@ export default async function InboxPage(props: Props) {
   const owner = realUserId(user);
   const [section, id] = zs;
   // Analítica: solo las filas de la persona (su id real); no carga la bandeja.
-  if (section === 'analytics') return <InboxAnalytics locale={locale} owner={owner} search={{ days: sp.days, from: sp.from, to: sp.to }} />;
+  if (section === 'analytics') return <InboxAnalytics locale={locale} owner={owner} workspace={user.id} search={{ days: sp.days, from: sp.from, to: sp.to }} />;
   // Contactos: las personas de tus WhatsApp, una vez cada una (lib/inbox/contacts.ts).
   if (section === 'contacts') return <InboxContacts locale={locale} owner={owner} />;
   // Fleet: los chats con los agentes dentro de Inbox (la fila "Agentes" de la bandeja).
@@ -62,10 +64,12 @@ export default async function InboxPage(props: Props) {
       </div>
     );
   }
+  // Quién es interno lo marca el workspace activo (lib/internal-contacts.ts): fuera de "Por responder" y con su vista.
+  const internal = await loadInternalSet(user.id);
   const [accounts, folders, counts, snippets, agents, tf] = await Promise.all([
     listAccounts(owner),
     listFolders(owner),
-    inboxCounts(owner),
+    inboxCounts(owner, new Date(), internal),
     listSnippets(owner),
     mirrorSummary(user, 'inbox'),
     getTranslations({ locale, namespace: 'fleet' }),
@@ -78,7 +82,7 @@ export default async function InboxPage(props: Props) {
     case undefined:
       break;
     case 'settings':
-      return <InboxSettings initial={state} gmailResult={sp.gmail ?? null} />;
+      return <InboxSettings initial={state} gmailResult={sp.gmail ?? null} canManageInternal={roleAtLeast(user.role, 'admin')} />;
     case 'v':
       if (!isInboxView(id)) notFound();
       view = id;
@@ -91,7 +95,7 @@ export default async function InboxPage(props: Props) {
       notFound();
   }
   // La primera página; el resto se pide al bajar en la lista.
-  const first = await listThreadsPage(owner, { view, folderId: folder?.id, limit: 60, cursor: '' });
+  const first = await listThreadsPage(owner, { view, folderId: folder?.id, limit: 60, cursor: '', internal });
   const openId = typeof sp.t === 'string' && /^ibt_[a-f0-9]{20}$/.test(sp.t) ? sp.t : null;
   return (
     <InboxApp

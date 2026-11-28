@@ -668,6 +668,7 @@
       "assignment": "Atribuição",
       "ticketFields": "Campos de ticket",
       "access": "Acesso e privacidade",
+      "internal": "Contatos internos",
       "audit": "Auditoria",
       "integrations": "Integrações",
       "apps": "Mobile e desktop",
@@ -929,6 +930,9 @@
     "not_group_admin": "Só os admins do grupo podem fazer isso, e este número de WhatsApp não é admin do grupo.", "no_targets": "Escolha pelo menos uma pessoa.",
     "pageTitle": "Esta página não carregou",
     "pageBody": "Algo falhou do nosso lado. Tente de novo.",
+    "invalid_handle": "Digite um telefone com o código do país, ou um e-mail.",
+    "invalid_domain": "Digite o domínio da sua empresa (como empresa.com). Domínios de e-mail gratuitos como gmail.com não podem ser internos.",
+    "too_many": "Há contatos marcados demais. Tire alguns primeiro.",
     "generic": "Algo deu errado. Tente de novo.",
     "offline_files": "Arquivos precisam de conexão. Ficam aqui e você pode enviá-los quando a conexão voltar. Os textos ficam na fila e saem sozinhos.",
     "unauthorized": "Sua sessão terminou. Entre de novo.",
@@ -2113,6 +2117,44 @@
         "film": "Filme"
       }
     },
+    "internal": {
+      "tag": "Interno",
+      "title": "Contatos internos",
+      "intro": "As pessoas da equipe e os números ou e-mails da empresa. As mensagens delas contam como respostas da equipe: uma conversa deixa de esperar resposta depois delas, não abrem tickets e ficam fora dos relatórios de clientes. Aparecem como Interno nos membros de um grupo e ao lado do que escrevem.",
+      "linesRule": "Contar os números conectados no Lines como internos",
+      "linesHelp": "Quando uma das suas linhas escreve em um grupo onde está outra das suas linhas, conta como a equipe.",
+      "addTitle": "Marcar um contato",
+      "handleLabel": "Telefone ou e-mail",
+      "handlePlaceholder": "Telefone com código do país, ou e-mail",
+      "nameLabel": "Nome (opcional)",
+      "add": "Marcar como interno",
+      "added": "Marcado como interno",
+      "listTitle": "Contatos marcados",
+      "empty": "Você ainda não marcou contatos. Adicione aqui os números da equipe, ou marque alguém pelos dados do contato.",
+      "state": {
+        "internal": "Interno",
+        "external": "Não interno"
+      },
+      "stateLabel": "Interno ou não: {handle}",
+      "stateHelp": "Não interno vale mais que as regras: use para o número de uma linha ou um e-mail da empresa que na verdade é um cliente.",
+      "remove": "Tirar a marca de {handle}",
+      "removeShort": "Tirar",
+      "domains": "Domínios de e-mail da empresa",
+      "domainsHelp": "No Inbox, os e-mails destes domínios são internos.",
+      "domainLabel": "Domínio",
+      "domainPlaceholder": "empresa.com",
+      "addDomain": "Adicionar domínio",
+      "removeDomain": "Tirar {domain}",
+      "saved": "Salvo",
+      "loading": "Carregando contatos internos…",
+      "error": "Não foi possível carregar os contatos internos.",
+      "retry": "Tentar de novo",
+      "adminsOnly": "Quem é interno é escolhido pelos admins do workspace. Nas conversas você os vê marcados como Interno.",
+      "sheetRow": "Contato interno",
+      "sheetHelp": "Da equipe ou da empresa: as mensagens contam como respostas.",
+      "markedToast": "{name} agora é interno",
+      "unmarkedToast": "{name} não é mais interno"
+    },
     "details": {
       "tabsLabel": "Detalhes da conversa",
       "tabs": {
@@ -2712,6 +2754,7 @@
     "flagged": "Atrasadas",
     "pinned": "Fixadas",
     "favorite": "Nos Favoritos",
+    "internal": "Contato interno",
     "vip": "VIP",
     "muted": "Silenciadas",
     "assignee": "Atribuído a",
@@ -2738,6 +2781,7 @@
     "hsProps": "Propriedades da empresa no HubSpot",
     "hsSummary": "{n, plural, one {# condição} other {# condições}}",
     "help": {
+      "internal": "Conversas 1:1 com alguém da equipe ou com um número da empresa.",
       "vip": "Conversas 1:1 com as pessoas que a equipe marcou como VIP, em qualquer linha.",
       "status": "Sem escolher nada, a lista mostra as conversas abertas.",
       "waiting": "O cliente escreveu por último e ninguém respondeu ainda.",
@@ -2766,6 +2810,7 @@
       "muted": "silencio avisos",
       "pinned": "fixo topo",
       "favorite": "favoritos favorito coração lista",
+      "internal": "interno equipe colega pessoal empresa próprio funcionário",
       "vip": "vip importantes pessoas prioridade"
     }
   },

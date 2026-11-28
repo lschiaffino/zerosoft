@@ -744,8 +744,11 @@ describe('costo de base', () => {
     const ana = await makeUser('an-plan-ana');
     const viewers = [await owner(u.id), await groupsViewer(u.id, ana.id, 'member'), { ...(await groupsViewer(u.id, ana.id, 'member')), restricted: true }];
     for (const viewer of viewers) {
-      for (const f of [{}, { numberId: 'n' }, { labelId: 'l', agentId: 'a' }]) {
-        const ctx = analyticsContext(u.id, viewer, { days: 30, tz: 'America/New_York', ...f }, NOW);
+      for (const f of [{}, { numberId: 'n' }, { labelId: 'l', agentId: 'a' }, { internal: true }]) {
+        const { internal, ...q } = f as { internal?: boolean };
+        const ctx = analyticsContext(u.id, viewer, { days: 30, tz: 'America/New_York', ...q }, NOW);
+        // Con contactos internos (lib/internal-contacts.ts) el plan sigue igual.
+        if (internal) ctx.internalPhones = JSON.stringify(['5490000000001', '5490000000002']);
         const { sql, args } = messageFactsSql(ctx, ['d', 'c', 'hm', 'n', 'a', 'ev', 'pc', 'rd', 'ru', 'lb']);
         const plan = (await getDb().prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...args)) as Array<{ detail: string }>;
         const text = plan.map((p) => p.detail).join('\n');

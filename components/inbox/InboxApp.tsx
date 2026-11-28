@@ -1444,7 +1444,7 @@ export default function InboxApp(props: {
                 go(kind === 'f' ? { view: 'inbox', folderId: id } : { view: id as InboxView, folderId: null });
               }}
             >
-              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
+              {(['inbox', 'reply', 'waiting', 'unread', 'whatsapp', 'email', 'groups', 'favorites', 'vip', 'internal', 'pinned', 'snoozed', 'scheduled', 'archived', ...(view === 'removed' ? ['removed'] : [])] as InboxView[]).map((v) => (
                 <option key={v} value={`v:${v}`}>
                   {t(`views.${v}`)}
                 </option>

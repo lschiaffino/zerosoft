@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { periodChoice, type PeriodSearch } from '@/lib/analytics-kit/period';
 import { viewerTz } from '@/lib/analytics-kit/server';
 import { INBOX_CHANNELS, cachedInboxAnalytics, isInboxAnalyticsEmpty, type InboxAnalytics as Data } from '@/lib/inbox/analytics';
+import { internalVersion, loadInternalSet } from '@/lib/internal-contacts';
 import { TrendChart } from '@/components/analytics-kit/charts';
 import { AnalyticsPage, BarList, DataTable, Heatmap, KpiTile, Kpis, Panel, PanelGrid, analyticsFmt, chartAria, pctOf, queryString, type Fmt } from '@/components/analytics-kit/kit';
 import '@/styles/analytics-kit.css';
@@ -11,10 +12,12 @@ import '@/styles/analytics-kit.css';
  * Inbox, analítica (/app/inbox/analytics): lo de la persona y nada más. El
  * Inbox es personal; no hay filtro por persona ni vista de equipo.
  */
-export default async function InboxAnalytics({ locale, owner, search }: { locale: string; owner: string; search: PeriodSearch }) {
+export default async function InboxAnalytics({ locale, owner, workspace, search }: { locale: string; owner: string; workspace: string; search: PeriodSearch }) {
   const [t, tk, tz] = await Promise.all([getTranslations({ locale, namespace: 'inbox' }), getTranslations({ locale, namespace: 'analyticsKit' }), viewerTz()]);
   const period = periodChoice(search);
-  const data = await cachedInboxAnalytics(owner, { days: period.days, from: period.from, to: period.to, tz });
+  // Métricas de clientes: sin lo interno del workspace activo (lib/internal-contacts.ts).
+  const [internal, version] = await Promise.all([loadInternalSet(workspace), internalVersion(workspace)]);
+  const data = await cachedInboxAnalytics(owner, { days: period.days, from: period.from, to: period.to, tz }, { set: internal, version });
   const f = analyticsFmt({ locale, tz: data.range.tz, t: (key, values) => t(key as never, values as never), k: (key, values) => tk(key as never, values as never) });
   const base = '/app/inbox/analytics';
   return (
