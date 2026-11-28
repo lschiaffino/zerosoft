@@ -108,11 +108,20 @@ async function logEvent(ws: string, chat: Pick<ChatRow, 'id' | 'number_id'>, act
 
 const chatHref = (chatId: string, messageId?: string) => `/app/lines/inbox/${chatId}${messageId ? `#m-${messageId}` : ''}`;
 
+/** ¿A esta persona se le ocultan los teléfonos en el workspace? (para lo que se guarda en su aviso) */
+async function recipientMasks(ws: string, personId: string): Promise<boolean> {
+  const { groupsViewer } = await import('./groups-access');
+  const { workspaceRole } = await import('./api-auth');
+  return (await groupsViewer(ws, personId, await workspaceRole(ws, personId)).catch(() => null))?.mask ?? true;
+}
+
 async function notifyAssigned(actor: string | null, chat: ChatRow, personId: string, rule?: string): Promise<void> {
   const { personCanSeeChat } = await import('./groups-access');
   if (!(await personCanSeeChat(chat.user_id, personId, chat.id))) return;
   const actorName = rule ? '' : await personName(actor);
-  const chatName = chatDisplayName(chat);
+  // El nombre del chat 1:1 sin nombre es el teléfono: a quien se le ocultan, enmascarado.
+  const { maskPhoneText } = await import('./groups-mask');
+  const chatName = (await recipientMasks(chat.user_id, personId)) ? maskPhoneText(chatDisplayName(chat)) : chatDisplayName(chat);
   await createNotification({
     userId: personId,
     type: 'assigned',
@@ -158,17 +167,21 @@ export async function afterNoteSaved(ws: string, actor: string | null, chat: Cha
     const actorName = await personName(actor);
     const chatName = chatDisplayName(chat);
     const { personCanSeeChat } = await import('./groups-access');
+    const { maskPhoneText } = await import('./groups-mask');
     for (const userId of fresh) {
       if (!(await personCanSeeChat(chat.user_id, userId, chat.id))) continue;
+      // A quien se le ocultan los teléfonos: el nombre del chat y la nota, enmascarados.
+      const masks = await recipientMasks(chat.user_id, userId);
+      const name = masks ? maskPhoneText(chatName) : chatName;
       await createNotification({
         userId,
         type: 'mention',
-        title: `${actorName || 'Someone'} mentioned you in ${chatName}`,
-        body: row.body.slice(0, 280),
+        title: `${actorName || 'Someone'} mentioned you in ${name}`,
+        body: (masks ? maskPhoneText(row.body) : row.body).slice(0, 280),
         href: chatHref(chat.id, row.id),
         sourceType: 'groups_chat',
         sourceId: chat.id,
-        meta: { actorName, chatName, messageId: row.id },
+        meta: { actorName, chatName: name, messageId: row.id },
       }).catch(() => null);
     }
   }

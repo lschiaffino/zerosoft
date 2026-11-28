@@ -53,13 +53,13 @@ async function setup(label: string) {
   const closedChat = await upsertChat({ id: closed.id, user_id: ws }, { providerChatId: `12036304${stamp}@g.us`, kind: 'group', name: 'Closed' }, { silent: true });
   const ticketId = crypto.randomUUID();
   await getDb()
-    .prepare("INSERT INTO groups_tickets (id, user_id, chat_id, number, title, status, priority, created_at, updated_at) VALUES (?, ?, ?, 1, 'T', 'open', 'normal', ?, ?)")
-    .run(ticketId, ws, closedChat.id, new Date().toISOString(), new Date().toISOString())
-    .catch(() => null);
+    .prepare("INSERT INTO groups_tickets (id, user_id, chat_id, number, title, status, priority, created_at, updated_at) VALUES (?, ?, ?, 1, 'T', 'open', 'high', ?, ?)")
+    .run(ticketId, ws, closedChat.id, new Date().toISOString(), new Date().toISOString());
   const notes = async (userId: string) => {
     await createNotification({ userId, type: 'assigned', title: OPEN_CHAT, href: `/app/lines/inbox/${openChat.id}`, sourceType: 'groups_chat', sourceId: openChat.id, meta: { chatName: OPEN_CHAT, actorName: 'A' } });
     await createNotification({ userId, type: 'mention', title: CLOSED_CHAT, href: `/app/lines/inbox/${closedChat.id}`, sourceType: 'groups_chat', sourceId: closedChat.id, meta: { chatName: CLOSED_CHAT, actorName: 'A' } });
     await createNotification({ userId, type: 'groups_reminder', title: `${CLOSED_CHAT}-task`, href: `/app/lines/inbox/${closedChat.id}`, sourceType: 'groups_task', sourceId: 'task-x' });
+    await createNotification({ userId, type: 'groups_sla', title: `${CLOSED_CHAT}-sla`, href: `/app/lines/tickets?open=${ticketId}`, sourceType: 'groups_ticket', sourceId: ticketId });
   };
   for (const u of [w.owner, w.member, leaver]) await notes(u.id);
   await removeMember(w.team.id, leaver.id);
@@ -87,11 +87,39 @@ describe('avisos de chats de Lines: solo los de chats que hoy se ven', () => {
     expect(member.unread).toBe(1);
     const owner = await bell(asOwner(s.w.owner));
     expect(owner.text).toContain(CLOSED_CHAT);
-    expect(owner.unread).toBe(3);
+    expect(owner.unread).toBe(4);
     // Quien se fue tampoco "ve" el chat para avisos nuevos.
     expect(await personCanSeeChat(s.ws, s.leaver.id, s.openChat.id)).toBe(false);
     expect(await personCanSeeChat(s.ws, s.w.member.id, s.openChat.id)).toBe(true);
     expect(await personCanSeeChat(s.ws, s.w.member.id, s.closedChat.id)).toBe(false);
+  });
+
+  it('una respuesta guardada de la campana (ETag) no sobrevive a perder la línea', async () => {
+    const s = await setup('nla-etag');
+    session.user = asMember(s.w.owner, s.w.member);
+    const first = await GET(new NextRequest('http://localhost/api/notifications?limit=20'));
+    expect(await first.text()).toContain(OPEN_CHAT);
+    const etag = first.headers.get('etag')!;
+    expect((await GET(new NextRequest('http://localhost/api/notifications?limit=20', { headers: { 'if-none-match': etag } }))).status).toBe(304);
+    await getDb().prepare("UPDATE groups_numbers SET visibility = 'restricted' WHERE id = (SELECT number_id FROM groups_chats WHERE id = ?)").run(s.openChat.id);
+    const after = await GET(new NextRequest('http://localhost/api/notifications?limit=20', { headers: { 'if-none-match': etag } }));
+    expect(after.status).toBe(200);
+    expect(await after.text()).not.toContain(OPEN_CHAT);
+  });
+
+  it('a quien se le ocultan los teléfonos, el aviso de un chat 1:1 sin nombre no trae el número', async () => {
+    const s = await setup('nla-mask');
+    const { updatePlatformSettings } = await import('@/lib/groups-access');
+    await updatePlatformSettings(s.ws, { maskRoles: ['member'] });
+    const n = await createNumber(s.ws, s.ws, { provider: 'fake', name: 'Dm', visibility: 'all' });
+    const dm = await upsertChat({ id: n.id, user_id: s.ws }, { providerChatId: '15550101777@s.whatsapp.net', kind: 'dm', phone: '15550101777', name: '' } as never, { silent: true });
+    const linesChat = await import('@/lib/routes/groups/chats/[id]/route');
+    session.user = asOwner(s.w.owner);
+    const res = await linesChat.PATCH(new Request(`http://localhost/api/groups/chats/${dm.id}`, { method: 'PATCH', body: JSON.stringify({ assignedTo: s.w.member.id }), headers: { 'content-type': 'application/json' } }), { params: Promise.resolve({ id: dm.id }) });
+    expect(res.status).toBe(200);
+    const stored = (await getDb().prepare("SELECT title, meta FROM notifications WHERE user_id = ? AND source_id = ?").all(s.w.member.id, dm.id)) as Array<{ title: string; meta: string }>;
+    expect(stored.length).toBeGreaterThan(0);
+    for (const r of stored) expect(r.title + r.meta).not.toContain('15550101777');
   });
 
   it('con Lines apagada para los miembros (Apps del workspace), ninguno', async () => {
@@ -107,6 +135,7 @@ describe('avisos de chats de Lines: solo los de chats que hoy se ven', () => {
     const s = await setup('nla-mail');
     const badge = await desktopBadge(asMember(s.w.owner, s.w.member), null);
     expect(JSON.stringify(badge)).not.toContain(CLOSED_CHAT);
+    expect(JSON.stringify(badge)).toContain(OPEN_CHAT);
     for (const u of [s.w.member, s.leaver]) await setNotifyPrefs(u.id, { emailMode: 'immediate', locale: 'en' }, new Date(Date.now() - 10 * 60_000));
     await sendImmediateTrackEmails({ now: new Date(Date.now() + 2 * 60_000) });
     const toMember = mail.sent.filter((m) => m.to === s.w.member.email);
@@ -122,7 +151,7 @@ describe('avisos de chats de Lines: solo los de chats que hoy se ven', () => {
     const at = new Date();
     at.setUTCHours(9, 0, 0, 0);
     if (at.getTime() < Date.now()) at.setUTCDate(at.getUTCDate() + 1);
-    await sendTrackDigests({ now: at });
+    await sendTrackDigests({ now: at, limit: 100000 });
     const toMember = mail.sent.filter((m) => m.to === s.w.member.email);
     expect(toMember).toHaveLength(1);
     expect(toMember[0].text).toContain(OPEN_CHAT);

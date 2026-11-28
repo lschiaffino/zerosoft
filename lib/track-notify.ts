@@ -22,7 +22,7 @@ import { getDb } from './db';
 import { trackVisibleExpr } from './track-access';
 import { escapeHtml, renderBrandedHtml, sendEmail } from './email';
 import { createNotification } from './notifications';
-import { visibleNotifications } from './notification-access';
+import { visibleNotifications, type LinesAccessCache } from './notification-access';
 import { siteUrl } from './board-urls';
 import { desktopNoteFor } from './desktop-email';
 import { localDayIn, localHourIn, safeTimeZone } from './track-recurrence';
@@ -255,11 +255,12 @@ async function mailItems(userId: string, where: string, args: string[], max: num
   const size = Math.max(max * 2, 50);
   const items: TrackMailItem[] = [];
   let hidden = 0;
+  const cache: LinesAccessCache = new Map();
   for (let offset = 0; offset < MAIL_SCAN_LIMIT && items.length < max; offset += size) {
     const rows = (await db
       .prepare(`SELECT ${ITEM_COLUMNS} FROM notifications n WHERE ${where} ORDER BY n.created_at DESC, n.id DESC LIMIT ? OFFSET ?`)
       .all(...args, size, offset)) as TrackMailItem[];
-    const shown = await visibleNotifications(userId, rows.map((r) => ({ ...r, source_type: r.source_type ?? null, source_id: r.source_id ?? null })));
+    const shown = await visibleNotifications(userId, rows.map((r) => ({ ...r, source_type: r.source_type ?? null, source_id: r.source_id ?? null })), cache);
     hidden += rows.length - shown.length;
     items.push(...shown);
     if (rows.length < size) break;

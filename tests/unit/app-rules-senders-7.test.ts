@@ -27,12 +27,14 @@ describe('Apps del workspace también fuera de un pedido', () => {
   it('Voice: el miembro deja de contar con la app apagada; owner y admin siguen; quien se fue, no', async () => {
     const s = await setup('arules-voice');
     expect(await personUsesVoice(s.ws, s.w.member.id)).toBe(true);
+    // Quien se fue del workspace (antes de cualquier regla): no.
+    expect(await personUsesVoice(s.ws, s.w.friend.id)).toBe(true);
+    await removeMember(s.w.team.id, s.w.friend.id);
+    expect(await personUsesVoice(s.ws, s.w.friend.id)).toBe(false);
     await saveWorkspaceAppRule(s.ws, 'voice', off, s.ws);
     expect(await personUsesVoice(s.ws, s.w.member.id)).toBe(false);
     expect(await personUsesVoice(s.ws, s.admin.id)).toBe(true);
     expect(await personUsesVoice(s.ws, s.ws)).toBe(true);
-    await removeMember(s.w.team.id, s.w.friend.id);
-    expect(await personUsesVoice(s.ws, s.w.friend.id)).toBe(false);
     expect(await personUsesVoice(s.ws, s.w.stranger.id)).toBe(false);
   });
 

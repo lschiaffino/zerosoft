@@ -168,11 +168,28 @@ export async function issuesFor(userId: string, issueIds: string[]): Promise<{ v
 }
 
 /**
+ * Lo que se calcula una vez por workspace de Lines al mirar avisos (la
+ * campana pide de a tandas): si la persona tiene Lines ahí y su filtro de
+ * chats. null = sin Lines (no ve ningún chat); `sql` null = ve todos.
+ */
+export type LinesAccessCache = Map<string, { sql: { sql: string; args: string[] } | null } | null>;
+
+async function linesAccessFor(userId: string, ws: string, cache: LinesAccessCache): Promise<{ sql: { sql: string; args: string[] } | null } | null> {
+  if (cache.has(ws)) return cache.get(ws)!;
+  const { personCanUseApp } = await import('./workspace-apps');
+  const { chatAccessSql, groupsViewer } = await import('./groups-access');
+  const access = await personCanUseApp(ws, userId, 'groups');
+  const out = access ? { sql: chatAccessSql(await groupsViewer(ws, userId, access.role), 'c') } : null;
+  cache.set(ws, out);
+  return out;
+}
+
+/**
  * Chats de Lines (por id) que existen y la persona hoy no ve: dejó el
  * workspace del chat, no tiene Lines (Miembros o Apps del workspace) o no ve
  * esa línea o ese chat (etiquetas).
  */
-async function hiddenChats(userId: string, chatIds: string[]): Promise<Set<string>> {
+async function hiddenChats(userId: string, chatIds: string[], cache: LinesAccessCache): Promise<Set<string>> {
   const out = new Set<string>();
   if (!chatIds.length) return out;
   const db = getDb();
@@ -181,18 +198,19 @@ async function hiddenChats(userId: string, chatIds: string[]): Promise<Set<strin
     const rows = (await db
       .prepare(`SELECT id, user_id FROM groups_chats WHERE id IN (${part.map(() => '?').join(', ')})`)
       .all(...part)) as Array<{ id: string; user_id: string }>;
-    for (const r of rows) byWs.set(r.user_id, [...(byWs.get(r.user_id) ?? []), r.id]);
+    for (const r of rows) {
+      const list = byWs.get(r.user_id);
+      if (list) list.push(r.id);
+      else byWs.set(r.user_id, [r.id]);
+    }
   }
-  if (!byWs.size) return out;
-  const { personCanUseApp } = await import('./workspace-apps');
-  const { chatAccessSql, groupsViewer } = await import('./groups-access');
   for (const [ws, ids] of byWs) {
-    const access = await personCanUseApp(ws, userId, 'groups');
+    const access = await linesAccessFor(userId, ws, cache);
     if (!access) {
       for (const id of ids) out.add(id);
       continue;
     }
-    const sql = chatAccessSql(await groupsViewer(ws, userId, access.role), 'c');
+    const sql = access.sql;
     if (!sql) continue;
     for (const part of chunks(ids, 400)) {
       const seen = (await db
@@ -205,16 +223,23 @@ async function hiddenChats(userId: string, chatIds: string[]): Promise<Set<strin
   return out;
 }
 
-/** El chat de cada ticket de Lines (los que tienen chat). */
-async function ticketChats(ticketIds: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
+/**
+ * Tickets de Lines: el chat de cada uno y los que la persona no ve. Uno sin
+ * chat (manual, o el chat se borró) se ve si tiene Lines en ese workspace.
+ */
+async function ticketChats(userId: string, ticketIds: string[], cache: LinesAccessCache): Promise<{ chats: Map<string, string>; hidden: Set<string> }> {
+  const chats = new Map<string, string>();
+  const hidden = new Set<string>();
   for (const part of chunks([...new Set(ticketIds)], 400)) {
     const rows = (await getDb()
-      .prepare(`SELECT id, chat_id FROM groups_tickets WHERE id IN (${part.map(() => '?').join(', ')}) AND chat_id IS NOT NULL`)
-      .all(...part)) as Array<{ id: string; chat_id: string }>;
-    for (const r of rows) out.set(r.id, r.chat_id);
+      .prepare(`SELECT id, user_id, chat_id FROM groups_tickets WHERE id IN (${part.map(() => '?').join(', ')})`)
+      .all(...part)) as Array<{ id: string; user_id: string; chat_id: string | null }>;
+    for (const r of rows) {
+      if (r.chat_id) chats.set(r.id, r.chat_id);
+      else if (!(await linesAccessFor(userId, r.user_id, cache))) hidden.add(r.id);
+    }
   }
-  return out;
+  return { chats, hidden };
 }
 
 export interface NotificationAccess {
@@ -224,21 +249,21 @@ export interface NotificationAccess {
   issues: Map<string, VisibleIssue>;
 }
 
-/** Qué avisos de `rows` (todos de `userId`) no se muestran y los issues que sí. */
-export async function notificationAccess(userId: string, rows: readonly AccessRow[]): Promise<NotificationAccess> {
+/** Qué avisos de `rows` (todos de `userId`) no se muestran y los issues que sí. `cache`: el acceso a Lines entre tandas. */
+export async function notificationAccess(userId: string, rows: readonly AccessRow[], cache: LinesAccessCache = new Map()): Promise<NotificationAccess> {
   const issueIds = rows.map(issueIdOf);
   const planIds = rows.map((n, i) => (issueIds[i] ? null : planIdOf(n)));
   const initiativeIds = rows.map((n, i) => (issueIds[i] || planIds[i] ? null : initiativeIdOf(n)));
   const present = (xs: Array<string | null>) => xs.filter((v): v is string => Boolean(v));
   const tracked = (i: number) => Boolean(issueIds[i] || planIds[i] || initiativeIds[i]);
   const ticketIds = rows.map((n, i) => (tracked(i) ? null : linesTicketIdOf(n)));
-  const tickets = await ticketChats(present(ticketIds));
-  const chatIds = rows.map((n, i) => (tracked(i) ? null : ticketIds[i] ? (tickets.get(ticketIds[i]!) ?? null) : linesChatIdOf(n)));
+  const tickets = await ticketChats(userId, present(ticketIds), cache);
+  const chatIds = rows.map((n, i) => (tracked(i) ? null : ticketIds[i] ? (tickets.chats.get(ticketIds[i]!) ?? null) : linesChatIdOf(n)));
   const [issues, hiddenPlans, hiddenInitiatives, chatsHidden] = await Promise.all([
     issuesFor(userId, present(issueIds)),
     hiddenEntities(userId, 'track_plans', present(planIds)),
     hiddenEntities(userId, 'track_initiatives', present(initiativeIds)),
-    hiddenChats(userId, present(chatIds)),
+    hiddenChats(userId, present(chatIds), cache),
   ]);
   const hidden = new Set<string>();
   rows.forEach((n, i) => {
@@ -250,7 +275,8 @@ export async function notificationAccess(userId: string, rows: readonly AccessRo
       (issueId && issues.hidden.has(issueId)) ||
       (planId && hiddenPlans.has(planId)) ||
       (initiativeId && hiddenInitiatives.has(initiativeId)) ||
-      (chatId && chatsHidden.has(chatId))
+      (chatId && chatsHidden.has(chatId)) ||
+      (ticketIds[i] && tickets.hidden.has(ticketIds[i]!))
     ) {
       hidden.add(n.id);
     }
@@ -259,9 +285,9 @@ export async function notificationAccess(userId: string, rows: readonly AccessRo
 }
 
 /** Solo los avisos que la persona puede ver hoy. */
-export async function visibleNotifications<T extends AccessRow>(userId: string, rows: readonly T[]): Promise<T[]> {
+export async function visibleNotifications<T extends AccessRow>(userId: string, rows: readonly T[], cache?: LinesAccessCache): Promise<T[]> {
   if (!rows.length) return [];
-  const { hidden } = await notificationAccess(userId, rows);
+  const { hidden } = await notificationAccess(userId, rows, cache);
   return rows.filter((n) => !hidden.has(n.id));
 }
 
@@ -288,9 +314,10 @@ export async function listVisibleNotifications(
   // Tandas chicas para la campana (5 avisos), de hasta 100 para páginas grandes.
   const size = Math.min(100, Math.max(want * 2, 20));
   const out: NotificationRow[] = [];
+  const cache: LinesAccessCache = new Map();
   for (let batch = 1; batch * size <= LIST_SCAN_LIMIT; batch++) {
     const rows = await listNotifications(userId, { ...options, limit: size, page: batch });
-    const shown = await visibleNotifications(userId, keep ? rows.filter(keep) : rows);
+    const shown = await visibleNotifications(userId, keep ? rows.filter(keep) : rows, cache);
     out.push(...shown);
     if (out.length >= want || rows.length < size) break;
   }
