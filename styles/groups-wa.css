@@ -2081,7 +2081,9 @@ button.wa-gm-open:focus-visible { outline: 2px solid var(--wa-primary, var(--ink
 .wa-ai-form { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .wa-ai-input { width: 100%; min-width: 0; resize: vertical; font: inherit; font-size: var(--wa-fs-ui); }
 .wa-ai-suggest { display: flex; flex-wrap: wrap; gap: 4px; }
-.wa-ai-suggest .btn { max-width: 100%; white-space: normal; text-align: left; height: auto; min-height: 32px; }
+/* Las sugeridas, como los rangos (mismo botón), en filas que se acomodan al ancho. */
+.wa-ai-suggest .wa-ai-range-btn { flex: 0 1 auto; max-width: 100%; }
+.wa-ai-range-btn[aria-disabled='true'] { color: var(--wa-text-2); cursor: default; }
 .wa-ai-answers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .wa-ai-answer { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-left: 2px solid var(--wa-border); min-width: 0; }
 .wa-ai-q { margin: 0; font-size: var(--wa-fs-ui); font-weight: 500; color: var(--wa-text-2); overflow-wrap: anywhere; }

@@ -122,7 +122,7 @@ export default function ChatAiAsk({
       </form>
       <div className="wa-ai-suggest" role="group" aria-label={t('suggestionsLabel')}>
         {SUGGESTIONS.map((k) => (
-          <button key={k} type="button" className="btn btn-ghost btn-sm" data-testid={`details-ai-suggest-${k}`} aria-disabled={busy || undefined} onClick={() => void runAsk(t(`suggest.${k}`), false)}>
+          <button key={k} type="button" className="wa-ai-range-btn" data-testid={`details-ai-suggest-${k}`} aria-disabled={busy || undefined} onClick={() => void runAsk(t(`suggest.${k}`), false)}>
             {t(`suggest.${k}`)}
           </button>
         ))}
